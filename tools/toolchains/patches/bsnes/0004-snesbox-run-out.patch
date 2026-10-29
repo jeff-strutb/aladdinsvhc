@@ -1,0 +1,34 @@
+--- a/bsnes/emulator/snesbox.hpp
++++ b/bsnes/emulator/snesbox.hpp
+@@ -39,6 +39,8 @@
+ int snesbox_core_interrupt_here(const struct SnesboxRegs* at);
+ // Run original code from a state until PC and S reach the given values.
+ void snesbox_core_run_until(const struct SnesboxRegs* from, uint32_t pc, uint16_t s);
++// Run original code from a state until a return takes S above the given value.
++void snesbox_core_run_out(const struct SnesboxRegs* from, uint16_t s);
+ uint32_t snesbox_core_clock(void);
+ void snesbox_core_charge(uint32_t clocks);
+ uint8_t snesbox_core_bus_read(uint32_t addr);
+--- a/bsnes/sfc/cpu/cpu.cpp
++++ b/bsnes/sfc/cpu/cpu.cpp
+@@ -30,6 +30,20 @@
+   snesbox_cpu_exec = exec;
+ }
+ 
++//Run original code from the given state (routine swapping off) until a
++//return (RTS, RTL or RTI) takes the stack pointer above s: code C calls or
++//jumps to, stopped where it leaves its frame, by its own return or through
++//its caller's.
++extern "C" void snesbox_core_run_out(const struct SnesboxRegs* from, uint16_t s) {
++  using namespace SuperFamicom;
++  snesbox_core_set_regs(from);
++  auto exec = snesbox_cpu_exec;
++  snesbox_cpu_exec = nullptr;
++  do { snesbox_cpu_opcode = 0; cpu.main(); }
++  while(cpu.r.s.w <= s || (snesbox_cpu_opcode != 0x60 && snesbox_cpu_opcode != 0x6b && snesbox_cpu_opcode != 0x40));
++  snesbox_cpu_exec = exec;
++}
++
+ extern "C" int snesbox_core_interrupt_here(const struct SnesboxRegs* at) {
+   using namespace SuperFamicom;
+   if(!cpu.snesboxInterruptPending()) return 0;

@@ -1,0 +1,43 @@
+--- a/bsnes/sfc/cartridge/cartridge.cpp
++++ b/bsnes/sfc/cartridge/cartridge.cpp
+@@ -1,4 +1,5 @@
+ #include <sfc/sfc.hpp>
++#include <emulator/snesbox.hpp>
+ 
+ namespace SuperFamicom {
+ 
+--- a/bsnes/sfc/cartridge/load.cpp
++++ b/bsnes/sfc/cartridge/load.cpp
+@@ -153,7 +153,17 @@
+ //memory(type=ROM,content=Program)
+ auto Cartridge::loadROM(Markup::Node node) -> void {
+   loadMemory(rom, node, File::Required);
+-  for(auto leaf : node.find("map")) loadMap(leaf, rom);
++  //snesbox: the S-CPU's and DMA's reads of a cartridge with no coprocessor
++  //owning the ROM are traced like the Super FX's CPU ROM window; mapped as
++  //loadMap(leaf, rom) maps it (a map with no size takes the ROM's)
++  for(auto leaf : node.find("map")) {
++    uint size = leaf["size"].natural();
++    if(size == 0) size = rom.size();
++    bus.map(
++      [&](uint addr, uint8 data) -> uint8 { snesbox_cpu_rom(addr); return rom.read(addr, data); },
++      [&](uint addr, uint8 data) -> void { rom.write(addr, data); },
++      leaf["address"].text(), size, leaf["base"].natural(), leaf["mask"].natural());
++  }
+ }
+ 
+ //memory(type=RAM,content=Save)
+--- a/bsnes/sfc/coprocessor/superfx/superfx.cpp
++++ b/bsnes/sfc/coprocessor/superfx/superfx.cpp
+@@ -23,7 +23,10 @@
+   switch(which) {
+   case 0: *size = sizeof cpu.wram; return cpu.wram;
+   case 1: *size = superfx.ram.size(); return superfx.ram.data();
+-  case 2: *size = superfx.rom.size(); return superfx.rom.data();
++  case 2:
++    //the cartridge's own ROM when no Super FX owns it
++    if(superfx.rom.size()) { *size = superfx.rom.size(); return superfx.rom.data(); }
++    *size = cartridge.rom.size(); return cartridge.rom.data();
+   case 3: *size = sizeof dsp.apuram; return dsp.apuram;
+   }
+   *size = 0;

@@ -1,0 +1,71 @@
+diff --git a/bsnes/target-libretro/snesbox.cpp b/bsnes/target-libretro/snesbox.cpp
+--- a/bsnes/target-libretro/snesbox.cpp
++++ b/bsnes/target-libretro/snesbox.cpp
+@@ -26,6 +26,7 @@
+ }
+ 
+ extern "C" uint8_t* snesbox_core_memory(int which, size_t* size);  // sfc/coprocessor/superfx/superfx.cpp
++extern "C" int snesbox_gsu_running();  // sfc/coprocessor/superfx/superfx.cpp
+ static uint8_t* snesboxRomData() { size_t n; return snesbox_core_memory(2, &n); }
+ 
+ struct SnesboxCallbacks {
+@@ -46,6 +47,13 @@
+ static uint32_t snesboxCpuPrev = ~0u;
+ static uint32_t snesboxGsuPrev = ~0u, snesboxGsuEnd = ~0u;
+ static uint8_t snesboxGsuPrevOp = 0;
++// Set at the start of a trace and by snesbox_trace_break: the Super FX's next
++// instruction report names the address its pipeline byte came from, which
++// neither power-on nor a loaded state holds, so that one is skipped. When
++// the Super FX was stopped there, the instruction after it is a program the
++// S-CPU starts, marked as a start (an edge of kind 0 from 0, as from a
++// STOP); when it was running, the program goes on and nothing is marked.
++static bool snesboxGsuSkip = false, snesboxGsuWasRunning = false;
+ // key: cpu(1) | kind(9) | from(24) | to(24) -> count
+ static std::unordered_map<uint64_t, uint32_t> snesboxEdges;
+ 
+@@ -92,6 +100,13 @@
+ 
+ extern "C" void snesbox_gsu_insn(uint32_t addr) {
+   if(!snesboxRom) return;
++  if(snesboxGsuSkip) {
++    snesboxGsuSkip = false;
++    snesboxGsuPrev = snesboxGsuWasRunning ? ~0u : 0;
++    snesboxGsuPrevOp = 0;
++    snesboxGsuEnd = ~0u;
++    return;
++  }
+   int64_t o = snesboxGsuRom(addr);
+   uint8_t op = 0;
+   if(o >= 0) { snesboxRom[o] |= SNESBOX_GSU_OP; op = snesboxRomData()[o]; }
+@@ -158,8 +173,18 @@
+   memset(snesboxWramCode, 0, sizeof snesboxWramCode);
+   snesboxEdges.clear();
+   snesboxCpuPrev = snesboxGsuPrev = snesboxGsuEnd = ~0u;
++  snesboxGsuSkip = true;  // the first report names no address (power-on)
++  snesboxGsuWasRunning = false;
+ }
+ 
++// No edge across a jump the runner makes (a state loaded, a unit call's
++// registers set): the next instruction was not reached from the last one.
++extern "C" RETRO_API void snesbox_trace_break() {
++  snesboxCpuPrev = snesboxGsuPrev = snesboxGsuEnd = ~0u;
++  snesboxGsuSkip = true;
++  snesboxGsuWasRunning = snesbox_gsu_running();
++}
++
+ extern "C" RETRO_API int snesbox_trace_write(const char* dir) {
+   if(!snesboxRom) return -1;
+   char path[4096];
+diff --git a/bsnes/sfc/coprocessor/superfx/superfx.cpp b/bsnes/sfc/coprocessor/superfx/superfx.cpp
+--- a/bsnes/sfc/coprocessor/superfx/superfx.cpp
++++ b/bsnes/sfc/coprocessor/superfx/superfx.cpp
+@@ -15,6 +15,9 @@
+ }
+ 
+ // Memory views for the snesbox harness: 0 WRAM, 1 GSU RAM, 2 ROM.
++// Whether the Super FX is running (GO set), for the trace (snesbox.cpp).
++extern "C" int snesbox_gsu_running() { return SuperFamicom::superfx.regs.sfr.g; }
++
+ extern "C" uint8_t* snesbox_core_memory(int which, size_t* size) {
+   using namespace SuperFamicom;
+   switch(which) {

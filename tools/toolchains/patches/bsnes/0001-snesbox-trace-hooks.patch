@@ -1,0 +1,671 @@
+diff --git a/bsnes/emulator/snesbox.hpp b/bsnes/emulator/snesbox.hpp
+new file mode 100644
+index 0000000..b486c66
+--- /dev/null
++++ b/bsnes/emulator/snesbox.hpp
+@@ -0,0 +1,50 @@
++#pragma once
++// Trace and dispatch hooks for the snesbox harness. The core calls these;
++// the harness (target-libretro/snesbox.cpp) defines them.
++#include <stdint.h>
++
++enum : uint16_t {
++  SNESBOX_CPU_OP = 1 << 0, SNESBOX_CPU_OPND = 1 << 1, SNESBOX_CPU_DATA = 1 << 2, SNESBOX_DMA = 1 << 3,
++  SNESBOX_GSU_OP = 1 << 4, SNESBOX_GSU_OPND = 1 << 5, SNESBOX_GSU_DATA = 1 << 6,
++  SNESBOX_M8 = 1 << 8, SNESBOX_M16 = 1 << 9, SNESBOX_X8 = 1 << 10, SNESBOX_X16 = 1 << 11, SNESBOX_EMU = 1 << 12,
++};
++enum { SNESBOX_WHO_DATA = 0, SNESBOX_WHO_OP = 1, SNESBOX_WHO_OPND = 2, SNESBOX_WHO_DMA = 3, SNESBOX_WHO_NONE = 5 };
++
++extern "C" {
++extern int snesbox_cpu_who;
++extern int snesbox_cpu_first;
++extern uint32_t snesbox_cpu_fetch_end;
++extern uint8_t snesbox_cpu_opcode;
++extern int snesbox_cpu_irq;
++void snesbox_cpu_rom(uint32_t offset);
++void snesbox_cpu_insn(uint32_t pc, int m, int x, int e, int db, int d);
++extern int (*snesbox_cpu_exec)(uint32_t pc);
++void snesbox_gsu_insn(uint32_t addr);
++void snesbox_gsu_operand(uint32_t addr);
++void snesbox_gsu_data(uint32_t addr);
++// Per-access events for the call oracle (kind: 0 S-CPU write, 2 DMA write).
++void snesbox_cpu_write(uint32_t addr, uint8_t data, int kind);
++void snesbox_cpu_read(uint32_t addr, uint8_t data);
++void snesbox_cpu_interrupt(uint32_t resume_pc, uint16_t s);
++// Bus-cycle events (1 read, 2 write, 3 idle, 4 interrupt poll), for replay.
++void snesbox_cpu_timing(int kind, int clocks, uint32_t addr);
++// One real S-CPU bus access with the CPU's own timing (read when write == 0).
++uint8_t snesbox_core_access(int write, uint32_t addr, uint8_t data);
++void snesbox_core_replay(const uint8_t* ops, uint32_t n);
++struct SnesboxRegs { uint16_t a, x, y, s, d; uint8_t db, p, e; uint32_t pc; };
++void snesbox_core_regs(struct SnesboxRegs* out);
++void snesbox_core_set_regs(const struct SnesboxRegs* in);
++// Take the pending interrupt from the given state and run its handler until it
++// returns there (0 when none is pending).
++int snesbox_core_interrupt_here(const struct SnesboxRegs* at);
++// Run original code from a state until PC and S reach the given values.
++void snesbox_core_run_until(const struct SnesboxRegs* from, uint32_t pc, uint16_t s);
++uint32_t snesbox_core_clock(void);
++void snesbox_core_charge(uint32_t clocks);
++uint8_t snesbox_core_bus_read(uint32_t addr);
++void snesbox_core_bus_write(uint32_t addr, uint8_t data);
++// Machine state for frame comparison: WRAM 128K, GSU RAM 64K, VRAM 64K,
++// OAM 544, CGRAM 512, APU RAM 64K, in that order.
++enum { SNESBOX_SNAPSHOT_SIZE = 0x20000 + 0x10000 + 0x10000 + 544 + 512 + 0x10000 };
++void snesbox_core_snapshot(uint8_t* out);
++}
+diff --git a/bsnes/processor/wdc65816/instruction.cpp b/bsnes/processor/wdc65816/instruction.cpp
+index 1d39fa2..9d56445 100644
+--- a/bsnes/processor/wdc65816/instruction.cpp
++++ b/bsnes/processor/wdc65816/instruction.cpp
+@@ -1,5 +1,7 @@
+ auto WDC65816::interrupt() -> void {
++  snesbox_cpu_who = SNESBOX_WHO_NONE;
+   read(PC.d);
++  snesbox_cpu_who = SNESBOX_WHO_DATA;
+   idle();
+ N push(PC.b);
+   push(PC.h);
+diff --git a/bsnes/processor/wdc65816/memory.cpp b/bsnes/processor/wdc65816/memory.cpp
+index 7cfb2cc..21ee3de 100644
+--- a/bsnes/processor/wdc65816/memory.cpp
++++ b/bsnes/processor/wdc65816/memory.cpp
+@@ -9,7 +9,9 @@
+ auto WDC65816::idleIRQ() -> void {
+   if(interruptPending()) {
+     //modify I/O cycle to bus read cycle, do not increment PC
++    snesbox_cpu_who = SNESBOX_WHO_NONE;
+     read(PC.d);
++    snesbox_cpu_who = SNESBOX_WHO_DATA;
+   } else {
+     idle();
+   }
+@@ -28,7 +30,13 @@ auto WDC65816::idle6(uint16 address) -> void {
+ }
+ 
+ auto WDC65816::fetch() -> uint8 {
+-  return read(PC.b << 16 | PC.w++);
++  if(snesbox_cpu_first) { snesbox_cpu_who = SNESBOX_WHO_OP; snesbox_cpu_first = 0; }
++  else snesbox_cpu_who = SNESBOX_WHO_OPND;
++  uint8 data = read(PC.b << 16 | PC.w++);
++  if(snesbox_cpu_who == SNESBOX_WHO_OP) snesbox_cpu_opcode = data;
++  snesbox_cpu_who = SNESBOX_WHO_DATA;
++  snesbox_cpu_fetch_end = PC.b << 16 | PC.w;
++  return data;
+ }
+ 
+ auto WDC65816::pull() -> uint8 {
+diff --git a/bsnes/processor/wdc65816/wdc65816.cpp b/bsnes/processor/wdc65816/wdc65816.cpp
+index 5481693..84785ec 100755
+--- a/bsnes/processor/wdc65816/wdc65816.cpp
++++ b/bsnes/processor/wdc65816/wdc65816.cpp
+@@ -1,5 +1,6 @@
+ #include <processor/processor.hpp>
+ #include "wdc65816.hpp"
++#include <emulator/snesbox.hpp>
+ 
+ namespace Processor {
+ 
+diff --git a/bsnes/sfc/coprocessor/superfx/bus.cpp b/bsnes/sfc/coprocessor/superfx/bus.cpp
+index 416383b..35eff69 100644
+--- a/bsnes/sfc/coprocessor/superfx/bus.cpp
++++ b/bsnes/sfc/coprocessor/superfx/bus.cpp
+@@ -16,6 +16,7 @@ auto SuperFX::CPUROM::read(uint addr, uint8 data) -> uint8 {
+     };
+     return vector[addr & 15];
+   }
++  snesbox_cpu_rom(addr);
+   return superfx.rom.read(addr, data);
+ }
+ 
+diff --git a/bsnes/sfc/coprocessor/superfx/memory.cpp b/bsnes/sfc/coprocessor/superfx/memory.cpp
+index 01a8c82..625de68 100644
+--- a/bsnes/sfc/coprocessor/superfx/memory.cpp
++++ b/bsnes/sfc/coprocessor/superfx/memory.cpp
+@@ -72,15 +72,21 @@ auto SuperFX::readOpcode(uint16 addr) -> uint8 {
+ 
+ auto SuperFX::peekpipe() -> uint8 {
+   uint8 result = regs.pipeline;
++  uint32 at = snesboxPipeAddr;
+   regs.pipeline = readOpcode(regs.r[15]);
++  snesboxPipeAddr = regs.pbr << 16 | regs.r[15];
+   regs.r[15].modified = false;
++  snesbox_gsu_insn(at);
+   return result;
+ }
+ 
+ auto SuperFX::pipe() -> uint8 {
+   uint8 result = regs.pipeline;
++  uint32 at = snesboxPipeAddr;
+   regs.pipeline = readOpcode(++regs.r[15]);
++  snesboxPipeAddr = regs.pbr << 16 | regs.r[15];
+   regs.r[15].modified = false;
++  snesbox_gsu_operand(at);
+   return result;
+ }
+ 
+diff --git a/bsnes/sfc/coprocessor/superfx/superfx.cpp b/bsnes/sfc/coprocessor/superfx/superfx.cpp
+index 847f6a0..0da59c5 100644
+--- a/bsnes/sfc/coprocessor/superfx/superfx.cpp
++++ b/bsnes/sfc/coprocessor/superfx/superfx.cpp
+@@ -1,5 +1,6 @@
+ #include <sfc/sfc.hpp>
+ #include <processor/gsu/gsu.cpp>
++#include <emulator/snesbox.hpp>
+ 
+ namespace SuperFamicom {
+ 
+@@ -11,6 +12,22 @@ namespace SuperFamicom {
+ #include "serialization.cpp"
+ SuperFX superfx;
+ 
++}
++
++// Memory views for the snesbox harness: 0 WRAM, 1 GSU RAM, 2 ROM.
++extern "C" uint8_t* snesbox_core_memory(int which, size_t* size) {
++  using namespace SuperFamicom;
++  switch(which) {
++  case 0: *size = sizeof cpu.wram; return cpu.wram;
++  case 1: *size = superfx.ram.size(); return superfx.ram.data();
++  case 2: *size = superfx.rom.size(); return superfx.rom.data();
++  }
++  *size = 0;
++  return nullptr;
++}
++
++namespace SuperFamicom {
++
+ auto SuperFX::synchronizeCPU() -> void {
+   if(clock >= 0) scheduler.resume(cpu.thread);
+ }
+diff --git a/bsnes/sfc/coprocessor/superfx/superfx.hpp b/bsnes/sfc/coprocessor/superfx/superfx.hpp
+index 97df3df..38df64f 100644
+--- a/bsnes/sfc/coprocessor/superfx/superfx.hpp
++++ b/bsnes/sfc/coprocessor/superfx/superfx.hpp
+@@ -39,6 +39,7 @@ struct SuperFX : Processor::GSU, Thread {
+   auto write(uint addr, uint8 data) -> void override;
+ 
+   auto readOpcode(uint16 addr) -> uint8;
++  uint32 snesboxPipeAddr = 0;
+   alwaysinline auto peekpipe() -> uint8;
+   alwaysinline auto pipe() -> uint8 override;
+ 
+diff --git a/bsnes/sfc/coprocessor/superfx/timing.cpp b/bsnes/sfc/coprocessor/superfx/timing.cpp
+index 0b4bf65..1966a4a 100644
+--- a/bsnes/sfc/coprocessor/superfx/timing.cpp
++++ b/bsnes/sfc/coprocessor/superfx/timing.cpp
+@@ -3,6 +3,7 @@ auto SuperFX::step(uint clocks) -> void {
+     regs.romcl -= min(clocks, regs.romcl);
+     if(regs.romcl == 0) {
+       regs.sfr.r = 0;
++      snesbox_gsu_data((regs.rombr << 16) + regs.r[14]);
+       regs.romdr = read((regs.rombr << 16) + regs.r[14]);
+     }
+   }
+diff --git a/bsnes/sfc/cpu/cpu.cpp b/bsnes/sfc/cpu/cpu.cpp
+index b6fec16..5f3563e 100644
+--- a/bsnes/sfc/cpu/cpu.cpp
++++ b/bsnes/sfc/cpu/cpu.cpp
+@@ -1,8 +1,73 @@
+ #include <sfc/sfc.hpp>
++#include <emulator/snesbox.hpp>
++
++extern "C" void snesbox_core_set_regs(const struct SnesboxRegs* in) {
++  using namespace SuperFamicom;
++  cpu.r.a.w = in->a; cpu.r.x.w = in->x; cpu.r.y.w = in->y; cpu.r.s.w = in->s; cpu.r.d.w = in->d;
++  cpu.r.b = in->db; cpu.r.p = in->p; cpu.r.e = in->e; cpu.r.pc.d = in->pc;
++}
++
++extern "C" uint32_t snesbox_core_clock(void) { return SuperFamicom::cpu.snesboxClock(); }
++extern "C" void snesbox_core_charge(uint32_t clocks) { SuperFamicom::cpu.snesboxCharge(clocks); }
++extern "C" uint8_t snesbox_core_access(int write, uint32_t addr, uint8_t data) {
++  if(write) { SuperFamicom::cpu.write(addr, data); return data; }
++  return SuperFamicom::cpu.read(addr);
++}
++extern "C" void snesbox_core_replay(const uint8_t* ops, uint32_t n) { SuperFamicom::cpu.snesboxReplay(ops, n); }
++
++//Take the pending interrupt now, from the register state the original had
++//when it took it, and run the handler as original code (no routine swapping)
++//until it returns to that state's PC and stack. 0 when none is pending.
++//Run original code from the given state (routine swapping off) until the
++//program counter and stack pointer reach pc and s: a call made from C to a
++//routine that has no C yet, stopped when it returns.
++extern "C" void snesbox_core_run_until(const struct SnesboxRegs* from, uint32_t pc, uint16_t s) {
++  using namespace SuperFamicom;
++  snesbox_core_set_regs(from);
++  auto exec = snesbox_cpu_exec;
++  snesbox_cpu_exec = nullptr;
++  do cpu.main(); while(cpu.r.pc.d != pc || cpu.r.s.w != s);
++  snesbox_cpu_exec = exec;
++}
++
++extern "C" int snesbox_core_interrupt_here(const struct SnesboxRegs* at) {
++  using namespace SuperFamicom;
++  if(!cpu.snesboxInterruptPending()) return 0;
++  snesbox_core_set_regs(at);
++  auto exec = snesbox_cpu_exec;
++  snesbox_cpu_exec = nullptr;
++  do cpu.main(); while(cpu.r.pc.d != at->pc || cpu.r.s.w != at->s);
++  snesbox_cpu_exec = exec;
++  return 1;
++}
++extern "C" uint8_t snesbox_core_bus_read(uint32_t addr) {
++  return SuperFamicom::bus.read(addr, SuperFamicom::cpu.r.mdr);
++}
++extern "C" void snesbox_core_bus_write(uint32_t addr, uint8_t data) { SuperFamicom::bus.write(addr, data); }
++
++extern "C" void snesbox_core_snapshot(uint8_t* out) {
++  using namespace SuperFamicom;
++  memcpy(out, cpu.wram, 0x20000); out += 0x20000;
++  memset(out, 0, 0x10000);
++  memcpy(out, superfx.ram.data(), min(0x10000u, superfx.ram.size())); out += 0x10000;
++  ppu.snesboxSnapshot(out);
++  out += 0x10000 + 544 + 512;
++  memcpy(out, dsp.apuram, 0x10000);
++}
+ 
+ namespace SuperFamicom {
+ 
+ CPU cpu;
++
++}
++
++extern "C" void snesbox_core_regs(struct SnesboxRegs* out) {
++  using namespace SuperFamicom;
++  out->a = cpu.r.a.w; out->x = cpu.r.x.w; out->y = cpu.r.y.w; out->s = cpu.r.s.w; out->d = cpu.r.d.w;
++  out->db = cpu.r.b; out->p = (uint8_t)cpu.r.p; out->e = cpu.r.e; out->pc = cpu.r.pc.d;
++}
++
++namespace SuperFamicom {
+ #include "dma.cpp"
+ #include "memory.cpp"
+ #include "io.cpp"
+@@ -34,8 +99,14 @@ auto CPU::Enter() -> void {
+ auto CPU::main() -> void {
+   if(r.wai) return instructionWait();
+   if(r.stp) return instructionStop();
+-  if(!status.interruptPending) return instruction();
++  if(!status.interruptPending) {
++    snesbox_cpu_insn(r.pc.d, r.p.m, r.p.x, r.e, r.b, r.d.w);
++    if(snesbox_cpu_exec && snesbox_cpu_exec(r.pc.d)) return;
++    return instruction();
++  }
+ 
++  snesbox_cpu_irq = 1;
++  snesbox_cpu_interrupt(r.pc.d, r.s.w);
+   if(status.nmiPending) {
+     status.nmiPending = 0;
+     r.vector = r.e ? 0xfffa : 0xffea;
+diff --git a/bsnes/sfc/cpu/cpu.hpp b/bsnes/sfc/cpu/cpu.hpp
+index 2d79adb..d0c033d 100644
+--- a/bsnes/sfc/cpu/cpu.hpp
++++ b/bsnes/sfc/cpu/cpu.hpp
+@@ -46,6 +46,11 @@ struct CPU : Processor::WDC65816, Thread, PPUcounter {
+   alwaysinline auto stepOnce() -> void;
+   alwaysinline auto step(uint clocks) -> void;
+   template<uint Clocks, bool Synchronize> auto step() -> void;
++  //snesbox: elapsed clocks, and spending a measured cost in place of a routine
++  auto snesboxClock() const -> uint { return counter.cpu; }
++  auto snesboxInterruptPending() const -> bool { return status.interruptPending; }
++  auto snesboxCharge(uint clocks) -> void;
++  auto snesboxReplay(const uint8_t* ops, uint n) -> void;
+   auto scanline() -> void;
+ 
+   alwaysinline auto aluEdge() -> void;
+diff --git a/bsnes/sfc/cpu/dma.cpp b/bsnes/sfc/cpu/dma.cpp
+index 9f4a10f..9f56b5f 100644
+--- a/bsnes/sfc/cpu/dma.cpp
++++ b/bsnes/sfc/cpu/dma.cpp
+@@ -63,7 +63,10 @@ auto CPU::Channel::validA(uint24 address) -> bool {
+ 
+ auto CPU::Channel::readA(uint24 address) -> uint8 {
+   step<4,1>();
++  int who = snesbox_cpu_who;
++  snesbox_cpu_who = SNESBOX_WHO_DMA;
+   cpu.r.mdr = validA(address) ? bus.read(address, cpu.r.mdr) : (uint8)0x00;
++  snesbox_cpu_who = who;
+   step<4,1>();
+   return cpu.r.mdr;
+ }
+@@ -76,11 +79,11 @@ auto CPU::Channel::readB(uint8 address, bool valid) -> uint8 {
+ }
+ 
+ auto CPU::Channel::writeA(uint24 address, uint8 data) -> void {
+-  if(validA(address)) bus.write(address, data);
++  if(validA(address)) { snesbox_cpu_write(address, data, 2); bus.write(address, data); }
+ }
+ 
+ auto CPU::Channel::writeB(uint8 address, uint8 data, bool valid) -> void {
+-  if(valid) bus.write(0x2100 | address, data);
++  if(valid) { snesbox_cpu_write(0x2100 | address, data, 2); bus.write(0x2100 | address, data); }
+ }
+ 
+ auto CPU::Channel::transfer(uint24 addressA, uint2 index) -> void {
+diff --git a/bsnes/sfc/cpu/irq.cpp b/bsnes/sfc/cpu/irq.cpp
+index 05deed3..353cbec 100644
+--- a/bsnes/sfc/cpu/irq.cpp
++++ b/bsnes/sfc/cpu/irq.cpp
+@@ -87,6 +87,7 @@ auto CPU::irqTest() -> bool {
+ //status.irqLock is used to simulate hardware delay before interrupts can
+ //trigger during certain events (immediately after DMA, writes to $4200, etc)
+ auto CPU::lastCycle() -> void {
++  snesbox_cpu_timing(4, 0, 0);
+   if(!status.irqLock) {
+     if(nmiTest()) status.nmiPending = 1, status.interruptPending = 1;
+     if(irqTest()) status.irqPending = 1, status.interruptPending = 1;
+diff --git a/bsnes/sfc/cpu/memory.cpp b/bsnes/sfc/cpu/memory.cpp
+index c63de17..bea8db1 100644
+--- a/bsnes/sfc/cpu/memory.cpp
++++ b/bsnes/sfc/cpu/memory.cpp
+@@ -4,6 +4,7 @@ auto CPU::idle() -> void {
+   step<6,0>();
+   status.irqLock = 0;
+   aluEdge();
++  snesbox_cpu_timing(3, 6, 0);
+ }
+ 
+ auto CPU::read(uint address) -> uint8 {
+@@ -38,10 +39,12 @@ auto CPU::read(uint address) -> uint8 {
+ 
+   status.irqLock = 0;
+   auto data = bus.read(address, r.mdr);
++  snesbox_cpu_read(address, data);
+   step<4,0>();
+   aluEdge();
+   //$00-3f,80-bf:4000-43ff reads are internal to CPU, and do not update the MDR
+   if((address & 0x40fc00) != 0x4000) r.mdr = data;
++  snesbox_cpu_timing(1, status.clockCount, address);
+   return data;
+ }
+ 
+@@ -78,7 +81,9 @@ auto CPU::write(uint address, uint8 data) -> void {
+   }
+ 
+   status.irqLock = 0;
++  snesbox_cpu_write(address, data, 0);
+   bus.write(address, r.mdr = data);
++  snesbox_cpu_timing(2, status.clockCount, address);
+ }
+ 
+ auto CPU::readDisassembler(uint address) -> uint8 {
+diff --git a/bsnes/sfc/cpu/timing.cpp b/bsnes/sfc/cpu/timing.cpp
+index dfc8b7a..c030dcc 100644
+--- a/bsnes/sfc/cpu/timing.cpp
++++ b/bsnes/sfc/cpu/timing.cpp
+@@ -82,6 +82,45 @@ auto CPU::step() -> void {
+   }
+ }
+ 
++//Spend `clocks` as idle bus cycles (so DMA and HDMA still run), then finish
++//in 2-clock steps.
++auto CPU::snesboxCharge(uint clocks) -> void {
++  uint start = counter.cpu;
++  while(counter.cpu - start + 6 <= clocks) idle();
++  while(counter.cpu - start < clocks) step<2,1>();
++}
++
++//Repeat a recorded sequence of bus cycles without their bus effects: the same
++//steps, DMA edges and interrupt polls a routine made, in the same order.
++//Each op: high nibble kind (1 read, 2 write, 3 idle, 4 poll), low nibble clocks/2.
++auto CPU::snesboxReplay(const uint8_t* ops, uint n) -> void {
++  for(uint i : range(n)) {
++    uint kind = ops[i] >> 4, clocks = (ops[i] & 15) * 2;
++    if(kind == 1) {
++      status.clockCount = clocks;
++      dmaEdge();
++      if(clocks == 6) step<2,1>(); else if(clocks == 8) step<4,1>(); else step<8,1>();
++      status.irqLock = 0;
++      step<4,0>();
++      aluEdge();
++    } else if(kind == 2) {
++      aluEdge();
++      status.clockCount = clocks;
++      dmaEdge();
++      if(clocks == 6) step<6,1>(); else if(clocks == 8) step<8,1>(); else step<12,1>();
++      status.irqLock = 0;
++    } else if(kind == 3) {
++      status.clockCount = 6;
++      dmaEdge();
++      step<6,0>();
++      status.irqLock = 0;
++      aluEdge();
++    } else if(kind == 4) {
++      lastCycle();
++    }
++  }
++}
++
+ auto CPU::step(uint clocks) -> void {
+   switch(clocks) {
+   case  2: return step< 2,1>();
+diff --git a/bsnes/sfc/ppu/ppu.cpp b/bsnes/sfc/ppu/ppu.cpp
+index dc8d135..eec3680 100644
+--- a/bsnes/sfc/ppu/ppu.cpp
++++ b/bsnes/sfc/ppu/ppu.cpp
+@@ -211,4 +211,12 @@ auto PPU::refresh() -> void {
+   platform->videoFrame(output, pitch * sizeof(uint16), width, height, /* scale = */ 1);
+ }
+ 
++auto PPU::snesboxSnapshot(uint8_t* out) -> void {
++  for(uint n : range(0x8000)) { out[n * 2] = vram.data[n] & 0xff; out[n * 2 + 1] = vram.data[n] >> 8; }
++  out += 0x10000;
++  for(uint n : range(544)) out[n] = obj.oam.read(n);
++  out += 544;
++  for(uint n : range(256)) { out[n * 2] = screen.cgram[n] & 0xff; out[n * 2 + 1] = screen.cgram[n] >> 8; }
++}
++
+ }
+diff --git a/bsnes/sfc/ppu/ppu.hpp b/bsnes/sfc/ppu/ppu.hpp
+index 353acf2..5259229 100644
+--- a/bsnes/sfc/ppu/ppu.hpp
++++ b/bsnes/sfc/ppu/ppu.hpp
+@@ -1,4 +1,7 @@
+ struct PPU : Thread, PPUcounter {
++  //snesbox: VRAM (64K), OAM (544) and CGRAM (512) as bytes, for frame comparison
++  auto snesboxSnapshot(uint8_t* out) -> void;
++
+   alwaysinline auto interlace() const -> bool { return display.interlace; }
+   alwaysinline auto overscan() const -> bool { return display.overscan; }
+   alwaysinline auto vdisp() const -> uint { return display.vdisp; }
+diff --git a/bsnes/target-libretro/libretro.cpp b/bsnes/target-libretro/libretro.cpp
+index fc7f321..ea1b19f 100644
+--- a/bsnes/target-libretro/libretro.cpp
++++ b/bsnes/target-libretro/libretro.cpp
+@@ -30,6 +30,7 @@ static void audio_queue(int16_t left, int16_t right)
+ }
+ 
+ #include "program.cpp"
++#include "snesbox.cpp"
+ 
+ static string sgb_bios;
+ static vector<string> cheatList;
+diff --git a/bsnes/target-libretro/snesbox.cpp b/bsnes/target-libretro/snesbox.cpp
+new file mode 100644
+index 0000000..ab01b93
+--- /dev/null
++++ b/bsnes/target-libretro/snesbox.cpp
+@@ -0,0 +1,184 @@
++// snesbox: trace maps and dispatch hooks, exported for the harness.
++// Kept separate from the libretro frontend; libretro.cpp includes it.
++#include <emulator/snesbox.hpp>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unordered_map>
++
++extern "C" {
++int snesbox_cpu_who = SNESBOX_WHO_DATA;
++int snesbox_cpu_first = 0;
++uint32_t snesbox_cpu_fetch_end = 0;
++uint8_t snesbox_cpu_opcode = 0;
++int snesbox_cpu_irq = 0;
++int (*snesbox_cpu_exec)(uint32_t pc) = nullptr;
++}
++
++extern "C" uint8_t* snesbox_core_memory(int which, size_t* size);  // sfc/coprocessor/superfx/superfx.cpp
++static uint8_t* snesboxRomData() { size_t n; return snesbox_core_memory(2, &n); }
++
++struct SnesboxCallbacks {
++  void (*insn)(uint32_t pc);
++  void (*write)(uint32_t addr, uint8_t data, int kind);
++  void (*read)(uint32_t addr, uint8_t data);
++  void (*interrupt)(uint32_t resume_pc, uint16_t s);
++  void (*timing)(int kind, int clocks, uint32_t addr);
++};
++static SnesboxCallbacks snesboxCb = {};
++
++static uint16_t* snesboxRom = nullptr;
++static uint32_t snesboxRomSize = 0;
++static uint16_t snesboxCpuFlags = 0;
++static uint8_t snesboxWramExec[0x20000];
++static uint16_t snesboxWramCode[0x20000];  // like the ROM map: opcode/operand fetches, widths
++static uint8_t snesboxGsuRamExec[0x20000];
++static uint32_t snesboxCpuPrev = ~0u;
++static uint32_t snesboxGsuPrev = ~0u, snesboxGsuEnd = ~0u;
++static uint8_t snesboxGsuPrevOp = 0;
++// key: cpu(1) | kind(9) | from(24) | to(24) -> count
++static std::unordered_map<uint64_t, uint32_t> snesboxEdges;
++
++static inline void snesboxEdge(int gsu, uint32_t from, uint32_t to, uint32_t kind) {
++  uint64_t key = (uint64_t)gsu << 63 | (uint64_t)(kind & 0x1ff) << 48 | (uint64_t)(from & 0xffffff) << 24 | (to & 0xffffff);
++  snesboxEdges[key]++;
++}
++
++extern "C" void snesbox_cpu_rom(uint32_t offset) {
++  if(!snesboxRom) return;
++  offset %= snesboxRomSize;
++  switch(snesbox_cpu_who) {
++  case SNESBOX_WHO_OP: snesboxRom[offset] |= SNESBOX_CPU_OP | snesboxCpuFlags; break;
++  case SNESBOX_WHO_OPND: snesboxRom[offset] |= SNESBOX_CPU_OPND; break;
++  case SNESBOX_WHO_DMA: snesboxRom[offset] |= SNESBOX_DMA; break;
++  case SNESBOX_WHO_DATA: snesboxRom[offset] |= SNESBOX_CPU_DATA; break;
++  default: break;
++  }
++}
++
++extern "C" void snesbox_cpu_insn(uint32_t pc, int m, int x, int e, int db, int d) {
++  (void)db; (void)d;
++  if(snesboxRom) {
++    if(snesboxCpuPrev != ~0u && pc != snesbox_cpu_fetch_end)
++      snesboxEdge(0, snesboxCpuPrev, pc, snesbox_cpu_irq ? 0x100 : snesbox_cpu_opcode);
++    uint32_t bank = pc >> 16 & 0xff, addr = pc & 0xffff;
++    if(bank == 0x7e || bank == 0x7f) snesboxWramExec[(bank & 1) << 16 | addr] = 1;
++    else if((bank & 0x40) == 0 && addr < 0x2000) snesboxWramExec[addr] = 1;
++  }
++  snesbox_cpu_irq = 0;
++  snesboxCpuPrev = pc;
++  if(snesboxCb.insn) snesboxCb.insn(pc);
++  snesboxCpuFlags = (m ? SNESBOX_M8 : SNESBOX_M16) | (x ? SNESBOX_X8 : SNESBOX_X16) | (e ? SNESBOX_EMU : 0);
++  snesbox_cpu_first = 1;
++}
++
++// GSU address -> ROM offset, or -1 for RAM (mirrors SuperFX::read).
++static inline int64_t snesboxGsuRom(uint32_t addr) {
++  uint32_t bank = addr >> 16 & 0xff;
++  if(bank <= 0x3f) return ((bank & 0x3f) << 15 | (addr & 0x7fff)) % snesboxRomSize;
++  if(bank <= 0x5f) return (addr & 0x3fffff) % snesboxRomSize;
++  return -1;
++}
++
++extern "C" void snesbox_gsu_insn(uint32_t addr) {
++  if(!snesboxRom) return;
++  int64_t o = snesboxGsuRom(addr);
++  uint8_t op = 0;
++  if(o >= 0) { snesboxRom[o] |= SNESBOX_GSU_OP; op = snesboxRomData()[o]; }
++  else { snesboxGsuRamExec[addr & 0x1ffff] = 1; }
++  if(snesboxGsuPrev != ~0u && addr != snesboxGsuEnd) snesboxEdge(1, snesboxGsuPrev, addr, snesboxGsuPrevOp);
++  snesboxGsuPrev = addr;
++  snesboxGsuPrevOp = op;
++  snesboxGsuEnd = (addr & 0xff0000) | ((addr + 1) & 0xffff);
++}
++
++extern "C" void snesbox_gsu_operand(uint32_t addr) {
++  if(!snesboxRom) return;
++  int64_t o = snesboxGsuRom(addr);
++  if(o >= 0) snesboxRom[o] |= SNESBOX_GSU_OPND;
++  snesboxGsuEnd = (addr & 0xff0000) | ((addr + 1) & 0xffff);
++}
++
++extern "C" void snesbox_gsu_data(uint32_t addr) {
++  if(!snesboxRom) return;
++  int64_t o = snesboxGsuRom(addr);
++  if(o >= 0) snesboxRom[o] |= SNESBOX_GSU_DATA;
++}
++
++// ---- call-oracle events, forwarded to the harness ----
++
++
++extern "C" RETRO_API void snesbox_set_callbacks(const SnesboxCallbacks* cb) {
++  snesboxCb = cb ? *cb : SnesboxCallbacks{};
++}
++
++extern "C" void snesbox_cpu_write(uint32_t addr, uint8_t data, int kind) {
++  if(snesboxCb.write) snesboxCb.write(addr, data, kind);
++}
++
++extern "C" void snesbox_cpu_read(uint32_t addr, uint8_t data) {
++  if(snesboxRom && (snesbox_cpu_who == SNESBOX_WHO_OP || snesbox_cpu_who == SNESBOX_WHO_OPND || snesbox_cpu_who == SNESBOX_WHO_DATA)) {
++    uint32_t bank = addr >> 16 & 0xff, lo = addr & 0xffff;
++    int32_t off = -1;
++    if(bank == 0x7e || bank == 0x7f) off = (bank & 1) << 16 | lo;
++    else if((bank & 0x40) == 0 && lo < 0x2000) off = lo;
++    if(off >= 0) snesboxWramCode[off] |= snesbox_cpu_who == SNESBOX_WHO_OP ? (SNESBOX_CPU_OP | snesboxCpuFlags) : snesbox_cpu_who == SNESBOX_WHO_OPND ? SNESBOX_CPU_OPND : SNESBOX_CPU_DATA;
++  }
++  if(snesboxCb.read) snesboxCb.read(addr, data);
++}
++
++extern "C" void snesbox_cpu_interrupt(uint32_t resume_pc, uint16_t s) {
++  if(snesboxCb.interrupt) snesboxCb.interrupt(resume_pc, s);
++}
++
++extern "C" void snesbox_cpu_timing(int kind, int clocks, uint32_t addr) {
++  if(snesboxCb.timing) snesboxCb.timing(kind, clocks, addr);
++}
++
++extern "C" RETRO_API void snesbox_regs(struct SnesboxRegs* out) { snesbox_core_regs(out); }
++
++// ---- exported to the harness ----
++
++extern "C" RETRO_API void snesbox_trace_begin() {
++  { size_t n; snesbox_core_memory(2, &n); snesboxRomSize = n; }
++  free(snesboxRom);
++  snesboxRom = (uint16_t*)calloc(snesboxRomSize ? snesboxRomSize : 1, sizeof(uint16_t));
++  memset(snesboxWramExec, 0, sizeof snesboxWramExec);
++  memset(snesboxGsuRamExec, 0, sizeof snesboxGsuRamExec);
++  memset(snesboxWramCode, 0, sizeof snesboxWramCode);
++  snesboxEdges.clear();
++  snesboxCpuPrev = snesboxGsuPrev = snesboxGsuEnd = ~0u;
++}
++
++extern "C" RETRO_API int snesbox_trace_write(const char* dir) {
++  if(!snesboxRom) return -1;
++  char path[4096];
++  snprintf(path, sizeof path, "%s/rommap.bin", dir);
++  FILE* f = fopen(path, "wb"); if(!f) return -1;
++  fwrite(snesboxRom, sizeof(uint16_t), snesboxRomSize, f); fclose(f);
++  snprintf(path, sizeof path, "%s/wram_exec.bin", dir);
++  f = fopen(path, "wb"); if(!f) return -1;
++  fwrite(snesboxWramExec, 1, sizeof snesboxWramExec, f); fclose(f);
++  snprintf(path, sizeof path, "%s/wramcode.bin", dir);
++  f = fopen(path, "wb"); if(!f) return -1;
++  fwrite(snesboxWramCode, sizeof(uint16_t), 0x20000, f); fclose(f);
++  snprintf(path, sizeof path, "%s/gsuram_exec.bin", dir);
++  f = fopen(path, "wb"); if(!f) return -1;
++  fwrite(snesboxGsuRamExec, 1, sizeof snesboxGsuRamExec, f); fclose(f);
++  snprintf(path, sizeof path, "%s/edges.csv", dir);
++  f = fopen(path, "w"); if(!f) return -1;
++  fprintf(f, "cpu,kind,from,to,count\n");
++  for(auto& [k, n] : snesboxEdges)
++    fprintf(f, "%s,%03x,%06x,%06x,%u\n", k >> 63 ? "gsu" : "cpu", (unsigned)(k >> 48 & 0x1ff),
++            (unsigned)(k >> 24 & 0xffffff), (unsigned)(k & 0xffffff), n);
++  fclose(f);
++  return 0;
++}
++
++extern "C" RETRO_API uint8_t* snesbox_memory(const char* name, size_t* size) {
++  if(!strcmp(name, "wram")) return snesbox_core_memory(0, size);
++  if(!strcmp(name, "gsuram")) return snesbox_core_memory(1, size);
++  if(!strcmp(name, "rom")) return snesbox_core_memory(2, size);
++  *size = 0;
++  return nullptr;
++}

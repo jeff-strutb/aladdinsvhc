@@ -1,0 +1,97 @@
+# Random play from level1.state, seed 3 (randplay.py play).
+load build/aladdin/states/level1.state
+hold B+LEFT 79
+hold Y+RIGHT+B 81
+hold Y+LEFT 12
+hold UP 37
+hold B+RIGHT 64
+hold UP+B 64
+hold B 33
+hold DOWN+A 53
+hold RIGHT 24
+hold Y+LEFT 9
+hold RIGHT 38
+hold R 58
+hold Y+LEFT 60
+hold B 50
+hold B 67
+hold B+R 84
+hold B+R 68
+hold Y+LEFT 48
+hold B+R 78
+hold Y+RIGHT 7
+hold X 89
+hold Y+RIGHT 73
+hold Y+LEFT 17
+hold B+RIGHT 85
+hold Y+LEFT 38
+hold RIGHT 65
+hold UP 15
+hold RIGHT 56
+hold RIGHT 41
+hold B+R 19
+hold X 9
+hold Y+LEFT 46
+hold A 68
+hold RIGHT 43
+press START
+wait 60
+press START
+hold LEFT 80
+hold B+RIGHT 56
+hold A 23
+hold Y+RIGHT 44
+hold B 52
+hold DOWN+A 53
+hold X 75
+hold DOWN+A 38
+hold B+LEFT 42
+hold A 70
+hold Y+RIGHT 5
+hold Y+LEFT 44
+hold X 79
+hold RIGHT 85
+hold DOWN 49
+hold Y+RIGHT+B 81
+hold UP 6
+hold RIGHT 51
+hold DOWN 42
+hold Y+RIGHT 26
+hold Y+RIGHT 51
+hold A 42
+hold LEFT 7
+hold B 43
+hold L 38
+hold B+RIGHT 59
+hold LEFT 17
+hold Y+RIGHT 32
+hold B+RIGHT 14
+hold L 31
+hold DOWN 38
+hold LEFT 8
+hold B+RIGHT 44
+hold Y+LEFT 27
+hold Y+RIGHT 86
+hold X 48
+hold B+R 41
+hold A 63
+hold B+R 41
+hold B+R 8
+hold B 29
+press START
+wait 60
+press START
+hold X 69
+hold B+LEFT 8
+hold DOWN+A 40
+hold B+LEFT 12
+hold A+RIGHT 19
+hold RIGHT 8
+hold DOWN+A 29
+hold B+R 77
+hold UP 19
+hold A+RIGHT 34
+hold DOWN+A 72
+hold X 18
+hold A 73
+shot played

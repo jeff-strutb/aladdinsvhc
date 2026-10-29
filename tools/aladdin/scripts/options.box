@@ -1,0 +1,33 @@
+# The options screen: every row changed both ways, then EXIT.
+load build/aladdin/states/title.state
+press DOWN
+wait 20
+press DOWN
+wait 30
+press START
+wait 120
+shot options
+repeat 4
+press RIGHT
+wait 20
+end
+press LEFT
+wait 20
+repeat 5
+press DOWN
+wait 20
+press RIGHT
+wait 20
+press LEFT
+wait 20
+press A
+wait 20
+end
+shot changed
+repeat 6
+press DOWN
+wait 20
+end
+press START
+wait 120
+shot back

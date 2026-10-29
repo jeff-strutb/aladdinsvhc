@@ -1,0 +1,10 @@
+# Power-on to the title menu (cursor on GAME START; the first START skips
+# the intro story), then GAME START to the first level's start. States hold
+# the game's RAM: built, never committed.
+wait 2400
+press START
+wait 480
+save title
+press START
+wait 600
+save level1

@@ -1,0 +1,21 @@
+# The first level: run, jump, throw, dash, hover, crouch, look up, pause.
+load build/aladdin/states/level1.state
+hold RIGHT 120
+press B
+hold B+RIGHT 30
+hold RIGHT 60
+press A
+wait 30
+hold Y+RIGHT 90
+hold B+R 60
+hold DOWN 30
+hold DOWN+A 20
+hold UP 40
+press START
+wait 60
+shot paused
+press START
+hold RIGHT 300
+hold B+RIGHT 60
+hold RIGHT 300
+shot walked

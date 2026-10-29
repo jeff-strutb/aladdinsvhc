@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""build.py: build the companion ROM from source.
+
+    build.py            trace (if needed), regenerate the raw intake, assemble
+    build.py --retrace  rerun every trace script first
+
+Steps: verify the reference ROM, stage it as build/aladdin/baserom.sfc,
+run the trace scripts in tools/aladdin/scripts/ through snesbox (in
+parallel), find the bytes each filed source file (asm/aladdin/<area>/)
+writes, generate the raw intake for every byte no filed source claims,
+assemble filed source and intake together with the pinned asar. Outputs are deleted before they are rebuilt,
+so a failed step can never leave a stale ROM that grades as passing.
+"""
+import concurrent.futures, glob, hashlib, os, shutil, subprocess, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REF = os.path.join(ROOT, 'reference', 'aladdin', 'Aladdin (USA).sfc')
+SHA1 = 'bd5fea18ce7456cc0231a39473927d8ea9c6589b'
+B = os.path.join(ROOT, 'build', 'aladdin')
+BASEROM = os.path.join(B, 'baserom.sfc')
+OUT = os.path.join(B, 'snes', 'aladdin.sfc')
+ASAR = os.path.join(ROOT, 'tools', 'toolchains', 'asar', 'asar')
+SNESBOX = os.path.join(B, 'box', 'snesbox')
+SCRIPTS = os.path.join(ROOT, 'tools', 'aladdin', 'scripts')
+
+
+def run(cmd, **kw):
+    p = subprocess.run(cmd, capture_output=True, text=True, errors='replace', **kw)
+    if p.returncode:
+        sys.stderr.write(p.stdout + p.stderr)
+        raise SystemExit('failed: %s' % ' '.join(cmd))
+    return p.stdout
+
+
+def stage_baserom():
+    data = open(REF, 'rb').read()
+    if hashlib.sha1(data).hexdigest() != SHA1:
+        raise SystemExit('reference ROM does not match SHA-1 %s' % SHA1)
+    os.makedirs(B, exist_ok=True)
+    if not os.path.exists(BASEROM) or open(BASEROM, 'rb').read() != data:
+        shutil.copyfile(REF, BASEROM)
+
+
+STATE_RECIPES = os.path.join(ROOT, 'tools', 'aladdin', 'states')
+STATES = os.path.join(B, 'states')
+
+
+def make_states():
+    """Run each recipe in tools/aladdin/states/ (a script with one or
+    more `save NAME` lines) that has a state missing or older than it, into
+    build/aladdin/states/NAME.state. Scripts start from one with
+    `load build/aladdin/states/NAME.state`: the frames that lead there
+    run once, not in every script and every gate. States hold the game's
+    RAM, so they are built here and never committed."""
+    os.makedirs(STATES, exist_ok=True)
+    todo = []
+    for r in sorted(glob.glob(os.path.join(STATE_RECIPES, '*.box'))):
+        names = [l.split()[1] for l in open(r) if l.startswith('save ')]
+        for n in names:
+            st = os.path.join(STATES, n + '.state')
+            if not os.path.exists(st) or os.path.getmtime(st) < os.path.getmtime(r):
+                todo.append(r)
+                break
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
+        list(ex.map(lambda r: run([SNESBOX, '--rom', BASEROM, '--script', r, '--out', STATES], cwd=ROOT), todo))
+
+
+def inputs_mtime(script):
+    """The script's time, or a state it loads if that is newer."""
+    t = os.path.getmtime(script)
+    for line in open(script):
+        w = line.split()
+        if len(w) >= 2 and w[0] == 'load' and os.path.exists(os.path.join(ROOT, w[1])):
+            t = max(t, os.path.getmtime(os.path.join(ROOT, w[1])))
+    return t
+
+
+def trace_one(script, retrace):
+    name = os.path.splitext(os.path.basename(script))[0]
+    d = os.path.join(B, 'box', name)
+    stamp = os.path.join(d, 'rommap.bin')
+    if not retrace and os.path.exists(stamp) and os.path.getmtime(stamp) >= inputs_mtime(script):
+        return d
+    shutil.rmtree(d, ignore_errors=True)
+    os.makedirs(d)
+    run([SNESBOX, '--rom', BASEROM, '--script', script, '--out', d, '--trace'], cwd=ROOT)
+    return d
+
+
+ASM = os.path.join(ROOT, 'asm', 'aladdin')
+
+
+def filed_sources():
+    out = []
+    for dp, dn, fn in os.walk(ASM):
+        rel = os.path.relpath(dp, ASM).split(os.sep)[0]
+        if rel in ('include', 'raw'):
+            continue
+        out += [os.path.join(dp, f) for f in fn if f.endswith('.asm')]
+    return sorted(out)
+
+
+def claims(paths, size):
+    """Bytes the filed source writes: assemble it all (it shares labels) over
+    00- and FF-filled images; a byte written is the same in both."""
+    tmp = os.path.join(B, 'claims')
+    os.makedirs(tmp, exist_ok=True)
+    wrap = os.path.join(tmp, 'wrap.asm')
+    open(wrap, 'w').write('norom\n' + ''.join('incsrc "%s"\n' % p for p in paths))
+    images = []
+    for fill in (b'\x00', b'\xff'):
+        img = os.path.join(tmp, 'fill.sfc')
+        open(img, 'wb').write(fill * size)
+        run([ASAR, '--fix-checksum=off', '--no-title-check', wrap, img])
+        images.append(open(img, 'rb').read())
+    a, b = images
+    return [i for i in range(size) if a[i] == b[i]]
+
+
+def ranges(offsets):
+    out, start, prev = [], None, None
+    for o in offsets:
+        if start is None:
+            start = prev = o
+        elif o == prev + 1:
+            prev = o
+        else:
+            out.append((start, prev + 1)); start = prev = o
+    if start is not None:
+        out.append((start, prev + 1))
+    return out
+
+
+def main(argv):
+    retrace = '--retrace' in argv
+    # First, so that no failure below can leave an old ROM to be graded.
+    if os.path.exists(OUT):
+        os.remove(OUT)
+    stage_baserom()
+    if not os.path.exists(SNESBOX):
+        run(['make', '-C', os.path.join(ROOT, 'tools', 'aladdin', 'snesbox')])
+    make_states()
+    scripts = sorted(glob.glob(os.path.join(SCRIPTS, '*.box')))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
+        traces = list(ex.map(lambda s: trace_one(s, retrace), scripts))
+    size = os.path.getsize(BASEROM)
+    owner = set(claims(filed_sources(), size)) if filed_sources() else set()
+    claimed = os.path.join(B, 'claimed.txt')
+    with open(claimed, 'w') as c:
+        for lo, hi in ranges(sorted(owner)):
+            c.write('%06X-%06X\n' % (lo, hi))
+    raw = os.path.join(B, 'raw')
+    shutil.rmtree(raw, ignore_errors=True)
+    args = [sys.executable, os.path.join(ROOT, 'tools', 'aladdin', 'disasm.py'), '--rom', BASEROM,
+            '--out', raw, '--incbin', '../baserom.sfc', '--claimed', claimed]
+    for t in traces:
+        args += ['--trace', t]
+    print(run(args).strip())
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    main_asm = os.path.join(B, 'main.asm')
+    with open(main_asm, 'w') as m:
+        m.write('; Generated by tools/aladdin/build.py: filed source, then the raw intake.\nnorom\n\n')
+        for f in filed_sources():
+            m.write('incsrc "%s"\n' % os.path.relpath(f, B))
+        m.write('\nincsrc "raw/main.asm"\n')
+    run([ASAR, '--fix-checksum=off', main_asm, OUT])
+    if not os.path.exists(OUT):
+        raise SystemExit('assembler produced no ROM')
+    print('built %s (%d filed file(s), %d bytes from filed source)' % (os.path.relpath(OUT, ROOT), len(filed_sources()), len(owner)))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

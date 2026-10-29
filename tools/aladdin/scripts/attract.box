@@ -1,0 +1,8 @@
+# Power-on with no input: the Capcom logo, the intro story, the title, and
+# whatever the title runs when left alone.
+wait 1500
+shot story
+wait 3000
+shot idle4500
+wait 4500
+shot idle9000
