@@ -690,6 +690,7 @@ static void exec_range(int from, int to) {
         }
         else if (!strcmp(a, "load") && k >= 2) {
             size_t n; void *p = load_file(b, &n);
+            if (lockstep) lockstep_before_load();
             if (!retro_unserialize_p(p, n)) die("unserialize failed: %s", b);
             state_loaded();
             /* Calls still open (one that never returns, as a stop screen)

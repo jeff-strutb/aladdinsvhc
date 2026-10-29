@@ -1,0 +1,18 @@
+--- a/bsnes/sfc/cpu/cpu.cpp
++++ b/bsnes/sfc/cpu/cpu.cpp
+@@ -75,6 +75,15 @@
+ 
+ }
+ 
++//The S-CPU's cooperative thread, as the other chips resume it
++//(scheduler.resume(cpu.thread)). The harness runs a routine's C on a thread
++//of its own and makes that thread the S-CPU's while the C runs, so a chip
++//the C's bus accesses synchronize with comes back to the C; it puts the
++//S-CPU's own thread back when the C stops for its task's next turn.
++extern "C" void** snesbox_cpu_thread() {
++  return (void**)&SuperFamicom::cpu.thread;
++}
++
+ extern "C" void snesbox_core_regs(struct SnesboxRegs* out) {
+   using namespace SuperFamicom;
+   out->a = cpu.r.a.w; out->x = cpu.r.x.w; out->y = cpu.r.y.w; out->s = cpu.r.s.w; out->d = cpu.r.d.w;

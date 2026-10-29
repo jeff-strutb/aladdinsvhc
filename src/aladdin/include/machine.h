@@ -108,4 +108,27 @@ void cpu_loop_forever(uint32_t at);
    its own, by unit calls.) */
 void cpu_restart(uint32_t at, void (*entry)(void));
 
+/* The running task stops here until the scheduler gives it its next turn
+   (docs/aladdin/TASKS.md). The C of a task call ends in this after making
+   the original's memory effects (the pushes on the task's stack, its slot's
+   record) and leaving `cpu` as the original's registers are where the
+   scheduler takes over. When the task resumes, this returns with `cpu`
+   holding the registers the scheduler restored. After a task call that
+   never resumes (exec, exit) it never returns. */
+void task_yield(void);
+
+/* The return address a JSL at `site` pushes, on the stack at S (bank 0),
+   S moving down past it: for C that calls the C of a routine that can wait
+   (its task's stack must hold what the original's does while it waits).
+   The resumed task returns through it before the call returns to the C,
+   so nothing pulls it here. */
+static inline void jsl_frame(uint32_t site)
+{
+    uint32_t back = (site & 0xFF0000) | (uint16_t)(site + 3);
+
+    wr8(cpu.s, (uint8_t)(back >> 16)); cpu.s--;
+    wr8(cpu.s, (uint8_t)(back >> 8)); cpu.s--;
+    wr8(cpu.s, (uint8_t)back); cpu.s--;
+}
+
 #endif

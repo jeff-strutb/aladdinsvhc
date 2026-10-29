@@ -100,6 +100,29 @@ static uint8_t *phys(uint32_t n)
     return NULL;
 }
 
+#define TASK_SLOTS 8
+#define TASK_CURRENT 0x0327u   /* offset of the running task's slot */
+#define TASK_SCHEDULER 0x81BC7Fu
+#define TASK_SCHEDULER_S 0x0326u
+
+
+/* Where a task waiting in slot `slot` (byte offset of its record) resumes:
+   its wait ($81:BD31) pushed B, D, X, Y and P below the JSL's return
+   address and saved S in the record; the scheduler pulls them (X and Y
+   with the widths of the P it pulls first) and returns (RTL). 0 when the
+   slot is not waiting (the task exited, or restarts somewhere else). */
+static uint32_t task_resume_of(uint8_t slot, uint16_t *resume_s)
+{
+    if (wram[0x6F + slot] != 1) return 0;
+    uint16_t s = (uint16_t)(wram[0x71 + slot] | wram[0x72 + slot] << 8);
+    uint8_t p = wram[(uint16_t)(s + 1)];
+    unsigned xy = p & 0x10 ? 1 : 2;
+    uint16_t at = (uint16_t)(s + 1 + 2 * xy + 2 + 1);   /* P, Y, X, D, B */
+    uint16_t lo = (uint16_t)(wram[(uint16_t)(at + 1)] | wram[(uint16_t)(at + 2)] << 8);
+    *resume_s = (uint16_t)(at + 3);
+    return (uint32_t)wram[(uint16_t)(at + 3)] << 16 | (uint16_t)(lo + 1);
+}
+
 /* ---- small address -> byte map, cleared per call ---- */
 
 #define MAPN (1 << 16)
@@ -152,15 +175,25 @@ typedef struct {
     IoLog oseq, cseq;        /* work RAM accesses in order (SNESBOX_SEQ): addr | 1 << 24 for a write */
     int cread;
     int io_mismatch;
+    /* tasks: the C runs on a coroutine of its own (a5_run), which stops in
+       task_yield where the call's task waits; the call is then judged
+       piece by piece (docs/aladdin/TASKS.md) */
+    void *co;
+    jmp_buf abort;
+    int c_state;             /* 0 none, 1 returned, 2 waiting in task_yield */
+    int resumed;             /* this piece starts where the task resumed */
+    uint16_t live_s;         /* stack above this is live (scratch below it) */
 } Watch;
 
 #define DEPTH 12
-static Watch ws[DEPTH];
+static Watch *ws[DEPTH];
+/* A waiting task's open watches, bottom first, until it resumes. */
+static struct { int n; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5park[TASK_SLOTS];
 static int depth;
 static Watch *cur;  /* the watch whose C is running */
 
 /* A C routine that reads past the replay is stopped here, not left spinning. */
-static jmp_buf abort_c;
+static jmp_buf *abort_c;   /* the running watch's (Watch.abort) */
 static int c_running;
 /* A C routine that waits on memory only an interrupt changes (a frame
    handshake) would spin forever against the frozen entry state: past this
@@ -170,7 +203,7 @@ static long c_accesses;
 static int c_runaway;
 static void count_access(void)
 {
-    if (c_running && ++c_accesses > RUNAWAY) { c_runaway = 1; longjmp(abort_c, 1); }
+    if (c_running && ++c_accesses > RUNAWAY) { c_runaway = 1; longjmp(*abort_c, 1); }
 }
 
 typedef struct { long calls, match, diff, inconclusive, skipped; int shown; } Stat;
@@ -196,14 +229,14 @@ uint8_t rd8(uint32_t addr)
     if (n >> 24 == R_IO) {
         if (cur->cread < cur->oread.n && cur->oread.e[cur->cread].addr == (addr & 0xFFFF)) return cur->oread.e[cur->cread++].v;
         cur->io_mismatch = 1;
-        if (c_running) longjmp(abort_c, 1);
+        if (c_running) longjmp(*abort_c, 1);
         return 0;
     }
     if (seq_on && n >> 24 == R_WRAM) io_add(&cur->cseq, n & 0xFFFFFF, 0);
     if (map_get(&cur->cw, n, &v)) return v;
     if (map_get(&cur->undo, n, &v)) return v;
     uint8_t *p = phys(n);
-    if (!p) { cur->io_mismatch = 1; if (c_running) longjmp(abort_c, 1); return 0; }
+    if (!p) { cur->io_mismatch = 1; if (c_running) longjmp(*abort_c, 1); return 0; }
     return *p;
 }
 
@@ -268,7 +301,7 @@ static int is_scratch(Watch *w, uint32_t n)
 {
     if (n >> 24 != R_WRAM) return 0;
     uint32_t off = n & 0xFFFFFF;
-    return off <= w->entry.s && off + 0x100 > w->entry.s;
+    return off <= w->live_s && off + 0x100 > w->live_s;
 }
 
 /* SNESBOX_SEQ: place the C's work RAM accesses on the original's as the
@@ -337,7 +370,44 @@ static void seq_compare(Watch *w, const Routine *r)
     }
 }
 
-static void finish(Watch *w)
+/* The C of a watched call runs on the watch's own coroutine: it starts
+   the call's C, or goes on with a C that stopped in task_yield (a5_yield)
+   where the call's task waited. A C stopped by abort_c ends its run. */
+static void *(*co_active_p)(void);
+static void *(*co_create_p)(unsigned int, void (*)(void));
+static void (*co_switch_p)(void *);
+static void (*co_delete_p)(void *);
+static Watch *a5_w;
+static void *a5_t0;
+static void a5_main(void)
+{
+    for (;;) {
+        Watch *w = a5_w;
+        if (setjmp(w->abort) == 0) routines[w->idx].abi();
+        w->c_state = 1;
+        co_switch_p(a5_t0);
+    }
+}
+
+static void a5_run(Watch *w)
+{
+    if (!w->co) w->co = co_create_p(1u << 20, a5_main);
+    if (!w->co) abort();
+    a5_w = w;
+    abort_c = &w->abort;
+    a5_t0 = co_active_p();
+    co_switch_p(w->co);
+}
+
+/* A coroutine stopped in a call that never goes on (its task exited or
+   started again elsewhere): its stack holds that call's frames. */
+static void a5_drop(Watch *w)
+{
+    if (w->co && w->c_state == 2) { co_delete_p(w->co); w->co = NULL; }
+    w->c_state = 0;
+}
+
+static void finish_piece(Watch *w, int waited)
 {
     Stat *st = &stats[w->idx];
     const Routine *r = &routines[w->idx];
@@ -351,8 +421,14 @@ static void finish(Watch *w)
     cur = w;
     c_accesses = 0; c_runaway = 0;
     c_running = 1;
-    if (setjmp(abort_c) == 0) r->abi();
+    if (w->c_state != 2) w->c_state = 0;
+    a5_run(w);
     c_running = 0;
+    /* At a wait, the stack above the task's saved S is live (the pushes). */
+    if (waited) {
+        uint8_t slot = wram[TASK_CURRENT];
+        w->live_s = (uint16_t)(wram[0x71 + slot] | wram[0x72 + slot] << 8);
+    }
 
     if (seq_on && !c_runaway && !w->needs_asm) seq_compare(w, r);
 
@@ -360,6 +436,14 @@ static void finish(Watch *w)
     int bad = 0;
 #define DIFFR(f) if (cpu.f != out.f) { bad = 1; snprintf(why + strlen(why), sizeof why - strlen(why), " %s=%X/%X", #f, (unsigned)cpu.f, (unsigned)out.f); }
     DIFFR(a) DIFFR(x) DIFFR(y) DIFFR(d) DIFFR(db) DIFFR(p) DIFFR(e)
+    /* The original's task waited here: so must the C's, with the registers
+       the scheduler takes over with. */
+    if (waited && !c_runaway && !w->needs_asm) {
+        if (w->c_state != 2) { bad = 1; strncat(why, " C-returned-where-original-waits", sizeof why - strlen(why) - 1); }
+        else { DIFFR(s) DIFFR(pc) }
+    } else if (!c_runaway && w->c_state == 2) {
+        bad = 1; strncat(why, " C-waits-where-original-returns", sizeof why - strlen(why) - 1);
+    } else
     /* A routine that left through its caller's frame: the C must too, to
        the same place. */
     if (!c_runaway && (cpu.unwound || out.s != w->exit_s)) {
@@ -414,6 +498,8 @@ static void finish(Watch *w)
     }
 }
 
+static void finish(Watch *w) { finish_piece(w, 0); }
+
 /* Interrupts (and unit calls) taken and not yet returned from: where each
    resumes and the opcode before it, so the instruction it resumes at is
    judged by that opcode, not the handler's RTI (a raster IRQ between a
@@ -437,24 +523,76 @@ static void on_insn(uint32_t pc)
     uint8_t prev_op = *core_opcode;
     if (prev_op == 0x9A || prev_op == 0x1B)
         for (int i = 0; i < depth; i++)
-            if (!ws[i].in_irq) ws[i].stack_reset = 1;
+            if (!ws[i]->in_irq) ws[i]->stack_reset = 1;
     while (nirqs && pc == irqs[nirqs - 1].pc) {
         if (!have) { core_regs(&r); have = 1; }
         if (r.s != irqs[nirqs - 1].s) break;
         prev_op = irqs[--nirqs].op;
     }
     for (int i = 0; i < depth; i++)
-        if (ws[i].in_irq && pc == ws[i].irq_pc) {
+        if (ws[i]->in_irq && pc == ws[i]->irq_pc) {
             if (!have) { core_regs(&r); have = 1; }
-            if (r.s == ws[i].irq_s) ws[i].in_irq = 0;
+            if (r.s == ws[i]->irq_s) ws[i]->in_irq = 0;
         }
+    /* The running task waits: every open watch is the task's; each is
+       judged up to here and parked under the task's slot, or dropped when
+       the task does not wait (it exited or starts again elsewhere). */
+    if (depth && pc == TASK_SCHEDULER) {
+        if (!have) { core_regs(&r); have = 1; }
+        if (r.s == TASK_SCHEDULER_S) {
+            uint8_t slot = wram[TASK_CURRENT];
+            uint16_t rs = 0;
+            uint32_t res = task_resume_of(slot, &rs);
+            for (int i = depth - 1; i >= 0; i--)
+                if (!ws[i]->in_irq) finish_piece(ws[i], 1);
+            int t = slot % 0x18 == 0 && slot / 0x18 < TASK_SLOTS ? slot / 0x18 : -1;
+            if (res && t >= 0) {
+                for (int i = 0; i < a5park[t].n; i++) {
+                    a5_drop(a5park[t].w[i]);
+                    if (a5park[t].w[i]->co) co_delete_p(a5park[t].w[i]->co);
+                    free(a5park[t].w[i]);
+                }
+                a5park[t].n = 0;
+                for (int i = 0; i < depth; i++) { a5park[t].w[a5park[t].n++] = ws[i]; ws[i] = NULL; }
+                a5park[t].resume = res; a5park[t].resume_s = rs;
+            } else
+                for (int i = 0; i < depth; i++) a5_drop(ws[i]);
+            depth = 0;
+        }
+    }
+    /* A waiting task resumes: its watches open again, each for its next
+       piece, from here (before the return check: a wait called from code
+       with no C resumes at its own return). */
+    if (prev_op == 0x6B) {
+        uint8_t slot = wram[TASK_CURRENT];
+        int t = slot % 0x18 == 0 && slot / 0x18 < TASK_SLOTS ? slot / 0x18 : -1;
+        if (t >= 0 && a5park[t].n && pc == a5park[t].resume) {
+            if (!have) { core_regs(&r); have = 1; }
+            if (r.s == a5park[t].resume_s) {
+                for (int i = 0; i < a5park[t].n; i++) {
+                    Watch *w = a5park[t].w[i];
+                    if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); free(w); continue; }
+                    if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); free(ws[depth]); }
+                    ws[depth++] = w;
+                    w->entry = r;
+                    w->live_s = r.s;
+                    w->resumed = 1;
+                    w->in_irq = w->interrupted = w->dma = w->gsu = w->needs_asm = w->overflow = 0;
+                    w->stack_reset = 0;
+                    map_clear(&w->undo); map_clear(&w->orig);
+                    w->oread.n = w->owrite.n = w->oseq.n = 0;
+                }
+                a5park[t].n = 0;
+            }
+        }
+    }
     /* A watch ends at its return, or when an RTS or RTL takes S above its
        exit level: the routine left through its caller's frame, which may
        end the caller's watch at the same place. (An RTI is an interrupt
        handler's: a routine that stops the game may reset S above its frame
        and wait there for interrupts.) */
     while (depth) {
-        Watch *t = &ws[depth - 1];
+        Watch *t = ws[depth - 1];
         if (t->in_irq) break;
         if (!have) { core_regs(&r); have = 1; }
         if ((pc == t->ret_pc && r.s == t->exit_s)
@@ -469,7 +607,8 @@ static void on_insn(uint32_t pc)
     uint8_t via = prev_op;
     uint32_t sp = r.s;
     if (sp + 3 >= wram_n || r.e || depth == DEPTH) { stats[idx].skipped++; return; }
-    Watch *w = &ws[depth];
+    if (!ws[depth] && !(ws[depth] = calloc(1, sizeof(Watch)))) abort();
+    Watch *w = ws[depth];
     uint16_t word = (uint16_t)(wram[(sp + 1) & 0xFFFF] | wram[(sp + 2) & 0xFFFF] << 8);
     if (ue.set && pc == ue.pc && r.s == ue.entry_s) {
         w->ret_pc = ue.ret;
@@ -482,7 +621,8 @@ static void on_insn(uint32_t pc)
         w->ret_pc = (uint32_t)wram[(sp + 3) & 0xFFFF] << 16 | (uint16_t)(word + 1);
         w->exit_s = (uint16_t)(sp + 3);
     } else { stats[idx].skipped++; return; }
-    w->idx = idx; w->entry = r;
+    w->idx = idx; w->entry = r; w->live_s = r.s; w->resumed = 0;
+    if (w->c_state == 2) a5_drop(w);
     w->in_irq = w->interrupted = w->dma = w->gsu = w->needs_asm = w->overflow = 0;
     w->stack_reset = 0;
     map_clear(&w->undo); map_clear(&w->orig);
@@ -498,7 +638,7 @@ static void on_write(uint32_t addr, uint8_t data, int kind)
     int ram = n >> 24 == R_WRAM || n >> 24 == R_GSURAM;
     uint8_t *p = ram ? phys(n) : NULL;
     for (int i = 0; i < depth; i++) {
-        Watch *w = &ws[i];
+        Watch *w = ws[i];
         if (p) { map_put(&w->undo, n, *p, 1); if (w->undo.n >= MAPN / 2) w->overflow = 1; }
         if (kind == 2) { w->dma = 1; continue; }
         if (w->in_irq) continue;
@@ -516,12 +656,12 @@ static void on_read(uint32_t addr, uint8_t data)
     if (!depth) return;
     if (seq_on && norm(addr) >> 24 == R_WRAM) {
         uint32_t n = norm(addr) & 0xFFFFFF;
-        for (int i = 0; i < depth; i++) if (!ws[i].in_irq) io_add(&ws[i].oseq, n, 0);
+        for (int i = 0; i < depth; i++) if (!ws[i]->in_irq) io_add(&ws[i]->oseq, n, 0);
         return;
     }
     if (norm(addr) >> 24 != R_IO) return;
     for (int i = 0; i < depth; i++)
-        if (!ws[i].in_irq) io_add(&ws[i].oread, addr & 0xFFFF, data);
+        if (!ws[i]->in_irq) io_add(&ws[i]->oread, addr & 0xFFFF, data);
 }
 
 static void on_interrupt(uint32_t resume_pc, uint16_t s)
@@ -531,7 +671,7 @@ static void on_interrupt(uint32_t resume_pc, uint16_t s)
         nirqs++;
     }
     for (int i = 0; i < depth; i++)
-        if (!ws[i].in_irq) { ws[i].in_irq = 1; ws[i].interrupted = 1; ws[i].irq_pc = resume_pc; ws[i].irq_s = s; }
+        if (!ws[i]->in_irq) { ws[i]->in_irq = 1; ws[i]->interrupted = 1; ws[i]->irq_pc = resume_pc; ws[i]->irq_s = s; }
 }
 
 /* A unit call (snesbox call) starting while calls are open suspends them as
@@ -551,7 +691,7 @@ void check_rollback(int d)
 {
     nirqs = 0;
     if (d < depth) depth = d;
-    for (int i = 0; i < depth; i++) ws[i].interrupted = 1;
+    for (int i = 0; i < depth; i++) ws[i]->interrupted = 1;
 }
 
 /* ---- setup and report ---- */
@@ -571,6 +711,11 @@ static int load_routines(void *core, const char *lib, const char *only)
         for (int i = 0; i < *jmpn; i++) jump_bits[jmp[i] >> 3] |= (uint8_t)(1 << (jmp[i] & 7));
     const int *count = dlsym(h, "game_routine_count");
     uint8_t *(*mem)(const char *, size_t *) = dlsym(core, "snesbox_memory");
+    *(void **)&co_active_p = dlsym(core, "co_active");
+    *(void **)&co_create_p = dlsym(core, "co_create");
+    *(void **)&co_switch_p = dlsym(core, "co_switch");
+    *(void **)&co_delete_p = dlsym(core, "co_delete");
+    if (!co_active_p || !co_create_p || !co_switch_p || !co_delete_p) return -1;
     *(void **)&core_regs = dlsym(core, "snesbox_regs");
     core_opcode = dlsym(core, "snesbox_cpu_opcode");
     if (!table || !count || !mem || !core_regs || !core_opcode) { fprintf(stderr, "check: missing symbols\n"); return -1; }
@@ -831,6 +976,17 @@ static void trace_write(uint32_t addr, uint8_t data, int kind)
     if (timed(addr)) fprintf(trf, "  wr %06X=%02X k%d @%u\n", addr, data, kind, core_clock());
 }
 
+/* Original side: a call whose task waits ends at the scheduler; it is
+   parked under its slot and goes on, as a record of its own, where the task
+   resumes (the hybrid parks its coroutine the same way: ls_finish). */
+static struct {
+    int valid, noreturn, depth;
+    uint32_t resume, ret_pc, pc;
+    uint16_t resume_s, exit_s, entry_s;
+    uint16_t open[64];
+    uint32_t open_pc[64];
+} opark[TASK_SLOTS];
+
 /* Original side: measure each call's cost. */
 static void ls_op(uint8_t op, uint32_t addr);
 
@@ -838,6 +994,7 @@ static void ls_op(uint8_t op, uint32_t addr);
    an instruction that pushes, with S already moved down past a byte whose
    write has not landed yet. */
 static uint16_t insn_s;
+static void o_open(uint32_t pc, struct SnesboxRegs *rp);
 
 static void ls_insn(uint32_t pc)
 {
@@ -855,6 +1012,27 @@ static void ls_insn(uint32_t pc)
             m.irq_resumed = 1;
         }
         struct SnesboxRegs r; core_regs(&r);
+        /* The call's task waits: the call ends here, at the scheduler, and
+           is parked for the task's next turn. */
+        if (pc == TASK_SCHEDULER && r.s == TASK_SCHEDULER_S) {
+            uint8_t slot = wram[TASK_CURRENT];
+            uint16_t rs = 0;
+            uint32_t res = task_resume_of(slot, &rs);
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "OYIELD frame %ld call %llu slot %02X resume %06X S=%04X\n", cur_frame, (unsigned long long)m.call, slot, res, rs);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
+            if (res && slot % 0x18 == 0 && slot / 0x18 < TASK_SLOTS) {
+                int k = slot / 0x18;
+                opark[k].valid = 1; opark[k].resume = res; opark[k].resume_s = rs;
+                opark[k].ret_pc = m.ret_pc; opark[k].exit_s = m.exit_s; opark[k].entry_s = m.entry_s;
+                opark[k].pc = m_pc; opark[k].noreturn = m.noreturn; opark[k].depth = m.depth;
+                memcpy(opark[k].open, m.open, sizeof m.open);
+                memcpy(opark[k].open_pc, m.open_pc, sizeof m.open_pc);
+            }
+            return;
+        }
         /* Inside the call, the entry into any routine the catalog knows is
            marked (op 9: its address, op A: S), and so is its return, the
            first instruction with S above its entry S (op C), so that C can
@@ -949,9 +1127,40 @@ static void ls_insn(uint32_t pc)
         }
         return;
     }
+    if (*core_opcode == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS
+        && opark[wram[TASK_CURRENT] / 0x18].valid && pc == opark[wram[TASK_CURRENT] / 0x18].resume) {
+        struct SnesboxRegs r; core_regs(&r);
+        int t = wram[TASK_CURRENT] / 0x18;
+        if (r.s == opark[t].resume_s) {
+            uint32_t keep = ls_noreturn_pc;   /* a unit call's mark is not this record's */
+            opark[t].valid = 0;
+            o_open(pc, &r);
+            ls_noreturn_pc = keep;
+            m.ret_pc = opark[t].ret_pc; m.exit_s = opark[t].exit_s; m.entry_s = opark[t].entry_s;
+            m_pc = opark[t].pc; m.noreturn = opark[t].noreturn; m.depth = opark[t].depth;
+            memcpy(m.open, opark[t].open, sizeof m.open);
+            memcpy(m.open_pc, opark[t].open_pc, sizeof m.open_pc);
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "ORESUME frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+            /* Resumed at its own return (a wait called from code with no
+               C): the call ends at once. */
+            if (pc == m.ret_pc && r.s == m.exit_s) {
+                STORE(sh->calls[m.call % CALLRING].done, 1);
+                m.active = 0;
+            }
+            return;
+        }
+    }
     if (routine_at(pc) < 0) return;
     struct SnesboxRegs r; core_regs(&r);
     if (!entry(pc, &r, &m.ret_pc, &m.exit_s)) return;
+    o_open(pc, &r);
+}
+
+/* Open the original's record of a call at pc. */
+static void o_open(uint32_t pc, struct SnesboxRegs *rp)
+{
+    struct SnesboxRegs r = *rp;
     uint64_t k = LOAD(sh->o_calls);
     WAIT_UNTIL(k - LOAD(sh->h_calls) < CALLRING);
     CallRec *rec = &sh->calls[k % CALLRING];
@@ -1259,7 +1468,8 @@ void lockstep_finish_now(void)
    record after its return (op C). */
 static void record_rest(void);
 static void leave_frame(struct SnesboxRegs *out);
-static jmp_buf ls_escape;
+/* The C's way out (below); each coroutine (ls_exec) has its own. */
+static jmp_buf *ls_escape;
 static int ls_escape_set;
 /* Where the C left the call by a jump or call to original code that did
    not come back (a restart into BootWarm): the record index of the
@@ -1317,7 +1527,7 @@ static void run_original(uint32_t addr, int long_call)
         ls_left_at = found ? (long)j : -2;
         if (found) record_rest();
         else cur_i = cur_n;
-        if (ls_escape_set) longjmp(ls_escape, 1);
+        if (ls_escape_set) longjmp(*ls_escape, 1);
         return;
     }
     /* Its return mark, looked for only now: a routine that runs for many
@@ -1486,7 +1696,7 @@ static void jump_original(uint32_t addr, const uint8_t *pushed, int n, int searc
     ls_left_at = found ? (long)j : -2;
     if (found) record_rest();
     else cur_i = cur_n;
-    if (hs != (uint16_t)(s + n) && ls_escape_set) longjmp(ls_escape, 1);
+    if (hs != (uint16_t)(s + n) && ls_escape_set) longjmp(*ls_escape, 1);
 }
 
 static void no_c(uint32_t addr)
@@ -1512,7 +1722,7 @@ void jump_routine_pushed(uint32_t addr, const uint8_t *pushed, int n)
     }
     if (!machine_live) {
         if (cur) cur->needs_asm = 1;
-        if (c_running) longjmp(abort_c, 1);
+        if (c_running) longjmp(*abort_c, 1);
         return;
     }
     jump_original(addr, pushed, n, 1);
@@ -1527,7 +1737,7 @@ static void jump_original_code(uint32_t addr)
 {
     if (!machine_live) {
         if (cur) cur->needs_asm = 1;
-        if (c_running) longjmp(abort_c, 1);
+        if (c_running) longjmp(*abort_c, 1);
         return;
     }
     /* A branch back to the start of the routine whose C is running (Hang)
@@ -1584,7 +1794,7 @@ void call_routine(uint32_t addr, int long_call)
         if (routines[i].addr == addr) { routines[i].abi(); return; }
     if (!machine_live) {
         if (cur) cur->needs_asm = 1;
-        if (c_running) longjmp(abort_c, 1);
+        if (c_running) longjmp(*abort_c, 1);
         return;
     }
     if (!past_end) no_c(addr);
@@ -1813,18 +2023,103 @@ static uint8_t live_access(int write, uint32_t addr, uint8_t value)
     return core_access(write, addr, value);
 }
 
-/* Hybrid side: run the C in place of the routine. */
-static int ls_exec(uint32_t pc)
+/* ---- tasks: the C of a routine runs on a coroutine of its own ----
+
+   The game's routines can wait for their task's next turn (docs/aladdin/
+   TASKS.md): the C of the task calls ends in task_yield, and the call's
+   C, every frame of it, stops there and goes on when the scheduler resumes
+   the task. So each call ls_exec swaps in runs on a coroutine (a libco
+   thread from the core's own libco), which is the S-CPU's thread while it
+   runs (the core's other chips resume cpu.thread: patch 0015), so a chip
+   its bus accesses synchronize with comes back to it. A call whose C
+   yields ends there, as the original's record does (ls_insn); its
+   coroutine is parked under its task slot. When the scheduler's RTL lands
+   where that task resumes, with its S, both sides open a record for the
+   rest of the call and the coroutine goes on. */
+static void **cpu_thread_p;
+static void *t0_handle;      /* the S-CPU's own thread */
+
+#define CTX_STACK (1u << 20)
+typedef struct Ctx {
+    void *co;
+    int status;              /* 1 running, 2 returned, 3 yielded */
+    int idx;
+    jmp_buf escape;
+    /* the call's own, kept while it is parked */
+    uint32_t ret, entry_pc;
+    uint16_t exit_s, entry_s;
+    int unit_noreturn;
+    const char *name;
+    uint32_t resume;         /* where its task resumes, with S resume_s */
+    uint16_t resume_s;
+    struct Ctx *next;
+} Ctx;
+static Ctx *ctx_cur, *ctx_free;
+static Ctx *parked[TASK_SLOTS];
+static long yields, resumes;
+
+static void ctx_main(void)
 {
-    int idx = routine_at(pc);
-    if (idx < 0) return 0;
-    struct SnesboxRegs r; core_regs(&r);
-    uint32_t ret; uint16_t exit_s;
-    if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
-    ls_cur_name = routines[idx].name;
-    ls_entry_pc = pc;
-    ls_unit_noreturn = ls_noreturn_pc == pc;
-    if (ls_unit_noreturn) ls_noreturn_pc = (uint32_t)-1;
+    for (;;) {
+        Ctx *c = ctx_cur;
+        ls_escape = &c->escape;
+        if (setjmp(c->escape) == 0) {
+            ls_escape_set = 1;
+            routines[c->idx].abi();
+        }
+        ls_escape_set = 0;
+        c->status = 2;
+        *cpu_thread_p = t0_handle;
+        co_switch_p(t0_handle);
+    }
+}
+
+static Ctx *ctx_get(void)
+{
+    Ctx *c = ctx_free;
+    if (c) { ctx_free = c->next; return c; }
+    c = calloc(1, sizeof *c);
+    if (!c) _exit(7);
+    c->co = co_create_p(CTX_STACK, ctx_main);
+    if (!c->co) _exit(7);
+    return c;
+}
+
+/* Run (or go on with) a call's C on its coroutine; back when it returns or
+   yields. */
+static void ctx_run(Ctx *c)
+{
+    t0_handle = co_active_p();
+    ctx_cur = c;
+    c->status = 1;
+    *cpu_thread_p = c->co;
+    co_switch_p(c->co);
+    *cpu_thread_p = t0_handle;
+    ctx_cur = NULL;
+}
+
+/* A coroutine stopped inside a call that will never go on (its task
+   restarted, or a state was loaded): its stack holds that call's frames,
+   so it is not reused. */
+static void ctx_abandon(Ctx *c)
+{
+    co_delete_p(c->co);
+    free(c);
+}
+
+/* Before a state is loaded: the core copies the S-CPU's thread from the
+   state into cpu.thread, which must be the S-CPU's own thread, not a
+   coroutine left where a frame ended inside a call. */
+void lockstep_before_load(void)
+{
+    if (role == 2 && cpu_thread_p && t0_handle) *cpu_thread_p = t0_handle;
+}
+
+static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret, uint16_t entry_s);
+
+/* Hybrid side: run the C in place of the routine. */
+static int ls_take_record(const char *name)
+{
     /* The original's next call: wait until it has returned, then take a
        private copy of its cycles (the ring moves on). */
     uint64_t k = LOAD(sh->h_calls);
@@ -1838,9 +2133,8 @@ static int ls_exec(uint32_t pc)
         fetch_more(1);
         STORE(sh->h_calls, k + 1);
     } else if (LOAD(sh->o_done) && k + 1 == LOAD(sh->o_calls)) {
-        /* The script ended on the original side before this call returned
-           (a long Super FX run can span the last frames): there is nothing
-           left to compare it, or the frames after it, with. */
+        /* The script ended on the original side before this call returned:
+           there is nothing left to compare it, or the frames after it, with. */
         past_end = 1;
         gsu_lockstep_past_end();
         spc_lockstep_past_end();
@@ -1851,7 +2145,50 @@ static int ls_exec(uint32_t pc)
     } else mismatched_calls++;
     hk++;
     if (calls_from >= 0 && cur_frame >= calls_from)
-        fprintf(lsrep, "HCALL frame %ld call %llu %s S=%04X\n", cur_frame, (unsigned long long)k, routines[idx].name, r.s);
+        fprintf(lsrep, "HCALL frame %ld call %llu %s\n", cur_frame, (unsigned long long)k, name);
+    return 0;
+}
+
+static int ls_exec(uint32_t pc)
+{
+    struct SnesboxRegs r;
+    /* A parked call goes on where its task resumes: just after the
+       scheduler's RTL, at the resume address with the resume S. */
+    if (*core_opcode == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS) {
+        Ctx *c = parked[wram[TASK_CURRENT] / 0x18];
+        if (c && pc == c->resume) {
+            core_regs(&r);
+            if (r.s == c->resume_s) {
+                parked[wram[TASK_CURRENT] / 0x18] = NULL;
+                resumes++;
+                ls_cur_name = c->name;
+                ls_entry_pc = c->entry_pc;
+                ls_unit_noreturn = c->unit_noreturn;
+                ls_take_record(c->name);
+                cpu.a = r.a; cpu.x = r.x; cpu.y = r.y; cpu.s = r.s; cpu.d = r.d; cpu.db = r.db; cpu.p = r.p; cpu.e = r.e; cpu.pc = r.pc;
+                cpu.unwound = 0;
+                ls_exit_s = c->exit_s;
+                ls_ret = c->ret;
+                cyc_n = 0; cyc_over = 0; cyc_last = -1; cyc_said = 0;
+                ls_left_at = -1;
+                machine_live = 1;
+                ls_escape = &c->escape;
+                ls_escape_set = 1;
+                ctx_run(c);
+                return ls_finish(c, r, c->exit_s, c->ret, c->entry_s);
+            }
+        }
+    }
+    int idx = routine_at(pc);
+    if (idx < 0) return 0;
+    core_regs(&r);
+    uint32_t ret; uint16_t exit_s;
+    if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
+    ls_cur_name = routines[idx].name;
+    ls_entry_pc = pc;
+    ls_unit_noreturn = ls_noreturn_pc == pc;
+    if (ls_unit_noreturn) ls_noreturn_pc = (uint32_t)-1;
+    ls_take_record(routines[idx].name);
     cpu.a = r.a; cpu.x = r.x; cpu.y = r.y; cpu.s = r.s; cpu.d = r.d; cpu.db = r.db; cpu.p = r.p; cpu.e = r.e; cpu.pc = r.pc;
     cpu.unwound = 0;
     ls_exit_s = exit_s;
@@ -1865,11 +2202,20 @@ static int ls_exec(uint32_t pc)
     cyc_n = 0; cyc_over = 0; cyc_last = -1; cyc_said = 0;
     ls_left_at = -1;
     machine_live = 1;
-    if (snesbox_co_active) cyc_thread = snesbox_co_active();
-    if (setjmp(ls_escape) == 0) {
-        ls_escape_set = 1;
-        routines[idx].abi();
-    }
+    Ctx *c = ctx_get();
+    cyc_thread = c->co;
+    c->idx = idx;
+    c->ret = ret; c->exit_s = exit_s; c->entry_s = r.s; c->entry_pc = pc;
+    c->unit_noreturn = ls_unit_noreturn; c->name = routines[idx].name;
+    ctx_run(c);
+    return ls_finish(c, r, exit_s, ret, r.s);
+}
+
+/* The call's end: at its return, at a jump that left its frame, or where
+   its C yielded (cpu.unwound, at the scheduler). A yielded call's coroutine
+   is parked for its task's next turn. */
+static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret, uint16_t entry_s)
+{
     ls_escape_set = 0;
     machine_live = 0;
     while (fetch_more(cur_n + 1)) {}
@@ -1887,18 +2233,76 @@ static int ls_exec(uint32_t pc)
     cyc_put('E', (uint32_t)end);
     replay_to(cur_n);
     struct SnesboxRegs out = {cpu.a, cpu.x, cpu.y, cpu.unwound ? cpu.s : exit_s, cpu.d, cpu.db, cpu.p, cpu.e, cpu.unwound ? cpu.pc : ret};
+    (void)r;
     core_set_regs(&out);
     /* The original's last instruction was the routine's RTS or RTL, not
        the JSR or JSL that entered it: an entry right after the call (a
        routine's inner entry, 7E:E4E4 after JSR ColourBlendBy) must not be
        taken as entered by that JSR. */
     if (!cpu.unwound)
-        *core_opcode = (uint8_t)(exit_s - r.s == 3 ? 0x6B : 0x60);
+        *core_opcode = (uint8_t)(exit_s - entry_s == 3 ? 0x6B : 0x60);
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
                 out.pc, out.s, cpu.unwound ? " unwound" : "");
     calls_swapped++;
+    if (c->status == 3) {
+        uint8_t slot = wram[TASK_CURRENT];
+        uint16_t rs = 0;
+        uint32_t resume = task_resume_of(slot, &rs);
+        yields++;
+        if (resume && slot % 0x18 == 0 && slot / 0x18 < TASK_SLOTS) {
+            if (parked[slot / 0x18]) ctx_abandon(parked[slot / 0x18]);
+            c->resume = resume; c->resume_s = rs;
+            parked[slot / 0x18] = c;
+        } else ctx_abandon(c);
+    } else {
+        c->next = ctx_free;
+        ctx_free = c;
+    }
     return 1;
+}
+
+/* A5: the C stops where the call's task waits; the call is judged up to
+   there (finish_piece), and goes on with its next piece when the task
+   resumes. */
+static void a5_yield(void)
+{
+    Watch *w = cur;
+    if (!w || !c_running) return;
+    w->c_state = 2;
+    co_switch_p(a5_t0);
+    /* the next piece: finish_piece set cpu to where the task resumed */
+    w->c_state = 0;
+}
+
+/* machine.h: the task stops here until its next turn. The C made the
+   original's memory effects and left `cpu` as the original's registers are
+   where the scheduler takes over; the call ends there (cpu.unwound). When
+   the task resumes, `cpu` holds the registers the scheduler restored. */
+static void a5_yield(void);
+void task_yield(void)
+{
+    if (!machine_live) { a5_yield(); return; }
+    Ctx *c = ctx_cur;
+    if (!c) { fprintf(lsrep, "task_yield outside a coroutine (%s)\n", ls_cur_name ? ls_cur_name : "-"); _exit(8); }
+    c->status = 3;
+    cpu.unwound = 1;
+    *cpu_thread_p = t0_handle;
+    co_switch_p(t0_handle);
+    /* resumed: ls_exec set cpu from the machine */
+    cpu.unwound = 0;
+}
+
+/* The hybrid dying: where, on stderr (the original side then stops on
+   its own: the hybrid's frames never come). */
+#include <execinfo.h>
+static void crash_report(int sig)
+{
+    void *bt[64];
+    int n = backtrace(bt, 64);
+    fprintf(stderr, "lockstep: hybrid side died (signal %d) in frame %ld, in %s\n", sig, cur_frame, ls_cur_name ? ls_cur_name : "-");
+    backtrace_symbols_fd(bt, n, 2);
+    _exit(9);
 }
 
 int lockstep_begin(void *core, const char *lib, const char *only, const char *report_path)
@@ -1914,6 +2318,12 @@ int lockstep_begin(void *core, const char *lib, const char *only, const char *re
     *(void **)&core_set_regs = dlsym(core, "snesbox_core_set_regs");
     *(void **)&core_snapshot = dlsym(core, "snesbox_core_snapshot");
     core_exec = dlsym(core, "snesbox_cpu_exec");
+    void **(*cpu_thread_ref)(void) = (void **(*)(void))dlsym(core, "snesbox_cpu_thread");
+    cpu_thread_p = cpu_thread_ref ? cpu_thread_ref() : NULL;
+    if (!co_active_p || !co_create_p || !co_switch_p || !co_delete_p || !cpu_thread_p) {
+        fprintf(stderr, "lockstep: the core has no libco or S-CPU thread export (patch 0015)\n");
+        return -1;
+    }
     if (!set_cb || !core_clock || !core_replay || !core_interrupt_here || !core_run_until || !core_run_out || !core_access || !core_set_regs || !core_snapshot || !core_exec) return -1;
     sh = mmap(NULL, sizeof(Shared), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     if (sh == MAP_FAILED) return -1;
@@ -1927,6 +2337,10 @@ int lockstep_begin(void *core, const char *lib, const char *only, const char *re
     const char *tr = getenv("SNESBOX_LS_TRACE");
     if (child == 0) {
         role = 2;
+        signal(SIGSEGV, crash_report);
+        signal(SIGBUS, crash_report);
+        signal(SIGILL, crash_report);
+        signal(SIGABRT, crash_report);
         lsrep = fopen(report_path, "w");
         if (!lsrep) _exit(2);
         if (getenv("SNESBOX_CYCLOG")) {
@@ -2065,6 +2479,32 @@ static long snap_offset(uint32_t a)
     return -1;
 }
 
+/* Work RAM no one reads before writing it again: stack below a live S.
+   Each task has its own $38-byte stack under the top in its slot's record
+   ($73), and the scheduler its own above the last task's, to $0326. A
+   stack's live S is the S now when it is the stack in use; a waiting or
+   ready task's saved S ($71); a new task's top (its entry above it); and a
+   free slot's stack, or the scheduler's when not in use, is dead whole.
+   Before the slots are set up (their tops still 0), the S now with the
+   $200 below it, as for a game with one stack. */
+static int stack_dead(const uint8_t *w, uint32_t i, uint32_t s, uint32_t lo)
+{
+    uint16_t top[TASK_SLOTS];
+    for (int k = 0; k < TASK_SLOTS; k++) top[k] = (uint16_t)(w[0x73 + 0x18 * k] | w[0x74 + 0x18 * k] << 8);
+    if (!top[0] || top[TASK_SLOTS - 1] <= top[0]) return i > lo && i <= s;
+    if (i <= (uint32_t)top[0] - 0x38 || i > TASK_SCHEDULER_S) return i > lo && i <= s && (i <= (uint32_t)top[0] - 0x38 || i > TASK_SCHEDULER_S);
+    uint32_t floor = top[TASK_SLOTS - 1], ceil = TASK_SCHEDULER_S;   /* the scheduler's */
+    int k = -1;
+    for (int j = 0; j < TASK_SLOTS; j++)
+        if (i > (uint32_t)top[j] - 0x38 && i <= top[j]) { k = j; floor = (uint32_t)top[j] - 0x38; ceil = top[j]; break; }
+    if (s > floor && s <= ceil) return i <= s;            /* the stack in use */
+    if (k < 0) return 1;                                  /* the scheduler's, not in use */
+    uint8_t state = w[0x6F + 0x18 * k];
+    if (state == 0) return 1;
+    if (state == 0x0C) return i <= top[k];
+    return i <= (uint32_t)(w[0x71 + 0x18 * k] | w[0x72 + 0x18 * k] << 8);
+}
+
 static uint8_t inflight[SNAP];
 
 static void compare(long f)
@@ -2087,7 +2527,7 @@ static void compare(long f)
         int shown = 0, count = 0;
         for (uint32_t i = 0; i < reg[k].len; i++) {
             uint32_t o = reg[k].off + i;
-            if (k == 0 && i > lo && i <= s) continue;  /* dead stack below S */
+            if (k == 0 && stack_dead(sl->snap, i, s, lo)) continue;
             if (o < 0x30000 && inflight[o]) continue;
             if (mysnap[o] != sl->snap[o]) {
                 count++;

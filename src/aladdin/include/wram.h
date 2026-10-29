@@ -14,4 +14,14 @@
 #define SOUND_QUEUE_WRITE 0x0003BDu /* queue index where the next command is added (0-31) */
 #define SOUND_QUEUE 0x0003BFu      /* 32-entry ring of command bytes */
 
+/* Tasks (system/task.c): 8 slots of $18 bytes from $006F; offsets are a
+   slot's byte offset (0, $18, ... $A8) */
+#define TASK_STATE 0x00006Fu       /* 0 free, 1 waiting, 4 ready, 8 running, $0C new */
+#define TASK_WAIT 0x000070u        /* frames left to wait */
+#define TASK_SAVED_S 0x000071u     /* S where it stopped (word) */
+#define TASK_STACK_TOP 0x000073u   /* top of its stack (word) */
+#define TASK_PARAM 0x000075u       /* the byte its creator gave it */
+#define TASK_CURRENT 0x000327u     /* the running task's slot */
+#define TASK_SLOT_COUNT 0x000328u  /* how many slots the scheduler scans */
+
 #endif

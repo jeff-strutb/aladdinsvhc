@@ -1,0 +1,7 @@
+# TaskExit ($81:BD20) is reached only by jumps where a task ends, which the
+# per-call check does not watch: a unit call ends the task running at the
+# title screen's menu, and the frames after it (the task gone, the others
+# running on) are compared in lockstep with its C in its place.
+load build/aladdin/states/title.state
+wait 10
+call 81BD20 long noreturn frames=120
