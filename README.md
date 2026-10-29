@@ -16,16 +16,16 @@ _Snapshot 2026-10-28._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0.1%   71 / 56,876 B of the game's code
+    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0.2%   129 / 56,876 B of the game's code
 M2  Byte exact (T4)
-    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0.1%   71 / 56,876 B of the game's code
+    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0.2%   129 / 56,876 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,875 B the scripts have run and 17,001 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 1 routines behaviour exact, 1 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,875 B the scripts have run and 17,001 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 5 routines behaviour exact, 5 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `░░░░░░░░░░░░░░░░░░░░` 0.1%: 71/54,608 B | `░░░░░░░░░░░░░░░░░░░░` 0.1%: 71/54,608 B |
+| **S-CPU (65816)** | `░░░░░░░░░░░░░░░░░░░░` 0.2%: 129/54,608 B | `░░░░░░░░░░░░░░░░░░░░` 0.2%: 129/54,608 B |
 | **SPC700 (sound)** | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B |
 <!-- PROGRESS:END -->
 
@@ -43,7 +43,7 @@ are in the tree but not yet certified (T2).
 
 **Why not routines.** A routine count keeps growing as the work goes on:
 every entry point filed in C or reached by a new script splits code already
-counted into more routines (the census now counts about 923, 594 of them
+counted into more routines (the census now counts about 924, 595 of them
 named), while the bytes stay put: tracing a new script moves bytes from
 "found" to "run" and barely changes the total. Of the
 ROM's 1,310,720 B, the scripts have run 37,607 B as code and read 606,651 B as data;
