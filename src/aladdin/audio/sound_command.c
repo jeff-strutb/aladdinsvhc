@@ -29,7 +29,7 @@
  * wrapping at 32. The sending flag is cleared on every way out.
  * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
  * whose $2140-$2143 are the APU ports ($00-$3F or $80-$BF); D any.
- * Exit (by the way out taken), as the last instructions leave them:
+ * Exit: by the way out taken, as the last instructions leave them:
  *   held: A low = the hold byte; N, Z from it; X, C unchanged.
  *   queue empty: A low = 0 (the hold byte); X = the read index; N, Z, C
  *     from comparing it with the write index.
