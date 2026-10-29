@@ -4,11 +4,10 @@
  * step sets A (or X) and the flags as the instruction named does; memory
  * goes through rd8/wr8 as everywhere else.
  */
-#ifndef STUNTRACEFX_CPU_OPS_H
-#define STUNTRACEFX_CPU_OPS_H
+#ifndef ALADDIN_CPU_OPS_H
+#define ALADDIN_CPU_OPS_H
 
 #include "machine.h"
-#include "waits.h"
 
 /* The 65816's 16-bit ADC and SBC, binary or decimal as the D flag in *p
    says, as the emulator core computes them: the result, with N, Z, C and V
@@ -127,6 +126,13 @@ static inline void op_lda8(uint32_t addr)
     cpu.p = nz8(cpu.p, v);
 }
 
+/* CMP, CPX or CPY of 8-bit `r` with `m`: N, Z and C as the compare sets
+   them in P `p`. */
+static inline uint8_t cmp8_flags(uint8_t p, uint8_t r, uint8_t m)
+{
+    return (uint8_t)((nz8(p, (uint8_t)(r - m)) & ~P_C) | (r >= m ? P_C : 0));
+}
+
 /* CMP # or CMP memory (16-bit). */
 static inline void op_cmp16(uint16_t m)
 {
@@ -232,15 +238,6 @@ static inline void op_plp(uint8_t p)
         cpu.x &= 0x00FF;
         cpu.y &= 0x00FF;
     }
-}
-
-/* A delay loop of `turns` passes of a decrement (DEC A, DEX or DEY) and a
-   BNE back, as the time it took: 36 master clocks a pass, 30 for the last.
-   The original waited this long for the hardware (the sound CPU to settle)
-   without polling it, so the console's time passes here. */
-static inline void delay_turns(uint32_t turns)
-{
-    wait_clocks(turns * 36u - 6u);
 }
 
 #endif

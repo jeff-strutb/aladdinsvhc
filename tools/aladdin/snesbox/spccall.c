@@ -1,6 +1,6 @@
 /* spccall.c: SPC700 routines in the per-call oracle (A5).
 
-   The library's SPC700 routines (hybrid.py: sfx_spc_routine_table, from C
+   The library's SPC700 routines (hybrid.py: game_spc_routine_table, from C
    tags with an `@spc` APU address) are keyed by the ROM address of their
    first byte; the SPC700 runs them from APU RAM, where the race and battle
    drivers put different code at the same addresses. An instruction about
@@ -93,8 +93,8 @@ static int routine_here(uint16_t pc)
 
 int spc_load(void *core, void *lib, const char *only)
 {
-    const SpcRoutine *table = dlsym(lib, "sfx_spc_routine_table");
-    const int *count = dlsym(lib, "sfx_spc_routine_count");
+    const SpcRoutine *table = dlsym(lib, "game_spc_routine_table");
+    const int *count = dlsym(lib, "game_spc_routine_count");
     if (!table || !count || !*count) return 0;
     rt = calloc((size_t)*count, sizeof *rt);
     for (int i = 0; i < *count; i++) {
@@ -118,8 +118,8 @@ int spc_load(void *core, void *lib, const char *only)
         return -1;
     }
     for (int i = 0; i < nrt; i++) at_apu[rt[i].apu] = 1;
-    const uint16_t *jt = dlsym(lib, "sfx_spc_jump_entries");
-    const int *jn = dlsym(lib, "sfx_spc_jump_entry_count");
+    const uint16_t *jt = dlsym(lib, "game_spc_jump_entries");
+    const int *jn = dlsym(lib, "game_spc_jump_entry_count");
     if (jt && jn)
         for (int i = 0; i < *jn; i++) jump_at[jt[i]] = 1;
     return nrt;

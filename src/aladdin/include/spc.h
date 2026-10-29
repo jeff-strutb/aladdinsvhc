@@ -12,8 +12,8 @@
  * address (spc_call), the routine's RET pulls it (spc_ret). abi_Name(void)
  * is the routine at its entry, as the checks call it.
  */
-#ifndef STUNTRACEFX_SPC_H
-#define STUNTRACEFX_SPC_H
+#ifndef ALADDIN_SPC_H
+#define ALADDIN_SPC_H
 
 #include <stdint.h>
 
@@ -71,17 +71,11 @@ static inline void spc_call(void (*abi)(void), uint16_t ret)
 }
 
 /* The driver jumps to `at`, code that never comes back to what called it
-   (the reload loop at $0675, which ends by restarting the driver): every
+   (a loop that ends by restarting the driver): every
    C frame of the calls under it is gone, and `entry`, the C of the code at
    `at`, runs from there. Write the address as a literal (0x0675); the
    checks end the call there and take `entry` on its own. */
 void spc_restart(uint16_t at, void (*entry)(void));
-
-/* Which driver's code is in the SPC700's RAM at $10B0-$260E: 1 once the
-   battle driver's block list ($1A:F091) is uploaded over the race
-   driver's, 0 once a block of any other list covers $10B0 again (apu_upload.c sets it as the blocks go out). The race
-   driver's CALL $10B0 (SpcReset) reaches whichever is there. */
-extern int spc_battle_resident;
 
 /* JMP $FFC0: the console's boot ROM (the SPC700's own, not the game's): it
    takes the next upload from the S-CPU by its transfer protocol and runs

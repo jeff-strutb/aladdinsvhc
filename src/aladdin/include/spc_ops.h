@@ -9,8 +9,8 @@
  * TCLR read twice. spc_st, spc_rmw and the others make those accesses, each with the cycles before it, so the C makes the
  * assembly's accesses in its order and number.
  */
-#ifndef STUNTRACEFX_SPC_OPS_H
-#define STUNTRACEFX_SPC_OPS_H
+#ifndef ALADDIN_SPC_OPS_H
+#define ALADDIN_SPC_OPS_H
 
 #include "spc.h"
 

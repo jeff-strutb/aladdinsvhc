@@ -18,8 +18,8 @@
  * routine has an abi_ wrapper that takes its inputs from `cpu` and leaves its
  * outputs there, as its entry contract states.
  */
-#ifndef STUNTRACEFX_MACHINE_H
-#define STUNTRACEFX_MACHINE_H
+#ifndef ALADDIN_MACHINE_H
+#define ALADDIN_MACHINE_H
 
 #include <stdint.h>
 

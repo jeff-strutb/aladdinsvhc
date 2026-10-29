@@ -221,6 +221,39 @@ void wr8(uint32_t addr, uint8_t value)
     else cur->io_mismatch = 1;
 }
 
+/* The C's word and read-modify-write accesses (machine.h), as the bytes the
+   CPU moves, in its order: a word low byte first, linear in the 24-bit
+   space; a read-modify-write's read as a read, and a word one's write high
+   byte first. Each byte is placed on the original's record as rd8 and wr8
+   place it. */
+uint16_t rd16(uint32_t addr)
+{
+    uint8_t lo = rd8(addr);
+    return (uint16_t)(lo | rd8((addr + 1) & 0xFFFFFF) << 8);
+}
+
+void wr16(uint32_t addr, uint16_t value)
+{
+    wr8(addr, (uint8_t)value);
+    wr8((addr + 1) & 0xFFFFFF, (uint8_t)(value >> 8));
+}
+
+uint32_t rd24(uint32_t addr)
+{
+    uint16_t lo = rd16(addr);
+    return lo | (uint32_t)rd8((addr + 2) & 0xFFFFFF) << 16;
+}
+
+uint8_t rd8_rmw(uint32_t addr) { return rd8(addr); }
+
+uint16_t rd16_rmw(uint32_t addr) { return rd16(addr); }
+
+void wr16_rmw(uint32_t addr, uint16_t value)
+{
+    wr8((addr + 1) & 0xFFFFFF, (uint8_t)(value >> 8));
+    wr8(addr, (uint8_t)value);
+}
+
 /* ---- events from the core ---- */
 
 static uint8_t entry_value(Watch *w, uint32_t n)
@@ -527,16 +560,16 @@ static int load_routines(void *core, const char *lib, const char *only)
 {
     void *h = dlopen(lib, RTLD_NOW | RTLD_GLOBAL);
     if (!h) { fprintf(stderr, "dlopen %s: %s\n", lib, dlerror()); return -1; }
-    const Routine *table = dlsym(h, "sfx_routine_table");
-    const uint32_t *cat = dlsym(h, "sfx_catalog");
-    const int *catn = dlsym(h, "sfx_catalog_count");
+    const Routine *table = dlsym(h, "game_routine_table");
+    const uint32_t *cat = dlsym(h, "game_catalog");
+    const int *catn = dlsym(h, "game_catalog_count");
     if (cat && catn)
         for (int i = 0; i < *catn; i++) catalog_bits[cat[i] >> 3] |= (uint8_t)(1 << (cat[i] & 7));
-    const uint32_t *jmp = dlsym(h, "sfx_jump_entries");
-    const int *jmpn = dlsym(h, "sfx_jump_entry_count");
+    const uint32_t *jmp = dlsym(h, "game_jump_entries");
+    const int *jmpn = dlsym(h, "game_jump_entry_count");
     if (jmp && jmpn)
         for (int i = 0; i < *jmpn; i++) jump_bits[jmp[i] >> 3] |= (uint8_t)(1 << (jmp[i] & 7));
-    const int *count = dlsym(h, "sfx_routine_count");
+    const int *count = dlsym(h, "game_routine_count");
     uint8_t *(*mem)(const char *, size_t *) = dlsym(core, "snesbox_memory");
     *(void **)&core_regs = dlsym(core, "snesbox_regs");
     core_opcode = dlsym(core, "snesbox_cpu_opcode");
@@ -1627,7 +1660,7 @@ static void cyc_mark(uint32_t clocks)
     else cyc_over = 1;
 }
 
-void sfx_probe(unsigned id)
+void game_probe(unsigned id)
 {
     if (gsu_probe(id)) return;   /* the Super FX's C, on its own thread */
     if (!cyclog || !machine_live || !on_cpu_thread()) return;
