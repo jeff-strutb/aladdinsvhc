@@ -55,32 +55,35 @@ Phase 0 (bootstrap) and Phase 1 (raw byte-exact skeleton) are in place:
 - snesbox (the headless runner) with trace, unit calls, the A5 checker and
   the A7 lockstep, carried over; the checker's memory map rewritten for the
   LOROM board. A5 and A7 are not yet proven on this game (Phase 2).
-- 10 trace scripts (attract, options, password, level 1, seeded random
-  menus and play): 26,683 S-CPU code bytes and 2,257 SPC700 code bytes
-  traced; no code runs from work RAM in these traces.
+- 10 trace scripts at first (attract, options, password, level 1, seeded
+  random menus and play): 26,683 S-CPU code bytes and 2,257 SPC700 code
+  bytes traced; no code runs from work RAM in these traces.
 - Image gate: the intake rebuilds the ROM with 0 differing bytes, and fails
   on a planted byte.
 
 ## 4. Limits and open decisions (before Phase 3)
 
 1. **Tasks.** The A5 and A7 oracles judge a routine from its call to its
-   return on one stack. A task that yields (switches S and D to another
-   task) and resumes frames later breaks that model. The oracles and the C
-   need a task-aware design (the C as coroutines, each task on its own
-   stack) before routines on task stacks can be certified. To settle with
-   the maintainer before Phase 3.
+   return on one stack. A task that waits (switches to the scheduler) and
+   resumes frames later breaks that model. Design for decision:
+   [TASKS.md](TASKS.md).
 2. **Inline arguments** are handled by the trace-based intake (only traced
    bytes become instructions), but the census and every static walk must
    skip them and seed task entries from them.
-3. **Coverage.** Scripts reach level 1 only. Later levels need longer plays
-   or passwords; unit calls close the rest.
+3. **Coverage.** Scripts start every level by password but play each only
+   at random; bosses, deaths, the ending and level ends need plays or unit
+   calls.
 4. **Unit-call stubs** sit at $1FE0 and $7F:FFE0 as in Stunt Race FX; not yet
    checked against this game's task stacks and RAM use.
 5. **Code size** is unknown until the census; an outside static estimate is
    90-100 KB of S-CPU code against 26.7 KB traced so far.
 
-## 5. Next
+## 5. Phase 2 (2026-10-28)
 
-Phase 2: prove A5 and A7 on one small routine (the APU upload's byte send)
-with negative controls; catalog from traces; settle the task design
-(section 4.1); more scripts for coverage.
+- A5 and A7 proven on SoundCommandSend ($80:B463): 1,139 of 1,139 calls
+  identical; lockstep 1,216 frames compared, 0 differing. Three planted
+  bugs (wrong port byte, flag left set, wrong queue byte) each fail both.
+- Catalog from traces: 573 routines.
+- Every level reached by password (the table at $80:FDD5) and played at
+  random: 37,607 S-CPU code bytes traced.
+- Task design written for decision: [TASKS.md](TASKS.md).
