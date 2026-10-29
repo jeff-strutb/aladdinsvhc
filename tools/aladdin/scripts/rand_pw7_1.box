@@ -1,0 +1,95 @@
+# Random play from pw7.state, seed 71 (randplay.py play).
+load build/aladdin/states/pw7.state
+hold Y+RIGHT 69
+hold RIGHT 37
+hold B+RIGHT 37
+hold DOWN+A 11
+hold DOWN+A 7
+hold DOWN+A 50
+hold DOWN 20
+hold B+RIGHT 8
+hold RIGHT 53
+hold B+RIGHT 23
+hold B+R 61
+hold RIGHT 35
+hold B 35
+hold DOWN+A 49
+hold RIGHT 36
+hold R 7
+hold B+LEFT 16
+hold B+R 65
+hold Y+LEFT 80
+hold A+RIGHT 16
+hold X 31
+hold DOWN 64
+hold A 16
+hold X 83
+hold RIGHT 8
+hold B+LEFT 64
+hold DOWN+A 68
+hold B+LEFT 38
+hold RIGHT 67
+hold B+LEFT 20
+hold RIGHT 31
+hold DOWN 39
+hold B+R 37
+hold UP+B 44
+hold UP+B 67
+press START
+wait 60
+press START
+hold B+R 31
+hold L 76
+hold A+RIGHT 5
+hold B+R 12
+hold Y+RIGHT 80
+hold B 61
+hold UP+B 48
+hold RIGHT 40
+hold Y+LEFT 72
+hold A+RIGHT 43
+hold UP+B 71
+hold L 6
+hold R 45
+hold A 50
+hold LEFT 76
+hold UP 13
+hold A 67
+hold Y+LEFT 59
+hold DOWN 88
+hold B 82
+hold RIGHT 76
+hold DOWN 34
+hold B+RIGHT 28
+hold RIGHT 50
+hold UP 21
+hold B 86
+hold RIGHT 65
+hold RIGHT 11
+hold R 17
+hold L 37
+hold Y+RIGHT 6
+hold Y+RIGHT+B 39
+hold X 84
+hold UP+B 61
+hold RIGHT 11
+hold R 76
+hold L 79
+hold X 10
+hold B+LEFT 47
+hold Y+RIGHT 43
+hold X 66
+hold A 34
+hold B+RIGHT 54
+hold LEFT 74
+hold DOWN 76
+hold UP+B 84
+hold UP+B 70
+hold B+R 36
+hold RIGHT 24
+hold X 15
+press START
+wait 60
+press START
+hold B+RIGHT 72
+shot played

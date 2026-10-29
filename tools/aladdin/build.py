@@ -61,8 +61,12 @@ def make_states():
             if not os.path.exists(st) or os.path.getmtime(st) < os.path.getmtime(r):
                 todo.append(r)
                 break
-    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
-        list(ex.map(lambda r: run([SNESBOX, '--rom', BASEROM, '--script', r, '--out', STATES], cwd=ROOT), todo))
+    # In name order, one at a time: a recipe may load a state an earlier one
+    # saves (the passwords start from the title). A recipe rerun makes every
+    # later one stale too.
+    for r in sorted(glob.glob(os.path.join(STATE_RECIPES, '*.box'))):
+        if todo and r >= todo[0]:
+            run([SNESBOX, '--rom', BASEROM, '--script', r, '--out', STATES], cwd=ROOT)
 
 
 def inputs_mtime(script):
