@@ -4,8 +4,8 @@
     asmdraft.py ADDR [ADDR...]      print a draft for each routine
 
 The draft is the traced listing with the placement directive, operands
-replaced by the names in hw.inc and wram.inc (exact addresses, or a name
-plus a small offset inside the sprite table), calls to filed routines by
+replaced by the names in hw.inc, wram.inc and rom.inc (exact addresses
+only), calls to filed routines by
 their labels, branch targets as local labels, and a header to fill in.
 Names it could not find are listed at the end. It is intake: every draft is
 read, named and commented by hand before it is filed.
@@ -129,15 +129,11 @@ def main(argv):
                     else:
                         key = v & 0xFFFF if (m.group(2) != '.l' or (v >> 16) in (0x00, 0x7E) and v < 0x7E2000) else v
                         rep = names.get(v) or names.get(key)
+                        # Exact names only: a near name plus an offset
+                        # is a guess at a record the reading has not
+                        # established. Unnamed operands are listed.
                         if rep:
                             rep = '!' + rep
-                        elif 0x0375 <= key < 0x0595:
-                            rep = '!oam_buffer+%d' % (key - 0x0375)
-                        else:
-                            near = [(v - k2, n2) for k2, n2 in names.items() if 0 < v - k2 <= 0x40 and (k2 >> 16) == (v >> 16)]
-                            if near:
-                                d, n2 = min(near)
-                                rep = '!%s+%d' % (n2, d)
                     if rep:
                         op = op[:n.start()] + rep + op[n.end():]
                     else:
