@@ -9,6 +9,7 @@
 incsrc "../include/macros.inc"
 incsrc "../include/hw.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_video.inc"
 
 arch 65816
 
@@ -29,7 +30,7 @@ arch 65816
 ; wrapping at 32. The sending flag is cleared on every way out.
 ; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
 ; whose $2140-$2143 are the APU ports ($00-$3F or $80-$BF); D any.
-; Exit: as the C states, by the way out taken.
+; Exit: as the C states.
 %at($80B463)
 SoundCommandSend:
     lda.w !sound_hold
@@ -67,3 +68,37 @@ SoundCommandSend:
 .done:
     stz.w !sound_sending
     rts
+
+; Levels $14-$1E queue no sound commands.
+!LEVEL_QUIET_FIRST = $0014
+!LEVEL_QUIET_END = $001F
+
+; @routine 81:FA00 SoundQueueAdd
+; WHAT IT DOES: Adds sound command A to the queue the NMI sends from,
+; unless it is 0 or the level is one of $14-$1E, which queue none.
+; HOW: The caller's Z says A is 0. With 16-bit X the level word is
+; compared and the write index read as a word; the index then steps,
+; wrapping at 32.
+; Entry: M 8-bit, X 8-bit; A = the command, Z from it; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSL. Exit: as the C states.
+%at($81FA00)
+SoundQueueAdd:
+    rep.b #$10
+    beq .done
+    ldx.w !level
+    cpx.w #!LEVEL_QUIET_FIRST
+    bcs .late
+.queue:
+    ldx.w !sound_queue_write
+    sta.w !sound_queue,x
+    txa
+    inc a
+    and.b #31
+    sta.w !sound_queue_write
+    bra .done
+.late:
+    cpx.w #!LEVEL_QUIET_END
+    bcs .queue
+.done:
+    sep.b #$10
+    rtl

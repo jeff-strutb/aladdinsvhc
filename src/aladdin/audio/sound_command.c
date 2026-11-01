@@ -10,10 +10,17 @@
 #include "cpu_ops.h"
 #include "hw.h"
 #include "wram.h"
+#include "wram_video.h"
 
 /* Commands $F5 and $F6 take a parameter, the next byte in the ring. */
 #define SOUND_CMD_PARAM_A 0xF5
 #define SOUND_CMD_PARAM_B 0xF6
+
+/* CPX # (16-bit): N, Z and C from X less `m`. */
+static void op_cmp16_x(uint16_t m)
+{
+    cpu.p = (uint8_t)((nz16(cpu.p, (uint16_t)(cpu.x - m)) & ~P_C) | (cpu.x >= m ? P_C : 0));
+}
 
 /*
  * @routine 80:B463 SoundCommandSend
@@ -79,4 +86,44 @@ void abi_SoundCommandSend(void)
 done:
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     wr8(SOUND_SENDING, 0);
+}
+
+/* Levels $14-$1E queue no sound commands. */
+#define LEVEL_QUIET_FIRST 0x0014
+#define LEVEL_QUIET_END 0x001F
+
+/*
+ * @routine 81:FA00 SoundQueueAdd
+ * WHAT IT DOES: Adds sound command A to the queue the NMI sends from,
+ * unless it is 0 or the level is one of $14-$1E, which queue none.
+ * HOW: The caller's Z says A is 0. With 16-bit X the level word is
+ * compared and the write index read as a word; the index then steps,
+ * wrapping at 32.
+ * Entry: M 8-bit, X 8-bit; A = the command, Z from it; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSL. Exit: queued: A low = the new
+ * write index, N and Z from it; X = the old index; C from the level
+ * compare. Not queued: A and Z as at entry, or X = the level, N, Z and C
+ * from its compare with $1F. X 8-bit; Y and the other flags unchanged.
+ */
+void abi_SoundQueueAdd(void)
+{
+    uint16_t x;
+    uint8_t a = (uint8_t)cpu.a;
+
+    op_rep(P_X);
+    if (!(cpu.p & P_Z)) {
+        x = rd16(LEVEL);
+        cpu.x = x;
+        op_cmp16_x(LEVEL_QUIET_FIRST);
+        if (!(cpu.p & P_C) || (op_cmp16_x(LEVEL_QUIET_END), cpu.p & P_C)) {
+            x = rd16(SOUND_QUEUE_WRITE);
+            cpu.x = x;
+            wr8(SOUND_QUEUE + x, a);
+            a = (uint8_t)((x + 1) & 0x1F);
+            cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+            cpu.p = nz8(cpu.p, a);
+            wr8(SOUND_QUEUE_WRITE, a);
+        }
+    }
+    op_sep(P_X);
 }

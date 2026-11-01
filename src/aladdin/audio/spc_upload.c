@@ -17,7 +17,9 @@
 #define IPL_READY 0xBBAAu          /* ports 0-1 while the SPC700 waits in its IPL */
 #define IPL_START 0xCC             /* the first counter value */
 #define SOUND_SETS_LOADED 0x00000Au /* nonzero once the driver and sample sets are in (cleared at power-on) */
-#define DRIVER_TO_IPL 0xF9         /* the command that sends a running driver back to the IPL */
+#define DRIVER_TO_IPL 0xF9
+#define SONG_REQUESTED 0x0003B9u    /* the song SongPlay was asked for */
+#define DRIVER_TO_IPL_SONG 0xFA     /* the command that sends the driver back to the IPL for a song */         /* the command that sends a running driver back to the IPL */
 
 /* Direct-page bytes the upload uses: the command, and the list's long
    pointer (its bank steps as the data crosses $8000). */
@@ -212,4 +214,51 @@ void abi_SoundSetsLoad(void)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 1);
     cpu.p = nz8(cpu.p, 1);
     wr8(SOUND_SEQ, 1);
+}
+
+/*
+ * @routine 81:FA23 SongPlay
+ * WHAT IT DOES: Starts song A: uploads its list (song A's entry, A times
+ * 3, in the list table) to the SPC700, unless a sound command is being
+ * sent right now.
+ * HOW: Sound commands are held while it works; with D 0 (kept on the
+ * stack meanwhile), SpcUpload with command $FA.
+ * Entry: M 8-bit, X 8-bit; A = the song's entry number; DB a bank whose
+ * $0000-$1FFF is work RAM and whose $2140-$2143 are the APU ports; called
+ * by JSL. Exit: not now: X = the sending flag, N and Z from it. Uploaded:
+ * as SpcUpload, with N and Z from D as it comes back; M and X 8-bit; D
+ * as at entry.
+ */
+void abi_SongPlay(void)
+{
+    uint8_t x = rd8(SOUND_SENDING);
+    uint16_t d;
+
+    cpu.x = x;
+    cpu.p = nz8(cpu.p, x);
+    if (x != 0)
+        return;
+    wr8(SOUND_HOLD, (uint8_t)(rd8_rmw(SOUND_HOLD) + 1));
+    op_push8((uint8_t)(cpu.d >> 8));
+    op_push8((uint8_t)cpu.d);
+    wr8(SONG_REQUESTED, (uint8_t)cpu.a);
+    op_rep(P_M | P_X);
+    cpu.a = 0;
+    cpu.d = 0;
+    cpu.p = nz16(cpu.p, 0);
+    cpu.p &= (uint8_t)~P_C;
+    cpu.a = rd16(SONG_REQUESTED);
+    op_asl16();
+    cpu.a = op_adc16(cpu.a, rd16(SONG_REQUESTED), &cpu.p);
+    op_and16(0x00FF);
+    cpu.x = cpu.a;
+    cpu.a = DRIVER_TO_IPL_SONG;
+    op_sep(P_M | P_X);
+    abi_SpcUpload();
+    op_sep(P_M | P_X);
+    d = op_pull8();
+    d |= (uint16_t)(op_pull8() << 8);
+    cpu.d = d;
+    cpu.p = nz16(cpu.p, d);
+    wr8(SOUND_HOLD, 0);
 }

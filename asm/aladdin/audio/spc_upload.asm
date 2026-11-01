@@ -19,6 +19,8 @@ arch 65816
 !IPL_START = $CC                ; the first counter value
 !SOUND_SETS_LOADED = $000A      ; nonzero once the driver and sample sets are in (cleared at power-on)
 !DRIVER_TO_IPL = $F9            ; the command that sends a running driver back to the IPL
+!SONG_REQUESTED = $03B9         ; the song SongPlay was asked for
+!DRIVER_TO_IPL_SONG = $FA       ; the command that sends the driver back to the IPL for a song
 
 ; Direct-page bytes the upload uses: the command, and the list's long
 ; pointer (its bank steps as the data crosses $8000).
@@ -160,4 +162,38 @@ SpcUpload:
     bne .driver_up
     sta.w !sound_seq
     plp
+    rtl
+
+; @routine 81:FA23 SongPlay
+; WHAT IT DOES: Starts song A: uploads its list (song A's entry, A times
+; 3, in the list table) to the SPC700, unless a sound command is being
+; sent right now.
+; HOW: Sound commands are held while it works; with D 0 (kept on the
+; stack meanwhile), SpcUpload with command $FA.
+; Entry: M 8-bit, X 8-bit; A = the song's entry number; DB a bank whose
+; $0000-$1FFF is work RAM and whose $2140-$2143 are the APU ports; called
+; by JSL. Exit: as the C states.
+%at($81FA23)
+SongPlay:
+    ldx.w !sound_sending
+    bne .done
+    inc.w !sound_hold
+    phd
+    sta.w !SONG_REQUESTED
+    rep.b #$30
+    lda.w #$0000
+    tcd
+    clc
+    lda.w !SONG_REQUESTED
+    asl a
+    adc.w !SONG_REQUESTED
+    and.w #$00FF
+    tax
+    lda.w #!DRIVER_TO_IPL_SONG
+    sep.b #$30
+    jsl.l SpcUpload
+    sep.b #$30
+    pld
+    stz.w !sound_hold
+.done:
     rtl

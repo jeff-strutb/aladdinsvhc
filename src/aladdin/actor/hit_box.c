@@ -29,6 +29,21 @@ static uint32_t dp(uint8_t off)
     return (uint16_t)(cpu.d + off);
 }
 
+#define PLAYER_STATE_8C_COUNT 0x00141Bu /* counted up on entering state $8C */
+
+/*
+ * @routine 83:835B NoHitReturn
+ * WHAT IT DOES: The hit tests' "no" answer: returns with C set and 8-bit
+ * registers.
+ * HOW: SEP #$31.
+ * Entry: any. Exit: C set; M and X 8-bit (X and Y high bytes cleared);
+ * the rest unchanged.
+ */
+void abi_NoHitReturn(void)
+{
+    op_sep(P_M | P_X | P_C);
+}
+
 /*
  * @routine 83:8312 ActorHitsTestBox
  * WHAT IT DOES: Tells whether the actor, when it can be hit (bit 6 of its
@@ -51,7 +66,7 @@ void abi_ActorHitsTestBox(void)
 
     cpu.p = (uint8_t)((cpu.p & ~(P_N | P_V | P_Z)) | (m & (P_N | P_V)) | (((uint8_t)cpu.a & m) ? 0 : P_Z));
     if (!(m & 0x40)) {
-        op_sep(P_M | P_X | P_C);
+        abi_NoHitReturn();
         return;
     }
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(dp(ACTOR_06)));
@@ -83,7 +98,7 @@ void abi_ActorHitsTestBox(void)
         op_sep(P_M | P_X);
         return;
     }
-    op_sep(P_M | P_X | P_C);
+    abi_NoHitReturn();
 }
 
 /*
@@ -95,4 +110,53 @@ void abi_ActorHitsTestBox(void)
 void abi_ActorHitsTestBoxLong(void)
 {
     abi_ActorHitsTestBox();
+}
+
+/*
+ * @routine 83:830E ActorHitsTestBoxIfActive
+ * WHAT IT DOES: ActorHitsTestBox, for an actor whose byte at $08 has bit
+ * 7 clear; otherwise "no".
+ * HOW: The byte's sign, then on into ActorHitsTestBox.
+ * Entry: as ActorHitsTestBox. Exit: as ActorHitsTestBox, or as
+ * NoHitReturn with N set from the byte.
+ */
+void abi_ActorHitsTestBoxIfActive(void)
+{
+    uint8_t a = rd8(dp(ACTOR_08));
+
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    cpu.p = nz8(cpu.p, a);
+    if (a & 0x80) {
+        abi_NoHitReturn();
+        return;
+    }
+    abi_ActorHitsTestBox();
+}
+
+/*
+ * @routine 83:8304 ActorHitsTestBoxIfPlayerFree
+ * WHAT IT DOES: ActorHitsTestBoxIfActive, while Aladdin can be hit: bit 7
+ * of his byte at $08 clear and no state $8C counted; otherwise "no".
+ * HOW: The two tests, then on into ActorHitsTestBoxIfActive.
+ * Entry: as ActorHitsTestBox. Exit: as ActorHitsTestBoxIfActive, or as
+ * NoHitReturn with N and Z from the byte that said no.
+ */
+void abi_ActorHitsTestBoxIfPlayerFree(void)
+{
+    uint8_t a = rd8(PLAYER + ACTOR_08);
+
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    cpu.p = nz8(cpu.p, a);
+    if (a & 0x80) {
+        abi_NoHitReturn();
+        return;
+    }
+    a = rd8(PLAYER_STATE_8C_COUNT);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    cpu.p = nz8(cpu.p, a);
+    if (a != 0) {
+        abi_NoHitReturn();
+        return;
+    }
+    abi_ActorHitsTestBoxIfActive();
 }

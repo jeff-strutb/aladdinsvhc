@@ -16,6 +16,28 @@ arch 65816
 !TEST_BOX_HALF_W = $1488
 !TEST_BOX_HALF_H = $148A
 !HIT_BOXES = $C29A
+!PLAYER_STATE_8C_COUNT = $141B   ; counted up on entering state $8C
+
+; @routine 83:8304 ActorHitsTestBoxIfPlayerFree
+; WHAT IT DOES: ActorHitsTestBoxIfActive, while Aladdin can be hit: bit 7
+; of his byte at $08 clear and no state $8C counted; otherwise "no".
+; HOW: The two tests, then on into ActorHitsTestBoxIfActive.
+; Entry: as ActorHitsTestBox. Exit: as the C states.
+%at($838304)
+ActorHitsTestBoxIfPlayerFree:
+    lda.w !player+!actor_08
+    bmi NoHitReturn
+    lda.w !PLAYER_STATE_8C_COUNT
+    bne NoHitReturn
+
+; @routine 83:830E ActorHitsTestBoxIfActive
+; WHAT IT DOES: ActorHitsTestBox, for an actor whose byte at $08 has bit
+; 7 clear; otherwise "no".
+; HOW: The byte's sign, then on into ActorHitsTestBox.
+; Entry: as ActorHitsTestBox. Exit: as the C states.
+ActorHitsTestBoxIfActive:
+    lda.b !actor_08
+    bmi NoHitReturn
 
 ; @routine 83:8312 ActorHitsTestBox
 ; WHAT IT DOES: Tells whether the actor, when it can be hit (bit 6 of its
@@ -29,7 +51,7 @@ arch 65816
 %at($838312)
 ActorHitsTestBox:
     bit.b !actor_09
-    bvc .not_hit
+    bvc NoHitReturn
     lda.b !actor_06
     rep.b #$30
     and.w #$00FF
@@ -54,7 +76,7 @@ ActorHitsTestBox:
     clc
     adc.w !scratch
     cmp.w !scratch+2
-    bcs .not_hit
+    bcs NoHitReturn
     sec
     lda.b !actor_y+1
     sbc.w !TEST_BOX_Y
@@ -63,7 +85,13 @@ ActorHitsTestBox:
     cmp.w !scratch+6
     sep.b #$30
     rts
-.not_hit:
+
+; @routine 83:835B NoHitReturn
+; WHAT IT DOES: The hit tests' "no" answer: returns with C set and 8-bit
+; registers.
+; HOW: SEP #$31.
+; Entry: any. Exit: as the C states.
+NoHitReturn:
     sep.b #$31
     rts
 
