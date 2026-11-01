@@ -55,10 +55,13 @@ per finding, each linked to the dated note that measured it.
 - A task's stack is (top - $35, top + 3]: its own code runs with S up to
   three above the top, once the scheduler's RTL has pulled the entry
   ([decomp/log/inline-args-2026-11-01](decomp/log/inline-args-2026-11-01.md)).
-- A push the original holds across a stretch of code (PHB around a copy
-  loop) is made in the C too, in work RAM and in S (op_push8, op_pull8),
-  with the data bank it sets, so an interrupt there stacks what the
-  original's does.
+- An interrupt the hybrid replays inside running C stacks its frame at
+  the original's S, which can lie on the C's own live stack (its calls to
+  C push nothing): the bytes it overwrites at or above the C's S are put
+  back after it. A5 never sees this; A7 does
+  ([decomp/log/interrupt-frames-2026-11-01](decomp/log/interrupt-frames-2026-11-01.md)).
+- A return to a routine's exit level from a call it made from that level
+  (after pulling its own return address) is nested, not its end.
 - Bottom up is not optional: C that reaches code with no C fails the whole
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.

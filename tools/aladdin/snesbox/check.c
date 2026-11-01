@@ -204,6 +204,7 @@ typedef struct {
     int c_state;             /* 0 none, 1 returned, 2 waiting in task_yield */
     int resumed;             /* this piece starts where the task resumed */
     int actor;               /* a piece of an actor's code (docs/aladdin/ACTORS.md) */
+    int exit_calls;          /* calls it made from its exit level (after its own return was pulled), not yet returned */
     uint16_t live_s;         /* stack above this is live (scratch below it) */
 } Watch;
 
@@ -682,11 +683,20 @@ static void on_insn(uint32_t pc)
        exit level ends it too wherever it lands: the routine stepped its own
        return address (over inline arguments, as the task create and exec
        calls do), and the C must land in the same place. Not an actor's
-       piece: its level is its own, where the routines it calls return. */
+       piece: its level is its own, where the routines it calls return. Nor
+       the return of a call the routine made from its exit level itself
+       (after pulling its own return address, $83:96BE's JSR $96E2): that
+       return is nested, and the routine goes on. */
+    if (depth && (prev_op == 0x20 || prev_op == 0x22 || prev_op == 0xFC)) {
+        if (!have) { core_regs(&r); have = 1; }
+        for (int i = 0; i < depth; i++)
+            if (!ws[i]->in_irq && (uint32_t)r.s + (prev_op == 0x22 ? 3 : 2) == ws[i]->exit_s) ws[i]->exit_calls++;
+    }
     while (depth) {
         Watch *t = ws[depth - 1];
         if (t->in_irq) break;
         if (!have) { core_regs(&r); have = 1; }
+        if (r.s == t->exit_s && t->exit_calls && (prev_op == 0x60 || prev_op == 0x6B)) { t->exit_calls--; break; }
         if ((pc == t->ret_pc && r.s == t->exit_s)
             || ((r.s > t->exit_s || (r.s == t->exit_s && !t->actor)) && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
         else break;
@@ -703,6 +713,7 @@ static void on_insn(uint32_t pc)
     Watch *w = ws[depth];
     uint16_t word = (uint16_t)(wram[(sp + 1) & 0xFFFF] | wram[(sp + 2) & 0xFFFF] << 8);
     w->actor = 0;
+    w->exit_calls = 0;
     if (ue.set && pc == ue.pc && r.s == ue.entry_s) {
         w->ret_pc = ue.ret;
         w->exit_s = ue.exit_s;
@@ -1013,6 +1024,7 @@ static struct {
     uint32_t open_pc[64];    /* and their entries */
     uint16_t entry_s;        /* S at the call's own entry */
     int actor;               /* a piece of an actor's code: no return; ends at its yield or its leave */
+    int exit_calls;          /* calls it made from its exit level, not yet returned */
     uint32_t ret[0x10000];   /* by S at a callee's entry: 1 << 24 | its return address */
 } m;
 static uint32_t m_pc;        /* the routine of the open call */
@@ -1204,7 +1216,14 @@ static void ls_insn(uint32_t pc)
            sides, the C having left the same way (cpu.unwound). */
         /* A return to the exit level ends it wherever it lands (a routine
            that stepped its return address over inline arguments); not an
-           actor's piece, whose level is its own. */
+           actor's piece, whose level is its own; nor the return of a call
+           it made from its exit level itself (see on_insn). */
+        if ((prev == 0x20 || prev == 0x22 || prev == 0xFC) && (uint32_t)r.s + (prev == 0x22 ? 3 : 2) == m.exit_s)
+            m.exit_calls++;
+        else if (r.s == m.exit_s && m.exit_calls && (prev == 0x60 || prev == 0x6B)) {
+            m.exit_calls--;
+            goto not_end;
+        }
         if ((pc == m.ret_pc && r.s == m.exit_s)
             || (!m.stack_reset && r.s > m.exit_s && (prev == 0x60 || prev == 0x6B))
             || (!m.stack_reset && !m.actor && r.s == m.exit_s && (prev == 0x60 || prev == 0x6B))) {
@@ -1215,6 +1234,7 @@ static void ls_insn(uint32_t pc)
             m.irq_resumed = 0;
             return;
         }
+    not_end:
         /* After an RTL, RTS, JMP/JML through memory or JSR (abs,X), this
            instruction may be a routine entered through a computed address (a
            handler pushed for an RTL, a jump table), which C reaches with
@@ -1341,7 +1361,7 @@ static void o_open(uint32_t pc, struct SnesboxRegs *rp)
     sh->fs[cur_frame % NSLOT].ncalls++;
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(stderr, "OCALL frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)k, pc, r.s);
-    m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0; m.actor = 0;
+    m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0; m.actor = 0; m.exit_calls = 0;
     m.noreturn = ls_noreturn_pc == pc;
     ls_noreturn_pc = (uint32_t)-1;
     m_pc = pc;
@@ -1564,6 +1584,8 @@ static void replay_ops(uint32_t from, uint32_t n)
     core_replay(buf, n);
 }
 
+#define IRQ_FRAME_SPAN 0x80   /* the stack an interrupt handler's frames can reach below S */
+
 /* Replay the recorded cycles [cur_i, to), taking each recorded interrupt at
    its place: the core takes the pending interrupt from the original's
    registers and runs the handler until it returns. */
@@ -1579,9 +1601,21 @@ static void replay_to(uint32_t to)
                 (uint16_t)(cur_addr[i + 2] >> 16), (uint16_t)cur_addr[i + 3], (uint8_t)(cur_addr[i + 3] >> 16),
                 (uint8_t)(cur_addr[i + 3] >> 24), (uint8_t)(cur_addr[i] >> 24), cur_addr[i] & 0xFFFFFF};
             struct SnesboxRegs mine; core_regs(&mine);
+            /* Taken inside running C, the handler stacks its frame at the
+               original's S, which can lie on the C's own live stack (the C
+               makes no frames for its calls to C, so its S stands higher):
+               the bytes it overwrites at or above the C's S are put back
+               after it, as the original's frame below its own S left them. */
+            uint8_t keep[IRQ_FRAME_SPAN];
+            uint32_t lo = at.s >= IRQ_FRAME_SPAN ? at.s - IRQ_FRAME_SPAN + 1u : 0u;
+            int guard = machine_live && cpu.s < at.s + 1u;
+            if (guard) for (uint32_t k = 0; k < IRQ_FRAME_SPAN; k++) keep[k] = wram[(lo + k) & 0xFFFF];
             if (!core_interrupt_here(&at) && irq_missed++ < 5)
                 fprintf(lsrep, "OFF frame %ld: interrupt recorded at %06X (op %u of %u) not pending there (in %s; clock %u)\n",
                         cur_frame, at.pc, i, cur_n, ls_cur_name ? ls_cur_name : "-", core_clock());
+            if (guard)
+                for (uint32_t k = 0; k < IRQ_FRAME_SPAN; k++)
+                    if (lo + k > cpu.s && wram[(lo + k) & 0xFFFF] != keep[k]) core_bus_write(lo + k, keep[k]);
             core_set_regs(&mine);
         }
         i += 4;
