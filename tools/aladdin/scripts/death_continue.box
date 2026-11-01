@@ -1,0 +1,177 @@
+# A death with continues left: the first level with one life, three
+# continues and one point of health, played at random (seed 42) until
+# Aladdin is hit; the continue screen, a continue spent, play again.
+load build/aladdin/states/level1.state
+poke 000364 01
+poke 000367 01
+hold L 18
+hold A 35
+hold LEFT 73
+hold B+R 8
+hold B+RIGHT 33
+hold RIGHT 75
+hold L 73
+hold DOWN 79
+hold RIGHT 24
+hold Y+RIGHT 39
+hold Y+RIGHT 17
+hold LEFT 49
+hold X 37
+hold DOWN 72
+hold R 14
+hold L 83
+hold Y+RIGHT+B 77
+hold RIGHT 9
+hold A+RIGHT 14
+hold LEFT 52
+hold L 50
+hold Y+RIGHT+B 30
+hold L 13
+hold B+RIGHT 72
+hold B+RIGHT 63
+hold L 75
+hold Y+RIGHT 11
+hold RIGHT 44
+hold RIGHT 31
+hold Y+LEFT 44
+hold UP 54
+hold L 62
+hold B 35
+hold UP+B 37
+hold B+R 78
+hold B+LEFT 21
+hold RIGHT 10
+hold B 84
+hold B+R 80
+hold R 80
+hold DOWN+A 36
+hold RIGHT 18
+hold UP+B 38
+hold Y+RIGHT 18
+hold B+RIGHT 62
+press START
+wait 60
+press START
+hold A 68
+hold DOWN+A 17
+hold A+RIGHT 85
+hold B+RIGHT 23
+hold B+RIGHT 73
+hold DOWN+A 4
+hold UP 6
+hold Y+RIGHT+B 43
+hold B+LEFT 76
+hold RIGHT 66
+hold UP+B 20
+hold UP 74
+hold DOWN+A 81
+hold B+RIGHT 73
+hold B+RIGHT 43
+hold L 51
+hold DOWN+A 61
+hold B+LEFT 12
+hold Y+LEFT 74
+hold B+LEFT 4
+hold L 11
+hold RIGHT 46
+hold B+LEFT 39
+hold B+RIGHT 73
+hold Y+LEFT 77
+hold UP 56
+hold LEFT 88
+hold B+R 56
+hold RIGHT 87
+hold LEFT 11
+hold Y+RIGHT 17
+hold B+RIGHT 72
+hold B+R 27
+hold B+LEFT 13
+hold UP+B 16
+hold UP+B 5
+hold B+LEFT 25
+hold UP 31
+hold RIGHT 25
+hold R 37
+hold DOWN 40
+hold UP+B 88
+hold B 28
+hold RIGHT 78
+hold RIGHT 44
+hold Y+LEFT 65
+hold DOWN+A 24
+hold DOWN+A 14
+hold RIGHT 80
+hold B+LEFT 55
+hold Y+LEFT 35
+hold RIGHT 83
+hold Y+LEFT 76
+hold A 30
+hold Y+RIGHT 34
+hold B 89
+hold DOWN 44
+hold RIGHT 5
+hold Y+LEFT 16
+hold B+RIGHT 68
+hold Y+RIGHT+B 12
+hold Y+RIGHT+B 40
+hold UP+B 42
+hold L 71
+press START
+wait 60
+press START
+hold UP+B 42
+hold LEFT 21
+hold LEFT 74
+hold A+RIGHT 81
+hold Y+RIGHT 30
+hold A 68
+hold RIGHT 15
+hold A 9
+press START
+wait 60
+press START
+hold B 85
+hold B+RIGHT 60
+hold B+R 75
+press START
+wait 60
+press START
+hold RIGHT 23
+hold Y+RIGHT+B 78
+hold B+R 20
+hold Y+RIGHT+B 9
+hold B+RIGHT 35
+hold Y+RIGHT+B 75
+hold B+R 83
+hold B+LEFT 24
+hold B+RIGHT 56
+hold Y+RIGHT 56
+hold B+LEFT 38
+hold LEFT 52
+hold UP 32
+hold DOWN 48
+hold B+LEFT 32
+hold B+RIGHT 55
+hold RIGHT 39
+hold DOWN+A 55
+hold UP+B 46
+hold LEFT 37
+hold A 8
+hold B+R 48
+hold Y+RIGHT 59
+hold DOWN+A 18
+hold Y+LEFT 28
+hold B+R 4
+hold UP+B 89
+hold B+R 12
+hold Y+RIGHT 83
+hold LEFT 42
+hold B+R 45
+hold A+RIGHT 74
+hold B+R 89
+shot played
+wait 400
+press START
+wait 600
+press START
+wait 600

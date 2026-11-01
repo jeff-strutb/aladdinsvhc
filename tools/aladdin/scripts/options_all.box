@@ -1,0 +1,45 @@
+# The options screen, every row worked hard: 36 steps left and 36 right
+# (the sound test wraps both ways), each other button (long waits: A on the
+# sound test uploads a song), DOWN past the last row and UP past the first,
+# pad 2's L, then START.
+load build/aladdin/states/title.state
+press DOWN
+wait 20
+press DOWN
+wait 30
+press START
+wait 120
+repeat 5
+repeat 36
+press LEFT
+wait 6
+end
+repeat 36
+press RIGHT
+wait 6
+end
+press A
+wait 240
+press B
+wait 240
+press X
+wait 240
+press Y
+wait 240
+press L
+wait 30
+press R
+wait 30
+press SELECT
+wait 30
+press DOWN
+wait 30
+end
+repeat 6
+press UP
+wait 30
+end
+press 2.L
+wait 120
+press START
+wait 240
