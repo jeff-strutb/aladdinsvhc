@@ -529,3 +529,274 @@ void abi_TileAtProbeLong(void)
 {
     abi_TileAtProbe();
 }
+
+/* Per behaviour's low 3 bits: nonzero, a wall the actor is pushed out of
+   (WALL_KINDS); nonzero, a floor it settles on (FLOOR_KINDS) (bank $81). */
+#define WALL_KINDS 0xBF0Au
+#define FLOOR_KINDS 0xBF12u
+#define BEHAVIOUR_THROUGH 0x40     /* behaviour bit: the actor passes through it */
+
+/*
+ * @routine 81:B795 GroundInFrontLong
+ * WHAT IT DOES: GroundInFront for callers in other banks.
+ * HOW: GroundInFront.
+ * Entry: as GroundInFront; called by JSL. Exit: as PointInGround.
+ */
+void abi_GroundInFrontLong(void)
+{
+    abi_GroundInFront();
+}
+
+/*
+ * @routine 81:B5F6 GroundBehindBit4
+ * WHAT IT DOES: Tests the ground behind the actor, and moves the tile
+ * behaviour's bit 4 into bit 5 when it is set.
+ * HOW: GroundBehind; then the behaviour byte, when bit 4 is set, shifts
+ * left.
+ * Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+ * GroundBehind, but A low byte = the behaviour's bit 4 and N, Z from it;
+ * C its bit 7 when shifted.
+ */
+void abi_GroundBehindBit4(void)
+{
+    uint8_t b;
+
+    abi_GroundBehind();
+    b = (uint8_t)(rd8(abs_db(TILE_BEHAVIOUR_BYTE)) & 0x10);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
+    cpu.p = nz8(cpu.p, b);
+    if (b) {
+        uint8_t v = rd8_rmw(abs_db(TILE_BEHAVIOUR_BYTE));
+
+        cpu.p = (uint8_t)((cpu.p & ~P_C) | (v >> 7));
+        v = (uint8_t)(v << 1);
+        wr8(abs_db(TILE_BEHAVIOUR_BYTE), v);
+        cpu.p = nz8(cpu.p, v);
+    }
+}
+
+/*
+ * @routine 81:B5B3 GroundBehindBit3
+ * WHAT IT DOES: Tests the ground behind the actor at probes $10 and then
+ * $14, until a tile with behaviour bit 3.
+ * HOW: GroundBehind at probe $10; without bit 3, again at probe $14.
+ * Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+ * GroundBehind, but A low byte = the last tile's behaviour bit 3, N, Z
+ * from it.
+ */
+void abi_GroundBehindBit3(void)
+{
+    static const uint8_t probes[2] = { 0x10, 0x14 };
+    uint8_t b = 0;
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | probes[i]);
+        cpu.p = nz8(cpu.p, probes[i]);
+        wr8(dp(ACTOR_PROBE_AT), probes[i]);
+        abi_GroundBehind();
+        b = (uint8_t)(rd8(abs_db(TILE_BEHAVIOUR_BYTE)) & 0x08);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
+        cpu.p = nz8(cpu.p, b);
+        if (b)
+            break;
+    }
+}
+
+/*
+ * @routine 81:B60C ActorOutOfWall
+ * WHAT IT DOES: When the probe in front of the actor is in a wall, moves
+ * the actor out of it: C set when it was moved.
+ * HOW: GroundInFront at probe A; a tile whose kind is a wall and that the
+ * actor cannot pass through moves the actor's x by the point's distance
+ * past the tile's near edge: back by (x in tile) + 1 in its left half,
+ * on by 16 - (x in tile) in its right half.
+ * Entry: M 8-bit; D = the actor; A low byte = the probe's offset; DB =
+ * $81; called by JSR. Exit: moved: M 8-bit, C set; A = the new x (16
+ * bits); N, Z from its ADC. Not: C clear; A, N, Z as the tests left them.
+ */
+void abi_ActorOutOfWall(void)
+{
+    uint8_t b;
+    uint16_t a;
+
+    wr8(dp(ACTOR_PROBE_AT), (uint8_t)cpu.a);
+    abi_GroundInFront();
+    if (!(cpu.p & P_C))
+        goto none;
+    b = (uint8_t)(rd8(abs_db(TILE_BEHAVIOUR_BYTE)) & 0x07);
+    cpu.x = b;
+    b = rd8(abs_db((uint16_t)(WALL_KINDS + b)));
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
+    cpu.p = nz8(cpu.p, b);
+    if (b == 0)
+        goto none;
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | BEHAVIOUR_THROUGH);
+    b = rd8(abs_db(TILE_BEHAVIOUR_BYTE));
+    cpu.p = (uint8_t)((cpu.p & ~(P_N | P_V | P_Z)) | (b & (P_N | P_V)) | ((b & BEHAVIOUR_THROUGH) ? 0 : P_Z));
+    if (b & BEHAVIOUR_THROUGH)
+        goto none;
+    op_rep(P_M);
+    a = (uint16_t)(rd16(abs_db(POINT_X)) & 0x000F);
+    if (!(a & 0x0008)) {
+        a++;
+    } else {
+        cpu.p |= P_C;
+        a = op_sbc16(a, 0x0010, &cpu.p);
+    }
+    a = (uint16_t)(~a + 1);
+    cpu.p &= (uint8_t)~P_C;
+    cpu.a = op_adc16(a, rd16(dp(ACTOR_X + 1)), &cpu.p);
+    wr16(dp(ACTOR_X + 1), cpu.a);
+    op_sep(P_M | P_C);
+    return;
+none:
+    cpu.p &= (uint8_t)~P_C;
+}
+
+/*
+ * @routine 81:B608 ActorOutOfWallLong
+ * WHAT IT DOES: ActorOutOfWall for callers in other banks.
+ * HOW: ActorOutOfWall.
+ * Entry: as ActorOutOfWall; called by JSL. Exit: as ActorOutOfWall.
+ */
+void abi_ActorOutOfWallLong(void)
+{
+    abi_ActorOutOfWall();
+}
+
+/*
+ * @routine 81:B5AD ActorOutOfWallProbe4
+ * WHAT IT DOES: Moves the actor out of a wall at probe 4 in front of it.
+ * HOW: ActorOutOfWall at probe 4.
+ * Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+ * ActorOutOfWall.
+ */
+void abi_ActorOutOfWallProbe4(void)
+{
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x04);
+    cpu.p = nz8(cpu.p, 0x04);
+    abi_ActorOutOfWall();
+}
+
+/*
+ * @routine 81:B59F ActorOutOfWalls
+ * WHAT IT DOES: Moves the actor out of a wall in front of it, testing
+ * probes $0C, 8 and 4 until one moves it.
+ * HOW: ActorOutOfWall at probes $0C and 8 while it returns C clear, then
+ * ActorOutOfWallProbe4.
+ * Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as the
+ * last ActorOutOfWall.
+ */
+void abi_ActorOutOfWalls(void)
+{
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x0C);
+    cpu.p = nz8(cpu.p, 0x0C);
+    abi_ActorOutOfWall();
+    if (cpu.p & P_C)
+        return;
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x08);
+    cpu.p = nz8(cpu.p, 0x08);
+    abi_ActorOutOfWall();
+    if (cpu.p & P_C)
+        return;
+    abi_ActorOutOfWallProbe4();
+}
+
+/* A floor tile under the point (TileAtProbe): returns 1 floor, 0 not a
+   floor, -1 out (a kind with bit 7, or one the actor passes through: the
+   caller gives up). `strict` treats passing through as out, else as not
+   a floor. */
+static int floor_at(int strict)
+{
+    uint8_t b, k;
+
+    abi_TileAtProbe();
+    if (cpu.p & P_Z)
+        return 0;
+    if (cpu.p & P_N)
+        return strict ? -1 : 0;
+    b = rd8(abs_db(TILE_BEHAVIOUR_BYTE));
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
+    cpu.p = nz8(cpu.p, b);
+    cpu.p = (uint8_t)((cpu.p & ~P_Z) | ((b & BEHAVIOUR_THROUGH) ? 0 : P_Z));
+    if (b & BEHAVIOUR_THROUGH)
+        return strict ? -1 : 0;
+    cpu.x = b & 0x07;
+    k = rd8(abs_db((uint16_t)(FLOOR_KINDS + cpu.x)));
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | k);
+    cpu.p = nz8(cpu.p, k);
+    return k != 0;
+}
+
+/*
+ * @routine 81:B673 ActorSettleOnFloor
+ * WHAT IT DOES: When a floor tile is under the actor's left or right
+ * probe at offset 8, and the ground is under the actor itself, stops its
+ * fall and stands it on that ground's tile top.
+ * HOW: ProbeLeft at probe 8, then TileAtProbe: a floor kind (and not
+ * passed through) goes on; else the same at ProbeRight. A point above the
+ * map's top (negative y) gives up with A = 0. Then the tile under the
+ * actor's own x at that y: when it is ground, the vertical speed is
+ * cleared and y moves down to the next tile boundary (16 less the
+ * point's y in the tile).
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+ * Exit: M 8-bit; X as the last test leaves it (8-bit, or 16-bit when the
+ * point was above the top). Above the top or a pass-through or kind with
+ * bit 7: A low byte = 0, Z set. Settled: A = the new y (16 bits); N, V, Z,
+ * C from its ADC. Else: A, flags from the last test.
+ */
+void abi_ActorSettleOnFloor(void)
+{
+    int f;
+    uint16_t a;
+
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x08);
+    cpu.p = nz8(cpu.p, 0x08);
+    wr8(dp(ACTOR_PROBE_AT), 0x08);
+    abi_ProbeLeft();
+    op_sep(P_M);
+    cpu.x = rd16(abs_db(POINT_Y));
+    cpu.p = nz16(cpu.p, cpu.x);
+    if (cpu.x & 0x8000)
+        goto out;
+    f = floor_at(0);
+    if (f != 1) {
+        abi_ProbeRight();
+        op_sep(P_M);
+        cpu.x = rd16(abs_db(POINT_Y));
+        cpu.p = nz16(cpu.p, cpu.x);
+        if (cpu.x & 0x8000)
+            goto out;
+        f = floor_at(1);
+        if (f < 0)
+            goto out;
+        if (f == 0)
+            return;
+    }
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(dp(ACTOR_X + 1)));
+    wr8(abs_db(POINT_X), (uint8_t)cpu.a);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(dp(ACTOR_X + 2)));
+    cpu.p = nz8(cpu.p, (uint8_t)cpu.a);
+    wr8(abs_db(POINT_X + 1), (uint8_t)cpu.a);
+    abi_TileAtProbe();
+    if (cpu.p & P_Z)
+        return;
+    if (cpu.p & P_N)
+        goto out;
+    wr8(dp(ACTOR_SPEED_Y + 2), 0);
+    op_rep(P_M);
+    wr16(dp(ACTOR_SPEED_Y), 0);
+    a = (uint16_t)(rd16(abs_db(POINT_Y)) & 0x000F);
+    a = (uint16_t)(~a + 1);
+    cpu.p &= (uint8_t)~P_C;
+    a = op_adc16(a, 0x0010, &cpu.p);
+    cpu.p &= (uint8_t)~P_C;
+    cpu.a = op_adc16(a, rd16(dp(ACTOR_Y + 1)), &cpu.p);
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M);
+    return;
+out:
+    cpu.a &= 0xFF00;
+    cpu.p = nz8(cpu.p, 0);
+}

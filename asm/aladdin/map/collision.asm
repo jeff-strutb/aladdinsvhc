@@ -413,3 +413,213 @@ SurfaceHeight:
     sta.w !surface_y
     lda.b #1
     rts
+
+; Per behaviour's low 3 bits: nonzero, a wall the actor is pushed out of
+; (wall_kinds); nonzero, a floor it settles on (floor_kinds).
+!wall_kinds = $81BF0A
+!floor_kinds = $81BF12
+!BEHAVIOUR_THROUGH = $40
+
+; @routine 81:B59F ActorOutOfWalls
+; WHAT IT DOES: Moves the actor out of a wall in front of it, testing
+; probes $0C, 8 and 4 until one moves it.
+; HOW: ActorOutOfWall at probes $0C and 8 while it returns C clear, then
+; ActorOutOfWallProbe4.
+; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as the
+; last ActorOutOfWall.
+%at($81B59F)
+ActorOutOfWalls:
+    lda.b #$0C
+    jsr.w ActorOutOfWall
+    bcs ActorOutOfWallProbe4_done
+    lda.b #8
+    jsr.w ActorOutOfWall
+    bcs ActorOutOfWallProbe4_done
+; @routine 81:B5AD ActorOutOfWallProbe4
+; WHAT IT DOES: Moves the actor out of a wall at probe 4 in front of it.
+; HOW: ActorOutOfWall at probe 4.
+; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+; ActorOutOfWall.
+ActorOutOfWallProbe4:
+    lda.b #4
+    jsr.w ActorOutOfWall
+.done:
+    rtl
+
+; @routine 81:B5B3 GroundBehindBit3
+; WHAT IT DOES: Tests the ground behind the actor at probes $10 and then
+; $14, until a tile with behaviour bit 3.
+; HOW: GroundBehind at probe $10; without bit 3, again at probe $14.
+; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+; GroundBehind, but A low byte = the last tile's behaviour bit 3, N, Z
+; from it.
+GroundBehindBit3:
+    lda.b #$10
+    sta.b !actor_probe_at
+    jsr.w GroundBehind
+    lda.w !tile_behaviour_byte
+    and.b #$08
+    bne .done
+    lda.b #$14
+    sta.b !actor_probe_at
+    jsr.w GroundBehind
+    lda.w !tile_behaviour_byte
+    and.b #$08
+    bne .done
+.done:
+    rtl
+
+; @routine 81:B5F6 GroundBehindBit4
+; WHAT IT DOES: Tests the ground behind the actor, and moves the tile
+; behaviour's bit 4 into bit 5 when it is set.
+; HOW: GroundBehind; then the behaviour byte, when bit 4 is set, shifts
+; left.
+; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+; GroundBehind, but A low byte = the behaviour's bit 4 and N, Z from it;
+; C its bit 7 when shifted.
+%at($81B5F6)
+GroundBehindBit4:
+    jsr.w GroundBehind
+    lda.w !tile_behaviour_byte
+    and.b #$10
+    beq .done
+    asl.w !tile_behaviour_byte
+.done:
+    rtl
+
+; @routine 81:B608 ActorOutOfWallLong
+; WHAT IT DOES: ActorOutOfWall for callers in other banks.
+; HOW: ActorOutOfWall.
+; Entry: as ActorOutOfWall; called by JSL. Exit: as ActorOutOfWall.
+%at($81B608)
+ActorOutOfWallLong:
+    jsr.w ActorOutOfWall
+    rtl
+
+; @routine 81:B60C ActorOutOfWall
+; WHAT IT DOES: When the probe in front of the actor is in a wall, moves
+; the actor out of it: C set when it was moved.
+; HOW: GroundInFront at probe A; a tile whose kind is a wall and that the
+; actor cannot pass through moves the actor's x by the point's distance
+; past the tile's near edge: back by (x in tile) + 1 in its left half,
+; on by 16 - (x in tile) in its right half.
+; Entry: M 8-bit; D = the actor; A low byte = the probe's offset; DB =
+; $81; called by JSR. Exit: moved: M 8-bit, C set; A = the new x (16
+; bits); N, Z from its ADC. Not: C clear; A, N, Z as the tests left them.
+ActorOutOfWall:
+    sta.b !actor_probe_at
+    jsr.w GroundInFront
+    bcc .none
+    lda.w !tile_behaviour_byte
+    and.b #$07
+    tax
+    lda.w !wall_kinds,x
+    beq .none
+    lda.b #!BEHAVIOUR_THROUGH
+    bit.w !tile_behaviour_byte
+    bne .none
+    rep.b #$20
+    lda.w !point_x
+    and.w #$000F
+    bit.w #$0008
+    bne .right
+    inc a
+    bra .move
+.right:
+    sec
+    sbc.w #16
+.move:
+    eor.w #$FFFF
+    inc a
+    clc
+    adc.b !actor_x+1
+    sta.b !actor_x+1
+    sep.b #$21
+    rts
+.none:
+    clc
+    rts
+
+; @routine 81:B673 ActorSettleOnFloor
+; WHAT IT DOES: When a floor tile is under the actor's left or right
+; probe at offset 8, and the ground is under the actor itself, stops its
+; fall and stands it on that ground's tile top.
+; HOW: ProbeLeft at probe 8, then TileAtProbe: a floor kind (and not
+; passed through) goes on; else the same at ProbeRight. A point above the
+; map's top (negative y) gives up with A = 0. Then the tile under the
+; actor's own x at that y: when it is ground, the vertical speed is
+; cleared and y moves down to the next tile boundary (16 less the
+; point's y in the tile).
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+; Exit: M 8-bit; X as the last test leaves it (8-bit, or 16-bit when the
+; point was above the top). Above the top or a pass-through or kind with
+; bit 7: A low byte = 0, Z set. Settled: A = the new y (16 bits); N, V, Z,
+; C from its ADC. Else: A, flags from the last test.
+%at($81B673)
+ActorSettleOnFloor:
+    lda.b #8
+    sta.b !actor_probe_at
+    jsr.w ProbeLeft
+    sep.b #$20
+    ldx.w !point_y
+    bmi .out
+    jsr.w TileAtProbe
+    beq .right
+    bmi .right
+    lda.w !tile_behaviour_byte
+    bit.b #!BEHAVIOUR_THROUGH
+    bne .right
+    and.b #$07
+    tax
+    lda.w !floor_kinds,x
+    bne .under
+.right:
+    jsr.w ProbeRight
+    sep.b #$20
+    ldx.w !point_y
+    bmi .out
+    jsr.w TileAtProbe
+    beq .done
+    bmi .out
+    lda.w !tile_behaviour_byte
+    bit.b #!BEHAVIOUR_THROUGH
+    bne .out
+    and.b #$07
+    tax
+    lda.w !floor_kinds,x
+    beq .done
+.under:
+    lda.b !actor_x+1
+    sta.w !point_x
+    lda.b !actor_x+2
+    sta.w !point_x+1
+    jsr.w TileAtProbe
+    beq .done
+    bmi .out
+    stz.b !actor_speed_y+2
+    rep.b #$20
+    stz.b !actor_speed_y
+    lda.w !point_y
+    and.w #$000F
+    eor.w #$FFFF
+    inc a
+    clc
+    adc.w #16
+    clc
+    adc.b !actor_y+1
+    sta.b !actor_y+1
+    sep.b #$20
+.done:
+    rtl
+.out:
+    lda.b #0
+    rtl
+
+; @routine 81:B795 GroundInFrontLong
+; WHAT IT DOES: GroundInFront for callers in other banks.
+; HOW: GroundInFront.
+; Entry: as GroundInFront; called by JSL. Exit: as PointInGround.
+%at($81B795)
+GroundInFrontLong:
+    jsr.w GroundInFront
+    rtl
