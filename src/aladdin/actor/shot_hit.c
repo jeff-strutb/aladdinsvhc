@@ -1,0 +1,127 @@
+/*
+ * shot_hit.c: an actor hit by a shot: an actor of the second pool (the
+ * five records from $09CB) that can hit, found by the test at $83:8578.
+ * The shot is stopped, or turned back, and a small actor marks the hit.
+ */
+#include "machine.h"
+#include "ops65.h"
+#include "actor.h"
+
+void abi_ActorStateSet8C(void);
+
+#define ACTOR_11 0x11u              /* a shot's: negative, it does not hit */
+#define TURNED_BACK_AT 0xEB7Cu      /* where a turned-back shot's code resumes (its own bank) */
+
+/* Not yet filed */
+#define SHOT_TEST 0x838578u         /* C clear: a shot overlaps the actor (D); Y = its record, X 16-bit */
+#define SPAWN_11_AT_Y 0x83827Du     /* an actor of kind $11 started at record Y's place */
+#define SPAWN_13_AT_Y 0x8382B5u     /* an actor of kind $13 started at record Y's place */
+#define SHOT_HIT_80FC 0x8380FCu     /* the shot test, then (code no script has run) */
+
+/*
+ * @routine 83:80F8 ActorShotHit80FCLong
+ * WHAT IT DOES: The routine at $83:80FC, which starts with the shot test,
+ * for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as $83:80FC: M 8-bit, X 8-bit; D = the actor; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSL. Exit: as $83:80FC.
+ */
+void abi_ActorShotHit80FCLong(void)
+{
+    call_routine(SHOT_HIT_80FC, 0);
+}
+
+/*
+ * @routine 83:819A ActorTurnsShotBack
+ * WHAT IT DOES: When a shot hits the actor, turns it back: it flies the
+ * other way, harmless, and a small actor (kind $13) marks the hit.
+ * HOW: The shot test; on a hit, kind $13 started at the shot's place, the
+ * shot's facing flipped, its code sent on at $EB7C (in its bank), bit 7
+ * of its $08 set and of its $09 cleared.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM. Exit: M and X 8-bit. Hit: C clear; A low = the shot's $09; N
+ * clear, Z from it; Y = the low byte of the shot's record; X as $83:82B5
+ * leaves it (low byte). No hit: C set; the rest as the shot test leaves
+ * them.
+ */
+void abi_ActorTurnsShotBack(void)
+{
+    call_routine(SHOT_TEST, 0);
+    if (IF_C) {
+        op_sep(0x31);
+        return;
+    }
+    call_routine(SPAWN_13_AT_Y, 0);
+    lda8(ea_absy(ACTOR_FACING));
+    eor8_v(0x01);
+    sta8(ea_absy(ACTOR_FACING));
+    lda8_v((uint8_t)TURNED_BACK_AT);
+    sta8(ea_absy(ACTOR_03));
+    lda8_v((uint8_t)(TURNED_BACK_AT >> 8));
+    sta8(ea_absy(ACTOR_04));
+    lda8_v(0x80);
+    ora8_v(rd8(ea_absy(ACTOR_08)));
+    sta8(ea_absy(ACTOR_08));
+    lda8(ea_absy(ACTOR_09));
+    and8_v(0x7F);
+    sta8(ea_absy(ACTOR_09));
+    op_sep(0x30);
+    clc();
+}
+
+/*
+ * @routine 83:8196 ActorTurnsShotBackLong
+ * WHAT IT DOES: ActorTurnsShotBack for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorTurnsShotBack; called by JSL. Exit: as
+ * ActorTurnsShotBack.
+ */
+void abi_ActorTurnsShotBackLong(void)
+{
+    abi_ActorTurnsShotBack();
+}
+
+/*
+ * @routine 83:81E8 ActorTakesShot
+ * WHAT IT DOES: When a shot that hits (its $11 not negative) reaches the
+ * actor: the shot stops (state $8C), a small actor (kind $11) marks the
+ * hit, and the actor turns the way the shot flew.
+ * HOW: The shot test; then the shot's $11; kind $11 started at the shot's
+ * place; the shot's facing in the actor's facing and flip bytes;
+ * ActorStateSet8C on the shot.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM. Exit: M and X 8-bit. Hit: C clear; A low = $8C, N set, Z
+ * clear; Y = the low byte of the shot's record. The shot's $11 negative:
+ * C set, N set, A low = it. No shot: C set; the rest as the shot test
+ * leaves them.
+ */
+void abi_ActorTakesShot(void)
+{
+    call_routine(SHOT_TEST, 0);
+    if (!IF_C) {
+        sec();
+        lda8(ea_absy(ACTOR_11));
+        if (!IF_N) {
+            call_routine(SPAWN_11_AT_Y, 0);
+            lda8(ea_absy(ACTOR_FACING));
+            sta8(ea_dp(ACTOR_FACING));
+            sta8(ea_dp(ACTOR_FLIP));
+            abi_ActorStateSet8C();
+            clc();
+        }
+    }
+    op_sep(0x30);
+}
+
+/*
+ * @routine 83:82B1 Spawn13AtYLong
+ * WHAT IT DOES: The routine at $83:82B5, which starts an actor of kind
+ * $13 at record Y's place, for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as $83:82B5: M 8-bit, X 16-bit; Y = the record; called by JSL.
+ * Exit: as $83:82B5.
+ */
+void abi_Spawn13AtYLong(void)
+{
+    call_routine(SPAWN_13_AT_Y, 0);
+}
