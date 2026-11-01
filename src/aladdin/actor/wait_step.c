@@ -154,7 +154,12 @@ static void end_if_left_behind(void)
         op_sep(0x30);
         pla8();
         pla8();
+        /* JSR ActorFreePlaced at $83:96CA: its return address on the
+           stack while it runs, pulled by its RTS */
+        wr8(cpu.s, 0x96); cpu.s--;
+        wr8(cpu.s, 0xCC); cpu.s--;
         abi_ActorFreePlaced();
+        cpu.s += 2;
         actor_leave(ACTOR_LOOP_NEXT);
         return;
     }
