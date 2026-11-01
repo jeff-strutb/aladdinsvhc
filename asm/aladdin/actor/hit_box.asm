@@ -66,3 +66,12 @@ ActorHitsTestBox:
 .not_hit:
     sep.b #$31
     rts
+
+; @routine 83:8300 ActorHitsTestBoxLong
+; WHAT IT DOES: ActorHitsTestBox for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorHitsTestBox; called by JSL. Exit: as the C states.
+%at($838300)
+ActorHitsTestBoxLong:
+    jsr.w ActorHitsTestBox
+    rtl

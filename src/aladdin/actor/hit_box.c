@@ -85,3 +85,14 @@ void abi_ActorHitsTestBox(void)
     }
     op_sep(P_M | P_X | P_C);
 }
+
+/*
+ * @routine 83:8300 ActorHitsTestBoxLong
+ * WHAT IT DOES: ActorHitsTestBox for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorHitsTestBox; called by JSL. Exit: as ActorHitsTestBox.
+ */
+void abi_ActorHitsTestBoxLong(void)
+{
+    abi_ActorHitsTestBox();
+}

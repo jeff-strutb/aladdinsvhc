@@ -4,6 +4,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 
 #define WRAM_C100 0x7EC100u        /* a word table the bank-$82 code keeps */
 
@@ -65,4 +66,21 @@ void abi_WramC100Clear(void)
     } while (!(x & 0x8000));
     cpu.x = x;
     cpu.p = nz16(cpu.p, x);
+}
+
+/*
+ * @routine 83:84C7 ScratchBelowBy10
+ * WHAT IT DOES: Compares the scratch word at $0012, less 10, with A: C
+ * clear when it is below A.
+ * HOW: A is kept in the scratch word at $0014 for the compare.
+ * Entry: M 16-bit; DB a bank whose $0000-$1FFF is work RAM. Exit: A = the
+ * word less 10; N, Z and C from the compare; V from the subtraction. X, Y
+ * and the other flags unchanged.
+ */
+void abi_ScratchBelowBy10(void)
+{
+    wr16(SCRATCH + 8, cpu.a);
+    cpu.a = rd16(SCRATCH + 6);
+    op_sub16(10);
+    op_cmp16(rd16(SCRATCH + 8));
 }

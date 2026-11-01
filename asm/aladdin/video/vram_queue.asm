@@ -20,6 +20,10 @@ arch 65816
 !UPLOAD_TABLE_INDEX = $B62F
 !UPLOAD_TABLE = $B630
 
+; Either nonzero: no slot's list is uploaded this frame.
+!VRAM_LISTS_HELD = $1737
+!VRAM_LISTS_HELD_TOO = $0403
+
 ; @routine 80:841E VramQueueFlush
 ; WHAT IT DOES: Makes every DMA upload queued since the last NMI.
 ; HOW: When the queue is marked pending, each of its count records (8
@@ -66,6 +70,19 @@ VramQueueFlush:
     stz.w !vram_queue_pending
 .done:
     rts
+
+; @routine 80:849E TextBufferPartsUpload
+; WHAT IT DOES: Sends whichever of the text buffer's three parts were
+; asked for since the last NMI.
+; HOW: TextBufferPartUpload for parts 0 and 1, then on into it for part 2.
+; Entry: M 8-bit, X 8-bit; DB $80. Exit: as the C states.
+%at($80849E)
+TextBufferPartsUpload:
+    ldx.b #0
+    jsr.w TextBufferPartUpload
+    ldx.b #1
+    jsr.w TextBufferPartUpload
+    ldx.b #2
 
 ; @routine 80:84AA TextBufferPartUpload
 ; WHAT IT DOES: Sends one part of the text buffer to VRAM when it was
@@ -181,6 +198,31 @@ TileBlockQueueFlush:
     stz.w !tile_blocks_length
 .clear:
     stz.w !tile_blocks_pending
+.done:
+    rts
+
+; @routine 80:8883 VramListsUpload
+; WHAT IT DOES: Makes the VRAM lists of all ten slots that asked for one,
+; unless uploads are held this frame.
+; HOW: Held while either of $1737 and $0403 is nonzero. VramListUpload
+; runs for slots $90, $80 ... $00, the slot offset kept on the stack
+; across each.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+; whose $2100-$43FF are the registers. Exit: as the C states.
+%at($808883)
+VramListsUpload:
+    lda.w !VRAM_LISTS_HELD
+    ora.w !VRAM_LISTS_HELD_TOO
+    bne .done
+    ldy.b #$90
+.slot:
+    phy
+    jsr.w VramListUpload
+    pla
+    sec
+    sbc.b #$10
+    tay
+    bcs .slot
 .done:
     rts
 

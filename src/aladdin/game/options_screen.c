@@ -5,6 +5,11 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "wram.h"
+#include "wram_state.h"
+
+void abi_KeptOptionsSeal(void);
+
+#define OPTION_SETTING 0x001B17u   /* the setting the options screen shows (0-3) */
 
 /* In the bank DB names: for each of 4 settings five tilemap words, one
    table per line (8 bytes apart); the cursor's place per item. */
@@ -82,4 +87,29 @@ void abi_OptionCursorDraw(void)
     a = (uint8_t)(rd8_rmw(TEXT_TILEMAP_UPLOAD) + 1);
     wr8(TEXT_TILEMAP_UPLOAD, a);
     cpu.p = nz8(cpu.p, a);
+}
+
+/*
+ * @routine 83:8B61 OptionSettingStep
+ * WHAT IT DOES: Steps the options screen's setting up (C set) or down,
+ * wrapping within 0-3; shows it, keeps it as the first kept option, and
+ * seals the kept options.
+ * HOW: INC or DEC, AND #3, then OptionSettingShow and KeptOptionsSeal.
+ * Entry: M 8-bit, X 8-bit; C = the direction; DB the setting tables'
+ * bank, whose $0000-$1FFF is work RAM. Exit: as KeptOptionsSeal; Y as
+ * OptionSettingShow leaves it.
+ */
+void abi_OptionSettingStep(void)
+{
+    uint8_t a = rd8_rmw(OPTION_SETTING);
+
+    a = (uint8_t)((cpu.p & P_C) ? a + 1 : a - 1);
+    wr8(OPTION_SETTING, a);
+    a = (uint8_t)(rd8(OPTION_SETTING) & 0x03);
+    wr8(OPTION_SETTING, a);
+    wr8(KEPT_OPTIONS, a);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    cpu.p = nz8(cpu.p, a);
+    abi_OptionSettingShow();
+    abi_KeptOptionsSeal();
 }

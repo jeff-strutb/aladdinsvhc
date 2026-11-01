@@ -19,6 +19,10 @@
 #define UPLOAD_TABLE_INDEX 0xB62Fu
 #define UPLOAD_TABLE 0xB630u
 
+/* Either nonzero: no slot's list is uploaded this frame. */
+#define VRAM_LISTS_HELD 0x001737u
+#define VRAM_LISTS_HELD_TOO 0x000403u
+
 static uint32_t in_db(uint32_t addr)
 {
     return (uint32_t)cpu.db << 16 | addr;
@@ -69,6 +73,27 @@ void abi_TextBufferPartUpload(void)
     op_lda16(in_db(TEXT_PART_TABLE + 4 + y));
     wr16(DAS0L, cpu.a);
     dma_start();
+}
+
+/*
+ * @routine 80:849E TextBufferPartsUpload
+ * WHAT IT DOES: Sends whichever of the text buffer's three parts were
+ * asked for since the last NMI.
+ * HOW: TextBufferPartUpload for parts 0 and 1, then on into it for part 2.
+ * Entry: M 8-bit, X 8-bit; DB $80. Exit: as TextBufferPartUpload for part
+ * 2 (X = 2).
+ */
+void abi_TextBufferPartsUpload(void)
+{
+    cpu.x = 0;
+    cpu.p = nz8(cpu.p, 0);
+    abi_TextBufferPartUpload();
+    cpu.x = 1;
+    cpu.p = nz8(cpu.p, 1);
+    abi_TextBufferPartUpload();
+    cpu.x = 2;
+    cpu.p = nz8(cpu.p, 2);
+    abi_TextBufferPartUpload();
 }
 
 /*
@@ -269,4 +294,39 @@ void abi_VramListUpload(void)
     }
     cpu.x = x;
     op_sep(P_X);
+}
+
+/*
+ * @routine 80:8883 VramListsUpload
+ * WHAT IT DOES: Makes the VRAM lists of all ten slots that asked for one,
+ * unless uploads are held this frame.
+ * HOW: Held while either of $1737 and $0403 is nonzero. VramListUpload
+ * runs for slots $90, $80 ... $00, the slot offset kept on the stack
+ * across each.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+ * whose $2100-$43FF are the registers. Exit: held: A low = the two ORed,
+ * N and Z from it. Run: A low = Y = $F0; N set, Z and C clear; V from the
+ * last subtraction; X as the last VramListUpload leaves it. A high and the
+ * other flags as the calls leave them.
+ */
+void abi_VramListsUpload(void)
+{
+    uint8_t a = rd8(VRAM_LISTS_HELD);
+
+    a |= rd8(VRAM_LISTS_HELD_TOO);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    cpu.p = nz8(cpu.p, a);
+    if (a != 0)
+        return;
+    cpu.y = 0x90;
+    cpu.p = nz8(cpu.p, 0x90);
+    do {
+        a = (uint8_t)cpu.y;
+        abi_VramListUpload();
+        cpu.p |= P_C;
+        a = op_sbc8(a, 0x10, &cpu.p);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+        cpu.y = a;
+        cpu.p = nz8(cpu.p, a);
+    } while (cpu.p & P_C);
 }

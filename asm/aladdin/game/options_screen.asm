@@ -4,6 +4,7 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_state.inc"
 
 arch 65816
 
@@ -11,6 +12,7 @@ arch 65816
 ; table per line (8 bytes apart); the cursor's place per item.
 !SETTING_WORDS = $CE35
 !CURSOR_PLACES = $CE5D
+!OPTION_SETTING = $1B17         ; the setting the options screen shows (0-3)
 
 ; @routine 83:8C16 OptionSettingShow
 ; WHAT IT DOES: Shows a setting on the options screen: five tilemap words
@@ -65,4 +67,27 @@ OptionCursorDraw:
     sta.l !text_tilemap+68,x
     sep.b #$30
     inc.w !text_tilemap_upload
+    rts
+
+; @routine 83:8B61 OptionSettingStep
+; WHAT IT DOES: Steps the options screen's setting up (C set) or down,
+; wrapping within 0-3; shows it, keeps it as the first kept option, and
+; seals the kept options.
+; HOW: INC or DEC, AND #3, then OptionSettingShow and KeptOptionsSeal.
+; Entry: M 8-bit, X 8-bit; C = the direction; DB the setting tables'
+; bank, whose $0000-$1FFF is work RAM. Exit: as the C states.
+%at($838B61)
+OptionSettingStep:
+    bcs .up
+    dec.w !OPTION_SETTING
+    bra .show
+.up:
+    inc.w !OPTION_SETTING
+.show:
+    lda.w !OPTION_SETTING
+    and.b #$03
+    sta.w !OPTION_SETTING
+    sta.w !kept_options
+    jsr.w OptionSettingShow
+    jsl.l KeptOptionsSeal
     rts

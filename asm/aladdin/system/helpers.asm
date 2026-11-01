@@ -3,6 +3,7 @@
 ; C: src/aladdin/system/helpers.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 
 arch 65816
 
@@ -55,3 +56,17 @@ CarryClearReturn:
 %at($A5F533)
 LongReturn:
     rtl
+
+; @routine 83:84C7 ScratchBelowBy10
+; WHAT IT DOES: Compares the scratch word at $0012, less 10, with A: C
+; clear when it is below A.
+; HOW: A is kept in the scratch word at $0014 for the compare.
+; Entry: M 16-bit; DB a bank whose $0000-$1FFF is work RAM. Exit: as the C states.
+%at($8384C7)
+ScratchBelowBy10:
+    sta.w !scratch+8
+    sec
+    lda.w !scratch+6
+    sbc.w #10
+    cmp.w !scratch+8
+    rts
