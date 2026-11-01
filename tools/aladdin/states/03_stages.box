@@ -1,0 +1,1254 @@
+# Every act and stage started from the first password: the act ($035C)
+# and stage ($035D) are held through the password check and the level
+# start, so the level the act and stage table at $80:B73E gives is
+# loaded in place of the password's. One state per stage, for random
+# play (randplay.py); the work RAM dump beside each says which level it
+# is. Stages the passwords start are here too: the scripts that use
+# them are pruned by the coverage they add.
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 00
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 00
+poke $00035D 00
+wait 1
+end
+save stage_a0_s0
+dump stage_a0_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 00
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 00
+poke $00035D 01
+wait 1
+end
+save stage_a0_s1
+dump stage_a0_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 00
+poke $00035D 02
+wait 1
+end
+press START
+repeat 900
+poke $00035C 00
+poke $00035D 02
+wait 1
+end
+save stage_a0_s2
+dump stage_a0_s2
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 00
+poke $00035D 03
+wait 1
+end
+press START
+repeat 900
+poke $00035C 00
+poke $00035D 03
+wait 1
+end
+save stage_a0_s3
+dump stage_a0_s3
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 01
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 01
+poke $00035D 00
+wait 1
+end
+save stage_a1_s0
+dump stage_a1_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 01
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 01
+poke $00035D 01
+wait 1
+end
+save stage_a1_s1
+dump stage_a1_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 02
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 02
+poke $00035D 00
+wait 1
+end
+save stage_a2_s0
+dump stage_a2_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 02
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 02
+poke $00035D 01
+wait 1
+end
+save stage_a2_s1
+dump stage_a2_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 03
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 03
+poke $00035D 00
+wait 1
+end
+save stage_a3_s0
+dump stage_a3_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 03
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 03
+poke $00035D 01
+wait 1
+end
+save stage_a3_s1
+dump stage_a3_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 03
+poke $00035D 02
+wait 1
+end
+press START
+repeat 900
+poke $00035C 03
+poke $00035D 02
+wait 1
+end
+save stage_a3_s2
+dump stage_a3_s2
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 04
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 04
+poke $00035D 00
+wait 1
+end
+save stage_a4_s0
+dump stage_a4_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 04
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 04
+poke $00035D 01
+wait 1
+end
+save stage_a4_s1
+dump stage_a4_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 04
+poke $00035D 02
+wait 1
+end
+press START
+repeat 900
+poke $00035C 04
+poke $00035D 02
+wait 1
+end
+save stage_a4_s2
+dump stage_a4_s2
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 05
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 05
+poke $00035D 00
+wait 1
+end
+save stage_a5_s0
+dump stage_a5_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 05
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 05
+poke $00035D 01
+wait 1
+end
+save stage_a5_s1
+dump stage_a5_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 05
+poke $00035D 02
+wait 1
+end
+press START
+repeat 900
+poke $00035C 05
+poke $00035D 02
+wait 1
+end
+save stage_a5_s2
+dump stage_a5_s2
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 05
+poke $00035D 03
+wait 1
+end
+press START
+repeat 900
+poke $00035C 05
+poke $00035D 03
+wait 1
+end
+save stage_a5_s3
+dump stage_a5_s3
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+save stage_a6_s0
+dump stage_a6_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 07
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 07
+poke $00035D 00
+wait 1
+end
+save stage_a7_s0
+dump stage_a7_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 00
+wait 1
+end
+save stage_a8_s0
+dump stage_a8_s0
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 01
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 01
+wait 1
+end
+save stage_a8_s1
+dump stage_a8_s1
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 02
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 02
+wait 1
+end
+save stage_a8_s2
+dump stage_a8_s2
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 03
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 03
+wait 1
+end
+save stage_a8_s3
+dump stage_a8_s3
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 04
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 04
+wait 1
+end
+save stage_a8_s4
+dump stage_a8_s4
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 05
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 05
+wait 1
+end
+save stage_a8_s5
+dump stage_a8_s5
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 06
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 06
+wait 1
+end
+save stage_a8_s6
+dump stage_a8_s6
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 07
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 07
+wait 1
+end
+save stage_a8_s7
+dump stage_a8_s7
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 08
+poke $00035D 08
+wait 1
+end
+press START
+repeat 900
+poke $00035C 08
+poke $00035D 08
+wait 1
+end
+save stage_a8_s8
+dump stage_a8_s8
