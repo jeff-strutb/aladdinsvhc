@@ -16,16 +16,16 @@ _Snapshot 2026-11-01._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   21.0%   11,967 / 56,876 B of the game's code
+    █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   22.4%   12,730 / 56,876 B of the game's code
 M2  Byte exact (T4)
-    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   20.8%   11,804 / 56,876 B of the game's code
+    █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   22.1%   12,567 / 56,876 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,955 B the scripts have run and 16,921 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 232 routines behaviour exact, 231 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,955 B the scripts have run and 16,921 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 259 routines behaviour exact, 258 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `████░░░░░░░░░░░░░░░░` 21.9%: 11,967/54,608 B | `████░░░░░░░░░░░░░░░░` 21.6%: 11,804/54,608 B |
+| **S-CPU (65816)** | `█████░░░░░░░░░░░░░░░` 23.3%: 12,730/54,608 B | `█████░░░░░░░░░░░░░░░` 23.0%: 12,567/54,608 B |
 | **SPC700 (sound)** | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B |
 <!-- PROGRESS:END -->
 
@@ -38,7 +38,7 @@ have run and the 16,921 B the routine census (`tools/aladdin/census.py`) finds
 by following the code statically (calls, jumps, tables, handler pointers,
 task entries, orphans) where no script has gone. The numerator is the code
 bytes inside routines whose C is certified behaviour exact (T3) or whose
-assembly is also byte exact (T4), for M1, and T4 only for M2. 3 routine(s)
+assembly is also byte exact (T4), for M1, and T4 only for M2. 7 routine(s)
 are in the tree but not yet certified (T2).
 
 **Why not routines.** A routine count keeps growing as the work goes on:
