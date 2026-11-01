@@ -10,7 +10,7 @@
 /* The text buffer (2 KB of BG tilemap at $7E:D800) and its upload. */
 #define TEXT_UPLOAD_VRAM 0x0003DFu    /* VRAM word address it goes to (word) */
 #define TEXT_UPLOAD_SIZE 0x0003E1u    /* bytes to upload (word) */
-#define WRAM_C800 0x7EC800u           /* a 4 KB buffer, cleared before a level starts */
+#define TILE_BEHAVIOUR 0x7EC800u      /* per map tile, how it behaves (solid, slope ...); 4 KB, cleared before a level starts */
 
 /* Upload requests the NMI serves (video/vram_queue.c). */
 #define TEXT_PARTS_PENDING 0x000836u  /* 3 flags: nonzero, upload that part of the text buffer */

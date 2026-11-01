@@ -65,11 +65,16 @@
 #define PALETTE_SAVED 0x000406u    /* colours kept to fade from, laid out as PALETTE_BUFFER */
 #define PALETTE_SAVED_AT 0x000606u /* byte offset of the first colour kept (word) */
 
-/* The level being played (0 up; the password table's order) */
-#define LEVEL 0x00035Eu
-
 /* Actor animation sets (actor/anim_sets.c) */
 #define ANIM_SET_OF_TYPE 0x7FF000u /* per actor type, its animation set; $FF: none */
 #define ANIM_SETS_USED 0x7FF100u   /* the level's sets: (set, 0) pairs, $FF after the last */
+
+/* The random number (system/random.c) */
+#define RANDOM 0x00032Bu           /* word, stepped by RandomNext */
+
+/* Per-level values from tables (level/level_tables.c) */
+#define LEVEL_035C 0x00035Cu       /* two bytes from the level's entry at $81:B933; purpose not yet established */
+#define LEVEL_SPOT_COUNT 0x000821u /* how many trigger spots the level has */
+#define LEVEL_SPOTS 0x000822u      /* their list's offset from $81:EC1E (word) */
 
 #endif

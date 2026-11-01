@@ -12,7 +12,7 @@ arch 65816
 ; In the bank DB names: placement entries of 5 bytes (a byte whose low 5
 ; bits go to !actor_07, then the x and y pixels in the low 14 bits of a
 ; word each); words and bytes by !actor_40 ($D6EB, $D70B); stream starts
-; by !actor_15 (two words, 4 bytes an entry: $D71D, $D71F) and stream
+; by !actor_flip (two words, 4 bytes an entry: $D71D, $D71F) and stream
 ; addresses by X ($D725).
 !PLACEMENTS = $8A7B
 !BY_40_WORDS = $D6EB
@@ -146,7 +146,7 @@ ActorStartBy40:
 ; Entry: M 8-bit, X 8-bit; X = the stream's offset; D = the actor; DB the
 ; tables' and streams' bank. Exit: as the C states.
 ActorStreamStart:
-    lda.b !actor_15
+    lda.b !actor_flip
     asl a
     asl a
     tay

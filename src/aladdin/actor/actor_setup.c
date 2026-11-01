@@ -11,7 +11,7 @@
 /* In the bank DB names: placement entries of 5 bytes (a byte whose low 5
    bits go to ACTOR_07, then the x and y pixels in the low 14 bits of a
    word each); words and bytes by ACTOR_40 ($D6EB, $D70B); stream starts
-   by ACTOR_15 (two words, 4 bytes an entry: $D71D, $D71F) and stream
+   by ACTOR_FLIP (two words, 4 bytes an entry: $D71D, $D71F) and stream
    addresses by X ($D725). */
 #define PLACEMENTS 0x8A7Bu
 #define BY_40_WORDS 0xD6EBu
@@ -140,7 +140,7 @@ void abi_ActorStartBy40(void)
  */
 void abi_ActorStreamStart(void)
 {
-    uint8_t i = (uint8_t)(rd8(dp(ACTOR_15)) << 2), a;
+    uint8_t i = (uint8_t)(rd8(dp(ACTOR_FLIP)) << 2), a;
     uint16_t y;
 
     cpu.y = i;

@@ -105,7 +105,7 @@ TileSlotClaim:
     asl a
     tax
     lda.w !SLOT_WORDS,x
-    sta.w !actor_2b,y
+    sta.w !actor_look,y
     ldx.w !MAP_CELL_ATTR
     sta.l !CELL_ATTRS,x
     sep.b #$20

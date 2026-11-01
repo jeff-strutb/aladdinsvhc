@@ -22,7 +22,7 @@ arch 65816
 ActorInReachOfPlayer:
     rep.b #$21
     lda.w #18
-    ldx.w !player+!actor_15
+    ldx.w !player+!actor_flip
     beq .reach
     lda.w #8
 .reach:

@@ -117,7 +117,7 @@ void abi_TileSlotClaim(void)
     op_rep(P_M);
     op_asl16();
     cpu.a = rd16(in_db(SLOT_WORDS + cpu.a));
-    wr16(in_db((uint32_t)y + ACTOR_2B), cpu.a);
+    wr16(in_db((uint32_t)y + ACTOR_LOOK), cpu.a);
     x = rd16(MAP_CELL_ATTR);
     cpu.x = x;
     cpu.p = nz16(cpu.p, x);

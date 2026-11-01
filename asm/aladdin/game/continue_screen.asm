@@ -40,7 +40,7 @@ WramC800Clear:
     ldx.w #0
     lda.b #0
 .clear:
-    sta.l !wram_c800,x
+    sta.l !tile_behaviour,x
     inx
     cpx.w #4096
     bcc .clear

@@ -7,7 +7,7 @@ includeonce
 ; The text buffer (2 KB of BG tilemap at $7E:D800) and its upload.
 !text_upload_vram = $03DF       ; VRAM word address it goes to (word)
 !text_upload_size = $03E1       ; bytes to upload (word)
-!wram_c800 = $7EC800            ; a 4 KB buffer, cleared before a level starts
+!tile_behaviour = $7EC800       ; per map tile, how it behaves (solid, slope ...); 4 KB, cleared before a level starts
 
 ; Upload requests the NMI serves (video/vram_queue.asm).
 !text_parts_pending = $0836     ; 3 flags: nonzero, upload that part of the text buffer

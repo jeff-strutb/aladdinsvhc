@@ -7,6 +7,7 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_video.inc"
 
 arch 65816
 

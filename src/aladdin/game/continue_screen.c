@@ -51,7 +51,7 @@ void abi_WramC800Clear(void)
 
     op_rep(P_X);
     for (x = 0; x < 0x1000; x++)
-        wr8(WRAM_C800 + x, 0);
+        wr8(TILE_BEHAVIOUR + x, 0);
     cpu.x = x;
     cpu.a &= 0xFF00;
     op_plp(p);

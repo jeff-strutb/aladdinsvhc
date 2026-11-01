@@ -78,7 +78,7 @@ void abi_ActorInReachOfPlayer(void)
 
     op_rep(P_M | P_C);
     cpu.a = 0x0012;
-    x = rd8(PLAYER + ACTOR_15);
+    x = rd8(PLAYER + ACTOR_FLIP);
     cpu.x = x;
     if (x != 0)
         cpu.a = 0x0008;

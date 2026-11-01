@@ -11,28 +11,30 @@
 #define PLAYER 0x0008DBu          /* Aladdin's record */
 #define ACTOR_FREE_LIST 0x0015A2u /* addresses of the free records (words), a stack */
 #define ACTOR_FREE_TOP 0x0015E4u  /* byte offset of its top entry; negative: none free */
+#define ACTOR_TILE_SLOT_USERS 0x0015E8u /* actors holding each animated-tile slot (byte per slot) */
 
-#define ACTOR_STATE 0x00u         /* what the actor is doing ($8C, $CC ...) */
+#define ACTOR_STATE 0x00u         /* 0 free, $0C new, then what the actor is doing ($8C, $CC ...) */
 #define ACTOR_01 0x01u
 #define ACTOR_03 0x03u
 #define ACTOR_04 0x04u
-#define ACTOR_06 0x06u            /* its hit box: an entry of the table at $C29A */
-#define ACTOR_07 0x07u
+#define ACTOR_06 0x06u            /* its hit box: an entry of the table at $C29A; a spawner sets its child's */
+#define ACTOR_07 0x07u            /* passed from a spawner to its child */
 #define ACTOR_08 0x08u            /* low two bits: set from the frame's parity by some actors */
 #define ACTOR_09 0x09u            /* bits 4-5: the sprite priority some actors set by height; bit 6 set: it can be hit */
 #define ACTOR_X 0x0Bu             /* x position: fraction, then pixels (word) */
 #define ACTOR_Y 0x0Eu             /* y position: fraction, then pixels (word) */
 #define ACTOR_FACING 0x14u        /* 0: facing right (x grows), else left */
-#define ACTOR_15 0x15u            /* the player's: nonzero, the reach test's box sits 10 pixels nearer */
+#define ACTOR_FLIP 0x15u          /* the facing's opposite: bit 0 set when facing right (the player's: nonzero, the reach test's box sits 10 pixels nearer) */
 #define ACTOR_12 0x12u
 #define ACTOR_18 0x18u            /* zero: idle, for the list walk at $84:8A52 */
 #define ACTOR_SPEED_X 0x19u       /* horizontal speed, 24-bit, along the facing */
 #define ACTOR_ACCEL_X 0x1Cu       /* added to or taken from the horizontal speed (fraction) */
 #define ACTOR_SPEED_Y 0x1Du       /* vertical speed, 24-bit (down is positive) */
 #define ACTOR_ACCEL_Y 0x20u       /* added to or taken from the vertical speed: gravity (fraction) */
+#define ACTOR_SPAWN_AT 0x21u      /* where it spawns a child: index into the spawn offsets */
 
-#define ACTOR_2B 0x2Bu            /* word */
-#define ACTOR_34 0x34u
+#define ACTOR_LOOK 0x2Bu          /* sprite attributes (word): tile base, palette */
+#define ACTOR_34 0x34u            /* $FF for a new child */
 #define ACTOR_35 0x35u
 #define ACTOR_36 0x36u
 #define ACTOR_NEXT 0x37u          /* the next record in the actor's list (word; 0 ends it) */

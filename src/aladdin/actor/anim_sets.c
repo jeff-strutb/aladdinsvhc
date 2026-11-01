@@ -8,11 +8,7 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "wram.h"
-
-static uint32_t abs_db(uint16_t addr)
-{
-    return ((uint32_t)cpu.db << 16) | addr;
-}
+#include "wram_video.h"
 
 static void set_a8(uint8_t v)
 {
