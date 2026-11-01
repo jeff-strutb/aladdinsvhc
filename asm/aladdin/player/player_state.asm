@@ -14,6 +14,23 @@ arch 65816
 !V_141B = $141B                 ; counted up on entering state $8C
 !V_1424 = $1424
 
+; @routine 83:8000 PlayerEnter8CFacingLong
+; WHAT IT DOES: PlayerEnter8CFacing for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as PlayerEnter8CFacing; called by JSL. Exit: as the C states.
+%at($838000)
+PlayerEnter8CFacingLong:
+    jsr.w PlayerEnter8CFacing
+    rtl
+
+; @routine 83:8004 PlayerEnter8CLong
+; WHAT IT DOES: PlayerEnter8C for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as PlayerEnter8C; called by JSL. Exit: as the C states.
+PlayerEnter8CLong:
+    jsr.w PlayerEnter8C
+    rtl
+
 ; @routine 83:8008 PlayerEnter8C
 ; WHAT IT DOES: Puts Aladdin into state $8C.
 ; HOW: The state byte, then $141B counted up and $0367 down, bit 7 of the
@@ -60,6 +77,14 @@ PlayerEnter8CFacing:
     lda.b #$00
 .done:
     rts
+
+; @routine 83:8052 PlayerEnter8CFrom1Long
+; WHAT IT DOES: PlayerEnter8CFrom1 for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as PlayerEnter8CFrom1; called by JSL. Exit: as the C states.
+PlayerEnter8CFrom1Long:
+    jsr.w PlayerEnter8CFrom1
+    rtl
 
 ; @routine 83:8056 PlayerEnter8CFrom1
 ; WHAT IT DOES: Puts Aladdin into state $8C with $0367 set to 1 first

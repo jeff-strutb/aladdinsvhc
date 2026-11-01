@@ -87,3 +87,38 @@ void abi_PlayerEnter8CFrom1(void)
     wr8(V_1424, (uint8_t)(rd8_rmw(V_1424) + 1));
     enter_8c();
 }
+
+/*
+ * @routine 83:8000 PlayerEnter8CFacingLong
+ * WHAT IT DOES: PlayerEnter8CFacing for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as PlayerEnter8CFacing; called by JSL. Exit: as
+ * PlayerEnter8CFacing.
+ */
+void abi_PlayerEnter8CFacingLong(void)
+{
+    abi_PlayerEnter8CFacing();
+}
+
+/*
+ * @routine 83:8004 PlayerEnter8CLong
+ * WHAT IT DOES: PlayerEnter8C for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as PlayerEnter8C; called by JSL. Exit: as PlayerEnter8C.
+ */
+void abi_PlayerEnter8CLong(void)
+{
+    abi_PlayerEnter8C();
+}
+
+/*
+ * @routine 83:8052 PlayerEnter8CFrom1Long
+ * WHAT IT DOES: PlayerEnter8CFrom1 for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as PlayerEnter8CFrom1; called by JSL. Exit: as
+ * PlayerEnter8CFrom1.
+ */
+void abi_PlayerEnter8CFrom1Long(void)
+{
+    abi_PlayerEnter8CFrom1();
+}

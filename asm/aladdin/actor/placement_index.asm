@@ -7,6 +7,7 @@
 ; C: src/aladdin/actor/placement_index.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram_video.inc"
 
 arch 65816
 
@@ -25,6 +26,53 @@ arch 65816
 !DP_TOP = $10
 !DP_BAND = $11
 !DP_START = $12
+!DP_LIST_AT = $6D               ; word: the level's list, past the count byte when done
+
+!PLACEMENT_LISTS = $8A7A        ; by level, the list's offset (word); at the offset, a count byte
+!V_1BE7 = $1BE7                 ; 14 bytes cleared when a level's placements are indexed
+
+; @routine 82:A93A PlacementsIndex
+; WHAT IT DOES: Indexes the level's actor placements, by row and then by
+; column, when it starts.
+; HOW: Clears 14 bytes at $1BE7 and the tables from $7E:C100; the level's
+; list (by LEVEL) gives the count; when there are any, PlacementsByRow,
+; the first 256 bytes of tables cleared again, PlacementsByColumn. The
+; direct page's word at $6D keeps the list's place and ends one past it.
+; Entry: M 8-bit, X 8-bit; D a page whose $0C-$12 and $6D-$6E it may use;
+; DB the lists' bank, whose $0000-$1FFF is work RAM. Exit: as the C states.
+%at($82A93A)
+PlacementsIndex:
+    ldx.b #13
+.clear:
+    stz.w !V_1BE7,x
+    dex
+    bpl .clear
+    rep.b #$30
+    ldx.w #$06FE
+    jsr.w WramC100Clear
+    dec a
+    sta.b !DP_LAST
+    lda.w !level
+    asl a
+    tax
+    ldy.w !PLACEMENT_LISTS,x
+    sty.b !DP_LIST_AT
+    lda.w !PLACEMENT_LISTS,y
+    and.w #$00FF
+    beq .none
+    pha
+    jsr.w PlacementsByRow
+    ldx.w #$00FE
+    jsr.w WramC100Clear
+    stz.b !DP_LEFT
+    stz.b !DP_LAST
+    ldy.b !DP_LIST_AT
+    pla
+    jsr.w PlacementsByColumn
+.none:
+    inc.b !DP_LIST_AT
+    sep.b #$30
+    rts
 
 ; @routine 82:A984 PlacementsByColumn
 ; WHAT IT DOES: Counts A placements from entry Y into their columns: each

@@ -16,6 +16,8 @@
 #define SPC_LISTS 0x858000u        /* 3 bytes a list: address (bit 15 dropped), bank (bit 7 set) */
 #define IPL_READY 0xBBAAu          /* ports 0-1 while the SPC700 waits in its IPL */
 #define IPL_START 0xCC             /* the first counter value */
+#define SOUND_SETS_LOADED 0x00000Au /* nonzero once the driver and sample sets are in (cleared at power-on) */
+#define DRIVER_TO_IPL 0xF9         /* the command that sends a running driver back to the IPL */
 
 /* Direct-page bytes the upload uses: the command, and the list's long
    pointer (its bank steps as the data crosses $8000). */
@@ -175,4 +177,39 @@ send:
     while (!(cpu.p & P_Z));
     wr8(SOUND_SEQ, 1);
     op_plp(p0);
+}
+
+/*
+ * @routine 80:B4AA SoundSetsLoad
+ * WHAT IT DOES: Puts the sound driver and both sample sets into the
+ * SPC700 the first time it is called after power-on, and restarts the
+ * sound command sequence.
+ * HOW: Once marked, SpcUpload of lists 0, 3 and 6 with command $F9; the
+ * sequence number then starts at 1 either way.
+ * Entry: M 8-bit, X 8-bit; D a page whose $0C-$0E and $34 SpcUpload may
+ * use; DB a bank whose $0000-$1FFF is work RAM and whose $2140-$2143 are
+ * the APU ports; called by JSL. Exit: A low = 1, N and Z clear. Loaded:
+ * X, Y and A high as the last SpcUpload leaves them. The other flags
+ * unchanged.
+ */
+void abi_SoundSetsLoad(void)
+{
+    static const uint8_t lists[3] = { 0, 3, 6 };
+    uint8_t a = rd8(SOUND_SETS_LOADED);
+    int i;
+
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    cpu.p = nz8(cpu.p, a);
+    if (a == 0) {
+        a = (uint8_t)(rd8_rmw(SOUND_SETS_LOADED) + 1);
+        wr8(SOUND_SETS_LOADED, a);
+        for (i = 0; i < 3; i++) {
+            cpu.x = lists[i];
+            cpu.a = (uint16_t)((cpu.a & 0xFF00) | DRIVER_TO_IPL);
+            abi_SpcUpload();
+        }
+    }
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 1);
+    cpu.p = nz8(cpu.p, 1);
+    wr8(SOUND_SEQ, 1);
 }

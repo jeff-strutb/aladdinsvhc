@@ -8,8 +8,11 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
+#include "wram_video.h"
 
 void abi_ShiftRight5(void);
+void abi_WramC100Clear(void);
 
 #define ENTRY_WORD_2 0x8A7Du       /* the word at byte 2 of entry Y */
 #define ENTRY_WORD_4 0x8A7Fu       /* the word at byte 4 of entry Y */
@@ -26,6 +29,10 @@ void abi_ShiftRight5(void);
 #define DP_TOP 0x10
 #define DP_BAND 0x11
 #define DP_START 0x12
+#define DP_LIST_AT 0x6D            /* word: the level's list, past the count byte when done */
+
+#define PLACEMENT_LISTS 0x8A7Au    /* by level, the list's offset (word); at the offset, a count byte */
+#define V_1BE7 0x001BE7u           /* 14 bytes cleared when a level's placements are indexed */
 
 static uint32_t in_db(uint32_t addr)
 {
@@ -185,4 +192,55 @@ void abi_PlacementsByRow(void)
         cpu.p = cmp8_flags(cpu.p, x, rd8(dp(DP_LAST)));
     } while (!(cpu.p & P_Z));
     op_rep(P_M | P_X);
+}
+
+/*
+ * @routine 82:A93A PlacementsIndex
+ * WHAT IT DOES: Indexes the level's actor placements, by row and then by
+ * column, when it starts.
+ * HOW: Clears 14 bytes at $1BE7 and the tables from $7E:C100; the level's
+ * list (by LEVEL) gives the count; when there are any, PlacementsByRow,
+ * the first 256 bytes of tables cleared again, PlacementsByColumn. The
+ * direct page's word at $6D keeps the list's place and ends one past it.
+ * Entry: M 8-bit, X 8-bit; D a page whose $0C-$12 and $6D-$6E it may use;
+ * DB the lists' bank, whose $0000-$1FFF is work RAM. Exit: none: A = 0.
+ * Else as PlacementsByColumn leaves A and Y. N and Z from the $6D word's
+ * new value; M and X 8-bit. V and C as the last step leaves them.
+ */
+void abi_PlacementsIndex(void)
+{
+    uint16_t n;
+    int8_t x;
+
+    for (x = 13; x >= 0; x--)
+        wr8(V_1BE7 + (uint8_t)x, 0);
+    cpu.x = 0xFF;
+    op_rep(P_M | P_X);
+    cpu.x = 0x06FE;
+    abi_WramC100Clear();
+    cpu.a = (uint16_t)(cpu.a - 1);
+    wr16(dp(DP_LAST), cpu.a);
+    cpu.a = rd16(LEVEL);
+    op_asl16();
+    cpu.x = cpu.a;
+    cpu.y = rd16(in_db(PLACEMENT_LISTS + (uint32_t)cpu.x));
+    wr16(dp(DP_LIST_AT), cpu.y);
+    cpu.a = rd16(in_db(PLACEMENT_LISTS + (uint32_t)cpu.y));
+    op_and16(0x00FF);
+    if (cpu.a != 0) {
+        n = cpu.a;
+        abi_PlacementsByRow();
+        cpu.x = 0x00FE;
+        abi_WramC100Clear();
+        wr16(dp(DP_LEFT), 0);
+        wr16(dp(DP_LAST), 0);
+        cpu.y = rd16(dp(DP_LIST_AT));
+        cpu.a = n;
+        cpu.p = nz16(cpu.p, n);
+        abi_PlacementsByColumn();
+    }
+    n = (uint16_t)(rd16_rmw(dp(DP_LIST_AT)) + 1);
+    wr16_rmw(dp(DP_LIST_AT), n);
+    cpu.p = nz16(cpu.p, n);
+    op_sep(P_M | P_X);
 }

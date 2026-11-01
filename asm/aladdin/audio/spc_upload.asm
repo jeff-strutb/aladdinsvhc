@@ -17,11 +17,41 @@ arch 65816
 !SPC_LISTS = $858000            ; 3 bytes a list: address (bit 15 dropped), bank (bit 7 set)
 !IPL_READY = $BBAA              ; ports 0-1 while the SPC700 waits in its IPL
 !IPL_START = $CC                ; the first counter value
+!SOUND_SETS_LOADED = $000A      ; nonzero once the driver and sample sets are in (cleared at power-on)
+!DRIVER_TO_IPL = $F9            ; the command that sends a running driver back to the IPL
 
 ; Direct-page bytes the upload uses: the command, and the list's long
 ; pointer (its bank steps as the data crosses $8000).
 !DP_COMMAND = $34
 !DP_LIST = $0C
+
+; @routine 80:B4AA SoundSetsLoad
+; WHAT IT DOES: Puts the sound driver and both sample sets into the
+; SPC700 the first time it is called after power-on, and restarts the
+; sound command sequence.
+; HOW: Once marked, SpcUpload of lists 0, 3 and 6 with command $F9; the
+; sequence number then starts at 1 either way.
+; Entry: M 8-bit, X 8-bit; D a page whose $0C-$0E and $34 SpcUpload may
+; use; DB a bank whose $0000-$1FFF is work RAM and whose $2140-$2143 are
+; the APU ports; called by JSL. Exit: as the C states.
+%at($80B4AA)
+SoundSetsLoad:
+    lda.w !SOUND_SETS_LOADED
+    bne .sequence
+    inc.w !SOUND_SETS_LOADED
+    ldx.b #0
+    lda.b #!DRIVER_TO_IPL
+    jsl.l SpcUpload
+    ldx.b #3
+    lda.b #!DRIVER_TO_IPL
+    jsl.l SpcUpload
+    ldx.b #6
+    lda.b #!DRIVER_TO_IPL
+    jsl.l SpcUpload
+.sequence:
+    lda.b #$01
+    sta.w !sound_seq
+    rtl
 
 ; @routine 80:B4D0 SpcUpload
 ; WHAT IT DOES: Sends list X (the driver, a sample set or a song) to the
