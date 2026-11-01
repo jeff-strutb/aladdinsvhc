@@ -24,6 +24,10 @@
 #define TASK_CURRENT 0x000327u     /* the running task's slot */
 #define TASK_SLOT_COUNT 0x000328u  /* how many slots the scheduler scans */
 
+/* Scratch bytes many routines use for their own working values, $000C up
+   (offsets from SCRATCH) */
+#define SCRATCH 0x00000Cu
+
 /* Joypads (system/joypad.c): pad 1's word, then pad 2's */
 #define JOY_HELD 0x000377u         /* buttons held */
 #define JOY_PRESSED 0x00037Bu      /* buttons newly pressed this frame */
@@ -31,5 +35,17 @@
 /* Shadows of PPU and CPU registers, written to them in the vertical blank */
 #define NMITIMEN_SHADOW 0x0003B7u  /* NMITIMEN: interrupts and auto joypad read */
 #define INIDISP_SHADOW 0x0003B8u   /* INIDISP: forced blank and brightness */
+
+/* The text layer (video/tilemap.c) */
+#define TEXT_TILEMAP 0x7ED800u     /* its 32x32 tilemap, 2 KB */
+#define TEXT_TILEMAP_UPLOAD 0x000835u /* nonzero: the NMI copies the tilemap to VRAM */
+
+/* Sprites (video/oam.c): the OAM image the NMI copies to the PPU */
+#define OAM_BUFFER 0x7EFA80u       /* 128 sprites of 4 bytes */
+#define OAM_HIGH 0x7EFC80u         /* their size and x bit 8, 2 bits each */
+#define OAM_FREE 0x00084Du         /* sprites not yet used this frame (word) */
+#define OAM_NEXT 0x000852u         /* the next sprite's byte offset in OAM_BUFFER (word) */
+#define OAM_HIGH_NEXT 0x000854u    /* the next byte offset in OAM_HIGH (word) */
+#define OAM_0857 0x000857u         /* cleared with them (word); purpose not yet established */
 
 #endif

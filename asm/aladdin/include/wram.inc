@@ -24,6 +24,10 @@ includeonce
 !task_slot_count = $0328        ; how many slots the scheduler scans
 !task_scheduler_stack = $0326   ; the scheduler's own stack
 
+; Scratch bytes many routines use for their own working values, $000C up
+; (offsets from !scratch).
+!scratch = $000C
+
 ; Joypads (system/joypad.asm): pad 1's word, then pad 2's.
 !joy_held = $0377               ; buttons held
 !joy_pressed = $037B            ; buttons newly pressed this frame
@@ -31,3 +35,15 @@ includeonce
 ; Shadows of PPU and CPU registers, written to them in the vertical blank.
 !nmitimen_shadow = $03B7        ; NMITIMEN: interrupts and auto joypad read
 !inidisp_shadow = $03B8         ; INIDISP: forced blank and brightness
+
+; The text layer (video/tilemap.asm).
+!text_tilemap = $7ED800         ; its 32x32 tilemap, 2 KB
+!text_tilemap_upload = $0835    ; nonzero: the NMI copies the tilemap to VRAM
+
+; Sprites (video/oam.asm): the OAM image the NMI copies to the PPU.
+!oam_buffer = $7EFA80           ; 128 sprites of 4 bytes
+!oam_high = $7EFC80             ; their size and x bit 8, 2 bits each
+!oam_free = $084D               ; sprites not yet used this frame (word)
+!oam_next = $0852               ; the next sprite's byte offset in oam_buffer (word)
+!oam_high_next = $0854          ; the next byte offset in oam_high (word)
+!oam_0857 = $0857               ; cleared with them (word); purpose not yet established

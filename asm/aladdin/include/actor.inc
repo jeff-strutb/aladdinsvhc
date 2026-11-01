@@ -5,6 +5,11 @@
 
 includeonce
 
+; The records: the player's first, then the others.
+!player = $08DB                 ; Aladdin's record
+!actor_free_list = $15A2        ; addresses of the free records (words), a stack
+!actor_free_top = $15E4         ; byte offset of its top entry; negative: none free
+
 !actor_x = $0B                  ; x position: fraction, then pixels (word)
 !actor_y = $0E                  ; y position: fraction, then pixels (word)
 !actor_facing = $14             ; 0: facing right (x grows), else left

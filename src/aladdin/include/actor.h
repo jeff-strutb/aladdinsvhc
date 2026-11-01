@@ -7,6 +7,11 @@
 #ifndef ALADDIN_ACTOR_H
 #define ALADDIN_ACTOR_H
 
+/* The records: the player's first, then the others */
+#define PLAYER 0x0008DBu          /* Aladdin's record */
+#define ACTOR_FREE_LIST 0x0015A2u /* addresses of the free records (words), a stack */
+#define ACTOR_FREE_TOP 0x0015E4u  /* byte offset of its top entry; negative: none free */
+
 #define ACTOR_X 0x0Bu             /* x position: fraction, then pixels (word) */
 #define ACTOR_Y 0x0Eu             /* y position: fraction, then pixels (word) */
 #define ACTOR_FACING 0x14u        /* 0: facing right (x grows), else left */

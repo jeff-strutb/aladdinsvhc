@@ -272,7 +272,7 @@ ActorMoveY:
 ; @routine 81:A5A7 ActorMoveX
 ; WHAT IT DOES: Moves the actor by its horizontal speed the way it faces.
 ; HOW: ActorMoveXNear, for callers in other banks.
-; Entry, Exit: as ActorMoveXNear; called by JSL.
+; Entry: as ActorMoveXNear; called by JSL. Exit: as ActorMoveXNear.
 %at($81A5A7)
 ActorMoveX:
     jsr.w ActorMoveXNear
@@ -282,7 +282,8 @@ ActorMoveX:
 ; WHAT IT DOES: Moves the actor right by its horizontal speed, whichever
 ; way it faces.
 ; HOW: ActorMoveRightNear, for callers in other banks.
-; Entry, Exit: as ActorMoveRightNear; called by JSL.
+; Entry: as ActorMoveRightNear; called by JSL. Exit: as
+; ActorMoveRightNear.
 ActorMoveRight:
     jsr.w ActorMoveRightNear
     rtl
