@@ -114,7 +114,9 @@ ActorWaitAnim:
 ; elsewhere once out of range (box $10).
 ; HOW: AnimStep, the compare, then a jump to either.
 ; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
-; the actor loop. Exit: as the C states.
+; the actor loop. Exit: kept: M 8-bit; as the tail at $83:9738 (A = the
+; word less 31, M 8-bit) or ActorEndOutOfRange (M and X 8-bit, X = $10)
+; returns. Ended: the loop goes on at $83:94BF, no return.
 %at($83BD0B)
 ActorWaitAnimEnd10:
     jsl.l AnimStep

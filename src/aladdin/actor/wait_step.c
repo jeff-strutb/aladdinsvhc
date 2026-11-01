@@ -167,29 +167,10 @@ keep:
     op_sep(0x20);
 }
 
-/*
- * @routine 83:BD0B ActorWaitAnimEnd10
- * WHAT IT DOES: Each frame it waits: its animation on; then, where
- * LEVEL_035C is 6, it is ended once left behind (the tail at $83:9738);
- * elsewhere once out of range (box $10).
- * HOW: AnimStep, the compare, then a jump to either.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
- * the actor loop. Exit: kept: M 8-bit; as the tail at $83:9738 (A = the
- * word less 31, M 8-bit) or ActorEndOutOfRange (M and X 8-bit, X = $10)
- * returns. Ended: the loop goes on at $83:94BF, no return.
- */
-void abi_ActorWaitAnimEnd10(void)
-{
-    abi_AnimStep();
-    lda8(ea_abs(LEVEL_035C));
-    cmp8_v(0x06);
-    if (IF_Z) {
-        end_if_left_behind();
-        return;
-    }
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
-}
+/* ActorWaitAnimEnd10 ($83:BD0B, asm/aladdin/actor/wait_step.asm) has no C
+   yet: when it ends the actor through the tail at $83:9738, the checker
+   takes the RTS of that tail's JSR ActorFreePlaced (S back at the call's
+   own level) for the call's return, as for ActorEndOutOfRange. */
 
 /*
  * @routine 83:CF8C ActorWaitTest42Anim
