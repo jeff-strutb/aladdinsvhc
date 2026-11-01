@@ -10,6 +10,8 @@ per finding, each linked to the dated note that measured it.
   0014 traces the cartridge's own ROM. Its map must take the ROM's size when
   the board gives none, or the bus does not mirror and bank $80 reads past
   the ROM ([decomp/log/bootstrap-2026-10-28](decomp/log/bootstrap-2026-10-28.md)).
+- asar evaluates expressions left to right with no operator precedence:
+  `!task_state+$18*2` is ($6F+$18)*2. Parenthesise: `!task_state+(24*2)`.
 - asar 1.91 encodes all 268 65816 instruction forms and all 256 SPC700
   opcodes exactly, given explicit operand sizes.
 
@@ -42,6 +44,14 @@ per finding, each linked to the dated note that measured it.
   rule (the $200 below the S at the frame's end) skipped every task's stack
   whenever a frame ended in the scheduler's idle loop; a dropped push in
   TaskWait is caught only with the per-stack rule.
+- A routine that steps its own return address (TaskCreate, over the five
+  bytes after its JSL) ends where its RTL lands at its exit level. Its C
+  does the RTL itself and sets `cpu.unwound`; both oracles compare where it
+  lands. A7 catches every planted bug in it; A5 rates a call an interrupt
+  overlapped as inconclusive
+  ([decomp/log/inline-args-2026-11-01](decomp/log/inline-args-2026-11-01.md)).
+- PLB, PLD and PLA at a routine's end set N and Z from the pulled value:
+  the exit flags are the pull's, not the last arithmetic's.
 - Bottom up is not optional: C that reaches code with no C fails the whole
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.

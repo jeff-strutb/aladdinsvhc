@@ -443,13 +443,15 @@ static void finish_piece(Watch *w, int waited)
         else { DIFFR(s) DIFFR(pc) }
     } else if (!c_runaway && w->c_state == 2) {
         bad = 1; strncat(why, " C-waits-where-original-returns", sizeof why - strlen(why) - 1);
-    } else
-    /* A routine that left through its caller's frame: the C must too, to
-       the same place. */
-    if (!c_runaway && (cpu.unwound || out.s != w->exit_s)) {
-        if (!cpu.unwound || out.s == w->exit_s) {
-            bad = 1; snprintf(why + strlen(why), sizeof why - strlen(why), " unwound=%d/%d", cpu.unwound, out.s != w->exit_s);
-        } else { DIFFR(s) DIFFR(pc) }
+    } else {
+        /* A routine that left through its caller's frame, or returned past
+           its return address: the C must too, to the same place. */
+        int orig_left = out.s != w->exit_s || out.pc != w->ret_pc;
+        if (!c_runaway && (cpu.unwound || orig_left)) {
+            if (!cpu.unwound || !orig_left) {
+                bad = 1; snprintf(why + strlen(why), sizeof why - strlen(why), " unwound=%d/%d", cpu.unwound, orig_left);
+            } else { DIFFR(s) DIFFR(pc) }
+        }
     }
     for (int pass = 0; pass < 2; pass++) {
         Map *m = pass ? &w->cw : &w->orig;
@@ -590,13 +592,16 @@ static void on_insn(uint32_t pc)
        exit level: the routine left through its caller's frame, which may
        end the caller's watch at the same place. (An RTI is an interrupt
        handler's: a routine that stops the game may reset S above its frame
-       and wait there for interrupts.) */
+       and wait there for interrupts.) A return that brings S back to the
+       exit level ends it too wherever it lands: the routine stepped its own
+       return address (over inline arguments, as the task create and exec
+       calls do), and the C must land in the same place. */
     while (depth) {
         Watch *t = ws[depth - 1];
         if (t->in_irq) break;
         if (!have) { core_regs(&r); have = 1; }
         if ((pc == t->ret_pc && r.s == t->exit_s)
-            || (r.s > t->exit_s && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
+            || (r.s >= t->exit_s && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
         else break;
     }
     if (!(watched[pc >> 3] >> (pc & 7) & 1)) return;
@@ -1058,9 +1063,11 @@ static void ls_insn(uint32_t pc)
            fill runs into the stack) ends at that return too: S is back at
            its exit level, and what runs next is original code on both
            sides, the C having left the same way (cpu.unwound). */
+        /* A return to the exit level ends it wherever it lands (a routine
+           that stepped its return address over inline arguments). */
         if ((pc == m.ret_pc && r.s == m.exit_s)
             || (!m.stack_reset && r.s > m.exit_s && (prev == 0x60 || prev == 0x6B))
-            || (m.noreturn && !m.stack_reset && r.s == m.exit_s && (prev == 0x60 || prev == 0x6B))) {
+            || (!m.stack_reset && r.s == m.exit_s && (prev == 0x60 || prev == 0x6B))) {
             if (calls_from >= 0 && cur_frame >= calls_from)
                 fprintf(stderr, "ODONE frame %ld call %llu at %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.s);
             STORE(sh->calls[m.call % CALLRING].done, 1);
@@ -2239,7 +2246,7 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
        the JSR or JSL that entered it: an entry right after the call (a
        routine's inner entry, 7E:E4E4 after JSR ColourBlendBy) must not be
        taken as entered by that JSR. */
-    if (!cpu.unwound)
+    if (!cpu.unwound || cpu.s == exit_s)
         *core_opcode = (uint8_t)(exit_s - entry_s == 3 ? 0x6B : 0x60);
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
