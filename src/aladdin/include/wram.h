@@ -59,4 +59,10 @@
 /* Layers: each layer's offset from the camera, a word per layer */
 #define LAYER_OFFSET_Y 0x001A1Cu   /* vertical */
 
+/* Palettes (video/palette.c) */
+#define PALETTE_BUFFER 0x7EFD00u   /* CGRAM's image: 16 palettes of 16 colours */
+#define PALETTE_UPLOAD 0x000844u   /* nonzero: the NMI copies PALETTE_BUFFER to CGRAM */
+#define PALETTE_SAVED 0x000406u    /* colours kept to fade from, laid out as PALETTE_BUFFER */
+#define PALETTE_SAVED_AT 0x000606u /* byte offset of the first colour kept (word) */
+
 #endif

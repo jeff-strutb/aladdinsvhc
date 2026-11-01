@@ -58,3 +58,9 @@ includeonce
 
 ; Layers: each layer's offset from the camera, a word per layer.
 !layer_offset_y = $1A1C         ; vertical
+
+; Palettes (video/palette.asm).
+!palette_buffer = $7EFD00       ; CGRAM's image: 16 palettes of 16 colours
+!palette_upload = $0844         ; nonzero: the NMI copies palette_buffer to CGRAM
+!palette_saved = $0406          ; colours kept to fade from, laid out as palette_buffer
+!palette_saved_at = $0606       ; byte offset of the first colour kept (word)

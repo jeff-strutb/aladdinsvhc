@@ -18,6 +18,7 @@ arch 65816
 ; of 16 bytes from $1645.
 !table_15f1 = $15F1
 !table_1645 = $1645
+!TASK_SLOT_SIZE = 24             ; bytes in a task slot
 
 ; @routine 81:9626 TaskSlotsFree1To6
 ; WHAT IT DOES: Ends every task but those in slots 0 and 7.
@@ -26,12 +27,12 @@ arch 65816
 ; register and flag unchanged.
 %at($819626)
 TaskSlotsFree1To6:
-    stz.w !task_state+($18*1)
-    stz.w !task_state+($18*2)
-    stz.w !task_state+($18*3)
-    stz.w !task_state+($18*4)
-    stz.w !task_state+($18*5)
-    stz.w !task_state+($18*6)
+    stz.w !task_state+(!TASK_SLOT_SIZE*1)
+    stz.w !task_state+(!TASK_SLOT_SIZE*2)
+    stz.w !task_state+(!TASK_SLOT_SIZE*3)
+    stz.w !task_state+(!TASK_SLOT_SIZE*4)
+    stz.w !task_state+(!TASK_SLOT_SIZE*5)
+    stz.w !task_state+(!TASK_SLOT_SIZE*6)
     rtl
 
 ; @routine 81:9647 LevelCountersClear
@@ -72,12 +73,12 @@ GameRamClear:
     dex
     bpl .high
     sep.b #$10
-    ldx.b #$18*7
+    ldx.b #!TASK_SLOT_SIZE*7
 .slot:
     stz.w !task_state,x
     sec
     txa
-    sbc.b #$18
+    sbc.b #!TASK_SLOT_SIZE
     tax
     bne .slot
     rtl
