@@ -117,6 +117,17 @@ void cpu_restart(uint32_t at, void (*entry)(void));
    never resumes (exec, exit) it never returns. */
 void task_yield(void);
 
+/* An actor's code yields here where the original has BRK at `brk_at`
+   (docs/aladdin/ACTORS.md): this makes the BRK's effects (its bank, PC
+   and P pushed, I set, D clear, S down by 4, at the BRK vector's code)
+   and stops until the actor loop resumes the actor, then returns with
+   `cpu` holding the registers the loop's RTI restored. */
+void actor_yield(uint32_t brk_at);
+/* An actor's code that ends jumps back into the actor loop at `loop_at`
+   (the actor's record freed or left to the loop): the call ends there,
+   with `cpu` as the original's registers at that jump. Never returns. */
+void actor_leave(uint32_t loop_at);
+
 /* The return address a JSL at `site` pushes, on the stack at S (bank 0),
    S moving down past it: for C that calls the C of a routine that can wait
    (its task's stack must hold what the original's does while it waits).

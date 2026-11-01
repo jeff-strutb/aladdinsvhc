@@ -53,6 +53,27 @@ static uint8_t catalog_bits[1 << 21];   /* routine entries the catalog knows */
 static int is_catalog_entry(uint32_t pc) { return catalog_bits[pc >> 3] >> (pc & 7) & 1; }
 static uint8_t jump_bits[1 << 21];      /* code C calls that the original jumps to */
 static int is_jump_entry(uint32_t pc) { return jump_bits[pc >> 3] >> (pc & 7) & 1; }
+static uint8_t actor_bits[1 << 21];     /* actors' code (@actor), entered by the actor loop's jump */
+static int is_actor_entry(uint32_t pc) { return actor_bits[pc >> 3] >> (pc & 7) & 1; }
+
+/* Actors (docs/aladdin/ACTORS.md): their code yields by BRK, whose vector
+   ($00:FFE6) leads to the code at $00:FFAC, and the actor loop resumes it
+   by RTI at the BRK's address + 2, at the same S, with D its record. An
+   actor that ends jumps into the loop where it takes the next record. */
+#define ACTOR_BRK_AT 0x00FFACu
+#define ACTOR_LOOP_PLAYER 0x83948Bu
+#define ACTOR_LOOP_NEXT 0x8394BFu
+#define ACTOR_PARKS 64
+static int is_jump_op(uint8_t op)
+{
+    return op == 0x4C || op == 0x5C || op == 0x6C || op == 0x7C || op == 0xDC || op == 0x80 || op == 0x82;
+}
+/* Just after a BRK (S at its pushes): where the actor resumes and its S. */
+static uint32_t actor_resume_of(const uint8_t *w, uint16_t s, uint16_t *resume_s)
+{
+    *resume_s = (uint16_t)(s + 4);
+    return (uint32_t)w[(uint16_t)(s + 4)] << 16 | (uint32_t)w[(uint16_t)(s + 3)] << 8 | w[(uint16_t)(s + 2)];
+}
 static int nroutines;
 static uint8_t *watched;  /* 16M-entry bitmap of routine entry points */
 static uint8_t *has_c;    /* the same for every routine with C in the library */
@@ -182,6 +203,7 @@ typedef struct {
     jmp_buf abort;
     int c_state;             /* 0 none, 1 returned, 2 waiting in task_yield */
     int resumed;             /* this piece starts where the task resumed */
+    int actor;               /* a piece of an actor's code (docs/aladdin/ACTORS.md) */
     uint16_t live_s;         /* stack above this is live (scratch below it) */
 } Watch;
 
@@ -189,6 +211,8 @@ typedef struct {
 static Watch *ws[DEPTH];
 /* A waiting task's open watches, bottom first, until it resumes. */
 static struct { int n; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5park[TASK_SLOTS];
+/* A yielded actor's watches, by its record, until the actor loop resumes it. */
+static struct { int n; uint16_t d; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5apark[ACTOR_PARKS];
 static int depth;
 static Watch *cur;  /* the watch whose C is running */
 
@@ -424,8 +448,10 @@ static void finish_piece(Watch *w, int waited)
     if (w->c_state != 2) w->c_state = 0;
     a5_run(w);
     c_running = 0;
-    /* At a wait, the stack above the task's saved S is live (the pushes). */
-    if (waited) {
+    /* At a wait, the stack above the task's saved S is live (the pushes);
+       at an actor's yield or leave, the stack above S there. */
+    if (waited == 2) w->live_s = out.s;
+    else if (waited) {
         uint8_t slot = wram[TASK_CURRENT];
         w->live_s = (uint16_t)(wram[0x71 + slot] | wram[0x72 + slot] << 8);
     }
@@ -536,6 +562,66 @@ static void on_insn(uint32_t pc)
             if (!have) { core_regs(&r); have = 1; }
             if (r.s == ws[i]->irq_s) ws[i]->in_irq = 0;
         }
+    /* An actor yields (just after its BRK) or leaves its code for the
+       actor loop: the watches from its piece up are judged up to here and
+       parked under its record, or dropped when it left. */
+    if (depth && (pc == ACTOR_BRK_AT || pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER)) {
+        int b = -1;
+        /* the actor's own piece: the outermost actor watch (its code may
+           jump on to more actor code, ActorEnd) */
+        for (int i = 0; i < depth; i++) if (ws[i]->actor) { b = i; break; }
+        if (b >= 0) {
+            if (!have) { core_regs(&r); have = 1; }
+            int yield = pc == ACTOR_BRK_AT && prev_op == 0x00 && r.s == (uint16_t)(ws[b]->entry.s - 4);
+            int leave = pc != ACTOR_BRK_AT && r.s == ws[b]->entry.s;
+            if (yield || leave) {
+                for (int i = depth - 1; i >= b; i--)
+                    if (!ws[i]->in_irq) finish_piece(ws[i], 2);
+                int k;
+                for (k = 0; k < ACTOR_PARKS; k++)
+                    if (a5apark[k].n && a5apark[k].d == r.d) {
+                        for (int i = 0; i < a5apark[k].n; i++) {
+                            a5_drop(a5apark[k].w[i]);
+                            if (a5apark[k].w[i]->co) co_delete_p(a5apark[k].w[i]->co);
+                            free(a5apark[k].w[i]);
+                        }
+                        a5apark[k].n = 0;
+                    }
+                for (k = 0; k < ACTOR_PARKS && a5apark[k].n; k++) {}
+                if (yield && k < ACTOR_PARKS) {
+                    a5apark[k].d = r.d;
+                    a5apark[k].resume = actor_resume_of(wram, r.s, &a5apark[k].resume_s);
+                    for (int i = b; i < depth; i++) { a5apark[k].w[a5apark[k].n++] = ws[i]; ws[i] = NULL; }
+                } else
+                    for (int i = b; i < depth; i++) a5_drop(ws[i]);
+                depth = b;
+            }
+        }
+    }
+    /* A yielded actor resumes: the actor loop's RTI lands where it
+       yielded, at its S, with its record: its watches open again. */
+    if (prev_op == 0x40) {
+        if (!have) { core_regs(&r); have = 1; }
+        for (int k = 0; k < ACTOR_PARKS; k++) {
+            if (!a5apark[k].n || a5apark[k].d != r.d || pc != a5apark[k].resume || r.s != a5apark[k].resume_s) continue;
+            for (int i = 0; i < a5apark[k].n; i++) {
+                Watch *w = a5apark[k].w[i];
+                if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); free(w); continue; }
+                if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); free(ws[depth]); }
+                ws[depth++] = w;
+                w->entry = r;
+                w->live_s = r.s;
+                w->resumed = 1;
+                w->exit_s = r.s;
+                w->in_irq = w->interrupted = w->dma = w->gsu = w->needs_asm = w->overflow = 0;
+                w->stack_reset = 0;
+                map_clear(&w->undo); map_clear(&w->orig);
+                w->oread.n = w->owrite.n = w->oseq.n = 0;
+            }
+            a5apark[k].n = 0;
+            break;
+        }
+    }
     /* The running task waits: every open watch is the task's; each is
        judged up to here and parked under the task's slot, or dropped when
        the task does not wait (it exited or starts again elsewhere). */
@@ -595,13 +681,14 @@ static void on_insn(uint32_t pc)
        and wait there for interrupts.) A return that brings S back to the
        exit level ends it too wherever it lands: the routine stepped its own
        return address (over inline arguments, as the task create and exec
-       calls do), and the C must land in the same place. */
+       calls do), and the C must land in the same place. Not an actor's
+       piece: its level is its own, where the routines it calls return. */
     while (depth) {
         Watch *t = ws[depth - 1];
         if (t->in_irq) break;
         if (!have) { core_regs(&r); have = 1; }
         if ((pc == t->ret_pc && r.s == t->exit_s)
-            || (r.s >= t->exit_s && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
+            || ((r.s > t->exit_s || (r.s == t->exit_s && !t->actor)) && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
         else break;
     }
     if (!(watched[pc >> 3] >> (pc & 7) & 1)) return;
@@ -615,10 +702,15 @@ static void on_insn(uint32_t pc)
     if (!ws[depth] && !(ws[depth] = calloc(1, sizeof(Watch)))) abort();
     Watch *w = ws[depth];
     uint16_t word = (uint16_t)(wram[(sp + 1) & 0xFFFF] | wram[(sp + 2) & 0xFFFF] << 8);
+    w->actor = 0;
     if (ue.set && pc == ue.pc && r.s == ue.entry_s) {
         w->ret_pc = ue.ret;
         w->exit_s = ue.exit_s;
         ue.set = 0;
+    } else if (is_actor_entry(pc) && is_jump_op(via)) {
+        w->ret_pc = 0xFFFFFFFFu;
+        w->exit_s = (uint16_t)sp;
+        w->actor = 1;
     } else if (via == 0x20 || via == 0xFC) {
         w->ret_pc = (pc & 0xFF0000) | (uint16_t)(word + 1);
         w->exit_s = (uint16_t)(sp + 2);
@@ -714,6 +806,10 @@ static int load_routines(void *core, const char *lib, const char *only)
     const int *jmpn = dlsym(h, "game_jump_entry_count");
     if (jmp && jmpn)
         for (int i = 0; i < *jmpn; i++) jump_bits[jmp[i] >> 3] |= (uint8_t)(1 << (jmp[i] & 7));
+    const uint32_t *act = dlsym(h, "game_actor_entries");
+    const int *actn = dlsym(h, "game_actor_entry_count");
+    if (act && actn)
+        for (int i = 0; i < *actn; i++) actor_bits[act[i] >> 3] |= (uint8_t)(1 << (act[i] & 7));
     const int *count = dlsym(h, "game_routine_count");
     uint8_t *(*mem)(const char *, size_t *) = dlsym(core, "snesbox_memory");
     *(void **)&co_active_p = dlsym(core, "co_active");
@@ -916,6 +1012,7 @@ static struct {
     uint16_t open[64];       /* their stack pointers at entry */
     uint32_t open_pc[64];    /* and their entries */
     uint16_t entry_s;        /* S at the call's own entry */
+    int actor;               /* a piece of an actor's code: no return; ends at its yield or its leave */
     uint32_t ret[0x10000];   /* by S at a callee's entry: 1 << 24 | its return address */
 } m;
 static uint32_t m_pc;        /* the routine of the open call */
@@ -992,6 +1089,23 @@ static struct {
     uint32_t open_pc[64];
 } opark[TASK_SLOTS];
 
+/* Original side: an actor's piece ends at its yield (BRK) and is parked
+   under its record (D) until the actor loop resumes it, as a record of
+   its own, there. */
+static struct { int valid; uint16_t d, resume_s, entry_s; uint32_t resume, pc; } aopark[ACTOR_PARKS];
+static int aopark_find(uint16_t d)
+{
+    for (int i = 0; i < ACTOR_PARKS; i++) if (aopark[i].valid && aopark[i].d == d) return i;
+    return -1;
+}
+static int aopark_slot(uint16_t d)
+{
+    int i = aopark_find(d);
+    if (i >= 0) return i;
+    for (i = 0; i < ACTOR_PARKS; i++) if (!aopark[i].valid) return i;
+    return -1;
+}
+
 /* Original side: measure each call's cost. */
 static void ls_op(uint8_t op, uint32_t addr);
 
@@ -1017,6 +1131,31 @@ static void ls_insn(uint32_t pc)
             m.irq_resumed = 1;
         }
         struct SnesboxRegs r; core_regs(&r);
+        /* An actor's piece ends at its yield (just after its BRK), parked
+           under its record for its next turn, or where it leaves its code
+           for the actor loop at its own level (it ended). Levels may be
+           open at that same S: the actor's code jumped on to more actor
+           code (ActorEnd); a routine it called is below it. */
+        if (m.actor) {
+            int yield = pc == ACTOR_BRK_AT && *core_opcode == 0x00 && r.s == (uint16_t)(m.entry_s - 4);
+            int leave = (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && r.s == m.entry_s;
+            if (yield || leave) {
+                int k = aopark_find(r.d);
+                if (k >= 0) aopark[k].valid = 0;
+                if (yield && (k = aopark_slot(r.d)) >= 0) {
+                    uint16_t rs = 0;
+                    aopark[k].valid = 1; aopark[k].d = r.d;
+                    aopark[k].resume = actor_resume_of(wram, r.s, &rs); aopark[k].resume_s = rs;
+                    aopark[k].entry_s = m.entry_s; aopark[k].pc = m_pc;
+                }
+                if (calls_from >= 0 && cur_frame >= calls_from)
+                    fprintf(stderr, "O%s frame %ld call %llu D=%04X S=%04X\n", yield ? "AYIELD" : "ALEAVE", cur_frame, (unsigned long long)m.call, r.d, r.s);
+                STORE(sh->calls[m.call % CALLRING].done, 1);
+                m.active = 0;
+                m.irq_resumed = 0;
+                return;
+            }
+        }
         /* The call's task waits: the call ends here, at the scheduler, and
            is parked for the task's next turn. */
         if (pc == TASK_SCHEDULER && r.s == TASK_SCHEDULER_S) {
@@ -1064,10 +1203,11 @@ static void ls_insn(uint32_t pc)
            its exit level, and what runs next is original code on both
            sides, the C having left the same way (cpu.unwound). */
         /* A return to the exit level ends it wherever it lands (a routine
-           that stepped its return address over inline arguments). */
+           that stepped its return address over inline arguments); not an
+           actor's piece, whose level is its own. */
         if ((pc == m.ret_pc && r.s == m.exit_s)
             || (!m.stack_reset && r.s > m.exit_s && (prev == 0x60 || prev == 0x6B))
-            || (!m.stack_reset && r.s == m.exit_s && (prev == 0x60 || prev == 0x6B))) {
+            || (!m.stack_reset && !m.actor && r.s == m.exit_s && (prev == 0x60 || prev == 0x6B))) {
             if (calls_from >= 0 && cur_frame >= calls_from)
                 fprintf(stderr, "ODONE frame %ld call %llu at %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.s);
             STORE(sh->calls[m.call % CALLRING].done, 1);
@@ -1158,8 +1298,31 @@ static void ls_insn(uint32_t pc)
             return;
         }
     }
+    /* An actor resumes: the actor loop's RTI lands where it yielded, at
+       its S, with its record: a record of its own for the next piece. */
+    if (*core_opcode == 0x40) {
+        struct SnesboxRegs r; core_regs(&r);
+        int k = aopark_find(r.d);
+        if (k >= 0 && pc == aopark[k].resume && r.s == aopark[k].resume_s) {
+            uint32_t keep = ls_noreturn_pc;
+            aopark[k].valid = 0;
+            o_open(pc, &r);
+            ls_noreturn_pc = keep;
+            m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.entry_s = r.s; m.actor = 1;
+            m_pc = aopark[k].pc;
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "OARESUME frame %ld call %llu %06X D=%04X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.d, r.s);
+            return;
+        }
+    }
     if (routine_at(pc) < 0) return;
     struct SnesboxRegs r; core_regs(&r);
+    /* An actor's code, entered by the actor loop's jump: its first piece. */
+    if (is_actor_entry(pc) && is_jump_op(*core_opcode)) {
+        o_open(pc, &r);
+        m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.actor = 1;
+        return;
+    }
     if (!entry(pc, &r, &m.ret_pc, &m.exit_s)) return;
     o_open(pc, &r);
 }
@@ -1178,7 +1341,7 @@ static void o_open(uint32_t pc, struct SnesboxRegs *rp)
     sh->fs[cur_frame % NSLOT].ncalls++;
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(stderr, "OCALL frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)k, pc, r.s);
-    m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0;
+    m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0; m.actor = 0;
     m.noreturn = ls_noreturn_pc == pc;
     ls_noreturn_pc = (uint32_t)-1;
     m_pc = pc;
@@ -2059,10 +2222,13 @@ typedef struct Ctx {
     const char *name;
     uint32_t resume;         /* where its task resumes, with S resume_s */
     uint16_t resume_s;
+    int actor;               /* an actor's code: parked by its record (D) */
+    uint16_t d;
     struct Ctx *next;
 } Ctx;
 static Ctx *ctx_cur, *ctx_free;
 static Ctx *parked[TASK_SLOTS];
+static Ctx *aparked[ACTOR_PARKS];   /* actors' code waiting for their next turn */
 static long yields, resumes;
 
 static void ctx_main(void)
@@ -2186,11 +2352,39 @@ static int ls_exec(uint32_t pc)
             }
         }
     }
+    /* A parked actor goes on where the actor loop's RTI resumes it. */
+    if (*core_opcode == 0x40) {
+        core_regs(&r);
+        for (int k = 0; k < ACTOR_PARKS; k++) {
+            Ctx *c = aparked[k];
+            if (!c || c->d != r.d || pc != c->resume || r.s != c->resume_s) continue;
+            aparked[k] = NULL;
+            resumes++;
+            ls_cur_name = c->name;
+            ls_entry_pc = c->entry_pc;
+            ls_unit_noreturn = 0;
+            ls_take_record(c->name);
+            cpu.a = r.a; cpu.x = r.x; cpu.y = r.y; cpu.s = r.s; cpu.d = r.d; cpu.db = r.db; cpu.p = r.p; cpu.e = r.e; cpu.pc = r.pc;
+            cpu.unwound = 0;
+            ls_exit_s = r.s;
+            ls_ret = 0xFFFFFFFFu;
+            c->exit_s = r.s; c->entry_s = r.s; c->ret = 0xFFFFFFFFu;
+            cyc_n = 0; cyc_over = 0; cyc_last = -1; cyc_said = 0;
+            ls_left_at = -1;
+            machine_live = 1;
+            ls_escape = &c->escape;
+            ls_escape_set = 1;
+            ctx_run(c);
+            return ls_finish(c, r, c->exit_s, c->ret, c->entry_s);
+        }
+    }
     int idx = routine_at(pc);
     if (idx < 0) return 0;
     core_regs(&r);
     uint32_t ret; uint16_t exit_s;
-    if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
+    int actor = is_actor_entry(pc) && is_jump_op(*core_opcode);
+    if (actor) { ret = 0xFFFFFFFFu; exit_s = r.s; }
+    else if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
     ls_cur_name = routines[idx].name;
     ls_entry_pc = pc;
     ls_unit_noreturn = ls_noreturn_pc == pc;
@@ -2213,6 +2407,7 @@ static int ls_exec(uint32_t pc)
     cyc_thread = c->co;
     c->idx = idx;
     c->ret = ret; c->exit_s = exit_s; c->entry_s = r.s; c->entry_pc = pc;
+    c->actor = actor;
     c->unit_noreturn = ls_unit_noreturn; c->name = routines[idx].name;
     ctx_run(c);
     return ls_finish(c, r, exit_s, ret, r.s);
@@ -2252,7 +2447,22 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
                 out.pc, out.s, cpu.unwound ? " unwound" : "");
     calls_swapped++;
-    if (c->status == 3) {
+    if (c->status == 3 && c->actor) {
+        /* An actor yielded (at the BRK's code: parked by its record until
+           the loop resumes it) or left for the actor loop (ended). */
+        uint16_t rs = 0;
+        int k;
+        yields++;
+        for (k = 0; k < ACTOR_PARKS; k++)
+            if (aparked[k] && aparked[k]->d == out.d) { ctx_abandon(aparked[k]); aparked[k] = NULL; }
+        for (k = 0; k < ACTOR_PARKS && aparked[k]; k++) {}
+        if (out.pc == ACTOR_BRK_AT && k < ACTOR_PARKS) {
+            c->d = out.d;
+            c->resume = actor_resume_of(wram, out.s, &rs);
+            c->resume_s = rs;
+            aparked[k] = c;
+        } else ctx_abandon(c);
+    } else if (c->status == 3) {
         uint8_t slot = wram[TASK_CURRENT];
         uint16_t rs = 0;
         uint32_t resume = task_resume_of(slot, &rs);
@@ -2298,6 +2508,31 @@ void task_yield(void)
     co_switch_p(t0_handle);
     /* resumed: ls_exec set cpu from the machine */
     cpu.unwound = 0;
+}
+
+/* machine.h: an actor yields where the original has BRK at brk_at: the
+   BRK's pushes (its bank, the PC past its signature byte, P), I set and D
+   clear, at the BRK vector's code; then as task_yield. */
+void actor_yield(uint32_t brk_at)
+{
+    uint32_t back = (brk_at & 0xFF0000) | (uint16_t)(brk_at + 2);
+
+    wr8(cpu.s, (uint8_t)(back >> 16)); cpu.s--;
+    wr8(cpu.s, (uint8_t)(back >> 8)); cpu.s--;
+    wr8(cpu.s, (uint8_t)back); cpu.s--;
+    wr8(cpu.s, cpu.p); cpu.s--;
+    cpu.p = (uint8_t)((cpu.p | P_I) & ~P_D);
+    cpu.pc = ACTOR_BRK_AT;
+    task_yield();
+}
+
+/* machine.h: an actor's code leaves for the actor loop at loop_at: the
+   piece ends there and nothing resumes it. */
+void actor_leave(uint32_t loop_at)
+{
+    cpu.pc = loop_at;
+    task_yield();
+    for (;;) {}   /* never resumed */
 }
 
 /* The hybrid dying: where, on stderr (the original side then stops on

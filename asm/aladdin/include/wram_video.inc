@@ -83,7 +83,7 @@ includeonce
 
 
 ; The level's block map: per block a word, its metatile list (negative: empty).
-!block_map = $7FF000
+!block_map = $7FF000            ; in play; while a level loads the same RAM holds !anim_set_of_type
 
 ; Backdrop bands that drift on their own: 11 positions (4 bytes, whole
 ; pixels in the middle two) and their speeds, and the HDMA table of 3-byte

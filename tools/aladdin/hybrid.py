@@ -33,6 +33,7 @@ TAG = re.compile(r'@routine\s+([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4})\s+(\w+)')
 ALIAS = re.compile(r'@alias\s+([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4})')
 SPC = re.compile(r'@spc\s+([0-9A-Fa-f]{4})\b')
 USES = re.compile(r'@spcuses\s+([0-9A-Fa-f,\s-]+)')
+ACTOR = re.compile(r'@actor\b')
 
 
 def main(src=None, lib=None):
@@ -43,7 +44,7 @@ def main(src=None, lib=None):
     if os.path.exists(LIB):
         os.remove(LIB)
     files = sorted(glob.glob(os.path.join(SRC, '**', '*.c'), recursive=True))
-    rows, bad, spc, uses = [], [], {}, {}
+    rows, bad, spc, uses, actors = [], [], {}, {}, []
     for f in files:
         text = open(f).read()
         for m in TAG.finditer(text):
@@ -67,6 +68,10 @@ def main(src=None, lib=None):
             # address (work RAM code the game also runs from its ROM copy):
             # the C is entered there too.
             head = text[m.end():text.find('*/', m.end())]
+            # @actor in the header: an actor's code (docs/aladdin/ACTORS.md),
+            # entered by the actor loop's jump and left at its yields (BRK).
+            if ACTOR.search(head):
+                actors.append(addr)
             for al in ALIAS.finditer(head):
                 rows.append((int(al.group(1), 16) << 16 | int(al.group(2), 16), name))
     if bad:
@@ -172,6 +177,9 @@ def main(src=None, lib=None):
         jumps = sorted({int(m, 16) for f in files for m in re.findall(r'(?:(?:call_routine|jump_routine|jump_routine_pushed|cpu_loop_forever|cpu_restart)\(|carried_(?:call|jump|jump_pushed|loop_forever|restart)\(\w+,\s*)0x([0-9A-Fa-f]{6})', open(f).read())} - known)
         t.write('const uint32_t game_jump_entries[] = {%s0};\nconst int game_jump_entry_count = %d;\n'
                 % (''.join('0x%06X, ' % a for a in jumps), len(jumps)))
+        # Actors' code, entered by a jump from the actor loop (@actor).
+        t.write('const uint32_t game_actor_entries[] = {%s0};\nconst int game_actor_entry_count = %d;\n'
+                % (''.join('0x%06X, ' % a for a in sorted(actors)), len(actors)))
         # SPC700 code the C ends at (spc_restart, spc_boot_rom at $FFC0):
         # the checks end a call there.
         sj = sorted({int(m, 16) for f in files for m in re.findall(r'spc_restart\(0x([0-9A-Fa-f]{4})', open(f).read())}
