@@ -91,3 +91,7 @@ includeonce
 !band_pos = $7EF800
 !band_speed = $7EF900
 !band_hdma = $7EF400
+
+; While the layers' tilemaps fill as a level starts (video/scroll_layer.asm).
+!fill_layers_left = $1A90       ; layers left to fill
+!fill_columns_left = $1A91      ; columns left to draw in this one

@@ -12,6 +12,7 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "wram.h"
+#include "hw.h"
 #include "wram_video.h"
 
 /* The step, in pixels, the drawn position makes for a column or row
@@ -1090,4 +1091,214 @@ void abi_LayersScroll(void)
                 SIDE_EDGE_BIT + 2, abi_LayerDrawRow, abi_LayerStepUpDown);
     cpu.d = d;
     op_plp(p);
+}
+
+/* LDA #$40, STA DAS0L, LDX #1, STX MDMAEN: 64 bytes, go */
+static void dma_go(void)
+{
+    op_lda16_imm(0x0040);
+    wr16(DAS0L, cpu.a);
+    cpu.x = 1;
+    cpu.p = nz8(cpu.p, 1);
+    wr8(MDMAEN, 1);
+}
+
+/* TDC, CLC, ADC #off, STA A1T0L */
+static void dma_source(uint16_t off)
+{
+    op_lda16_imm(cpu.d);
+    op_add16(off);
+    wr16(A1T0L, cpu.a);
+}
+
+/*
+ * @routine 80:837B LayerCopyToVram
+ * WHAT IT DOES: Copies a layer's drawn column and row, if any, into its
+ * tilemap in VRAM.
+ * HOW: By DMA on channel 0, 64 bytes a part: the column down (VRAM
+ * stepping a row at a time), its second part to the tilemap's other half
+ * ($0800 on); the row across, its second part to the other screen ($0400
+ * on). Each copied, its part count is cleared.
+ * Entry: M 16-bit, X 8-bit; D = the layer's record; DB a bank whose
+ * $2100-$43FF are the hardware registers ($00-$3F or $80-$BF); in the
+ * vertical blank. Exit: A, X, Y and the flags as the last instructions
+ * leave them.
+ */
+void abi_LayerCopyToVram(void)
+{
+    cpu.y = rd8(dp(LAYER_COLUMN_PARTS));
+    cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
+    if (cpu.y != 0) {
+        cpu.x = 0;
+        cpu.p = nz8(cpu.p, 0);
+        wr8(dp(LAYER_COLUMN_PARTS), 0);
+        wr8(A1B0, 0);
+        op_lda16(dp(LAYER_COLUMN_DEST));
+        wr16(VMADDL, cpu.a);
+        cpu.x = 0x81;
+        cpu.p = nz8(cpu.p, 0x81);
+        wr8(VMAIN, 0x81);
+        op_lda16_imm(0x1801);
+        wr16(DMAP0, cpu.a);
+        dma_source(LAYER_COLUMN_BUF);
+        dma_go();
+        cpu.y = (uint8_t)(cpu.y - 1);
+        cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
+        if (cpu.y != 0) {
+            op_lda16(dp(LAYER_COLUMN_DEST));
+            cpu.a ^= 0x0800;
+            cpu.p = nz16(cpu.p, cpu.a);
+            wr16(VMADDL, cpu.a);
+            dma_source(LAYER_COLUMN_BUF + 0x40);
+            cpu.x = 0;
+            cpu.p = nz8(cpu.p, 0);
+            wr8(A1B0, 0);
+            dma_go();
+        }
+    }
+    cpu.y = rd8(dp(LAYER_ROW_PARTS));
+    cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
+    if (cpu.y == 0)
+        return;
+    cpu.x = 0;
+    cpu.p = nz8(cpu.p, 0);
+    wr8(dp(LAYER_ROW_PARTS), 0);
+    wr8(A1B0, 0);
+    op_lda16(dp(LAYER_ROW_DEST));
+    wr16(VMADDL, cpu.a);
+    cpu.x = 0x80;
+    cpu.p = nz8(cpu.p, 0x80);
+    wr8(VMAIN, 0x80);
+    op_lda16_imm(0x1801);
+    wr16(DMAP0, cpu.a);
+    dma_source(LAYER_ROW_BUF);
+    dma_go();
+    cpu.y = (uint8_t)(cpu.y - 1);
+    cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
+    if (cpu.y == 0)
+        return;
+    op_lda16(dp(LAYER_ROW_DEST));
+    cpu.a ^= 0x0400;
+    cpu.p = nz16(cpu.p, cpu.a);
+    wr16(VMADDL, cpu.a);
+    dma_source(LAYER_ROW_BUF + 0x40);
+    cpu.x = 0;
+    cpu.p = nz8(cpu.p, 0);
+    wr8(A1B0, 0);
+    dma_go();
+}
+
+/*
+ * @routine 80:8366 LayersCopyToVram
+ * WHAT IT DOES: Copies both scroll layers' drawn columns and rows into
+ * their tilemaps in VRAM.
+ * HOW: LayerCopyToVram for the play field, then the backdrop.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $2100-$43FF are the hardware
+ * registers; in the vertical blank. Exit: M and X 8-bit; D unchanged, N
+ * and Z from it; A, X, Y as the backdrop's copy leaves them.
+ */
+void abi_LayersCopyToVram(void)
+{
+    uint16_t d = cpu.d;
+
+    op_rep(0x20);
+    op_lda16_imm(LAYER0);
+    cpu.d = cpu.a;
+    abi_LayerCopyToVram();
+    op_lda16_imm(LAYER1);
+    cpu.d = cpu.a;
+    abi_LayerCopyToVram();
+    op_sep(0x30);
+    cpu.d = d;
+    cpu.p = nz16(cpu.p, d);
+}
+
+/*
+ * @routine 80:8362 LayersCopyToVramLong
+ * WHAT IT DOES: LayersCopyToVram, for callers in other banks.
+ * HOW: Calls it and returns long.
+ * Entry: as LayersCopyToVram; called by JSL. Exit: as LayersCopyToVram.
+ */
+void abi_LayersCopyToVramLong(void)
+{
+    abi_LayersCopyToVram();
+}
+
+/*
+ * @routine 81:C060 LayersFill
+ * WHAT IT DOES: As a level starts, fills both scroll layers' tilemaps from
+ * the level's map, then sets the layers up to scroll from there.
+ * HOW: LayersSetup; then for each layer, column after column from the
+ * left edge (48, or 66 in levels 0, 2, 3, 6, $14 and $15): LayerDrawColumn
+ * on the left side, EdgeStepRight for the left edge, LayersCopyToVram.
+ * Then LayersSetup again.
+ * Entry: M 8-bit, X 8-bit; DB = $80; the screen off or in the vertical
+ * blank. Exit: M and X 8-bit; D unchanged, N and Z from it; A, X, Y as
+ * the last LayersSetup leaves them.
+ */
+void abi_LayersFill(void)
+{
+    static const uint8_t wide[5] = { 0x15, 0x14, 0x02, 0x03, 0x06 };
+    uint16_t d = cpu.d;
+    uint8_t columns, level;
+    int i, hit;
+
+    abi_LayersSetup();
+    op_rep(0x20);
+    op_lda16_imm(LAYER0);
+    cpu.d = cpu.a;
+    cpu.x = 2;
+    cpu.p = nz8(cpu.p, 2);
+    wr8(FILL_LAYERS_LEFT, 2);
+    do {
+        cpu.x = 0x30;
+        cpu.p = nz8(cpu.p, 0x30);
+        cpu.y = rd8(LEVEL);
+        cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
+        level = (uint8_t)cpu.y;
+        hit = level == 0;
+        for (i = 0; i < 5 && !hit; i++) {
+            cpu.p = cmp8_flags(cpu.p, level, wide[i]);
+            hit = level == wide[i];
+        }
+        if (hit) {
+            cpu.x = 0x42;
+            cpu.p = nz8(cpu.p, 0x42);
+        }
+        wr8(FILL_COLUMNS_LEFT, (uint8_t)cpu.x);
+        do {
+            cpu.y = 1;
+            cpu.p = nz8(cpu.p, 1);
+            abi_LayerDrawColumn();
+            cpu.x = 0;
+            cpu.p = nz8(cpu.p, 0);
+            abi_EdgeStepRight();
+            abi_LayersCopyToVramLong();
+            columns = (uint8_t)(rd8_rmw(FILL_COLUMNS_LEFT) - 1);
+            wr8(FILL_COLUMNS_LEFT, columns);
+            cpu.p = nz8(cpu.p, columns);
+        } while (columns != 0);
+        op_rep(0x20);
+        op_lda16_imm(cpu.d);
+        op_add16(LAYER_SIZE);
+        cpu.d = cpu.a;
+        op_sep(0x20);
+        columns = (uint8_t)(rd8_rmw(FILL_LAYERS_LEFT) - 1);
+        wr8(FILL_LAYERS_LEFT, columns);
+        cpu.p = nz8(cpu.p, columns);
+    } while (columns != 0);
+    abi_LayersSetup();
+    cpu.d = d;
+    cpu.p = nz16(cpu.p, d);
+}
+
+/*
+ * @routine 81:C05C LayersFillLong
+ * WHAT IT DOES: LayersFill, for callers in other banks.
+ * HOW: Calls it and returns long.
+ * Entry: as LayersFill; called by JSL. Exit: as LayersFill.
+ */
+void abi_LayersFillLong(void)
+{
+    abi_LayersFill();
 }

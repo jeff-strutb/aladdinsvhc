@@ -91,4 +91,8 @@
 #define BAND_SPEED 0x7EF900u
 #define BAND_HDMA 0x7EF400u
 
+/* While the layers' tilemaps fill as a level starts (video/scroll_layer.c) */
+#define FILL_LAYERS_LEFT 0x001A90u  /* layers left to fill */
+#define FILL_COLUMNS_LEFT 0x001A91u /* columns left to draw in this one */
+
 #endif

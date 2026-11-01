@@ -10,6 +10,7 @@
 ; C: src/aladdin/video/scroll_layer.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/hw.inc"
 incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
 incsrc "../include/rom_video.inc"
@@ -51,6 +52,71 @@ LevelScrollLimits:
     and.w #$FF00
     sta.l !scroll_limit_y
     sep.b #$30
+    rts
+
+; @routine 81:C05C LayersFillLong
+; WHAT IT DOES: LayersFill, for callers in other banks.
+; HOW: Calls it and returns long.
+; Entry: as LayersFill; called by JSL. Exit: as LayersFill.
+%at($81C05C)
+LayersFillLong:
+    jsr.w LayersFill
+    rtl
+
+; @routine 81:C060 LayersFill
+; WHAT IT DOES: As a level starts, fills both scroll layers' tilemaps from
+; the level's map, then sets the layers up to scroll from there.
+; HOW: LayersSetup; then for each layer, column after column from the
+; left edge (48, or 66 in levels 0, 2, 3, 6, $14 and $15): LayerDrawColumn
+; on the left side, EdgeStepRight for the left edge, LayersCopyToVram.
+; Then LayersSetup again.
+; Entry: M 8-bit, X 8-bit; DB = $80; the screen off or in the vertical
+; blank. Exit: M and X 8-bit; D unchanged, N and Z from it; A, X, Y as
+; the last LayersSetup leaves them.
+LayersFill:
+    phd
+    jsr.w LayersSetup
+    rep.b #$20
+    lda.w #!layer0
+    tcd
+    ldx.b #2
+    stx.w !fill_layers_left
+.layer:
+    ldx.b #$30
+    ldy.w !level
+    beq .wide
+    cpy.b #$15
+    beq .wide
+    cpy.b #$14
+    beq .wide
+    cpy.b #$02
+    beq .wide
+    cpy.b #$03
+    beq .wide
+    cpy.b #$06
+    bne .columns
+.wide:
+    ldx.b #$42
+.columns:
+    stx.w !fill_columns_left
+.column:
+    ldy.b #1
+    jsr.w LayerDrawColumn
+    ldx.b #0
+    jsr.w EdgeStepRight
+    jsl.l LayersCopyToVramLong
+    dec.w !fill_columns_left
+    bne .column
+    rep.b #$20
+    clc
+    tdc
+    adc.w #!LAYER_SIZE
+    tcd
+    sep.b #$20
+    dec.w !fill_layers_left
+    bne .layer
+    jsr.w LayersSetup
+    pld
     rts
 
 ; @routine 81:C0B6 LayersSetup
@@ -931,5 +997,118 @@ EdgeStepDown:
     sta.b !EDGE_MAP,x
 .widths:
     sep.b #$30
+.done:
+    rts
+
+; @routine 80:8362 LayersCopyToVramLong
+; WHAT IT DOES: LayersCopyToVram, for callers in other banks.
+; HOW: Calls it and returns long.
+; Entry: as LayersCopyToVram; called by JSL. Exit: as LayersCopyToVram.
+%at($808362)
+LayersCopyToVramLong:
+    jsr.w LayersCopyToVram
+    rtl
+
+; @routine 80:8366 LayersCopyToVram
+; WHAT IT DOES: Copies both scroll layers' drawn columns and rows into
+; their tilemaps in VRAM.
+; HOW: LayerCopyToVram for the play field, then the backdrop.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $2100-$43FF are the hardware
+; registers; in the vertical blank. Exit: M and X 8-bit; D unchanged, N
+; and Z from it; A, X, Y as the backdrop's copy leaves them.
+LayersCopyToVram:
+    phd
+    rep.b #$20
+    lda.w #!layer0
+    tcd
+    jsr.w LayerCopyToVram
+    lda.w #!layer1
+    tcd
+    jsr.w LayerCopyToVram
+    sep.b #$30
+    pld
+    rts
+
+; @routine 80:837B LayerCopyToVram
+; WHAT IT DOES: Copies a layer's drawn column and row, if any, into its
+; tilemap in VRAM.
+; HOW: By DMA on channel 0, 64 bytes a part: the column down (VRAM
+; stepping a row at a time), its second part to the tilemap's other half
+; ($0800 on); the row across, its second part to the other screen ($0400
+; on). Each copied, its part count is cleared.
+; Entry: M 16-bit, X 8-bit; D = the layer's record; DB a bank whose
+; $2100-$43FF are the hardware registers ($00-$3F or $80-$BF); in the
+; vertical blank. Exit: A, X, Y and the flags as the last instructions
+; leave them.
+LayerCopyToVram:
+    ldy.b !LAYER_COLUMN_PARTS
+    beq .row
+    ldx.b #0
+    stx.b !LAYER_COLUMN_PARTS
+    stx.w !A1B0
+    lda.b !LAYER_COLUMN_DEST
+    sta.w !VMADDL
+    ldx.b #$81
+    stx.w !VMAIN
+    lda.w #$1801
+    sta.w !DMAP0
+    tdc
+    clc
+    adc.w #!LAYER_COLUMN_BUF
+    sta.w !A1T0L
+    lda.w #$0040
+    sta.w !DAS0L
+    ldx.b #1
+    stx.w !MDMAEN
+    dey
+    beq .row
+    lda.b !LAYER_COLUMN_DEST
+    eor.w #$0800
+    sta.w !VMADDL
+    tdc
+    clc
+    adc.w #!LAYER_COLUMN_BUF+$40
+    sta.w !A1T0L
+    ldx.b #0
+    stx.w !A1B0
+    lda.w #$0040
+    sta.w !DAS0L
+    ldx.b #1
+    stx.w !MDMAEN
+.row:
+    ldy.b !LAYER_ROW_PARTS
+    beq .done
+    ldx.b #0
+    stx.b !LAYER_ROW_PARTS
+    stx.w !A1B0
+    lda.b !LAYER_ROW_DEST
+    sta.w !VMADDL
+    ldx.b #$80
+    stx.w !VMAIN
+    lda.w #$1801
+    sta.w !DMAP0
+    tdc
+    clc
+    adc.w #!LAYER_ROW_BUF
+    sta.w !A1T0L
+    lda.w #$0040
+    sta.w !DAS0L
+    ldx.b #1
+    stx.w !MDMAEN
+    dey
+    beq .done
+    lda.b !LAYER_ROW_DEST
+    eor.w #$0400
+    sta.w !VMADDL
+    tdc
+    clc
+    adc.w #!LAYER_ROW_BUF+$40
+    sta.w !A1T0L
+    ldx.b #0
+    stx.w !A1B0
+    lda.w #$0040
+    sta.w !DAS0L
+    ldx.b #1
+    stx.w !MDMAEN
 .done:
     rts

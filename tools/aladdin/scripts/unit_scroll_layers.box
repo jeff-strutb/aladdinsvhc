@@ -36,3 +36,7 @@ call 81CADA db=80 p=00
 poke $0019E9 70,01
 poke $7FF0C6 00,80
 call 81CADA db=80 p=00
+# The copy of a drawn column in two parts ($80:837B), as after a column
+# longer than 32 tiles: the play field's part count ($1738 + $50) 2.
+poke $001788 02
+call 80837B d=1738 db=80 p=10
