@@ -2,6 +2,7 @@
 ; C: src/aladdin/input/pad_buttons.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/wram_state.inc"
 
 arch 65816
@@ -16,10 +17,10 @@ arch 65816
 ; states.
 %at($80A04F)
 PadConfirmPressed:
-    lda.w !pad_pressed
+    lda.w !joy_pressed
     and.b #$C0
     bne .done
-    lda.w !pad_pressed+1
+    lda.w !joy_pressed+1
     and.b #$D0
 .done:
     rts

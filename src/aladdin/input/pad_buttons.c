@@ -3,6 +3,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "wram_state.h"
 
 /*
@@ -18,10 +19,10 @@
  */
 void abi_PadConfirmPressed(void)
 {
-    uint8_t a = (uint8_t)(rd8(PAD_PRESSED) & 0xC0);
+    uint8_t a = (uint8_t)(rd8(JOY_PRESSED) & 0xC0);
 
     if (a == 0)
-        a = (uint8_t)(rd8(PAD_PRESSED + 1) & 0xD0);
+        a = (uint8_t)(rd8(JOY_PRESSED + 1) & 0xD0);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     cpu.p = nz8(cpu.p, a);
 }

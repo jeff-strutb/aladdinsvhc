@@ -5,6 +5,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "hw.h"
 #include "wram_video.h"
 
@@ -64,7 +65,7 @@ void abi_TextBufferPartUpload(void)
     wr16(VMADDL, rd16(in_db(TEXT_PART_TABLE + y)));
     wr16(DMAP0, 0x1801);
     wr16(A1T0L, rd16(in_db(TEXT_PART_TABLE + 2 + y)));
-    wr16(A1B0, TEXT_BUFFER >> 16);
+    wr16(A1B0, TEXT_TILEMAP >> 16);
     op_lda16(in_db(TEXT_PART_TABLE + 4 + y));
     wr16(DAS0L, cpu.a);
     dma_start();

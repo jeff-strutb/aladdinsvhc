@@ -4,6 +4,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "hw.h"
 #include "wram_video.h"
 
@@ -23,7 +24,7 @@
  */
 void abi_TextBufferUpload(void)
 {
-    uint8_t a = rd8(TEXT_UPLOAD_PENDING);
+    uint8_t a = rd8(TEXT_TILEMAP_UPLOAD);
 
     cpu.p = nz8(cpu.p, a);
     if (a == 0) {
@@ -31,12 +32,12 @@ void abi_TextBufferUpload(void)
         return;
     }
     wr8(VMAIN, 0x80);
-    wr8(TEXT_UPLOAD_PENDING, 0);
+    wr8(TEXT_TILEMAP_UPLOAD, 0);
     op_rep(P_M);
     wr16(VMADDL, rd16(TEXT_UPLOAD_VRAM));
     wr16(DMAP0, 0x1801);
-    wr16(A1T0L, (uint16_t)TEXT_BUFFER);
-    wr16(A1B0, TEXT_BUFFER >> 16);
+    wr16(A1T0L, (uint16_t)TEXT_TILEMAP);
+    wr16(A1B0, TEXT_TILEMAP >> 16);
     op_lda16(TEXT_UPLOAD_SIZE);
     wr16(DAS0L, cpu.a);
     op_sep(P_M);
@@ -81,7 +82,7 @@ void abi_ScrollRegistersWrite(void)
     uint8_t a;
 
     scroll_out(BG1HOFS, BG1_X, BG1_X_SHIFT, BG1_X_SHIFT + 1);
-    scroll_out(BG1VOFS, BG1_Y, BG1_Y_SHIFT, BG1_Y_SHIFT + 1);
+    scroll_out(BG1VOFS, BG1_Y, LAYER_OFFSET_Y, LAYER_OFFSET_Y + 1);
     a = rd8(BG2_X_HELD);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     cpu.p = nz8(cpu.p, a);

@@ -4,11 +4,12 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "wram_state.h"
 #include "wram_video.h"
 
 /* Where the continues digit sits in the text buffer: row 26, column 29. */
-#define CONTINUES_DIGIT (TEXT_BUFFER + 1722)
+#define CONTINUES_DIGIT (TEXT_TILEMAP + 1722)
 #define TILE_DIGIT_0 0x30
 
 /*
@@ -30,8 +31,8 @@ void abi_ContinuesShow(void)
     a = op_adc8(a, TILE_DIGIT_0, &cpu.p);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     wr8(CONTINUES_DIGIT, a);
-    a = (uint8_t)(rd8_rmw(TEXT_UPLOAD_PENDING) + 1);
-    wr8(TEXT_UPLOAD_PENDING, a);
+    a = (uint8_t)(rd8_rmw(TEXT_TILEMAP_UPLOAD) + 1);
+    wr8(TEXT_TILEMAP_UPLOAD, a);
     cpu.p = nz8(cpu.p, a);
 }
 

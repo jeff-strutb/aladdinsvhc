@@ -4,6 +4,7 @@
 ; C: src/aladdin/video/vram_queue.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/hw.inc"
 incsrc "../include/wram_video.inc"
 
@@ -91,7 +92,7 @@ TextBufferPartUpload:
     sta.w !DMAP0
     lda.w !TEXT_PART_TABLE+2,y
     sta.w !A1T0L
-    lda.w #!text_buffer>>16
+    lda.w #!text_tilemap>>16
     sta.w !A1B0
     lda.w !TEXT_PART_TABLE+4,y
     sta.w !DAS0L

@@ -3,13 +3,14 @@
 ; C: src/aladdin/game/continue_screen.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/wram_state.inc"
 incsrc "../include/wram_video.inc"
 
 arch 65816
 
 ; Where the continues digit sits in the text buffer: row 26, column 29.
-!CONTINUES_DIGIT = !text_buffer+1722
+!CONTINUES_DIGIT = !text_tilemap+1722
 !TILE_DIGIT_0 = $30
 
 ; @routine 80:B441 ContinuesShow
@@ -25,7 +26,7 @@ ContinuesShow:
     lda.w !continues
     adc.b #!TILE_DIGIT_0
     sta.l !CONTINUES_DIGIT
-    inc.w !text_upload_pending
+    inc.w !text_tilemap_upload
     rts
 
 ; @routine 80:B44F WramC800Clear

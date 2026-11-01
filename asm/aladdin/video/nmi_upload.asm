@@ -3,6 +3,7 @@
 ; C: src/aladdin/video/nmi_upload.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/hw.inc"
 incsrc "../include/wram_video.inc"
 
@@ -20,19 +21,19 @@ arch 65816
 ; whose $2100-$43FF are the registers. Exit: as the C states.
 %at($808469)
 TextBufferUpload:
-    lda.w !text_upload_pending
+    lda.w !text_tilemap_upload
     beq .done
     lda.b #$80
     sta.w !VMAIN
-    stz.w !text_upload_pending
+    stz.w !text_tilemap_upload
     rep.b #$20
     lda.w !text_upload_vram
     sta.w !VMADDL
     lda.w #$1801
     sta.w !DMAP0
-    lda.w #!text_buffer&65535
+    lda.w #!text_tilemap&65535
     sta.w !A1T0L
-    lda.w #!text_buffer>>16
+    lda.w #!text_tilemap>>16
     sta.w !A1B0
     lda.w !text_upload_size
     sta.w !DAS0L
@@ -63,10 +64,10 @@ ScrollRegistersWrite:
     sta.w !BG1HOFS
     clc
     lda.w !bg1_y
-    adc.w !bg1_y_shift
+    adc.w !layer_offset_y
     sta.w !BG1VOFS
     lda.w !bg1_y+1
-    adc.w !bg1_y_shift+1
+    adc.w !layer_offset_y+1
     sta.w !BG1VOFS
     lda.w !bg2_x_held
     bne .bg2_y
