@@ -52,6 +52,13 @@ per finding, each linked to the dated note that measured it.
   ([decomp/log/inline-args-2026-11-01](decomp/log/inline-args-2026-11-01.md)).
 - PLB, PLD and PLA at a routine's end set N and Z from the pulled value:
   the exit flags are the pull's, not the last arithmetic's.
+- A task's stack is (top - $35, top + 3]: its own code runs with S up to
+  three above the top, once the scheduler's RTL has pulled the entry
+  ([decomp/log/inline-args-2026-11-01](decomp/log/inline-args-2026-11-01.md)).
+- A push the original holds across a stretch of code (PHB around a copy
+  loop) is made in the C too, in work RAM and in S (op_push8, op_pull8),
+  with the data bank it sets, so an interrupt there stacks what the
+  original's does.
 - Bottom up is not optional: C that reaches code with no C fails the whole
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.

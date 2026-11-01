@@ -93,6 +93,11 @@ void abi_AnimSetsOfLevel(void)
     const uint32_t bank = 0x820000u;
     uint16_t y, n;
 
+    op_push8(cpu.db);                         /* PHB, then the data bank = $82 */
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x82);
+    op_push8(0x82);
+    cpu.db = op_pull8();
+    cpu.p = nz8(cpu.p, cpu.db);
     op_rep(P_M | P_X);
     y = (uint16_t)(rd16(bank | LEVEL) << 1);
     y = rd16(bank + LEVEL_ACTORS + y);
@@ -114,7 +119,8 @@ void abi_AnimSetsOfLevel(void)
     }
     cpu.y = y;
     op_sep(P_M | P_X);
-    cpu.p = nz8(cpu.p, cpu.db);               /* PLB */
+    cpu.db = op_pull8();                      /* PLB */
+    cpu.p = nz8(cpu.p, cpu.db);
 }
 
 /*
@@ -132,6 +138,11 @@ void abi_AnimSetsList(void)
     const uint32_t bank = 0x7F0000u;
     uint8_t x = 0, y = 0, a;
 
+    op_push8(cpu.db);                         /* PHB, then the data bank = $7F */
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x7F);
+    op_push8(0x7F);
+    cpu.db = op_pull8();
+    cpu.p = nz8(cpu.p, cpu.db);
     a = NO_SET;
     wr8(ANIM_SETS_USED, a);
     do {
@@ -166,7 +177,8 @@ void abi_AnimSetsList(void)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     cpu.x = 0;
     cpu.y = y;
-    cpu.p = nz8(cpu.p, cpu.db);               /* PLB */
+    cpu.db = op_pull8();                      /* PLB */
+    cpu.p = nz8(cpu.p, cpu.db);
 }
 
 /*

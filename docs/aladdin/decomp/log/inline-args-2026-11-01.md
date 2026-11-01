@@ -38,3 +38,23 @@ The C of TaskCreate does its own RTL: it pulls the stepped address, sets
 
 TaskCreate is also IDENTICAL in attract (26 calls), rand_menus1 (16) and
 rand_pw5_1 (5); TaskExec in rand_menus1 (2) and rand_pw5_1 (1).
+
+## A task's stack reaches three bytes above its top
+
+Found on the same day, when TileBehaviourLoad ($81:BEC5, called straight
+from a task's own level) had its C running as a frame ended. A task's code
+runs with S up to its stack top + 3: the scheduler's RTL has pulled the
+three entry bytes above the top. The frame compare gave each task the
+stack (top - $38, top], so a call whose exit S was $0163 (slot 0's top
+$0162) matched no stack in use, and slot 0's dead bytes under S were judged
+against its stale saved S: three bytes at $015B-$015D differed in every
+script (options frame 1036, rand_level1_1 frames 2470 and 3671).
+
+`stack_dead` now gives a task (top - $35, top + 3], still $38 bytes, and
+the scheduler's stack starts above the last task's top + 3.
+
+| C, rand_level1_1 unless named | A7 lockstep |
+|---|---|
+| as filed, options | IDENTICAL, 1,050 frames |
+| as filed | IDENTICAL, 4,019 frames |
+| TaskWait without its PHB push (the handbook's planted bug) | DIVERGENT from frame 0, every frame |

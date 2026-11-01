@@ -29,6 +29,11 @@ void abi_TileBehaviourLoad(void)
     uint8_t set, v = 0;
 
     op_rep(P_X);
+    op_push8(cpu.db);                         /* PHB, then the data bank = $7E */
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x7E);
+    op_push8(0x7E);
+    cpu.db = op_pull8();
+    cpu.p = nz8(cpu.p, cpu.db);
     set = rd8(0x7E0000u | MAP_SET);
     cpu.p = cmp8_flags(cpu.p, set, MAP_SET_FIRST);
     x = set == MAP_SET_FIRST ? 0x0FFF : 0x1FFF;
@@ -40,5 +45,6 @@ void abi_TileBehaviourLoad(void)
     cpu.x = 0xFFFF;
     cpu.y = 0xFFFF;
     op_sep(P_X);
+    cpu.db = op_pull8();                      /* PLB */
     cpu.p = nz8(cpu.p, cpu.db);
 }

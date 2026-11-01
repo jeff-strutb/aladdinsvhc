@@ -23,6 +23,7 @@ void abi_RandomNext(void)
 {
     uint8_t lo = rd8(abs_db(RANDOM)), hi, t, c;
 
+    op_push8(lo);                             /* PHA */
     wr8(abs_db(SCRATCH + 0x0E), lo);
     hi = rd8(abs_db(RANDOM + 1));
     wr8(abs_db(SCRATCH + 0x0F), hi);
@@ -36,6 +37,7 @@ void abi_RandomNext(void)
     wr8(abs_db(RANDOM), t);
     t = op_adc8(rd8(abs_db(RANDOM + 1)), rd8(abs_db(SCRATCH + 0x0F)), &cpu.p);
     wr8(abs_db(RANDOM + 1), t);
+    lo = op_pull8();                          /* PLA */
     cpu.p &= (uint8_t)~P_C;
     t = op_adc8(lo, rd8(abs_db(RANDOM + 1)), &cpu.p);
     wr8(abs_db(RANDOM + 1), t);

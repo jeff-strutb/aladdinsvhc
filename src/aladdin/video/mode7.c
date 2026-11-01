@@ -174,6 +174,11 @@ void abi_SineTableBuild(void)
 {
     uint16_t x = 0, y = 0x20, v;
 
+    op_push8(cpu.db);                         /* PHB, then the data bank = $7F */
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x7F);
+    op_push8(0x7F);
+    cpu.db = op_pull8();
+    cpu.p = nz8(cpu.p, cpu.db);
     op_rep(P_M | P_X);
     do {
         v = rd16(SINE_QUARTER + x);
@@ -193,5 +198,6 @@ void abi_SineTableBuild(void)
     cpu.x = x;
     cpu.y = y;
     op_sep(P_M | P_X);
-    cpu.p = nz8(cpu.p, cpu.db);               /* PLB */
+    cpu.db = op_pull8();                      /* PLB */
+    cpu.p = nz8(cpu.p, cpu.db);
 }

@@ -33,9 +33,9 @@ static uint32_t dp(uint8_t off)
  */
 void abi_OamBufferClear(void)
 {
-    uint8_t p = cpu.p;
     int x;
 
+    op_push8(cpu.p);
     op_rep(P_X);
     for (x = 0x01FF; x >= 0; x--)
         wr8(OAM_BUFFER + x, 0xE0);
@@ -43,7 +43,7 @@ void abi_OamBufferClear(void)
         wr8(OAM_HIGH + x, 0x00);
     cpu.a &= 0xFF00;
     cpu.x = 0xFFFF;
-    op_plp(p);
+    op_plp(op_pull8());
 }
 
 /*

@@ -242,10 +242,12 @@ void abi_TaskExec(void)
     v = (uint16_t)(rd16(dp_long_y(1, 1)) - 1);
     wr8(s0, (uint8_t)(v >> 8));                 /* PHA */
     wr8((uint16_t)(s0 - 1), (uint8_t)v);
+    cpu.s = (uint16_t)(s0 - 2);
     cpu.y = 3;
     cpu.a = rd16(dp_long_y(1, 3));
     wr16(abs_db((uint16_t)(top + 3)), cpu.a);
     cpu.a = (uint16_t)(rd8((uint16_t)(s0 - 1)) | rd8(s0) << 8); /* PLA */
+    cpu.s = s0;
     cpu.p = nz16(cpu.p, cpu.a);
     wr16(abs_db((uint16_t)(top + 1)), cpu.a);
     op_sep(P_M | P_X);

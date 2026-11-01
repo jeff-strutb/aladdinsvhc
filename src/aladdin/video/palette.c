@@ -42,6 +42,13 @@ void abi_PaletteLoad(void)
     wr16(abs_db(SCRATCH), entry);
     cpu.p |= P_C;
     entry = op_sbc16((uint16_t)(entry * 4), rd16(abs_db(SCRATCH)), &cpu.p);
+    op_sep(P_M);
+    op_push8(cpu.db);                         /* PHB, then the data bank = $84 */
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | PALETTE_BANK);
+    op_push8(PALETTE_BANK);
+    cpu.db = op_pull8();
+    cpu.p = nz8(cpu.p, cpu.db);
+    op_rep(P_M);
     count = rd16(PALETTE_LOADS + 2 + entry);
     wr16((PALETTE_BANK << 16) | SCRATCH, count);
     src = rd16(PALETTE_LOADS + entry);
@@ -59,7 +66,8 @@ void abi_PaletteLoad(void)
     op_sep(P_M | P_X);
     v = (uint8_t)(rd8_rmw((PALETTE_BANK << 16) | PALETTE_UPLOAD) + 1);
     wr8((PALETTE_BANK << 16) | PALETTE_UPLOAD, v);
-    cpu.p = nz8(cpu.p, cpu.db);               /* PLB */
+    cpu.db = op_pull8();                      /* PLB */
+    cpu.p = nz8(cpu.p, cpu.db);
 }
 
 /*

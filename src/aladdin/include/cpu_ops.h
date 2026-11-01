@@ -215,6 +215,22 @@ static inline void op_txa16(void)
     cpu.p = nz16(cpu.p, cpu.a);
 }
 
+/* PHA/PHB/PHP (8-bit): the byte at S, S down one. A push the routine
+   holds across a stretch of code is made in work RAM and in S, so an
+   interrupt taken there stacks its frame where the original's does. */
+static inline void op_push8(uint8_t v)
+{
+    wr8(cpu.s, v);
+    cpu.s--;
+}
+
+/* PLA/PLB/PLP (8-bit): S up one, the byte there. */
+static inline uint8_t op_pull8(void)
+{
+    cpu.s++;
+    return rd8(cpu.s);
+}
+
 /* SEP and REP: 8-bit index registers clear the high bytes of X and Y. */
 static inline void op_sep(uint8_t bits)
 {

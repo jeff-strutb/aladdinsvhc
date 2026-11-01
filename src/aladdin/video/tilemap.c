@@ -26,14 +26,14 @@ static uint32_t abs_db(uint16_t addr)
  */
 void abi_TextLayerFill(void)
 {
-    uint8_t p = cpu.p;
     int x;
 
+    op_push8(cpu.p);
     op_rep(P_M | P_X);
     for (x = 0x07FE; x >= 0; x -= 2)
         wr16(TEXT_TILEMAP + x, cpu.a);
     cpu.x = 0xFFFE;
-    op_plp(p);
+    op_plp(op_pull8());
 }
 
 /*

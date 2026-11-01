@@ -2487,23 +2487,31 @@ static long snap_offset(uint32_t a)
 }
 
 /* Work RAM no one reads before writing it again: stack below a live S.
-   Each task has its own $38-byte stack under the top in its slot's record
-   ($73), and the scheduler its own above the last task's, to $0326. A
-   stack's live S is the S now when it is the stack in use; a waiting or
+   Each task has its own $38 bytes of stack in its slot's record: from its
+   top ($73) down, and the three above the top that hold a new task's entry
+   and that its code, once the scheduler's RTL has pulled the entry, runs
+   with S up to (a call from the task's own level returns to S = top + 1
+   to top + 3). The scheduler has its own above the last task's, to $0326.
+   A stack's live S is the S now when it is the stack in use; a waiting or
    ready task's saved S ($71); a new task's top (its entry above it); and a
    free slot's stack, or the scheduler's when not in use, is dead whole.
    Before the slots are set up (their tops still 0), the S now with the
    $200 below it, as for a game with one stack. */
+#define TASK_STACK_BELOW 0x35   /* a task's stack: (top - $35, top + 3] */
+#define TASK_STACK_ABOVE 3
 static int stack_dead(const uint8_t *w, uint32_t i, uint32_t s, uint32_t lo)
 {
     uint16_t top[TASK_SLOTS];
     for (int k = 0; k < TASK_SLOTS; k++) top[k] = (uint16_t)(w[0x73 + 0x18 * k] | w[0x74 + 0x18 * k] << 8);
     if (!top[0] || top[TASK_SLOTS - 1] <= top[0]) return i > lo && i <= s;
-    if (i <= (uint32_t)top[0] - 0x38 || i > TASK_SCHEDULER_S) return i > lo && i <= s && (i <= (uint32_t)top[0] - 0x38 || i > TASK_SCHEDULER_S);
-    uint32_t floor = top[TASK_SLOTS - 1], ceil = TASK_SCHEDULER_S;   /* the scheduler's */
+    uint32_t bottom = (uint32_t)top[0] - TASK_STACK_BELOW;
+    if (i <= bottom || i > TASK_SCHEDULER_S) return i > lo && i <= s && (i <= bottom || i > TASK_SCHEDULER_S);
+    uint32_t floor = (uint32_t)top[TASK_SLOTS - 1] + TASK_STACK_ABOVE, ceil = TASK_SCHEDULER_S;   /* the scheduler's */
     int k = -1;
     for (int j = 0; j < TASK_SLOTS; j++)
-        if (i > (uint32_t)top[j] - 0x38 && i <= top[j]) { k = j; floor = (uint32_t)top[j] - 0x38; ceil = top[j]; break; }
+        if (i > (uint32_t)top[j] - TASK_STACK_BELOW && i <= (uint32_t)top[j] + TASK_STACK_ABOVE) {
+            k = j; floor = (uint32_t)top[j] - TASK_STACK_BELOW; ceil = (uint32_t)top[j] + TASK_STACK_ABOVE; break;
+        }
     if (s > floor && s <= ceil) return i <= s;            /* the stack in use */
     if (k < 0) return 1;                                  /* the scheduler's, not in use */
     uint8_t state = w[0x6F + 0x18 * k];
