@@ -29,25 +29,12 @@ static uint32_t dp(uint8_t off)
 }
 
 /*
- * @routine 83:9629 WidthsReturn8
- * WHAT IT DOES: Returns with A, X and Y 8-bit, the way out several
- * routines share.
- * HOW: SEP #$30.
- * Entry: any. Exit: M and X 8-bit (X and Y high bytes cleared); the rest
- * unchanged.
- */
-void abi_WidthsReturn8(void)
-{
-    op_sep(P_M | P_X);
-}
-
-/*
  * @routine 83:962C ActorInRange
  * WHAT IT DOES: Tells whether the actor is out of range of the camera's
  * point: C set when it is, on either axis, by the box X picks.
  * HOW: For x then y: the point less the actor's pixels, plus the box's
- * offset, compared unsigned with its span. In range: the shared way out
- * with 8-bit registers.
+ * offset, compared unsigned with its span. In range: out through the
+ * SEP #$30; RTS at $83:9629, the end of the routine before.
  * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
  * boxes' bank, whose $0000-$1FFF is work RAM. Exit: A = the last sum (16
  * bits); N, Z and C from its compare; V from the last addition. Out of
@@ -70,7 +57,7 @@ void abi_ActorInRange(void)
     op_add16(rd16(in_db(RANGE_BOXES + 4 + x)));
     op_cmp16(rd16(in_db(RANGE_BOXES + 6 + x)));
     if (!(cpu.p & P_C))
-        abi_WidthsReturn8();
+        op_sep(P_M | P_X);          /* to $83:9629: SEP #$30; RTS */
 }
 
 /*
@@ -113,7 +100,6 @@ void abi_ActorFreePlaced(void)
 
 /*
  * @routine 83:96BE ActorEndOutOfRange
- * @actor
  * WHAT IT DOES: Ends the actor for good when it is out of range of the
  * camera's point by box X; otherwise returns to it.
  * HOW: ActorInRange; out of range, the call's return address is dropped,

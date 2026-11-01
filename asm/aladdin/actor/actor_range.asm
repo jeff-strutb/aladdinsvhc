@@ -16,11 +16,8 @@ arch 65816
 ; differences, then the spans they must be below (words).
 !RANGE_BOXES = $CE73
 
-; @routine 83:9629 WidthsReturn8
-; WHAT IT DOES: Returns with A, X and Y 8-bit, the way out several
-; routines share.
-; HOW: SEP #$30.
-; Entry: any. Exit: as the C states.
+; The end of the routine before ($83:95FA up, not yet filed), the way out
+; ActorInRange shares: 8-bit registers.
 %at($839629)
 WidthsReturn8:
     sep.b #$30
@@ -30,8 +27,8 @@ WidthsReturn8:
 ; WHAT IT DOES: Tells whether the actor is out of range of the camera's
 ; point: C set when it is, on either axis, by the box X picks.
 ; HOW: For x then y: the point less the actor's pixels, plus the box's
-; offset, compared unsigned with its span. In range: the shared way out
-; with 8-bit registers.
+; offset, compared unsigned with its span. In range: out through the
+; SEP #$30; RTS at $83:9629, the end of the routine before.
 ; Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
 ; boxes' bank, whose $0000-$1FFF is work RAM. Exit: as the C states.
 ActorInRange:
@@ -78,7 +75,6 @@ ActorFreeOutOfRange:
     rts
 
 ; @routine 83:96BE ActorEndOutOfRange
-; @actor
 ; WHAT IT DOES: Ends the actor for good when it is out of range of the
 ; camera's point by box X; otherwise returns to it.
 ; HOW: ActorInRange; out of range, the call's return address is dropped,

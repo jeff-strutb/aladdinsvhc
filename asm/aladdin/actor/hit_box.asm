@@ -86,11 +86,7 @@ ActorHitsTestBox:
     sep.b #$30
     rts
 
-; @routine 83:835B NoHitReturn
-; WHAT IT DOES: The hit tests' "no" answer: returns with C set and 8-bit
-; registers.
-; HOW: SEP #$31.
-; Entry: any. Exit: as the C states.
+; The hit tests' shared "no": C set, 8-bit registers.
 NoHitReturn:
     sep.b #$31
     rts
