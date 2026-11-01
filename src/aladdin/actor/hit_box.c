@@ -7,6 +7,8 @@
 #include "actor.h"
 #include "wram.h"
 
+void abi_PlayerEnter8CFacing(void);
+
 /* The box tested against: centre x and y, half-width and half-height
    (words). Actors' half-sizes: two words an entry by ACTOR_06, in the
    bank DB names. */
@@ -153,4 +155,33 @@ void abi_ActorHitsTestBoxIfPlayerFree(void)
         return;
     }
     abi_ActorHitsTestBoxIfActive();
+}
+
+/*
+ * @routine 83:82F8 ActorHitsTestBoxIfActiveLong
+ * WHAT IT DOES: ActorHitsTestBoxIfActive for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorHitsTestBox; called by JSL. Exit: as
+ * ActorHitsTestBoxIfActive.
+ */
+void abi_ActorHitsTestBoxIfActiveLong(void)
+{
+    abi_ActorHitsTestBoxIfActive();
+}
+
+/*
+ * @routine 83:80A5 ActorHurtsPlayerOnTouch
+ * WHAT IT DOES: When the actor touches Aladdin while he can be hit, hurts
+ * him (state $8C), turned away from the actor.
+ * HOW: ActorHitsTestBoxIfPlayerFree; on a hit, on into
+ * PlayerEnter8CFacing.
+ * Entry: as ActorHitsTestBox. Exit: no hit: as
+ * ActorHitsTestBoxIfPlayerFree (C set). Hit: as PlayerEnter8CFacing.
+ */
+void abi_ActorHurtsPlayerOnTouch(void)
+{
+    abi_ActorHitsTestBoxIfPlayerFree();
+    if (cpu.p & P_C)
+        return;
+    abi_PlayerEnter8CFacing();
 }

@@ -99,3 +99,26 @@ NoHitReturn:
 ActorHitsTestBoxLong:
     jsr.w ActorHitsTestBox
     rtl
+
+; @routine 83:82F8 ActorHitsTestBoxIfActiveLong
+; WHAT IT DOES: ActorHitsTestBoxIfActive for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorHitsTestBox; called by JSL. Exit: as the C states.
+%at($8382F8)
+ActorHitsTestBoxIfActiveLong:
+    jsr.w ActorHitsTestBoxIfActive
+    rtl
+
+; @routine 83:80A5 ActorHurtsPlayerOnTouch
+; WHAT IT DOES: When the actor touches Aladdin while he can be hit, hurts
+; him (state $8C), turned away from the actor.
+; HOW: ActorHitsTestBoxIfPlayerFree; on a hit, on into
+; PlayerEnter8CFacing.
+; Entry: as ActorHitsTestBox. Exit: as the C states.
+%at($8380A5)
+ActorHurtsPlayerOnTouch:
+    jsr.w ActorHitsTestBoxIfPlayerFree
+    bcs .no_hit
+    jmp.w PlayerEnter8CFacing
+.no_hit:
+    rts

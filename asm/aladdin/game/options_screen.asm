@@ -5,6 +5,7 @@
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
 incsrc "../include/wram_state.inc"
+incsrc "../include/hw.inc"
 
 arch 65816
 
@@ -91,3 +92,25 @@ OptionSettingStep:
     jsr.w OptionSettingShow
     jsl.l KeptOptionsSeal
     rts
+
+!SOUND_TEST = $1B15             ; the sound test's number, less one (0-34)
+!SOUND_TEST_AT = $04A8          ; its place in the text tilemap
+!DIGIT_TILE = $30               ; '0'
+!DIGIT_BITS = $28               ; the digits' attributes
+!DIGITS_SHOW = $838BDE          ; the digit code SoundTestShow goes on into (not yet filed)
+
+; @routine 83:8B9D SoundTestShow
+; WHAT IT DOES: Shows the sound test's number (1 up) as two decimal
+; digits on the options screen.
+; HOW: The hardware divider gives tens and units; each digit's tile is
+; '0' plus it, with its attribute byte, at the place A:Y names (on into
+; the digit code at $83:8BDE); the layer's upload is asked for.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+; whose $4200-$421F are the CPU registers. Exit: as the C states.
+%at($838B9D)
+SoundTestShow:
+    ldx.w !SOUND_TEST
+    inx
+    lda.b #!SOUND_TEST_AT>>8
+    ldy.b #!SOUND_TEST_AT&255
+    jmp.w !DIGITS_SHOW&65535

@@ -121,3 +121,20 @@ ActorFreePlaced:
     sta.w !actor_free_list,y
     xba
     sta.w !actor_free_list+1,y
+
+; @routine 83:96D4 ActorFreePlacedAtY
+; WHAT IT DOES: ActorFreePlaced for the actor whose record Y points at,
+; from another actor's code.
+; HOW: P and D are kept on the stack; D = Y for the call.
+; Entry: X 16-bit; Y = the record; DB a bank whose $0000-$1FFF is work
+; RAM. Exit: as the C states.
+%at($8396D4)
+ActorFreePlacedAtY:
+    php
+    phd
+    phy
+    pld
+    jsr.w ActorFreePlaced
+    pld
+    plp
+    rts

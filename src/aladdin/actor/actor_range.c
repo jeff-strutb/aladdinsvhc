@@ -5,12 +5,11 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "actor.h"
+#include "ops65.h"
 
 void abi_ActorClear(void);
 void abi_ActorTileSlotRelease(void);
 
-/* Where the actor loop takes the next record (docs/aladdin/ACTORS.md) */
-#define ACTOR_LOOP_NEXT 0x8394BFu
 #define PLACED_FLAGS 0x7EC600u     /* a byte per placement: bit 7 set, never placed again */
 #define RANGE_X 0x001A44u          /* the point actors are kept in range of (words) */
 #define RANGE_Y 0x001A46u
@@ -99,33 +98,6 @@ void abi_ActorFreePlaced(void)
 }
 
 /*
- * @routine 83:96BE ActorEndOutOfRange
- * WHAT IT DOES: Ends the actor for good when it is out of range of the
- * camera's point by box X; otherwise returns to it.
- * HOW: ActorInRange; out of range, the call's return address is dropped,
- * ActorFreePlaced, and into the actor loop for the next record.
- * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
- * boxes' bank, whose $0000-$1FFF is work RAM; called by JSR from the
- * actor's code at its own level. Exit: in range: as ActorInRange, M and X
- * 8-bit. Out of range: never returns; in the actor loop with the registers
- * ActorTileSlotRelease leaves.
- */
-void abi_ActorEndOutOfRange(void)
-{
-    abi_ActorInRange();
-    op_sep(P_M | P_X);
-    if (!(cpu.p & P_C))
-        return;
-    cpu.s = (uint16_t)(cpu.s + 1);
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(cpu.s));
-    cpu.s = (uint16_t)(cpu.s + 1);
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(cpu.s));
-    cpu.p = nz8(cpu.p, (uint8_t)cpu.a);
-    abi_ActorFreePlaced();
-    actor_leave(ACTOR_LOOP_NEXT);
-}
-
-/*
  * @routine 83:966C ActorFreeOutOfRange
  * WHAT IT DOES: Ends the actor (ActorFreePlaced) when it is out of range
  * of the camera's point by box X.
@@ -154,4 +126,23 @@ void abi_ActorFreeOutOfRange(void)
 void abi_ActorFreeOutOfRangeLong(void)
 {
     abi_ActorFreeOutOfRange();
+}
+
+/*
+ * @routine 83:96D4 ActorFreePlacedAtY
+ * WHAT IT DOES: ActorFreePlaced for the actor whose record Y points at,
+ * from another actor's code.
+ * HOW: P and D are kept on the stack; D = Y for the call.
+ * Entry: X 16-bit; Y = the record; DB a bank whose $0000-$1FFF is work
+ * RAM. Exit: as ActorFreePlaced, with D and P as at entry.
+ */
+void abi_ActorFreePlacedAtY(void)
+{
+    php();
+    phd();
+    phy16();
+    pld();
+    abi_ActorFreePlaced();
+    pld();
+    plp();
 }

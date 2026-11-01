@@ -6,6 +6,8 @@
 #include "cpu_ops.h"
 #include "wram.h"
 #include "wram_state.h"
+#include "ops65.h"
+#include "hw.h"
 
 void abi_KeptOptionsSeal(void);
 
@@ -112,4 +114,48 @@ void abi_OptionSettingStep(void)
     cpu.p = nz8(cpu.p, a);
     abi_OptionSettingShow();
     abi_KeptOptionsSeal();
+}
+
+#define SOUND_TEST 0x1B15          /* the sound test's number, less one (0-34) */
+#define SOUND_TEST_AT 0x04A8       /* its place in the text tilemap */
+#define DIGIT_TILE '0'
+#define DIGIT_BITS 0x28            /* the digits' attributes */
+
+/*
+ * @routine 83:8B9D SoundTestShow
+ * WHAT IT DOES: Shows the sound test's number (1 up) as two decimal
+ * digits on the options screen.
+ * HOW: The hardware divider gives tens and units; each digit's tile is
+ * '0' plus it, with its attribute byte, at the place A:Y names (on into
+ * the digit code at $83:8BDE); the layer's upload is asked for.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+ * whose $4200-$421F are the CPU registers. Exit: A low = $28, A high = 4;
+ * X = the place's low byte, Y = $A8; N and Z from the upload flag's new
+ * value; V and C from adding the units. The other flags unchanged.
+ */
+void abi_SoundTestShow(void)
+{
+    ldx8(ea_abs(SOUND_TEST));
+    inx8();
+    lda8_v(SOUND_TEST_AT >> 8);
+    ldy8_v(SOUND_TEST_AT & 0xFF);
+    xba();
+    tya8();
+    stx8(ea_abs(WRDIVL));
+    ldx8_v(10);
+    stx8(ea_abs(WRDIVB));
+    op_rep(0x11);
+    tax16();
+    lda8(ea_abs(RDDIVL));
+    adc8_v(DIGIT_TILE);
+    sta8(ea_longx(TEXT_TILEMAP));
+    lda8(ea_abs(RDMPYL));
+    clc();
+    adc8_v(DIGIT_TILE);
+    sta8(ea_longx(TEXT_TILEMAP + 2));
+    lda8_v(DIGIT_BITS);
+    sta8(ea_longx(TEXT_TILEMAP + 1));
+    sta8(ea_longx(TEXT_TILEMAP + 3));
+    op_sep(0x10);
+    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
 }

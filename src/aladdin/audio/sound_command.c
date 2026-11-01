@@ -11,6 +11,7 @@
 #include "hw.h"
 #include "wram.h"
 #include "wram_video.h"
+#include "ops65.h"
 
 /* Commands $F5 and $F6 take a parameter, the next byte in the ring. */
 #define SOUND_CMD_PARAM_A 0xF5
@@ -126,4 +127,42 @@ void abi_SoundQueueAdd(void)
         }
     }
     op_sep(P_X);
+}
+
+#define SOUND_SPECIAL 0x03F8       /* the last $F2 or $F6 command queued */
+#define SOUND_CMD_F2 0xF2
+#define SOUND_CMD_F6 0xF6
+
+/*
+ * @routine 81:F9F7 SoundQueueF2
+ * WHAT IT DOES: Queues sound command $F2, keeping it as the last special
+ * command.
+ * HOW: Then on into SoundQueueAdd.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSL. Exit: as SoundQueueAdd.
+ */
+void abi_SoundQueueF2(void)
+{
+    lda8_v(SOUND_CMD_F2);
+    sta8(ea_abs(SOUND_SPECIAL));
+    abi_SoundQueueAdd();
+}
+
+/*
+ * @routine 81:F9D2 SoundQueueF6With1
+ * WHAT IT DOES: Queues sound command $F6 with its parameter 1, keeping
+ * $F6 as the last special command.
+ * HOW: The parameter waits in A's high byte; SoundQueueAdd for each.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSL. Exit: as SoundQueueAdd for the parameter; A high = $F6.
+ */
+void abi_SoundQueueF6With1(void)
+{
+    lda8_v(0x01);
+    xba();
+    lda8_v(SOUND_CMD_F6);
+    sta8(ea_abs(SOUND_SPECIAL));
+    abi_SoundQueueAdd();
+    xba();
+    abi_SoundQueueAdd();
 }
