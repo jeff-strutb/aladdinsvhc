@@ -1,0 +1,16 @@
+; wram_state.inc: work RAM that holds the game's settings and progress, and
+; the joypads as the game reads them (the same names as the C's
+; wram_state.h, in lower case).
+
+includeonce
+
+; Kept across a reset: power-on finds $0123 at $0000 and the cartridge
+; title copied at $B600 when the work RAM still holds them.
+!kept_options = $0003           ; three option bytes the options screen sets
+!kept_options_sum = $0006       ; their 8-bit sum
+
+; Joypads, a word each for pads 1 and 2: the bits of JOY1L/JOY1H.
+!pad_held = $0377               ; held this frame
+!pad_pressed = $037B            ; pressed this frame (held now, not last frame)
+
+!continues = $035B              ; continues left (3 at the start of a game)
