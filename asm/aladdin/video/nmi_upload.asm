@@ -30,7 +30,7 @@ TextBufferUpload:
     sta.w !VMADDL
     lda.w #$1801
     sta.w !DMAP0
-    lda.w #!text_buffer&$FFFF
+    lda.w #!text_buffer&65535
     sta.w !A1T0L
     lda.w #!text_buffer>>16
     sta.w !A1B0
