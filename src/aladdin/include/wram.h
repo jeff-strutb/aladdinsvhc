@@ -65,4 +65,11 @@
 #define PALETTE_SAVED 0x000406u    /* colours kept to fade from, laid out as PALETTE_BUFFER */
 #define PALETTE_SAVED_AT 0x000606u /* byte offset of the first colour kept (word) */
 
+/* The level being played (0 up; the password table's order) */
+#define LEVEL 0x00035Eu
+
+/* Actor animation sets (actor/anim_sets.c) */
+#define ANIM_SET_OF_TYPE 0x7FF000u /* per actor type, its animation set; $FF: none */
+#define ANIM_SETS_USED 0x7FF100u   /* the level's sets: (set, 0) pairs, $FF after the last */
+
 #endif

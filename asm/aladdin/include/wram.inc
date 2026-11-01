@@ -64,3 +64,10 @@ includeonce
 !palette_upload = $0844         ; nonzero: the NMI copies palette_buffer to CGRAM
 !palette_saved = $0406          ; colours kept to fade from, laid out as palette_buffer
 !palette_saved_at = $0606       ; byte offset of the first colour kept (word)
+
+; The level being played (0 up; the password table's order).
+!level = $035E
+
+; Actor animation sets (actor/anim_sets.asm).
+!anim_set_of_type = $7FF000     ; per actor type, its animation set; $FF: none
+!anim_sets_used = $7FF100       ; the level's sets: (set, 0) pairs, $FF after the last
