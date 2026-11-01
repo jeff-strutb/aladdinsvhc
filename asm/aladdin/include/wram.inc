@@ -47,3 +47,14 @@ includeonce
 !oam_next = $0852               ; the next sprite's byte offset in oam_buffer (word)
 !oam_high_next = $0854          ; the next byte offset in oam_high (word)
 !oam_0857 = $0857               ; cleared with them (word); purpose not yet established
+
+; Colour math (video/colour_fade.asm): shadows the NMI writes to the PPU.
+!wobjsel_shadow = $03AC         ; WOBJSEL: sprite and colour windows
+!cgwsel_shadow = $03AF          ; CGWSEL: where colour math applies
+!cgadsub_shadow = $03B0         ; CGADSUB: add or subtract, and on which layers
+!coldata_red = $03B2            ; the fixed colour's red (low 5 bits)
+!coldata_green = $03B3          ; its green
+!coldata_blue = $03B4           ; its blue
+
+; Layers: each layer's offset from the camera, a word per layer.
+!layer_offset_y = $1A1C         ; vertical

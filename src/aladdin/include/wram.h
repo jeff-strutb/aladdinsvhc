@@ -48,4 +48,15 @@
 #define OAM_HIGH_NEXT 0x000854u    /* the next byte offset in OAM_HIGH (word) */
 #define OAM_0857 0x000857u         /* cleared with them (word); purpose not yet established */
 
+/* Colour math (video/colour_fade.c): shadows the NMI writes to the PPU */
+#define WOBJSEL_SHADOW 0x0003ACu   /* WOBJSEL: sprite and colour windows */
+#define CGWSEL_SHADOW 0x0003AFu    /* CGWSEL: where colour math applies */
+#define CGADSUB_SHADOW 0x0003B0u   /* CGADSUB: add or subtract, and on which layers */
+#define COLDATA_RED 0x0003B2u      /* the fixed colour's red (low 5 bits) */
+#define COLDATA_GREEN 0x0003B3u    /* its green */
+#define COLDATA_BLUE 0x0003B4u     /* its blue */
+
+/* Layers: each layer's offset from the camera, a word per layer */
+#define LAYER_OFFSET_Y 0x001A1Cu   /* vertical */
+
 #endif
