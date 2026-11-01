@@ -28,7 +28,6 @@ void abi_VramCopy(void);
 void abi_VramCopy2(void);
 void abi_VramFillMap(void);
 void abi_Wait64Frames(void);
-void abi_OpeningSceneRun(void);
 void abi_OpeningActorPlace(void);
 void abi_ScreenFadeInStart(void);
 void abi_ScreenFadeOutStart(void);
@@ -41,10 +40,6 @@ void abi_OpeningScene6Start(void);
 
 #define SLOT1_STATE (TASK_STATE + 24) /* slot 1's state: the fades run there */
 #define SCENE TASK_PARAM            /* slot 0's parameter: the scene (0-5), $80 once Start skips */
-#define SCENE_FRAMES_LEFT 0x0076u   /* slot 0's own data: frames the scene still runs (word) */
-#define V_0079 0x0079u              /* slot 0's own data, cleared as a scene starts (word) */
-#define V_007B 0x007Bu              /* the same (word) */
-#define PAD1_PRESSED_HIGH (JOY_PRESSED + 1) /* bit 4: Start newly pressed */
 #define V_0399 0x0399u              /* set to $17 while the story runs */
 #define V_03B6 0x03B6u              /* cleared with HDMAEN */
 #define V_1A08 0x1A08u              /* set to $FF */
@@ -53,15 +48,18 @@ void abi_OpeningScene6Start(void);
 #define SPAWN_Y 0x002Eu
 
 /* In the bank DB names ($80), by scene: */
-#define SCENE_FRAMES 0xDA9Du        /* frames it runs (words) */
 #define SCENE_GFX 0xDAA9u           /* its graphics set, 0: none of its own */
 #define SCENE_COPY 0xDAAFu          /* its second-table VRAM copy */
 #define SCENE_PALETTE 0xDAB5u       /* its palette */
-#define SCENE_STARTS 0xADAAu        /* its set-up routine (words, in bank $80) */
 /* 6 bytes an entry: kind, its byte $07, x, y (words) */
 #define OPENING_ACTORS 0xDABBu
 
 /* Code not yet filed */
+/* OpeningSceneRun ($80:AD78): its assembly is filed, its C is not: A5
+   cannot judge it while the frame update FrameEnd calls ($81:830D) has no
+   C (each piece stops there, and the next resume reruns the C from its
+   entry). */
+#define SCENE_RUN 0x80AD78u
 #define SCREEN_BLANK 0x8196B1u      /* forced blank on */
 #define LAYER_POSITIONS_CLEAR 0x8196CBu /* the layers' scroll positions zeroed */
 #define DISPLAY_SETUP 0x819865u     /* the PPU's display set-up */
@@ -123,9 +121,9 @@ void abi_TitleAfterFadeOut(void)
  * set 1, palette $5A). For each scene (the slot's parameter, 0 up): the
  * screen blanked and cleared, the text and two tilemaps emptied, the
  * story's common graphics and palette loaded, then the scene's own (when
- * it has a graphics set); the fade-in, OpeningSceneRun, the fade-out and
- * 64 frames. After the sixth (or a skip): the sound command again, and
- * the task starts over at $80:9C91.
+ * it has a graphics set); the fade-in, OpeningSceneRun ($80:AD78), the
+ * fade-out and 64 frames. After the sixth (or a skip): the sound command
+ * again, and the task starts over at $80:9C91.
  * Entry: M 8-bit, X 8-bit; called by JSL from the task in slot 0; DB = $80,
  * whose $0000-$1FFF is work RAM. Exit: never returns: TaskExec.
  */
@@ -199,7 +197,7 @@ void abi_OpeningStory(void)
         }
         abi_NmiEnable();
         abi_ScreenFadeInStart();
-        jsr_waits(0xAD56, abi_OpeningSceneRun);
+        call_routine(SCENE_RUN, 0);
         abi_ScreenFadeOutStart();
         jsr_waits(0xAD5C, abi_Wait64Frames);
         MEM8(inc, ea_abs(SCENE));
@@ -211,49 +209,6 @@ void abi_OpeningStory(void)
     abi_SoundQueueF6With1();
     jsl_frame(0x80AD71u);
     abi_TaskExec();
-}
-
-/*
- * @routine 80:AD78 OpeningSceneRun
- * WHAT IT DOES: Runs one scene of the opening story: sets it up, then
- * lets it play for its frames, or until Start is pressed, which skips the
- * rest of the story.
- * HOW: The scene's frame count from its table; its set-up routine through
- * a table of six; then FrameEnd and the count down each frame. Start:
- * the scene number becomes $80, past the last.
- * Entry: M 8-bit, X 8-bit; called by JSR from the story's task (slot 0);
- * DB = $80, whose $0000-$1FFF is work RAM. Exit: M 8-bit, X 8-bit. Ran
- * out: Z set from the count; A, X, Y as the last FrameEnd leaves them.
- * Start: A low = $80, N set, Z clear.
- */
-void abi_OpeningSceneRun(void)
-{
-    lda8(ea_abs(SCENE));
-    ACC8(asl);
-    tax8();
-    op_rep(0x20);
-    stz16(ea_abs(V_007B));
-    stz16(ea_abs(V_0079));
-    lda16(ea_absx(SCENE_FRAMES));
-    sta16(ea_abs(SCENE_FRAMES_LEFT));
-    op_sep(0x20);
-    /* JSR (SCENE_STARTS,X): three of the six can wait (FrameEnd) */
-    push16(0xAD8F);
-    call_routine(0x800000u | rd16(0x800000u | (uint16_t)(SCENE_STARTS + cpu.x)), 0);
-    cpu.s = (uint16_t)(cpu.s + 2);
-    do {
-        lda8(ea_abs(PAD1_PRESSED_HIGH));
-        bit8_i(0x10);
-        if (!IF_Z) {
-            lda8_v(0x80);
-            sta8(ea_abs(SCENE));
-            return;
-        }
-        jsr_waits(0xAD99, abi_FrameEnd);
-        op_rep(0x20);
-        MEM16(dec, ea_abs(SCENE_FRAMES_LEFT));
-        op_sep(0x20);
-    } while (!IF_Z);
 }
 
 /*

@@ -28,7 +28,9 @@ FrameEnd:
 ; HOW: X kept on the stack across a frame's wait (TaskWait, A = 1) and
 ; the update at $81:830D, then counted down.
 ; Entry: M 8-bit, X 8-bit; X = the frames (0: 256); called by JSR from a
-; task; DB a bank whose $0000-$1FFF is work RAM. Exit: as the C states.
+; task; DB a bank whose $0000-$1FFF is work RAM. Exit: X = 0, Z set, N
+; clear; A, Y and the other flags as the last update leaves them.
+; (No C yet: A5 cannot judge it while $81:830D has no C.)
 %at($80B2D3)
 FrameEndTimes:
     phx

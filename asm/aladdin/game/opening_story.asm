@@ -75,9 +75,9 @@ TitleAfterFadeOut:
 ; set 1, palette $5A). For each scene (the slot's parameter, 0 up): the
 ; screen blanked and cleared, the text and two tilemaps emptied, the
 ; story's common graphics and palette loaded, then the scene's own (when
-; it has a graphics set); the fade-in, OpeningSceneRun, the fade-out and
-; 64 frames. After the sixth (or a skip): the sound command again, and
-; the task starts over at $80:9C91.
+; it has a graphics set); the fade-in, OpeningSceneRun ($80:AD78), the
+; fade-out and 64 frames. After the sixth (or a skip): the sound command
+; again, and the task starts over at $80:9C91.
 ; Entry: M 8-bit, X 8-bit; called by JSL from the task in slot 0; DB = $80,
 ; whose $0000-$1FFF is work RAM. Exit: as the C states.
 %at($80AC87)
@@ -172,7 +172,11 @@ OpeningStory:
 ; a table of six; then FrameEnd and the count down each frame. Start:
 ; the scene number becomes $80, past the last.
 ; Entry: M 8-bit, X 8-bit; called by JSR from the story's task (slot 0);
-; DB = $80, whose $0000-$1FFF is work RAM. Exit: as the C states.
+; DB = $80, whose $0000-$1FFF is work RAM. Exit: M 8-bit, X 8-bit. Ran
+; out: Z set from the count; A, X, Y as the last FrameEnd leaves them.
+; Start: A low = $80, N set, Z clear.
+; (No C yet: A5 cannot judge it while $81:830D, which FrameEnd calls,
+; has no C.)
 OpeningSceneRun:
     lda.w !SCENE
     asl a
