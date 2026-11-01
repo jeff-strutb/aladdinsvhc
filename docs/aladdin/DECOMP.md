@@ -37,7 +37,28 @@ filed by responsibility, never by address range, in the same areas in `src/`
 and `asm/`.
 
 Routines that wait for their task's next turn are C coroutines
-([TASKS.md](TASKS.md)).
+([TASKS.md](TASKS.md)); so is actor code, which yields by BRK
+([ACTORS.md](ACTORS.md)).
+
+## Filing fast
+
+The C starts as a draft: `cdraft.py ADDR...` writes each routine as its
+executed instructions, one `ops65.h` step each at the width it ran with,
+calls as calls to the C called, waits and yields as the coroutine calls.
+Drafts are behaviour exact before anyone names anything (on 2026-11-01
+the drafts of 184 certified routines, in place of their hand C, were
+IDENTICAL on A5 and A7 on every script). What it cannot say exactly
+carries a TODO, which gate 0 refuses: untraced code, code that takes
+from its caller's frame or sets S (the task primitives), an instruction
+that ran at both widths with different lengths.
+
+1. `worklist.py` (or `blockers.py`) for what is ready, bottom up.
+2. `cdraft.py` and `asmdraft.py` for a whole subsystem at once.
+3. Name: addresses the headers know are named already; add the rest to
+   the area's header. Write each header (WHAT IT DOES, HOW, Entry, Exit),
+   the same in the C and the assembly. Restructure the C only where it
+   reads better and the gates still pass.
+4. Build, image gate, gate A5 and A7 once for the batch, land once.
 
 ## Layout
 
@@ -73,6 +94,7 @@ Routines that wait for their task's next turn are C coroutines
 | `progress.py` | the README's bars and the progress map, by code bytes |
 | `worklist.py`, `widths.py` | routines ready to work (callees done); entry widths |
 | `asmdraft.py`, `asmfile.py` | a starting draft for filing a routine's assembly; drafts are intake, read and named by hand |
+| `cdraft.py` | a routine's C drafted from its traced assembly, instruction by instruction (`ops65.h`): behaviour exact as drafted; `--proof DIR` re-drafts every routine with C, for the gates to judge |
 
 ```bash
 python3 tools/aladdin/build.py
