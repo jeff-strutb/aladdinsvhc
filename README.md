@@ -16,16 +16,16 @@ _Snapshot 2026-11-01._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   18.2%   10,356 / 56,876 B of the game's code
+    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   21.0%   11,967 / 56,876 B of the game's code
 M2  Byte exact (T4)
-    ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   17.9%   10,193 / 56,876 B of the game's code
+    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   20.8%   11,804 / 56,876 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,955 B the scripts have run and 16,921 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 228 routines behaviour exact, 227 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,955 B the scripts have run and 16,921 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 232 routines behaviour exact, 231 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `████░░░░░░░░░░░░░░░░` 19.0%: 10,356/54,608 B | `████░░░░░░░░░░░░░░░░` 18.7%: 10,193/54,608 B |
+| **S-CPU (65816)** | `████░░░░░░░░░░░░░░░░` 21.9%: 11,967/54,608 B | `████░░░░░░░░░░░░░░░░` 21.6%: 11,804/54,608 B |
 | **SPC700 (sound)** | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B |
 <!-- PROGRESS:END -->
 
