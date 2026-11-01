@@ -11,6 +11,18 @@ includeonce
 !text_buffer = $7ED800          ; the tilemap words
 !wram_c800 = $7EC800            ; a 4 KB buffer, cleared before a level starts
 
+; Upload requests the NMI serves (video/vram_queue.asm).
+!text_parts_pending = $0836     ; 3 flags: nonzero, upload that part of the text buffer
+!vram_upload_number = $0834     ; nonzero: the number of a fixed upload to make
+!vram_queue_pending = $0858     ; nonzero: the queue below is ready
+!vram_queue_count = $0859       ; records in it
+!vram_queue = $085A             ; 8-byte records: VRAM address, source, bank, count, VMAIN
+!tile_blocks_pending = $1BE6    ; nonzero: the block queue below is ready
+!tile_blocks_length = $1BE4     ; its length in bytes
+!tile_blocks = $1B44            ; 10-byte records: VRAM address, four tilemap words
+!vram_list_pending = $1649      ; per slot: nonzero, upload the slot's list
+!vram_list_pointer = $164D      ; per slot: the list's address (word)
+
 ; Scroll positions, each the integer part (word) of a 4-byte position.
 !bg1_x = $19ED
 !bg1_y = $19F1
