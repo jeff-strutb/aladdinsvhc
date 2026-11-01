@@ -362,6 +362,42 @@ SurfaceHeightSolid:
     tax
     bra SurfaceHeight
 
+; @routine 81:B8B6 SurfaceHeightOver
+; WHAT IT DOES: The surface's y for a tile of kind A; for a solid tile
+; (kind 1), the surface of the tile above it, if any.
+; HOW: Kind 1: the surface moves up a tile and the tile place a row; a
+; place past the screen's top takes the screen above's tiles; then
+; TileAtPlace: an empty tile above returns Z set; else SurfaceHeight with
+; its kind.
+; Entry: M 8-bit, X 8-bit; A = X = the kind; DB = $81; called by JSR.
+; Exit: as SurfaceHeight; or, the tile above empty, A low byte = X = 0,
+; Z set, M and X 8-bit.
+SurfaceHeightOver:
+    cmp.b #!KIND_SOLID
+    bne SurfaceHeight
+    rep.b #$30
+    sec
+    lda.w !surface_y
+    sbc.w #16
+    sta.w !surface_y
+    sec
+    lda.w !tile_place
+    sbc.w #32
+    and.w #$01FE
+    cmp.w #$01E0
+    bcc .tile
+    pha
+    sec
+    lda.w !screen_place
+    sbc.w #64
+    tax
+    lda.l !screen_map,x
+    sta.w !screen_tiles
+    pla
+.tile:
+    jsr.w TileAtPlace
+    beq SurfaceHeight_done
+
 ; @routine 81:B8EB SurfaceHeight
 ; WHAT IT DOES: The y of a tile's surface at the point's x, for a tile of
 ; kind A.
@@ -383,6 +419,7 @@ SurfaceHeight:
     ora.w !surface_y
     sta.w !surface_y
     lda.b #1
+.done:
     rts
 .slope:
     txa
@@ -622,4 +659,190 @@ ActorSettleOnFloor:
 %at($81B795)
 GroundInFrontLong:
     jsr.w GroundInFront
+    rtl
+
+; Per behaviour's low 3 bits: nonzero, ground the player does not stand
+; firm on.
+!soft_kinds = $81BF1A
+!y_saved = !scratch+30          ; scratch $2A: the actor's y kept
+
+; @routine 81:B44F ActorSnapToGround
+; WHAT IT DOES: When there is ground just under the actor (within 3
+; pixels), stands it on that ground: C set. Else leaves it where it was.
+; HOW: Keeps the actor's y and moves it 3 down; tests probe 0 at the
+; actor's x (the tile above for a solid tile), then to its left and right
+; (a solid tile flat at its top); the first ground found moves the y by
+; the surface less the point's y. With none, the kept y comes back.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+; Exit: M and X 8-bit; on ground: C set, A = the new y (16 bits), N, V, Z
+; from its ADC; none: Z set, A = the kept y (16 bits), N as it, C as the
+; last test left it.
+%at($81B44F)
+ActorSnapToGround:
+    rep.b #$20
+    clc
+    lda.b !actor_y+1
+    sta.w !y_saved
+    adc.w #3
+    sta.b !actor_y+1
+    sep.b #$20
+    stz.b !actor_probe_at
+    jsr.w ProbeAtActor
+    jsr.w TileAt
+    beq .left
+    bmi .left
+    jsr.w SurfaceHeightOver
+    bne .ground
+.left:
+    jsr.w ProbeLeft
+    jsr.w TileAt
+    beq .right
+    bmi .right
+    jsr.w SurfaceHeightSolid
+    bne .ground
+.right:
+    jsr.w ProbeRight
+    jsr.w TileAt
+    beq .none
+    bmi .none
+    jsr.w SurfaceHeightSolid
+    beq .none
+.ground:
+    rep.b #$20
+    sec
+    lda.w !surface_y
+    sbc.w !point_y
+    clc
+    adc.b !actor_y+1
+    sta.b !actor_y+1
+    sep.b #$31
+    rtl
+.none:
+    rep.b #$20
+    lda.w !y_saved
+    sta.b !actor_y+1
+    sep.b #$32
+    rtl
+
+; @routine 81:B4F3 ActorOutOfGround
+; WHAT IT DOES: When the actor is in the ground at its probes, raises it
+; onto the surface, unless that would leave it in the ground 15 pixels
+; higher too, where it goes as far as that allows.
+; HOW: Probe 0 at the actor's x (the tile above for a solid tile), then to
+; its left and right (a solid tile flat at its top), stopping at the
+; first tile; with none, Z set. When the point is at or below the surface
+; the raised y is kept in scratch $2A, and the actor tested at 15 pixels
+; above it: ground there with its surface above the point lowers the kept
+; y by the difference. The actor takes the kept y.
+; Entry: X 8-bit; D = the actor; DB = $81; called by JSL. Exit: M and X
+; 8-bit; no tile, or the point above the surface: Z set; raised: A = the
+; new y (16 bits), N, Z from it, C as the last test left it.
+%at($81B4F3)
+ActorOutOfGround:
+    stz.b !actor_probe_at
+    jsr.w ProbeAtActor
+    jsr.w TileAtProbe
+    beq .left
+    bmi .left
+    jsr.w SurfaceHeightOver
+    bra .tile
+.left:
+    jsr.w ProbeLeft
+    jsr.w TileAtProbe
+    beq .right
+    bmi .right
+    jsr.w SurfaceHeightSolid
+    bra .tile
+.right:
+    jsr.w ProbeRight
+    jsr.w TileAtProbe
+    beq .done
+    bmi .none
+    jsr.w SurfaceHeightSolid
+.tile:
+    rep.b #$30
+    lda.w !point_y
+    cmp.w !surface_y
+    bcc .none
+    sec
+    lda.w !surface_y
+    sbc.w !point_y
+    clc
+    adc.b !actor_y+1
+    sta.w !y_saved
+    clc
+    adc.w #-15
+    sta.b !actor_y+1
+    sep.b #$30
+    jsr.w ProbeAtActor
+    jsr.w TileAtProbe
+    beq .back
+    bmi .back
+    rep.b #$30
+    sec
+    lda.w !surface_y
+    sbc.w !point_y
+    bcs .back
+    adc.b !actor_y+1
+    sta.w !y_saved
+.back:
+    rep.b #$30
+    lda.w !y_saved
+    sta.b !actor_y+1
+    sep.b #$30
+.done:
+    rtl
+.none:
+    sep.b #$32
+    rtl
+
+; @routine 81:B756 PlayerOnFirmGround
+; WHAT IT DOES: Says whether the player stands on firm ground at probe 0:
+; C set when the ground to its left or right is solid and not soft.
+; HOW: With the player's record as the direct page (its own kept on the
+; stack): GroundLeft at probe 0, its behaviour not $20 or $40 and its
+; kind not soft; else the same at GroundRight (behaviour not $40).
+; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: D as at entry,
+; N and Z from it (PLD); C as above; M and X 8-bit; A, X, Y as the last
+; test left them.
+%at($81B756)
+PlayerOnFirmGround:
+    ldx.b #0
+    bra .test
+; Probe 4 (an entry no script takes).
+.probe4:
+    ldx.b #4
+.test:
+    phd
+    rep.b #$20
+    lda.w #!player
+    tcd
+    sep.b #$20
+    stx.b !actor_probe_at
+    jsr.w GroundLeft
+    bcc .right
+    lda.w !tile_behaviour_byte
+    bit.b #$60
+    bne .right
+    and.b #$07
+    tax
+    lda.w !soft_kinds,x
+    beq .firm
+.right:
+    jsr.w GroundRight
+    bcc .soft
+    lda.w !tile_behaviour_byte
+    bit.b #!BEHAVIOUR_THROUGH
+    bne .soft
+    and.b #$07
+    tax
+    lda.w !soft_kinds,x
+    bne .soft
+.firm:
+    pld
+    sec
+    rtl
+.soft:
+    pld
+    clc
     rtl

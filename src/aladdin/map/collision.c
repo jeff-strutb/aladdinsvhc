@@ -800,3 +800,258 @@ out:
     cpu.a &= 0xFF00;
     cpu.p = nz8(cpu.p, 0);
 }
+
+/* Per behaviour's low 3 bits: nonzero, ground the player does not stand
+   firm on (bank $81). */
+#define SOFT_KINDS 0xBF1Au
+#define Y_SAVED (SCRATCH + 0x1E)   /* scratch $2A: the actor's y kept */
+
+/*
+ * @routine 81:B8B6 SurfaceHeightOver
+ * WHAT IT DOES: The surface's y for a tile of kind A; for a solid tile
+ * (kind 1), the surface of the tile above it, if any.
+ * HOW: Kind 1: the surface moves up a tile and the tile place a row; a
+ * place past the screen's top takes the screen above's tiles; then
+ * TileAtPlace: an empty tile above returns Z set; else SurfaceHeight with
+ * its kind.
+ * Entry: M 8-bit, X 8-bit; A = X = the kind; DB = $81; called by JSR.
+ * Exit: as SurfaceHeight; or, the tile above empty, A low byte = X = 0,
+ * Z set, M and X 8-bit.
+ */
+void abi_SurfaceHeightOver(void)
+{
+    uint8_t a = (uint8_t)cpu.a;
+    uint16_t v, t;
+
+    cpu.p = cmp8_flags(cpu.p, a, KIND_SOLID);
+    if (a != KIND_SOLID) {
+        abi_SurfaceHeight();
+        return;
+    }
+    op_rep(P_M | P_X);
+    cpu.p |= P_C;
+    v = op_sbc16(rd16(abs_db(SURFACE_Y)), 0x0010, &cpu.p);
+    wr16(abs_db(SURFACE_Y), v);
+    cpu.p |= P_C;
+    v = op_sbc16(rd16(abs_db(TILE_PLACE)), 0x0020, &cpu.p);
+    v &= 0x01FE;
+    cpu.a = v;
+    op_cmp16(0x01E0);
+    if (cpu.p & P_C) {
+        op_push8((uint8_t)(v >> 8));           /* PHA */
+        op_push8((uint8_t)v);
+        cpu.p |= P_C;
+        t = op_sbc16(rd16(abs_db(SCREEN_PLACE)), 0x0040, &cpu.p);
+        cpu.x = t;
+        t = rd16(SCREEN_MAP + t);
+        wr16(abs_db(SCREEN_TILES), t);
+        cpu.a = op_pull8();                    /* PLA */
+        cpu.a |= (uint16_t)(op_pull8() << 8);
+        cpu.p = nz16(cpu.p, cpu.a);
+    }
+    abi_TileAtPlace();
+    if (cpu.p & P_Z)
+        return;
+    abi_SurfaceHeight();
+}
+
+/* TileAt at the probe point made by `probe`, the surface by `surface`
+   when there is a tile; returns 1 when the surface step says the tile is
+   ground (Z clear after it). `at_probe` takes the lookup with 16-bit
+   registers first (TileAtProbe). */
+static int ground_at(void (*probe)(void), int at_probe, void (*surface)(void))
+{
+    probe();
+    if (at_probe)
+        abi_TileAtProbe();
+    else
+        abi_TileAt();
+    if ((cpu.p & P_Z) || (cpu.p & P_N))
+        return -1;
+    surface();
+    return !(cpu.p & P_Z);
+}
+
+/* The actor's y moved by the surface less the point's y. */
+static uint16_t onto_surface(void)
+{
+    uint16_t v;
+
+    cpu.p |= P_C;
+    v = op_sbc16(rd16(abs_db(SURFACE_Y)), rd16(abs_db(POINT_Y)), &cpu.p);
+    cpu.p &= (uint8_t)~P_C;
+    return op_adc16(v, rd16(dp(ACTOR_Y + 1)), &cpu.p);
+}
+
+/*
+ * @routine 81:B44F ActorSnapToGround
+ * WHAT IT DOES: When there is ground just under the actor (within 3
+ * pixels), stands it on that ground: C set. Else leaves it where it was.
+ * HOW: Keeps the actor's y and moves it 3 down; tests probe 0 at the
+ * actor's x (the tile above for a solid tile), then to its left and right
+ * (a solid tile flat at its top); the first ground found moves the y by
+ * the surface less the point's y. With none, the kept y comes back.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+ * Exit: M and X 8-bit; on ground: C set, A = the new y (16 bits), N, V, Z
+ * from its ADC; none: Z set, A = the kept y (16 bits), N as it, C as the
+ * last test left it.
+ */
+void abi_ActorSnapToGround(void)
+{
+    uint16_t v;
+
+    op_rep(P_M);
+    cpu.p &= (uint8_t)~P_C;
+    v = rd16(dp(ACTOR_Y + 1));
+    wr16(abs_db(Y_SAVED), v);
+    cpu.a = op_adc16(v, 0x0003, &cpu.p);
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M);
+    wr8(dp(ACTOR_PROBE_AT), 0);
+    if (ground_at(abi_ProbeAtActor, 0, abi_SurfaceHeightOver) == 1
+        || ground_at(abi_ProbeLeft, 0, abi_SurfaceHeightSolid) == 1
+        || ground_at(abi_ProbeRight, 0, abi_SurfaceHeightSolid) == 1) {
+        op_rep(P_M);
+        cpu.a = onto_surface();
+        wr16(dp(ACTOR_Y + 1), cpu.a);
+        op_sep(P_M | P_X | P_C);
+        return;
+    }
+    op_rep(P_M);
+    cpu.a = rd16(abs_db(Y_SAVED));
+    cpu.p = nz16(cpu.p, cpu.a);
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M | P_X | P_Z);
+}
+
+/*
+ * @routine 81:B4F3 ActorOutOfGround
+ * WHAT IT DOES: When the actor is in the ground at its probes, raises it
+ * onto the surface, unless that would leave it in the ground 15 pixels
+ * higher too, where it goes as far as that allows.
+ * HOW: Probe 0 at the actor's x (the tile above for a solid tile), then to
+ * its left and right (a solid tile flat at its top), stopping at the
+ * first tile; with none, Z set. When the point is at or below the surface
+ * the raised y is kept in scratch $2A, and the actor tested at 15 pixels
+ * above it: ground there with its surface above the point lowers the kept
+ * y by the difference. The actor takes the kept y.
+ * Entry: X 8-bit; D = the actor; DB = $81; called by JSL. Exit: M and X
+ * 8-bit; no tile, or the point above the surface: Z set; raised: A = the
+ * new y (16 bits), N, Z from it, C as the last test left it.
+ */
+void abi_ActorOutOfGround(void)
+{
+    uint16_t v;
+    int r;
+
+    if (cpu.p & P_M)
+        wr8(dp(ACTOR_PROBE_AT), 0);
+    else
+        wr16(dp(ACTOR_PROBE_AT), 0);
+    r = ground_at(abi_ProbeAtActor, 1, abi_SurfaceHeightOver);
+    if (r < 0) {
+        r = ground_at(abi_ProbeLeft, 1, abi_SurfaceHeightSolid);
+        if (r < 0) {
+            abi_ProbeRight();
+            abi_TileAtProbe();
+            if (cpu.p & P_Z)
+                return;
+            if (cpu.p & P_N)
+                goto none;
+            abi_SurfaceHeightSolid();
+        }
+    }
+    op_rep(P_M | P_X);
+    cpu.a = rd16(abs_db(POINT_Y));
+    op_cmp16(rd16(abs_db(SURFACE_Y)));
+    if (!(cpu.p & P_C))
+        goto none;
+    v = onto_surface();
+    wr16(abs_db(Y_SAVED), v);
+    cpu.p &= (uint8_t)~P_C;
+    cpu.a = op_adc16(v, 0xFFF1, &cpu.p);
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M | P_X);
+    abi_ProbeAtActor();
+    abi_TileAtProbe();
+    if (!(cpu.p & P_Z) && !(cpu.p & P_N)) {
+        op_rep(P_M | P_X);
+        cpu.p |= P_C;
+        cpu.a = op_sbc16(rd16(abs_db(SURFACE_Y)), rd16(abs_db(POINT_Y)), &cpu.p);
+        if (!(cpu.p & P_C)) {
+            cpu.a = op_adc16(cpu.a, rd16(dp(ACTOR_Y + 1)), &cpu.p);
+            wr16(abs_db(Y_SAVED), cpu.a);
+        }
+    }
+    op_rep(P_M | P_X);
+    cpu.a = rd16(abs_db(Y_SAVED));
+    cpu.p = nz16(cpu.p, cpu.a);
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M | P_X);
+    return;
+none:
+    op_sep(P_M | P_X | P_Z);
+}
+
+/*
+ * @routine 81:B756 PlayerOnFirmGround
+ * WHAT IT DOES: Says whether the player stands on firm ground at probe 0:
+ * C set when the ground to its left or right is solid and not soft.
+ * HOW: With the player's record as the direct page (its own kept on the
+ * stack): GroundLeft at probe 0, its behaviour not $20 or $40 and its
+ * kind not soft; else the same at GroundRight (behaviour not $40).
+ * Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: D as at entry,
+ * N and Z from it (PLD); C as above; M and X 8-bit; A, X, Y as the last
+ * test left them.
+ */
+void abi_PlayerOnFirmGround(void)
+{
+    uint8_t b, k;
+    int firm = 0;
+
+    cpu.x = 0;
+    cpu.p = nz8(cpu.p, 0);
+    op_push8((uint8_t)(cpu.d >> 8));           /* PHD */
+    op_push8((uint8_t)cpu.d);
+    op_rep(P_M);
+    cpu.a = PLAYER;
+    cpu.p = nz16(cpu.p, cpu.a);
+    cpu.d = cpu.a;
+    cpu.p = nz16(cpu.p, cpu.d);
+    op_sep(P_M);
+    wr8(dp(ACTOR_PROBE_AT), (uint8_t)cpu.x);
+    abi_GroundLeft();
+    if (cpu.p & P_C) {
+        b = rd8(abs_db(TILE_BEHAVIOUR_BYTE));
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
+        cpu.p = (uint8_t)((cpu.p & ~P_Z) | ((b & 0x60) ? 0 : P_Z));
+        if (!(b & 0x60)) {
+            cpu.x = b & 0x07;
+            k = rd8(abs_db((uint16_t)(SOFT_KINDS + cpu.x)));
+            cpu.a = (uint16_t)((cpu.a & 0xFF00) | k);
+            cpu.p = nz8(cpu.p, k);
+            if (k == 0)
+                firm = 1;
+        }
+    }
+    if (!firm) {
+        abi_GroundRight();
+        if (cpu.p & P_C) {
+            b = rd8(abs_db(TILE_BEHAVIOUR_BYTE));
+            cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
+            cpu.p = (uint8_t)((cpu.p & ~P_Z) | ((b & BEHAVIOUR_THROUGH) ? 0 : P_Z));
+            if (!(b & BEHAVIOUR_THROUGH)) {
+                cpu.x = b & 0x07;
+                k = rd8(abs_db((uint16_t)(SOFT_KINDS + cpu.x)));
+                cpu.a = (uint16_t)((cpu.a & 0xFF00) | k);
+                cpu.p = nz8(cpu.p, k);
+                if (k == 0)
+                    firm = 1;
+            }
+        }
+    }
+    cpu.d = op_pull8();                        /* PLD */
+    cpu.d |= (uint16_t)(op_pull8() << 8);
+    cpu.p = nz16(cpu.p, cpu.d);
+    cpu.p = (uint8_t)((cpu.p & ~P_C) | (firm ? P_C : 0));
+}
