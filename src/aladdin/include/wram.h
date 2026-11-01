@@ -24,4 +24,12 @@
 #define TASK_CURRENT 0x000327u     /* the running task's slot */
 #define TASK_SLOT_COUNT 0x000328u  /* how many slots the scheduler scans */
 
+/* Joypads (system/joypad.c): pad 1's word, then pad 2's */
+#define JOY_HELD 0x000377u         /* buttons held */
+#define JOY_PRESSED 0x00037Bu      /* buttons newly pressed this frame */
+
+/* Shadows of PPU and CPU registers, written to them in the vertical blank */
+#define NMITIMEN_SHADOW 0x0003B7u  /* NMITIMEN: interrupts and auto joypad read */
+#define INIDISP_SHADOW 0x0003B8u   /* INIDISP: forced blank and brightness */
+
 #endif

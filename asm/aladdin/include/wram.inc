@@ -23,3 +23,11 @@ includeonce
 !task_current = $0327           ; the running task's slot
 !task_slot_count = $0328        ; how many slots the scheduler scans
 !task_scheduler_stack = $0326   ; the scheduler's own stack
+
+; Joypads (system/joypad.asm): pad 1's word, then pad 2's.
+!joy_held = $0377               ; buttons held
+!joy_pressed = $037B            ; buttons newly pressed this frame
+
+; Shadows of PPU and CPU registers, written to them in the vertical blank.
+!nmitimen_shadow = $03B7        ; NMITIMEN: interrupts and auto joypad read
+!inidisp_shadow = $03B8         ; INIDISP: forced blank and brightness
