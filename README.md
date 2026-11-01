@@ -16,16 +16,16 @@ _Snapshot 2026-11-01._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   13.8%   7,831 / 56,876 B of the game's code
+    ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   14.4%   8,203 / 56,876 B of the game's code
 M2  Byte exact (T4)
-    █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   13.5%   7,668 / 56,876 B of the game's code
+    ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   14.1%   8,040 / 56,876 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,955 B the scripts have run and 16,921 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 179 routines behaviour exact, 178 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 56,876 B: 39,955 B the scripts have run and 16,921 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 186 routines behaviour exact, 185 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `███░░░░░░░░░░░░░░░░░` 14.3%: 7,831/54,608 B | `███░░░░░░░░░░░░░░░░░` 14.0%: 7,668/54,608 B |
+| **S-CPU (65816)** | `███░░░░░░░░░░░░░░░░░` 15.0%: 8,203/54,608 B | `███░░░░░░░░░░░░░░░░░` 14.7%: 8,040/54,608 B |
 | **SPC700 (sound)** | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B |
 <!-- PROGRESS:END -->
 
@@ -38,7 +38,7 @@ have run and the 16,921 B the routine census (`tools/aladdin/census.py`) finds
 by following the code statically (calls, jumps, tables, handler pointers,
 task entries, orphans) where no script has gone. The numerator is the code
 bytes inside routines whose C is certified behaviour exact (T3) or whose
-assembly is also byte exact (T4), for M1, and T4 only for M2. 1 routine(s)
+assembly is also byte exact (T4), for M1, and T4 only for M2. 2 routine(s)
 are in the tree but not yet certified (T2).
 
 **Why not routines.** A routine count keeps growing as the work goes on:
