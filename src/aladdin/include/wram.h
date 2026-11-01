@@ -77,4 +77,8 @@
 #define LEVEL_SPOT_COUNT 0x000821u /* how many trigger spots the level has */
 #define LEVEL_SPOTS 0x000822u      /* their list's offset from $81:EC1E (word) */
 
+/* Which BG positions follow the scroll layers (video/bg_follow.c) */
+#define BG1_HELD 0x001A14u         /* nonzero: BG1's position is not taken from the play field */
+#define BG2_FOLLOWS 0x001A15u      /* 0: BG2 follows the backdrop layer; $40: its y only; $80: the play field's x; else neither */
+
 #endif

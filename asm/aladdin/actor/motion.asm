@@ -416,3 +416,96 @@ ActorDecelerateY:
     stz.b !actor_speed_y+2
 .done:
     rtl
+
+; Vectors: per vector, its x fraction, x pixels low and high, y fraction,
+; y pixels low and high, each byte in a table of its own ($409 vectors). A
+; direction set's first vector is a word at vector_sets + X in the data
+; bank; the facing picks the next for left.
+!vector_x_frac = $82C000
+!vector_x_mid = $82C409
+!vector_x_hi = $82C812
+!vector_y_frac = $82CC1B
+!vector_y_mid = $82D024
+!vector_y_hi = $82D42D
+!vector_sets = $BBB9
+
+; @routine 81:A854 ActorMoveByVector
+; WHAT IT DOES: Moves the actor by a vector from direction set X, the
+; set's left vector when it faces left.
+; HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+; the vector; its 24-bit x and y parts are added to the position.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank; X = the set's byte offset. Exit: M and X 8-bit; X = the vector's low byte; A low byte =
+; the y position's high byte; N, V, Z, C from its ADC; Y unchanged.
+%at($81A854)
+ActorMoveByVector:
+    lda.b !actor_facing
+    rep.b #$30
+    clc
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    clc
+    lda.l !vector_x_frac,x
+    adc.b !actor_x
+    sta.b !actor_x
+    lda.l !vector_x_mid,x
+    adc.b !actor_x+1
+    sta.b !actor_x+1
+    lda.l !vector_x_hi,x
+    adc.b !actor_x+2
+    sta.b !actor_x+2
+    clc
+    lda.l !vector_y_frac,x
+    adc.b !actor_y
+    sta.b !actor_y
+    lda.l !vector_y_mid,x
+    adc.b !actor_y+1
+    sta.b !actor_y+1
+    lda.l !vector_y_hi,x
+    adc.b !actor_y+2
+    sta.b !actor_y+2
+    sep.b #$10
+    rtl
+
+; @routine 81:A8DA ActorSpeedAddVector
+; WHAT IT DOES: Adds a vector from direction set X to the actor's speeds,
+; the set's left vector when it faces left.
+; HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+; the vector; its 24-bit x and y parts are added to the horizontal and
+; vertical speeds.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank; X = the set's byte offset. Exit: M and X 8-bit; X = the vector's low byte; A low byte =
+; the vertical speed's high byte; N, V, Z, C from its ADC; Y unchanged.
+%at($81A8DA)
+ActorSpeedAddVector:
+    rep.b #$30
+    clc
+    lda.b !actor_facing
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    clc
+    lda.l !vector_x_frac,x
+    adc.b !actor_speed_x
+    sta.b !actor_speed_x
+    lda.l !vector_x_mid,x
+    adc.b !actor_speed_x+1
+    sta.b !actor_speed_x+1
+    lda.l !vector_x_hi,x
+    adc.b !actor_speed_x+2
+    sta.b !actor_speed_x+2
+    clc
+    lda.l !vector_y_frac,x
+    adc.b !actor_speed_y
+    sta.b !actor_speed_y
+    lda.l !vector_y_mid,x
+    adc.b !actor_speed_y+1
+    sta.b !actor_speed_y+1
+    lda.l !vector_y_hi,x
+    adc.b !actor_speed_y+2
+    sta.b !actor_speed_y+2
+    sep.b #$10
+    rtl

@@ -10,6 +10,11 @@ includeonce
 !actor_free_list = $15A2        ; addresses of the free records (words), a stack
 !actor_free_top = $15E4         ; byte offset of its top entry; negative: none free
 !actor_tile_slot_users = $15E8  ; actors holding each animated-tile slot (byte per slot)
+!actor_records = $08DB          ; every record, the player's first: $AF1 bytes
+!actor_escort = $092B           ; the record of the level's escort actor
+!actor_free_list_b = $15DA      ; a second free list: the 5 records from $09CB
+!actor_free_top_b = $15E6       ; its top entry's offset
+!actor_pool = $0B5B             ; the 28 records the first free list holds, $50 bytes apart
 
 !actor_state = $00              ; 0 free, $0C new, then what the actor is doing ($8C, $CC ...)
 !actor_01 = $01
@@ -31,6 +36,7 @@ includeonce
 !actor_accel_y = $20            ; added to or taken from the vertical speed: gravity (fraction)
 !actor_spawn_at = $21           ; where it spawns a child: index into the spawn offsets
 !actor_look = $2B               ; sprite attributes (word): tile base, palette
+!actor_33 = $33                 ; in the 28-record pool, its number (28 down to 1)
 !actor_34 = $34                 ; $FF for a new child
 !actor_35 = $35
 !actor_36 = $36

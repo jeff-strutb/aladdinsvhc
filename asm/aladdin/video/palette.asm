@@ -8,6 +8,7 @@
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
 
+incsrc "../include/wram_video.inc"
 arch 65816
 
 ; Palette loads in bank $84: 6 bytes each (source offset from palette_data,
@@ -138,3 +139,33 @@ PaletteSave:
     bne .colour
     sep.b #$30
     rtl
+
+; Per level, the offset (from level_palettes) of its palette list: a count,
+; then the palette sets to load.
+!level_palettes = $81B812
+
+; @routine 81:86BF LevelPalettesLoad
+; WHAT IT DOES: Loads the level's palettes.
+; HOW: The level's list gives a count and the sets; each is loaded with
+; PaletteLoad, X and Y kept on the stack across it.
+; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: X = the list's
+; offset past the last set; Y = 0; Z set, N clear; with sets, A and C, V
+; as the last PaletteLoad leaves them; DB as at entry.
+%at($8186BF)
+LevelPalettesLoad:
+    ldy.w !level
+    ldx.w !level_palettes,y
+    ldy.w !level_palettes,x
+    beq .done
+.set:
+    phx
+    phy
+    lda.w !level_palettes+1,x
+    jsl.l PaletteLoad
+    ply
+    plx
+    inx
+    dey
+    bne .set
+.done:
+    rts

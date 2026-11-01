@@ -8,6 +8,7 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "wram.h"
+#include "wram_video.h"
 
 static uint32_t abs_db(uint16_t addr)
 {
@@ -142,4 +143,42 @@ void abi_PaletteSaveReversed(void)
     cpu.y = 0xFFFE;
     cpu.p = nz16(cpu.p, 0xFFFE);
     op_sep(P_M | P_X);
+}
+
+/* Per level, the offset (from LEVEL_PALETTES) of its palette list in bank
+   $81: a count, then the palette sets to load. */
+#define LEVEL_PALETTES 0xB812u
+
+/*
+ * @routine 81:86BF LevelPalettesLoad
+ * WHAT IT DOES: Loads the level's palettes.
+ * HOW: The level's list gives a count and the sets; each is loaded with
+ * PaletteLoad, X and Y kept on the stack across it.
+ * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: X = the list's
+ * offset past the last set; Y = 0; Z set, N clear; with sets, A and C, V
+ * as the last PaletteLoad leaves them; DB as at entry.
+ */
+void abi_LevelPalettesLoad(void)
+{
+    uint8_t lv = rd8(abs_db(LEVEL)), x, y;
+
+    cpu.y = lv;
+    x = rd8(abs_db((uint16_t)(LEVEL_PALETTES + lv)));
+    cpu.x = x;
+    y = rd8(abs_db((uint16_t)(LEVEL_PALETTES + x)));
+    cpu.y = y;
+    cpu.p = nz8(cpu.p, y);
+    while (y != 0) {
+        op_push8(x);
+        op_push8(y);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(abs_db((uint16_t)(LEVEL_PALETTES + 1 + x))));
+        abi_PaletteLoad();
+        y = op_pull8();
+        x = op_pull8();
+        x++;
+        y--;
+        cpu.x = x;
+        cpu.y = y;
+        cpu.p = nz8(cpu.p, y);
+    }
 }

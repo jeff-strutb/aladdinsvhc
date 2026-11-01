@@ -488,3 +488,79 @@ void abi_ActorDecelerateY(void)
         wr8(dp(ACTOR_SPEED_Y + 2), 0);
     }
 }
+
+/* Vectors in bank $82: per vector, its x fraction, x pixels low and high,
+   y fraction, y pixels low and high, each byte in a table of its own
+   ($409 vectors). A direction set's first vector is a word at
+   VECTOR_SETS + X (data bank); the facing picks the next for left. */
+#define VECTOR_X_FRAC 0x82C000u
+#define VECTOR_X_MID 0x82C409u
+#define VECTOR_X_HI 0x82C812u
+#define VECTOR_Y_FRAC 0x82CC1Bu
+#define VECTOR_Y_MID 0x82D024u
+#define VECTOR_Y_HI 0x82D42Du
+#define VECTOR_SETS 0xBBB9u
+
+/* The vector's six bytes added to the 24-bit fields at fx and fy. */
+static void add_vector(uint16_t v, uint8_t fx, uint8_t fy)
+{
+    cpu.p &= (uint8_t)~P_C;
+    adc_byte(fx, rd8(VECTOR_X_FRAC + v));
+    adc_byte(fx + 1, rd8(VECTOR_X_MID + v));
+    adc_byte(fx + 2, rd8(VECTOR_X_HI + v));
+    cpu.p &= (uint8_t)~P_C;
+    adc_byte(fy, rd8(VECTOR_Y_FRAC + v));
+    adc_byte(fy + 1, rd8(VECTOR_Y_MID + v));
+    adc_byte(fy + 2, rd8(VECTOR_Y_HI + v));
+}
+
+/*
+ * @routine 81:A854 ActorMoveByVector
+ * WHAT IT DOES: Moves the actor by a vector from direction set X, the
+ * set's left vector when it faces left.
+ * HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+ * the vector; its 24-bit x and y parts are added to the position.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank; X = the set's byte offset. Exit: M and X 8-bit; X = the vector's low byte; A low byte =
+ * the y position's high byte; N, V, Z, C from its ADC; Y unchanged.
+ */
+void abi_ActorMoveByVector(void)
+{
+    uint8_t facing = rd8(dp(ACTOR_FACING));
+
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | facing);
+    cpu.p = nz8(cpu.p, facing);
+    op_rep(P_M | P_X);
+    cpu.p &= (uint8_t)~P_C;
+    cpu.a = op_adc16((uint16_t)(cpu.a & 0x00FF), rd16(((uint32_t)cpu.db << 16) + VECTOR_SETS + cpu.x), &cpu.p);
+    cpu.x = cpu.a;
+    cpu.p = nz16(cpu.p, cpu.x);
+    op_sep(P_M);
+    add_vector(cpu.x, ACTOR_X, ACTOR_Y);
+    op_sep(P_X);
+}
+
+/*
+ * @routine 81:A8DA ActorSpeedAddVector
+ * WHAT IT DOES: Adds a vector from direction set X to the actor's speeds,
+ * the set's left vector when it faces left.
+ * HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+ * the vector; its 24-bit x and y parts are added to the horizontal and
+ * vertical speeds.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank; X = the set's byte offset. Exit: M and X 8-bit; X = the vector's low byte; A low byte =
+ * the vertical speed's high byte; N, V, Z, C from its ADC; Y unchanged.
+ */
+void abi_ActorSpeedAddVector(void)
+{
+    op_rep(P_M | P_X);
+    cpu.p &= (uint8_t)~P_C;
+    cpu.a = rd16(dp(ACTOR_FACING));
+    cpu.a &= 0x00FF;
+    cpu.a = op_adc16(cpu.a, rd16(((uint32_t)cpu.db << 16) + VECTOR_SETS + cpu.x), &cpu.p);
+    cpu.x = cpu.a;
+    cpu.p = nz16(cpu.p, cpu.x);
+    op_sep(P_M);
+    add_vector(cpu.x, ACTOR_SPEED_X, ACTOR_SPEED_Y);
+    op_sep(P_X);
+}
