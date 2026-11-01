@@ -11,6 +11,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "wram_video.h"
 
 /* The step, in pixels, the drawn position makes for a column or row
@@ -43,13 +44,6 @@
 /* The level's block map */
 #define BLOCK_MAP 0x7FF000u
 
-/* Scratch work RAM the routines share */
-#define SCRATCH_X 0x00000Cu
-#define SCRATCH_Y 0x00000Eu
-#define SCRATCH_10 0x000010u
-#define SCRATCH_12 0x000012u
-#define SCRATCH_14 0x000014u
-#define SCRATCH_1C 0x00001Cu
 
 /* An edge: 10 bytes at a layer record's start (left 0, right 10, top 20,
    bottom 30) */
@@ -582,13 +576,13 @@ void abi_TilemapWord(void)
     op_lsr16();
     op_lsr16();
     op_lsr16();
-    wr16(SCRATCH_14, cpu.a);
+    wr16((SCRATCH + 8), cpu.a);
     op_lda16_imm(cpu.y);
     op_and16(0x00F8);
     op_asl16();
     op_asl16();
-    op_ora16(rd16(SCRATCH_14));
-    wr16(SCRATCH_14, cpu.a);
+    op_ora16(rd16((SCRATCH + 8)));
+    wr16((SCRATCH + 8), cpu.a);
     op_lda16_imm(px);
     op_xba();
     op_lsr16();
@@ -602,7 +596,7 @@ void abi_TilemapWord(void)
     op_lsr16();
     op_and16(0x0400);
     op_ora16(0x4800);
-    op_ora16(rd16(SCRATCH_14));
+    op_ora16(rd16((SCRATCH + 8)));
 }
 
 /*
@@ -622,42 +616,42 @@ void abi_EdgeMapPlace(void)
     uint8_t p = cpu.p;
     uint16_t x = cpu.x;
 
-    wr16(SCRATCH_X, cpu.a);
-    wr16(SCRATCH_Y, cpu.y);
+    wr16(SCRATCH, cpu.a);
+    wr16((SCRATCH + 2), cpu.y);
     op_xba();
     cpu.a++;
     cpu.p = nz16(cpu.p, cpu.a);
     op_asl16();
     op_and16(0x00FE);
-    wr16(SCRATCH_10, cpu.a);
+    wr16((SCRATCH + 4), cpu.a);
     op_lda16_imm(cpu.y);
     op_add16(0x0100);
     op_and16(0xFF00);
     op_lsr16();
     op_lsr16();
-    op_add16(rd16(SCRATCH_10));
+    op_add16(rd16((SCRATCH + 4)));
     op_add16(rd16(dp(LAYER_MAP_BASE)));
     wr16(dp(x + EDGE_MAP), cpu.a);
-    op_lda16(SCRATCH_X);
+    op_lda16(SCRATCH);
     op_lsr16();
     op_lsr16();
     op_lsr16();
     op_and16(0x001E);
-    wr16(SCRATCH_10, cpu.a);
-    op_lda16(SCRATCH_Y);
+    wr16((SCRATCH + 4), cpu.a);
+    op_lda16((SCRATCH + 2));
     op_asl16();
     op_and16(0x01E0);
-    op_ora16(rd16(SCRATCH_10));
+    op_ora16(rd16((SCRATCH + 4)));
     wr16(dp(x + EDGE_BLOCK), cpu.a);
-    op_lda16(SCRATCH_X);
+    op_lda16(SCRATCH);
     op_lsr16();
     op_lsr16();
     op_and16(0x0002);
-    wr16(SCRATCH_10, cpu.a);
-    op_lda16(SCRATCH_Y);
+    wr16((SCRATCH + 4), cpu.a);
+    op_lda16((SCRATCH + 2));
     op_lsr16();
     op_and16(0x0004);
-    op_ora16(rd16(SCRATCH_10));
+    op_ora16(rd16((SCRATCH + 4)));
     wr16(dp(x + EDGE_HALF), cpu.a);
     op_plp(p);
 }
@@ -701,13 +695,13 @@ void abi_EdgePlace(void)
 {
     uint16_t x = cpu.x;
 
-    wr16(SCRATCH_1C, cpu.a);
+    wr16((SCRATCH + 16), cpu.a);
     op_lda16(dp(LAYER_SCROLL_Y));
     op_add16(rd16(EDGE_PLACE + 2 + x));
     op_tay16();
     op_lda16(dp(LAYER_SCROLL_X));
     op_add16(rd16(EDGE_PLACE + x));
-    cpu.x = rd16(SCRATCH_1C);
+    cpu.x = rd16((SCRATCH + 16));
     cpu.p = nz16(cpu.p, cpu.x);
     abi_EdgePlaceAt();
     cpu.x = (uint16_t)(x + 4);
@@ -836,13 +830,13 @@ void abi_LayerDrawColumn(void)
     edge = cpu.x;
     cpu.p &= (uint8_t)~P_C;
     op_lda16(dp(edge + EDGE_MAP));
-    wr16(SCRATCH_X, cpu.a);
+    wr16(SCRATCH, cpu.a);
     op_lda16(dp(edge + EDGE_BLOCK));
-    wr16(SCRATCH_Y, cpu.a);
+    wr16((SCRATCH + 2), cpu.a);
     op_lda16(dp(edge + EDGE_HALF));
-    wr16(SCRATCH_12, cpu.a);
+    wr16((SCRATCH + 6), cpu.a);
     op_lda16(dp(LAYER_COLUMN_LENGTH));
-    wr16(SCRATCH_14, cpu.a);
+    wr16((SCRATCH + 8), cpu.a);
     op_lda16(dp(edge + EDGE_TILEMAP));
     op_and16(0xFBFF);
     op_lsr16();
@@ -855,25 +849,25 @@ void abi_LayerDrawColumn(void)
     op_asl16();
     op_and16(0x003F);
     op_tay16();
-    cpu.x = rd16(SCRATCH_X);
+    cpu.x = rd16(SCRATCH);
     cpu.p = nz16(cpu.p, cpu.x);
     for (;;) {                                   /* each block down */
         map_block(cpu.x);
         cpu.x = cpu.y;
         cpu.p = nz16(cpu.p, cpu.x);
-        cpu.y = rd16(SCRATCH_Y);
+        cpu.y = rd16((SCRATCH + 2));
         cpu.p = nz16(cpu.p, cpu.y);
         for (;;) {                               /* each metatile down */
             map_metatile();
-            cpu.y = rd16(SCRATCH_12);
+            cpu.y = rd16((SCRATCH + 6));
             cpu.p = nz16(cpu.p, cpu.y);
             for (;;) {                           /* its two tiles */
                 uint16_t left;
 
                 map_tile();
                 wr16(dp(LAYER_COLUMN_BUF + cpu.x), cpu.a);
-                left = (uint16_t)(rd16_rmw(SCRATCH_14) - 1);
-                wr16_rmw(SCRATCH_14, left);
+                left = (uint16_t)(rd16_rmw((SCRATCH + 8)) - 1);
+                wr16_rmw((SCRATCH + 8), left);
                 cpu.p = nz16(cpu.p, left);
                 if (left == 0)
                     goto drawn;
@@ -889,21 +883,21 @@ void abi_LayerDrawColumn(void)
                 if (!bit_imm(0x0004))
                     break;
             }
-            wr16(SCRATCH_12, cpu.a);
-            op_lda16(SCRATCH_Y);
+            wr16((SCRATCH + 6), cpu.a);
+            op_lda16((SCRATCH + 2));
             op_add16(0x0020);
             op_and16(0x01FE);
             op_tay16();
-            wr16(SCRATCH_Y, cpu.a);
+            wr16((SCRATCH + 2), cpu.a);
             op_cmp16(0x0020);
             if (!(cpu.p & P_C))
                 break;
         }
         cpu.y = cpu.x;
         cpu.p = nz16(cpu.p, cpu.y);
-        op_lda16(SCRATCH_X);
+        op_lda16(SCRATCH);
         cpu.a = op_adc16(cpu.a, 0x0040, &cpu.p);
-        wr16(SCRATCH_X, cpu.a);
+        wr16(SCRATCH, cpu.a);
         op_tax16();
     }
 drawn:
@@ -946,14 +940,14 @@ void abi_LayerDrawRow(void)
     edge = cpu.x;
     cpu.p &= (uint8_t)~P_C;
     op_lda16(dp(edge + EDGE_MAP));
-    wr16(SCRATCH_X, cpu.a);
+    wr16(SCRATCH, cpu.a);
     op_lda16(dp(edge + EDGE_BLOCK));
-    wr16(SCRATCH_Y, cpu.a);
+    wr16((SCRATCH + 2), cpu.a);
     op_lda16(dp(edge + EDGE_HALF));
-    wr16(SCRATCH_12, cpu.a);
+    wr16((SCRATCH + 6), cpu.a);
     cpu.y = rd16(dp(LAYER_ROW_LENGTH));
     cpu.p = nz16(cpu.p, cpu.y);
-    wr16(SCRATCH_14, cpu.y);
+    wr16((SCRATCH + 8), cpu.y);
     op_lda16(dp(edge + EDGE_TILEMAP));
     op_and16(0x041F);
     if (bit_imm(0x0400))
@@ -961,25 +955,25 @@ void abi_LayerDrawRow(void)
     op_and16(0x007F);
     op_asl16();
     op_tay16();
-    cpu.x = rd16(SCRATCH_X);
+    cpu.x = rd16(SCRATCH);
     cpu.p = nz16(cpu.p, cpu.x);
     for (;;) {                                   /* each block across */
         map_block(cpu.x);
         cpu.x = cpu.y;
         cpu.p = nz16(cpu.p, cpu.x);
-        cpu.y = rd16(SCRATCH_Y);
+        cpu.y = rd16((SCRATCH + 2));
         cpu.p = nz16(cpu.p, cpu.y);
         for (;;) {                               /* each metatile across */
             map_metatile();
-            cpu.y = rd16(SCRATCH_12);
+            cpu.y = rd16((SCRATCH + 6));
             cpu.p = nz16(cpu.p, cpu.y);
             for (;;) {                           /* its two tiles */
                 uint16_t left;
 
                 map_tile();
                 wr16(dp(LAYER_ROW_BUF + cpu.x), cpu.a);
-                left = (uint16_t)(rd16_rmw(SCRATCH_14) - 1);
-                wr16_rmw(SCRATCH_14, left);
+                left = (uint16_t)(rd16_rmw((SCRATCH + 8)) - 1);
+                wr16_rmw((SCRATCH + 8), left);
                 cpu.p = nz16(cpu.p, left);
                 if (left == 0)
                     goto drawn;
@@ -995,21 +989,21 @@ void abi_LayerDrawRow(void)
                 if (!bit_imm(0x0002))
                     break;
             }
-            wr16(SCRATCH_12, cpu.a);
-            op_inc16_mem(SCRATCH_Y);
-            op_inc16_mem(SCRATCH_Y);
-            op_lda16(SCRATCH_Y);
+            wr16((SCRATCH + 6), cpu.a);
+            op_inc16_mem((SCRATCH + 2));
+            op_inc16_mem((SCRATCH + 2));
+            op_lda16((SCRATCH + 2));
             op_tay16();
             if (!bit_imm(0x001E))
                 break;
         }
         op_sub16(0x0020);
-        wr16(SCRATCH_Y, cpu.a);
+        wr16((SCRATCH + 2), cpu.a);
         cpu.y = cpu.x;
         cpu.p = nz16(cpu.p, cpu.y);
-        op_inc16_mem(SCRATCH_X);
-        op_inc16_mem(SCRATCH_X);
-        cpu.x = rd16(SCRATCH_X);
+        op_inc16_mem(SCRATCH);
+        op_inc16_mem(SCRATCH);
+        cpu.x = rd16(SCRATCH);
         cpu.p = nz16(cpu.p, cpu.x);
     }
 drawn:

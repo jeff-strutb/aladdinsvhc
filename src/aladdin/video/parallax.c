@@ -8,9 +8,8 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "wram_video.h"
-
-#define SCRATCH_0C 0x00000Cu
 
 /*
  * @routine 81:C7A5 ParallaxNone
@@ -123,7 +122,7 @@ void abi_ParallaxDrift(void)
     cpu.db = 0x7E;
     op_rep(0x20);
     op_lda16_imm(0x000B);
-    wr16(SCRATCH_0C, cpu.a);
+    wr16(SCRATCH, cpu.a);
     do {
         x = cpu.x;
         y = cpu.y;
@@ -133,10 +132,10 @@ void abi_ParallaxDrift(void)
         cpu.p = nz16(cpu.p, cpu.x);
         cpu.y = (uint16_t)(y + 3);
         cpu.p = nz16(cpu.p, cpu.y);
-        n = (uint16_t)(rd16(SCRATCH_0C) - 1);
+        n = (uint16_t)(rd16(SCRATCH) - 1);
         cpu.a = n;
         cpu.p = nz16(cpu.p, n);
-        wr16(SCRATCH_0C, n);
+        wr16(SCRATCH, n);
     } while (n != 0);
     op_lda16(BAND_POS + 1);
     wr16(0x7E0000u | BG2_X, cpu.a);     /* DB $7E */

@@ -81,13 +81,6 @@ includeonce
 !block_sources = $1BF5          ; while a level loads: each block's source in its bank, a word per block
 !level_metatile_bank = $005C    ; the bank of the level's metatiles
 
-; Scratch work RAM routines share.
-!scratch_x = $000C
-!scratch_y = $000E
-!scratch_10 = $0010
-!scratch_12 = $0012
-!scratch_14 = $0014
-!scratch_1c = $001C
 
 ; The level's block map: per block a word, its metatile list (negative: empty).
 !block_map = $7FF000

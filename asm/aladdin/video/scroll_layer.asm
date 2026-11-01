@@ -10,6 +10,7 @@
 ; C: src/aladdin/video/scroll_layer.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
 incsrc "../include/rom_video.inc"
 
@@ -161,7 +162,7 @@ LayerPlaceEdges:
 ; as EdgePlaceAt leaves them; $001C = the edge's offset.
 EdgePlace:
     phx
-    sta.w !scratch_1c
+    sta.w !scratch+16
     clc
     lda.b !LAYER_SCROLL_Y
     adc.w !edge_place+2,x
@@ -169,7 +170,7 @@ EdgePlace:
     clc
     lda.b !LAYER_SCROLL_X
     adc.w !edge_place,x
-    ldx.w !scratch_1c
+    ldx.w !scratch+16
     jsr.w EdgePlaceAt
     plx
     inx
@@ -213,13 +214,13 @@ TilemapWord:
     lsr a
     lsr a
     lsr a
-    sta.w !scratch_14
+    sta.w !scratch+8
     tya
     and.w #$00F8
     asl a
     asl a
-    ora.w !scratch_14
-    sta.w !scratch_14
+    ora.w !scratch+8
+    sta.w !scratch+8
     pla
     xba
     lsr a
@@ -233,7 +234,7 @@ TilemapWord:
     lsr a
     and.w #$0400
     ora.w #$4800
-    ora.w !scratch_14
+    ora.w !scratch+8
     rts
 
 ; @routine 81:C1A2 EdgeMapPlace
@@ -248,13 +249,13 @@ TilemapWord:
 ; position; $0010 = the X half; X, Y and P unchanged.
 EdgeMapPlace:
     php
-    sta.w !scratch_x
-    sty.w !scratch_y
+    sta.w !scratch
+    sty.w !scratch+2
     xba
     inc a
     asl a
     and.w #$00FE
-    sta.w !scratch_10
+    sta.w !scratch+4
     tya
     clc
     adc.w #$0100
@@ -262,30 +263,30 @@ EdgeMapPlace:
     lsr a
     lsr a
     clc
-    adc.w !scratch_10
+    adc.w !scratch+4
     clc
     adc.b !LAYER_MAP_BASE
     sta.b !EDGE_MAP,x
-    lda.w !scratch_x
+    lda.w !scratch
     lsr a
     lsr a
     lsr a
     and.w #$001E
-    sta.w !scratch_10
-    lda.w !scratch_y
+    sta.w !scratch+4
+    lda.w !scratch+2
     asl a
     and.w #$01E0
-    ora.w !scratch_10
+    ora.w !scratch+4
     sta.b !EDGE_BLOCK,x
-    lda.w !scratch_x
+    lda.w !scratch
     lsr a
     lsr a
     and.w #$0002
-    sta.w !scratch_10
-    lda.w !scratch_y
+    sta.w !scratch+4
+    lda.w !scratch+2
     lsr a
     and.w #$0004
-    ora.w !scratch_10
+    ora.w !scratch+4
     sta.b !EDGE_HALF,x
     plp
     rts
@@ -480,13 +481,13 @@ LayerDrawColumn:
     phx
     clc
     lda.b !EDGE_MAP,x
-    sta.w !scratch_x
+    sta.w !scratch
     lda.b !EDGE_BLOCK,x
-    sta.w !scratch_y
+    sta.w !scratch+2
     lda.b !EDGE_HALF,x
-    sta.w !scratch_12
+    sta.w !scratch+6
     lda.b !LAYER_COLUMN_LENGTH
-    sta.w !scratch_14
+    sta.w !scratch+8
     lda.b !EDGE_TILEMAP,x
     and.w #$FBFF
     lsr a
@@ -501,7 +502,7 @@ LayerDrawColumn:
     asl a
     and.w #$003F
     tay
-    ldx.w !scratch_x
+    ldx.w !scratch
 .block:
     lda.l !block_map,x
     bpl .list
@@ -509,16 +510,16 @@ LayerDrawColumn:
 .list:
     sta.b !LAYER_BLOCK_PTR
     tyx
-    ldy.w !scratch_y
+    ldy.w !scratch+2
 .metatile:
     lda.b [!LAYER_BLOCK_PTR],y
     ora.w #$8000
     sta.b !LAYER_METATILE_PTR
-    ldy.w !scratch_12
+    ldy.w !scratch+6
 .tile:
     lda.b [!LAYER_METATILE_PTR],y
     sta.b !LAYER_COLUMN_BUF,x
-    dec.w !scratch_14
+    dec.w !scratch+8
     beq .drawn
     inx
     inx
@@ -530,19 +531,19 @@ LayerDrawColumn:
     tay
     bit.w #$0004
     bne .tile
-    sta.w !scratch_12
+    sta.w !scratch+6
     clc
-    lda.w !scratch_y
+    lda.w !scratch+2
     adc.w #$0020
     and.w #$01FE
     tay
-    sta.w !scratch_y
+    sta.w !scratch+2
     cmp.w #$0020
     bcs .metatile
     txy
-    lda.w !scratch_x
+    lda.w !scratch
     adc.w #$0040
-    sta.w !scratch_x
+    sta.w !scratch
     tax
     bra .block
 .drawn:
@@ -579,13 +580,13 @@ LayerDrawRow:
     phx
     clc
     lda.b !EDGE_MAP,x
-    sta.w !scratch_x
+    sta.w !scratch
     lda.b !EDGE_BLOCK,x
-    sta.w !scratch_y
+    sta.w !scratch+2
     lda.b !EDGE_HALF,x
-    sta.w !scratch_12
+    sta.w !scratch+6
     ldy.b !LAYER_ROW_LENGTH
-    sty.w !scratch_14
+    sty.w !scratch+8
     lda.b !EDGE_TILEMAP,x
     and.w #$041F
     bit.w #$0400
@@ -595,7 +596,7 @@ LayerDrawRow:
     and.w #$007F
     asl a
     tay
-    ldx.w !scratch_x
+    ldx.w !scratch
 .block:
     lda.l !block_map,x
     bpl .list
@@ -603,16 +604,16 @@ LayerDrawRow:
 .list:
     sta.b !LAYER_BLOCK_PTR
     tyx
-    ldy.w !scratch_y
+    ldy.w !scratch+2
 .metatile:
     lda.b [!LAYER_BLOCK_PTR],y
     ora.w #$8000
     sta.b !LAYER_METATILE_PTR
-    ldy.w !scratch_12
+    ldy.w !scratch+6
 .tile:
     lda.b [!LAYER_METATILE_PTR],y
     sta.b !LAYER_ROW_BUF,x
-    dec.w !scratch_14
+    dec.w !scratch+8
     beq .drawn
     inx
     inx
@@ -624,20 +625,20 @@ LayerDrawRow:
     tay
     bit.w #$0002
     bne .tile
-    sta.w !scratch_12
-    inc.w !scratch_y
-    inc.w !scratch_y
-    lda.w !scratch_y
+    sta.w !scratch+6
+    inc.w !scratch+2
+    inc.w !scratch+2
+    lda.w !scratch+2
     tay
     bit.w #$001E
     bne .metatile
     sec
     sbc.w #$0020
-    sta.w !scratch_y
+    sta.w !scratch+2
     txy
-    inc.w !scratch_x
-    inc.w !scratch_x
-    ldx.w !scratch_x
+    inc.w !scratch
+    inc.w !scratch
+    ldx.w !scratch
     bra .block
 .drawn:
     plx

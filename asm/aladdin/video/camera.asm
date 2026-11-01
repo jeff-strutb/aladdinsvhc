@@ -7,6 +7,7 @@
 ; C: src/aladdin/video/camera.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
 
 arch 65816
@@ -129,12 +130,12 @@ BlockAt:
     xba
     asl a
     and.w #$003E
-    sta.w !scratch_10
+    sta.w !scratch+4
     tya
     lsr a
     lsr a
     and.w #$03C0
-    ora.w !scratch_10
+    ora.w !scratch+4
     tax
     lda.l !block_map+66,x
     rts

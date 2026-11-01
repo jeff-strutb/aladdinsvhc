@@ -7,6 +7,7 @@
 ; C: src/aladdin/video/parallax.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
 
 arch 65816
@@ -103,7 +104,7 @@ ParallaxDrift:
     plb
     rep.b #$20
     lda.w #11
-    sta.l !scratch_x
+    sta.l !scratch
 .table:
     lda.w !band_pos+1,x
     sta.w !band_hdma+1,y
@@ -114,9 +115,9 @@ ParallaxDrift:
     iny
     iny
     iny
-    lda.l !scratch_x
+    lda.l !scratch
     dec a
-    sta.l !scratch_x
+    sta.l !scratch
     bne .table
     lda.l !band_pos+1
     sta.w !bg2_x

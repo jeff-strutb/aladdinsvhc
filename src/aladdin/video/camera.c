@@ -8,12 +8,11 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "wram.h"
 #include "wram_video.h"
 
 /* The block map, from its first block inside the border */
 #define BLOCK_MAP_INNER (0x7FF000u + 66)
-
-#define SCRATCH_10 0x000010u
 
 /* The play field's scroll, as the bytes around its whole pixels */
 #define SCROLL_X (LAYER0 + LAYER_SCROLL_X)
@@ -34,12 +33,12 @@ void abi_BlockAt(void)
     op_xba();
     op_asl16();
     op_and16(0x003E);
-    wr16(SCRATCH_10, cpu.a);
+    wr16((SCRATCH + 4), cpu.a);
     op_lda16_imm(cpu.y);
     op_lsr16();
     op_lsr16();
     op_and16(0x03C0);
-    cpu.a |= rd16(SCRATCH_10);
+    cpu.a |= rd16((SCRATCH + 4));
     cpu.p = nz16(cpu.p, cpu.a);
     op_tax16();
     op_lda16(BLOCK_MAP_INNER + cpu.x);
