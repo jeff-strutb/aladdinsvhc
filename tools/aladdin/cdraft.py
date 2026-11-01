@@ -258,8 +258,8 @@ class Draft:
                     if mn in ('bra', 'brl'):
                         break
                 elif mn in ('jmp', 'jml') and i.t is not None:
-                    if not self.external(i.t) and i.t not in ACTOR_LOOP and (i.t >> 16) == (self.addr >> 16) \
-                            and self.rom.at(i.t) is not None and decode(self.rom, i.t) is not None and i.t >= self.addr:
+                    if not self.external(i.t) and i.t not in ACTOR_LOOP \
+                            and self.rom.at(i.t) is not None and decode(self.rom, i.t) is not None:
                         labels.add(i.t)
                         todo.append(i.t)
                     break
@@ -333,6 +333,7 @@ class Draft:
 
     def step(self, i):
         mn, mode = i.mn, i.mode
+        self.pb = i.addr & 0xFF0000
         if mn in BRANCH:
             t = i.t
             if self.external(t):
@@ -418,6 +419,11 @@ class Draft:
         self.stack_check()
         addrs = sorted(a for a in self.seen)
         out = ['void abi_%s(void)' % self.name, '{']
+        if addrs and addrs[0] != self.addr:
+            # code below the entry (a branch back into another routine's
+            # middle) comes first in address order: start at the entry
+            out.append('    goto L_%06X;' % self.addr)
+            self.labels.add(self.addr)
         prev_next = None
         for a in addrs:
             i = self.seen[a]
