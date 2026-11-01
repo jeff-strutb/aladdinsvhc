@@ -15,6 +15,7 @@
 #define PAD_HELD 0x000377u            /* held this frame */
 #define PAD_PRESSED 0x00037Bu         /* pressed this frame (held now, not last frame) */
 
+#define FRAME_COUNT 0x00032Eu         /* counts NMIs (8-bit) */
 #define CONTINUES 0x00035Bu           /* continues left (3 at the start of a game) */
 
 #endif

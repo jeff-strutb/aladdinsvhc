@@ -13,4 +13,5 @@ includeonce
 !pad_held = $0377               ; held this frame
 !pad_pressed = $037B            ; pressed this frame (held now, not last frame)
 
+!frame_count = $032E            ; counts NMIs (8-bit)
 !continues = $035B              ; continues left (3 at the start of a game)
