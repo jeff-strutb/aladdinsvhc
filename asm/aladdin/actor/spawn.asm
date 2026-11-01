@@ -3,7 +3,7 @@
 ; The spawning actor is the record the direct page is; the child's record
 ; comes from the free list (ActorAlloc) and is reached at X. The child
 ; starts new ($0C), placed at the spawner's spawn offset, facing the same
-; way, in the same group.
+; way, sharing its animated-tile slot.
 ; C: src/aladdin/actor/spawn.c.
 
 incsrc "../include/macros.inc"
