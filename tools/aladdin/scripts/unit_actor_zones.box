@@ -24,3 +24,27 @@ call 8382B5 x=1234 y=08DB d=08DB db=80 p=20
 # sequence ends (active byte cleared).
 set 001645 01,00,10,00,00,01,23,EC,00,00,00,00,01,00,00,00
 call 81EC23 d=0000 db=81 p=30
+# A shot of the second pool on an actor, which random play reaches for
+# few of these routines: the pool's first record ($0B5B) as the actor and
+# the second pool's first ($09CB) as the shot, both kind 0, able to be hit
+# ($09 bit 6), at the same place (x and y $0100); the shot's $11 $80 (it
+# does not hit), then 0 (it hits). ActorDownedByShot ($83:80FC),
+# ActorHitByShotCC ($83:8135) and ActorStopsShot ($83:8171) each.
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
+set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,80,00,00,01
+call 8380FC d=0B5B db=80 p=30
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
+set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,80,00,00,01
+call 838135 d=0B5B db=80 p=30
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
+set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,80,00,00,01
+call 838171 d=0B5B db=80 p=30
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
+set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,00,00,00,01
+call 8380FC d=0B5B db=80 p=30
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
+set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,00,00,00,01
+call 838135 d=0B5B db=80 p=30
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
+set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,00,00,00,01
+call 838171 d=0B5B db=80 p=30
