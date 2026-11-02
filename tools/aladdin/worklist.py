@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """worklist.py: routines ready to transcribe next, bottom up.
 
-    worklist.py [--cpu cpu|gsu] [--limit N]
+    worklist.py [--cpu cpu|gsu] [--limit N] [--wave FILE]
+
+--wave FILE: the addresses listed in FILE (being filed elsewhere) count
+as having C, so the routines they unblock can be filed in the same batch.
 
 A routine is ready when every byte from its start to its last executed byte
 was executed by the scripts (no untraced holes, so Gate C can pass) and every
@@ -18,10 +21,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cpu', default=None)
     ap.add_argument('--limit', type=int, default=40)
+    ap.add_argument('--wave', default=None)
     a = ap.parse_args()
     rows = list(csv.DictReader(open(os.path.join(ROOT, 'build', 'aladdin', 'routines.csv'))))
     mp = codemap.merged()
     done = {k for k, v in progress.tagged().items() if v[0]}
+    if a.wave:
+        done |= {int(w.split()[0], 16) for w in open(a.wave) if w.strip()}
     starts = {int(r['offset'], 16): r for r in rows}
     edges = []
     for d in codemap.traces():

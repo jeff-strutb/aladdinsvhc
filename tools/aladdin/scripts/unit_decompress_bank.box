@@ -1,0 +1,15 @@
+# The decompressor's group step ($81:BB49) where its source crosses into
+# the next bank on a literal byte at positions 0, 1, 3 and 5 of a group
+# ($81:BB6E, BB83, BBAD, BBD7): no asset in the table at $80:F039 does
+# (the game's crossings fall on the flag, the repeated byte or positions
+# 2, 4, 6 and 7). One group each from bank $84, whose bytes at $FFF8-$FFFD
+# make the needed positions literal, into $7F:E000. (The machine is put
+# back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+poke $000065 00,00,84
+poke $000069 01,00
+call 81BB49 x=E000 y=FFFD d=0 db=7F p=20
+call 81BB49 x=E000 y=FFFC d=0 db=7F p=20
+call 81BB49 x=E000 y=FFFA d=0 db=7F p=20
+call 81BB49 x=E000 y=FFF8 d=0 db=7F p=20
