@@ -202,3 +202,385 @@ L_8286C5:
     sta8(0x7EF500u);  /* 8286C9 sta */
     goto L_828697;  /* 8286CD bra */
 }
+/* heldc: keep (helper a's coverage batch held for this landing: with it the ending scripts and attract do not finish in lockstep (timeouts, TaskWait), and WindowEffectTask reaches effects with no C through its table) */
+/*
+ * @routine 82:871B HdmaChannelFree
+ * WHAT IT DOES: Finds a free HDMA channel among 4-7, from 7 down: C clear
+ * and X = the channel, or C set when all four are in use.
+ * HOW: The high nibble of HDMAEN's shadow ORed with $03B5; all set: C
+ * set. Else shifted left until a clear bit, X stepping down from 7.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR. Exit: X = the channel (or 3 or 4 when none); A shifted.
+ */
+void abi_HdmaChannelFree(void)
+{
+    ldx8_v(0x07);  /* 82871B ldx */
+    lda8(ea_abs(HDMAEN_SHADOW));  /* 82871D lda */
+    ora8_v(rd8(ea_abs(0x03B5)));  /* 828720 ora */
+    and8_v(0xF0);  /* 828723 and */
+    cmp8_v(0xF0);  /* 828725 cmp */
+    if (IF_Z) goto L_828731;  /* 828727 beq */
+L_828729:
+    ACC8(asl);  /* 828729 asl */
+    if (!IF_C) goto L_828733;  /* 82872A bcc */
+    dex8();  /* 82872C dex */
+    cpx8_v(0x04);  /* 82872D cpx */
+    if (IF_C) goto L_828729;  /* 82872F bcs */
+L_828731:
+    sec();  /* 828731 sec */
+    return;  /* 828732 rts */
+L_828733:
+    clc();  /* 828733 clc */
+    return;  /* 828734 rts */
+}
+/* heldc: keep (helper a's coverage batch held for this landing: with it the ending scripts and attract do not finish in lockstep (timeouts, TaskWait), and WindowEffectTask reaches effects with no C through its table) */
+/*
+ * @routine 82:873B HdmaStart
+ * WHAT IT DOES: Starts HDMA table set X on register set Y in a free
+ * channel, its table built at $7E:F400 plus $0032: C clear, $002C the
+ * channel's HDMAEN bit; C set when no channel is free.
+ * HOW: $0030 cleared; HdmaChannelFree. The channel's bit ($82:BCA1) at
+ * $002C, its register base * 16 at $002D; the table address ($F400 +
+ * $0032) into hdma_table_at for it; DMAP and BBAD from the register set
+ * ($82:BCA9), bank $7E. The set's entries ($82:BCBB: count, then a word)
+ * copied to the table, $0030 added to each word, until a count of 0.
+ * Entry: M 8-bit, X 8-bit; X = the table set; Y = the register set; $0032
+ * = the table's place; DB = $82; called by JSR. Exit: M 8-bit, X 8-bit; C
+ * as above.
+ */
+void abi_HdmaStart(void)
+{
+    stz8(ea_abs(0x0030));  /* 82873B stz */
+    stz8(ea_abs(0x0031));  /* 82873E stz */
+    stx8(ea_abs(0x002E));  /* 828741 stx */
+    call_routine(0x82871Bu, 0);  /* 828744 jsr */
+    if (!IF_C) goto L_82874A;  /* 828747 bcc */
+    return;  /* 828749 rts */
+L_82874A:
+    txa8();  /* 82874A txa */
+    ACC8(asl);  /* 82874B asl */
+    ACC8(asl);  /* 82874C asl */
+    ACC8(asl);  /* 82874D asl */
+    ACC8(asl);  /* 82874E asl */
+    sta8(ea_abs(0x002D));  /* 82874F sta */
+    lda8(ea_absx(0xBCA1));  /* 828752 lda */
+    sta8(ea_abs(0x002C));  /* 828755 sta */
+    txa8();  /* 828758 txa */
+    sec();  /* 828759 sec */
+    sbc8_v(0x04);  /* 82875A sbc */
+    ACC8(asl);  /* 82875C asl */
+    tax8();  /* 82875D tax */
+    clc();  /* 82875E clc */
+    lda8(ea_abs(0x0032));  /* 82875F lda */
+    adc8_v(0x00);  /* 828762 adc */
+    sta8(ea_abs(0x0032));  /* 828764 sta */
+    sta8(ea_absx(HDMA_TABLE_AT));  /* 828767 sta */
+    lda8(ea_abs(0x0033));  /* 82876A lda */
+    adc8_v(0xF4);  /* 82876D adc */
+    sta8(ea_abs(0x0033));  /* 82876F sta */
+    sta8(ea_absx(0x0351));  /* 828772 sta */
+    ldx8(ea_abs(0x002D));  /* 828775 ldx */
+    lda8(ea_absy(0xBCA9));  /* 828778 lda */
+    sta8(ea_absx(DMAP0));  /* 82877B sta */
+    lda8(ea_absy(0xBCAA));  /* 82877E lda */
+    sta8(ea_absx(BBAD0));  /* 828781 sta */
+    lda8_v(0x7E);  /* 828784 lda */
+    sta8(ea_absx(A1B0));  /* 828786 sta */
+    sta8(ea_absx(DASB0));  /* 828789 sta */
+    ldx8(ea_abs(0x002E));  /* 82878C ldx */
+    op_rep(0x10);  /* 82878F rep */
+    ldy16(ea_absx(0xBCBB));  /* 828791 ldy */
+    ldx16(ea_abs(0x0032));  /* 828794 ldx */
+L_828797:
+    lda8(ea_absy(0xBCBB));  /* 828797 lda */
+    sta8(ea_longx(0x7E0000u));  /* 82879A sta */
+    if (IF_Z) goto L_8287BD;  /* 82879E beq */
+    clc();  /* 8287A0 clc */
+    lda8(ea_absy(0xBCBC));  /* 8287A1 lda */
+    adc8_v(rd8(ea_abs(0x0030)));  /* 8287A4 adc */
+    sta8(ea_longx(0x7E0001u));  /* 8287A7 sta */
+    lda8(ea_absy(0xBCBD));  /* 8287AB lda */
+    adc8_v(rd8(ea_abs(0x0031)));  /* 8287AE adc */
+    sta8(ea_longx(0x7E0002u));  /* 8287B1 sta */
+    inx16();  /* 8287B5 inx */
+    inx16();  /* 8287B6 inx */
+    inx16();  /* 8287B7 inx */
+    iny16();  /* 8287B8 iny */
+    iny16();  /* 8287B9 iny */
+    iny16();  /* 8287BA iny */
+    goto L_828797;  /* 8287BB bra */
+L_8287BD:
+    op_sep(0x10);  /* 8287BD sep */
+    clc();  /* 8287BF clc */
+    return;  /* 8287C0 rts */
+}
+/* heldc: keep (helper a's coverage batch held for this landing: with it the ending scripts and attract do not finish in lockstep (timeouts, TaskWait), and WindowEffectTask reaches effects with no C through its table) */
+/*
+ * @routine 82:8000 WindowEffectTask
+ * WHAT IT DOES: Runs window effect $06 of its slot (its parameter) from
+ * the table at $82:8017, retrying each frame while the effect cannot
+ * start.
+ * HOW: D = the slot's page ($6F + Y); JSR through the table by the
+ * parameter; when it returns (no HDMA channel was free), TaskWait 1 and
+ * again.
+ * Entry: M 8-bit, X 8-bit; Y = the task's slot; a task's entry. Exit:
+ * never returns (the effects end the task).
+ */
+void abi_WindowEffectTask(void)
+{
+    op_rep(0x20);  /* 828000 rep */
+    clc();  /* 828002 clc */
+    tya16();  /* 828003 tya */
+    adc16_v(0x006F);  /* 828004 adc */
+    tcd();  /* 828007 tcd */
+    op_sep(0x20);  /* 828008 sep */
+L_82800A:
+    ldx8(ea_dp(0x06));  /* 82800A ldx */
+    call_routine(0x820000u | rd16(0x820000u | (uint16_t)(0x8017 + cpu.x)), 0);  /* 82800C jsr */
+    lda8_v(0x01);  /* 82800F lda */
+    jsl_frame(0x828011u); abi_TaskWait();  /* 828011 jsl */
+    goto L_82800A;  /* 828015 bra */
+}
+/* heldc: keep (helper a's coverage batch held for this landing: with it the ending scripts and attract do not finish in lockstep (timeouts, TaskWait), and WindowEffectTask reaches effects with no C through its table) */
+/*
+ * @routine 82:82DB HdmaEffect4
+ * WHAT IT DOES: Window effect 4: HDMA table set 6 on register set 8 with
+ * its table $20 into the area, the value at $7E:F480 7, and the task left
+ * waiting for good.
+ * HOW: $0032 = $20; HdmaStart; no channel: back. $7E:F480 = 7, $7E:F481 =
+ * 0; the channel on; TaskWait 2 forever.
+ * Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+ * Exit: no channel: C set; else never returns.
+ */
+void abi_HdmaEffect4(void)
+{
+    lda8_v(0x20);  /* 8282DB lda */
+    sta8(ea_abs(0x0032));  /* 8282DD sta */
+    stz8(ea_abs(0x0033));  /* 8282E0 stz */
+    ldx8_v(0x06);  /* 8282E3 ldx */
+    ldy8_v(0x08);  /* 8282E5 ldy */
+    call_routine(0x82873Bu, 0);  /* 8282E7 jsr */
+    if (!IF_C) goto L_8282ED;  /* 8282EA bcc */
+    return;  /* 8282EC rts */
+L_8282ED:
+    lda8_v(0x07);  /* 8282ED lda */
+    sta8(0x7EF480u);  /* 8282EF sta */
+    lda8_v(0x00);  /* 8282F3 lda */
+    sta8(0x7EF481u);  /* 8282F5 sta */
+    lda8(ea_abs(0x002C));  /* 8282F9 lda */
+    tsb8(ea_abs(HDMAEN_SHADOW));  /* 8282FC tsb */
+L_8282FF:
+    lda8_v(0x02);  /* 8282FF lda */
+    jsl_frame(0x828301u); abi_TaskWait();  /* 828301 jsl */
+    goto L_8282FF;  /* 828305 bra */
+}
+/* heldc: keep (helper a's coverage batch held for this landing: with it the ending scripts and attract do not finish in lockstep (timeouts, TaskWait), and WindowEffectTask reaches effects with no C through its table) */
+/*
+ * @routine 82:84CB HdmaEffect10
+ * WHAT IT DOES: Window effect 10: a window and colour math round the
+ * place $0E78, $0144 in the level while it is on the screen; when $00C1
+ * is set, the window closes in from both sides and the task ends.
+ * HOW: HdmaStart with set $10 on register set $0C at place $100; the
+ * channel on (its bit kept at $06); the masks cleared, WOBJSEL $C0; the
+ * table's 32 bytes at $7E:F500 kept at $F520. Each frame: the place less
+ * the scroll and the layer's shift: on the screen, the window's left and
+ * right (right clamped to 255) and its first line into the table and
+ * WH0/WH1's shadows, the fixed colour (8, 8, 16) added (CGADSUB $33), a
+ * WRAM move queued to restore the table; off, the colour math off. With
+ * $00C1 set, WH0 up and WH1 down a step a frame until they cross, then
+ * the colour math off, the channel off and TaskExit.
+ * Entry: M 8-bit, X 8-bit; D the task's page; DB = $82; called by JSR
+ * from WindowEffectTask. Exit: no channel: C set; else never returns.
+ */
+void abi_HdmaEffect10(void)
+{
+    lda8_v(0x01);  /* 8284CB lda */
+    sta8(ea_abs(0x0033));  /* 8284CD sta */
+    stz8(ea_abs(0x0032));  /* 8284D0 stz */
+    ldx8_v(0x10);  /* 8284D3 ldx */
+    ldy8_v(0x0C);  /* 8284D5 ldy */
+    call_routine(0x82873Bu, 0);  /* 8284D7 jsr */
+    if (!IF_C) goto L_8284DD;  /* 8284DA bcc */
+    return;  /* 8284DC rts */
+L_8284DD:
+    lda8(ea_abs(0x002C));  /* 8284DD lda */
+    tsb8(ea_abs(HDMAEN_SHADOW));  /* 8284E0 tsb */
+    sta8(ea_dp(0x06));  /* 8284E3 sta */
+    lda8_v(0xFF);  /* 8284E5 lda */
+    sta8(0x7EF510u);  /* 8284E7 sta */
+    ACC8(inc);  /* 8284EB inc */
+    sta8(0x7EF511u);  /* 8284EC sta */
+    stz8(ea_abs(TMW_SHADOW));  /* 8284F0 stz */
+    stz8(ea_abs(TSW_SHADOW));  /* 8284F3 stz */
+    stz8(ea_abs(0x03AA));  /* 8284F6 stz */
+    stz8(ea_abs(0x03AB));  /* 8284F9 stz */
+    lda8_v(0xC0);  /* 8284FC lda */
+    sta8(ea_abs(WOBJSEL_SHADOW));  /* 8284FE sta */
+    phb();  /* 828501 phb */
+    op_rep(0x10);  /* 828502 rep */
+    ldx16_v(0x001F);  /* 828504 ldx */
+    txa8();  /* 828507 txa */
+    ldx16_v(0xF500);  /* 828508 ldx */
+    ldy16_v(0xF520);  /* 82850B ldy */
+    mvn(0x7E, 0x7E);  /* 82850E mvn */
+    op_sep(0x10);  /* 828511 sep */
+    plb();  /* 828513 plb */
+L_828514:
+    op_rep(0x20);  /* 828514 rep */
+    sec();  /* 828516 sec */
+    lda16_v(0x0144);  /* 828517 lda */
+    sbc16_v(rd16(ea_abs(0x1777)));  /* 82851A sbc */
+    sec();  /* 82851D sec */
+    sbc16_v(rd16(ea_abs(LAYER_OFFSET_Y)));  /* 82851E sbc */
+    cmp16_v(0x00E0);  /* 828521 cmp */
+    if (IF_C) goto L_8285A1;  /* 828524 bcs */
+    sta16(ea_abs(0x002E));  /* 828526 sta */
+    sec();  /* 828529 sec */
+    lda16_v(0x0E78);  /* 82852A lda */
+    sbc16_v(rd16(ea_abs(0x1773)));  /* 82852D sbc */
+    sec();  /* 828530 sec */
+    sbc16_v(rd16(ea_abs(BG1_X_SHIFT)));  /* 828531 sbc */
+    cmp16_v(0x0100);  /* 828534 cmp */
+    if (IF_C) goto L_8285A1;  /* 828537 bcs */
+    sta16(ea_abs(0x002C));  /* 828539 sta */
+    op_sep(0x20);  /* 82853C sep */
+    clc();  /* 82853E clc */
+    adc8_v(0x10);  /* 82853F adc */
+    if (!IF_C) goto L_828545;  /* 828541 bcc */
+    lda8_v(0xFF);  /* 828543 lda */
+L_828545:
+    sta8(0x7EF533u);  /* 828545 sta */
+    sta8(ea_abs(0x03A9));  /* 828549 sta */
+    lda8(ea_abs(0x002C));  /* 82854C lda */
+    sta8(0x7EF532u);  /* 82854F sta */
+    sta8(ea_abs(0x03A8));  /* 828553 sta */
+    lda8(ea_abs(0x002E));  /* 828556 lda */
+    ACC8(lsr);  /* 828559 lsr */
+    adc8_v(0x00);  /* 82855A adc */
+    sta8(0x7EF520u);  /* 82855C sta */
+    sta8(0x7EF523u);  /* 828560 sta */
+    lda8_v(0x08);  /* 828564 lda */
+    sta8(ea_abs(COLDATA_RED));  /* 828566 sta */
+    sta8(ea_abs(COLDATA_GREEN));  /* 828569 sta */
+    ACC8(asl);  /* 82856C asl */
+    sta8(ea_abs(COLDATA_BLUE));  /* 82856D sta */
+    lda8_v(0x20);  /* 828570 lda */
+    sta8(ea_abs(CGWSEL_SHADOW));  /* 828572 sta */
+    lda8_v(0x33);  /* 828575 lda */
+    sta8(ea_abs(CGADSUB_SHADOW));  /* 828577 sta */
+    op_rep(0x20);  /* 82857A rep */
+    ldy8(ea_abs(0x1705));  /* 82857C ldy */
+    lda16_v(0xF520);  /* 82857F lda */
+    sta16(ea_absy(0x1707));  /* 828582 sta */
+    lda16_v(0xF500);  /* 828585 lda */
+    sta16(ea_absy(0x1709));  /* 828588 sta */
+    lda16_v(0x001F);  /* 82858B lda */
+    sta16(ea_absy(0x170B));  /* 82858E sta */
+    op_sep(0x20);  /* 828591 sep */
+    clc();  /* 828593 clc */
+    tya8();  /* 828594 tya */
+    adc8_v(0x06);  /* 828595 adc */
+    sta8(ea_abs(0x1705));  /* 828597 sta */
+    lda8(ea_abs(0x00C1));  /* 82859A lda */
+    if (!IF_Z) goto L_8285CE;  /* 82859D bne */
+    goto L_8285C5;  /* 82859F bra */
+L_8285A1:
+    op_sep(0x20);  /* 8285A1 sep */
+    lda8_v(0x00);  /* 8285A3 lda */
+    sta8(0x7EF500u);  /* 8285A5 sta */
+    stz8(ea_abs(COLDATA_RED));  /* 8285A9 stz */
+    stz8(ea_abs(COLDATA_GREEN));  /* 8285AC stz */
+    stz8(ea_abs(COLDATA_BLUE));  /* 8285AF stz */
+    lda8_v(0xFF);  /* 8285B2 lda */
+    sta8(ea_abs(0x03A8));  /* 8285B4 sta */
+    ACC8(inc);  /* 8285B7 inc */
+    sta8(ea_abs(0x03A8));  /* 8285B8 sta */
+    lda8_v(0x02);  /* 8285BB lda */
+    sta8(ea_abs(CGWSEL_SHADOW));  /* 8285BD sta */
+    lda8_v(0x53);  /* 8285C0 lda */
+    sta8(ea_abs(CGADSUB_SHADOW));  /* 8285C2 sta */
+L_8285C5:
+    lda8_v(0x01);  /* 8285C5 lda */
+    jsl_frame(0x8285C7u); abi_TaskWait();  /* 8285C7 jsl */
+    goto L_828514;  /* 8285CB jmp */
+L_8285CE:
+    lda8_v(0x01);  /* 8285CE lda */
+    jsl_frame(0x8285D0u); abi_TaskWait();  /* 8285D0 jsl */
+    lda8(ea_abs(0x03A8));  /* 8285D4 lda */
+    ACC8(inc);  /* 8285D7 inc */
+    sta8(ea_abs(0x03A8));  /* 8285D8 sta */
+    sta8(0x7EF512u);  /* 8285DB sta */
+    lda8(ea_abs(0x03A9));  /* 8285DF lda */
+    ACC8(dec);  /* 8285E2 dec */
+    sta8(ea_abs(0x03A9));  /* 8285E3 sta */
+    sta8(0x7EF513u);  /* 8285E6 sta */
+    cmp8_v(rd8(ea_abs(0x03A8)));  /* 8285EA cmp */
+    if (IF_C) goto L_8285CE;  /* 8285ED bcs */
+    stz8(ea_abs(COLDATA_RED));  /* 8285EF stz */
+    stz8(ea_abs(COLDATA_GREEN));  /* 8285F2 stz */
+    stz8(ea_abs(COLDATA_BLUE));  /* 8285F5 stz */
+    lda8_v(0x02);  /* 8285F8 lda */
+    sta8(ea_abs(CGWSEL_SHADOW));  /* 8285FA sta */
+    lda8_v(0x53);  /* 8285FD lda */
+    sta8(ea_abs(CGADSUB_SHADOW));  /* 8285FF sta */
+    lda8(ea_dp(0x06));  /* 828602 lda */
+    trb8(ea_abs(HDMAEN_SHADOW));  /* 828604 trb */
+    abi_TaskExit(); return;  /* 828607 jml */
+}
+/* heldc: keep (helper a's coverage batch held for this landing: with it the ending scripts and attract do not finish in lockstep (timeouts, TaskWait), and WindowEffectTask reaches effects with no C through its table) */
+/*
+ * @routine 82:860B HdmaEffect11
+ * WHAT IT DOES: Window effect 11: a window that narrows over the lines
+ * above $00F8 in the level, a step a frame, then the task ends.
+ * HOW: HdmaStart with set $12 on register set $0C at place $80; the
+ * channel on; WH2 and the table's window $00FF/$FF00; the line count
+ * ($00F8 less the scroll y, + $30). Each frame: TaskWait 1, the left edge
+ * up, the right edge down, the count down; at 0 TaskExit.
+ * Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+ * Exit: no channel: C set; else never returns.
+ */
+void abi_HdmaEffect11(void)
+{
+    lda8_v(0x80);  /* 82860B lda */
+    sta8(ea_abs(0x0032));  /* 82860D sta */
+    stz8(ea_abs(0x0033));  /* 828610 stz */
+    ldx8_v(0x12);  /* 828613 ldx */
+    ldy8_v(0x0C);  /* 828615 ldy */
+    call_routine(0x82873Bu, 0);  /* 828617 jsr */
+    if (!IF_C) goto L_82861D;  /* 82861A bcc */
+    return;  /* 82861C rts */
+L_82861D:
+    lda8(ea_abs(0x002C));  /* 82861D lda */
+    tsb8(ea_abs(HDMAEN_SHADOW));  /* 828620 tsb */
+    op_rep(0x20);  /* 828623 rep */
+    lda16_v(0x00FF);  /* 828625 lda */
+    sta16(0x7EF490u);  /* 828628 sta */
+    sta16(ea_abs(0x03A8));  /* 82862C sta */
+    lda16_v(0xFF00);  /* 82862F lda */
+    sta16(0x7EF492u);  /* 828632 sta */
+    sec();  /* 828636 sec */
+    lda16_v(0x00F8);  /* 828637 lda */
+    sbc16_v(rd16(ea_abs(0x1777)));  /* 82863A sbc */
+    op_sep(0x20);  /* 82863D sep */
+    clc();  /* 82863F clc */
+    adc8_v(0x30);  /* 828640 adc */
+    sta8(0x7EF483u);  /* 828642 sta */
+    sta8(0x7EF486u);  /* 828646 sta */
+L_82864A:
+    lda8_v(0x01);  /* 82864A lda */
+    jsl_frame(0x82864Cu); abi_TaskWait();  /* 82864C jsl */
+    lda8(0x7EF480u);  /* 828650 lda */
+    ACC8(inc);  /* 828654 inc */
+    sta8(0x7EF480u);  /* 828655 sta */
+    lda8(0x7EF492u);  /* 828659 lda */
+    ACC8(inc);  /* 82865D inc */
+    sta8(0x7EF492u);  /* 82865E sta */
+    eor8_v(0xFF);  /* 828662 eor */
+    sta8(0x7EF493u);  /* 828664 sta */
+    lda8(0x7EF483u);  /* 828668 lda */
+    ACC8(dec);  /* 82866C dec */
+    sta8(0x7EF483u);  /* 82866D sta */
+    sta8(0x7EF486u);  /* 828671 sta */
+    if (!IF_Z) goto L_82864A;  /* 828675 bne */
+    abi_TaskExit(); return;  /* 828677 jml */
+}
