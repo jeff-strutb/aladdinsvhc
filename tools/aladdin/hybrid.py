@@ -76,6 +76,15 @@ def main(src=None, lib=None):
                 rows.append((int(al.group(1), 16) << 16 | int(al.group(2), 16), name))
     if bad:
         print('\n'.join(bad)); return 1
+    # The catalog's actor entries (entered by a jump, yielding by BRK) that
+    # have C are actors' code without the tag too.
+    cat = os.path.join(ROOT, 'build', 'aladdin', 'routines.csv')
+    if os.path.exists(cat):
+        with_c = {a for a, _ in rows}
+        for r in csv.DictReader(open(cat)):
+            a = int(r['addr'], 16)
+            if r['entry'] == 'actor' and a in with_c and a not in actors:
+                actors.append(a)
     seen = {}
     for a, n in rows:
         if a in seen and seen[a] != n:
@@ -177,6 +186,29 @@ def main(src=None, lib=None):
         jumps = sorted({int(m, 16) for f in files for m in re.findall(r'(?:(?:call_routine|jump_routine|jump_routine_pushed|cpu_loop_forever|cpu_restart)\(|carried_(?:call|jump|jump_pushed|loop_forever|restart)\(\w+,\s*)0x([0-9A-Fa-f]{6})', open(f).read())} - known)
         t.write('const uint32_t game_jump_entries[] = {%s0};\nconst int game_jump_entry_count = %d;\n'
                 % (''.join('0x%06X, ' % a for a in jumps), len(jumps)))
+        # Routines that return by RTL (an executed RTL opcode in their
+        # traced code, no RTS): entered by a jump, their return address on
+        # the stack is then long.
+        sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
+        import codemap
+        mp = codemap.merged()
+        rom = open(os.path.join(ROOT, 'build', 'aladdin', 'baserom.sfc'), 'rb').read()
+        longret = []
+        for r in catalog:
+            if r['cpu'] != 'cpu':
+                continue
+            ops = {rom[o] for o in range(int(r['offset'], 16), int(r['end'], 16)) if mp[o] & 1}
+            if 0x6B in ops and 0x60 not in ops:
+                longret.append(int(r['addr'], 16))
+        t.write('const uint32_t game_long_returns[] = {%s0};\nconst int game_long_return_count = %d;\n'
+                % (''.join('0x%06X, ' % a for a in longret), len(longret)))
+        # Routines the catalog knows only as entered by a jump (no call
+        # enters them): the checks open a call at that jump. Routines also
+        # called are judged at their calls; a jump into them may come with
+        # values the jumper pushed on the stack.
+        jr = [int(r['addr'], 16) for r in catalog if r['cpu'] == 'cpu' and r['entry'] == 'jump']
+        t.write('const uint32_t game_jump_routines[] = {%s0};\nconst int game_jump_routine_count = %d;\n'
+                % (''.join('0x%06X, ' % a for a in jr), len(jr)))
         # Actors' code, entered by a jump from the actor loop (@actor).
         t.write('const uint32_t game_actor_entries[] = {%s0};\nconst int game_actor_entry_count = %d;\n'
                 % (''.join('0x%06X, ' % a for a in sorted(actors)), len(actors)))

@@ -70,6 +70,36 @@ def build():
                     resumes[dst] = cpu_addr(w)
                 else:
                     starts.setdefault(o, ('cpu', 'task'))
+    # Jumps into another routine's code: a JMP or JML whose target lies
+    # inside a different routine (the actor loop's stubs jump into each
+    # kind's code; a routine that pulls its own return address jumps into
+    # its actor's code) starts a routine there. Repeated until no jump
+    # crosses into the middle of another routine. Branches are left out:
+    # a shared exit tail reached by a branch stays its routine's.
+    jumps = [(rom_offset(int(r['from'], 16)), rom_offset(int(r['to'], 16))) for r in edges
+             if r['cpu'] == 'cpu' and int(r['kind'], 16) in (0x4C, 0x5C, 0x6C, 0x7C, 0xDC)]
+    jumps = [(s, d) for s, d in jumps if s is not None and d is not None and d < len(rom) and mp[d] & CPU_CODE]
+    while True:
+        order0 = sorted(starts)
+        def row_of(o):
+            import bisect
+            i = bisect.bisect_right(order0, o) - 1
+            return order0[i] if i >= 0 and o // 0x8000 == order0[i] // 0x8000 else None
+        new = {d for s, d in jumps if d not in starts and row_of(s) != row_of(d)}
+        if not new:
+            break
+        for d in new:
+            starts[d] = ('cpu', 'jump')
+    # A routine entered by a jump whose code yields by BRK is an actor's
+    # code (docs/aladdin/ACTORS.md).
+    brks = {rom_offset(int(r['from'], 16)) for r in edges
+            if r['cpu'] == 'cpu' and int(r['kind'], 16) == 0x000 and r['to'].lower() == '00ffac'}
+    order0 = sorted(starts)
+    for i, o in enumerate(order0):
+        if starts[o][1] == 'jump':
+            end = order0[i + 1] if i + 1 < len(order0) else len(rom)
+            if any(o <= b < end for b in brks if b is not None):
+                starts[o] = ('cpu', 'actor')
     # Code reached only by jumps (for example the interrupt handlers the RAM
     # vectors jump to) and found before any known entry in its bank.
     for bank in range(len(rom) // 0x8000):

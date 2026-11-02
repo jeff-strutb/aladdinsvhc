@@ -219,26 +219,6 @@ L_818663:
     return;  /* 818663 rts */
 }
 
-/*
- * @routine 81:86DE LevelSongPlay
- * WHAT IT DOES: Plays the level's song, or sends its sound command when
- * the level's entry is one.
- * HOW: The level's byte in the table at $80:B8EF: below $80, SongPlay;
- * else $81:F9F0 (command $F0).
- * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: as SongPlay
- * or $81:F9F0.
- */
-void abi_LevelSongPlay(void)
-{
-    ldx8(ea_abs(LEVEL));  /* 8186DE ldx */
-    lda8(ea_absx(0xB8EF));  /* 8186E1 lda */
-    if (IF_N) goto L_8186EB;  /* 8186E4 bmi */
-    abi_SongPlay();  /* 8186E6 jsl */
-    return;  /* 8186EA rts */
-L_8186EB:
-    call_routine(0x81F9F0u, 1);  /* 8186EB jsl */
-    return;  /* 8186EF rts */
-}
 
 /*
  * @routine 81:86F0 RestartPointCheck

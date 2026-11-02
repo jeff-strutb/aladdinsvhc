@@ -100,6 +100,9 @@ class Known:
             for r in csv.DictReader(open(cat)):
                 if r['cpu'] == 'cpu':
                     self.starts.add(int(r['addr'], 16))
+                    # entered by a jump, yielding by BRK: an actor's code
+                    if r['entry'] == 'actor':
+                        self.actor.add(int(r['addr'], 16))
 
 
 def header_names():
@@ -267,6 +270,10 @@ class Draft:
         """Leave for t: a tail call to its C, or the actor loop."""
         if t in ACTOR_LOOP:
             return 'actor_leave(0x%06Xu); return;' % t
+        # A routine the actor's code called hands the actor on to more of
+        # its code (it pulled its own return address): the call ends there.
+        if t in self.k.actor and not self.actor:
+            return 'actor_leave(0x%06Xu); return;' % t
         n = self.callee(t)
         if n:
             self.calls.add(n)
@@ -349,7 +356,7 @@ class Draft:
                     continue
             # Its caller's return address pulled (d < 0): only on the way
             # into the actor loop (actor_leave), the actor's code ended.
-            if d < 0 and i.mn in ('jmp', 'jml') and i.t in ACTOR_LOOP:
+            if d < 0 and i.mn in ('jmp', 'jml') and (i.t in ACTOR_LOOP or i.t in self.k.actor):
                 continue
             if d < 0 and i.mn in ('rts', 'rtl', 'bra', 'brl', 'jmp', 'jml', 'rti'):
                 self.flag(i, "leaves through its caller's frame other than into the actor loop")

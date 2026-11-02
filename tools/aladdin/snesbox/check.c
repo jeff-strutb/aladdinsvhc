@@ -55,6 +55,25 @@ static uint8_t jump_bits[1 << 21];      /* code C calls that the original jumps 
 static int is_jump_entry(uint32_t pc) { return jump_bits[pc >> 3] >> (pc & 7) & 1; }
 static uint8_t actor_bits[1 << 21];     /* actors' code (@actor), entered by the actor loop's jump */
 static int is_actor_entry(uint32_t pc) { return actor_bits[pc >> 3] >> (pc & 7) & 1; }
+static int is_jump_op(uint8_t op);
+static uint8_t longret_bits[1 << 21];   /* routines that return by RTL */
+static uint8_t jumprt_bits[1 << 21];    /* routines entered only by jumps */
+static int jump_entered(uint32_t pc, uint8_t via) { return is_jump_op(via) && (jumprt_bits[pc >> 3] >> (pc & 7) & 1); }
+/* A routine entered by a jump (a tail jump, or code reached only by
+   jumps): its caller's return address is on the stack already, long when
+   the routine returns by RTL. */
+static int jump_return(uint32_t pc, uint16_t sp, const uint8_t *w, uint32_t *ret, uint16_t *exit_s)
+{
+    uint16_t word = (uint16_t)(w[(uint16_t)(sp + 1)] | w[(uint16_t)(sp + 2)] << 8);
+    if (longret_bits[pc >> 3] >> (pc & 7) & 1) {
+        *ret = (uint32_t)w[(uint16_t)(sp + 3)] << 16 | (uint16_t)(word + 1);
+        *exit_s = (uint16_t)(sp + 3);
+    } else {
+        *ret = (pc & 0xFF0000) | (uint16_t)(word + 1);
+        *exit_s = (uint16_t)(sp + 2);
+    }
+    return 1;
+}
 
 /* Actors (docs/aladdin/ACTORS.md): their code yields by BRK, whose vector
    ($00:FFE6) leads to the code at $00:FFAC, and the actor loop resumes it
@@ -589,7 +608,7 @@ static void on_insn(uint32_t pc)
     /* A routine the actor's code called ends the actor: it pulled its own
        return address and jumps into the actor loop at its exit level (the
        actor's). Judged up to here, as a C that left there (actor_leave). */
-    if (depth && (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER)) {
+    if (depth && (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op(prev_op)))) {
         if (!have) { core_regs(&r); have = 1; }
         while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq && r.s == ws[depth - 1]->exit_s) {
             finish_piece(ws[depth - 1], 2);
@@ -759,6 +778,8 @@ static void on_insn(uint32_t pc)
     } else if (task_entry_at(via, (uint16_t)sp)) {
         w->ret_pc = 0xFFFFFFFFu;
         w->exit_s = (uint16_t)sp;
+    } else if (jump_entered(pc, via)) {
+        jump_return(pc, (uint16_t)sp, wram, &w->ret_pc, &w->exit_s);
     } else if (via == 0x20 || via == 0xFC) {
         w->ret_pc = (pc & 0xFF0000) | (uint16_t)(word + 1);
         w->exit_s = (uint16_t)(sp + 2);
@@ -856,6 +877,14 @@ static int load_routines(void *core, const char *lib, const char *only)
     const int *jmpn = dlsym(h, "game_jump_entry_count");
     if (jmp && jmpn)
         for (int i = 0; i < *jmpn; i++) jump_bits[jmp[i] >> 3] |= (uint8_t)(1 << (jmp[i] & 7));
+    const uint32_t *lr = dlsym(h, "game_long_returns");
+    const int *lrn = dlsym(h, "game_long_return_count");
+    if (lr && lrn)
+        for (int i = 0; i < *lrn; i++) longret_bits[lr[i] >> 3] |= (uint8_t)(1 << (lr[i] & 7));
+    const uint32_t *jrt = dlsym(h, "game_jump_routines");
+    const int *jrn = dlsym(h, "game_jump_routine_count");
+    if (jrt && jrn)
+        for (int i = 0; i < *jrn; i++) jumprt_bits[jrt[i] >> 3] |= (uint8_t)(1 << (jrt[i] & 7));
     const uint32_t *act = dlsym(h, "game_actor_entries");
     const int *actn = dlsym(h, "game_actor_entry_count");
     if (act && actn)
@@ -1209,7 +1238,8 @@ static void ls_insn(uint32_t pc)
                 m.irq_resumed = 0;
                 return;
             }
-        } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && r.s == m.exit_s) {
+        } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op(*core_opcode)))
+                   && r.s == m.exit_s) {
             /* A routine the actor's code called that ends the actor: it
                pulled its own return address (S back at the actor's level,
                its exit level) and jumps into the actor loop. */
@@ -1404,6 +1434,12 @@ static void ls_insn(uint32_t pc)
     if (task_entry_at(*core_opcode, r.s)) {
         o_open(pc, &r);
         m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s;
+        return;
+    }
+    /* A jump into a routine: its caller's return address is on the stack. */
+    if (jump_entered(pc, *core_opcode)) {
+        o_open(pc, &r);
+        jump_return(pc, r.s, wram, &m.ret_pc, &m.exit_s);
         return;
     }
     if (!entry(pc, &r, &m.ret_pc, &m.exit_s)) return;
@@ -2546,6 +2582,7 @@ static int ls_exec(uint32_t pc)
     uint32_t ret; uint16_t exit_s;
     int actor = is_actor_entry(pc) && is_jump_op(*core_opcode);
     if (actor || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
+    else if (jump_entered(pc, *core_opcode)) jump_return(pc, r.s, wram, &ret, &exit_s);
     else if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
     ls_cur_name = routines[idx].name;
     ls_entry_pc = pc;
@@ -2624,10 +2661,12 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
             c->resume_s = rs;
             aparked[k] = c;
         } else ctx_abandon(c);
-    } else if (c->status == 3 && (out.pc == ACTOR_LOOP_NEXT || out.pc == ACTOR_LOOP_PLAYER)) {
-        /* a routine that ended its actor (actor_leave): nothing resumes it */
+    } else if (c->status == 3 && (out.pc == ACTOR_LOOP_NEXT || out.pc == ACTOR_LOOP_PLAYER || is_actor_entry(out.pc))) {
+        /* a routine that ended its actor (actor_leave), or handed it on to
+           more of its code (a jump to an actor entry): nothing resumes it */
         yields++;
         ctx_abandon(c);
+        if (is_actor_entry(out.pc)) *core_opcode = 0x4C;   /* entered by its jump */
     } else if (c->status == 3) {
         uint8_t slot = wram[TASK_CURRENT];
         uint16_t rs = 0;
