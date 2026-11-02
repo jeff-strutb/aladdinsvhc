@@ -75,6 +75,8 @@ void abi_TaskExit(void)
     slot = rd8(TASK_CURRENT);
     cpu.y = slot;
     cpu.p = nz8(cpu.p, slot);
+    /* the JSR's return address, left on the task's stack */
+    wr8(cpu.s, 0xBD); wr8((uint16_t)(cpu.s - 1), 0x27);
     TaskSlotFree(slot);
     task_to_scheduler();
     task_yield();
