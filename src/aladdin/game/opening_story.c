@@ -87,30 +87,8 @@ static void jsr_waits(uint16_t ret, void (*f)(void))
     cpu.s = (uint16_t)(cpu.s + 2);
 }
 
-/*
- * @routine 80:9C79 TitleAfterFadeOut
- * WHAT IT DOES: A task's entry: ends the other tasks, fades the screen
- * out and waits for the fade to end, then goes on as the title screen's
- * task.
- * HOW: TaskSlotsFree1To6; the fade-out task created in slot 1; a frame's
- * wait at a time until slot 1 is free; then on into $80:9C91.
- * Entry: started by the scheduler: M 8-bit, X 8-bit, D = 0; DB a bank
- * whose $0000-$1FFF is work RAM. Exit: never returns; on into $80:9C91
- * with A low = 0 (slot 1's state), Z set, the other registers as the last
- * wait restores them.
- */
-void abi_TitleAfterFadeOut(void)
-{
-    abi_TaskSlotsFree1To6();
-    task_create(0x809C7Du);
-    do {
-        lda8_v(0x01);
-        jsl_frame(0x809C88u);
-        abi_TaskWait();
-        lda8(ea_abs(SLOT1_STATE));
-    } while (!IF_Z);
-    jump_routine(0x809C91u);
-}
+/* $80:9C79 TitleAfterFadeOut has only its assembly for now: no script runs
+   it, so its C cannot be judged (asm/aladdin/game/opening_story.asm). */
 
 /*
  * @routine 80:AC87 OpeningStory
