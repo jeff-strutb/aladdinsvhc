@@ -287,3 +287,615 @@ WindowBoxAt:
     inx
     clc
     rts
+
+
+; More places not yet named.
+!dp_06 = $06  ; direct page
+!dp_07 = $07  ; direct page
+!routine_828017 = $828017  ; not yet filed
+!t_bca1 = $BCA1  ; data bank
+!t_bca9 = $BCA9  ; data bank
+!t_bcaa = $BCAA  ; data bank
+!t_bcbb = $BCBB  ; data bank
+!t_bcbc = $BCBC  ; data bank
+!t_bcbd = $BCBD  ; data bank
+!v_002c = $002C
+!v_002d = $002D
+!v_002e = $002E
+!v_0030 = $0030
+!v_0031 = $0031
+!v_0032 = $0032
+!v_0033 = $0033
+!v_00bd = $00BD
+!v_00c1 = $00C1
+!v_0351 = $0351
+!v_0399 = $0399
+!v_03a6 = $03A6
+!v_03a7 = $03A7
+!v_03a8 = $03A8
+!v_03a9 = $03A9
+!v_03aa = $03AA
+!v_03ab = $03AB
+!v_03b5 = $03B5
+!v_1705 = $1705
+!v_1707 = $1707
+!v_1709 = $1709
+!v_170b = $170B
+!v_1773 = $1773
+!v_1777 = $1777
+!v_7e0000 = $7E0000
+!v_7e0001 = $7E0001
+!v_7e0002 = $7E0002
+!v_7ef403 = $7EF403
+!v_7ef480 = $7EF480
+!v_7ef481 = $7EF481
+!v_7ef483 = $7EF483
+!v_7ef486 = $7EF486
+!v_7ef490 = $7EF490
+!v_7ef492 = $7EF492
+!v_7ef493 = $7EF493
+!v_7ef500 = $7EF500
+!v_7ef501 = $7EF501
+!v_7ef510 = $7EF510
+!v_7ef511 = $7EF511
+!v_7ef512 = $7EF512
+!v_7ef513 = $7EF513
+!v_7ef520 = $7EF520
+!v_7ef523 = $7EF523
+!v_7ef532 = $7EF532
+!v_7ef533 = $7EF533
+!v_7f5600 = $7F5600
+!v_7f5601 = $7F5601
+!v_7f5603 = $7F5603
+
+; @routine 82:871B HdmaChannelFree
+; WHAT IT DOES: Finds a free HDMA channel among 4-7, from 7 down: C clear
+; and X = the channel, or C set when all four are in use.
+; HOW: The high nibble of HDMAEN's shadow ORed with $03B5; all set: C set.
+; Else shifted left until a clear bit, X stepping down from 7.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM; called
+; by JSR. Exit: X = the channel (or 3 or 4 when none); A shifted.
+%at($82871B)
+HdmaChannelFree:
+    ldx.b #$07
+    lda.w !hdmaen_shadow
+    ora.w !v_03b5
+    and.b #$F0
+    cmp.b #$F0
+    beq .l8731
+.l8729:
+    asl a
+    bcc .l8733
+    dex
+    cpx.b #$04
+    bcs .l8729
+.l8731:
+    sec
+    rts
+.l8733:
+    clc
+    rts
+
+
+; @routine 82:873B HdmaStart
+; WHAT IT DOES: Starts HDMA table set X on register set Y in a free
+; channel, its table built at $7E:F400 plus $0032: C clear, $002C the
+; channel's HDMAEN bit; C set when no channel is free.
+; HOW: $0030 cleared; HdmaChannelFree. The channel's bit ($82:BCA1) at
+; $002C, its register base * 16 at $002D; the table address ($F400 +
+; $0032) into hdma_table_at for it; DMAP and BBAD from the register set
+; ($82:BCA9), bank $7E. The set's entries ($82:BCBB: count, then a word)
+; copied to the table, $0030 added to each word, until a count of 0.
+; Entry: M 8-bit, X 8-bit; X = the table set; Y = the register set; $0032
+; = the table's place; DB = $82; called by JSR. Exit: M 8-bit, X 8-bit; C
+; as above.
+%at($82873B)
+HdmaStart:
+    stz.w !v_0030
+    stz.w !v_0031
+    stx.w !v_002e
+    jsr.w HdmaChannelFree
+    bcc .l874A
+    rts
+.l874A:
+    txa
+    asl a
+    asl a
+    asl a
+    asl a
+    sta.w !v_002d
+    lda.w !t_bca1,x
+    sta.w !v_002c
+    txa
+    sec
+    sbc.b #$04
+    asl a
+    tax
+    clc
+    lda.w !v_0032
+    adc.b #$00
+    sta.w !v_0032
+    sta.w !hdma_table_at,x
+    lda.w !v_0033
+    adc.b #$F4
+    sta.w !v_0033
+    sta.w !v_0351,x
+    ldx.w !v_002d
+    lda.w !t_bca9,y
+    sta.w !DMAP0,x
+    lda.w !t_bcaa,y
+    sta.w !BBAD0,x
+    lda.b #$7E
+    sta.w !A1B0,x
+    sta.w !DASB0,x
+    ldx.w !v_002e
+    rep.b #$10
+    ldy.w !t_bcbb,x
+    ldx.w !v_0032
+.l8797:
+    lda.w !t_bcbb,y
+    sta.l !v_7e0000,x
+    beq .l87BD
+    clc
+    lda.w !t_bcbc,y
+    adc.w !v_0030
+    sta.l !v_7e0001,x
+    lda.w !t_bcbd,y
+    adc.w !v_0031
+    sta.l !v_7e0002,x
+    inx
+    inx
+    inx
+    iny
+    iny
+    iny
+    bra .l8797
+.l87BD:
+    sep.b #$10
+    clc
+    rts
+
+
+; @routine 82:8000 WindowEffectTask
+; WHAT IT DOES: Runs window effect $06 of its slot (its parameter) from
+; the table at $82:8017, retrying each frame while the effect cannot
+; start.
+; HOW: D = the slot's page ($6F + Y); JSR through the table by the
+; parameter; when it returns (no HDMA channel was free), TaskWait 1 and
+; again.
+; Entry: M 8-bit, X 8-bit; Y = the task's slot; a task's entry. Exit:
+; never returns (the effects end the task).
+%at($828000)
+WindowEffectTask:
+    rep.b #$20
+    clc
+    tya
+    adc.w #$006F
+    tcd
+    sep.b #$20
+.l800A:
+    ldx.b !dp_06
+    jsr.w (!routine_828017,x)
+    lda.b #$01
+    jsl.l TaskWait
+    bra .l800A
+
+
+; @routine 82:80E2 HdmaEffect2
+; WHAT IT DOES: Window effect 2: HDMA table set 4 on register set 6 from
+; the table area's base, then the task ends.
+; HOW: HdmaStartAtBase; no channel: back (to retry); else the channel on
+; in HDMAEN's shadow and TaskExit.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+; Exit: no channel: C set; else never returns.
+%at($8280E2)
+HdmaEffect2:
+    ldx.b #$04
+    ldy.b #$06
+    jsr.w HdmaStartAtBase
+    bcc .l80EC
+    rts
+.l80EC:
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    jml.l TaskExit
+
+
+; @routine 82:82DB HdmaEffect4
+; WHAT IT DOES: Window effect 4: HDMA table set 6 on register set 8 with
+; its table $20 into the area, the value at $7E:F480 7, and the task left
+; waiting for good.
+; HOW: $0032 = $20; HdmaStart; no channel: back. $7E:F480 = 7, $7E:F481 =
+; 0; the channel on; TaskWait 2 forever.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+; Exit: no channel: C set; else never returns.
+%at($8282DB)
+HdmaEffect4:
+    lda.b #$20
+    sta.w !v_0032
+    stz.w !v_0033
+    ldx.b #$06
+    ldy.b #$08
+    jsr.w HdmaStart
+    bcc .l82ED
+    rts
+.l82ED:
+    lda.b #$07
+    sta.l !v_7ef480
+    lda.b #$00
+    sta.l !v_7ef481
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+.l82FF:
+    lda.b #$02
+    jsl.l TaskWait
+    bra .l82FF
+
+
+; @routine 82:8388 HdmaEffect8
+; WHAT IT DOES: Window effect 8: windows round two places in the level
+; ($0E40, $00F8 and $0D60, $01D8), rebuilt each frame and swapped between
+; two tables.
+; HOW: HdmaStartAtBase with set $0E on register set $0E; $00BD up; the
+; channel on; its table address slot kept at $06 and the table at $07
+; ($F400). Each frame: TaskWait 1; the table address set; WindowBoxAt for
+; each place; an entry of 1 line of no window and the end; WH0's shadow
+; from the first entry; the 16 bytes moved from $7F:5600 to the table, and
+; the table swapped ($10 apart).
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+; Exit: no channel: C set; else never returns.
+%at($828388)
+HdmaEffect8:
+    ldx.b #$0E
+    ldy.b #$0E
+    jsr.w HdmaStartAtBase
+    bcc .l8392
+    rts
+.l8392:
+    inc.w !v_00bd
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    lda.w !v_002d
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    clc
+    adc.b #$FC
+    asl a
+    sta.b !dp_06
+    tax
+    rep.b #$20
+    lda.w #$F400
+    sta.b !dp_07
+.l83B0:
+    sep.b #$30
+    lda.b #$01
+    jsl.l TaskWait
+    rep.b #$20
+    ldx.b !dp_06
+    lda.b !dp_07
+    sta.w !hdma_table_at,x
+    ldx.b #$00
+    lda.w #$0E40
+    sta.w !scratch
+    lda.w #$00F8
+    sta.w !scratch+2
+    jsr.w WindowBoxAt
+    lda.w #$0D60
+    sta.w !scratch
+    lda.w #$01D8
+    sta.w !scratch+2
+    jsr.w WindowBoxAt
+    lda.w #$0001
+    sta.l !v_7f5600,x
+    lda.w #$00FF
+    sta.l !v_7f5601,x
+    lda.w #$0000
+    sta.l !v_7f5603,x
+    lda.l !v_7f5601
+    sta.w !v_03a6
+    rep.b #$10
+    phb
+    ldx.w #$5600
+    ldy.b !dp_07
+    lda.w #$000F
+    mvn $7E,$7F
+    plb
+    lda.b !dp_07
+    eor.w #$0010
+    sta.b !dp_07
+    bra .l83B0
+
+
+; @routine 82:84CB HdmaEffect10
+; WHAT IT DOES: Window effect 10: a window and colour math round the place
+; $0E78, $0144 in the level while it is on the screen; when $00C1 is set,
+; the window closes in from both sides and the task ends.
+; HOW: HdmaStart with set $10 on register set $0C at place $100; the
+; channel on (its bit kept at $06); the masks cleared, WOBJSEL $C0; the
+; table's 32 bytes at $7E:F500 kept at $F520. Each frame: the place less
+; the scroll and the layer's shift: on the screen, the window's left and
+; right (right clamped to 255) and its first line into the table and
+; WH0/WH1's shadows, the fixed colour (8, 8, 16) added (CGADSUB $33), a
+; WRAM move queued to restore the table; off, the colour math off. With
+; $00C1 set, WH0 up and WH1 down a step a frame until they cross, then the
+; colour math off, the channel off and TaskExit.
+; Entry: M 8-bit, X 8-bit; D the task's page; DB = $82; called by JSR from
+; WindowEffectTask. Exit: no channel: C set; else never returns.
+%at($8284CB)
+HdmaEffect10:
+    lda.b #$01
+    sta.w !v_0033
+    stz.w !v_0032
+    ldx.b #$10
+    ldy.b #$0C
+    jsr.w HdmaStart
+    bcc .l84DD
+    rts
+.l84DD:
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    sta.b !dp_06
+    lda.b #$FF
+    sta.l !v_7ef510
+    inc a
+    sta.l !v_7ef511
+    stz.w !tmw_shadow
+    stz.w !tsw_shadow
+    stz.w !v_03aa
+    stz.w !v_03ab
+    lda.b #$C0
+    sta.w !wobjsel_shadow
+    phb
+    rep.b #$10
+    ldx.w #$001F
+    txa
+    ldx.w #$F500
+    ldy.w #$F520
+    mvn $7E,$7E
+    sep.b #$10
+    plb
+.l8514:
+    rep.b #$20
+    sec
+    lda.w #$0144
+    sbc.w !v_1777
+    sec
+    sbc.w !layer_offset_y
+    cmp.w #$00E0
+    bcs .l85A1
+    sta.w !v_002e
+    sec
+    lda.w #$0E78
+    sbc.w !v_1773
+    sec
+    sbc.w !bg1_x_shift
+    cmp.w #$0100
+    bcs .l85A1
+    sta.w !v_002c
+    sep.b #$20
+    clc
+    adc.b #$10
+    bcc .l8545
+    lda.b #$FF
+.l8545:
+    sta.l !v_7ef533
+    sta.w !v_03a9
+    lda.w !v_002c
+    sta.l !v_7ef532
+    sta.w !v_03a8
+    lda.w !v_002e
+    lsr a
+    adc.b #$00
+    sta.l !v_7ef520
+    sta.l !v_7ef523
+    lda.b #$08
+    sta.w !coldata_red
+    sta.w !coldata_green
+    asl a
+    sta.w !coldata_blue
+    lda.b #$20
+    sta.w !cgwsel_shadow
+    lda.b #$33
+    sta.w !cgadsub_shadow
+    rep.b #$20
+    ldy.w !v_1705
+    lda.w #$F520
+    sta.w !v_1707,y
+    lda.w #$F500
+    sta.w !v_1709,y
+    lda.w #$001F
+    sta.w !v_170b,y
+    sep.b #$20
+    clc
+    tya
+    adc.b #$06
+    sta.w !v_1705
+    lda.w !v_00c1
+    bne .l85CE
+    bra .l85C5
+.l85A1:
+    sep.b #$20
+    lda.b #$00
+    sta.l !v_7ef500
+    stz.w !coldata_red
+    stz.w !coldata_green
+    stz.w !coldata_blue
+    lda.b #$FF
+    sta.w !v_03a8
+    inc a
+    sta.w !v_03a8
+    lda.b #$02
+    sta.w !cgwsel_shadow
+    lda.b #$53
+    sta.w !cgadsub_shadow
+.l85C5:
+    lda.b #$01
+    jsl.l TaskWait
+    jmp.w .l8514
+.l85CE:
+    lda.b #$01
+    jsl.l TaskWait
+    lda.w !v_03a8
+    inc a
+    sta.w !v_03a8
+    sta.l !v_7ef512
+    lda.w !v_03a9
+    dec a
+    sta.w !v_03a9
+    sta.l !v_7ef513
+    cmp.w !v_03a8
+    bcs .l85CE
+    stz.w !coldata_red
+    stz.w !coldata_green
+    stz.w !coldata_blue
+    lda.b #$02
+    sta.w !cgwsel_shadow
+    lda.b #$53
+    sta.w !cgadsub_shadow
+    lda.b !dp_06
+    trb.w !hdmaen_shadow
+    jml.l TaskExit
+
+
+; @routine 82:860B HdmaEffect11
+; WHAT IT DOES: Window effect 11: a window that narrows over the lines
+; above $00F8 in the level, a step a frame, then the task ends.
+; HOW: HdmaStart with set $12 on register set $0C at place $80; the
+; channel on; WH2 and the table's window $00FF/$FF00; the line count
+; ($00F8 less the scroll y, + $30). Each frame: TaskWait 1, the left edge
+; up, the right edge down, the count down; at 0 TaskExit.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+; Exit: no channel: C set; else never returns.
+%at($82860B)
+HdmaEffect11:
+    lda.b #$80
+    sta.w !v_0032
+    stz.w !v_0033
+    ldx.b #$12
+    ldy.b #$0C
+    jsr.w HdmaStart
+    bcc .l861D
+    rts
+.l861D:
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    rep.b #$20
+    lda.w #$00FF
+    sta.l !v_7ef490
+    sta.w !v_03a8
+    lda.w #$FF00
+    sta.l !v_7ef492
+    sec
+    lda.w #$00F8
+    sbc.w !v_1777
+    sep.b #$20
+    clc
+    adc.b #$30
+    sta.l !v_7ef483
+    sta.l !v_7ef486
+.l864A:
+    lda.b #$01
+    jsl.l TaskWait
+    lda.l !v_7ef480
+    inc a
+    sta.l !v_7ef480
+    lda.l !v_7ef492
+    inc a
+    sta.l !v_7ef492
+    eor.b #$FF
+    sta.l !v_7ef493
+    lda.l !v_7ef483
+    dec a
+    sta.l !v_7ef483
+    sta.l !v_7ef486
+    bne .l864A
+    jml.l TaskExit
+
+
+; @routine 82:867B HdmaEffect9
+; WHAT IT DOES: Window effect 9: a window below the line $0200 in the
+; level less the scroll (at most 240 lines down), kept each frame.
+; HOW: HdmaStartAtBase with set $16 on register set $10; the table's first
+; count $10; the channel on. Each frame: TaskWait 1; $0200 less the scroll
+; y: past the screen or 0 lines, the first count 0; else half of it (at
+; most 240) as the first two counts and $10 after.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+; Exit: no channel: C set; else never returns.
+%at($82867B)
+HdmaEffect9:
+    ldx.b #$16
+    ldy.b #$10
+    jsr.w HdmaStartAtBase
+    bcc .l8685
+    rts
+.l8685:
+    lda.b #$10
+    sta.l !v_7ef500
+    lda.b #$00
+    sta.l !v_7ef501
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+.l8697:
+    lda.b #$01
+    jsl.l TaskWait
+    rep.b #$20
+    sec
+    lda.w #$0200
+    sbc.w !v_1777
+    bcc .l86C5
+    cmp.w #$00F0
+    bcc .l86B0
+    lda.w #$00F0
+.l86B0:
+    lsr a
+    beq .l86C5
+    sep.b #$20
+    sta.l !band_hdma
+    sta.l !v_7ef403
+    lda.b #$10
+    sta.l !v_7ef500
+    bra .l8697
+.l86C5:
+    sep.b #$20
+    lda.b #$00
+    sta.l !v_7ef500
+    bra .l8697
+
+
+; @routine 82:86CF HdmaEffect12
+; WHAT IT DOES: Window effect 12: HDMA table set $14 on register set 0
+; from the base, with the layers' window masks and the windows set, then
+; the task ends.
+; HOW: HdmaStartAtBase; the table's first values from TM's shadow; the
+; channel on; TMW and TSW $10, WH0 $38, WH1 $C7, WH2 and WH3 0, WOBJSEL 3;
+; TaskExit.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
+; Exit: no channel: C set; else never returns.
+%at($8286CF)
+HdmaEffect12:
+    ldx.b #$14
+    ldy.b #$00
+    jsr.w HdmaStartAtBase
+    bcc .l86D9
+    rts
+.l86D9:
+    lda.w !v_0399
+    sta.l !v_7ef480
+    and.b #$0F
+    sta.l !v_7ef481
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    lda.b #$10
+    sta.w !tmw_shadow
+    sta.w !tsw_shadow
+    lda.b #$38
+    sta.w !v_03a6
+    lda.b #$C7
+    sta.w !v_03a7
+    stz.w !v_03aa
+    stz.w !v_03ab
+    lda.b #$03
+    sta.w !wobjsel_shadow
+    jml.l TaskExit

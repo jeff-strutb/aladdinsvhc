@@ -1,0 +1,208 @@
+/*
+ * nmi_uploads.c: uploads the NMI makes on request flags the retail game
+ * never sets: character sets from $7F:D000 or $7F:D400, a stepped row
+ * upload from $7F:B000, two fixed blocks, and a palette upload from a
+ * table.
+ */
+#include "machine.h"
+#include "ops65.h"
+void abi_PaletteUploadFrom(void);
+void abi_UploadBlockA(void);
+void abi_UploadBlockB(void);
+void abi_UploadCharsets(void);
+void abi_UploadStepped(void);
+#include "actor.h"
+#include "hw.h"
+#include "wram.h"
+#include "wram_player.h"
+#include "wram_state.h"
+#include "wram_video.h"
+
+/*
+ * @routine 80:851B UploadCharsets
+ * WHAT IT DOES: When $082B asks, copies one of two character sets from
+ * $7F:D000 or $7F:D400 to VRAM from 0, 32 rows of $20 bytes.
+ * HOW: $082B (3 or 6) indexes the source table at $80:8558 (word, bank);
+ * cleared; DMA channel 0, mode 0 to VMDATAL, 32 transfers of $20 bytes,
+ * VRAM address stepping $80.
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
+ * 8-bit; Y = 0 after a copy.
+ */
+void abi_UploadCharsets(void)
+{
+    ldy8(ea_abs(0x082B));  /* 80851B ldy */
+    if (IF_Z) goto L_80855A;  /* 80851E beq */
+    stz8(ea_abs(0x082B));  /* 808520 stz */
+    stz8(ea_abs(VMAIN));  /* 808523 stz */
+    stz8(ea_abs(DMAP0));  /* 808526 stz */
+    lda8_v(0x18);  /* 808529 lda */
+    sta8(ea_abs(BBAD0));  /* 80852B sta */
+    op_rep(0x20);  /* 80852E rep */
+    lda16(ea_absy(0x8558));  /* 808530 lda */
+    sta16(ea_abs(A1T0L));  /* 808533 sta */
+    ldx8(ea_absy(0x855A));  /* 808536 ldx */
+    stx8(ea_abs(A1B0));  /* 808539 stx */
+    ldy8_v(0x20);  /* 80853C ldy */
+    ldx8_v(0x01);  /* 80853E ldx */
+    lda16_v(0x0000);  /* 808540 lda */
+L_808543:
+    sta16(ea_abs(VMADDL));  /* 808543 sta */
+    pha16();  /* 808546 pha */
+    lda16_v(0x0020);  /* 808547 lda */
+    sta16(ea_abs(DAS0L));  /* 80854A sta */
+    stx8(ea_abs(MDMAEN));  /* 80854D stx */
+    pla16();  /* 808550 pla */
+    clc();  /* 808551 clc */
+    adc16_v(0x0080);  /* 808552 adc */
+    dey8();  /* 808555 dey */
+    if (!IF_Z) goto L_808543;  /* 808556 bne */
+    op_sep(0x20);  /* 808558 sep */
+L_80855A:
+    return;  /* 80855A rts */
+}
+
+/*
+ * @routine 80:8577 UploadStepped
+ * WHAT IT DOES: When $082A asks, runs step $082E of a stepped upload
+ * through the table at $80:8584.
+ * HOW: $082E * 2 indexes the jump table (0: the row number cleared, the
+ * step on; 1: a row of the buffer at $7F:B000 written to VRAM).
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: as
+ * the step.
+ */
+void abi_UploadStepped(void)
+{
+    ldy8(ea_abs(0x082A));  /* 808577 ldy */
+    if (IF_Z) goto L_80858E;  /* 80857A beq */
+    lda8(ea_abs(0x082E));  /* 80857C lda */
+    ACC8(asl);  /* 80857F asl */
+    tax8();  /* 808580 tax */
+    jump_routine(0x800000u | rd16(0x800000u | (uint16_t)(0x8584 + cpu.x))); return;  /* 808581 jmp */
+L_80858E:
+    return;  /* 80858E rts */
+}
+
+/*
+ * @routine 80:869A UploadBlockA
+ * WHAT IT DOES: When $082C asks, DMAs one of the blocks listed at
+ * $80:B6A2 to VRAM.
+ * HOW: $082C is the entry's offset (7 bytes: source address and bank,
+ * size, VRAM address); cleared; DMA channel 0, mode 1 to VMDATA, VMAIN
+ * $80.
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
+ * 8-bit; X = the entry.
+ */
+void abi_UploadBlockA(void)
+{
+    ldx8(ea_abs(0x082C));  /* 80869A ldx */
+    if (IF_Z) goto L_8086D8;  /* 80869D beq */
+    stz8(ea_abs(0x082C));  /* 80869F stz */
+    lda8_v(0x80);  /* 8086A2 lda */
+    sta8(ea_abs(VMAIN));  /* 8086A4 sta */
+    lda8_v(0x01);  /* 8086A7 lda */
+    sta8(ea_abs(DMAP0));  /* 8086A9 sta */
+    lda8_v(0x18);  /* 8086AC lda */
+    sta8(ea_abs(BBAD0));  /* 8086AE sta */
+    lda8(ea_absx(0xB6A2));  /* 8086B1 lda */
+    sta8(ea_abs(A1T0L));  /* 8086B4 sta */
+    lda8(ea_absx(0xB6A3));  /* 8086B7 lda */
+    sta8(ea_abs(A1T0H));  /* 8086BA sta */
+    lda8(ea_absx(0xB6A4));  /* 8086BD lda */
+    sta8(ea_abs(A1B0));  /* 8086C0 sta */
+    op_rep(0x20);  /* 8086C3 rep */
+    lda16(ea_absx(0xB6A5));  /* 8086C5 lda */
+    sta16(ea_abs(DAS0L));  /* 8086C8 sta */
+    lda16(ea_absx(0xB6A7));  /* 8086CB lda */
+    sta16(ea_abs(VMADDL));  /* 8086CE sta */
+    op_sep(0x20);  /* 8086D1 sep */
+    lda8_v(0x01);  /* 8086D3 lda */
+    sta8(ea_abs(MDMAEN));  /* 8086D5 sta */
+L_8086D8:
+    return;  /* 8086D8 rts */
+}
+
+/*
+ * @routine 80:86D9 UploadBlockB
+ * WHAT IT DOES: When $082D asks, reads back one of the VRAM blocks listed
+ * at $80:B6EF into work RAM.
+ * HOW: $082D is the entry's offset (7 bytes: destination address and
+ * bank, size, VRAM address); cleared; DMA channel 0, mode $81 from
+ * RDVRAML, VMAIN $80, after the dummy read of RDVRAMH.
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
+ * 8-bit; X = the entry.
+ */
+void abi_UploadBlockB(void)
+{
+    ldx8(ea_abs(0x082D));  /* 8086D9 ldx */
+    if (IF_Z) goto L_808720;  /* 8086DC beq */
+    stz8(ea_abs(0x082D));  /* 8086DE stz */
+    lda8_v(0x80);  /* 8086E1 lda */
+    sta8(ea_abs(VMAIN));  /* 8086E3 sta */
+    lda8_v(0x81);  /* 8086E6 lda */
+    sta8(ea_abs(DMAP0));  /* 8086E8 sta */
+    lda8_v(0x39);  /* 8086EB lda */
+    sta8(ea_abs(BBAD0));  /* 8086ED sta */
+    lda8(ea_absx(0xB6EF));  /* 8086F0 lda */
+    sta8(ea_abs(A1T0L));  /* 8086F3 sta */
+    lda8(ea_absx(0xB6F0));  /* 8086F6 lda */
+    sta8(ea_abs(A1T0H));  /* 8086F9 sta */
+    lda8(ea_absx(0xB6F1));  /* 8086FC lda */
+    sta8(ea_abs(A1B0));  /* 8086FF sta */
+    op_rep(0x20);  /* 808702 rep */
+    lda16(ea_absx(0xB6F2));  /* 808704 lda */
+    sta16(ea_abs(DAS0L));  /* 808707 sta */
+    op_sep(0x20);  /* 80870A sep */
+    lda8(ea_absx(0xB6F4));  /* 80870C lda */
+    sta8(ea_abs(VMADDL));  /* 80870F sta */
+    lda8(ea_absx(0xB6F5));  /* 808712 lda */
+    sta8(ea_abs(VMADDH));  /* 808715 sta */
+    lda8(ea_abs(RDVRAMH));  /* 808718 lda */
+    lda8_v(0x01);  /* 80871B lda */
+    sta8(ea_abs(MDMAEN));  /* 80871D sta */
+L_808720:
+    return;  /* 808720 rts */
+}
+
+/*
+ * @routine 80:874F PaletteUploadFrom
+ * WHAT IT DOES: When palette_upload asks, DMAs the palettes to CGRAM from
+ * the source $0845 picks in the table at $80:B608: 512 bytes, or 256 for
+ * source 6.
+ * HOW: palette_upload cleared, CGADD 0; DMA channel 0, mode 0 to CGDATA,
+ * the source from the table (3 bytes an entry), the size by the entry.
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
+ * 8-bit; X = $0845.
+ */
+void abi_PaletteUploadFrom(void)
+{
+    lda8(ea_abs(PALETTE_UPLOAD));  /* 80874F lda */
+    if (IF_Z) goto L_808792;  /* 808752 beq */
+    stz8(ea_abs(CGADD));  /* 808754 stz */
+    stz8(ea_abs(PALETTE_UPLOAD));  /* 808757 stz */
+    lda8_v(0x00);  /* 80875A lda */
+    sta8(ea_abs(DMAP0));  /* 80875C sta */
+    lda8_v(0x22);  /* 80875F lda */
+    sta8(ea_abs(BBAD0));  /* 808761 sta */
+    ldx8(ea_abs(0x0845));  /* 808764 ldx */
+    lda8(ea_absx(0xB608));  /* 808767 lda */
+    sta8(ea_abs(A1T0L));  /* 80876A sta */
+    lda8(ea_absx(0xB609));  /* 80876D lda */
+    sta8(ea_abs(A1T0H));  /* 808770 sta */
+    lda8(ea_absx(0xB60A));  /* 808773 lda */
+    sta8(ea_abs(A1B0));  /* 808776 sta */
+    cpx8_v(0x06);  /* 808779 cpx */
+    if (!IF_Z) goto L_808783;  /* 80877B bne */
+    lda8_v(0x00);  /* 80877D lda */
+    ldy8_v(0x01);  /* 80877F ldy */
+    goto L_808787;  /* 808781 bra */
+L_808783:
+    lda8_v(0x00);  /* 808783 lda */
+    ldy8_v(0x02);  /* 808785 ldy */
+L_808787:
+    sta8(ea_abs(DAS0L));  /* 808787 sta */
+    sty8(ea_abs(DAS0H));  /* 80878A sty */
+    lda8_v(0x01);  /* 80878D lda */
+    sta8(ea_abs(MDMAEN));  /* 80878F sta */
+L_808792:
+    return;  /* 808792 rts */
+}
