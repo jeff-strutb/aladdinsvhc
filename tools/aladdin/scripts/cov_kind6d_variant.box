@@ -1,0 +1,62 @@
+# The wait routine of actor kind $6D ($83:EF92) for variant $1C (bits 2-4
+# of $07, $83:EFBC), which no script's play meets: it is downed by a shot
+# ($83:EFD1), and it ends itself 144 pixels or more from the point actors
+# are kept in range of ($83:EFEC). On pw3.state the actor at $0B5B given
+# variant $1C and moved 256 pixels away, and the frames after it; then on
+# the first level played as unit_pot_hit.box until an apple is thrown, a
+# unit call of the routine on the falling pot's record ($0C4B) given
+# variant $1C, with the apple moved onto it as there and the point on it.
+load build/aladdin/states/pw3.state
+wait 2
+poke $000B62 1C
+poke $000B67 9C,03
+wait 5
+load build/aladdin/states/level1.state
+hold B 76
+hold RIGHT 36
+hold DOWN 64
+hold B+RIGHT 16
+hold R 59
+hold RIGHT 61
+hold B+LEFT 79
+hold Y+RIGHT 7
+hold L 73
+press START
+wait 60
+press START
+hold R 31
+hold RIGHT 71
+hold DOWN 67
+hold Y+RIGHT+B 33
+hold DOWN 41
+hold B+R 75
+hold LEFT 27
+hold A+RIGHT 19
+hold DOWN+A 58
+hold B+RIGHT 42
+hold UP 68
+hold RIGHT 65
+hold R 57
+hold Y+RIGHT+B 74
+hold Y+RIGHT+B 15
+hold DOWN+A 17
+hold DOWN+A 54
+hold RIGHT 64
+hold X 79
+hold L 25
+hold B+LEFT 5
+hold UP+B 74
+hold DOWN+A 48
+hold Y+LEFT 49
+hold A 88
+hold RIGHT 53
+hold DOWN+A 20
+hold UP+B 30
+hold RIGHT 65
+press A 2
+wait 4
+set 0009D7 92,02
+set 0009DA 06,01
+set $000C52 1C
+set $001A44 92,02,06,01
+call 83EF92 d=0C4B db=80 p=30

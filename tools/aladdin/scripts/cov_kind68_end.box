@@ -1,0 +1,8 @@
+# The wait routine of actor kind $68 ($83:E8A9; eight of them on
+# stage_a3_s2.state): when the scroll Y limit's high byte ($1A07) is 0 it
+# ends itself ($83:E8F7), which no script's play reaches. That byte
+# poked to 0 two frames in, and the frames after it.
+load build/aladdin/states/stage_a3_s2.state
+wait 2
+poke $001A07 00
+wait 5

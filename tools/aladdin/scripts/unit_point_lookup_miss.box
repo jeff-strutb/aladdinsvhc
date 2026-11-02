@@ -1,0 +1,9 @@
+# The lookup at $83:C2A9 of a point (scratch $000C, $000E, to 8 pixels)
+# in the level's list of spots (by the level less $0E, from $80:D24A): a
+# point in none returns C set ($83:C2DE). No script looks up a point the
+# list lacks. A unit call on pw5.state (level $0E) with the point $FFF0,
+# $FFF0.
+load build/aladdin/states/pw5.state
+wait 2
+set $00000C F0,FF,F0,FF
+call 83C2A9 d=0B5B db=80 p=30

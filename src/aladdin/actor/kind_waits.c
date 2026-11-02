@@ -26,6 +26,15 @@ void abi_ActorFreeOutOfRangeLong(void);
 void abi_ActorHurtsPlayerOnTouchLong(void);
 void abi_ActorStopsShotLong(void);
 
+void abi_ActorCreateChild8(void);
+void abi_ActorHitsTestBoxIfPlayerFree(void);
+void abi_ActorYByFrame(void);
+void abi_BackdropActorShow(void);
+void abi_BackdropPictureStep(void);
+void abi_PlayerOnFirmGround(void);
+void abi_PlayerOnFirmGroundProbe4(void);
+void abi_PlayerOnFirmGroundProbe8(void);
+
 /*
  * @routine 83:E645 ActorCount42Down
  * WHAT IT DOES: Counts the actor's word at $42 down by 1, not below 0.
@@ -339,5 +348,210 @@ L_83F9A9:
 L_83F9B4:
     ldx8_v(0x00);  /* 83F9B4 ldx */
     abi_ActorFreeOutOfRangeLong(); return;  /* 83F9B6 jml */
+}
+
+/*
+ * @routine 83:E8A9 Kind68Wait
+ * WHAT IT DOES: Kind $68's wait: carries the player along across while it
+ * rides (unless that puts the player into firm ground), with a pause of 8
+ * frames after the player leaves; it ends itself while the scroll Y limit
+ * is below 256.
+ * HOW: Its $16 cleared and the player's x pixels kept at $1D; $20 counting
+ * down: one less. Else the test at 83:E90D; on it: $16 = 1, the player's x
+ * moved by its move across ($000C less $4C), put back when
+ * PlayerOnFirmGroundProbe8, Probe4 or PlayerOnFirmGround says firm. The
+ * scroll Y limit's high byte 0: its return dropped and into
+ * ActorEndOutOfRange past its range test. Then left this frame ($16 clear
+ * after set): $20 = 8; $17 = $16.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Exit: M 8-bit; X = its $16; or does not return when it ends.
+ */
+void abi_Kind68Wait(void)
+{
+    goto L_83E8A9;
+L_8396CA:
+    abi_ActorFreePlaced();  /* 8396CA jsr */
+    actor_leave(0x8394BFu); return;  /* 8396CD jmp */
+L_83E8A9:
+    stz8(ea_dp(0x16));  /* 83E8A9 stz */
+    lda8(ea_abs(0x08E7));  /* 83E8AB lda */
+    sta8(ea_dp(0x1D));  /* 83E8AE sta */
+    lda8(ea_abs(0x08E8));  /* 83E8B0 lda */
+    sta8(ea_dp(0x1E));  /* 83E8B3 sta */
+    lda8(ea_dp(0x20));  /* 83E8B5 lda */
+    if (IF_Z) goto L_83E8BD;  /* 83E8B7 beq */
+    MEM8(dec, ea_dp(0x20));  /* 83E8B9 dec */
+    goto L_83E8F2;  /* 83E8BB bra */
+L_83E8BD:
+    call_routine(0x83E90Du, 0);  /* 83E8BD jsr */
+    if (IF_C) goto L_83E8F2;  /* 83E8C0 bcs */
+    lda8_v(0x01);  /* 83E8C2 lda */
+    sta8(ea_dp(0x16));  /* 83E8C4 sta */
+    op_rep(0x20);  /* 83E8C6 rep */
+    sec();  /* 83E8C8 sec */
+    lda16(ea_dp(0x0C));  /* 83E8C9 lda */
+    sbc16_v(rd16(ea_dp(0x4C)));  /* 83E8CB sbc */
+    clc();  /* 83E8CD clc */
+    adc16_v(rd16(ea_abs(0x08E7)));  /* 83E8CE adc */
+    sta16(ea_abs(0x08E7));  /* 83E8D1 sta */
+    op_sep(0x20);  /* 83E8D4 sep */
+    abi_PlayerOnFirmGroundProbe8();  /* 83E8D6 jsl */
+    if (IF_C) goto L_83E8E8;  /* 83E8DA bcs */
+    abi_PlayerOnFirmGroundProbe4();  /* 83E8DC jsl */
+    if (IF_C) goto L_83E8E8;  /* 83E8E0 bcs */
+    abi_PlayerOnFirmGround();  /* 83E8E2 jsl */
+    if (!IF_C) goto L_83E8F2;  /* 83E8E6 bcc */
+L_83E8E8:
+    lda8(ea_dp(0x1D));  /* 83E8E8 lda */
+    sta8(ea_abs(0x08E7));  /* 83E8EA sta */
+    lda8(ea_dp(0x1E));  /* 83E8ED lda */
+    sta8(ea_abs(0x08E8));  /* 83E8EF sta */
+L_83E8F2:
+    lda8(ea_abs(0x1A07));  /* 83E8F2 lda */
+    if (!IF_Z) goto L_83E8FC;  /* 83E8F5 bne */
+    pla8();  /* 83E8F7 pla */
+    pla8();  /* 83E8F8 pla */
+    goto L_8396CA;  /* 83E8F9 jmp */
+L_83E8FC:
+    ldx8(ea_dp(0x16));  /* 83E8FC ldx */
+    if (!IF_Z) goto L_83E908;  /* 83E8FE bne */
+    lda8(ea_dp(0x17));  /* 83E900 lda */
+    if (IF_Z) goto L_83E908;  /* 83E902 beq */
+    lda8_v(0x08);  /* 83E904 lda */
+    sta8(ea_dp(0x20));  /* 83E906 sta */
+L_83E908:
+    stx8(ea_dp(0x17));  /* 83E908 stx */
+    return;  /* 83E90A rts */
+}
+
+
+/*
+ * @routine 83:EF92 Kind6DWait
+ * WHAT IT DOES: Kind $6D's wait: by variant (bits 2-4 of $07) stomped or
+ * hurting and downed by shots, its height set by frame (variant 4), and
+ * ended when out of range; variant $1C also enters state $8C while $1B14
+ * is set and ends itself 144 pixels or more from the range point.
+ * HOW: Variant $14: ActorEndOutOfRange only. Others: ActorStompOrHurt,
+ * ActorDownedByShot (downed: $48 up), AnimStep, variant 4 ActorYByFrame,
+ * ActorEndOutOfRange with box 0. Variant $1C: $1B14 set, state bits $8C
+ * set and $09 bit 7 cleared; ActorStompOrHurt, ActorDownedByShot ($48 up),
+ * AnimStep; distance from RANGE_X 144 or more: into ActorEndOutOfRange
+ * past its range test.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Variant $1C is reached only by cov_kind6d_variant.box. Exit: as
+ * ActorEndOutOfRange; variant $1C near: M 8-bit, C clear; far: does not
+ * return.
+ */
+void abi_Kind6DWait(void)
+{
+    goto L_83EF92;
+L_8396C6:
+    op_sep(0x30);  /* 8396C6 sep */
+    pla8();  /* 8396C8 pla */
+    pla8();  /* 8396C9 pla */
+    abi_ActorFreePlaced();  /* 8396CA jsr */
+    actor_leave(0x8394BFu); return;  /* 8396CD jmp */
+L_83EF92:
+    lda8(ea_dp(0x07));  /* 83EF92 lda */
+    and8_v(0x1C);  /* 83EF94 and */
+    cmp8_v(0x1C);  /* 83EF96 cmp */
+    if (IF_Z) goto L_83EFBC;  /* 83EF98 beq */
+    cmp8_v(0x14);  /* 83EF9A cmp */
+    if (IF_Z) goto L_83EFB7;  /* 83EF9C beq */
+    abi_ActorStompOrHurt();  /* 83EF9E jsr */
+    abi_ActorDownedByShot();  /* 83EFA1 jsr */
+    if (IF_C) goto L_83EFA8;  /* 83EFA4 bcs */
+    MEM8(inc, ea_dp(0x48));  /* 83EFA6 inc */
+L_83EFA8:
+    abi_AnimStep();  /* 83EFA8 jsl */
+    lda8(ea_dp(0x07));  /* 83EFAC lda */
+    and8_v(0x1C);  /* 83EFAE and */
+    cmp8_v(0x04);  /* 83EFB0 cmp */
+    if (!IF_Z) goto L_83EFB7;  /* 83EFB2 bne */
+    abi_ActorYByFrame();  /* 83EFB4 jsr */
+L_83EFB7:
+    ldx8_v(0x00);  /* 83EFB7 ldx */
+    abi_ActorEndOutOfRange(); return;  /* 83EFB9 jmp */
+L_83EFBC:
+    lda8(ea_abs(0x1B14));  /* 83EFBC lda */
+    if (IF_Z) goto L_83EFC9;  /* 83EFBF beq */
+    lda8_v(0x8C);  /* 83EFC1 lda */
+    tsb8(ea_dp(0x00));  /* 83EFC3 tsb */
+    lda8_v(0x80);  /* 83EFC5 lda */
+    trb8(ea_dp(0x09));  /* 83EFC7 trb */
+L_83EFC9:
+    abi_ActorStompOrHurt();  /* 83EFC9 jsr */
+    abi_ActorDownedByShot();  /* 83EFCC jsr */
+    if (IF_C) goto L_83EFD3;  /* 83EFCF bcs */
+    MEM8(inc, ea_dp(0x48));  /* 83EFD1 inc */
+L_83EFD3:
+    abi_AnimStep();  /* 83EFD3 jsl */
+    op_rep(0x20);  /* 83EFD7 rep */
+    sec();  /* 83EFD9 sec */
+    lda16(ea_abs(0x1A44));  /* 83EFDA lda */
+    sbc16_v(rd16(ea_dp(0x0C)));  /* 83EFDD sbc */
+    if (!IF_N) goto L_83EFE5;  /* 83EFDF bpl */
+    eor16_v(0xFFFF);  /* 83EFE1 eor */
+    ACC16(inc);  /* 83EFE4 inc */
+L_83EFE5:
+    cmp16_v(0x0090);  /* 83EFE5 cmp */
+    op_sep(0x20);  /* 83EFE8 sep */
+    if (!IF_C) goto L_83EFEF;  /* 83EFEA bcc */
+    goto L_8396C6;  /* 83EFEC jmp */
+L_83EFEF:
+    return;  /* 83EFEF rts */
+}
+
+
+/*
+ * @routine 83:F1D5 Kind6EWait
+ * WHAT IT DOES: Kind $6E's wait: a sound ($33) every 63 frames while its
+ * $49 is clear; its backdrop picture stepped and shown; touching the test
+ * box (moved by its variant's offset for the test) while the player can be
+ * hit, the player enters state $8C.
+ * HOW: $49 clear: $48 down; at 0, back to $3F and SoundQueueAdd $33.
+ * BackdropPictureStep, BackdropActorShow. Its x pixels kept at $4C and the
+ * variant's offset (word at $D6AB) added; ActorHitsTestBoxIfPlayerFree;
+ * met: PlayerEnter8CFacingLong. Its x put back.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Its $09 has bit 6 clear in play, so the touch test never meets: the hurt
+ * is reached only by unit_kind6e_touch.box. Exit: M 8-bit; A = its x
+ * pixels.
+ */
+void abi_Kind6EWait(void)
+{
+    lda8(ea_dp(0x49));  /* 83F1D5 lda */
+    if (!IF_Z) goto L_83F1E7;  /* 83F1D7 bne */
+    MEM8(dec, ea_dp(0x48));  /* 83F1D9 dec */
+    if (!IF_Z) goto L_83F1E7;  /* 83F1DB bne */
+    lda8_v(0x3F);  /* 83F1DD lda */
+    sta8(ea_dp(0x48));  /* 83F1DF sta */
+    lda8_v(0x33);  /* 83F1E1 lda */
+    abi_SoundQueueAdd();  /* 83F1E3 jsl */
+L_83F1E7:
+    abi_BackdropPictureStep();  /* 83F1E7 jsr */
+    abi_BackdropActorShow();  /* 83F1EA jsr */
+    lda8(ea_dp(0x07));  /* 83F1ED lda */
+    ACC8(asl);  /* 83F1EF asl */
+    tax8();  /* 83F1F0 tax */
+    op_rep(0x20);  /* 83F1F1 rep */
+    lda16(ea_dp(0x0C));  /* 83F1F3 lda */
+    sta16(ea_dp(0x4C));  /* 83F1F5 sta */
+    clc();  /* 83F1F7 clc */
+    adc16_v(rd16(ea_absx(0xD6AB)));  /* 83F1F8 adc */
+    sta16(ea_dp(0x0C));  /* 83F1FB sta */
+    op_sep(0x20);  /* 83F1FD sep */
+    abi_ActorHitsTestBoxIfPlayerFree();  /* 83F1FF jsr */
+    if (IF_C) goto L_83F208;  /* 83F202 bcs */
+    abi_PlayerEnter8CFacingLong();  /* 83F204 jsl */
+L_83F208:
+    op_rep(0x20);  /* 83F208 rep */
+    lda16(ea_dp(0x4C));  /* 83F20A lda */
+    sta16(ea_dp(0x0C));  /* 83F20C sta */
+    op_sep(0x20);  /* 83F20E sep */
+    return;  /* 83F210 rts */
 }
 

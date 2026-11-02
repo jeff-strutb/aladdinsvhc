@@ -1,0 +1,13 @@
+# The wait routine of actor kind $6E ($83:F1D5, record $0B5B on
+# stage_a2_s1.state): touching the test box while the player can be hit,
+# it puts the player into state $8C ($83:F204). Its record's $09 has bit 6
+# clear there, so the touch test always says no. A unit call with bit 6
+# of its $09 set, the test box's half-sizes $0400 (so it meets the actor)
+# and the player free to be hit.
+load build/aladdin/states/stage_a2_s1.state
+wait 2
+set $001488 00,04,00,04
+set $0008E3 00
+set $00141B 00
+set $000B64 40
+call 83F1D5 d=0B5B db=80 p=30

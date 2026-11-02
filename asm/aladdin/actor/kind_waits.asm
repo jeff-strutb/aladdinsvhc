@@ -26,23 +26,15 @@ arch 65816
 !ACTOR_27 = $27                 ; the actor's animation frame
 !ACTOR_43 = $43
 !ACTOR_4E = $4E                 ; kind $53: the record it watches (word)
-
-; @routine 83:E645 ActorCount42Down
-; WHAT IT DOES: Counts the actor's word at $42 down by 1, not below 0.
-; HOW: A 16-bit subtraction; negative becomes 0.
-; Entry: M 16-bit; D = the actor's record; called by JSR (83:E60C,
-; 83:E633). Exit: M 16-bit; A = the new count; C from the subtraction.
-%at($83E645)
-ActorCount42Down:
-    sec
-    lda.b !actor_42
-    sbc.w #$0001
-    bpl .lE650
-    lda.w #$0000
-.lE650:
-    sta.b !actor_42
-    rts
-
+!ACTOR_4C = $4C                 ; kinds $68 and $6E: their x pixels kept (word)
+!KIND68_ON = $16                ; nonzero: the player rides it this frame
+!KIND68_WAS_ON = $17            ; the same, the frame before
+!KIND68_PLAYER_X = $1D          ; the player's x pixels kept (word)
+!KIND68_PAUSE = $20             ; frames left before it carries again
+!KIND68_ON_TEST = $83E90D       ; not yet filed: C clear when the player is on it
+!v_1b14 = $1B14
+!RANGE_X_83 = $1A44             ; the point actors are kept in range of (x)
+!KIND6E_TEST_OFFSET = $D6AB     ; in bank $80: per variant, its x offset for the touch test
 
 ; @routine 83:A012 Kind27Wait
 ; WHAT IT DOES: Kind $27's wait: animates; once its $42 is set, touching
@@ -77,7 +69,6 @@ Kind27Wait:
     jsl.l SoundQueueAdd
     inc.w !v_036c
     jml.l ActorEndOutOfRange_end
-
 
 ; @routine 83:AEEC Kind31Wait
 ; WHAT IT DOES: Kind $31's wait: with its $42 set it turns round at x
@@ -115,7 +106,6 @@ Kind31Wait:
     ldx.b #$38
     jml.l ActorEndOutOfRange
 
-
 ; @routine 83:B94A Kind30Wait
 ; WHAT IT DOES: Kind $30's wait: animates; variant 7 (low three bits of
 ; $07) notes the first shot that reaches it ($43); ended when out of
@@ -141,7 +131,6 @@ Kind30Wait:
     ldx.b #$18
     jmp.w ActorEndOutOfRange
 
-
 ; @routine 83:C94A Kind46Wait
 ; WHAT IT DOES: Kind $46's wait: a shot it stops sets its $43; with $07
 ; bit 1 it is ended when out of range.
@@ -164,7 +153,6 @@ Kind46Wait:
 .lC95A:
     ldx.b #$00
     jmp.w ActorEndOutOfRange
-
 
 ; @routine 83:D518 Kind52Wait
 ; WHAT IT DOES: Kind $52's wait: animates; with its $48 set it tests a
@@ -204,7 +192,6 @@ Kind52Wait:
     ldx.b #$00
     jmp.w ActorEndOutOfRange
 
-
 ; @routine 83:D64A Kind53Wait
 ; WHAT IT DOES: Kind $53's wait: stomped or hurting as touched; sets its
 ; $45 once the record its $4E names has $46 set; animates.
@@ -229,6 +216,21 @@ Kind53Wait:
     jsl.l AnimStep
     rts
 
+; @routine 83:E645 ActorCount42Down
+; WHAT IT DOES: Counts the actor's word at $42 down by 1, not below 0.
+; HOW: A 16-bit subtraction; negative becomes 0.
+; Entry: M 16-bit; D = the actor's record; called by JSR (83:E60C,
+; 83:E633). Exit: M 16-bit; A = the new count; C from the subtraction.
+%at($83E645)
+ActorCount42Down:
+    sec
+    lda.b !actor_42
+    sbc.w #$0001
+    bpl .lE650
+    lda.w #$0000
+.lE650:
+    sta.b !actor_42
+    rts
 
 ; @routine 83:E679 Kind67Wait
 ; WHAT IT DOES: Kind $67's wait: puts the player into state $8C while the
@@ -275,6 +277,187 @@ Kind67Wait:
     sep.b #$30
     rts
 
+; @routine 83:E8A9 Kind68Wait
+; WHAT IT DOES: Kind $68's wait: carries the player along across while it
+; rides (unless that puts the player into firm ground), with a pause of 8
+; frames after the player leaves; it ends itself while the scroll Y limit
+; is below 256.
+; HOW: Its $16 cleared and the player's x pixels kept at $1D; $20 counting
+; down: one less. Else the test at 83:E90D; on it: $16 = 1, the player's x
+; moved by its move across ($000C less $4C), put back when
+; PlayerOnFirmGroundProbe8, Probe4 or PlayerOnFirmGround says firm. The
+; scroll Y limit's high byte 0: its return dropped and into
+; ActorEndOutOfRange past its range test. Then left this frame ($16 clear
+; after set): $20 = 8; $17 = $16.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Exit: M 8-bit; X = its $16; or does not return when it ends.
+%at($83E8A9)
+Kind68Wait:
+    stz.b !KIND68_ON
+    lda.w !player+!actor_x+1
+    sta.b !KIND68_PLAYER_X
+    lda.w !player+!actor_x+2
+    sta.b !KIND68_PLAYER_X+1
+    lda.b !KIND68_PAUSE
+    beq .lE8BD
+    dec.b !KIND68_PAUSE
+    bra .lE8F2
+.lE8BD:
+    jsr.w !KIND68_ON_TEST
+    bcs .lE8F2
+    lda.b #$01
+    sta.b !KIND68_ON
+    rep.b #$20
+    sec
+    lda.b !actor_x+1
+    sbc.b !ACTOR_4C
+    clc
+    adc.w !player+!actor_x+1
+    sta.w !player+!actor_x+1
+    sep.b #$20
+    jsl.l PlayerOnFirmGroundProbe8
+    bcs .lE8E8
+    jsl.l PlayerOnFirmGroundProbe4
+    bcs .lE8E8
+    jsl.l PlayerOnFirmGround
+    bcc .lE8F2
+.lE8E8:
+    lda.b !KIND68_PLAYER_X
+    sta.w !player+!actor_x+1
+    lda.b !KIND68_PLAYER_X+1
+    sta.w !player+!actor_x+2
+.lE8F2:
+    lda.w !scroll_limit_y+1
+    bne .lE8FC
+    pla
+    pla
+    jmp.w ActorEndOutOfRange_free
+.lE8FC:
+    ldx.b !KIND68_ON
+    bne .lE908
+    lda.b !KIND68_WAS_ON
+    beq .lE908
+    lda.b #$08
+    sta.b !KIND68_PAUSE
+.lE908:
+    stx.b !KIND68_WAS_ON
+    rts
+
+; @routine 83:EF92 Kind6DWait
+; WHAT IT DOES: Kind $6D's wait: by variant (bits 2-4 of $07) stomped or
+; hurting and downed by shots, its height set by frame (variant 4), and
+; ended when out of range; variant $1C also enters state $8C while $1B14
+; is set and ends itself 144 pixels or more from the range point.
+; HOW: Variant $14: ActorEndOutOfRange only. Others: ActorStompOrHurt,
+; ActorDownedByShot (downed: $48 up), AnimStep, variant 4 ActorYByFrame,
+; ActorEndOutOfRange with box 0. Variant $1C: $1B14 set, state bits $8C
+; set and $09 bit 7 cleared; ActorStompOrHurt, ActorDownedByShot ($48 up),
+; AnimStep; distance from RANGE_X 144 or more: into ActorEndOutOfRange
+; past its range test.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Variant $1C is reached only by cov_kind6d_variant.box. Exit: as
+; ActorEndOutOfRange; variant $1C near: M 8-bit, C clear; far: does not
+; return.
+%at($83EF92)
+Kind6DWait:
+    lda.b !actor_07
+    and.b #$1C
+    cmp.b #$1C
+    beq .lEFBC
+    cmp.b #$14
+    beq .lEFB7
+    jsr.w ActorStompOrHurt
+    jsr.w ActorDownedByShot
+    bcs .lEFA8
+    inc.b !actor_48
+.lEFA8:
+    jsl.l AnimStep
+    lda.b !actor_07
+    and.b #$1C
+    cmp.b #$04
+    bne .lEFB7
+    jsr.w ActorYByFrame
+.lEFB7:
+    ldx.b #$00
+    jmp.w ActorEndOutOfRange
+.lEFBC:
+    lda.w !v_1b14
+    beq .lEFC9
+    lda.b #$8C
+    tsb.b !actor_state
+    lda.b #$80
+    trb.b !actor_09
+.lEFC9:
+    jsr.w ActorStompOrHurt
+    jsr.w ActorDownedByShot
+    bcs .lEFD3
+    inc.b !actor_48
+.lEFD3:
+    jsl.l AnimStep
+    rep.b #$20
+    sec
+    lda.w !RANGE_X_83
+    sbc.b !scratch
+    bpl .lEFE5
+    eor.w #$FFFF
+    inc a
+.lEFE5:
+    cmp.w #$0090
+    sep.b #$20
+    bcc .lEFEF
+    jmp.w ActorEndOutOfRange_end
+.lEFEF:
+    rts
+
+
+; @routine 83:F1D5 Kind6EWait
+; WHAT IT DOES: Kind $6E's wait: a sound ($33) every 63 frames while its
+; $49 is clear; its backdrop picture stepped and shown; touching the test
+; box (moved by its variant's offset for the test) while the player can be
+; hit, the player enters state $8C.
+; HOW: $49 clear: $48 down; at 0, back to $3F and SoundQueueAdd $33.
+; BackdropPictureStep, BackdropActorShow. Its x pixels kept at $4C and the
+; variant's offset (word at $D6AB) added; ActorHitsTestBoxIfPlayerFree;
+; met: PlayerEnter8CFacingLong. Its x put back.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Its $09 has bit 6 clear in play, so the touch test never meets: the hurt
+; is reached only by unit_kind6e_touch.box. Exit: M 8-bit; A = its x
+; pixels.
+%at($83F1D5)
+Kind6EWait:
+    lda.b !actor_49
+    bne .lF1E7
+    dec.b !actor_48
+    bne .lF1E7
+    lda.b #$3F
+    sta.b !actor_48
+    lda.b #$33
+    jsl.l SoundQueueAdd
+.lF1E7:
+    jsr.w BackdropPictureStep
+    jsr.w BackdropActorShow
+    lda.b !actor_07
+    asl a
+    tax
+    rep.b #$20
+    lda.b !actor_x+1
+    sta.b !ACTOR_4C
+    clc
+    adc.w !KIND6E_TEST_OFFSET,x
+    sta.b !actor_x+1
+    sep.b #$20
+    jsr.w ActorHitsTestBoxIfPlayerFree
+    bcs .lF208
+    jsl.l PlayerEnter8CFacingLong
+.lF208:
+    rep.b #$20
+    lda.b !ACTOR_4C
+    sta.b !actor_x+1
+    sep.b #$20
+    rts
 
 ; @routine 83:F991 KindWaitF991
 ; WHAT IT DOES: The per-frame routine of the kind whose stub at 83:930C
