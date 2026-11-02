@@ -6,7 +6,7 @@
 #include "machine.h"
 #include "ops65.h"
 void abi_ActorSpawnShared(void);
-void abi_ActorSpawnFacing(void);
+void abi_ActorSpawnFacingY(void);
 void abi_ActorsFreeAll(void);
 void abi_ActorTileSlotShare(void);
 void abi_ActorSpawnTyped(void);
@@ -47,7 +47,7 @@ L_81A9F9:
  * free: as ActorAlloc (N set). Started: M 8-bit, X 16-bit, X = the child;
  * Z set (SEP #$22); A low byte = Y at entry.
  */
-void abi_ActorSpawnFacing(void)
+void abi_ActorSpawnFacingY(void)
 {
     stx8(ea_abs(SCRATCH + 1));  /* 81AA57 stx */
     sty8(ea_abs(SCRATCH + 2));  /* 81AA5A sty */
