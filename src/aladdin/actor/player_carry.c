@@ -1,6 +1,7 @@
 /*
  * player_carry.c: actors and the player beside them: carried along when
- * riding, and faced. Drafted by cdraft.py; named and described by hand.
+ * riding (as the actor steps), and faced. Drafted by cdraft.py; named
+ * and described by hand.
  */
 #include "machine.h"
 #include "ops65.h"
@@ -13,6 +14,12 @@
 #define PLAYER_Y (PLAYER + ACTOR_Y + 1)
 #define V_143B 0x00143Bu            /* moved with the player's x (word) */
 #define V_143E 0x00143Eu            /* moved with the player's y (word) */
+#define TARGET_X 0x1Au              /* where some actors move to: x pixels (word) */
+#define TARGET_Y 0x1Eu              /* and y pixels (word) */
+
+void abi_ActorMoveByVector(void);
+void abi_ActorMoveByVectorX(void);
+void abi_ActorMoveByVectorY(void);
 
 /*
  * @routine 83:FBDA ActorCarryPlayer
@@ -77,5 +84,69 @@ void abi_ActorFacePlayer(void)
     sta8(ea_dp(0x14));  /* 83FCA0 sta */
     op_sep(0x10);  /* 83FCA2 sep */
     return;  /* 83FCA4 rts */
+}
+
+/*
+ * @routine 83:C1EC ActorStepCarry
+ * WHAT IT DOES: Moves the actor a step along its facing (vector set $0E)
+ * and carries the player riding it along.
+ * HOW: ActorMoveByVector with X = $0E; then ActorCarryPlayer.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB the vectors' bank;
+ * called by JSR. Exit: as ActorCarryPlayer.
+ */
+void abi_ActorStepCarry(void)
+{
+    ldx8_v(0x0E);  /* 83C1EC ldx */
+    abi_ActorMoveByVector();  /* 83C1EE jsl */
+    abi_ActorCarryPlayer();  /* 83C1F2 jsr */
+    return;  /* 83C1F5 rts */
+}
+
+
+/*
+ * @routine 83:C1F6 ActorStepToTargetCarry
+ * WHAT IT DOES: Moves the actor a step toward its target ($1A, $1E):
+ * across and up or down by vector set 8 on each axis it has not reached;
+ * then carries the player riding it along.
+ * HOW: Its x pixels (16-bit) unequal to TARGET_X: ActorMoveByVectorX with
+ * X = 8; its y pixels unequal to TARGET_Y: ActorMoveByVectorY with X = 8;
+ * then ActorCarryPlayer.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB the vectors' bank;
+ * called by JSR. Exit: as ActorCarryPlayer.
+ */
+void abi_ActorStepToTargetCarry(void)
+{
+    op_rep(0x20);  /* 83C1F6 rep */
+    lda16(ea_dp(0x0C));  /* 83C1F8 lda */
+    cmp16_v(rd16(ea_dp(0x1A)));  /* 83C1FA cmp */
+    if (IF_Z) goto L_83C208;  /* 83C1FC beq */
+    op_sep(0x20);  /* 83C1FE sep */
+    ldx8_v(0x08);  /* 83C200 ldx */
+    abi_ActorMoveByVectorX();  /* 83C202 jsl */
+    op_rep(0x20);  /* 83C206 rep */
+L_83C208:
+    lda16(ea_dp(0x0F));  /* 83C208 lda */
+    cmp16_v(rd16(ea_dp(0x1E)));  /* 83C20A cmp */
+    if (IF_Z) goto L_83C216;  /* 83C20C beq */
+    op_sep(0x20);  /* 83C20E sep */
+    ldx8_v(0x08);  /* 83C210 ldx */
+    abi_ActorMoveByVectorY();  /* 83C212 jsl */
+L_83C216:
+    op_sep(0x20);  /* 83C216 sep */
+    abi_ActorCarryPlayer();  /* 83C218 jsr */
+    return;  /* 83C21B rts */
+}
+
+
+/*
+ * @routine 83:FBD6 ActorCarryPlayerLong
+ * WHAT IT DOES: ActorCarryPlayer for callers in other banks.
+ * HOW: JSR ActorCarryPlayer, RTL.
+ * Entry: as ActorCarryPlayer; called by JSL. Exit: as ActorCarryPlayer.
+ */
+void abi_ActorCarryPlayerLong(void)
+{
+    abi_ActorCarryPlayer();  /* 83FBD6 jsr */
+    return;  /* 83FBD9 rtl */
 }
 

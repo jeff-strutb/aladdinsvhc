@@ -56,7 +56,6 @@ CarpetLevelOut:
 .lE56C:
     rts
 
-
 ; @routine 81:E56D CarpetTilt
 ; WHAT IT DOES: Tilts the carpet the way it is steered: diving (move 3)
 ; when steered down, climbing (move 1) when steered up; level steering
@@ -95,7 +94,6 @@ CarpetTilt:
 .lE594:
     jmp.w CarpetLevelOut
 
-
 ; @routine 81:E597 CarpetSteerXAlt
 ; WHAT IT DOES: Pushes the other ride's speed across by its rate for the
 ; steering direction.
@@ -114,7 +112,6 @@ CarpetSteerXAlt:
     lda.w !CARPET_RATES_ALT,x
     bmi CarpetSteerX_take
     bra CarpetSteerX_add
-
 
 ; @routine 81:E5A4 CarpetSteerX
 ; WHAT IT DOES: Pushes the ride's speed across by its rate for the
@@ -162,6 +159,80 @@ CarpetSteerX:
 .done:
     rts
 
+; @routine 81:E5DB CarpetSteerYAlt
+; WHAT IT DOES: Pushes the other ride's vertical speed by its rate for the
+; steering direction.
+; HOW: No direction (negative): nothing. Else the up-down rate from the
+; other ride's table; a rate of 0: CarpetSteadyY, then the same rate read
+; again; then on in CarpetSteerY: added to the 24-bit speed, or taken away
+; when bit 7 is set.
+; Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+; DB = $80; called by JSR from the ride's loop (81:E49C). Exit: as
+; CarpetSteerY.
+%at($81E5DB)
+CarpetSteerYAlt:
+    lda.b !CARPET_DIRECTION
+    bmi CarpetSteerY_done
+    asl a
+    tax
+    lda.w !CARPET_RATES_ALT+1,x
+    bne .lE5EC
+    jsr.w CarpetSteadyY
+    lda.w !CARPET_RATES_ALT+1,x
+.lE5EC:
+    bmi CarpetSteerY_take
+    bra CarpetSteerY_add
+
+; @routine 81:E5F0 CarpetSteerY
+; WHAT IT DOES: Pushes the ride's vertical speed by its rate for the
+; steering direction.
+; HOW: No direction (negative): nothing. Else the up-down rate from the
+; table; a rate of 0: CarpetSteadyY, then the same rate read again. Bit 7
+; clear, added to the 24-bit speed; set, its low 7 bits (kept at $002C)
+; taken away. A byte at a time.
+; Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+; DB = $80; called by JSR from the ride's loop (81:E49C). Exit: M 8-bit, X
+; 8-bit; X = the direction times 2; A low = the speed's top byte; flags
+; from the last add or subtract. No direction: A low = the direction, N
+; set.
+%at($81E5F0)
+CarpetSteerY:
+    lda.b !CARPET_DIRECTION
+    bmi .done
+    asl a
+    tax
+    lda.w !CARPET_RATES+1,x
+    bne .lE601
+    jsr.w CarpetSteadyY
+    lda.w !CARPET_RATES+1,x
+.lE601:
+    bmi .take
+.add:
+    clc
+    adc.b !actor_speed_y
+    sta.b !actor_speed_y
+    lda.b !actor_speed_y+1
+    adc.b #$00
+    sta.b !actor_speed_y+1
+    lda.b !actor_speed_y+2
+    adc.b #$00
+    sta.b !actor_speed_y+2
+    rts
+.take:
+    and.b #$7F
+    sta.w !scratch+32
+    lda.b !actor_speed_y
+    sec
+    sbc.w !scratch+32
+    sta.b !actor_speed_y
+    lda.b !actor_speed_y+1
+    sbc.b #$00
+    sta.b !actor_speed_y+1
+    lda.b !actor_speed_y+2
+    sbc.b #$00
+    sta.b !actor_speed_y+2
+.done:
+    rts
 
 ; @routine 81:E62F CarpetCruiseXAlt
 ; WHAT IT DOES: With no direction held, steers the other ride back toward
@@ -186,7 +257,6 @@ CarpetCruiseXAlt:
     cmp.w #$0181
     bcs CarpetCruiseX_slow
     bra CarpetCruiseX_faster
-
 
 ; @routine 81:E643 CarpetCruiseX
 ; WHAT IT DOES: With no direction held, steers the ride toward its
@@ -221,7 +291,6 @@ CarpetCruiseX:
     lda.b #$0A
     sta.b !CARPET_DIRECTION
     rts
-
 
 ; @routine 81:E664 CarpetSteadyY
 ; WHAT IT DOES: Steadies the carpet up and down: steers against its
@@ -259,7 +328,6 @@ CarpetSteadyY:
     sta.b !CARPET_DIRECTION
     rts
 
-
 ; @routine 81:E68F CarpetSpeedXLimitAlt
 ; WHAT IT DOES: Keeps the other ride's speed across between its least and
 ; most: $0020 and $0380 (an eighth of a pixel and three and a half pixels
@@ -289,7 +357,6 @@ CarpetSpeedXLimitAlt:
 .lE6AB:
     sep.b #$20
     rts
-
 
 ; @routine 81:E6AE CarpetSpeedXLimit
 ; WHAT IT DOES: Keeps the ride's speed across between its least and most:

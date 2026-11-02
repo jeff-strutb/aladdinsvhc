@@ -557,3 +557,85 @@ L_83CCB9:
     return;  /* 83CCB9 rts */
 }
 
+/*
+ * @routine 83:CAFC PlatformCourseSlower
+ * WHAT IT DOES: A step of the course while it is worked out, slowing: the
+ * course speed down by 1 (not below $20), the platform moved a step, and
+ * whether it is in a turn stretch.
+ * HOW: The speed less 1, held at $20 at least; PlatformCourseStep;
+ * PlatformTurnZoneTest.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * JSR. Exit: as PlatformTurnZoneTest: C clear in a turn stretch.
+ */
+void abi_PlatformCourseSlower(void)
+{
+    sec();  /* 83CAFC sec */
+    lda8(ea_dp(0x20));  /* 83CAFD lda */
+    sbc8_v(0x01);  /* 83CAFF sbc */
+    cmp8_v(0x20);  /* 83CB01 cmp */
+    if (IF_C) goto L_83CB07;  /* 83CB03 bcs */
+    lda8_v(0x20);  /* 83CB05 lda */
+L_83CB07:
+    sta8(ea_dp(0x20));  /* 83CB07 sta */
+    abi_PlatformCourseStep();  /* 83CB09 jsr */
+    abi_PlatformTurnZoneTest();  /* 83CB0C jsr */
+    return;  /* 83CB0F rts */
+}
+
+
+/*
+ * @routine 83:CB10 PlatformCourseFaster
+ * WHAT IT DOES: A step of the course while it is worked out, speeding: the
+ * course speed up by 1 (not above $80), the platform moved a step, and
+ * whether it is in a turn stretch.
+ * HOW: The speed plus 1, held at $80 at most; PlatformCourseStep;
+ * PlatformTurnZoneTest.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * JSR. Exit: as PlatformTurnZoneTest: C clear in a turn stretch.
+ */
+void abi_PlatformCourseFaster(void)
+{
+    clc();  /* 83CB10 clc */
+    lda8(ea_dp(0x20));  /* 83CB11 lda */
+    adc8_v(0x01);  /* 83CB13 adc */
+    cmp8_v(0x80);  /* 83CB15 cmp */
+    if (!IF_C) goto L_83CB1B;  /* 83CB17 bcc */
+    lda8_v(0x80);  /* 83CB19 lda */
+L_83CB1B:
+    sta8(ea_dp(0x20));  /* 83CB1B sta */
+    abi_PlatformCourseStep();  /* 83CB1D jsr */
+    abi_PlatformTurnZoneTest();  /* 83CB20 jsr */
+    return;  /* 83CB23 rts */
+}
+
+
+/*
+ * @routine 83:CC19 PlatformDipUpdate
+ * WHAT IT DOES: Runs the platform's dip for the frame: its phase's
+ * routine, then its y set to its height without the dip plus the dip.
+ * HOW: JSR through the dip phase table at $83:CC34 by the phase; then the
+ * 24-bit sum of BASE_Y and DIP, a byte at a time, to its y.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * JSR from the platform's wait routine (83:CAD1). Exit: M 8-bit; A low =
+ * the y's top byte; X as the phase routine left it; flags from the last
+ * add.
+ */
+void abi_PlatformDipUpdate(void)
+{
+    lda8(ea_dp(0x13));  /* 83CC19 lda */
+    ACC8(asl);  /* 83CC1B asl */
+    tax8();  /* 83CC1C tax */
+    call_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xCC34 + cpu.x)), 0);  /* 83CC1D jsr */
+    clc();  /* 83CC20 clc */
+    lda8(ea_dp(0x4D));  /* 83CC21 lda */
+    adc8_v(rd8(ea_dp(0x4A)));  /* 83CC23 adc */
+    sta8(ea_dp(0x0E));  /* 83CC25 sta */
+    lda8(ea_dp(0x4E));  /* 83CC27 lda */
+    adc8_v(rd8(ea_dp(0x4B)));  /* 83CC29 adc */
+    sta8(ea_dp(0x0F));  /* 83CC2B sta */
+    lda8(ea_dp(0x4F));  /* 83CC2D lda */
+    adc8_v(rd8(ea_dp(0x4C)));  /* 83CC2F adc */
+    sta8(ea_dp(0x10));  /* 83CC31 sta */
+    return;  /* 83CC33 rts */
+}
+

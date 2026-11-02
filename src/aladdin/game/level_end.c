@@ -17,6 +17,8 @@
 #define END_STEP_VRAM 0xFDC5u
 #define END_LEVEL_PICTURES 0xFDD5u
 #define END_PICTURE_TILE 0xFDF1u
+/* In the data bank: the VRAM word addresses of the 16 blocks blanked (words) */
+#define END_BLANK_BLOCKS 0xFE02u
 
 /*
  * @routine 81:F973 TileBlockBlank
@@ -107,5 +109,33 @@ void abi_LevelEndColumnPlace(void)
     sta16(ea_abs(0x000E));  /* 81F9CC sta */
     op_sep(0x20);  /* 81F9CF sep */
     return;  /* 81F9D1 rts */
+}
+
+/*
+ * @routine 81:F958 LevelEndBlanks
+ * WHAT IT DOES: Queues 16 blank 2x2-tile blocks for VRAM, at the addresses
+ * of a table, and has the NMI send them.
+ * HOW: From the queue's length, TileBlockBlank for each word of the table
+ * at $FE02 (the last first); the new length kept, then the queue marked
+ * ready (TILE_BLOCKS_PENDING counted up).
+ * Entry: DB = $81 (the table's bank); called by JSR from the level-end
+ * screen's set-up (81:F6B7). Exit: M 8-bit, X 8-bit; Y = $FE; A low = the
+ * last address's low byte.
+ */
+void abi_LevelEndBlanks(void)
+{
+    op_rep(0x30);  /* 81F958 rep */
+    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81F95A ldx */
+    ldy16_v(0x001E);  /* 81F95D ldy */
+L_81F960:
+    lda16(ea_absy(0xFE02));  /* 81F960 lda */
+    abi_TileBlockBlank();  /* 81F963 jsr */
+    dey16();  /* 81F966 dey */
+    dey16();  /* 81F967 dey */
+    if (!IF_N) goto L_81F960;  /* 81F968 bpl */
+    stx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81F96A stx */
+    op_sep(0x30);  /* 81F96D sep */
+    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81F96F inc */
+    return;  /* 81F972 rts */
 }
 

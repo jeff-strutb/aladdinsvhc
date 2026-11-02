@@ -38,6 +38,8 @@ arch 65816
 !TURN_ZONES = $D2F8
 ; In the bank DB names: the rates (24-bit) it sinks and rises at.
 !DIP_RATES = $D2ED
+; In the bank DB names: the dip phases' routines (words), by DIP_PHASE.
+!DIP_PHASES = $CC34
 ; In the bank DB names: per direction, the 6-byte step of a course
 ; move (x, then y, 24-bit), 8 bytes apart; and the platform's resume
 ; address for the direction (words).
@@ -140,6 +142,50 @@ PlatformDipClear:
     stz.b !DIP
     stz.b !DIP+1
     stz.b !DIP+2
+    rts
+
+; @routine 83:CAFC PlatformCourseSlower
+; WHAT IT DOES: A step of the course while it is worked out, slowing: the
+; course speed down by 1 (not below $20), the platform moved a step, and
+; whether it is in a turn stretch.
+; HOW: The speed less 1, held at $20 at least; PlatformCourseStep;
+; PlatformTurnZoneTest.
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+; JSR. Exit: as PlatformTurnZoneTest: C clear in a turn stretch.
+%at($83CAFC)
+PlatformCourseSlower:
+    sec
+    lda.b !COURSE_SPEED
+    sbc.b #$01
+    cmp.b #$20
+    bcs .lCB07
+    lda.b #$20
+.lCB07:
+    sta.b !COURSE_SPEED
+    jsr.w PlatformCourseStep
+    jsr.w PlatformTurnZoneTest
+    rts
+
+; @routine 83:CB10 PlatformCourseFaster
+; WHAT IT DOES: A step of the course while it is worked out, speeding: the
+; course speed up by 1 (not above $80), the platform moved a step, and
+; whether it is in a turn stretch.
+; HOW: The speed plus 1, held at $80 at most; PlatformCourseStep;
+; PlatformTurnZoneTest.
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+; JSR. Exit: as PlatformTurnZoneTest: C clear in a turn stretch.
+%at($83CB10)
+PlatformCourseFaster:
+    clc
+    lda.b !COURSE_SPEED
+    adc.b #$01
+    cmp.b #$80
+    bcc .lCB1B
+    lda.b #$80
+.lCB1B:
+    sta.b !COURSE_SPEED
+    jsr.w PlatformCourseStep
+    jsr.w PlatformTurnZoneTest
     rts
 
 ; @routine 83:CB24 PlatformCourseStep
@@ -317,6 +363,33 @@ PlatformCourseFollow:
 ; registers and flags unchanged.
 %at($83CC18)
 PlatformDipIdle:
+    rts
+
+; @routine 83:CC19 PlatformDipUpdate
+; WHAT IT DOES: Runs the platform's dip for the frame: its phase's
+; routine, then its y set to its height without the dip plus the dip.
+; HOW: JSR through the dip phase table at $83:CC34 by the phase; then the
+; 24-bit sum of BASE_Y and DIP, a byte at a time, to its y.
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+; JSR from the platform's wait routine (83:CAD1). Exit: M 8-bit; A low =
+; the y's top byte; X as the phase routine left it; flags from the last
+; add.
+%at($83CC19)
+PlatformDipUpdate:
+    lda.b !DIP_PHASE
+    asl a
+    tax
+    jsr.w (!DIP_PHASES,x)
+    clc
+    lda.b !BASE_Y
+    adc.b !DIP
+    sta.b !actor_y
+    lda.b !BASE_Y+1
+    adc.b !DIP+1
+    sta.b !actor_y+1
+    lda.b !BASE_Y+2
+    adc.b !DIP+2
+    sta.b !actor_y+2
     rts
 
 ; @routine 83:CC42 PlatformDipLand

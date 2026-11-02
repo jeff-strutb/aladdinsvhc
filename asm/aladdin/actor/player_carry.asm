@@ -1,5 +1,6 @@
 ; player_carry.asm: actors and the player beside them: carried along when
-; riding, and faced. Drafted by cdraft.py; named and described by hand.
+; riding (as the actor steps), and faced. Drafted by cdraft.py; named
+; and described by hand.
 ; C: src/aladdin/actor/player_carry.c.
 
 incsrc "../include/macros.inc"
@@ -10,8 +11,63 @@ arch 65816
 !CARRIES = $43                  ; nonzero: the player rides the actor this frame
 !KEPT_X = $48                   ; the actor's x pixels when last kept (word)
 !KEPT_Y = $4A                   ; its y pixels when last kept (word)
-!v_143b = $143B              ; moved with the player's x (word)
-!v_143e = $143E              ; moved with the player's y (word)
+!v_143b = $143B                 ; moved with the player's x (word)
+!v_143e = $143E                 ; moved with the player's y (word)
+!TARGET_X = $1A                 ; where some actors move to: x pixels (word)
+!TARGET_Y = $1E                 ; and y pixels (word)
+
+; @routine 83:C1EC ActorStepCarry
+; WHAT IT DOES: Moves the actor a step along its facing (vector set $0E)
+; and carries the player riding it along.
+; HOW: ActorMoveByVector with X = $0E; then ActorCarryPlayer.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB the vectors' bank;
+; called by JSR. Exit: as ActorCarryPlayer.
+%at($83C1EC)
+ActorStepCarry:
+    ldx.b #$0E
+    jsl.l ActorMoveByVector
+    jsr.w ActorCarryPlayer
+    rts
+
+; @routine 83:C1F6 ActorStepToTargetCarry
+; WHAT IT DOES: Moves the actor a step toward its target ($1A, $1E):
+; across and up or down by vector set 8 on each axis it has not reached;
+; then carries the player riding it along.
+; HOW: Its x pixels (16-bit) unequal to TARGET_X: ActorMoveByVectorX with
+; X = 8; its y pixels unequal to TARGET_Y: ActorMoveByVectorY with X = 8;
+; then ActorCarryPlayer.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB the vectors' bank;
+; called by JSR. Exit: as ActorCarryPlayer.
+%at($83C1F6)
+ActorStepToTargetCarry:
+    rep.b #$20
+    lda.b !actor_x+1
+    cmp.b !TARGET_X
+    beq .lC208
+    sep.b #$20
+    ldx.b #$08
+    jsl.l ActorMoveByVectorX
+    rep.b #$20
+.lC208:
+    lda.b !actor_y+1
+    cmp.b !TARGET_Y
+    beq .lC216
+    sep.b #$20
+    ldx.b #$08
+    jsl.l ActorMoveByVectorY
+.lC216:
+    sep.b #$20
+    jsr.w ActorCarryPlayer
+    rts
+
+; @routine 83:FBD6 ActorCarryPlayerLong
+; WHAT IT DOES: ActorCarryPlayer for callers in other banks.
+; HOW: JSR ActorCarryPlayer, RTL.
+; Entry: as ActorCarryPlayer; called by JSL. Exit: as ActorCarryPlayer.
+%at($83FBD6)
+ActorCarryPlayerLong:
+    jsr.w ActorCarryPlayer
+    rtl
 
 ; @routine 83:FBDA ActorCarryPlayer
 ; WHAT IT DOES: Carries the player along with the actor it rides: moves
@@ -52,7 +108,6 @@ ActorCarryPlayer:
     sep.b #$20
 .lFC0C:
     rts
-
 
 ; @routine 83:FC96 ActorFacePlayer
 ; WHAT IT DOES: Turns the actor to face the player: facing 1 (left) when
