@@ -1,0 +1,6 @@
+# The title left alone long enough for its demo to run a second time
+# ($81:8031 counts the demo up to 2 and starts over at 0, $81:8052): the
+# title, demo, title, story and title again, about 18000 frames. Only
+# waiting.
+load build/aladdin/states/title.state
+wait 18000

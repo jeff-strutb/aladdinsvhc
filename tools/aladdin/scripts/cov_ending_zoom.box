@@ -1,0 +1,10 @@
+# The ending's zoom scene task ($80:B1D8, slot $60, its page at $00CF)
+# with its zoom step past $7F: the step taken as its negative ($80:B21D).
+# The step grows by one every 24 frames from 8 and the scene ends long
+# before it reaches $80, so the step ($00D7) is set to $7F and its frame
+# count ($00D9) to 1 while the scene runs.
+load build/aladdin/states/stage_a0_s0.state
+wait 2500
+poke $0000D7 7F
+poke $0000D9 01
+wait 60

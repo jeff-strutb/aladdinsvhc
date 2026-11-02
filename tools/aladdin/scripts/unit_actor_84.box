@@ -1,0 +1,81 @@
+# Actor helpers in banks $84 and $A5 in cases random play does not reach,
+# from the first level's state (the machine is put back after each call;
+# a set applies to the next call only). The pool's first record ($0B5B)
+# is the actor unless said otherwise.
+load build/aladdin/states/level1.state
+wait 10
+# ActorSpawnA2 ($84:8145) from an actor whose $07 is 3: the child's $07
+# is the spawner's less 3 plus A ($84:815B). The bank $84 actors that
+# call it have $07 0-2 in every level played so far.
+set 000B5B 0C,00,00,00,00,00,00,03,00,40,00,00,00,01,00,30,01
+call 848145 a=0001 d=0B5B db=81 p=30
+# ActorAnimFreeFar ($84:832B) for an actor far out of range (x $7000):
+# it is freed and its parent's count at $42 (the parent's record in $4C,
+# here $0BAB) steps down ($84:833B). In play these actors are freed
+# with their parent, before they can leave the range. Its fields from
+# $11 on cleared (no tile slot held).
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,70,00,30,01
+set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+set 000BA7 AB,0B
+set 000BED 02
+call 84832B long d=0B5B db=80 p=30
+# ActorsFollowSteps ($84:8D04) with a one-actor list ($1B16 = $0B5B,
+# whose next is $0BAB, whose next is 0) and the step sum ($41 + $1B19)
+# 0: the step taken is 1 ($84:8D31). Play's step sums stay positive.
+set 001B16 5B,0B
+set 001B19 00
+set 000B92 AB,0B
+set 000BE2 00,00
+set 000BEC 00
+call 848D04 d=0 db=81 p=30
+# ActorClampAboveFloor ($84:8F3C) with the actor's y plus A negative
+# (y 0, A = -16): C clear at once ($84:8F7F). Play keeps these actors
+# below the top of the map.
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,00
+call 848F3C a=FFF0 d=0B5B db=81 p=10
+# PlayerFallCheck ($84:8F81) with the player's y negative ($FFF0, above
+# the map's top): nothing ($84:8F99).
+set 001B2B 00
+set 0008EA F0,FF
+call 848F81 d=0B5B db=81 p=30
+# ActorAnimByTile ($A5:E9D2) with bit 5 of the probed tile's behaviour
+# set ($0012 = $20): animation 3 ($A5:EA13). The guards using it have
+# not met such a tile in play.
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,30,01
+set 000012 20
+call A5E9D2 d=0B5B db=81 p=30
+# ActorGrabTest ($82:88CF) with the player able to be grabbed ($145A
+# clear, $141B 0, $141C 1) and the actor (able to be hit) on the test
+# box ($1484, half sizes 16) but not touching him: first the
+# actor below him (y $0200; C set, $82:8931), then above him and to his
+# left (x $0010, y $0100; the left-side test, $82:88FD), facing left
+# and then right ($08F0 0, then 1); then facing right with the player
+# far right (x $4000), past the actor's reach ($82:8914). The bank $83
+# actor that calls it has met him only from the right and above.
+set 00145A 00
+set 00141B 00,01
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,10,00,00,00,02
+set 001484 10,00,00,02,10,00,10,00
+set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+call 8288CF long d=0B5B db=80 p=30
+set 00145A 00
+set 00141B 00,01
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,10,00,00,00,01
+set 001484 10,00,00,01,10,00,10,00
+set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+call 8288CF long d=0B5B db=80 p=30
+set 00145A 00
+set 00141B 00,01
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,10,00,00,00,01
+set 0008F0 01
+set 001484 10,00,00,01,10,00,10,00
+set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+call 8288CF long d=0B5B db=80 p=30
+set 00145A 00
+set 00141B 00,01
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,10,00,00,00,01
+set 0008F0 01
+set 0008E7 00,40
+set 001484 10,00,00,01,10,00,10,00
+set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+call 8288CF long d=0B5B db=80 p=30

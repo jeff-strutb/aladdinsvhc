@@ -1,0 +1,45 @@
+# The window effects' HDMA starts with every HDMA channel 4-7 in use
+# (HDMAEN's shadow $03B6 = $F0): HdmaChannelFree ($82:871B) finds none
+# (C set), HdmaStart ($82:873B) and HdmaStartAtBase ($82:8735) return at
+# once, and each effect that starts one returns (8280E2, 8282DB, 828388,
+# 8284CB, 82860B, 82867B, 8286CF). Play never starts an effect while all
+# four channels are busy. The first level's state; the machine is put back
+# after each call.
+load build/aladdin/states/level1.state
+wait 10
+poke $0003B6 F0
+call 82871B d=0 db=82 p=30
+call 82873B x=4 y=6 d=0 db=82 p=30
+call 828735 x=4 y=6 d=0 db=82 p=30
+call 8280E2 d=0 db=82 p=30
+call 8282DB d=0 db=82 p=30
+call 828388 d=0 db=82 p=30
+call 8284CB d=0 db=82 p=30
+call 82860B d=0 db=82 p=30
+call 82867B d=0 db=82 p=30
+call 8286CF d=0 db=82 p=30
+# The window effects' task ($82:8000) for effect 2 ($82:80E2) with the
+# channels still all in use: the effect returns, and the task waits a
+# frame to try again ($82:800F). The task never returns (noreturn), so
+# the state is loaded again after it.
+set 000075 04
+call 828000 y=0 d=0 db=82 p=30 noreturn frames=4
+load build/aladdin/states/level1.state
+wait 10
+# The window effect at $82:84CB (its box at level x $0E78) 248 pixels
+# right of the screen's left (scroll x $0D80, its BG1 shift 0) and on
+# screen (scroll y $0100): its right edge clamped at 255 ($82:8543).
+# Play has not had the camera there while the effect ran. It loops
+# waiting a frame each time (noreturn).
+set 001773 80,0D
+set 001777 00,01
+set 001A18 00,00
+set 001A1C 00,00
+call 8284CB d=0 db=82 p=30 noreturn frames=4
+load build/aladdin/states/level1.state
+wait 10
+# The window effect at $82:867B with the play field's scroll y at $0200:
+# no lines left above the window ($82:86C5). It loops waiting a frame
+# each time (noreturn).
+set 001777 00,02
+call 82867B d=0 db=82 p=30 noreturn frames=4
