@@ -1,0 +1,11 @@
+# The play loop's longer wait ($81:82E5): with $03FB nonzero each turn of
+# the loop ($81:82DE, in $81:8095 and $81:80A3) waits $03FB frames
+# instead of one. Only the copier check ($81:A3BE, cartridge RAM that this
+# board does not have) and an actor at $81:E1F0 that no script reaches
+# set it. The first level, played with $03FB = 3 for a while, then 0.
+load build/aladdin/states/level1.state
+wait 10
+poke $0003FB 03
+hold RIGHT 30
+poke $0003FB 00
+wait 10

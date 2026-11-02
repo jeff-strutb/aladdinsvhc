@@ -1,0 +1,17 @@
+# The direction from an actor to a point ($81:AC68) when the point is
+# farther away up or down than across ($81:AC90, the two differences
+# swapped) and when it lies near a diagonal ($81:ACCA, the fifth step).
+# The one caller's actor ($83:FC6E) aims at points no script's play puts
+# in those places. The actor at $0B5B at (100, 100); the point (110, 200),
+# then (190, 190), set as each call starts. (The machine is put back after
+# each call.)
+load build/aladdin/states/level1.state
+wait 10
+set $000B67 64,00
+set $000B6A 64,00
+set $000010 6E,00,C8,00
+call 81AC68 long d=0B5B db=81 p=00
+set $000B67 64,00
+set $000B6A 64,00
+set $000010 BE,00,BE,00
+call 81AC68 long d=0B5B db=81 p=00

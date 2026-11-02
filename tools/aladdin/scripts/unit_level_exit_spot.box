@@ -1,0 +1,33 @@
+# The player at the level's exit spot ($81:875C: within 8 pixels of the
+# spot across, then up or down; $81:879D on, the exit walk set up), and
+# an escort level's exit passed by the scroll ($81:8789). No script's
+# play reaches a level's far end. Level $0B (its spot at $9F0, $188, the
+# list at $80:EC1E + $CF) with the player on the spot; then level $07
+# (an escort level, its spot at x $1C00, the list at + $B3) with the
+# play field's scroll x at $1C10. Last, an exit that faces the player
+# left ($81:87C0, bit 7 of the spot's last byte): no level's spot has it,
+# so the list is pointed at offset 0 of the table, whose first 6 bytes
+# read as a spot at $8900, $9000 with the bit, and the player put there.
+# (The machine is put back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+set $00141B 00,00
+set $001423 00,00
+set $00035E 0B,00
+set $000821 01,CF,00
+set $0008E7 F0,09
+set $0008EA 88,01
+call 81872E db=80 p=30
+set $00141B 00,00
+set $001423 00,00
+set $00035E 07,00
+set $000821 01,B3,00
+set $001773 10,1C
+call 81872E db=80 p=30
+set $00141B 00,00
+set $001423 00,00
+set $00035E 0B,00
+set $000821 01,00,00
+set $0008E7 00,89
+set $0008EA 00,90
+call 81872E db=80 p=30

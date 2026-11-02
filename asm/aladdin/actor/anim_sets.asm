@@ -8,6 +8,7 @@
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
+incsrc "../include/actor_anim.inc"
 
 arch 65816
 
@@ -23,6 +24,165 @@ arch 65816
 !LEVEL_DATA_BANK = $82
 !WORK_BANK_HIGH = $7F
 
+; AnimSetsLoad: per set, its pictures' entry (offset from $8000, bank
+; from $A6: 3 bytes) in bank $A6, and its animation table's offset (word)
+; in bank $A5; direct page (D = 0) working values.
+!set_pictures = $8000
+!SET_PICTURES_BANK = $A6
+!set_tables = $C000
+!SET_TABLES_BANK = $A5
+!load_sets_left = $0C
+!load_list_at = $10
+!load_left = $16
+!load_source = $18               ; long pointer (bank at $1A)
+
+; @routine 81:8F47 AnimSetsLoad
+; WHAT IT DOES: Loads the level's animation sets: marks and lists the sets
+; its actor types use, and copies each set's picture list and animation
+; tables into work RAM.
+; HOW: With DB = $A6: AnimSetsClear, AnimSetsOfLevel, AnimSetsAlways,
+; AnimSetsList, AnimSetsListEnd. For each set listed: its picture list's
+; place ($7E:2000 + X) goes to anim_set_gfx; its entry in the table at
+; $A6:8000 (set * 3: offset from $8000, bank from $A6) gives a byte count
+; and the bytes, copied through the long pointer at $18 (each step past
+; $FFFF going on at $8000 of the next bank). Then with DB = $A5: for each
+; set, its table's place ($7E:B000 + X) goes to anim_set_table, and the
+; words of its table (offset at $A5:C000 + set * 2; a count / 2 + 1) are
+; copied. Last, AnimSetsPlaces. Scratch $0C counts the sets, $10 indexes
+; the lists, $16 counts bytes or words. The step at $81:8FAD (a count at
+; a bank's last two bytes) is in no set and no script runs it.
+; Entry: DB, P kept on the stack; D = 0; called by JSL. Exit: P and DB as
+; at entry; A, X, Y as AnimSetsPlaces leaves them.
+%at($818F47)
+AnimSetsLoad:
+    sep.b #$30
+    phb
+    php
+    lda.b #!SET_PICTURES_BANK
+    pha
+    plb
+    jsl.l AnimSetsClear
+    jsl.l AnimSetsOfLevel
+    jsr.w AnimSetsAlways
+    jsr.w AnimSetsList
+    jsr.w AnimSetsListEnd
+    txa
+    rep.b #$30
+    and.w #$00FF
+    lsr a
+    dec a
+    sta.b !load_sets_left
+    stz.b !load_list_at
+    ldx.w #$0000
+.pictures:
+    phx
+    txa
+    ldx.b !load_list_at
+    inc.b !load_list_at
+    inc.b !load_list_at
+    sta.l !anim_set_gfx,x
+    lda.l !anim_sets_used,x
+    asl a
+    clc
+    adc.l !anim_sets_used,x
+    tay
+    plx
+    lda.w !set_pictures,y
+    pha
+    iny
+    iny
+    stz.b !load_source
+    lda.w !set_pictures,y
+    and.w #$00FF
+    clc
+    adc.w #!SET_PICTURES_BANK
+    sta.b !load_source+2
+    pla
+    clc
+    adc.w #$8000
+    tay
+    lda.b [!load_source],y
+    sta.b !load_left
+    iny
+    iny
+    clc
+    cpy.w #$8000
+    bcs .byte
+    tya
+    clc
+    adc.w #$8000
+    tay
+    inc.b !load_source+2
+.byte:
+    sep.b #$20
+    lda.b [!load_source],y
+    sta.l !picture_list,x
+    inx
+    iny
+    clc
+    cpy.w #$8000
+    bcs .counted
+    rep.b #$20
+    tya
+    clc
+    adc.w #$8000
+    tay
+    inc.b !load_source+2
+.counted:
+    rep.b #$20
+    dec.b !load_left
+    bne .byte
+    dec.b !load_sets_left
+    bne .pictures
+    sep.b #$30
+    lda.b #!SET_TABLES_BANK
+    pha
+    plb
+    jsr.w AnimSetsListEnd
+    rep.b #$30
+    txa
+    and.w #$00FF
+    lsr a
+    dec a
+    sta.b !load_sets_left
+    stz.b !load_list_at
+    ldx.w #$0000
+.tables:
+    phx
+    txa
+    ldx.b !load_list_at
+    inc.b !load_list_at
+    inc.b !load_list_at
+    sta.l !anim_set_table,x
+    lda.l !anim_sets_used,x
+    asl a
+    tay
+    plx
+    lda.w !set_tables,y
+    tay
+    lda.w !set_tables,y
+    lsr a
+    inc a
+    sta.b !load_left
+    iny
+    iny
+.word:
+    lda.w !set_tables,y
+    sta.l !anim_data,x
+    iny
+    iny
+    inx
+    inx
+    dec.b !load_left
+    bne .word
+    dec.b !load_sets_left
+    bne .tables
+    sep.b #$30
+    jsr.w AnimSetsPlaces
+    plp
+    plb
+    rtl
+
 ; @routine 81:902C AnimSetsList
 ; WHAT IT DOES: Lists each animation set the level's types use, once.
 ; HOW: With the data bank at $7F: for each type with a set, looks for the
@@ -31,7 +191,6 @@ arch 65816
 ; Entry: M 8-bit, X 8-bit; called by JSR. Exit: X = 0; A low byte and Y
 ; as the last type's search leaves them; C from its last compare; DB as at
 ; entry, N and Z from it (PLB); V unchanged.
-%at($81902C)
 AnimSetsList:
     phb
     lda.b #!WORK_BANK_HIGH

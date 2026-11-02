@@ -29,11 +29,11 @@ arch 65816
 ; then a count and 5-byte kept parts (source offset, bank, length).
 !level_gfx = $DF98
 ; Per animation set a word: its graphics entry's offset from
-; anim_set_gfx_parts; per entry: length (low 14 bits), source offset
+; anim_gfx_parts; per entry: length (low 14 bits), source offset
 ; (words), bank. Where each set's graphics went in bank $7F (words).
-!anim_set_gfx = $82AC18
-!anim_set_gfx_parts = $82AC58
-!anim_set_gfx_at = $7FE500
+!anim_gfx_entries = $82AC18
+!anim_gfx_parts = $82AC58
+!anim_gfx_at = $7FE500
 ; Bank $80: per set, 7 bytes: destination, source offset (words), bank,
 ; length (word).
 !unpack_sets = $F039
@@ -187,14 +187,14 @@ AnimSetGraphicsUnpack:
     asl a
     tax
     lda.l !unpack_next
-    sta.l !anim_set_gfx_at,x
+    sta.l !anim_gfx_at,x
     lda.l !unpack_next+1
-    sta.l !anim_set_gfx_at+1,x
+    sta.l !anim_gfx_at+1,x
     lda.w #$0000
     tcd
-    lda.l !anim_set_gfx,x
+    lda.l !anim_gfx_entries,x
     tax
-    lda.l !anim_set_gfx_parts,x
+    lda.l !anim_gfx_parts,x
     beq .done
     and.w #$3FFF
     lsr a
@@ -202,9 +202,9 @@ AnimSetGraphicsUnpack:
     lsr a
     sta.b !unpack_groups
     stz.b !unpack_source
-    lda.l !anim_set_gfx_parts+4,x
+    lda.l !anim_gfx_parts+4,x
     sta.b !unpack_source+2
-    lda.l !anim_set_gfx_parts+2,x
+    lda.l !anim_gfx_parts+2,x
     jsr.w UnpackBegin
     ldx.b !unpack_next
 .group:

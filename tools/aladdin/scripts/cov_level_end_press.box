@@ -1,0 +1,17 @@
+# The brightness fade-out task with a parameter of 1 ($81:9EB9; at
+# $81:9EC9 the halved step, 0, becomes 1). Its one creator with that
+# parameter is the screen after act 1 stage 1's end ($81:F8FE), when a
+# button is pressed; the level-end script (cov_level_ends.box) reaches
+# that screen but never presses. Its act 1 stage 1 part, then START.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+wait 300

@@ -1,0 +1,12 @@
+# The forced blank ($81:96B1) entered with the vertical blank's NMI flag
+# still set ($81:96B6: RDNMI read again to clear it). Its callers turn
+# the NMI off first and run outside the vertical blank, where the flag
+# reads clear (the NMI handler or the end of the blank clears it). Here
+# the NMI is turned off (NmiDisable, kept), then the blank is called in
+# the vertical blank, before anything reads RDNMI. (The machine is put
+# back after the second call.)
+load build/aladdin/states/level1.state
+wait 10
+call 8196A8 long keep db=80 p=30
+wait 1
+call 8196B1 long vblank db=80 p=30

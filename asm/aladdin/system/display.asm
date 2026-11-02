@@ -37,6 +37,26 @@ NmiDisable:
     sta.w !NMITIMEN
     rtl
 
+; @routine 81:96B1 ScreenBlank
+; WHAT IT DOES: Blanks the screen now (forced blank), keeping the
+; brightness.
+; HOW: RDNMI read (a second time when it says an NMI's vertical blank had
+; begun, to clear the flag); INIDISP and its shadow = the shadow with bit
+; 7 set.
+; Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM and whose
+; $2100-$421F are the registers; called by JSL. Exit: A low byte = the
+; value written; N set, Z clear; X, Y, C, V unchanged.
+ScreenBlank:
+    lda.w !RDNMI
+    bpl .blank
+    lda.w !RDNMI
+.blank:
+    lda.w !inidisp_shadow
+    ora.b #$80
+    sta.w !INIDISP
+    sta.w !inidisp_shadow
+    rtl
+
 ; @routine 81:96C5 ScreenFullBright
 ; WHAT IT DOES: Shows the screen at full brightness from the next vertical
 ; blank.

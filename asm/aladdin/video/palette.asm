@@ -170,6 +170,10 @@ LevelPalettesLoad:
 .done:
     rts
 
+; The palette fade's working colour and step (PaletteChannelStep).
+!fade_colour = $060A
+!fade_step = $0608
+
 ; PaletteSequenceTask's six palette sets and the frames each is shown.
 !palette_sequence_sets = $BA6A
 !palette_sequence_frames = $BA70
@@ -194,3 +198,47 @@ PaletteSequenceTask:
     dey
     bpl .set
     jml.l TaskExit
+
+; @routine 81:9E06 PaletteChannelStep
+; WHAT IT DOES: Steps one colour channel of the colour at $060A by the
+; fade's step ($0608), clamped to 0-31, and turns the colour so the next
+; channel is at the bottom.
+; HOW: The low 5 bits plus the step, negative made 0 and past 31 made 31,
+; go to bits 10-14 while the colour shifts right 5 bits; three calls step
+; red, green and blue.
+; Entry: M 16-bit; DB a bank whose $0000-$1FFF is work RAM; $060A = the
+; colour, $0608 = the step (signed word); called by JSR. Exit: $060A and
+; A = the turned colour; scratch $0C = the channel in place; N, Z from the
+; ORA; C from the last shift.
+%at($819E06)
+PaletteChannelStep:
+    lda.w !fade_colour
+    and.w #$001F
+    clc
+    adc.w !fade_step
+    bpl .clamp
+    lda.w #$0000
+    bra .turn
+.clamp:
+    cmp.w #$0020
+    bcc .turn
+    lda.w #$001F
+.turn:
+    lsr a
+    ror a
+    ror a
+    ror a
+    ror a
+    ror a
+    ror a
+    and.w #$7E00
+    sta.w !scratch
+    lda.w !fade_colour
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    ora.w !scratch
+    sta.w !fade_colour
+    rts

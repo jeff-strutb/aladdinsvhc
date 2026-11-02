@@ -5,7 +5,8 @@
  * writes INIDISP's shadow to the register every frame.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
+void abi_ScreenBlank(void);
 #include "hw.h"
 #include "wram.h"
 
@@ -63,4 +64,28 @@ void abi_ScreenFullBright(void)
 {
     set_a8(0x0F);
     wr8(abs_db(INIDISP_SHADOW), 0x0F);
+}
+
+/*
+ * @routine 81:96B1 ScreenBlank
+ * WHAT IT DOES: Blanks the screen now (forced blank), keeping the
+ * brightness.
+ * HOW: RDNMI read (a second time when it says an NMI's vertical blank had
+ * begun, to clear the flag); INIDISP and its shadow = the shadow with bit
+ * 7 set.
+ * Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM and whose
+ * $2100-$421F are the registers; called by JSL. Exit: A low byte = the
+ * value written; N set, Z clear; X, Y, C, V unchanged.
+ */
+void abi_ScreenBlank(void)
+{
+    lda8(ea_abs(RDNMI));  /* 8196B1 lda */
+    if (!IF_N) goto L_8196B9;  /* 8196B4 bpl */
+    lda8(ea_abs(RDNMI));  /* 8196B6 lda */
+L_8196B9:
+    lda8(ea_abs(INIDISP_SHADOW));  /* 8196B9 lda */
+    ora8_v(0x80);  /* 8196BC ora */
+    sta8(ea_abs(INIDISP));  /* 8196BE sta */
+    sta8(ea_abs(INIDISP_SHADOW));  /* 8196C1 sta */
+    return;  /* 8196C4 rtl */
 }

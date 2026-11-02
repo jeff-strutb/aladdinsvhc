@@ -1,0 +1,27 @@
+# Three levels' event tasks that wait for the camera or the player to get
+# far into the level, which the scripts' play does not: the backdrop
+# bands speeding up past camera x $0680 ($81:A0F2, task $81:A0C3, level
+# $06), the colour window past player x $0E00 ($81:A138, task $81:A128,
+# the level of the fifth password) and the palette dimming past camera x
+# $1A00 ($81:A16B, task $81:A15B, level $07). As in cov_level_ends.box,
+# the player and the camera are placed (pokes of the player's X $08E7
+# and the camera $1773 with its last position $19E5), health untouched;
+# then the game runs on.
+load build/aladdin/states/stage_a2_s0.state
+wait 30
+poke 001773 00,07
+poke 0019E5 00,07
+poke 0008E7 80,07
+wait 120
+load build/aladdin/states/pw5.state
+wait 30
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 60
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+poke 001773 00,1A
+poke 0019E5 00,1A
+poke 0008E7 80,1A
+wait 200

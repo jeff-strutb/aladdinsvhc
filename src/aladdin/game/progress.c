@@ -4,6 +4,8 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_GameStartTask(void);
+void abi_LevelPlayStartTask(void);
 void abi_NewGameState(void);
 void abi_LevelFromProgress(void);
 void abi_LevelCountersClear(void);
@@ -36,6 +38,58 @@ void abi_DemoStartLong(void)
 }
 
 /*
+ * @routine 81:8095 GameStartTask
+ * WHAT IT DOES: The game task's start of play from the title: a new game
+ * when none has begun ($036F clear), else play goes on with the game's
+ * progress.
+ * HOW: $0347 cleared. None begun: NewGameState, $036F set, and on into
+ * LevelPlayStartTask. Else: LevelFromProgress, $0364 = $0362, $0347,
+ * $036B, $036E, $0359 and $035A cleared, PlayStartCounts, then the play
+ * loop's start ($81:8191).
+ * Entry: the task's turn (TaskExec from the title): M 8-bit, X 8-bit; DB
+ * = $80. Exit: none: it goes on as the play loop.
+ */
+void abi_GameStartTask(void)
+{
+    stz8(ea_abs(0x0347));  /* 818095 stz */
+    lda8(ea_abs(0x036F));  /* 818098 lda */
+    if (!IF_Z) goto L_8180B5;  /* 81809B bne */
+    abi_NewGameState();  /* 81809D jsr */
+    MEM8(inc, ea_abs(0x036F));  /* 8180A0 inc */
+    abi_LevelPlayStartTask(); return;
+L_8180B5:
+    abi_LevelFromProgress();  /* 8180B5 jsr */
+    lda8(ea_abs(0x0362));  /* 8180B8 lda */
+    sta8(ea_abs(0x0364));  /* 8180BB sta */
+    stz8(ea_abs(0x0347));  /* 8180BE stz */
+    stz8(ea_abs(0x036B));  /* 8180C1 stz */
+    stz8(ea_abs(0x036E));  /* 8180C4 stz */
+    stz8(ea_abs(0x0359));  /* 8180C7 stz */
+    stz8(ea_abs(0x035A));  /* 8180CA stz */
+    abi_PlayStartCounts();  /* 8180CD jsr */
+    jump_routine(0x818191u); return;  /* 8180D0 jmp */
+}
+
+/*
+ * @routine 81:80A3 LevelPlayStartTask
+ * WHAT IT DOES: The game task's start of play at the level the game's
+ * progress gives (also after a level ends).
+ * HOW: LevelFromProgress, PlayStartCounts, $0359, $035A and $036C
+ * cleared, then the play loop's start ($81:8191).
+ * Entry: the task's turn (TaskExec): M 8-bit, X 8-bit; DB = $80. Exit:
+ * none: it goes on as the play loop.
+ */
+void abi_LevelPlayStartTask(void)
+{
+    abi_LevelFromProgress();  /* 8180A3 jsr */
+    abi_PlayStartCounts();  /* 8180A6 jsr */
+    stz8(ea_abs(0x0359));  /* 8180A9 stz */
+    stz8(ea_abs(0x035A));  /* 8180AC stz */
+    stz8(ea_abs(0x036C));  /* 8180AF stz */
+    jump_routine(0x818191u); return;  /* 8180B2 jmp */
+}
+
+/*
  * @routine 81:80DC PlayStartCountsLong
  * WHAT IT DOES: Sets what play starts with, for callers in other banks.
  * HOW: PlayStartCounts.
@@ -55,7 +109,7 @@ void abi_PlayStartCountsLong(void)
  * frame left on the current entry; the stream's offset from the word table
  * at $B724 (the demo * 2); the progress sequence, the stage and $0360
  * from the byte tables at $B6FD, $B70A and $B717.
- * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: A low byte =
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: A low byte =
  * $0360's new value; X = the demo; Y = the demo * 2; N, Z from the last
  * load; C from the doubling; V unchanged.
  */
@@ -90,7 +144,7 @@ void abi_DemoStart(void)
  * HOW: Random = $C3, $032C = 1, $032D = 0; when $0009 is set, health
  * marks = 10, $036E = 1 and $0369 = $99; health = the health marks;
  * $0347, $036C and $035A cleared.
- * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: A low byte =
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: A low byte =
  * the health; N, Z from it; X, Y, C, V unchanged.
  */
 void abi_PlayStartCounts(void)

@@ -7,6 +7,7 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_PaletteChannelStep(void);
 #include "wram.h"
 #include "wram_video.h"
 
@@ -191,6 +192,52 @@ void abi_LevelPalettesLoad(void)
     }
 }
 
+/*
+ * @routine 81:9E06 PaletteChannelStep
+ * WHAT IT DOES: Steps one colour channel of the colour at $060A by the
+ * fade's step ($0608), clamped to 0-31, and turns the colour so the next
+ * channel is at the bottom.
+ * HOW: The low 5 bits plus the step, negative made 0 and past 31 made 31,
+ * go to bits 10-14 while the colour shifts right 5 bits; three calls step
+ * red, green and blue.
+ * Entry: M 16-bit; DB a bank whose $0000-$1FFF is work RAM; $060A = the
+ * colour, $0608 = the step (signed word); called by JSR. Exit: $060A and
+ * A = the turned colour; scratch $0C = the channel in place; N, Z from the
+ * ORA; C from the last shift.
+ */
+void abi_PaletteChannelStep(void)
+{
+    lda16(ea_abs(0x060A));  /* 819E06 lda */
+    and16_v(0x001F);  /* 819E09 and */
+    clc();  /* 819E0C clc */
+    adc16_v(rd16(ea_abs(0x0608)));  /* 819E0D adc */
+    if (!IF_N) goto L_819E17;  /* 819E10 bpl */
+    lda16_v(0x0000);  /* 819E12 lda */
+    goto L_819E1F;  /* 819E15 bra */
+L_819E17:
+    cmp16_v(0x0020);  /* 819E17 cmp */
+    if (!IF_C) goto L_819E1F;  /* 819E1A bcc */
+    lda16_v(0x001F);  /* 819E1C lda */
+L_819E1F:
+    ACC16(lsr);  /* 819E1F lsr */
+    ACC16(ror);  /* 819E20 ror */
+    ACC16(ror);  /* 819E21 ror */
+    ACC16(ror);  /* 819E22 ror */
+    ACC16(ror);  /* 819E23 ror */
+    ACC16(ror);  /* 819E24 ror */
+    ACC16(ror);  /* 819E25 ror */
+    and16_v(0x7E00);  /* 819E26 and */
+    sta16(ea_abs(SCRATCH));  /* 819E29 sta */
+    lda16(ea_abs(0x060A));  /* 819E2C lda */
+    ACC16(lsr);  /* 819E2F lsr */
+    ACC16(lsr);  /* 819E30 lsr */
+    ACC16(lsr);  /* 819E31 lsr */
+    ACC16(lsr);  /* 819E32 lsr */
+    ACC16(lsr);  /* 819E33 lsr */
+    ora16_v(rd16(ea_abs(SCRATCH)));  /* 819E34 ora */
+    sta16(ea_abs(0x060A));  /* 819E37 sta */
+    return;  /* 819E3A rts */
+}
 
 /*
  * @routine 81:9E75 PaletteSequenceTask

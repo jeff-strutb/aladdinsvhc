@@ -14,6 +14,10 @@ arch 65816
 !near_box_table = $81BC43       ; half-width, half-height: 4 bytes an entry
 !near_point_x = !scratch+8      ; ActorNearPoint's point (words)
 !near_point_y = !scratch+10
+!aim_point_x = !scratch+4       ; ActorAimAt's point (words)
+!aim_point_y = !scratch+6
+!aim_steep = !scratch+2         ; the larger difference / 8
+!aim_directions = $BC03         ; per octant 8 bytes, the direction of each step
 !near_span_table = $81BC7B      ; half-width: 2 bytes an entry
 
 ; @routine 81:AB85 ActorSideOfPlayer
@@ -138,4 +142,81 @@ ActorNearPoint:
     adc.w !scratch+4
     cmp.w !scratch+6
 .out:
+    rtl
+
+; @routine 81:AC68 ActorAimAt
+; WHAT IT DOES: The direction from the actor to the point in scratch $10,
+; $12: an entry of the direction table at $BC03.
+; HOW: The differences across (point x - actor's x) and up or down, made
+; positive; the octant from their signs (+4 the point above, +2 left) and
+; which is larger (+1 up or down); the step in it from the smaller against
+; the larger (under 1/8, 3/8, 5/8, 7/8 of it, else 4, the larger / 8 kept
+; at $0E); the table's byte at the octant * 8 + the step.
+; Entry: M 16-bit, X 16-bit; D = the actor; DB = $81; $10, $12 = the point
+; (words); called by JSL. Exit: M and X 8-bit; A low byte = the direction;
+; X = the table offset, Y = the octant (low bytes); scratch $0C = the
+; octant * 8, $0E = the larger difference / 8.
+%at($81AC68)
+ActorAimAt:
+    ldy.w #$0000
+    lda.w !aim_point_y
+    sec
+    sbc.b !actor_y+1
+    bcs .down
+    eor.w #$FFFF
+    inc a
+    ldy.w #$0004
+.down:
+    sta.w !scratch
+    lda.w !aim_point_x
+    sec
+    sbc.b !actor_x+1
+    bcs .right
+    eor.w #$FFFF
+    inc a
+    iny
+    iny
+.right:
+    cmp.w !scratch
+    bcs .wide
+    iny
+    ldx.w !scratch
+    sta.w !scratch
+    txa
+.wide:
+    ldx.w #$0000
+    lsr a
+    lsr a
+    lsr a
+    sta.w !aim_steep
+    cmp.w !scratch
+    bcs .step
+    inx
+    adc.w !aim_steep
+    adc.w !aim_steep
+    cmp.w !scratch
+    bcs .step
+    inx
+    adc.w !aim_steep
+    adc.w !aim_steep
+    cmp.w !scratch
+    bcs .step
+    inx
+    adc.w !aim_steep
+    adc.w !aim_steep
+    cmp.w !scratch
+    bcs .step
+    inx
+.step:
+    tya
+    asl a
+    asl a
+    asl a
+    sta.w !scratch
+    txa
+    clc
+    adc.w !scratch
+    tax
+    lda.w !aim_directions,x
+    sep.b #$30
     rtl
