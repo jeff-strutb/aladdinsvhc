@@ -48,3 +48,23 @@ call 838135 d=0B5B db=80 p=30
 set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01
 set 0009CB 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,01,00,00,00,01
 call 838171 d=0B5B db=80 p=30
+# ActorBouncesOrHurtsPlayer ($83:844A) with Aladdin coming down on the
+# actor from above, which random play never reaches: the pool's first
+# record ($0B5B) as the actor (kind 0, able to be hit, at x $0100 and y
+# $3933), the test box at x and y $0100 with no size, so the actor's box
+# overlaps it within 10 pixels of its bottom; health 3, $141B zero, $141C
+# one, $145A and his vertical speed zero: he is stood on it. Then the
+# same with no health (refused).
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,33,39
+set 001484 00,01,00,01,00,00,00,00
+set 001448 00
+set 000367 03
+set 00141B 00,01
+set 00145A 00
+set 0008F9 00,00
+call 83844A d=0B5B db=80 p=30
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,33,39
+set 001484 00,01,00,01,00,00,00,00
+set 001448 00
+set 000367 00
+call 83844A d=0B5B db=80 p=30

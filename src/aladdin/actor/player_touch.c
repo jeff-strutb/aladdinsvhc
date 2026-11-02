@@ -26,7 +26,6 @@ void abi_SoundQueueAdd(void);
 
 /* Not yet filed */
 #define STOMP_MARK 0x8384F4u        /* an actor of kind $11 started at the player's place */
-#define TOUCH_844A 0x83844Au        /* a touch test (ActorHitsTestBoxIfActive first) */
 
 /*
  * @routine 83:80A1 ActorHurtsPlayerOnTouchLong
@@ -219,4 +218,65 @@ refused:
 void abi_ActorStompedByPlayerLong(void)
 {
     abi_ActorStompedByPlayer();
+}
+
+/*
+ * @routine 83:844A ActorBouncesOrHurtsPlayer
+ * WHAT IT DOES: When Aladdin touches the actor: from the side or below he
+ * is hurt; coming down on it from above (and able to bounce) he is stood
+ * on it; the actor is unharmed either way.
+ * HOW: Nothing when $1448 is $3C; ActorHitsTestBoxIfActive;
+ * ScratchBelowBy10 tells above (C clear) from not; not above:
+ * PlayerEnter8CFacing, A = 2. Above: health, $141B zero, $141C nonzero,
+ * $145A and the player's vertical speed not negative; then
+ * PlayerStandOnActor, A = 1.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit. Hurt:
+ * A low = 2; stood: A low = 1; N and Z clear either way. Otherwise: Z
+ * set; C set when the $1448 test or the box test said no; A, X, Y and the
+ * other flags from the last test.
+ */
+void abi_ActorBouncesOrHurtsPlayer(void)
+{
+    lda8(ea_abs(V_1448));
+    cmp8_v(0x3C);
+    if (IF_Z) goto none;
+    abi_ActorHitsTestBoxIfActive();
+    if (IF_C) goto none;
+    op_rep(0x20);
+    abi_ScratchBelowBy10();
+    if (IF_C) {
+        op_sep(0x30);
+        abi_PlayerEnter8CFacing();
+        lda8_v(0x02);
+        return;
+    }
+    ldx8(ea_abs(HEALTH));
+    if (IF_Z) goto none;
+    ldx8(ea_abs(V_141B));
+    if (!IF_Z) goto none;
+    ldx8(ea_abs(V_141C));
+    if (IF_Z) goto none;
+    ldx8(ea_abs(V_145A));
+    if (IF_N) goto none;
+    lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
+    if (IF_N) goto none;
+    abi_PlayerStandOnActor();
+    op_sep(0x30);
+    lda8_v(0x01);
+    return;
+none:
+    op_sep(0x32);
+}
+
+/*
+ * @routine 83:8446 ActorBouncesOrHurtsPlayerLong
+ * WHAT IT DOES: ActorBouncesOrHurtsPlayer for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorBouncesOrHurtsPlayer; called by JSL. Exit: as
+ * ActorBouncesOrHurtsPlayer.
+ */
+void abi_ActorBouncesOrHurtsPlayerLong(void)
+{
+    abi_ActorBouncesOrHurtsPlayer();
 }

@@ -20,7 +20,6 @@ arch 65816
 
 ; Not yet filed
 !STOMP_MARK = $8384F4           ; an actor of kind $11 started at the player's place
-!TOUCH_844A = $83844A           ; a touch test (ActorHitsTestBoxIfActive first)
 
 ; @routine 83:80A1 ActorHurtsPlayerOnTouchLong
 ; WHAT IT DOES: ActorHurtsPlayerOnTouch for callers in other banks.
@@ -186,11 +185,56 @@ ActorBouncesPlayer:
     lda.b #$01
     rts
 
-; @routine 83:8446 ActorTouch844ALong
-; WHAT IT DOES: The touch test at $83:844A for callers in other banks.
+; @routine 83:8446 ActorBouncesOrHurtsPlayerLong
+; WHAT IT DOES: ActorBouncesOrHurtsPlayer for callers in other banks.
 ; HOW: JSR to it, then RTL.
-; Entry: as $83:844A: M 8-bit, X 8-bit; D = the actor; DB a bank whose
-; $0000-$1FFF is work RAM; called by JSL. Exit: as the C states.
-ActorTouch844ALong:
-    jsr.w !TOUCH_844A
+; Entry: as ActorBouncesOrHurtsPlayer; called by JSL. Exit: as the C states.
+ActorBouncesOrHurtsPlayerLong:
+    jsr.w ActorBouncesOrHurtsPlayer
     rtl
+
+; @routine 83:844A ActorBouncesOrHurtsPlayer
+; WHAT IT DOES: When Aladdin touches the actor: from the side or below he
+; is hurt; coming down on it from above (and able to bounce) he is stood
+; on it; the actor is unharmed either way.
+; HOW: Nothing when $1448 is $3C; ActorHitsTestBoxIfActive;
+; ScratchBelowBy10 tells above (C clear) from not; not above:
+; PlayerEnter8CFacing, A = 2. Above: health, $141B zero, $141C nonzero,
+; $145A and the player's vertical speed not negative; then
+; PlayerStandOnActor, A = 1.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit. Hurt:
+; A low = 2; stood: A low = 1; N and Z clear either way. Otherwise: Z
+; set; C set when the $1448 test or the box test said no; A, X, Y and the
+; other flags from the last test.
+ActorBouncesOrHurtsPlayer:
+    lda.w !V_1448
+    cmp.b #$3C
+    beq .none
+    jsr.w ActorHitsTestBoxIfActive
+    bcs .none
+    rep.b #$20
+    jsr.w ScratchBelowBy10
+    bcc .above
+    sep.b #$30
+    jsr.w PlayerEnter8CFacing
+    lda.b #2
+    rts
+.above:
+    ldx.w !HEALTH
+    beq .none
+    ldx.w !V_141B
+    bne .none
+    ldx.w !V_141C
+    beq .none
+    ldx.w !V_145A
+    bmi .none
+    lda.w !PLAYER_SPEED_Y_WHOLE
+    bmi .none
+    jsr.w PlayerStandOnActor
+    sep.b #$30
+    lda.b #1
+    rts
+.none:
+    sep.b #$32
+    rts
