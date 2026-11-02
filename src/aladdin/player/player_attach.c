@@ -1,10 +1,12 @@
 /*
  * player_attach.c: the player put at an offset from an actor (below or
  * above it, and to one side by the player's facing), from a table of
- * offsets.
+ * offsets; or only the spot it would go to, kept.
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_PlayerSpotAboveActor(void);
+void abi_PlayerSpotBelowActor(void);
 void abi_PlayerToActorAbove(void);
 void abi_PlayerToActorBelow(void);
 #include "actor.h"
@@ -102,4 +104,73 @@ L_82BB62:
     sbc8_v(0x00);  /* 82BB6D sbc */
     sta8(ea_abs(0x08E8));  /* 82BB6F sta */
     return;  /* 82BB72 rtl */
+}
+
+/*
+ * @routine 82:BB73 PlayerSpotAboveActor
+ * WHAT IT DOES: Works out where PlayerToActorAbove would put the player for
+ * offset A, keeping that spot in player_pos_saved and leaving the player
+ * where it was.
+ * HOW: The player's x and y pushed; PlayerToActorAbove; the x and y it set
+ * copied to player_pos_saved (x, then y at +2); the pushed x and y put
+ * back.
+ * Entry: M 8-bit; A = the offset's number; D = the actor; DB = $80;
+ * called by JSL. Exit: M 8-bit, X 8-bit; X = the player's x low byte.
+ */
+void abi_PlayerSpotAboveActor(void)
+{
+    op_rep(0x10);  /* 82BB73 rep */
+    ldx16(ea_abs(0x08E7));  /* 82BB75 ldx */
+    phx16();  /* 82BB78 phx */
+    ldx16(ea_abs(0x08EA));  /* 82BB79 ldx */
+    phx16();  /* 82BB7C phx */
+    op_sep(0x10);  /* 82BB7D sep */
+    abi_PlayerToActorAbove();  /* 82BB7F jsl */
+    op_rep(0x10);  /* 82BB83 rep */
+    ldx16(ea_abs(0x08E7));  /* 82BB85 ldx */
+    stx16(ea_abs(PLAYER_POS_SAVED));  /* 82BB88 stx */
+    ldx16(ea_abs(0x08EA));  /* 82BB8B ldx */
+    stx16(ea_abs(0x145F));  /* 82BB8E stx */
+    plx16();  /* 82BB91 plx */
+    stx16(ea_abs(0x08EA));  /* 82BB92 stx */
+    plx16();  /* 82BB95 plx */
+    stx16(ea_abs(0x08E7));  /* 82BB96 stx */
+    op_sep(0x10);  /* 82BB99 sep */
+    return;  /* 82BB9B rtl */
+}
+
+/*
+ * @routine 82:BB9C PlayerSpotBelowActor
+ * WHAT IT DOES: Works out where PlayerToActorBelow would put the player for
+ * offset A, keeping that spot in player_pos_saved and leaving the player
+ * where it was.
+ * HOW: The player's x and y pushed; PlayerToActorBelow; then as
+ * PlayerSpotAboveActor.
+ * Entry: M 8-bit; A = the offset's number; D = the actor; DB = $80;
+ * called by JSL. Exit: as PlayerSpotAboveActor.
+ */
+void abi_PlayerSpotBelowActor(void)
+{
+    goto L_82BB9C;
+L_82BB83:
+    op_rep(0x10);  /* 82BB83 rep */
+    ldx16(ea_abs(0x08E7));  /* 82BB85 ldx */
+    stx16(ea_abs(PLAYER_POS_SAVED));  /* 82BB88 stx */
+    ldx16(ea_abs(0x08EA));  /* 82BB8B ldx */
+    stx16(ea_abs(0x145F));  /* 82BB8E stx */
+    plx16();  /* 82BB91 plx */
+    stx16(ea_abs(0x08EA));  /* 82BB92 stx */
+    plx16();  /* 82BB95 plx */
+    stx16(ea_abs(0x08E7));  /* 82BB96 stx */
+    op_sep(0x10);  /* 82BB99 sep */
+    return;  /* 82BB9B rtl */
+L_82BB9C:
+    op_rep(0x10);  /* 82BB9C rep */
+    ldx16(ea_abs(0x08E7));  /* 82BB9E ldx */
+    phx16();  /* 82BBA1 phx */
+    ldx16(ea_abs(0x08EA));  /* 82BBA2 ldx */
+    phx16();  /* 82BBA5 phx */
+    op_sep(0x10);  /* 82BBA6 sep */
+    abi_PlayerToActorBelow();  /* 82BBA8 jsl */
+    goto L_82BB83;  /* 82BBAC bra */
 }

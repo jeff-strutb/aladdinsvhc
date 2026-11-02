@@ -8,6 +8,8 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_ActorBobAnimate(void);
+void abi_AnimStep(void);
 void abi_ActorBob(void);
 void abi_ActorSpeedUpMove(void);
 void abi_ActorMoveAlong(void);
@@ -252,4 +254,22 @@ L_84A7CF:
     sty8(ea_dp(0x44));  /* 84A7CF sty */
     op_sep(0x20);  /* 84A7D1 sep */
     return;  /* 84A7D3 rts */
+}
+
+/*
+ * @routine 84:A7A1 ActorBobAnimate
+ * WHAT IT DOES: Plays the actor's animation on a frame, and bobs it while
+ * its $42 is nonzero.
+ * HOW: AnimStep; then ActorBob when $42 is nonzero.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL. Exit:
+ * as AnimStep, or as ActorBob when it ran.
+ */
+void abi_ActorBobAnimate(void)
+{
+    abi_AnimStep();  /* 84A7A1 jsl */
+    lda8(ea_dp(0x42));  /* 84A7A5 lda */
+    if (IF_Z) goto L_84A7AC;  /* 84A7A7 beq */
+    abi_ActorBob();  /* 84A7A9 jsr */
+L_84A7AC:
+    return;  /* 84A7AC rtl */
 }
