@@ -35,6 +35,10 @@
 /* Shadows of PPU and CPU registers, written to them in the vertical blank */
 #define NMITIMEN_SHADOW 0x0003B7u  /* NMITIMEN: interrupts and auto joypad read */
 #define INIDISP_SHADOW 0x0003B8u   /* INIDISP: forced blank and brightness */
+#define TMW_SHADOW 0x00038Bu       /* TMW: layers the windows mask on the main screen */
+#define TSW_SHADOW 0x00038Cu       /* TSW: on the sub screen */
+#define HDMAEN_SHADOW 0x0003B6u    /* HDMAEN: the HDMA channels on */
+#define HDMA_TABLE_AT 0x000350u    /* per HDMA channel 4-7, its table's address (word) */
 
 /* The text layer (video/tilemap.c) */
 #define TEXT_TILEMAP 0x7ED800u     /* its 32x32 tilemap, 2 KB */
@@ -76,6 +80,8 @@
 #define LEVEL_035C 0x00035Cu       /* two bytes from the level's entry at $81:B933; purpose not yet established */
 #define LEVEL_SPOT_COUNT 0x000821u /* how many trigger spots the level has */
 #define LEVEL_SPOTS 0x000822u      /* their list's offset from $81:EC1E (word) */
+#define V_033F 0x00033Fu           /* the stage number per-stage tables are indexed by */
+#define V_0343 0x000343u           /* a countdown (word) the play loop steps down each frame */
 
 /* Which BG positions follow the scroll layers (video/bg_follow.c) */
 #define BG1_HELD 0x001A14u         /* nonzero: BG1's position is not taken from the play field */

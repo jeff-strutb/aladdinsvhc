@@ -8,6 +8,7 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_ActorBob(void);
 void abi_ActorSpeedUpMove(void);
 void abi_ActorMoveAlong(void);
 void abi_ActorMoveScaled(void);
@@ -213,4 +214,42 @@ L_81946A:
     pla16();  /* 81946A pla */
     ora16_v(0xFF00);  /* 81946B ora */
     return;  /* 81946E rts */
+}
+
+/*
+ * @routine 84:A7AD ActorBob
+ * WHAT IT DOES: Bobs the actor up and down a pixel a frame, five frames
+ * each way, while its $42 is nonzero; stops at the bottom once it is 0.
+ * HOW: The count at $44: 0, nothing; negative, y up a pixel and the count
+ * up, at 0 it becomes 5; positive, y down a pixel and the count down, at
+ * 0 it becomes -5 when $42 is nonzero (else stays 0).
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSR. Exit: M 8-bit; Y
+ * = the new count; A = the y moved to (16 bits) when it moved.
+ */
+void abi_ActorBob(void)
+{
+    op_rep(0x20);  /* 84A7AD rep */
+    ldy8(ea_dp(0x44));  /* 84A7AF ldy */
+    if (IF_Z) goto L_84A7CF;  /* 84A7B1 beq */
+    if (!IF_N) goto L_84A7C1;  /* 84A7B3 bpl */
+    lda16(ea_dp(0x0F));  /* 84A7B5 lda */
+    ACC16(dec);  /* 84A7B7 dec */
+    sta16(ea_dp(0x0F));  /* 84A7B8 sta */
+    iny8();  /* 84A7BA iny */
+    if (!IF_Z) goto L_84A7CF;  /* 84A7BB bne */
+    ldy8_v(0x05);  /* 84A7BD ldy */
+    goto L_84A7CF;  /* 84A7BF bra */
+L_84A7C1:
+    lda16(ea_dp(0x0F));  /* 84A7C1 lda */
+    ACC16(inc);  /* 84A7C3 inc */
+    sta16(ea_dp(0x0F));  /* 84A7C4 sta */
+    dey8();  /* 84A7C6 dey */
+    if (!IF_Z) goto L_84A7CF;  /* 84A7C7 bne */
+    ldx8(ea_dp(0x42));  /* 84A7C9 ldx */
+    if (IF_Z) goto L_84A7CF;  /* 84A7CB beq */
+    ldy8_v(0xFB);  /* 84A7CD ldy */
+L_84A7CF:
+    sty8(ea_dp(0x44));  /* 84A7CF sty */
+    op_sep(0x20);  /* 84A7D1 sep */
+    return;  /* 84A7D3 rts */
 }

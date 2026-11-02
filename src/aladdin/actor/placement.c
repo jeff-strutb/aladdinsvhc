@@ -12,6 +12,9 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_PlacementsIndex(void);
+void abi_PlacementsStart(void);
+void abi_ShiftRight5(void);
 void abi_PlacementsScroll(void);
 void abi_PlacementsAcross(void);
 void abi_PlacementsDown(void);
@@ -637,4 +640,73 @@ void abi_ActorCreateChild8(void)
     lda8_v(0x00);  /* 81A9BC lda */
 L_81A9BE:
     return;  /* 81A9BE rtl */
+}
+
+/*
+ * @routine 82:A72C PlacementsStart
+ * WHAT IT DOES: Indexes the level's placements as it starts, sets the
+ * placing points from the camera, and creates the actors of the 12 bands
+ * down from 64 pixels left of the camera.
+ * HOW: With D = 0 and DB = $82: PlacementsIndex; the last placement's
+ * flags byte ($7E:C6FF) set to $FF; from the scroll y, placed_y and the
+ * bands (y - 64) / 32 and (y + 288) / 32 at placed_band_x; from the scroll
+ * x, placed_x and the bands (x + 288) / 32 and (x - 64) / 32 at
+ * placed_band_y; PlacementsDown for 12 bands from (x - 64) / 32.
+ * Entry: DB, D any; called by JSL. Exit: M 8-bit, X 8-bit; D and DB as at
+ * entry; Y = 0.
+ */
+void abi_PlacementsStart(void)
+{
+    op_sep(0x30);  /* 82A72C sep */
+    phd();  /* 82A72E phd */
+    lda8_v(0x00);  /* 82A72F lda */
+    pha8();  /* 82A731 pha */
+    pha8();  /* 82A732 pha */
+    pld();  /* 82A733 pld */
+    phb();  /* 82A734 phb */
+    lda8_v(0x82);  /* 82A735 lda */
+    pha8();  /* 82A737 pha */
+    plb();  /* 82A738 plb */
+    abi_PlacementsIndex();  /* 82A739 jsr */
+    lda8_v(0xFF);  /* 82A73C lda */
+    sta8(0x7EC6FFu);  /* 82A73E sta */
+    op_rep(0x21);  /* 82A742 rep */
+    lda16(ea_abs(0x1777));  /* 82A744 lda */
+    pha16();  /* 82A747 pha */
+    sta16(ea_abs(0x1BF1));  /* 82A748 sta */
+    adc16_v(0x0120);  /* 82A74B adc */
+    abi_ShiftRight5();  /* 82A74E jsr */
+    sta16(ea_abs(0x1BE9));  /* 82A751 sta */
+    pla16();  /* 82A754 pla */
+    sec();  /* 82A755 sec */
+    sbc16_v(0x0040);  /* 82A756 sbc */
+    abi_ShiftRight5();  /* 82A759 jsr */
+    sta16(ea_abs(0x1BE7));  /* 82A75C sta */
+    lda16(ea_abs(0x1773));  /* 82A75F lda */
+    pha16();  /* 82A762 pha */
+    sta16(ea_abs(0x1BEF));  /* 82A763 sta */
+    clc();  /* 82A766 clc */
+    adc16_v(0x0120);  /* 82A767 adc */
+    abi_ShiftRight5();  /* 82A76A jsr */
+    sta16(ea_abs(0x1BEB));  /* 82A76D sta */
+    pla16();  /* 82A770 pla */
+    sec();  /* 82A771 sec */
+    sbc16_v(0x0040);  /* 82A772 sbc */
+    abi_ShiftRight5();  /* 82A775 jsr */
+    sta16(ea_abs(0x1BED));  /* 82A778 sta */
+    op_sep(0x30);  /* 82A77B sep */
+    tax8();  /* 82A77D tax */
+    ldy8_v(0x0C);  /* 82A77E ldy */
+L_82A780:
+    phx8();  /* 82A780 phx */
+    phy8();  /* 82A781 phy */
+    abi_PlacementsDown();  /* 82A782 jsr */
+    ply8();  /* 82A785 ply */
+    plx8();  /* 82A786 plx */
+    inx8();  /* 82A787 inx */
+    dey8();  /* 82A788 dey */
+    if (!IF_Z) goto L_82A780;  /* 82A789 bne */
+    plb();  /* 82A78B plb */
+    pld();  /* 82A78C pld */
+    return;  /* 82A78D rtl */
 }

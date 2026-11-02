@@ -35,6 +35,10 @@ includeonce
 ; Shadows of PPU and CPU registers, written to them in the vertical blank.
 !nmitimen_shadow = $03B7        ; NMITIMEN: interrupts and auto joypad read
 !inidisp_shadow = $03B8         ; INIDISP: forced blank and brightness
+!tmw_shadow = $038B             ; TMW: layers the windows mask on the main screen
+!tsw_shadow = $038C             ; TSW: on the sub screen
+!hdmaen_shadow = $03B6          ; HDMAEN: the HDMA channels on
+!hdma_table_at = $0350          ; per HDMA channel 4-7, its table's address (word)
 
 ; The text layer (video/tilemap.asm).
 !text_tilemap = $7ED800         ; its 32x32 tilemap, 2 KB
@@ -76,6 +80,8 @@ includeonce
 !level_035c = $035C             ; two bytes from the level's entry at $81:B933; purpose not yet established
 !level_spot_count = $0821       ; how many trigger spots the level has
 !level_spots = $0822            ; their list's offset from $81:EC1E (word)
+!v_033f = $033F                 ; the stage number per-stage tables are indexed by
+!v_0343 = $0343                 ; a countdown (word) the play loop steps down each frame
 
 ; Which BG positions follow the scroll layers (video/bg_follow.asm).
 !bg1_held = $1A14               ; nonzero: BG1's position is not taken from the play field

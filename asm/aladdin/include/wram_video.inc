@@ -32,6 +32,7 @@ includeonce
 !bg1_x_shift = $1A18
 !bg2_x_shift = $1A20
 !bg2_y_shift = $1A24
+!backdrop_offset_y = $1A2B      ; the backdrop layer's y less the play field's: fraction, then pixels (word)
 !bg2_x_held = $083C             ; nonzero: BG2's horizontal scroll is not written
 
 ; Scroll layers: records of $156 bytes, the play field's (layer 0) and the
@@ -95,3 +96,7 @@ includeonce
 ; While the layers' tilemaps fill as a level starts (video/scroll_layer.asm).
 !fill_layers_left = $1A90       ; layers left to fill
 !fill_columns_left = $1A91      ; columns left to draw in this one
+
+; The text bands (video/text_bands.asm): per band, the window byte HDMA
+; channel 5 writes for it (16 bytes), then the channel's two tables' copies.
+!text_bands = $1C8E

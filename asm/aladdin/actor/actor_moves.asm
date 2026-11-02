@@ -196,3 +196,39 @@ SignExtend:
     pla
     ora.w #$FF00
     rts
+
+
+; @routine 84:A7AD ActorBob
+; WHAT IT DOES: Bobs the actor up and down a pixel a frame, five frames
+; each way, while its $42 is nonzero; stops at the bottom once it is 0.
+; HOW: The count at $44: 0, nothing; negative, y up a pixel and the count
+; up, at 0 it becomes 5; positive, y down a pixel and the count down, at
+; 0 it becomes -5 when $42 is nonzero (else stays 0).
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSR. Exit: M 8-bit; Y
+; = the new count; A = the y moved to (16 bits) when it moved.
+%at($84A7AD)
+ActorBob:
+    rep.b #$20
+    ldy.b !actor_44
+    beq .done
+    bpl .down
+    lda.b !actor_y+1
+    dec a
+    sta.b !actor_y+1
+    iny
+    bne .done
+    ldy.b #$05
+    bra .done
+.down:
+    lda.b !actor_y+1
+    inc a
+    sta.b !actor_y+1
+    dey
+    bne .done
+    ldx.b !actor_42
+    beq .done
+    ldy.b #$FB
+.done:
+    sty.b !actor_44
+    sep.b #$20
+    rts
