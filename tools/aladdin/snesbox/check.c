@@ -284,6 +284,10 @@ void wr8(uint32_t addr, uint8_t value)
     }
     if (seq_on && n >> 24 == R_WRAM) io_add(&cur->cseq, (n & 0xFFFFFF) | 1u << 24, 0);
     if (n >> 24 == R_WRAM || n >> 24 == R_GSURAM) map_put(&cur->cw, n, value, 0);
+    /* A write to the open bus (no RAM there on this board, as the
+       development recorder's at $70:0000) goes nowhere: compared with the
+       original's, in its order, as a register write. */
+    else if (n >> 24 == R_NONE) io_add(&cur->cwrite, OPEN_BUS_KEY(addr), value);
     else cur->io_mismatch = 1;
 }
 
@@ -775,6 +779,7 @@ static void on_write(uint32_t addr, uint8_t data, int kind)
             io_add(&w->owrite, addr & 0xFFFF, data);
             if ((addr & 0xFFFF) == 0x301F) w->gsu = 1;  /* R15 high byte: the Super FX starts */
         }
+        else if (n >> 24 == R_NONE) io_add(&w->owrite, OPEN_BUS_KEY(addr), data);
     }
 }
 
