@@ -1,0 +1,20 @@
+# The joypad read's recording mode ($0331 = 1; $81:BDC3, the recorder at
+# $81:BE5A). Retail code sets $0331 only to 2 (the demo's playback,
+# $81:8066) or 0, so no play reaches it: the first level with the mode set
+# and its step ($0334) at 0, then played, records the held buttons into
+# $70:0000 up (no RAM on this board: the writes go nowhere, and each read is the
+# bus's last byte, $70, so a frame matches the last record only with
+# Y+SELECT+START held, $70 in $0378). The record is full after 127 frames: the
+# recorder then waits for pad 2's DOWN and starts over.
+load build/aladdin/states/level1.state
+poke 000331 01
+poke 000334 00
+hold RIGHT 40
+hold Y+SELECT+START 6
+hold B+RIGHT 20
+hold Y+LEFT 30
+hold A 10
+wait 20
+hold DOWN 25
+hold 2.DOWN 4
+wait 10
