@@ -52,10 +52,15 @@ WORKD = os.path.join(B, OUTD) if OUTD else B
 # piece, DemoRunThirdRest's two demos (about 6,050 frames), takes 337 s
 # alone, so the limit is 420 s.
 STUCK = 420
+# A per-call check (A5) runs one side only, but the longest script
+# (cov_title_idle_long, 18,000 frames) takes 191 s alone and the gate runs
+# ten at a time beside the lockstep: its limit is longer, and a run past it
+# fails that script instead of the whole check.
+A5_STUCK = 1200
 
 
-def run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, timeout=STUCK)  # stuck: fails
+def run(cmd, timeout=STUCK):
+    p = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, timeout=timeout)  # stuck: fails
     if p.returncode:
         sys.stderr.write(p.stdout + p.stderr)
         raise SystemExit('failed: %s' % ' '.join(cmd))
@@ -72,7 +77,10 @@ def one(script, only):
     cmd = [SNESBOX, '--rom', os.path.join(B, 'baserom.sfc'), '--script', script, '--out', d, '--check', LIB]
     if only:
         cmd += ['--only', ','.join(only)]
-    run(cmd)
+    try:
+        run(cmd, A5_STUCK)
+    except subprocess.TimeoutExpired:
+        return name, None, ['%s: stopped (no result after %ds): FAILED' % (name, A5_STUCK)]
     rows, notes = [], []
     for line in open(rep):
         if line.startswith(('DIFF', 'INCONCLUSIVE')):
@@ -271,7 +279,12 @@ def live(only, full=False):
         len(jobs), sum(1 for _, w in jobs if w is None), sum(1 for _, w in jobs if w is not None)))
     with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
         results = list(ex.map(lambda j: (j,) + one(j[0], j[1]), jobs))
+    stuck = 0
     for (sc, want), name, rows, notes in results:
+        if rows is None:
+            stuck += 1
+            print(notes[0])
+            continue
         c = _load_cache(name) if want is not None else None
         kept = dict(c['rows']) if c else {}
         for addr, rname, calls, match, diff, inc, skipped, _ in rows:
@@ -319,7 +332,7 @@ def live(only, full=False):
             wr.writerow(out[k])
     print('%d routines: %s' % (len(out), ', '.join('%d %s' % (n, v) for v, n in sorted(
         {v: sum(1 for r in out.values() if r['verdict'] == v) for v in set(r['verdict'] for r in out.values())}.items()))))
-    return 1 if failed else 0
+    return 1 if failed or stuck else 0
 
 
 def source_rev():

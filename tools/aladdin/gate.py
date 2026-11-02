@@ -31,7 +31,8 @@ def main(argv):
     img = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'aladdin', 'image.py')], cwd=ROOT).returncode
     subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'aladdin', 'progress.py')], cwd=ROOT)
     print('gate: A5 %s, A7 %s, image %s in %.0fs' % (res.get('A5'), res.get('A7'), img, time.time() - t0))
-    return 1 if res.get('A5') or res.get('A7') or img else 0
+    # A gate whose A5 or A7 gave no result (a crash) has not passed.
+    return 1 if res.get('A5') != 0 or res.get('A7') != 0 or img else 0
 
 
 if __name__ == '__main__':
