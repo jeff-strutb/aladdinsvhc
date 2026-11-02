@@ -39,4 +39,4 @@ ActorFallTileTest:
     sep.b #$20
     pla
     pla
-    jmp.w ActorEndOutOfRange_free
+    jmp.w ActorEndPlaced

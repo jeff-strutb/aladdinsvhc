@@ -126,6 +126,24 @@ out:
 }
 
 /*
+ * @routine 83:96CA ActorEndPlaced
+ * @actor
+ * WHAT IT DOES: Ends an actor of the first pool for good: its placement
+ * may place it again, and the actor loop goes on to the next record.
+ * HOW: ActorFreePlaced, then into the actor loop where it takes the next
+ * record; the actor's code is left there.
+ * Entry: D = the actor's record; DB a bank whose $0000-$1FFF is work RAM;
+ * reached by a jump from the actor's code, at the actor loop's stack
+ * level. Exit: never returns; in the actor loop with the registers
+ * ActorTileSlotRelease leaves.
+ */
+void abi_ActorEndPlaced(void)
+{
+    abi_ActorFreePlaced();
+    actor_leave(ACTOR_LOOP_NEXT);
+}
+
+/*
  * @routine 83:966C ActorFreeOutOfRange
  * WHAT IT DOES: Ends the actor (ActorFreePlaced) when it is out of range
  * of the camera's point by box X.

@@ -92,7 +92,18 @@ ActorEndOutOfRange:
     sep.b #$30
     pla
     pla
-.free:
+
+; @routine 83:96CA ActorEndPlaced
+; @actor
+; WHAT IT DOES: Ends an actor of the first pool for good: its placement
+; may place it again, and the actor loop goes on to the next record.
+; HOW: ActorFreePlaced, then into the actor loop where it takes the next
+; record; the actor's code is left there.
+; Entry: D = the actor's record; DB a bank whose $0000-$1FFF is work RAM;
+; reached by a jump from the actor's code, at the actor loop's stack
+; level. Exit: never returns; in the actor loop with the registers
+; ActorTileSlotRelease leaves.
+ActorEndPlaced:
     jsr.w ActorFreePlaced
     jmp.w !actor_loop_next
 

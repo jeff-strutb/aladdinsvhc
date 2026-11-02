@@ -332,7 +332,7 @@ Kind68Wait:
     bne .lE8FC
     pla
     pla
-    jmp.w ActorEndOutOfRange_free
+    jmp.w ActorEndPlaced
 .lE8FC:
     ldx.b !KIND68_ON
     bne .lE908
