@@ -20,23 +20,6 @@ void abi_WindowLinesFromShape(void);
 #include "wram_state.h"
 #include "wram_video.h"
 
-/*
- * @routine 82:8735 HdmaStartAtBase
- * WHAT IT DOES: Starts HDMA table set X on register set Y with its table
- * at the base of the table area, $7E:F400.
- * HOW: The table's place ($0032) cleared, then on into HdmaStart
- * ($82:873B), which takes a free channel, points it at the registers,
- * and builds the table there from set X.
- * Entry: M 8-bit, X 8-bit; X = the table set; Y = the register set; DB =
- * $82; called by JSR. Exit: as HdmaStart: C clear; $002C = the channel's
- * HDMAEN bit.
- */
-void abi_HdmaStartAtBase(void)
-{
-    stz8(ea_abs(0x0032));  /* 828735 stz */
-    stz8(ea_abs(0x0033));  /* 828738 stz */
-    jump_routine(0x82873Bu); return;
-}
 
 /*
  * @routine 82:8226 WindowColoursWait
