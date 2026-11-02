@@ -7,6 +7,9 @@
     heldc.py --hold       move each one's C into <file>.c.held beside its file
     heldc.py --restore    move all held C back, then hold again what still
                           reaches code with no C: run it once callees land
+    heldc.py --keep ADDR REASON
+                          hold one routine by hand (a divergence, a computed
+                          jump to code with no C); --restore leaves it held
 
 The whole-image lockstep (A7) refuses C that reaches code with no C, though
 the per-call check passes it as UNVERIFIED. Held C stays drafted and ready;
@@ -15,11 +18,21 @@ those ("C reached ..., where no routine has C").
 """
 import re, glob, os, sys
 os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+KEEP = re.compile(r'/\* heldc: keep \(.*?\) \*/\n/\*\n \* @routine .*?^\}\n', re.S | re.M)
 if '--restore' in sys.argv:
+    # Blocks marked "heldc: keep (reason)" are held by hand for a reason
+    # the tool cannot see (a divergence, a computed jump): they stay.
     for h in glob.glob('src/aladdin/**/*.c.held', recursive=True):
         c = h[:-5]
-        open(c, 'a').write('\n' + open(h).read())
-        os.remove(h)
+        t = open(h).read()
+        keep = ''.join(KEEP.findall(t))
+        back = KEEP.sub('', t)
+        if back.strip():
+            open(c, 'a').write('\n' + back)
+        if keep:
+            open(h, 'w').write(keep)
+        else:
+            os.remove(h)
     sys.argv.append('--hold')
 files = [f for f in glob.glob('src/aladdin/**/*.c', recursive=True)]
 FN = re.compile(r'(/\*\n \* @routine (\w\w):(\w{4}) (\w+)\n.*?\*/\n)?void (abi_\w+)\(void\)\n\{\n(.*?)^\}\n', re.S | re.M)
@@ -81,6 +94,15 @@ while changed:
         if why:
             held.add(n); have.discard(a); changed = True
             print('%06X %-28s %s  (%s)' % (a, n, why, f))
+if sys.argv[1:2] == ['--keep']:
+    want, reason = int(sys.argv[2], 16), ' '.join(sys.argv[3:])
+    for n, (f, a, _, text) in funcs.items():
+        if a == want:
+            s = open(f).read().replace(text, '')
+            open(f, 'w').write(s)
+            open(f + '.held', 'a').write('/* heldc: keep (%s) */\n' % reason + text)
+            print('kept %06X %s' % (a, n))
+    sys.exit(0)
 if '--hold' in sys.argv:
     by = {}
     for n in held:
