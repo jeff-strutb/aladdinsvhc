@@ -1,0 +1,50 @@
+# The routine at $83:95C1 (called by JSL from $81:E7B5 as a level ends)
+# frees every record of the second pool ($09CB-$0B0B) still in use
+# ($83:95CD); in the scripts that reach it they are all free already. The
+# first level played as unit_pot_hit.box plays it until an apple is
+# thrown (its record $09CB in use), then a unit call of it.
+load build/aladdin/states/level1.state
+hold B 76
+hold RIGHT 36
+hold DOWN 64
+hold B+RIGHT 16
+hold R 59
+hold RIGHT 61
+hold B+LEFT 79
+hold Y+RIGHT 7
+hold L 73
+press START
+wait 60
+press START
+hold R 31
+hold RIGHT 71
+hold DOWN 67
+hold Y+RIGHT+B 33
+hold DOWN 41
+hold B+R 75
+hold LEFT 27
+hold A+RIGHT 19
+hold DOWN+A 58
+hold B+RIGHT 42
+hold UP 68
+hold RIGHT 65
+hold R 57
+hold Y+RIGHT+B 74
+hold Y+RIGHT+B 15
+hold DOWN+A 17
+hold DOWN+A 54
+hold RIGHT 64
+hold X 79
+hold L 25
+hold B+LEFT 5
+hold UP+B 74
+hold DOWN+A 48
+hold Y+LEFT 49
+hold A 88
+hold RIGHT 53
+hold DOWN+A 20
+hold UP+B 30
+hold RIGHT 65
+press A 2
+wait 4
+call 8395C1 long db=80 p=30

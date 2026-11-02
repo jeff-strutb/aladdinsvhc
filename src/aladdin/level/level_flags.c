@@ -24,7 +24,7 @@
  * 83:C2E7 for all eight, from the level's set-up at 81:8BEF, and by
  * actors). Exit: M 8-bit, X 8-bit; A low = the flag set; Y = $035D. No
  * level the game plays has a mask bit set: setting a flag to 1 is reached
- * only by unit_zone_flags.box.
+ * only by unit_level_flags.box.
  */
 void abi_LevelFlagFromMask(void)
 {
