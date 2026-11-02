@@ -116,6 +116,12 @@ GameStartGoOn:
     stz.w !state_035a
     jsr.w PlayStartCounts
     jmp.w !play_loop
+; The demo's start of play (the attract code jumps here, $81:805F): a new
+; game's state, PlayStartCounts, the play loop.
+DemoPlayStart:
+    jsr.w NewGameState
+    jsr.w PlayStartCounts
+    jmp.w !play_loop
 
 ; @routine 81:80DC PlayStartCountsLong
 ; WHAT IT DOES: Sets what play starts with, for callers in other banks.

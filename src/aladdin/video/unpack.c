@@ -28,9 +28,9 @@ void abi_LevelGraphicsLoad(void);
 #define UNPACK_NEXT 0x006Bu        /* where the next unpack goes in bank $7F (word) */
 #define LEVEL_GFX 0xDF98u          /* bank $81: per level a word, its graphics list's offset from here: a count, 7-byte VRAM parts (source offset, bank, length, VRAM address), then a count and 5-byte kept parts (source offset, bank, length) */
 #define LEVEL_GFX_LEFT 0x1Eu       /* direct page: parts left */
-#define ANIM_SET_GFX 0x82AC18u     /* per animation set, a word: its graphics entry's offset from ANIM_SET_GFX_PARTS */
-#define ANIM_SET_GFX_PARTS 0x82AC58u /* per entry: length (low 14 bits), source offset (words), bank */
-#define ANIM_SET_GFX_AT 0x7FE500u  /* per animation set, where its graphics went in bank $7F (word) */
+#define ANIM_GFX_ENTRIES 0x82AC18u     /* per animation set, a word: its graphics entry's offset from ANIM_GFX_PARTS */
+#define ANIM_GFX_PARTS 0x82AC58u /* per entry: length (low 14 bits), source offset (words), bank */
+#define ANIM_GFX_AT 0x7FE500u  /* per animation set, where its graphics went in bank $7F (word) */
 #define UNPACK_SETS 0xF039u        /* bank $80: per set, 7 bytes: destination, source offset (words), bank, length (word) */
 
 /*
@@ -203,14 +203,14 @@ void abi_AnimSetGraphicsUnpack(void)
     ACC16(asl);  /* 81BAA9 asl */
     tax16();  /* 81BAAA tax */
     lda16(UNPACK_NEXT);  /* 81BAAB lda */
-    sta16(ea_longx(ANIM_SET_GFX_AT));  /* 81BAAF sta */
+    sta16(ea_longx(ANIM_GFX_AT));  /* 81BAAF sta */
     lda16(UNPACK_NEXT + 1);  /* 81BAB3 lda */
-    sta16(ea_longx(ANIM_SET_GFX_AT + 1));  /* 81BAB7 sta */
+    sta16(ea_longx(ANIM_GFX_AT + 1));  /* 81BAB7 sta */
     lda16_v(0x0000);  /* 81BABB lda */
     tcd();  /* 81BABE tcd */
-    lda16(ea_longx(ANIM_SET_GFX));  /* 81BABF lda */
+    lda16(ea_longx(ANIM_GFX_ENTRIES));  /* 81BABF lda */
     tax16();  /* 81BAC3 tax */
-    lda16(ea_longx(ANIM_SET_GFX_PARTS));  /* 81BAC4 lda */
+    lda16(ea_longx(ANIM_GFX_PARTS));  /* 81BAC4 lda */
     if (IF_Z) goto L_81BAEA;  /* 81BAC8 beq */
     and16_v(0x3FFF);  /* 81BACA and */
     ACC16(lsr);  /* 81BACD lsr */
@@ -218,9 +218,9 @@ void abi_AnimSetGraphicsUnpack(void)
     ACC16(lsr);  /* 81BACF lsr */
     sta16(ea_dp(UNPACK_GROUPS));  /* 81BAD0 sta */
     stz16(ea_dp(UNPACK_SOURCE));  /* 81BAD2 stz */
-    lda16(ea_longx(ANIM_SET_GFX_PARTS + 4));  /* 81BAD4 lda */
+    lda16(ea_longx(ANIM_GFX_PARTS + 4));  /* 81BAD4 lda */
     sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81BAD8 sta */
-    lda16(ea_longx(ANIM_SET_GFX_PARTS + 2));  /* 81BADA lda */
+    lda16(ea_longx(ANIM_GFX_PARTS + 2));  /* 81BADA lda */
     abi_UnpackBegin();  /* 81BADE jsr */
     ldx16(ea_dp(UNPACK_NEXT));  /* 81BAE1 ldx */
 L_81BAE3:
