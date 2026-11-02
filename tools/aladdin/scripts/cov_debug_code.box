@@ -1,0 +1,58 @@
+# The options screen's pad-2 code and the debug title it unlocks, from the
+# title state with real inputs only (no pokes). On the options screen: pad
+# 2's L then a pause past 32 frames (the code's timeout), L then a wrong
+# button (reset), then the whole code L R START SELECT X Y A B (the table
+# at $80:CE63), which sets $0009. UP from the first row wraps to EXIT, DOWN
+# from EXIT wraps to the first row, START leaves. The title then runs its
+# debug paths ($80:9F7B, $80:9FC8): L held with the pad picks act and
+# stage; START starts that level, whose debug start sets $036E (the HUD
+# draws it, $81:F45E).
+load build/aladdin/states/title.state
+press DOWN
+wait 20
+press DOWN
+wait 30
+press START
+wait 120
+press 2.L
+wait 40
+press 2.L
+wait 6
+press 2.X
+wait 6
+press 2.L
+wait 6
+press 2.R
+wait 6
+press 2.START
+wait 6
+press 2.SELECT
+wait 6
+press 2.X
+wait 6
+press 2.Y
+wait 6
+press 2.A
+wait 6
+press 2.B
+wait 30
+press UP
+wait 20
+press DOWN
+wait 20
+press START
+wait 300
+hold L 10
+hold L+RIGHT 4
+hold L 10
+hold L+UP 4
+hold L 10
+hold L+DOWN 4
+hold L 10
+hold L+LEFT 4
+hold L 10
+hold L+DOWN 4
+hold L 10
+wait 30
+press START
+wait 900

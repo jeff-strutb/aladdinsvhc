@@ -1,0 +1,6 @@
+# The ending, from stage_a0_s0.state (act 0 stage 0 of the act and stage
+# table is the ending, as 03_stages.box builds it), left to run with no
+# input through all six scenes: the player placed by the scene table
+# ($80:B1B6) and the text with its timed waits (code $FD, $81:F3B8).
+load build/aladdin/states/stage_a0_s0.state
+wait 12000

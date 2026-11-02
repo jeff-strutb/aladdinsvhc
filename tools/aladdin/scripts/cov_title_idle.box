@@ -1,0 +1,7 @@
+# The title left alone, from the title state (the first title the game
+# shows after power-on and the skipped story): after 512 idle frames the
+# title runs the demo (TitleTask $80:9FDA, $0345 0 -> 1), comes back to a
+# title that skips its fade-in ($80:9D56, $0345 set), and when left alone
+# again runs the story ($80:9FE5). No pokes: only waiting.
+load build/aladdin/states/title.state
+wait 9000

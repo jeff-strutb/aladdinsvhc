@@ -1,0 +1,57 @@
+# The ends of three levels, whose event tasks wait for the camera and the
+# player to get there: from each stage's state the player and the camera
+# are placed (pokes of the player's X $08E7, Y $08EA and the camera $1773,
+# $1777 with its last position $19E5, $19E9) at points of the level the
+# player walks through on the way, in the order a walk passes them, with
+# health untouched; then the game runs on.
+# Act 1 stage 0: camera X $0Bxx, then Y $02xx, then X $0Fxx at the boss
+# ($80:A22D spawns it).
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+wait 600
+# Act 1 stage 1: the top of the level, then the exit at X $0E80 (the end
+# cutscene, $80:A2A8, and its light and fade effects), run to the next level.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+# Act 4 stage 2: the player at X $0A00 ($80:A501's trigger), walking right
+# and attacking the object there until it breaks.
+load build/aladdin/states/stage_a4_s2.state
+wait 30
+poke 001773 80,09
+poke 0019E5 80,09
+poke 0008E7 00,0A
+poke 0008EA 80,00
+wait 300
+hold RIGHT 400
+repeat 10
+press LEFT
+press B 4
+wait 20
+press Y 4
+wait 20
+press A 4
+wait 40
+end
+wait 600

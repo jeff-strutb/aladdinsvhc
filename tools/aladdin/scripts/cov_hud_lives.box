@@ -1,0 +1,6 @@
+# The HUD's lives count at its cap: the first level with 100 lives (a save
+# the game reaches by collecting extra lives: the pickup at $83:B760 stops
+# at 100), which the HUD shows as 99 and clamps ($81:F497-$81:F4A5).
+load build/aladdin/states/level1.state
+poke 000364 64
+wait 60
