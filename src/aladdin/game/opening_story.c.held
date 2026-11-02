@@ -23,57 +23,6 @@ void abi_OpeningScene6Start(void)
     scene_end();
 }
 /*
- * @routine 80:ADE8 OpeningScene4Start
- * WHAT IT DOES: Sets up the fourth scene of the opening story: nine
- * actors, then the scenes' common end.
- * HOW: OpeningActorPlace with entries 10, 11, 13, 12, 4, 6, 8, 21 and 9,
- * then the end at $80:AE43 as OpeningScene3Start.
- * Entry: M 8-bit, X 8-bit; called by JSR from the story's task; DB = $80,
- * whose $0000-$1FFF is work RAM. Exit: as OpeningActorPlace leaves them.
- */
-void abi_OpeningScene4Start(void)
-{
-    static const uint8_t at[9] = { 0x3C, 0x42, 0x4E, 0x48, 0x18, 0x24, 0x30, 0x7E, 0x36 };
-    int i;
-
-    for (i = 0; i < 9; i++) {
-        ldx8_v(at[i]);
-        abi_OpeningActorPlace();
-    }
-    scene_end();
-}
-/*
- * @routine 80:AE63 OpeningScene5Start
- * WHAT IT DOES: Sets up the fifth scene of the opening story: more
- * graphics, an actor, the sprite task and two of the slots at $15F1.
- * HOW: With the NMI off and the screen blanked, graphics set $27 and the
- * second table's copy $54; the actor of entry 19; the task at
- * $81:F332 in slot 4 with parameter 2; slot 0 at $15F1 started with $28
- * and slot $0E with $29.
- * Entry: M 8-bit, X 8-bit; called by JSR; DB = $80, whose $0000-$1FFF is
- * work RAM. Exit: A low = $29, X = $0E; N and Z from the INC of $15F1+X;
- * the rest as that routine leaves them.
- */
-void abi_OpeningScene5Start(void)
-{
-    abi_NmiDisable();
-    call_routine(SCREEN_BLANK, 1);
-    lda8_v(0x27);
-    call_routine(GFX_LOAD, 1);
-    ldx8_v(0x54);
-    abi_VramCopy2();
-    abi_NmiEnable();
-    ldx8_v(0x72);
-    abi_OpeningActorPlace();
-    task_create(0x80AE80u);
-    ldx8_v(0x00);
-    lda8_v(0x28);
-    abi_PaletteCycleStartLong();
-    ldx8_v(0x0E);
-    lda8_v(0x29);
-    abi_PaletteCycleStartLong();
-}
-/*
  * @routine 80:AC87 OpeningStory
  * WHAT IT DOES: The opening story: after the screen fades out, six scenes
  * one after another (Start skips to the end), then the title screen.
@@ -187,4 +136,55 @@ void abi_OpeningScene3Start(void)
     ldx8_v(0x2A);
     abi_OpeningActorPlace();
     scene_end();
+}
+/*
+ * @routine 80:ADE8 OpeningScene4Start
+ * WHAT IT DOES: Sets up the fourth scene of the opening story: nine
+ * actors, then the scenes' common end.
+ * HOW: OpeningActorPlace with entries 10, 11, 13, 12, 4, 6, 8, 21 and 9,
+ * then the end at $80:AE43 as OpeningScene3Start.
+ * Entry: M 8-bit, X 8-bit; called by JSR from the story's task; DB = $80,
+ * whose $0000-$1FFF is work RAM. Exit: as OpeningActorPlace leaves them.
+ */
+void abi_OpeningScene4Start(void)
+{
+    static const uint8_t at[9] = { 0x3C, 0x42, 0x4E, 0x48, 0x18, 0x24, 0x30, 0x7E, 0x36 };
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        ldx8_v(at[i]);
+        abi_OpeningActorPlace();
+    }
+    scene_end();
+}
+/*
+ * @routine 80:AE63 OpeningScene5Start
+ * WHAT IT DOES: Sets up the fifth scene of the opening story: more
+ * graphics, an actor, the sprite task and two of the slots at $15F1.
+ * HOW: With the NMI off and the screen blanked, graphics set $27 and the
+ * second table's copy $54; the actor of entry 19; the task at
+ * $81:F332 in slot 4 with parameter 2; slot 0 at $15F1 started with $28
+ * and slot $0E with $29.
+ * Entry: M 8-bit, X 8-bit; called by JSR; DB = $80, whose $0000-$1FFF is
+ * work RAM. Exit: A low = $29, X = $0E; N and Z from the INC of $15F1+X;
+ * the rest as that routine leaves them.
+ */
+void abi_OpeningScene5Start(void)
+{
+    abi_NmiDisable();
+    call_routine(SCREEN_BLANK, 1);
+    lda8_v(0x27);
+    call_routine(GFX_LOAD, 1);
+    ldx8_v(0x54);
+    abi_VramCopy2();
+    abi_NmiEnable();
+    ldx8_v(0x72);
+    abi_OpeningActorPlace();
+    task_create(0x80AE80u);
+    ldx8_v(0x00);
+    lda8_v(0x28);
+    abi_PaletteCycleStartLong();
+    ldx8_v(0x0E);
+    lda8_v(0x29);
+    abi_PaletteCycleStartLong();
 }

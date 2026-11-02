@@ -62,6 +62,18 @@ per finding, each linked to the dated note that measured it.
   ([decomp/log/interrupt-frames-2026-11-01](decomp/log/interrupt-frames-2026-11-01.md)).
 - A return to a routine's exit level from a call it made from that level
   (after pulling its own return address) is nested, not its end.
+- A task's start is where the scheduler's RTL lands with S three above
+  the running task's stack top. Both oracles open a call there that never
+  returns, judged in pieces at its waits, its exit or its exec; the
+  original side must keep the calls a parked call made from its exit
+  level (a task's level is its exit level), or the first return to that
+  level after a resume splits the call. On attract, rand_pw1_1, rand_pw7_1
+  and cov_title_idle the six task starts with C are identical in
+  lockstep; a planted wrong sway count in ShakeTask fails (2026-11-02).
+- A routine that calls one that can wait can wait too: its caller's C
+  pushes the JSR's return address (cdraft follows calls, and the file's
+  helpers, transitively). TaskExit's C leaves its JSR's return address on
+  the task's stack as the original does.
 - Bottom up is not optional: C that reaches code with no C fails the whole
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.
