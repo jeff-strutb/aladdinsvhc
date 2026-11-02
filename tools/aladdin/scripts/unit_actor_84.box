@@ -49,7 +49,8 @@ call A5E9D2 d=0B5B db=81 p=30
 # box ($1484, half sizes 16) but not touching him: first the
 # actor below him (y $0200; C set, $82:8931), then above him and to his
 # left (x $0010, y $0100; the left-side test, $82:88FD), facing left
-# and then right ($08F0 0, then 1). The bank $83
+# and then right ($08F0 0, then 1); then facing right with the player
+# far right (x $4000), past the actor's reach ($82:8914). The bank $83
 # actor that calls it has met him only from the right and above.
 set 00145A 00
 set 00141B 00,01
@@ -67,6 +68,14 @@ set 00145A 00
 set 00141B 00,01
 set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,10,00,00,00,01
 set 0008F0 01
+set 001484 10,00,00,01,10,00,10,00
+set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+call 8288CF long d=0B5B db=80 p=30
+set 00145A 00
+set 00141B 00,01
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,10,00,00,00,01
+set 0008F0 01
+set 0008E7 00,40
 set 001484 10,00,00,01,10,00,10,00
 set 000B6C 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
 call 8288CF long d=0B5B db=80 p=30

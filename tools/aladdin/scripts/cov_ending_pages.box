@@ -10,9 +10,11 @@ poke $0000EE 0B
 wait 3200
 # TextPageExtra ($82:B1CE) as a unit call with $00F4 0, which the text
 # never leaves it at (it sets 14): page 6 (its extra, $82:B1D9 on to
-# $82:B1F8), then page 5 (none).
+# $82:B1F8) with the item total ($0376) 70, its own last line
+# ($82:B21D), then page 5 (none).
 set 0000F4 00
 set 0000EE 06
+set 000376 46
 call 82B1CE d=0 db=82 p=30
 set 0000F4 00
 set 0000EE 05

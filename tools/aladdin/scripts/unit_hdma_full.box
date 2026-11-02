@@ -26,7 +26,7 @@ set 000075 04
 call 828000 y=0 d=0 db=82 p=30 noreturn frames=4
 load build/aladdin/states/level1.state
 wait 10
-# The lamp's glow effect ($82:84CB) with the glow's place 248 pixels
+# The window effect at $82:84CB (its box at level x $0E78) 248 pixels
 # right of the screen's left (scroll x $0D80, its BG1 shift 0) and on
 # screen (scroll y $0100): its right edge clamped at 255 ($82:8543).
 # Play has not had the camera there while the effect ran. It loops
@@ -36,3 +36,10 @@ set 001777 00,01
 set 001A18 00,00
 set 001A1C 00,00
 call 8284CB d=0 db=82 p=30 noreturn frames=4
+load build/aladdin/states/level1.state
+wait 10
+# The window effect at $82:867B with the play field's scroll y at $0200:
+# no lines left above the window ($82:86C5). It loops waiting a frame
+# each time (noreturn).
+set 001777 00,02
+call 82867B d=0 db=82 p=30 noreturn frames=4

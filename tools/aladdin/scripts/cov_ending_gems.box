@@ -3,7 +3,8 @@
 # branch ($82:B2DC on, and $82:B34A after its task starts). The state
 # that reaches the ending (stage_a0_s0) was built with none, so the
 # total is poked as the ending starts, then the ending runs as
-# cov_ending.box runs it until that task has run.
+# cov_ending.box runs it until that task has run and its countdown
+# (681 frames for this branch) has ended ($82:B364).
 load build/aladdin/states/stage_a0_s0.state
 poke $000376 32
-wait 10500
+wait 12000
