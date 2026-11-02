@@ -24,6 +24,9 @@ arch 65816
 !V_032D = $032D
 !V_0347 = $0347
 !V_0360 = $0360
+!state_0359 = $0359
+!game_begun = $036F             ; nonzero once a game has begun
+!play_loop = $818191            ; the game task's play loop, from its start (not yet filed)
 ; Per demo: its pad stream's offset from $84:F700 (words); its progress
 ; sequence, stage and $0360 (bytes).
 !demo_inputs = $B724
@@ -70,6 +73,49 @@ DemoStart:
     lda.w !demo_0360,x
     sta.w !V_0360
     rts
+
+; @routine 81:8095 GameStartTask
+; WHAT IT DOES: The game task's start of play from the title: a new game
+; when none has begun ($036F clear), else play goes on with the game's
+; progress.
+; HOW: $0347 cleared. None begun: NewGameState, $036F set, and on into
+; LevelPlayStartTask. Else: LevelFromProgress, $0364 = $0362, $0347,
+; $036B, $036E, $0359 and $035A cleared, PlayStartCounts, then the play
+; loop's start ($81:8191).
+; Entry: the task's turn (TaskExec from the title): M 8-bit, X 8-bit; DB
+; = $80. Exit: none: it goes on as the play loop.
+GameStartTask:
+    stz.w !V_0347
+    lda.w !game_begun
+    bne GameStartGoOn
+    jsr.w NewGameState
+    inc.w !game_begun
+; @routine 81:80A3 LevelPlayStartTask
+; WHAT IT DOES: The game task's start of play at the level the game's
+; progress gives (also after a level ends).
+; HOW: LevelFromProgress, PlayStartCounts, $0359, $035A and $036C
+; cleared, then the play loop's start ($81:8191).
+; Entry: the task's turn (TaskExec): M 8-bit, X 8-bit; DB = $80. Exit:
+; none: it goes on as the play loop.
+LevelPlayStartTask:
+    jsr.w LevelFromProgress
+    jsr.w PlayStartCounts
+    stz.w !state_0359
+    stz.w !state_035a
+    stz.w !state_036a+2
+    jmp.w !play_loop
+; GameStartTask with a game begun: play goes on from the progress.
+GameStartGoOn:
+    jsr.w LevelFromProgress
+    lda.w !state_0362
+    sta.w !state_0362+2
+    stz.w !V_0347
+    stz.w !state_036a+1
+    stz.w !state_036a+4
+    stz.w !state_0359
+    stz.w !state_035a
+    jsr.w PlayStartCounts
+    jmp.w !play_loop
 
 ; @routine 81:80DC PlayStartCountsLong
 ; WHAT IT DOES: Sets what play starts with, for callers in other banks.
