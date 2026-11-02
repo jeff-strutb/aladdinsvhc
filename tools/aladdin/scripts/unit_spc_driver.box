@@ -1,0 +1,63 @@
+# Sound driver paths the scripts never take, as SPC700 unit calls from the
+# first level's state, each made where the driver's main loop calls its
+# port poll ($02F5). Staged bytes (spcset) stay in APU RAM after a call,
+# on both sides of the lockstep alike.
+load build/aladdin/states/level1.state
+wait 10
+# Sound commands $FC, $FD and $F5: the command table's handlers no play
+# sends ($05B1, $05D6, $0616).
+spccall 045E a=FC at=02F5
+wait 2
+spccall 045E a=FD at=02F5
+wait 2
+spccall 045E a=F5 at=02F5
+wait 2
+# Command $F6 with $C6 = 2: the fade's step doubled, still running
+# ($0632). Its parameter is in port 3: the game queues $F6 with 1
+# (SoundQueueF6With1, kept) and sends it, port 3 then holding 1.
+call 81F9D2 long keep db=80 p=30
+wait 10
+spcset 00C6 02
+spccall 045E a=F6 at=02F5
+wait 2
+# A song number at or past the song count ($1DB0 = 1): taken off the count
+# until it is below ($046A).
+spcset 1DB0 01
+spccall 045E a=05 at=02F5
+wait 2
+# A song whose header's first byte is 0 (song 0's pointer at $1DB2 set to
+# $1E00, a zero there): the start that keeps the music's other state
+# ($0486).
+spcset 1DB0 04
+spcset 1DB2 1E,00
+spcset 1E00 00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+spccall 045E a=00 at=02F5
+wait 2
+# Sequencer commands on voice 0, its timer at 0 and its track at $1E20:
+# $11 (a counter at dp $48, then a jump to $1E24, a note), $1A with 3 as
+# its first byte (the voice's flags at $0100), $1B with bit 7 of $CD set
+# (the echo setting's other branch).
+spcset 0018 00
+spcset 0000 20
+spcset 0008 1E
+spcset 0048 00
+spcset 1E20 11,03,24,1E,80
+spcset 00B3 80
+spccall 06B1 x=00 at=02F5
+wait 2
+spcset 0018 00
+spcset 0000 20
+spcset 0008 1E
+spcset 1E20 1A,03,05,80
+spcset 00B3 80
+spccall 06B1 x=00 at=02F5
+wait 2
+spcset 0018 00
+spcset 0000 20
+spcset 0008 1E
+spcset 00CD 80
+spcset 00CB FF
+spcset 1E20 1B,01,80
+spcset 00B3 80
+spccall 06B1 x=00 at=02F5
+wait 2

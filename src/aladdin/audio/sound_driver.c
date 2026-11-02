@@ -1,91 +1,91 @@
 /*
- * sound_driver.c: the SPC700 sound driver (draft): its start and main loop,
+ * sound_driver.c: the SPC700 sound driver: its start and main loop,
  * the S-CPU's commands, the sequencer and the voices' pitch and volume.
  */
 #include "spc.h"
 #include "spc_ops.h"
 
-void abi_R02C0(void);
-void abi_R0425(void);
-void abi_R043E(void);
-void abi_P045D(void);
-void abi_R045E(void);
-void abi_R04E4(void);
-void abi_R04FB(void);
-void abi_P050A(void);
-void abi_R052D(void);
-void abi_P0530(void);
-void abi_R0549(void);
-void abi_R055F(void);
-void abi_P0567(void);
-void abi_P056A(void);
-void abi_P0570(void);
-void abi_P05B1(void);
-void abi_P05D6(void);
-void abi_P05DC(void);
-void abi_P05E0(void);
-void abi_R05F9(void);
-void abi_P0616(void);
-void abi_P061A(void);
-void abi_P061C(void);
-void abi_R0645(void);
-void abi_R064B(void);
-void abi_P0650(void);
-void abi_P0653(void);
-void abi_R0656(void);
-void abi_R06B1(void);
-void abi_R0820(void);
-void abi_P0830(void);
-void abi_P0871(void);
-void abi_P0875(void);
-void abi_P0879(void);
-void abi_P087F(void);
-void abi_P0881(void);
-void abi_P0883(void);
-void abi_P0886(void);
-void abi_P08A1(void);
-void abi_P08A5(void);
-void abi_P08BA(void);
-void abi_R08C4(void);
-void abi_P08C5(void);
-void abi_P08FB(void);
-void abi_P08FC(void);
-void abi_P0907(void);
-void abi_P090D(void);
-void abi_P0911(void);
-void abi_P0915(void);
-void abi_P0919(void);
-void abi_P091D(void);
-void abi_P0921(void);
-void abi_P0925(void);
-void abi_P0927(void);
-void abi_P095B(void);
-void abi_P0965(void);
-void abi_R0971(void);
-void abi_P097C(void);
-void abi_R099C(void);
-void abi_R09A7(void);
-void abi_P09B7(void);
-void abi_P09BE(void);
-void abi_P09C8(void);
-void abi_P09EE(void);
-void abi_P09FA(void);
-void abi_P0A52(void);
-void abi_R0A53(void);
-void abi_R0A6C(void);
-void abi_P0AA3(void);
-void abi_P0ABD(void);
-void abi_P0AC3(void);
-void abi_R0B17(void);
-void abi_R0B88(void);
-void abi_R0B8E(void);
-void abi_R0B90(void);
-void abi_P0B94(void);
-void abi_R0BD6(void);
-void abi_R0BE9(void);
-void abi_P0BED(void);
-void abi_P0BF3(void);
-void abi_P0C22(void);
+void abi_SoundDriverStart(void);
+void abi_DspSetup(void);
+void abi_PortCommandPoll(void);
+void abi_PortCommandPollEnd(void);
+void abi_SoundCommand(void);
+void abi_VoiceStateClear(void);
+void abi_VoiceDpClear(void);
+void abi_SoundCommandTable(void);
+void abi_SoundStopAll(void);
+void abi_SoundCmdF1(void);
+void abi_SequencerReset(void);
+void abi_PageClear50(void);
+void abi_SoundCmdFA(void);
+void abi_SoundCmdFB(void);
+void abi_SongStartKeep(void);
+void abi_SoundCmdFC(void);
+void abi_SoundCmdFD(void);
+void abi_SoundCmdF3(void);
+void abi_SoundCmdF4(void);
+void abi_VoicesReleaseFree(void);
+void abi_SoundCmdF5(void);
+void abi_SoundCmdF6(void);
+void abi_FadeStart(void);
+void abi_FadeClear(void);
+void abi_FadeSet(void);
+void abi_SoundCmdF7(void);
+void abi_SoundCmdF8(void);
+void abi_SoundUpload(void);
+void abi_VoiceTick(void);
+void abi_TrackByte(void);
+void abi_TrackByteEnd(void);
+void abi_SeqCmd00(void);
+void abi_SeqCmd01(void);
+void abi_SeqCmd02(void);
+void abi_SeqCmd03(void);
+void abi_VoiceFlagsToggle(void);
+void abi_VoiceFlagsStore(void);
+void abi_SeqCmd05(void);
+void abi_SeqCmd06(void);
+void abi_SeqCmd07(void);
+void abi_SeqCmd08(void);
+void abi_VoiceInstrument(void);
+void abi_VoiceInstrumentFrom(void);
+void abi_VoiceInstrumentEnd(void);
+void abi_SeqCmd09(void);
+void abi_SeqCmd0A(void);
+void abi_SeqCmd0B(void);
+void abi_SeqCmd0C(void);
+void abi_SeqCmd0D(void);
+void abi_SeqCmd0E(void);
+void abi_SeqCmd0F(void);
+void abi_SeqCmd10(void);
+void abi_SeqCmd11(void);
+void abi_SeqLoop(void);
+void abi_SeqCmd16(void);
+void abi_SeqLoopSkip(void);
+void abi_VoiceFlagsSet(void);
+void abi_SeqCmd17(void);
+void abi_VoiceStop(void);
+void abi_VoiceSfxMark(void);
+void abi_SeqCmd18(void);
+void abi_SeqCmd19(void);
+void abi_SeqCmd1A(void);
+void abi_SeqCmd1B(void);
+void abi_EchoSetup(void);
+void abi_EchoSetupEnd(void);
+void abi_EchoOff(void);
+void abi_EchoFirSet(void);
+void abi_SeqCmd1C(void);
+void abi_SeqCmd1D(void);
+void abi_VoiceSlide(void);
+void abi_VoiceVolumeSet(void);
+void abi_CurveAt16(void);
+void abi_CurveAtY(void);
+void abi_CurveAt8(void);
+void abi_CurveShift(void);
+void abi_VoicePitchUpdate(void);
+void abi_VoicePitchSet(void);
+void abi_VoicePitchFrom(void);
+void abi_VoicePitchVibrato(void);
+void abi_VoicePitchOut(void);
 void abi_DspWrite(void);
 void abi_DspWriteVoice(void);
 void abi_VoiceRelease(void);
@@ -103,44 +103,52 @@ static uint16_t ind_y(uint8_t d)
 static void command_run(uint16_t h)
 {
     switch (h) {
-    case 0x0871: abi_P0871(); return;
-    case 0x0875: abi_P0875(); return;
-    case 0x0879: abi_P0879(); return;
-    case 0x087F: abi_P087F(); return;
-    case 0x0971: abi_R0971(); return;
-    case 0x0886: abi_P0886(); return;
-    case 0x08A1: abi_P08A1(); return;
-    case 0x08A5: abi_P08A5(); return;
-    case 0x08BA: abi_P08BA(); return;
-    case 0x08FC: abi_P08FC(); return;
-    case 0x0907: abi_P0907(); return;
-    case 0x090D: abi_P090D(); return;
-    case 0x0911: abi_P0911(); return;
-    case 0x0915: abi_P0915(); return;
-    case 0x0919: abi_P0919(); return;
-    case 0x091D: abi_P091D(); return;
-    case 0x0921: abi_P0921(); return;
-    case 0x0925: abi_P0925(); return;
-    case 0x095B: abi_P095B(); return;
-    case 0x097C: abi_P097C(); return;
-    case 0x09B7: abi_P09B7(); return;
-    case 0x09BE: abi_P09BE(); return;
-    case 0x09C8: abi_P09C8(); return;
-    case 0x09EE: abi_P09EE(); return;
-    case 0x0AA3: abi_P0AA3(); return;
-    case 0x0ABD: abi_P0ABD(); return;
-    case 0x0830: abi_P0830(); return;
+    case 0x0871: abi_SeqCmd00(); return;
+    case 0x0875: abi_SeqCmd01(); return;
+    case 0x0879: abi_SeqCmd02(); return;
+    case 0x087F: abi_SeqCmd03(); return;
+    case 0x0971: abi_VoiceFlagsSet(); return;
+    case 0x0886: abi_SeqCmd05(); return;
+    case 0x08A1: abi_SeqCmd06(); return;
+    case 0x08A5: abi_SeqCmd07(); return;
+    case 0x08BA: abi_SeqCmd08(); return;
+    case 0x08FC: abi_SeqCmd09(); return;
+    case 0x0907: abi_SeqCmd0A(); return;
+    case 0x090D: abi_SeqCmd0B(); return;
+    case 0x0911: abi_SeqCmd0C(); return;
+    case 0x0915: abi_SeqCmd0D(); return;
+    case 0x0919: abi_SeqCmd0E(); return;
+    case 0x091D: abi_SeqCmd0F(); return;
+    case 0x0921: abi_SeqCmd10(); return;
+    case 0x0925: abi_SeqCmd11(); return;
+    case 0x095B: abi_SeqCmd16(); return;
+    case 0x097C: abi_SeqCmd17(); return;
+    case 0x09B7: abi_SeqCmd18(); return;
+    case 0x09BE: abi_SeqCmd19(); return;
+    case 0x09C8: abi_SeqCmd1A(); return;
+    case 0x09EE: abi_SeqCmd1B(); return;
+    case 0x0AA3: abi_SeqCmd1C(); return;
+    case 0x0ABD: abi_SeqCmd1D(); return;
+    case 0x0830: abi_TrackByteEnd(); return;
     }
 }
 
 /*
- * @routine 85:80BD R02C0
+ * @routine 85:80BD SoundDriverStart
  * @spc 02C0
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: The sound driver's start and main loop: clears its RAM,
+ * sets up the DSP and timer 0, then forever takes the S-CPU's commands
+ * and, on each timer tick, steps the music and sound-effect voices.
+ * HOW: Clears direct pages 0 and 1 and $0200-$02BF; DspSetup; timer 0 at
+ * $40, the timers on; then each loop polls the ports (PortCommandPoll) and
+ * counts timer 0 into $B1; on a tick, with the return address $02F5
+ * pushed, either the music half (every other tick, $B0 bit 7: each voice
+ * with a track, VoiceTick, then the fade) or the effects half (the voices
+ * $B8 marks), then the key-on and key-off writes; their last DSP write
+ * returns to $02F5.
+ * Entry: jumped to by the boot ROM after the upload. Exit: never returns.
  */
-void abi_R02C0(void)
+void abi_SoundDriverStart(void)
 {
     spc.p = 0;  /* 02C0 clrp  */
     spc.x = spc_nz(0xCF);  /* 02C1 mov x,#$CF */
@@ -164,7 +172,7 @@ L_02D5:
     spc.x = spc_inc(spc.x);  /* 02D8 inc x */
     spc_cmp(spc.x, 0xC0);  /* 02D9 cmp x,#$C0 */
     if (!spc.z) goto L_02D5;  /* 02DB bne spc_02D5_0280D2 */
-    spc_call(abi_R0425, 0x02E0);  /* 02DD call $0425 */
+    spc_call(abi_DspSetup, 0x02E0);  /* 02DD call $0425 */
     spc.a = spc_nz(0x40);  /* 02E0 mov a,#$40 */
     spc_st(0x00FAU, spc.a);  /* 02E2 mov.w $00FA,a */
     spc.a = spc_nz(0xF1);  /* 02E5 mov a,#$F1 */
@@ -175,7 +183,7 @@ L_02D5:
     spc.a = spc_dec(spc.a);  /* 02F1 dec a */
     spc_st(0x00F7U, spc.a);  /* 02F2 mov.w $00F7,a */
 L_02F5:
-    spc_call(abi_R043E, 0x02F8);  /* 02F5 call $043E */
+    spc_call(abi_PortCommandPoll, 0x02F8);  /* 02F5 call $043E */
     spc.a = spc_nz(spc_rd(0x00FDU));  /* 02F8 mov.w a,$00FD */
     spc.c = 0;  /* 02FB clrc  */
     spc.a = spc_adc(spc.a, spc_rd(spc_dp(0xB1)));  /* 02FC adc.b a,$B1 */
@@ -232,7 +240,7 @@ L_0351:
 L_035F:
     if (!(spc_rd(spc_dp(0xBD)) >> 7 & 1)) goto L_036A;  /* 035F bbc $BD.7,spc_036A_028167 */
     spc.a = spc_nz(spc_rd((uint16_t)(0x0250 + spc.x)));  /* 0362 mov.w a,$0250+x */
-    spc_call(abi_R08C4, 0x0368);  /* 0365 call $08C4 */
+    spc_call(abi_VoiceInstrument, 0x0368);  /* 0365 call $08C4 */
     goto L_0381;  /* 0368 bra spc_0381_02817E */
 L_036A:
     if (!(spc_rd(spc_dp(0xBA)) >> 7 & 1)) goto L_0381;  /* 036A bbc $BA.7,spc_0381_02817E */
@@ -277,7 +285,7 @@ L_03B6:
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x08 + spc.x))));  /* 03B6 mov.b a,$08+x */
     spc.a = spc_or(spc.a, spc_rd(spc_dp((uint8_t)(0x00 + spc.x))));  /* 03B8 or.b a,$00+x */
     if (spc.z) goto L_03BF;  /* 03BA beq spc_03BF_0281BC */
-    spc_call(abi_R06B1, 0x03BF);  /* 03BC call $06B1 */
+    spc_call(abi_VoiceTick, 0x03BF);  /* 03BC call $06B1 */
 L_03BF:
     spc.x = spc_dec(spc.x);  /* 03BF dec x */
     spc_rmw(spc_dp(0xB9), spc_asl);  /* 03C0 asl.b $B9 */
@@ -310,7 +318,7 @@ L_03E1:
     { uint16_t w = (uint16_t)(spc_rd(spc_dp(0xA9)) | spc_rd(spc_dp(0xAA)) << 8); spc_set_ya(spc_addw(spc_ya(), w)); }  /* 03F6 addw ya,$A9 */
     spc_st(spc_dp(0xA8), spc.y);  /* 03F8 mov.b $A8,y */
     spc_st((uint16_t)(0x0268 + spc.x), spc.a);  /* 03FA mov.w $0268+x,a */
-    spc_call(abi_R06B1, 0x0400);  /* 03FD call $06B1 */
+    spc_call(abi_VoiceTick, 0x0400);  /* 03FD call $06B1 */
 L_0400:
     spc.x = spc_dec(spc.x);  /* 0400 dec x */
     spc_rmw(spc_dp(0xB3), spc_lsr);  /* 0401 lsr.b $B3 */
@@ -324,13 +332,14 @@ L_0400:
 }
 
 /*
- * @routine 85:8222 R0425
+ * @routine 85:8222 DspSetup
  * @spc 0425
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sets the DSP's main volume and echo settings at start.
+ * HOW: The DSP registers and values of the tables at $0438 (3 pairs) to
+ * $F2/$F3, then the echo setup (its code from $09FA).
+ * Entry: called by CALL. Exit: as the echo setup.
  */
-void abi_R0425(void)
+void abi_DspSetup(void)
 {
     spc.y = spc_nz(0x03);  /* 0425 mov y,#$03 */
 L_0427:
@@ -339,53 +348,62 @@ L_0427:
     spc.a = spc_nz(spc_rd((uint16_t)(0x043A + spc.y)));  /* 042D mov.w a,$043A+y */
     spc_st(0x00F3U, spc.a);  /* 0430 mov.w $00F3,a */
     if ((spc.y = (uint8_t)(spc.y - 1)) != 0) goto L_0427;  /* 0433 dbnz y,spc_0427_028224 */
-    { abi_P09FA(); return; }  /* 0435 jmp $09FA */
+    { abi_EchoSetup(); return; }  /* 0435 jmp $09FA */
 }
 
 /*
- * @routine 85:823B R043E
+ * @routine 85:823B PortCommandPoll
  * @spc 043E
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Takes the S-CPU's next command from port 0, if any, and
+ * acknowledges it.
+ * HOW: Reads port 0 until two reads agree; nonzero: counts $B2, runs it
+ * (SoundCommand), clears the ports' inputs ($F1 = $31) and writes $B2 and
+ * the command back to ports 2 and 3.
+ * Entry: called by CALL. Exit: A = the command (or 0); Y = the command.
  */
-void abi_R043E(void)
+void abi_PortCommandPoll(void)
 {
 L_043E:
     spc.a = spc_nz(spc_rd(0x00F4U));  /* 043E mov.w a,$00F4 */
     spc_cmp(spc.a, spc_rd(0x00F4U));  /* 0441 cmp.w a,$00F4 */
     if (!spc.z) goto L_043E;  /* 0444 bne spc_043E_02823B */
     spc.y = spc_nz(spc.a);  /* 0446 mov y,a */
-    if (spc.z) { abi_P045D(); return; }  /* 0447 beq spc_045D_02825A */
+    if (spc.z) { abi_PortCommandPollEnd(); return; }  /* 0447 beq spc_045D_02825A */
     spc_push(spc.a);  /* 0449 push a */
     spc_rmw(spc_dp(0xB2), spc_inc);  /* 044A inc.b $B2 */
-    spc_call(abi_R045E, 0x044F);  /* 044C call $045E */
+    spc_call(abi_SoundCommand, 0x044F);  /* 044C call $045E */
     spc.a = spc_nz(0x31);  /* 044F mov a,#$31 */
     spc_st(0x00F1U, spc.a);  /* 0451 mov.w $00F1,a */
     spc.a = spc_nz(spc_rd(spc_dp(0xB2)));  /* 0454 mov.b a,$B2 */
     spc_st(0x00F6U, spc.a);  /* 0456 mov.w $00F6,a */
     spc.a = spc_pull();  /* 0459 pop a */
     spc_st(0x00F7U, spc.a);  /* 045A mov.w $00F7,a */
-    abi_P045D();  /* on into 045D */
+    abi_PortCommandPollEnd();  /* on into 045D */
 }
 
-void abi_P045D(void)
+void abi_PortCommandPollEnd(void)
 {
     spc_ret(); return;  /* 045D ret  */
 }
 
 /*
- * @routine 85:825B R045E
+ * @routine 85:825B SoundCommand
  * @spc 045E
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Runs one S-CPU command: below $F0 starts song or sound
+ * effect A, $F0 and up is a driver command.
+ * HOW: $F0 and up: the command table at $0511 by the low nibble (JMP
+ * (abs+X)). Else A, less the song count at $1DB0 until below it, indexes
+ * the song table at $1DB2; a song's header gives its priority and each
+ * voice's track; voices it may take (priority at or above theirs) are
+ * cleared and given their track.
+ * Entry: A = the command; called by CALL. Exit: as the command's code
+ * leaves it.
  */
-void abi_R045E(void)
+void abi_SoundCommand(void)
 {
     spc_cmp(spc.a, 0xF0);  /* 045E cmp a,#$F0 */
     if (!spc.c) goto L_0465;  /* 0460 bcc spc_0465_028262 */
-    { abi_P050A(); return; }  /* 0462 jmp $050A */
+    { abi_SoundCommandTable(); return; }  /* 0462 jmp $050A */
 L_0465:
     spc_cmp(spc.a, spc_rd(0x1DB0U));  /* 0465 cmp.w a,$1DB0 */
     if (!spc.c) goto L_0470;  /* 0468 bcc spc_0470_02826D */
@@ -400,11 +418,11 @@ L_0470:
     spc.a = spc_nz(spc_rd((uint16_t)(0x1DB3 + spc.x)));  /* 0477 mov.w a,$1DB3+x */
     spc_st(spc_dp(0xA0), spc.a);  /* 047A mov.b $A0,a */
     spc.a = spc_or(spc.a, spc_rd(spc_dp(0xA1)));  /* 047C or.b a,$A1 */
-    if (spc.z) { abi_P045D(); return; }  /* 047E beq spc_045D_02825A */
+    if (spc.z) { abi_PortCommandPollEnd(); return; }  /* 047E beq spc_045D_02825A */
     spc.y = spc_nz(0x00);  /* 0480 mov y,#$00 */
     spc.a = spc_nz(spc_rd(ind_y(0xA0)));  /* 0482 mov a,($A0)+y */
     if (!spc.z) goto L_0489;  /* 0484 bne spc_0489_028286 */
-    { abi_P0570(); return; }  /* 0486 jmp $0570, not run by the traces */
+    { abi_SongStartKeep(); return; }  /* 0486 jmp $0570, not run by the traces */
 L_0489:
     spc_st(spc_dp(0xA4), spc.a);  /* 0489 mov.b $A4,a */
     spc_st(spc_dp(0xB3), 0x80);  /* 048B mov $B3,#$80 */
@@ -429,7 +447,7 @@ L_0490:
     spc_st(spc_dp(0xA5), spc.a);  /* 04B2 mov.b $A5,a */
     { uint8_t s = spc_rd(spc_dp(0xA5)); uint8_t d = spc_rd(spc_dp(0xB7)); spc_wr(spc_dp(0xB7), spc_and(d, s)); }  /* 04B4 and $B7,$A5 */
     { uint8_t s = spc_rd(spc_dp(0xA5)); uint8_t d = spc_rd(spc_dp(0xBA)); spc_wr(spc_dp(0xBA), spc_and(d, s)); }  /* 04B7 and $BA,$A5 */
-    spc_call(abi_R04E4, 0x04BD);  /* 04BA call $04E4 */
+    spc_call(abi_VoiceStateClear, 0x04BD);  /* 04BA call $04E4 */
     spc_call(abi_VoiceRelease, 0x04C0);  /* 04BD call $0414 */
     spc.a = spc_nz(spc_rd(spc_dp(0xA4)));  /* 04C0 mov.b a,$A4 */
     spc_st((uint16_t)(0x0250 + spc.x), spc.a);  /* 04C2 mov.w $0250+x,a */
@@ -452,13 +470,15 @@ L_04DE:
 }
 
 /*
- * @routine 85:82E1 R04E4
+ * @routine 85:82E1 VoiceStateClear
  * @spc 04E4
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Clears voice X's sequencer state.
+ * HOW: Every eighth byte of $0200-$02BF from $0208 plus X; then, in page 1
+ * and page 0 (VoiceDpClear), every eighth byte from X.
+ * Entry: X = the voice; called by CALL. Exit: A = $A0 or more, flags from
+ * the compare; X unchanged; P clear.
  */
-void abi_R04E4(void)
+void abi_VoiceStateClear(void)
 {
     spc.a = spc_nz(spc.x);  /* 04E4 mov a,x */
     spc.c = 0;  /* 04E5 clrc  */
@@ -473,19 +493,21 @@ L_04E8:
     spc_cmp(spc.a, 0xC0);  /* 04F2 cmp a,#$C0 */
     if (!spc.c) goto L_04E8;  /* 04F4 bcc spc_04E8_0282E5 */
     spc.p = 1;  /* 04F6 setp  */
-    spc_call(abi_R04FB, 0x04FA);  /* 04F7 call $04FB */
+    spc_call(abi_VoiceDpClear, 0x04FA);  /* 04F7 call $04FB */
     spc.p = 0;  /* 04FA clrp  */
-    abi_R04FB();  /* on into 04FB */
+    abi_VoiceDpClear();  /* on into 04FB */
 }
 
 /*
- * @routine 85:82F8 R04FB
+ * @routine 85:82F8 VoiceDpClear
  * @spc 04FB
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Clears every eighth byte of the direct page from X below
+ * $A0: voice X's direct-page state.
+ * HOW: A loop of MOV (X),A stepping X by 8; X kept on the stack.
+ * Entry: X = the voice; called by CALL. Exit: A = the last X stepped; X
+ * unchanged.
  */
-void abi_R04FB(void)
+void abi_VoiceDpClear(void)
 {
     spc_push(spc.x);  /* 04FB push x */
 L_04FC:
@@ -501,34 +523,36 @@ L_04FC:
     spc_ret(); return;  /* 0509 ret  */
 }
 
-void abi_P050A(void)
+void abi_SoundCommandTable(void)
 {
     spc.a = spc_and(spc.a, 0x0F);  /* 050A and a,#$0F */
     spc.a = spc_asl(spc.a);  /* 050C asl a */
     spc.x = spc_nz(spc.a);  /* 050D mov x,a */
-    { uint16_t t = spc_rd((uint16_t)(0x0511 + spc.x)); t |= (uint16_t)(spc_rd((uint16_t)(0x0512 + spc.x)) << 8); switch (t) { case 0x052D: abi_R052D(); return; case 0x0530: abi_P0530(); return; case 0x0549: abi_R0549(); return; case 0x05DC: abi_P05DC(); return; case 0x05E0: abi_P05E0(); return; case 0x0616: abi_P0616(); return; case 0x061A: abi_P061A(); return; case 0x0650: abi_P0650(); return; case 0x0653: abi_P0653(); return; case 0x0656: abi_R0656(); return; case 0x0567: abi_P0567(); return; case 0x056A: abi_P056A(); return; case 0x05B1: abi_P05B1(); return; case 0x05D6: abi_P05D6(); return; } }  /* 050E jmp ($0511+x) */
+    { uint16_t t = spc_rd((uint16_t)(0x0511 + spc.x)); t |= (uint16_t)(spc_rd((uint16_t)(0x0512 + spc.x)) << 8); switch (t) { case 0x052D: abi_SoundStopAll(); return; case 0x0530: abi_SoundCmdF1(); return; case 0x0549: abi_SequencerReset(); return; case 0x05DC: abi_SoundCmdF3(); return; case 0x05E0: abi_SoundCmdF4(); return; case 0x0616: abi_SoundCmdF5(); return; case 0x061A: abi_SoundCmdF6(); return; case 0x0650: abi_SoundCmdF7(); return; case 0x0653: abi_SoundCmdF8(); return; case 0x0656: abi_SoundUpload(); return; case 0x0567: abi_SoundCmdFA(); return; case 0x056A: abi_SoundCmdFB(); return; case 0x05B1: abi_SoundCmdFC(); return; case 0x05D6: abi_SoundCmdFD(); return; } }  /* 050E jmp ($0511+x) */
 }
 
 /*
- * @routine 85:832A R052D
+ * @routine 85:832A SoundStopAll
  * @spc 052D
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Command $F0: stops the music and every sound effect.
+ * HOW: SequencerReset; then each voice $B8 marks is stopped (VoiceStop);
+ * $B5 and $B7 cleared.
+ * Entry: reached from the command table or by CALL. Exit: X = the last
+ * voice; A = 0.
  */
-void abi_R052D(void)
+void abi_SoundStopAll(void)
 {
-    spc_call(abi_R0549, 0x0530);  /* 052D call $0549 */
-    abi_P0530();  /* on into 0530 */
+    spc_call(abi_SequencerReset, 0x0530);  /* 052D call $0549 */
+    abi_SoundCmdF1();  /* on into 0530 */
 }
 
-void abi_P0530(void)
+void abi_SoundCmdF1(void)
 {
     spc_st(spc_dp(0xB3), 0x80);  /* 0530 mov $B3,#$80 */
     spc.x = spc_nz(0x57);  /* 0533 mov x,#$57 */
 L_0535:
     if (!(spc_rd(spc_dp(0xB8)) >> 7 & 1)) goto L_053B;  /* 0535 bbc $B8.7,spc_053B_028338 */
-    spc_call(abi_R099C, 0x053B);  /* 0538 call $099C */
+    spc_call(abi_VoiceStop, 0x053B);  /* 0538 call $099C */
 L_053B:
     spc.x = spc_dec(spc.x);  /* 053B dec x */
     spc_rmw(spc_dp(0xB8), spc_asl);  /* 053C asl.b $B8 */
@@ -540,15 +564,18 @@ L_053B:
 }
 
 /*
- * @routine 85:8346 R0549
+ * @routine 85:8346 SequencerReset
  * @spc 0549
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Command $F2: the music's state cleared and its voices
+ * released.
+ * HOW: VoicesReleaseFree; $BC and $0208-$0257 cleared; page 1's first $50
+ * bytes and page 0's (PageClear50).
+ * Entry: reached from the command table or by CALL. Exit: A = 0; X = $50;
+ * P clear.
  */
-void abi_R0549(void)
+void abi_SequencerReset(void)
 {
-    spc_call(abi_R05F9, 0x054C);  /* 0549 call $05F9 */
+    spc_call(abi_VoicesReleaseFree, 0x054C);  /* 0549 call $05F9 */
     spc.a = spc_nz(0x00);  /* 054C mov a,#$00 */
     spc_st(spc_dp(0xBC), spc.a);  /* 054E mov.b $BC,a */
     spc.x = spc_nz(0x08);  /* 0550 mov x,#$08 */
@@ -558,19 +585,19 @@ L_0552:
     spc_cmp(spc.x, 0x58);  /* 0556 cmp x,#$58 */
     if (!spc.z) goto L_0552;  /* 0558 bne spc_0552_02834F */
     spc.p = 1;  /* 055A setp  */
-    spc_call(abi_R055F, 0x055E);  /* 055B call $055F */
+    spc_call(abi_PageClear50, 0x055E);  /* 055B call $055F */
     spc.p = 0;  /* 055E clrp  */
-    abi_R055F();  /* on into 055F */
+    abi_PageClear50();  /* on into 055F */
 }
 
 /*
- * @routine 85:835C R055F
+ * @routine 85:835C PageClear50
  * @spc 055F
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Clears the first $50 bytes of the direct page.
+ * HOW: MOV (X+),A from X = 0.
+ * Entry: A = 0; called by CALL. Exit: X = $50; flags from the compare.
  */
-void abi_R055F(void)
+void abi_PageClear50(void)
 {
     spc.x = spc_nz(0x00);  /* 055F mov x,#$00 */
 L_0561:
@@ -580,22 +607,22 @@ L_0561:
     spc_ret(); return;  /* 0566 ret  */
 }
 
-void abi_P0567(void)
+void abi_SoundCmdFA(void)
 {
-    spc_call(abi_R0656, 0x056A);  /* 0567 call $0656 */
-    abi_P056A();  /* on into 056A */
+    spc_call(abi_SoundUpload, 0x056A);  /* 0567 call $0656 */
+    abi_SoundCmdFB();  /* on into 056A */
 }
 
-void abi_P056A(void)
+void abi_SoundCmdFB(void)
 {
     spc_st(spc_dp(0xA1), 0x0D);  /* 056A mov $A1,#$0D */
     spc_st(spc_dp(0xA0), 0x1F);  /* 056D mov $A0,#$1F */
-    abi_P0570();  /* on into 0570 */
+    abi_SongStartKeep();  /* on into 0570 */
 }
 
-void abi_P0570(void)
+void abi_SongStartKeep(void)
 {
-    spc_call(abi_R0549, 0x0573);  /* 0570 call $0549 */
+    spc_call(abi_SequencerReset, 0x0573);  /* 0570 call $0549 */
     spc.y = spc_nz(0x00);  /* 0573 mov y,#$00 */
     spc.a = spc_nz(spc.y);  /* 0575 mov a,y */
     spc_movw_st(0xC0);  /* 0576 movw $C0,ya */
@@ -603,7 +630,7 @@ void abi_P0570(void)
     spc_st(spc_dp(0xC5), spc.a);  /* 057A mov.b $C5,a */
     spc.a = spc_dec(spc.a);  /* 057C dec a */
     spc_st(spc_dp(0xC3), spc.a);  /* 057D mov.b $C3,a */
-    spc_call(abi_R0645, 0x0582);  /* 057F call $0645 */
+    spc_call(abi_FadeClear, 0x0582);  /* 057F call $0645 */
     spc.x = spc_nz(0x07);  /* 0582 mov x,#$07 */
 L_0584:
     spc.y = spc_nz(0x00);  /* 0584 mov y,#$00 */
@@ -631,7 +658,7 @@ L_05AD:
     spc_ret(); return;  /* 05B0 ret  */
 }
 
-void abi_P05B1(void)
+void abi_SoundCmdFC(void)
 {
     spc.a = spc_nz(spc_rd(0x00F5U));  /* 05B1 mov.w a,$00F5, not run by the traces */
     spc_push(spc_psw());  /* 05B4 push p, not run by the traces */
@@ -659,20 +686,20 @@ L_05D3:
     spc_ret(); return;  /* 05D5 ret , not run by the traces */
 }
 
-void abi_P05D6(void)
+void abi_SoundCmdFD(void)
 {
     spc.a = spc_nz(spc_rd(0x00F5U));  /* 05D6 mov.w a,$00F5, not run by the traces */
     spc_st(spc_dp(0xC5), spc.a);  /* 05D9 mov.b $C5,a, not run by the traces */
     spc_ret(); return;  /* 05DB ret , not run by the traces */
 }
 
-void abi_P05DC(void)
+void abi_SoundCmdF3(void)
 {
     spc_bit_set(0xB0, 6, 1);  /* 05DC set1 $B0.6 */
-    { abi_R05F9(); return; }  /* 05DE bra spc_05F9_0283F6 */
+    { abi_VoicesReleaseFree(); return; }  /* 05DE bra spc_05F9_0283F6 */
 }
 
-void abi_P05E0(void)
+void abi_SoundCmdF4(void)
 {
     spc_bit_set(0xB0, 6, 0);  /* 05E0 clr1 $B0.6 */
     spc_st(spc_dp(0xBA), 0x00);  /* 05E2 mov $BA,#$00 */
@@ -682,7 +709,7 @@ L_05EA:
     spc.a = spc_nz(spc_rd(spc_dp(0xB8)));  /* 05EA mov.b a,$B8 */
     spc.a = spc_and(spc.a, spc_rd(spc_dp(0xB3)));  /* 05EC and.b a,$B3 */
     if (!spc.z) goto L_05F3;  /* 05EE bne spc_05F3_0283F0 */
-    spc_call(abi_R09A7, 0x05F3);  /* 05F0 call $09A7 */
+    spc_call(abi_VoiceSfxMark, 0x05F3);  /* 05F0 call $09A7 */
 L_05F3:
     spc.x = spc_dec(spc.x);  /* 05F3 dec x */
     spc_rmw(spc_dp(0xB3), spc_lsr);  /* 05F4 lsr.b $B3 */
@@ -691,13 +718,14 @@ L_05F3:
 }
 
 /*
- * @routine 85:83F6 R05F9
+ * @routine 85:83F6 VoicesReleaseFree
  * @spc 05F9
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Releases every voice no sound effect holds.
+ * HOW: For voices 7 down to 0 whose bit is clear in $B8: VoiceRelease and
+ * its bit set in $BB; $BA and $BD cleared.
+ * Entry: called by CALL. Exit: X = $FF; A as the last release leaves it.
  */
-void abi_R05F9(void)
+void abi_VoicesReleaseFree(void)
 {
     spc.x = spc_nz(0x07);  /* 05F9 mov x,#$07 */
     spc_st(spc_dp(0xB3), 0x80);  /* 05FB mov $B3,#$80 */
@@ -716,30 +744,30 @@ L_060A:
     spc_ret(); return;  /* 0615 ret  */
 }
 
-void abi_P0616(void)
+void abi_SoundCmdF5(void)
 {
     spc.x = spc_nz(0xFF);  /* 0616 mov x,#$FF, not run by the traces */
-    { abi_P061C(); return; }  /* 0618 bra $061C, not run by the traces */
+    { abi_FadeStart(); return; }  /* 0618 bra $061C, not run by the traces */
 }
 
-void abi_P061A(void)
+void abi_SoundCmdF6(void)
 {
     spc.x = spc_nz(0x01);  /* 061A mov x,#$01 */
-    abi_P061C();  /* on into 061C */
+    abi_FadeStart();  /* on into 061C */
 }
 
-void abi_P061C(void)
+void abi_FadeStart(void)
 {
     spc_cmp(spc.x, spc_rd(spc_dp(0xC6)));  /* 061C cmp.b x,$C6 */
     if (spc.z) goto L_063C;  /* 061E beq spc_063C_028439 */
     spc.a = spc_nz(spc_rd(0x00F6U));  /* 0620 mov.w a,$00F6 */
     spc.a = spc_or(spc.a, spc_rd(0x00F7U));  /* 0623 or.w a,$00F7 */
-    if (spc.z) { abi_R0645(); return; }  /* 0626 beq spc_0645_028442 */
+    if (spc.z) { abi_FadeClear(); return; }  /* 0626 beq spc_0645_028442 */
     spc.a = spc_nz(spc_rd(0x00F6U));  /* 0628 mov.w a,$00F6 */
     spc.y = spc_nz(spc_rd(0x00F7U));  /* 062B mov.w y,$00F7 */
     spc_rmw(spc_dp(0xC6), spc_asl);  /* 062E asl.b $C6 */
     if (spc.z) goto L_063D;  /* 0630 beq spc_063D_02843A */
-    spc_call(abi_R064B, 0x0635);  /* 0632 call $064B, not run by the traces */
+    spc_call(abi_FadeSet, 0x0635);  /* 0632 call $064B, not run by the traces */
     spc.y = spc_nz(0xFF);  /* 0635 mov y,#$FF, not run by the traces */
     spc.a = spc_nz(spc.y);  /* 0637 mov a,y, not run by the traces */
     { uint16_t w = (uint16_t)(spc_rd(spc_dp(0xC9)) | spc_rd(spc_dp(0xCA)) << 8); spc_set_ya(spc_subw(spc_ya(), w)); }  /* 0638 subw ya,$C9, not run by the traces */
@@ -749,61 +777,67 @@ L_063C:
 L_063D:
     spc_st(spc_dp(0xC9), 0x00);  /* 063D mov $C9,#$00 */
     spc_st(spc_dp(0xCA), 0x00);  /* 0640 mov $CA,#$00 */
-    { abi_R064B(); return; }  /* 0643 bra spc_064B_028448 */
+    { abi_FadeSet(); return; }  /* 0643 bra spc_064B_028448 */
 }
 
 /*
- * @routine 85:8442 R0645
+ * @routine 85:8442 FadeClear
  * @spc 0645
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Clears the fade: its rate and level ($C6-$CA).
+ * HOW: YA = 0, X = 0; then on into FadeSet.
+ * Entry: called by CALL or reached. Exit: A = Y = X = 0.
  */
-void abi_R0645(void)
+void abi_FadeClear(void)
 {
     spc.a = spc_nz(0x00);  /* 0645 mov a,#$00 */
     spc.y = spc_nz(spc.a);  /* 0647 mov y,a */
     spc.x = spc_nz(spc.a);  /* 0648 mov x,a */
     spc_movw_st(0xC9);  /* 0649 movw $C9,ya */
-    abi_R064B();  /* on into 064B */
+    abi_FadeSet();  /* on into 064B */
 }
 
 /*
- * @routine 85:8448 R064B
+ * @routine 85:8448 FadeSet
  * @spc 064B
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sets the fade level to YA and its step to X.
+ * HOW: MOVW $C7,YA; $C6 = X.
+ * Entry: YA = the level; X = the step. Exit: registers unchanged; flags
+ * from the MOVW.
  */
-void abi_R064B(void)
+void abi_FadeSet(void)
 {
     spc_movw_st(0xC7);  /* 064B movw $C7,ya */
     spc_st(spc_dp(0xC6), spc.x);  /* 064D mov.b $C6,x */
     spc_ret(); return;  /* 064F ret  */
 }
 
-void abi_P0650(void)
+void abi_SoundCmdF7(void)
 {
     spc_bit_set(0xB0, 5, 0);  /* 0650 clr1 $B0.5 */
     spc_ret(); return;  /* 0652 ret  */
 }
 
-void abi_P0653(void)
+void abi_SoundCmdF8(void)
 {
     spc_bit_set(0xB0, 5, 1);  /* 0653 set1 $B0.5 */
     spc_ret(); return;  /* 0655 ret  */
 }
 
 /*
- * @routine 85:8453 R0656
+ * @routine 85:8453 SoundUpload
  * @spc 0656
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Command $F9: stops all sound and takes a new upload from
+ * the S-CPU (song and sample data) by the port handshake.
+ * HOW: SoundStopAll; ports 0-1 = $AA, $BB; waits for $CC; then blocks:
+ * port 2-3 the address, port 1 the data, port 0 the counter echoed; ends
+ * when the S-CPU sends a zero counter, and the timer and sequence count
+ * are reset.
+ * Entry: reached from the command table. Exit: as its last port write
+ * leaves it.
  */
-void abi_R0656(void)
+void abi_SoundUpload(void)
 {
-    spc_call(abi_R052D, 0x0659);  /* 0656 call $052D */
+    spc_call(abi_SoundStopAll, 0x0659);  /* 0656 call $052D */
     spc.a = spc_nz(0xAA);  /* 0659 mov a,#$AA */
     spc_st(0x00F4U, spc.a);  /* 065B mov.w $00F4,a */
     spc.a = spc_nz(0xBB);  /* 065E mov a,#$BB */
@@ -850,13 +884,18 @@ L_06A1:
 }
 
 /*
- * @routine 85:84AE R06B1
+ * @routine 85:84AE VoiceTick
  * @spc 06B1
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Steps voice X's track for one tick: its note's time, then
+ * its commands and next note when the time runs out.
+ * HOW: The note's length counted down by $A8; the release point
+ * (VoiceAdsr1Set) when its gate ends; a slide (from $0AC3) while it runs;
+ * at 0 the command loop: commands below $20 run from the handler table at
+ * $0831, a byte of $20 or more is a note: its pitch, length and key-on.
+ * Entry: X = the voice; $B3 its bit; $A8 the tick's length; called by
+ * CALL. Exit: as the note or command leaves it.
  */
-void abi_R06B1(void)
+void abi_VoiceTick(void)
 {
     { uint8_t t = spc_rd(spc_dp(0xB3)); spc_wr(spc_dp(0xB4), t); }  /* 06B1 mov $B4,$B3 */
     { uint8_t d = spc_rd(spc_dp(0xB4)); spc_wr(spc_dp(0xB4), spc_eor(d, 0xFF)); }  /* 06B4 eor $B4,#$FF */
@@ -888,7 +927,7 @@ L_06D7:
     if (!spc.c) goto L_06E9;  /* 06E0 bcc spc_06E9_0284E6 */
     spc_cmp(spc.a, 0xC1);  /* 06E2 cmp a,#$C1 */
     if (spc.c) goto L_06E9;  /* 06E4 bcs spc_06E9_0284E6 */
-    { abi_P0AC3(); return; }  /* 06E6 jmp $0AC3 */
+    { abi_VoiceSlide(); return; }  /* 06E6 jmp $0AC3 */
 L_06E9:
     spc.y = spc_nz(0x06);  /* 06E9 mov y,#$06 */
     spc.a = spc_nz(0xF2);  /* 06EB mov a,#$F2 */
@@ -1012,8 +1051,8 @@ L_07B0:
 L_07B3:
     if ((spc_rd(spc_dp(0xB9)) >> 7 & 1)) goto L_07BD;  /* 07B3 bbs $B9.7,spc_07BD_0285BA */
     spc.p = 1;  /* 07B6 setp  */
-    spc_call(abi_R0BE9, 0x07BA);  /* 07B7 call $0BE9 */
-    spc_call(abi_R0B17, 0x07BD);  /* 07BA call $0B17 */
+    spc_call(abi_VoicePitchSet, 0x07BA);  /* 07B7 call $0BE9 */
+    spc_call(abi_VoiceVolumeSet, 0x07BD);  /* 07BA call $0B17 */
 L_07BD:
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x10 + spc.x))));  /* 07BD mov.b a,$10+x */
     spc.y = spc_nz(spc.a);  /* 07BF mov y,a */
@@ -1044,7 +1083,7 @@ L_0803:
        is a note: the RET pulls $06F2, pushed before the loop. */
     for (;;) {
         uint8_t top, lo, hi;
-        spc_call(abi_R0820, 0x0806);  /* 0803 call $0820 */
+        spc_call(abi_TrackByte, 0x0806);  /* 0803 call $0820 */
         spc_cmp(spc.a, 0x20);  /* 0806 cmp a,#$20 */
         if (spc.c) {  /* 0808 bcs: 0830 ret, to $06F2 */
             spc_ret();
@@ -1066,7 +1105,7 @@ L_0803:
         if (!spc.c)  /* 081E bcc: 0830 ret, to the handler */
             spc_ret();
         else  /* on into 0820, the parameter byte; its RET to the handler */
-            abi_R0820();
+            abi_TrackByte();
         command_run((uint16_t)(hi << 8 | lo));
         if (spc.sp != (uint8_t)(top + 2))
             return;
@@ -1074,13 +1113,15 @@ L_0803:
 }
 
 /*
- * @routine 85:861D R0820
+ * @routine 85:861D TrackByte
  * @spc 0820
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Reads voice X's next track byte.
+ * HOW: The track pointer at $00+X/$08+X into $A0, the byte at it, the
+ * pointer counted up.
+ * Entry: X = the voice; called by CALL. Exit: A = the byte; Y = 0; N, Z
+ * from the increment.
  */
-void abi_R0820(void)
+void abi_TrackByte(void)
 {
     spc.y = spc_nz(spc_rd(spc_dp((uint8_t)(0x08 + spc.x))));  /* 0820 mov.b y,$08+x */
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x00 + spc.x))));  /* 0822 mov.b a,$00+x */
@@ -1088,57 +1129,57 @@ void abi_R0820(void)
     spc.y = spc_nz(0x00);  /* 0826 mov y,#$00 */
     spc.a = spc_nz(spc_rd(ind_y(0xA0)));  /* 0828 mov a,($A0)+y */
     spc_rmw(spc_dp((uint8_t)(0x00 + spc.x)), spc_inc);  /* 082A inc.b $00+x */
-    if (!spc.z) { abi_P0830(); return; }  /* 082C bne spc_0830_02862D */
+    if (!spc.z) { abi_TrackByteEnd(); return; }  /* 082C bne spc_0830_02862D */
     spc_rmw(spc_dp((uint8_t)(0x08 + spc.x)), spc_inc);  /* 082E inc.b $08+x */
-    abi_P0830();  /* on into 0830 */
+    abi_TrackByteEnd();  /* on into 0830 */
 }
 
-void abi_P0830(void)
+void abi_TrackByteEnd(void)
 {
     spc_ret(); return;  /* 0830 ret  */
 }
 
-void abi_P0871(void)
+void abi_SeqCmd00(void)
 {
     spc.a = spc_nz(0x20);  /* 0871 mov a,#$20 */
-    { abi_P0881(); return; }  /* 0873 bra spc_0881_02867E */
+    { abi_VoiceFlagsToggle(); return; }  /* 0873 bra spc_0881_02867E */
 }
 
-void abi_P0875(void)
+void abi_SeqCmd01(void)
 {
     spc.a = spc_nz(0x40);  /* 0875 mov a,#$40 */
-    { abi_P0881(); return; }  /* 0877 bra spc_0881_02867E */
+    { abi_VoiceFlagsToggle(); return; }  /* 0877 bra spc_0881_02867E */
 }
 
-void abi_P0879(void)
+void abi_SeqCmd02(void)
 {
     spc.a = spc_nz(0x10);  /* 0879 mov a,#$10 */
     spc.a = spc_or(spc.a, spc_rd(spc_dp((uint8_t)(0x10 + spc.x))));  /* 087B or.b a,$10+x */
-    { abi_P0883(); return; }  /* 087D bra spc_0883_028680 */
+    { abi_VoiceFlagsStore(); return; }  /* 087D bra spc_0883_028680 */
 }
 
-void abi_P087F(void)
+void abi_SeqCmd03(void)
 {
     spc.a = spc_nz(0x08);  /* 087F mov a,#$08 */
-    abi_P0881();  /* on into 0881 */
+    abi_VoiceFlagsToggle();  /* on into 0881 */
 }
 
-void abi_P0881(void)
+void abi_VoiceFlagsToggle(void)
 {
     spc.a = spc_eor(spc.a, spc_rd(spc_dp((uint8_t)(0x10 + spc.x))));  /* 0881 eor.b a,$10+x */
-    abi_P0883();  /* on into 0883 */
+    abi_VoiceFlagsStore();  /* on into 0883 */
 }
 
-void abi_P0883(void)
+void abi_VoiceFlagsStore(void)
 {
     spc_st(spc_dp((uint8_t)(0x10 + spc.x)), spc.a);  /* 0883 mov.b $10+x,a */
     spc_ret(); return;  /* 0885 ret  */
 }
 
-void abi_P0886(void)
+void abi_SeqCmd05(void)
 {
     spc_push(spc.a);  /* 0886 push a */
-    spc_call(abi_R0820, 0x088A);  /* 0887 call $0820 */
+    spc_call(abi_TrackByte, 0x088A);  /* 0887 call $0820 */
     spc.y = spc_pull();  /* 088A pop y */
     if (!(spc_rd(spc_dp(0xB0)) >> 7 & 1)) goto L_089B;  /* 088B bbc $B0.7,spc_089B_028698 */
     spc_st((uint16_t)(0x0258 + spc.x), spc.a);  /* 088E mov.w $0258+x,a */
@@ -1153,20 +1194,20 @@ L_089B:
     spc_ret(); return;  /* 08A0 ret  */
 }
 
-void abi_P08A1(void)
+void abi_SeqCmd06(void)
 {
     spc_st((uint16_t)(0x0208 + spc.x), spc.a);  /* 08A1 mov.w $0208+x,a */
     spc_ret(); return;  /* 08A4 ret  */
 }
 
-void abi_P08A5(void)
+void abi_SeqCmd07(void)
 {
     spc.y = spc_nz(spc.a);  /* 08A5 mov y,a */
-    spc_call(abi_R0B8E, 0x08A9);  /* 08A6 call $0B8E */
+    spc_call(abi_CurveAtY, 0x08A9);  /* 08A6 call $0B8E */
     if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) goto L_08B6;  /* 08A9 bbs $B0.7,spc_08B6_0286B3 */
     spc_push(spc.a);  /* 08AC push a */
     spc.y = spc_nz(spc_rd(0x1DB1U));  /* 08AD mov.w y,$1DB1 */
-    spc_call(abi_R0B8E, 0x08B3);  /* 08B0 call $0B8E */
+    spc_call(abi_CurveAtY, 0x08B3);  /* 08B0 call $0B8E */
     spc.y = spc_pull();  /* 08B3 pop y */
     spc_mul();  /* 08B4 mul ya */
     spc.a = spc_nz(spc.y);  /* 08B5 mov a,y */
@@ -1175,29 +1216,32 @@ L_08B6:
     spc_ret(); return;  /* 08B9 ret  */
 }
 
-void abi_P08BA(void)
+void abi_SeqCmd08(void)
 {
-    if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) { abi_P08C5(); return; }  /* 08BA bbs $B0.7,spc_08C5_0286C2 */
+    if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) { abi_VoiceInstrumentFrom(); return; }  /* 08BA bbs $B0.7,spc_08C5_0286C2 */
     spc.a = spc_inc(spc.a);  /* 08BD inc a */
     spc_st((uint16_t)(0x0250 + spc.x), spc.a);  /* 08BE mov.w $0250+x,a */
-    if ((spc_rd(spc_dp(0xB9)) >> 7 & 1)) { abi_P08FB(); return; }  /* 08C1 bbs $B9.7,spc_08FB_0286F8 */
-    abi_R08C4();  /* on into 08C4 */
+    if ((spc_rd(spc_dp(0xB9)) >> 7 & 1)) { abi_VoiceInstrumentEnd(); return; }  /* 08C1 bbs $B9.7,spc_08FB_0286F8 */
+    abi_VoiceInstrument();  /* on into 08C4 */
 }
 
 /*
- * @routine 85:86C1 R08C4
+ * @routine 85:86C1 VoiceInstrument
  * @spc 08C4
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sets voice X's instrument A less 1 from the instrument
+ * table at $3438: its envelope, gain and sample source.
+ * HOW: Instrument A less 1, times 6, indexes the table: its ADSR1 kept at
+ * $0238, ADSR1-GAIN and the source to the voice's DSP registers 4-7, its
+ * pitch multiplier to $0220/$0228.
+ * Entry: A = the instrument; X = the voice. Exit: X unchanged.
  */
-void abi_R08C4(void)
+void abi_VoiceInstrument(void)
 {
     spc.a = spc_dec(spc.a);  /* 08C4 dec a */
-    abi_P08C5();  /* on into 08C5 */
+    abi_VoiceInstrumentFrom();  /* on into 08C5 */
 }
 
-void abi_P08C5(void)
+void abi_VoiceInstrumentFrom(void)
 {
     spc.y = spc_nz(0x06);  /* 08C5 mov y,#$06 */
     spc_mul();  /* 08C7 mul ya */
@@ -1229,15 +1273,15 @@ L_08E1:
     spc.y = spc_inc(spc.y);  /* 08F5 inc y */
     spc.a = spc_nz(spc_rd(ind_y(0xA0)));  /* 08F6 mov a,($A0)+y */
     spc_st((uint16_t)(0x0228 + spc.x), spc.a);  /* 08F8 mov.w $0228+x,a */
-    abi_P08FB();  /* on into 08FB */
+    abi_VoiceInstrumentEnd();  /* on into 08FB */
 }
 
-void abi_P08FB(void)
+void abi_VoiceInstrumentEnd(void)
 {
     spc_ret(); return;  /* 08FB ret  */
 }
 
-void abi_P08FC(void)
+void abi_SeqCmd09(void)
 {
     spc_st(spc_dp(0xA3), spc.a);  /* 08FC mov.b $A3,a */
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x10 + spc.x))));  /* 08FE mov.b a,$10+x */
@@ -1247,7 +1291,7 @@ void abi_P08FC(void)
     spc_ret(); return;  /* 0906 ret  */
 }
 
-void abi_P0907(void)
+void abi_SeqCmd0A(void)
 {
     if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) goto L_090C;  /* 0907 bbs $B0.7,spc_090C_028709 */
     spc_st(spc_dp(0xC4), spc.a);  /* 090A mov.b $C4,a */
@@ -1255,49 +1299,49 @@ L_090C:
     spc_ret(); return;  /* 090C ret  */
 }
 
-void abi_P090D(void)
+void abi_SeqCmd0B(void)
 {
     spc_st((uint16_t)(0x0210 + spc.x), spc.a);  /* 090D mov.w $0210+x,a */
     spc_ret(); return;  /* 0910 ret  */
 }
 
-void abi_P0911(void)
+void abi_SeqCmd0C(void)
 {
     spc_st((uint16_t)(0x0218 + spc.x), spc.a);  /* 0911 mov.w $0218+x,a */
     spc_ret(); return;  /* 0914 ret  */
 }
 
-void abi_P0915(void)
+void abi_SeqCmd0D(void)
 {
     spc_st((uint16_t)(0x0128 + spc.x), spc.a);  /* 0915 mov.w $0128+x,a */
     spc_ret(); return;  /* 0918 ret  */
 }
 
-void abi_P0919(void)
+void abi_SeqCmd0E(void)
 {
     spc.y = spc_nz(0x30);  /* 0919 mov y,#$30 */
-    { abi_P0927(); return; }  /* 091B bra spc_0927_028724 */
+    { abi_SeqLoop(); return; }  /* 091B bra spc_0927_028724 */
 }
 
-void abi_P091D(void)
+void abi_SeqCmd0F(void)
 {
     spc.y = spc_nz(0x38);  /* 091D mov y,#$38 */
-    { abi_P0927(); return; }  /* 091F bra spc_0927_028724 */
+    { abi_SeqLoop(); return; }  /* 091F bra spc_0927_028724 */
 }
 
-void abi_P0921(void)
+void abi_SeqCmd10(void)
 {
     spc.y = spc_nz(0x40);  /* 0921 mov y,#$40 */
-    { abi_P0927(); return; }  /* 0923 bra spc_0927_028724 */
+    { abi_SeqLoop(); return; }  /* 0923 bra spc_0927_028724 */
 }
 
-void abi_P0925(void)
+void abi_SeqCmd11(void)
 {
     spc.y = spc_nz(0x48);  /* 0925 mov y,#$48, not run by the traces */
-    abi_P0927();  /* on into 0927 */
+    abi_SeqLoop();  /* on into 0927 */
 }
 
-void abi_P0927(void)
+void abi_SeqLoop(void)
 {
     spc_st(spc_dp(0xA3), spc.a);  /* 0927 mov.b $A3,a */
     spc_st(spc_dp(0xA0), spc.y);  /* 0929 mov.b $A0,y */
@@ -1313,7 +1357,7 @@ void abi_P0927(void)
     if (spc.z) goto L_0946;  /* 093D beq spc_0946_028743 */
     spc.a = spc_dec(spc.a);  /* 093F dec a */
     spc_st(ind_y(0xA0), spc.a);  /* 0940 mov ($A0)+y,a */
-    if (spc.z) { abi_P0965(); return; }  /* 0942 beq spc_0965_028762 */
+    if (spc.z) { abi_SeqLoopSkip(); return; }  /* 0942 beq spc_0965_028762 */
     goto L_0958;  /* 0944 bra spc_0958_028755 */
 L_0946:
     spc.a = spc_nz(spc_rd(spc_dp(0xA3)));  /* 0946 mov.b a,$A3 */
@@ -1322,26 +1366,26 @@ L_0946:
 L_094C:
     spc.a = spc_nz(spc_rd(ind_y(0xA0)));  /* 094C mov a,($A0)+y */
     spc.a = spc_dec(spc.a);  /* 094E dec a */
-    if (!spc.z) { abi_P0965(); return; }  /* 094F bne spc_0965_028762 */
+    if (!spc.z) { abi_SeqLoopSkip(); return; }  /* 094F bne spc_0965_028762 */
     spc_st(ind_y(0xA0), spc.a);  /* 0951 mov ($A0)+y,a */
     spc.a = spc_nz(spc_rd(spc_dp(0xA3)));  /* 0953 mov.b a,$A3 */
-    spc_call(abi_R0971, 0x0958);  /* 0955 call $0971 */
+    spc_call(abi_VoiceFlagsSet, 0x0958);  /* 0955 call $0971 */
 L_0958:
-    spc_call(abi_R0820, 0x095B);  /* 0958 call $0820 */
-    abi_P095B();  /* on into 095B */
+    spc_call(abi_TrackByte, 0x095B);  /* 0958 call $0820 */
+    abi_SeqCmd16();  /* on into 095B */
 }
 
-void abi_P095B(void)
+void abi_SeqCmd16(void)
 {
     spc_push(spc.a);  /* 095B push a */
-    spc_call(abi_R0820, 0x095F);  /* 095C call $0820 */
+    spc_call(abi_TrackByte, 0x095F);  /* 095C call $0820 */
     spc_st(spc_dp((uint8_t)(0x00 + spc.x)), spc.a);  /* 095F mov.b $00+x,a */
     spc.a = spc_pull();  /* 0961 pop a */
     spc_st(spc_dp((uint8_t)(0x08 + spc.x)), spc.a);  /* 0962 mov.b $08+x,a */
     spc_ret(); return;  /* 0964 ret  */
 }
 
-void abi_P0965(void)
+void abi_SeqLoopSkip(void)
 {
     spc.a = spc_nz(0x02);  /* 0965 mov a,#$02 */
     spc.c = 0;  /* 0967 clrc  */
@@ -1354,13 +1398,15 @@ L_0970:
 }
 
 /*
- * @routine 85:876E R0971
+ * @routine 85:876E VoiceFlagsSet
  * @spc 0971
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sequencer command $04: sets voice X's mode bits (bits 3,
+ * 5, 6 of $10+X) from A.
+ * HOW: $10+X AND $97, OR A.
+ * Entry: A = the bits; X = the voice. Exit: A = the new flags; N, Z from
+ * them.
  */
-void abi_R0971(void)
+void abi_VoiceFlagsSet(void)
 {
     spc_st(spc_dp(0xA3), spc.a);  /* 0971 mov.b $A3,a */
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x10 + spc.x))));  /* 0973 mov.b a,$10+x */
@@ -1370,7 +1416,7 @@ void abi_R0971(void)
     spc_ret(); return;  /* 097B ret  */
 }
 
-void abi_P097C(void)
+void abi_SeqCmd17(void)
 {
     spc.a = spc_pull();  /* 097C pop a */
     spc.a = spc_pull();  /* 097D pop a */
@@ -1389,33 +1435,35 @@ L_0995:
 L_0996:
     { uint8_t s = spc_rd(spc_dp(0xB4)); uint8_t d = spc_rd(spc_dp(0xB8)); spc_wr(spc_dp(0xB8), spc_and(d, s)); }  /* 0996 and $B8,$B4 */
     { uint8_t s = spc_rd(spc_dp(0xB4)); uint8_t d = spc_rd(spc_dp(0xB7)); spc_wr(spc_dp(0xB7), spc_and(d, s)); }  /* 0999 and $B7,$B4 */
-    abi_R099C();  /* on into 099C */
+    abi_VoiceStop();  /* on into 099C */
 }
 
 /*
- * @routine 85:8799 R099C
+ * @routine 85:8799 VoiceStop
  * @spc 099C
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Stops voice X: its priority cleared, released, its key-off
+ * marked.
+ * HOW: $0250+X = 0; VoiceRelease; $B6 |= $B3; then VoiceSfxMark.
+ * Entry: X = the voice; $B3 its bit. Exit: as VoiceSfxMark.
  */
-void abi_R099C(void)
+void abi_VoiceStop(void)
 {
     spc.a = spc_nz(0x00);  /* 099C mov a,#$00 */
     spc_st((uint16_t)(0x0250 + spc.x), spc.a);  /* 099E mov.w $0250+x,a */
     spc_call(abi_VoiceRelease, 0x09A4);  /* 09A1 call $0414 */
     { uint8_t s = spc_rd(spc_dp(0xB3)); uint8_t d = spc_rd(spc_dp(0xB6)); spc_wr(spc_dp(0xB6), spc_or(d, s)); }  /* 09A4 or $B6,$B3 */
-    abi_R09A7();  /* on into 09A7 */
+    abi_VoiceSfxMark();  /* on into 09A7 */
 }
 
 /*
- * @routine 85:87A4 R09A7
+ * @routine 85:87A4 VoiceSfxMark
  * @spc 09A7
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Marks voice X in $BD when the music's voice under it is
+ * still playing.
+ * HOW: $0250 of the voice X - $50 nonzero: $BD |= $B3.
+ * Entry: X = the voice; $B3 its bit. Exit: X unchanged.
  */
-void abi_R09A7(void)
+void abi_VoiceSfxMark(void)
 {
     spc_push(spc.x);  /* 09A7 push x */
     spc.a = spc_nz(spc.x);  /* 09A8 mov a,x */
@@ -1430,7 +1478,7 @@ L_09B5:
     spc_ret(); return;  /* 09B6 ret  */
 }
 
-void abi_P09B7(void)
+void abi_SeqCmd18(void)
 {
     spc.c = 0;  /* 09B7 clrc  */
     spc.a = spc_adc(spc.a, 0x80);  /* 09B8 adc a,#$80 */
@@ -1438,20 +1486,20 @@ void abi_P09B7(void)
     spc_ret(); return;  /* 09BD ret  */
 }
 
-void abi_P09BE(void)
+void abi_SeqCmd19(void)
 {
     if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) goto L_09C7;  /* 09BE bbs $B0.7,spc_09C7_0287C4 */
     spc.y = spc_nz(spc.a);  /* 09C1 mov y,a */
-    spc_call(abi_R0B8E, 0x09C5);  /* 09C2 call $0B8E */
+    spc_call(abi_CurveAtY, 0x09C5);  /* 09C2 call $0B8E */
     spc_st(spc_dp(0xC3), spc.a);  /* 09C5 mov.b $C3,a */
 L_09C7:
     spc_ret(); return;  /* 09C7 ret  */
 }
 
-void abi_P09C8(void)
+void abi_SeqCmd1A(void)
 {
     spc_push(spc.a);  /* 09C8 push a */
-    spc_call(abi_R0820, 0x09CC);  /* 09C9 call $0820 */
+    spc_call(abi_TrackByte, 0x09CC);  /* 09C9 call $0820 */
     spc.y = spc_pull();  /* 09CC pop y */
     spc_cmp(spc.y, 0x03);  /* 09CD cmp y,#$03 */
     if (!spc.z) goto L_09DF;  /* 09CF bne spc_09DF_0287DC */
@@ -1475,18 +1523,18 @@ L_09DF:
     spc_ret(); return;  /* 09ED ret  */
 }
 
-void abi_P09EE(void)
+void abi_SeqCmd1B(void)
 {
-    spc_call(abi_R0820, 0x09F1);  /* 09EE call $0820 */
+    spc_call(abi_TrackByte, 0x09F1);  /* 09EE call $0820 */
     spc.y = spc_nz(0x08);  /* 09F1 mov y,#$08 */
     spc_mul();  /* 09F3 mul ya */
     spc_cmp(spc.a, spc_rd(spc_dp(0xCB)));  /* 09F4 cmp.b a,$CB */
-    if (spc.z) { abi_P0A52(); return; }  /* 09F6 beq spc_0A52_02884F */
+    if (spc.z) { abi_EchoSetupEnd(); return; }  /* 09F6 beq spc_0A52_02884F */
     spc_st(spc_dp(0xCB), spc.a);  /* 09F8 mov.b $CB,a */
-    abi_P09FA();  /* on into 09FA */
+    abi_EchoSetup();  /* on into 09FA */
 }
 
-void abi_P09FA(void)
+void abi_EchoSetup(void)
 {
     spc_push(spc.x);  /* 09FA push x */
     spc.x = spc_nz(spc.a);  /* 09FB mov x,a */
@@ -1500,7 +1548,7 @@ void abi_P09FA(void)
     spc_st(spc_dp(0xCE), spc.a);  /* 0A0F mov.b $CE,a */
     spc.a = spc_nz(spc_rd((uint16_t)(0x0D13 + spc.x)));  /* 0A11 mov.w a,$0D13+x */
     spc_st(spc_dp(0xCF), spc.a);  /* 0A14 mov.b $CF,a */
-    spc_call(abi_R0A53, 0x0A19);  /* 0A16 call $0A53 */
+    spc_call(abi_EchoOff, 0x0A19);  /* 0A16 call $0A53 */
     spc.y = spc_nz(0x6D);  /* 0A19 mov y,#$6D */
     spc.a = spc_nz(spc_rd((uint16_t)(0x0D14 + spc.x)));  /* 0A1B mov.w a,$0D14+x */
     spc_call(abi_DspWrite, 0x0A21);  /* 0A1E call $0CBB */
@@ -1525,24 +1573,25 @@ L_0A34:
     spc.a = spc_nz(spc_rd((uint16_t)(0x0D16 + spc.x)));  /* 0A45 mov.w a,$0D16+x */
     spc_call(abi_DspWrite, 0x0A4B);  /* 0A48 call $0CBB */
     spc.a = spc_nz(spc_rd((uint16_t)(0x0D17 + spc.x)));  /* 0A4B mov.w a,$0D17+x */
-    spc_call(abi_R0A6C, 0x0A51);  /* 0A4E call $0A6C */
+    spc_call(abi_EchoFirSet, 0x0A51);  /* 0A4E call $0A6C */
     spc.x = spc_pull();  /* 0A51 pop x */
-    abi_P0A52();  /* on into 0A52 */
+    abi_EchoSetupEnd();  /* on into 0A52 */
 }
 
-void abi_P0A52(void)
+void abi_EchoSetupEnd(void)
 {
     spc_ret(); return;  /* 0A52 ret  */
 }
 
 /*
- * @routine 85:8850 R0A53
+ * @routine 85:8850 EchoOff
  * @spc 0A53
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Turns echo off: echo volume and feedback 0, then the echo
+ * write disabled.
+ * HOW: The DSP registers at $0A68 (3) to 0; FLG ($6C) = $20.
+ * Entry: called by CALL. Exit: as DspWrite.
  */
-void abi_R0A53(void)
+void abi_EchoOff(void)
 {
     spc.y = spc_nz(0x03);  /* 0A53 mov y,#$03 */
 L_0A55:
@@ -1557,13 +1606,14 @@ L_0A55:
 }
 
 /*
- * @routine 85:8869 R0A6C
+ * @routine 85:8869 EchoFirSet
  * @spc 0A6C
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sets the echo filter's 8 coefficients from filter A of the
+ * table at $0A83.
+ * HOW: A times 8 indexes the table; the DSP registers $0F, $1F ... $7F.
+ * Entry: A = the filter. Exit: X unchanged.
  */
-void abi_R0A6C(void)
+void abi_EchoFirSet(void)
 {
     spc_push(spc.x);  /* 0A6C push x */
     spc.y = spc_nz(0x08);  /* 0A6D mov y,#$08 */
@@ -1583,7 +1633,7 @@ L_0A73:
     spc_ret(); return;  /* 0A82 ret  */
 }
 
-void abi_P0AA3(void)
+void abi_SeqCmd1C(void)
 {
     spc.a = spc_and(spc.a, 0x01);  /* 0AA3 and a,#$01 */
     spc.a = spc_lsr(spc.a);  /* 0AA5 lsr a */
@@ -1602,14 +1652,14 @@ L_0AB5:
     spc_ret(); return;  /* 0ABC ret  */
 }
 
-void abi_P0ABD(void)
+void abi_SeqCmd1D(void)
 {
     spc.a = spc_or(spc.a, 0xA0);  /* 0ABD or a,#$A0 */
     spc_st((uint16_t)(0x0240 + spc.x), spc.a);  /* 0ABF mov.w $0240+x,a */
     spc_ret(); return;  /* 0AC2 ret  */
 }
 
-void abi_P0AC3(void)
+void abi_VoiceSlide(void)
 {
     spc.p = 1;  /* 0AC3 setp  */
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x18 + spc.x))));  /* 0AC4 mov.b a,$18+x */
@@ -1659,18 +1709,22 @@ L_0B0D:
     spc.p = 0;  /* 0B12 clrp  */
     spc_ret(); return;  /* 0B13 ret  */
 L_0B14:
-    spc_call(abi_R0BD6, 0x0B17);  /* 0B14 call $0BD6 */
-    abi_R0B17();  /* on into 0B17 */
+    spc_call(abi_VoicePitchUpdate, 0x0B17);  /* 0B14 call $0BD6 */
+    abi_VoiceVolumeSet();  /* on into 0B17 */
 }
 
 /*
- * @routine 85:8914 R0B17
+ * @routine 85:8914 VoiceVolumeSet
  * @spc 0B17
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sets voice X's left and right volume from its volume, pan
+ * and the fade.
+ * HOW: The pan ($20+X, by the note's half) through the pan curve
+ * (CurveAt8), the music's fade (CurveAt16), the voice's volume ($0230) and
+ * $0248 (or $80), each step a multiply; the two products to DSP registers
+ * 1 and 0.
+ * Entry: X = the voice. Exit: $A5 = $FF.
  */
-void abi_R0B17(void)
+void abi_VoiceVolumeSet(void)
 {
     spc.y = spc_nz(spc_rd(spc_dp((uint8_t)(0x10 + spc.x))));  /* 0B17 mov.b y,$10+x */
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x00 + spc.x))));  /* 0B19 mov.b a,$00+x */
@@ -1685,7 +1739,7 @@ L_0B23:
     spc.y = spc_nz(0x7E);  /* 0B26 mov y,#$7E */
     spc.a = spc_nz(0x81);  /* 0B28 mov a,#$81 */
     { uint16_t w = (uint16_t)(spc_rd(spc_dp(0xA2)) | spc_rd(spc_dp(0xA3)) << 8); spc_set_ya(spc_subw(spc_ya(), w)); }  /* 0B2A subw ya,$A2 */
-    spc_call(abi_R0B90, 0x0B2F);  /* 0B2C call $0B90 */
+    spc_call(abi_CurveAt8, 0x0B2F);  /* 0B2C call $0B90 */
     spc.y = spc_nz(spc.a);  /* 0B2F mov y,a */
     spc.p = 0;  /* 0B30 clrp  */
     if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) goto L_0B47;  /* 0B31 bbs $B0.7,spc_0B47_028944 */
@@ -1698,7 +1752,7 @@ L_0B23:
     spc.a = spc_nz(spc.y);  /* 0B3F mov a,y */
     { uint16_t w = (uint16_t)(spc_rd(spc_dp(0xC9)) | spc_rd(spc_dp(0xCA)) << 8); spc_set_ya(spc_subw(spc_ya(), w)); }  /* 0B40 subw ya,$C9 */
 L_0B42:
-    spc_call(abi_R0B88, 0x0B45);  /* 0B42 call $0B88 */
+    spc_call(abi_CurveAt16, 0x0B45);  /* 0B42 call $0B88 */
     spc.y = spc_pull();  /* 0B45 pop y */
     spc_mul();  /* 0B46 mul ya */
 L_0B47:
@@ -1741,47 +1795,48 @@ L_0B5F:
 }
 
 /*
- * @routine 85:8985 R0B88
+ * @routine 85:8985 CurveAt16
  * @spc 0B88
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: The pan curve at YA / 16 (a 4-bit fraction).
+ * HOW: $A1 = Y; four shifts of $A1:A; then as CurveAt8 from its lookup.
+ * Entry: YA = the position. Exit: A = the curve's value.
  */
-void abi_R0B88(void)
+void abi_CurveAt16(void)
 {
     spc_st(spc_dp(0xA1), spc.y);  /* 0B88 mov.b $A1,y */
     spc.y = spc_nz(0x04);  /* 0B8A mov y,#$04 */
-    { abi_P0B94(); return; }  /* 0B8C bra spc_0B94_028991 */
+    { abi_CurveShift(); return; }  /* 0B8C bra spc_0B94_028991 */
 }
 
 /*
- * @routine 85:898B R0B8E
+ * @routine 85:898B CurveAtY
  * @spc 0B8E
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: The pan curve at Y (with a fraction of $FF).
+ * HOW: A = $FF, then CurveAt8.
+ * Entry: Y = the position. Exit: as CurveAt8.
  */
-void abi_R0B8E(void)
+void abi_CurveAtY(void)
 {
     spc.a = spc_nz(0xFF);  /* 0B8E mov a,#$FF */
-    abi_R0B90();  /* on into 0B90 */
+    abi_CurveAt8();  /* on into 0B90 */
 }
 
 /*
- * @routine 85:898D R0B90
+ * @routine 85:898D CurveAt8
  * @spc 0B90
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: The pan curve at YA / 8: the table at $0BAF interpolated.
+ * HOW: Three shifts of $A1:A give the entry and the fraction; the entry
+ * plus the fraction of the step to the next.
+ * Entry: YA = the position. Exit: A = the value; Y = the entry.
  */
-void abi_R0B90(void)
+void abi_CurveAt8(void)
 {
     spc_st(spc_dp(0xA1), spc.y);  /* 0B90 mov.b $A1,y */
     spc.y = spc_nz(0x03);  /* 0B92 mov y,#$03 */
-    abi_P0B94();  /* on into 0B94 */
+    abi_CurveShift();  /* on into 0B94 */
 }
 
-void abi_P0B94(void)
+void abi_CurveShift(void)
 {
 L_0B94:
     spc_rmw(spc_dp(0xA1), spc_lsr);  /* 0B94 lsr.b $A1 */
@@ -1802,48 +1857,54 @@ L_0B94:
 }
 
 /*
- * @routine 85:89D3 R0BD6
+ * @routine 85:89D3 VoicePitchUpdate
  * @spc 0BD6
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Updates voice X's pitch when a slide, vibrato or a detune
+ * is running.
+ * HOW: Nothing when neither its slide nor its vibrato runs and the detune
+ * ($C5) is 0; else on into VoicePitchSet.
+ * Entry: X = the voice. Exit: as VoicePitchSet.
  */
-void abi_R0BD6(void)
+void abi_VoicePitchUpdate(void)
 {
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x00 + spc.x))));  /* 0BD6 mov.b a,$00+x */
     spc.a = spc_and(spc.a, 0x01);  /* 0BD8 and a,#$01 */
     spc.a = spc_or(spc.a, spc_rd(spc_dp((uint8_t)(0x08 + spc.x))));  /* 0BDA or.b a,$08+x */
-    if (!spc.z) { abi_R0BE9(); return; }  /* 0BDC bne spc_0BE9_0289E6 */
+    if (!spc.z) { abi_VoicePitchSet(); return; }  /* 0BDC bne spc_0BE9_0289E6 */
     spc.a = spc_nz(spc_rd(0x00B0U));  /* 0BDE mov.w a,$00B0 */
     if (spc.n) goto L_0BE8;  /* 0BE1 bmi spc_0BE8_0289E5 */
     spc.a = spc_nz(spc_rd(0x00C5U));  /* 0BE3 mov.w a,$00C5 */
-    if (!spc.z) { abi_P0BED(); return; }  /* 0BE6 bne spc_0BED_0289EA */
+    if (!spc.z) { abi_VoicePitchFrom(); return; }  /* 0BE6 bne spc_0BED_0289EA */
 L_0BE8:
     spc_ret(); return;  /* 0BE8 ret  */
 }
 
 /*
- * @routine 85:89E6 R0BE9
+ * @routine 85:89E6 VoicePitchSet
  * @spc 0BE9
- * WHAT IT DOES: (draft, to be named).
- * HOW: (draft).
- * Entry: (draft). Exit: (draft).
+ * WHAT IT DOES: Sets voice X's DSP pitch from its note, slide, vibrato and
+ * the detune.
+ * HOW: The note and fraction ($30/$38+X), the vibrato's offset added or
+ * taken, the detune ($C5) added, then the octave table at $0CC2
+ * interpolated and scaled by the instrument's multiplier; DSP registers 2
+ * and 3.
+ * Entry: X = the voice. Exit: as DspWrite.
  */
-void abi_R0BE9(void)
+void abi_VoicePitchSet(void)
 {
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x08 + spc.x))));  /* 0BE9 mov.b a,$08+x */
-    if (!spc.z) { abi_P0BF3(); return; }  /* 0BEB bne spc_0BF3_0289F0 */
-    abi_P0BED();  /* on into 0BED */
+    if (!spc.z) { abi_VoicePitchVibrato(); return; }  /* 0BEB bne spc_0BF3_0289F0 */
+    abi_VoicePitchFrom();  /* on into 0BED */
 }
 
-void abi_P0BED(void)
+void abi_VoicePitchFrom(void)
 {
     spc.y = spc_nz(spc_rd(spc_dp((uint8_t)(0x30 + spc.x))));  /* 0BED mov.b y,$30+x */
     spc.a = spc_nz(spc_rd(spc_dp((uint8_t)(0x38 + spc.x))));  /* 0BEF mov.b a,$38+x */
-    { abi_P0C22(); return; }  /* 0BF1 bra spc_0C22_028A1F */
+    { abi_VoicePitchOut(); return; }  /* 0BF1 bra spc_0C22_028A1F */
 }
 
-void abi_P0BF3(void)
+void abi_VoicePitchVibrato(void)
 {
     spc.a = spc_asl(spc.a);  /* 0BF3 asl a */
     spc.y = spc_nz(0x0C);  /* 0BF4 mov y,#$0C */
@@ -1872,13 +1933,13 @@ L_0C04:
     spc_set_psw(spc_pull());  /* 0C19 pop p */
     if (spc.n) goto L_0C20;  /* 0C1A bmi spc_0C20_028A1D */
     { uint16_t w = (uint16_t)(spc_rd(spc_dp(0xA0)) | spc_rd(spc_dp(0xA1)) << 8); spc_set_ya(spc_addw(spc_ya(), w)); }  /* 0C1C addw ya,$A0 */
-    { abi_P0C22(); return; }  /* 0C1E bra spc_0C22_028A1F */
+    { abi_VoicePitchOut(); return; }  /* 0C1E bra spc_0C22_028A1F */
 L_0C20:
     { uint16_t w = (uint16_t)(spc_rd(spc_dp(0xA0)) | spc_rd(spc_dp(0xA1)) << 8); spc_set_ya(spc_subw(spc_ya(), w)); }  /* 0C20 subw ya,$A0 */
-    abi_P0C22();  /* on into 0C22 */
+    abi_VoicePitchOut();  /* on into 0C22 */
 }
 
-void abi_P0C22(void)
+void abi_VoicePitchOut(void)
 {
     spc.p = 0;  /* 0C22 clrp  */
     if ((spc_rd(spc_dp(0xB0)) >> 7 & 1)) goto L_0C2E;  /* 0C23 bbs $B0.7,spc_0C2E_028A2B */
