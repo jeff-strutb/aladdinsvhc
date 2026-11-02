@@ -1251,6 +1251,9 @@ static void ls_insn(uint32_t pc)
             STORE(sh->calls[m.call % CALLRING].done, 1);
             m.active = 0;
             m.irq_resumed = 0;
+            /* Into more actor code (ActorEndPlaced): its piece opens at
+               this same jump, as on the hybrid side. */
+            if (is_actor_entry(pc)) goto not_active;
             return;
         }
         /* The call's task waits: the call ends here, at the scheduler, and
@@ -1380,6 +1383,7 @@ static void ls_insn(uint32_t pc)
         }
         return;
     }
+not_active:
     if (*core_opcode == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS
         && opark[wram[TASK_CURRENT] / 0x18].valid && pc == opark[wram[TASK_CURRENT] / 0x18].resume) {
         struct SnesboxRegs r; core_regs(&r);

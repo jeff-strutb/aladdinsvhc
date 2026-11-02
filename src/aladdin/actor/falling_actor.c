@@ -9,7 +9,6 @@
 #include "wram_player.h"
 #include "actor.h"
 
-void abi_ActorFreePlaced(void);
 void abi_TileAtProbeLong(void);
 
 /*
@@ -19,8 +18,8 @@ void abi_TileAtProbeLong(void);
  * negative) is ended instead.
  * HOW: Its x pixels to $000C and its y pixels plus 10 to $000E,
  * TileAtProbeLong, the kind ($0012) compared with 2. Its y negative: its
- * return address dropped (PLA PLA, 8-bit), then into ActorEndOutOfRange
- * after its pulls: ActorFreePlaced and the actor loop.
+ * return address dropped (PLA PLA, 8-bit), then the jump to
+ * ActorEndPlaced ($83:96CA): ActorFreePlaced and the actor loop.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
  * from the actor's code at its own level (83:C85A). Exit: M 16-bit (as
  * TileAtProbeLong left it); A low = the kind; Z set when it is 2, C from
@@ -28,11 +27,6 @@ void abi_TileAtProbeLong(void);
  */
 void abi_ActorFallTileTest(void)
 {
-    goto L_83C903;
-L_8396CA:
-    abi_ActorFreePlaced();  /* 8396CA jsr */
-    actor_leave(0x8394BFu); return;  /* 8396CD jmp */
-L_83C903:
     op_rep(0x21);  /* 83C903 rep */
     lda16(ea_dp(0x0C));  /* 83C905 lda */
     sta16(ea_abs(SCRATCH));  /* 83C907 sta */
@@ -48,6 +42,6 @@ L_83C91E:
     op_sep(0x20);  /* 83C91E sep */
     pla8();  /* 83C920 pla */
     pla8();  /* 83C921 pla */
-    goto L_8396CA;  /* 83C922 jmp */
+    actor_leave(0x8396CAu); return;  /* 83C922 jmp ActorEndPlaced */
 }
 

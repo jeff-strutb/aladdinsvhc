@@ -74,6 +74,15 @@ per finding, each linked to the dated note that measured it.
   pushes the JSR's return address (cdraft follows calls, and the file's
   helpers, transitively). TaskExit's C leaves its JSR's return address on
   the task's stack as the original does.
+- Actors also wait by COP (A = the frames; vector $00:FFB0 into the
+  BRK handler past its LDA #1): `actor_wait()`, judged as a BRK's yield. A
+  wrong wait count fails A5 (Kind70Start, rand_stage_a1_s1, 2026-11-02).
+- A routine an actor calls that drops its return and jumps into more actor
+  code (ActorFallTileTest into ActorEndPlaced, $83:96CA) ends its call at
+  that jump on both sides (`actor_leave(entry)`), and the entry's piece
+  opens at the same instruction; the original side once returned there
+  without opening it, and the two sides then paired different calls (A7
+  off by the scheduler's scan count, cov_actor_fall_top, 2026-11-02).
 - Bottom up is not optional: C that reaches code with no C fails the whole
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.
