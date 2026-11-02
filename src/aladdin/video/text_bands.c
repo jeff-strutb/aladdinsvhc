@@ -5,6 +5,9 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_TaskWait(void);
+void abi_TextBandsConceal(void);
+void abi_TextBandsReveal(void);
 void abi_TextBandsCommit(void);
 void abi_TextPageDraw(void);
 #include "actor.h"
@@ -99,4 +102,63 @@ L_82B1B1:
     if (!IF_Z) goto L_82B197;  /* 82B1C8 bne */
     MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));  /* 82B1CA inc */
     return;  /* 82B1CD rts */
+}
+
+/*
+ * @routine 82:B224 TextBandsReveal
+ * WHAT IT DOES: Shows the text band by band from the middle out: a pair
+ * of bands every 4 frames, over 4 steps.
+ * HOW: For step $F7 = 0 to 3: the window bytes of the step's two bands
+ * (from $80:CF87 and $80:CF8B) set to 0, TextBandsCommit, TaskWait 4.
+ * Entry: M 8-bit, X 8-bit; D the page holding $F7 and $F9; DB = $80;
+ * called by JSR from a task. Exit: as TaskWait; $F7 = 4.
+ */
+void abi_TextBandsReveal(void)
+{
+    stz8(ea_dp(0xF7));  /* 82B224 stz */
+L_82B226:
+    ldx8(ea_dp(0xF7));  /* 82B226 ldx */
+    lda8_v(0x00);  /* 82B228 lda */
+    ldy8(ea_absx(0xCF87));  /* 82B22A ldy */
+    sta8(ea_absy(TEXT_BANDS));  /* 82B22D sta */
+    ldy8(ea_absx(0xCF8B));  /* 82B230 ldy */
+    sta8(ea_absy(TEXT_BANDS));  /* 82B233 sta */
+    abi_TextBandsCommit();  /* 82B236 jsr */
+    lda8_v(0x04);  /* 82B239 lda */
+    jsl_frame(0x82B23Bu); abi_TaskWait();  /* 82B23B jsl */
+    MEM8(inc, ea_dp(0xF7));  /* 82B23F inc */
+    lda8(ea_dp(0xF7));  /* 82B241 lda */
+    cmp8_v(0x04);  /* 82B243 cmp */
+    if (!IF_Z) goto L_82B226;  /* 82B245 bne */
+    return;  /* 82B247 rts */
+}
+
+/*
+ * @routine 82:B248 TextBandsConceal
+ * WHAT IT DOES: Masks the text band by band from the outside in, a pair
+ * of bands every 4 frames, then waits 40 frames.
+ * HOW: For step $F7 = 3 down to 0: the window bytes of the step's two
+ * bands set to 8 (masked), TextBandsCommit, TaskWait 4; then TaskWait 40.
+ * Entry: M 8-bit, X 8-bit; D the page holding $F7 and $F9; DB = $80;
+ * called by JSR from a task. Exit: as TaskWait; $F7 = $FF.
+ */
+void abi_TextBandsConceal(void)
+{
+    lda8_v(0x03);  /* 82B248 lda */
+    sta8(ea_dp(0xF7));  /* 82B24A sta */
+L_82B24C:
+    ldx8(ea_dp(0xF7));  /* 82B24C ldx */
+    lda8_v(0x08);  /* 82B24E lda */
+    ldy8(ea_absx(0xCF87));  /* 82B250 ldy */
+    sta8(ea_absy(TEXT_BANDS));  /* 82B253 sta */
+    ldy8(ea_absx(0xCF8B));  /* 82B256 ldy */
+    sta8(ea_absy(TEXT_BANDS));  /* 82B259 sta */
+    abi_TextBandsCommit();  /* 82B25C jsr */
+    lda8_v(0x04);  /* 82B25F lda */
+    jsl_frame(0x82B261u); abi_TaskWait();  /* 82B261 jsl */
+    MEM8(dec, ea_dp(0xF7));  /* 82B265 dec */
+    if (!IF_N) goto L_82B24C;  /* 82B267 bpl */
+    lda8_v(0x28);  /* 82B269 lda */
+    jsl_frame(0x82B26Bu); abi_TaskWait();  /* 82B26B jsl */
+    return;  /* 82B26F rts */
 }

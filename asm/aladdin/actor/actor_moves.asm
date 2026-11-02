@@ -232,3 +232,19 @@ ActorBob:
     sty.b !actor_44
     sep.b #$20
     rts
+
+
+; @routine 84:A7A1 ActorBobAnimate
+; WHAT IT DOES: Plays the actor's animation on a frame, and bobs it while
+; its $42 is nonzero.
+; HOW: AnimStep; then ActorBob when $42 is nonzero.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL. Exit:
+; as AnimStep, or as ActorBob when it ran.
+%at($84A7A1)
+ActorBobAnimate:
+    jsl.l AnimStep
+    lda.b !actor_42
+    beq .done
+    jsr.w ActorBob
+.done:
+    rtl

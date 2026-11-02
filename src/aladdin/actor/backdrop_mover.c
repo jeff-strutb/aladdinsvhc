@@ -5,6 +5,9 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_MoverEndSound(void);
+void abi_MoverSound(void);
+void abi_SoundQueueAdd(void);
 void abi_BackdropOffsetStep(void);
 void abi_CameraPastX08E8(void);
 #include "actor.h"
@@ -57,4 +60,50 @@ void abi_CameraPastX08E8(void)
     cmp16_v(0x08E8);  /* 8490BC cmp */
     op_sep(0x20);  /* 8490BF sep */
     return;  /* 8490C1 rts */
+}
+
+/*
+ * @routine 84:90A2 MoverEndSound
+ * WHAT IT DOES: Once the camera is past x $08E8, queues sound command $F1
+ * one time; before that keeps the actor's flag clear so it can be queued.
+ * HOW: CameraPastX08E8; not past: $43 cleared. Past with $43 clear:
+ * SoundQueueAdd $F1, $43 up.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSL. Exit: M 8-bit; as SoundQueueAdd when it
+ * queued.
+ */
+void abi_MoverEndSound(void)
+{
+    abi_CameraPastX08E8();  /* 8490A2 jsr */
+    if (!IF_C) goto L_8490B4;  /* 8490A5 bcc */
+    lda8(ea_dp(0x43));  /* 8490A7 lda */
+    if (!IF_Z) goto L_8490B3;  /* 8490A9 bne */
+    lda8_v(0xF1);  /* 8490AB lda */
+    abi_SoundQueueAdd();  /* 8490AD jsl */
+    MEM8(inc, ea_dp(0x43));  /* 8490B1 inc */
+L_8490B3:
+    return;  /* 8490B3 rtl */
+L_8490B4:
+    stz8(ea_dp(0x43));  /* 8490B4 stz */
+    return;  /* 8490B6 rtl */
+}
+
+/*
+ * @routine 84:90C2 MoverSound
+ * WHAT IT DOES: Queues sound command A while the camera is not yet past x
+ * $08E8.
+ * HOW: A kept in X; CameraPastX08E8; not past: SoundQueueAdd with it.
+ * Entry: M 8-bit, X 8-bit; A = the command; DB a bank whose $0000-$1FFF
+ * is work RAM; called by JSR. Exit: X = the command; as SoundQueueAdd
+ * when it queued.
+ */
+void abi_MoverSound(void)
+{
+    tax8();  /* 8490C2 tax */
+    abi_CameraPastX08E8();  /* 8490C3 jsr */
+    if (IF_C) goto L_8490CD;  /* 8490C6 bcs */
+    txa8();  /* 8490C8 txa */
+    abi_SoundQueueAdd();  /* 8490C9 jsl */
+L_8490CD:
+    return;  /* 8490CD rts */
 }
