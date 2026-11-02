@@ -12,6 +12,7 @@ void abi_ActorHitsTestBoxIfActive(void);
 void abi_ScratchBelowBy10(void);
 void abi_ActorAllocBLong(void);
 void abi_PlayerStandOnActor(void);
+void abi_ActorSpawnKind11AtPlayer(void);
 
 #define V_1448 0x001448u           /* $3C: no landing on actors */
 #define V_0367 0x000367u           /* counted down on entering state $8C; 0: no landing */

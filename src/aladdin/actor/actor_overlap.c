@@ -24,6 +24,7 @@
 #define TEST_BOX_HALF_H 0x00148Au
 
 void abi_PlayerEnter8CFacing(void);
+void abi_ActorZoneHasTestPoint(void);
 
 /*
  * @routine 83:8578 ActorTouchesSecondPool

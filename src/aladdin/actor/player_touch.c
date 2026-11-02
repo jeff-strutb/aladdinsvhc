@@ -13,6 +13,7 @@ void abi_PlayerEnter8CFacing(void);
 void abi_ScratchBelowBy10(void);
 void abi_PlayerStandOnActor(void);
 void abi_SoundQueueAdd(void);
+void abi_ActorStompOrHurt(void);
 
 #define ACTOR_11 0x11u              /* taken one from as the player stomps it */
 #define HEALTH 0x0367u              /* the player's health */
