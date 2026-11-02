@@ -1,0 +1,39 @@
+# The bank $A5 guard's chase helpers in cases random play does not reach,
+# from the first level's state (the machine is put back after each call;
+# a set applies to the next call only). The pool's first record ($0B5B)
+# is the guard: state $0C, able to be hit, facing right, x and y as
+# given (whole pixels at $0C and $0F).
+load build/aladdin/states/level1.state
+wait 10
+# ActorLedgeAbove ($A5:F284), the probe 32 pixels ahead and 96 below:
+# from y 0 (above the map, no ground) with 2 probes, both empty (C set);
+# then the player's own record, standing, with 1 probe 64, 96 and 128
+# pixels below it: in the ground there and a tile up (C set).
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,00,00
+call A5F284 a=0060 x=2 y=20 d=0B5B db=81 p=30
+call A5F284 a=0060 x=1 y=20 d=08DB db=81 p=30
+call A5F284 a=0040 x=1 y=20 d=08DB db=81 p=30
+call A5F284 a=0080 x=1 y=20 d=08DB db=81 p=30
+# GuardChase ($A5:F0F4) with the player 160 pixels above the guard (x
+# $02B0, y $0130): GuardJumpUp ($A5:F19D) finds a ledge 4 tiles up whose
+# behaviour has bit 3 (C clear, 2 probes left), so the guard jumps with
+# the bit-3 speed step. Play has not put a guard under such a ledge with
+# the player on it.
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,B0,02,00,30,01
+set 0008E7 B0,02,00,90,00
+call A5F0F4 d=0B5B db=81 p=10
+# GuardChase with the player level with the guard and 64 pixels to its
+# right, running faster than $C0, and the guard's speed word $9000: its
+# speed less 8 is negative and is cleared ($A5:F16D). No play gives a
+# guard a speed word of $8008 or more; covered for the branch's sake.
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,30,01,00,00,00,00,00,00,00,00,00,90
+set 0008E7 40,01,00,30,01
+set 0008F4 C1,00
+call A5F0F4 d=0B5B db=81 p=10
+# GuardChase with the player beside the guard and $146E set: it is
+# cleared and the guard's speed set as for a player farther off
+# ($A5:F177). Play sets $146E only where the guard is not beside him.
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,30,01
+set 0008E7 10,01,00,30,01
+set 00146E 01
+call A5F0F4 d=0B5B db=81 p=10

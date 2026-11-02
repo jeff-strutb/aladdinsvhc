@@ -1,0 +1,17 @@
+# The level select ($80:A05C, held L and R with a direction while
+# $0009 is set) stepping the stage back, and its level text ($80:A0B1)
+# for the two places it writes a fixed message (level part 6, and part 5
+# stage 3). Play scripts never hold L and R in that mode. The first
+# level's state; the machine is put back after each call.
+load build/aladdin/states/level1.state
+wait 10
+# L and R held, LEFT pressed, stage 1: the stage steps back to 0.
+set 000377 30
+set 00037C 02
+set 00035C 00,01
+call 80A05C d=0 db=80 p=30
+# The level text with part 6, then part 5 stage 3.
+set 00035C 06,00
+call 80A0B1 d=0 db=80 p=30
+set 00035C 05,03
+call 80A0B1 d=0 db=80 p=30
