@@ -1,0 +1,8 @@
+# A text layout run that repeats one word ($81:976C: bit 6 of the run's
+# count byte, after TextLayerCopyWords; $81:9734). No layout in the
+# table at $82:B575 has such a run, so no screen draws one; entry 63
+# points past the layouts, at bytes that read as runs with that bit,
+# and is drawn here. (The machine is put back after the call.)
+load build/aladdin/states/level1.state
+wait 10
+call 819726 long a=3F db=80 p=30

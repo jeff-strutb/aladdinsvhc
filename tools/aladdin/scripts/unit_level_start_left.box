@@ -1,0 +1,10 @@
+# A level start that faces the player left ($81:84E4, bit 15 of the
+# start's x in the table at $80:ED9D). No level's start entry has the
+# bit, so no play reaches it; start 8 of level $39 reads past that
+# level's entries to a word that has it. (The machine is put back after
+# the call.)
+load build/aladdin/states/level1.state
+wait 10
+set $00035E 39,00
+set $000360 08
+call 8184B2 db=80 p=30

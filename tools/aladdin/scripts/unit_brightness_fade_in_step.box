@@ -1,0 +1,11 @@
+# The brightness fade-in task with a parameter of 0 or 1 ($81:9E8E; at
+# $81:9EA0 the halved step, 0, becomes 1). Every creator of the task
+# gives it 2 or 4, so no play reaches it. Entered as the task in slot 0
+# would be, its parameter 1 and the screen dark ($03B8 = 0); it then
+# waits as a task, which a unit call cannot return from (noreturn: the
+# script ends here).
+load build/aladdin/states/level1.state
+wait 10
+set $0003B8 00
+set $000075 01
+call 819E8E long noreturn y=00 db=80 p=30 frames=4

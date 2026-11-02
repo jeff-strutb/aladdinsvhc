@@ -1,0 +1,13 @@
+# The level's restart point passed ($81:870E: with no restart point yet
+# and $1423 clear, the play field's scroll x past the level's point in
+# the table at $80:F015 sets $0360 = 1). Few levels have a point, and the
+# scripts' play does not get that far into one (level $0A's at x 256 is
+# behind a climb; level $06's at $960 is past where play dies). Level $0A
+# with the scroll x at 512. (The machine is put back after the call.)
+load build/aladdin/states/level1.state
+wait 10
+set $00035E 0A,00
+set $000360 00
+set $001423 00,00
+set $001773 00,02
+call 8186F0 db=80 p=30

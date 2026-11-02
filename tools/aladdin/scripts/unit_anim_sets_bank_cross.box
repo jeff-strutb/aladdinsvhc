@@ -1,0 +1,11 @@
+# The level's animation sets copied ($81:8F47) with a set whose bytes run
+# past the end of their bank ($81:8FC5: set 51, $A6:FB3C, 2096 bytes):
+# only level $2F has an actor type with that set, and no script plays
+# that level. The copy run for level $2F. (A set whose byte count itself
+# sits at a bank's last two bytes, $81:8FAD, is in no level: no set
+# starts at $FFFE, so nothing covers that step.) (The machine is put back
+# after the call.)
+load build/aladdin/states/level1.state
+wait 10
+set $00035E 2F,00
+call 818F47 long db=80 p=30

@@ -1,0 +1,11 @@
+# A colour channel stepped past 31 by the palette fade from the kept
+# colours ($81:9DCD, its channel step $81:9E06 clamping at 31: $81:9E1C).
+# The game's one use ($80:9E07, $80:9E5A) steps from -31 up to 0, never
+# above the kept colours; a step up from a kept white goes past 31.
+# Palette 0 kept as white at its first colour ($0406, offset $0606 = 0),
+# brightened by 16. (The machine is put back after the call.)
+load build/aladdin/states/level1.state
+wait 10
+set $000606 00,00
+set $000406 FF,7F
+call 819DCD long a=10 y=01 db=80 p=30

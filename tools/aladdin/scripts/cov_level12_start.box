@@ -1,0 +1,48 @@
+# Level $12's start ($81:8623): the level with an escort that loads the
+# second palette set ($48, $81:865D). No script starts that level; the
+# trace scripts start from saved states already in it. Started here as
+# the stage states are made: the first password, with act 6 and stage 0
+# held through the password check and the level start
+# (tools/aladdin/states/03_stages.box).
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+wait 30
