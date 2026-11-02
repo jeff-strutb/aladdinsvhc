@@ -237,32 +237,6 @@ L_81BAEA:
     return;  /* 81BAF0 rts */
 }
 
-/*
- * @routine 81:BAF1 UnpackSet
- * WHAT IT DOES: Unpacks packed set A (graphics) into bank $7F.
- * HOW: With P, DB and D kept on the stack and 16-bit registers:
- * UnpackSetBegin, then UnpackGroup until no groups are left.
- * Entry: A low byte = the set; called by JSL. Exit: P, DB and D as at
- * entry; A, X, Y as the last group left them (X past the set in bank
- * $7F).
- */
-void abi_UnpackSet(void)
-{
-    phd();  /* 81BAF1 phd */
-    phb();  /* 81BAF2 phb */
-    php();  /* 81BAF3 php */
-    op_rep(0x30);  /* 81BAF4 rep */
-    abi_UnpackSetBegin();  /* 81BAF6 jsr */
-    if (IF_Z) goto L_81BB00;  /* 81BAF9 beq */
-L_81BAFB:
-    abi_UnpackGroup();  /* 81BAFB jsr */
-    if (!IF_Z) goto L_81BAFB;  /* 81BAFE bne */
-L_81BB00:
-    plp();  /* 81BB00 plp */
-    plb();  /* 81BB01 plb */
-    pld();  /* 81BB02 pld */
-    return;  /* 81BB03 rtl */
-}
 
 /*
  * @routine 81:BB04 UnpackSetBegin
