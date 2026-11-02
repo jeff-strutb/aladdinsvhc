@@ -1,0 +1,28 @@
+# The dungeon's switch room of level $10 (act 5, stage 2): the swinging
+# handholds and moving pieces of kind $3B (its wait routine $83:C21C and
+# its helpers $83:FB57, $83:FB89, $83:FBDA). Aladdin and the camera are
+# placed (pokes of the player's x and y and the camera's x) on the floor
+# at x $0B80, a spot the level's own path walks through, so the room's
+# placements are created as the game creates them; then he jumps at them.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 100
+hold RIGHT 20
+hold B 40
+wait 60
+hold B+RIGHT 40
+wait 60
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 100
+hold RIGHT 60
+hold B+RIGHT 30
+hold RIGHT 30
+hold B 30
+wait 60

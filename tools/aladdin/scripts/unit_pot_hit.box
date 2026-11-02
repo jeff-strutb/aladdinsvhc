@@ -1,0 +1,54 @@
+# The falling pot (kind $2F, wait routine $83:B630) hit by a thrown apple:
+# the pot's hit branch ($83:B638), which random play never reaches. The
+# first level played as rand_level1_1.box plays it (its first 42 input
+# lines, from the level's start) until a pot falls from a window, an apple
+# thrown; then a unit call of the pot's wait routine with the apple's record
+# ($09CB) moved onto the pot ($0C4B): an apple overlapping a falling pot,
+# a state the game reaches whenever the throw meets it.
+load build/aladdin/states/level1.state
+hold B 76
+hold RIGHT 36
+hold DOWN 64
+hold B+RIGHT 16
+hold R 59
+hold RIGHT 61
+hold B+LEFT 79
+hold Y+RIGHT 7
+hold L 73
+press START
+wait 60
+press START
+hold R 31
+hold RIGHT 71
+hold DOWN 67
+hold Y+RIGHT+B 33
+hold DOWN 41
+hold B+R 75
+hold LEFT 27
+hold A+RIGHT 19
+hold DOWN+A 58
+hold B+RIGHT 42
+hold UP 68
+hold RIGHT 65
+hold R 57
+hold Y+RIGHT+B 74
+hold Y+RIGHT+B 15
+hold DOWN+A 17
+hold DOWN+A 54
+hold RIGHT 64
+hold X 79
+hold L 25
+hold B+LEFT 5
+hold UP+B 74
+hold DOWN+A 48
+hold Y+LEFT 49
+hold A 88
+hold RIGHT 53
+hold DOWN+A 20
+hold UP+B 30
+hold RIGHT 65
+press A 2
+wait 4
+set 0009D7 92,02
+set 0009DA 06,01
+call 83B630 d=0C4B db=80 p=30

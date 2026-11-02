@@ -1,0 +1,21 @@
+# Kind $3B in level $10's switch room (see cov_dungeon_switches.box for
+# the placing pokes): unit calls of its wait routine $83:C21C on the room's
+# own records. The pull ring ($0CEB, variant $10) pulled 8 pixels below
+# where it hangs ($0F = $4A + 8), first while held ($44 = 1), then let go
+# ($44 = $FF), as its own code leaves them while Aladdin hangs on it; the
+# door piece ($0D3B, variant $08) with its x out of the camera's range, so
+# it is ended and its switch byte set (BIT_TO_BYTE, $83:C2F0).
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 100
+set 000CFA 0C,00
+set 000D2F 01
+call 83C21C d=0CEB db=80 p=30
+set 000CFA 0C,00
+set 000D2F FF
+call 83C21C d=0CEB db=80 p=30
+set 000D47 00,02
+call 83C21C d=0D3B db=80 p=30
