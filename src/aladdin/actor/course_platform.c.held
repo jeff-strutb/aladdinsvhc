@@ -1,0 +1,35 @@
+/*
+ * @routine 83:CAD1 PlatformWait
+ * WHAT IT DOES: The course platform's wait routine, each frame: its dip,
+ * how far it moved, its rider, a direction flip when its $42 is set, the
+ * course followed, and its animation by direction.
+ * HOW: JUMPED cleared; PlatformDipUpdate; PlatformMoveMeasure; the rider
+ * check at 83:CCF1; $42 set: cleared, $40 bit 0 flipped.
+ * PlatformCourseFollow; the direction ($40) unlike LAST_DIRECTION: kept,
+ * AnimStart with it. AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
+ * JSR from the actor loop (83:94D0) by kind $47. Exit: as AnimStep.
+ */
+void abi_PlatformWait(void)
+{
+    stz8(ea_dp(0x16));  /* 83CAD1 stz */
+    abi_PlatformDipUpdate();  /* 83CAD3 jsr */
+    abi_PlatformMoveMeasure();  /* 83CAD6 jsr */
+    call_routine(0x83CCF1u, 0);  /* 83CAD9 jsr */
+    lda8(ea_dp(0x42));  /* 83CADC lda */
+    if (IF_Z) goto L_83CAE8;  /* 83CADE beq */
+    stz8(ea_dp(0x42));  /* 83CAE0 stz */
+    lda8(ea_dp(0x40));  /* 83CAE2 lda */
+    eor8_v(0x01);  /* 83CAE4 eor */
+    sta8(ea_dp(0x40));  /* 83CAE6 sta */
+L_83CAE8:
+    abi_PlatformCourseFollow();  /* 83CAE8 jsr */
+    lda8(ea_dp(0x40));  /* 83CAEB lda */
+    cmp8_v(rd8(ea_dp(0x1C)));  /* 83CAED cmp */
+    if (IF_Z) goto L_83CAF7;  /* 83CAEF beq */
+    sta8(ea_dp(0x1C));  /* 83CAF1 sta */
+    abi_AnimStart();  /* 83CAF3 jsl */
+L_83CAF7:
+    abi_AnimStep();  /* 83CAF7 jsl */
+    return;  /* 83CAFB rts */
+}

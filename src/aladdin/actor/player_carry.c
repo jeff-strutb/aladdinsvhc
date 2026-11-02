@@ -152,44 +152,4 @@ void abi_ActorCarryPlayerLong(void)
     return;  /* 83FBD9 rtl */
 }
 
-/*
- * @routine 83:FB57 ActorLiftPlayerStep
- * WHAT IT DOES: A step of an actor that lifts the player (from 83:C245):
- * at $44 = 0, when the test at 82:88CF finds the player, the player is
- * placed on it and $44 counts on; negative $44 counts on; positive, the
- * player is kept on it while $1427 is set, else $44 becomes $F0.
- * HOW: $44 zero: the test at 82:88CF; C clear: the player's $03-$04 =
- * $D99B, PlayerSpotAboveActor with X, $44 up. Negative: $44 up. Positive:
- * $1427 set, PlayerToActorAbove with X; else $44 = $F0.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
- * JSR. Exit: M 8-bit, X 8-bit; as the call made.
- */
-void abi_ActorLiftPlayerStep(void)
-{
-    lda8(ea_dp(0x44));  /* 83FB57 lda */
-    if (IF_Z) goto L_83FB67;  /* 83FB59 beq */
-    if (IF_N) goto L_83FB7C;  /* 83FB5B bmi */
-    lda8(ea_abs(0x1427));  /* 83FB5D lda */
-    if (!IF_Z) goto L_83FB7F;  /* 83FB60 bne */
-    lda8_v(0xF0);  /* 83FB62 lda */
-    sta8(ea_dp(0x44));  /* 83FB64 sta */
-L_83FB66:
-    return;  /* 83FB66 rts */
-L_83FB67:
-    call_routine(0x8288CFu, 1);  /* 83FB67 jsl */
-    if (IF_C) goto L_83FB66;  /* 83FB6B bcs */
-    op_rep(0x20);  /* 83FB6D rep */
-    lda16_v(0xD99B);  /* 83FB6F lda */
-    sta16(ea_abs(0x08DE));  /* 83FB72 sta */
-    op_sep(0x20);  /* 83FB75 sep */
-    txa8();  /* 83FB77 txa */
-    abi_PlayerSpotAboveActor();  /* 83FB78 jsl */
-L_83FB7C:
-    MEM8(inc, ea_dp(0x44));  /* 83FB7C inc */
-    return;  /* 83FB7E rts */
-L_83FB7F:
-    txa8();  /* 83FB7F txa */
-    abi_PlayerToActorAbove();  /* 83FB80 jsl */
-    return;  /* 83FB84 rts */
-}
 

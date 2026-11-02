@@ -90,6 +90,12 @@ def build():
             break
         for d in new:
             starts[d] = ('cpu', 'jump')
+    # A routine that is one JML (the actor loop's stub for a kind, entered
+    # by its JMP (table,X) with no return address on the stack) is a stub,
+    # not a routine the checks open a call at.
+    for o, (c, how) in list(starts.items()):
+        if how == 'jump' and rom[o] == 0x5C and mp[o] & CPU_CODE and not mp[o + 4] & CPU_CODE:
+            starts[o] = ('cpu', 'stub')
     # A routine entered by a jump whose code yields by BRK is an actor's
     # code (docs/aladdin/ACTORS.md).
     brks = {rom_offset(int(r['from'], 16)) for r in edges
