@@ -1,0 +1,11 @@
+# The player's run slowing with no direction held ($81:D1A0): when the
+# slowing rate (PLAYER_RUN_DECEL) takes the speed below 0, the speed is
+# zeroed ($81:D1D2), which no script's play reaches. A unit call on
+# the first level with the speed $0010 and the rate $FFC0, no direction
+# held and the speed not held up.
+load build/aladdin/states/level1.state
+wait 10
+set $0008F4 10,00
+set $001442 C0,FF
+set $001457 00
+call 81D1A0 d=08DB db=80 p=30

@@ -1,0 +1,32 @@
+# An actor that starts children (its code from $83:C302, its $06 = $3D,
+# record $0D8B here) first puts the free list's top two records in
+# address order: the swap at $83:C347 runs when the top entry's address
+# is not below the one under it, which no script's play leaves. Played as
+# rand_stage_a4_s1.box from stage_a4_s1.state until the actor runs; then
+# a unit call of the step at $83:C33A with the top two entries ($15C2,
+# $15C4) out of order.
+load build/aladdin/states/stage_a4_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 60
+set $0015C2 7B,0E,CB,0E
+call 83C33A d=0D8B db=83 p=30

@@ -1,0 +1,56 @@
+# A falling actor (its fall loop at $83:C846, its $06 = $46) leaving the
+# top of the level: the test at $83:C903 ends it when its y pixels are
+# negative ($83:C91E), which play never reaches (it only falls down).
+# Played as rand_pw1_1.box from pw1.state until the actor (record $0B5B)
+# falls; then its y pixels set to $FF00, and the frames after it.
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 62
+hold B+R 74
+hold RIGHT 36
+hold B+LEFT 69
+hold RIGHT 76
+hold R 17
+hold R 12
+hold RIGHT 31
+hold RIGHT 64
+hold R 57
+hold L 29
+hold A 47
+hold Y+RIGHT 5
+hold LEFT 21
+hold LEFT 5
+hold UP 26
+hold B+RIGHT 61
+hold B 57
+hold LEFT 54
+hold B+RIGHT 4
+hold Y+LEFT 42
+hold RIGHT 30
+hold X 86
+hold RIGHT 22
+hold A 5
+hold Y+RIGHT 41
+hold RIGHT 15
+hold L 35
+hold Y+RIGHT+B 51
+hold B 60
+poke $000B6A 00,FF
+wait 10

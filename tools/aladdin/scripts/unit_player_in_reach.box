@@ -1,0 +1,19 @@
+# The test at $83:FCF5 of whether the player is in an actor's reach, by
+# entry X of the reach table at $80:D9B0 (8 bytes an entry): an entry
+# whose x reach ($D9B0) and y reach ($D9B1) are nonzero is compared with
+# the player's position ($83:FD00, $83:FD1E), and the caller at $83:FCA5
+# returns at once when out of reach ($83:FCF2). The game only passes
+# entry 0, whose reaches are 0 ($83:AED2 loads X = 8, then X = 0): code
+# the retail game never runs. Unit calls with entry 8: the player's own
+# record as the actor (in reach across, then compared up and down), and a
+# record placed 512 pixels from the player (out of reach, so $83:FCA5
+# returns).
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+call 83FCF5 x=08 d=08DB db=80 p=30
+set $000B67 00,00
+set $0008E7 00,02
+call 83FCF5 x=08 d=0B5B db=80 p=30
+set $000B67 00,00
+set $0008E7 00,02
+call 83FCA5 x=08 d=0B5B db=80 p=30

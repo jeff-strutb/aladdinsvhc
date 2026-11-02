@@ -92,6 +92,7 @@ ActorEndOutOfRange:
     sep.b #$30
     pla
     pla
+.free:
     jsr.w ActorFreePlaced
     jmp.w !actor_loop_next
 

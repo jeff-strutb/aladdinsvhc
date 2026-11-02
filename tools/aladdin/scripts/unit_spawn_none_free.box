@@ -1,0 +1,10 @@
+# The player's code at $81:DD90 (from $81:D28D) starts a child (hit box
+# $34) when the low three bits of $032D are 0; when no record is free
+# ($81:DDB0) it returns without putting back the facing flip it changed,
+# pulling its saved copy. Play never fills every record. A unit call on
+# the first level with the free list empty ($15E4 negative) and $032D 0.
+load build/aladdin/states/level1.state
+wait 10
+set $0015E4 FE
+set $00032D 00
+call 81DD90 d=08DB db=81 p=30

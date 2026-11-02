@@ -30,6 +30,35 @@ arch 65816
 ; In bank $80: per direction, 0 level, positive dive, negative climb.
 !CARPET_TILT = $C7E1
 
+; @routine 81:E503 CarpetCruiseSet
+; WHAT IT DOES: Sets the carpet's speed across to cruise: $0300 for the
+; ride with $06 = 1, $0180 for the other.
+; HOW: The record's $06 less 1: zero, the speed's three bytes 0, 3, 0;
+; else $80, 1, 0.
+; Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+; DB = $80; called by JSR from the ride's loop (81:E49C). The game calls
+; it only from the other ride's branch (81:E4EC): the $0300 setting is
+; reached only by unit_carpet_cruise_check.box. Exit: M 8-bit; A low = the
+; speed's pixel byte.
+%at($81E503)
+CarpetCruiseSet:
+    lda.b !actor_06
+    dec a
+    bne .lE511
+    stz.b !actor_speed_x
+    lda.b #$03
+    sta.b !actor_speed_x+1
+    stz.b !actor_speed_x+2
+    rts
+.lE511:
+    lda.b #$80
+    sta.b !actor_speed_x
+    lda.b #$01
+    sta.b !actor_speed_x+1
+    stz.b !actor_speed_x+2
+    rts
+
+
 ; @routine 81:E555 CarpetLevelOut
 ; WHAT IT DOES: Levels the carpet off when it is tilted: out of a dive
 ; (move 4) or out of a climb (move 2).
@@ -385,5 +414,55 @@ CarpetSpeedXLimit:
     lda.w #$0020
     sta.b !actor_speed_x
 .lE6CA:
+    sep.b #$20
+    rts
+
+; @routine 81:E6CD CarpetSpeedYLimit
+; WHAT IT DOES: Keeps the carpet's vertical speed within its limits: for
+; the ride with $06 = 1 from -$01C0 up to $01E0 down; for the other from
+; -$0240 to $0280.
+; HOW: The speed (16-bit, from its fraction byte) signed: down past the
+; limit, or up past the other, set to it.
+; Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+; DB = $80; called by JSR from the ride's loop (81:E49C). Exit: M 8-bit; A
+; as the speed left or set.
+%at($81E6CD)
+CarpetSpeedYLimit:
+    lda.b !actor_06
+    dec a
+    bne .lE6F2
+    rep.b #$20
+    lda.b !actor_speed_y
+    bmi .lE6E5
+    sec
+    cmp.w #$01E0
+    bcc .lE710
+    lda.w #$01E0
+    sta.b !actor_speed_y
+    bra .lE710
+.lE6E5:
+    sec
+    cmp.w #$FE40
+    bcs .lE710
+    lda.w #$FE40
+    sta.b !actor_speed_y
+    bra .lE710
+.lE6F2:
+    rep.b #$20
+    lda.b !actor_speed_y
+    bmi .lE705
+    sec
+    cmp.w #$0280
+    bcc .lE710
+    lda.w #$0280
+    sta.b !actor_speed_y
+    bra .lE710
+.lE705:
+    sec
+    cmp.w #$FDC0
+    bcs .lE710
+    lda.w #$FDC0
+    sta.b !actor_speed_y
+.lE710:
     sep.b #$20
     rts
