@@ -17,7 +17,9 @@ or traced splits the code into more routines, while its bytes stay put.
 Each code byte takes the tier of the tagged routine whose filed span
 (t3.span_of: from its address through the filed bytes up to the next tag)
 holds it; a byte no filed span holds takes the tier of the catalog routine
-whose traced extent holds it. A catalog routine can run over several tagged
+whose traced extent holds it, if that routine has no filed span (its C
+alone is filed), else no tier: the extent of a routine with filed assembly
+runs on into code reached only by jumps that is not filed yet. A catalog routine can run over several tagged
 ones (an entry no script calls has no catalog row of its own), so crediting
 its whole extent with the tier at its start would count the others' bytes
 at the wrong tier. The SPC700's routines are the rows of its own catalog
@@ -116,7 +118,8 @@ def code_bytes(rows, c):
     """Each routine's code bytes (traced or found by the census, of its own
     processor) and the game's code bytes per processor. A byte belongs to the
     routine whose filed span holds it, else to the catalog routine whose
-    extent (its start to its last traced byte) holds it."""
+    extent (its start to its last traced byte) holds it, when that routine
+    has no filed span of its own."""
     mp = c.mp
     # 1 S-CPU, 2 Super FX, 3 SPC700: the uploaded ROM bytes the traces saw
     # the SPC700 run (codemap folds them back); what no script has run there
@@ -132,6 +135,12 @@ def code_bytes(rows, c):
     kind = {'cpu': 1, 'gsu': 2, 'spc': 3}
     owner = [None] * len(mp)
     for i, r in enumerate(rows):
+        # A routine whose assembly is filed owns its filed bytes only: past
+        # them its catalog extent runs on into code reached by jumps that
+        # no routine has filed yet (actor code, interrupt handlers), which
+        # must not take its tier.
+        if r['span']:
+            continue
         for o in range(int(r['offset'], 16), int(r['end'], 16)):
             owner[o] = i
     for i, r in enumerate(rows):
