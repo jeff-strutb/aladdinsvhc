@@ -11,7 +11,7 @@ stands, so the gates judge it before anyone names anything. Branches are
 labels; calls are calls to the C of the routine called (call_routine when
 there is none yet), with the frame a call that can wait needs; jumps to
 another routine's entry are tail calls; a BRK in actor code (@actor) is
-actor_yield; a jump into the actor loop is actor_leave. Anything the
+actor_yield, a COP actor_wait; a jump into the actor loop is actor_leave. Anything the
 drafter cannot say exactly gets a TODO, which gate 0 refuses: untraced
 instructions, an instruction that ran at both widths with different
 lengths, interrupt returns, mode switches.
@@ -307,6 +307,8 @@ class Draft:
                         labels.add(i.t)
                         todo.append(i.t)
                     break
+                elif mn == 'cop' and self.actor:
+                    pass
                 elif mn in ('jmp', 'jml', 'rts', 'rtl', 'rti', 'stp', 'xce', 'wai', 'cop'):
                     break
                 elif mn in ('jsr', 'jsl') and i.t in NORETURN:
@@ -417,6 +419,8 @@ class Draft:
             if self.actor:
                 return 'actor_yield(0x%06Xu);' % i.addr
             return self.flag(i, 'BRK outside actor code')
+        if mn == 'cop' and self.actor:
+            return 'actor_wait(0x%06Xu);' % i.addr
         if mn in ('rti', 'stp', 'xce', 'wai', 'cop'):
             return self.flag(i, mn.upper())
         if mn in ('nop', 'wdm'):

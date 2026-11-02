@@ -80,6 +80,7 @@ static int jump_return(uint32_t pc, uint16_t sp, const uint8_t *w, uint32_t *ret
    by RTI at the BRK's address + 2, at the same S, with D its record. An
    actor that ends jumps into the loop where it takes the next record. */
 #define ACTOR_BRK_AT 0x00FFACu
+#define ACTOR_COP_AT 0x00FFB0u   /* COP: the same, waiting A frames */
 #define ACTOR_LOOP_PLAYER 0x83948Bu
 #define ACTOR_LOOP_NEXT 0x8394BFu
 #define ACTOR_PARKS 64
@@ -619,15 +620,16 @@ static void on_insn(uint32_t pc)
     /* An actor yields (just after its BRK) or leaves its code for the
        actor loop: the watches from its piece up are judged up to here and
        parked under its record, or dropped when it left. */
-    if (depth && (pc == ACTOR_BRK_AT || pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER)) {
+    if (depth && (pc == ACTOR_BRK_AT || pc == ACTOR_COP_AT || pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER)) {
         int b = -1;
         /* the actor's own piece: the outermost actor watch (its code may
            jump on to more actor code, ActorEnd) */
         for (int i = 0; i < depth; i++) if (ws[i]->actor) { b = i; break; }
         if (b >= 0) {
             if (!have) { core_regs(&r); have = 1; }
-            int yield = pc == ACTOR_BRK_AT && prev_op == 0x00 && r.s == (uint16_t)(ws[b]->entry.s - 4);
-            int leave = pc != ACTOR_BRK_AT && r.s == ws[b]->entry.s;
+            int yield = ((pc == ACTOR_BRK_AT && prev_op == 0x00) || (pc == ACTOR_COP_AT && prev_op == 0x02))
+                        && r.s == (uint16_t)(ws[b]->entry.s - 4);
+            int leave = pc != ACTOR_BRK_AT && pc != ACTOR_COP_AT && r.s == ws[b]->entry.s;
             if (yield || leave) {
                 for (int i = depth - 1; i >= b; i--)
                     if (!ws[i]->in_irq) finish_piece(ws[i], 2);
@@ -1220,7 +1222,8 @@ static void ls_insn(uint32_t pc)
            open at that same S: the actor's code jumped on to more actor
            code (ActorEnd); a routine it called is below it. */
         if (m.actor) {
-            int yield = pc == ACTOR_BRK_AT && *core_opcode == 0x00 && r.s == (uint16_t)(m.entry_s - 4);
+            int yield = ((pc == ACTOR_BRK_AT && *core_opcode == 0x00) || (pc == ACTOR_COP_AT && *core_opcode == 0x02))
+                        && r.s == (uint16_t)(m.entry_s - 4);
             int leave = (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && r.s == m.entry_s;
             if (yield || leave) {
                 int k = aopark_find(r.d);
@@ -2655,7 +2658,7 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
         for (k = 0; k < ACTOR_PARKS; k++)
             if (aparked[k] && aparked[k]->d == out.d) { ctx_abandon(aparked[k]); aparked[k] = NULL; }
         for (k = 0; k < ACTOR_PARKS && aparked[k]; k++) {}
-        if (out.pc == ACTOR_BRK_AT && k < ACTOR_PARKS) {
+        if ((out.pc == ACTOR_BRK_AT || out.pc == ACTOR_COP_AT) && k < ACTOR_PARKS) {
             c->d = out.d;
             c->resume = actor_resume_of(wram, out.s, &rs);
             c->resume_s = rs;
@@ -2718,17 +2721,28 @@ void task_yield(void)
 /* machine.h: an actor yields where the original has BRK at brk_at: the
    BRK's pushes (its bank, the PC past its signature byte, P), I set and D
    clear, at the BRK vector's code; then as task_yield. */
-void actor_yield(uint32_t brk_at)
+static void actor_stop(uint32_t at, uint32_t vector)
 {
-    uint32_t back = (brk_at & 0xFF0000) | (uint16_t)(brk_at + 2);
+    uint32_t back = (at & 0xFF0000) | (uint16_t)(at + 2);
 
     wr8(cpu.s, (uint8_t)(back >> 16)); cpu.s--;
     wr8(cpu.s, (uint8_t)(back >> 8)); cpu.s--;
     wr8(cpu.s, (uint8_t)back); cpu.s--;
     wr8(cpu.s, cpu.p); cpu.s--;
     cpu.p = (uint8_t)((cpu.p | P_I) & ~P_D);
-    cpu.pc = ACTOR_BRK_AT;
+    cpu.pc = vector;
     task_yield();
+}
+void actor_yield(uint32_t brk_at)
+{
+    actor_stop(brk_at, ACTOR_BRK_AT);
+}
+
+/* machine.h: as actor_yield, for a COP at cop_at: the same pushes, at the
+   COP vector's code. */
+void actor_wait(uint32_t cop_at)
+{
+    actor_stop(cop_at, ACTOR_COP_AT);
 }
 
 /* machine.h: an actor's code leaves for the actor loop at loop_at: the

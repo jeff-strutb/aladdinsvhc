@@ -123,6 +123,10 @@ void task_yield(void);
    and stops until the actor loop resumes the actor, then returns with
    `cpu` holding the registers the loop's RTI restored. */
 void actor_yield(uint32_t brk_at);
+/* As actor_yield, where the original has COP at `cop_at` (the wait in A,
+   frames, M 8-bit): the COP's effects, at the COP vector's code ($00:FFB0,
+   which takes A as the frames to wait where the BRK's takes 1). */
+void actor_wait(uint32_t cop_at);
 /* An actor's code that ends jumps back into the actor loop at `loop_at`
    (the actor's record freed or left to the loop): the call ends there,
    with `cpu` as the original's registers at that jump. Never returns. */
