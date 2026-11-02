@@ -22,4 +22,10 @@
 #define V_1A08 0x001A08u
 #define PLAYER_GROUND_Y 0x001455u    /* the player's Y (pixels) where it last stood (word) */
 
+/* The player's test box and hurt time (player/player_box.c,
+   player/player_bounds.c) */
+#define PLAYER_BOX_WANTED 0x001448u  /* the box of the player's box table the code wants the test box set from */
+#define PLAYER_BOX 0x001449u         /* the box the test box was last set from */
+#define PLAYER_HURT_TIME 0x0003F5u   /* frames left before the player can be hit again */
+
 #endif

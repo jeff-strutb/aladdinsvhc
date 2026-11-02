@@ -19,3 +19,9 @@ includeonce
 !v_144d = $144D
 !v_1a08 = $1A08
 !player_ground_y = $1455        ; the player's Y (pixels) where it last stood (word)
+
+; The player's test box and hurt time (player/player_box.asm,
+; player/player_bounds.asm).
+!player_box_wanted = $1448      ; the box of the player's box table the code wants the test box set from
+!player_box = $1449             ; the box the test box was last set from
+!player_hurt_time = $03F5       ; frames left before the player can be hit again

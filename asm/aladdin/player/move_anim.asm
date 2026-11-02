@@ -31,6 +31,7 @@ PlayerMoveStart:
 .anim:
     jsr.w AnimOfMove
     jsl.l AnimStart
+.done:
     rts
 
 ; @routine 81:DCB1 AnimOfMove
