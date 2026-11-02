@@ -55,7 +55,7 @@ call 838171 d=0B5B db=80 p=30
 # overlaps it within 10 pixels of its bottom; health 3, $141B zero, $141C
 # one, $145A and his vertical speed zero: he is stood on it. Then the
 # same with no health (refused).
-set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,33,39
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,33,39
 set 001484 00,01,00,01,00,00,00,00
 set 001448 00
 set 000367 03
@@ -63,7 +63,7 @@ set 00141B 00,01
 set 00145A 00
 set 0008F9 00,00
 call 83844A d=0B5B db=80 p=30
-set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,00,33,39
+set 000B5B 0C,00,00,00,00,00,00,00,00,40,00,00,00,01,00,33,39
 set 001484 00,01,00,01,00,00,00,00
 set 001448 00
 set 000367 00
