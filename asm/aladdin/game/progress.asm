@@ -31,6 +31,15 @@ arch 65816
 !demo_stages = $B70A
 !demo_0360 = $B717
 
+; @routine 81:8062 DemoStartLong
+; WHAT IT DOES: Sets a demo up to play, for callers in other banks.
+; HOW: DemoStart.
+; Entry: as DemoStart; called by JSL. Exit: as DemoStart.
+%at($818062)
+DemoStartLong:
+    jsr.w DemoStart
+    rtl
+
 ; @routine 81:8066 DemoStart
 ; WHAT IT DOES: Sets a demo up to play: demo $033F's level, and its pad
 ; stream from the first entry.
@@ -41,7 +50,6 @@ arch 65816
 ; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: A low byte =
 ; $0360's new value; X = the demo; Y = the demo * 2; N, Z from the last
 ; load; C from the doubling; V unchanged.
-%at($818066)
 DemoStart:
     lda.b #2
     sta.w !play_mode
@@ -63,6 +71,15 @@ DemoStart:
     sta.w !V_0360
     rts
 
+; @routine 81:80DC PlayStartCountsLong
+; WHAT IT DOES: Sets what play starts with, for callers in other banks.
+; HOW: PlayStartCounts.
+; Entry: as PlayStartCounts; called by JSL. Exit: as PlayStartCounts.
+%at($8180DC)
+PlayStartCountsLong:
+    jsr.w PlayStartCounts
+    rtl
+
 ; @routine 81:80E0 PlayStartCounts
 ; WHAT IT DOES: Sets what play starts with: the random number's seed and
 ; full health; with the cheat flag at $0009 set, 10 health marks and 99
@@ -72,7 +89,6 @@ DemoStart:
 ; $0347, $036C and $035A cleared.
 ; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: A low byte =
 ; the health; N, Z from it; X, Y, C, V unchanged.
-%at($8180E0)
 PlayStartCounts:
     lda.b #$C3
     sta.w !random

@@ -14,12 +14,23 @@
 void abi_UnpackSetBegin(void);
 void abi_UnpackBegin(void);
 void abi_UnpackGroup(void);
+void abi_UnpackSet(void);
+void abi_AnimSetGraphicsUnpack(void);
+void abi_LevelGraphicsLoad(void);
 #include "wram.h"
+#include "wram_video.h"
+#include "hw.h"
 
 #define UNPACK_SOURCE 0x65u        /* direct page (D = 0): the source's pointer (long) */
 #define UNPACK_FLAGS 0x0Cu         /* direct page: the group's flag byte, shifted out bit by bit */
 #define UNPACK_FILL 0x0Du          /* direct page: the group's fill byte */
 #define UNPACK_GROUPS 0x69u        /* direct page: the 8-byte groups left (word) */
+#define UNPACK_NEXT 0x006Bu        /* where the next unpack goes in bank $7F (word) */
+#define LEVEL_GFX 0xDF98u          /* bank $81: per level a word, its graphics list's offset from here: a count, 7-byte VRAM parts (source offset, bank, length, VRAM address), then a count and 5-byte kept parts (source offset, bank, length) */
+#define LEVEL_GFX_LEFT 0x1Eu       /* direct page: parts left */
+#define ANIM_SET_GFX 0x82AC18u     /* per animation set, a word: its graphics entry's offset from ANIM_SET_GFX_PARTS */
+#define ANIM_SET_GFX_PARTS 0x82AC58u /* per entry: length (low 14 bits), source offset (words), bank */
+#define ANIM_SET_GFX_AT 0x7FE500u  /* per animation set, where its graphics went in bank $7F (word) */
 #define UNPACK_SETS 0xF039u        /* bank $80: per set, 7 bytes: destination, source offset (words), bank, length (word) */
 
 /*
@@ -42,6 +53,215 @@ void abi_UnpackBegin(void)
     lda8(ea_dp(UNPACK_GROUPS));  /* 81BB44 lda */
     ora8_v(rd8(ea_dp(UNPACK_GROUPS + 1)));  /* 81BB46 ora */
     return;  /* 81BB48 rts */
+}
+
+/*
+ * @routine 81:B92D LevelGraphicsLoad
+ * WHAT IT DOES: Loads the level's graphics: the parts that go to VRAM
+ * now, then the parts kept unpacked in bank $7F.
+ * HOW: VMAIN = $80; with P and D kept and D = 0, 16-bit: the level's list
+ * (a word at $81:DF98 + level * 2) gives a count; for each 7-byte entry
+ * the part (source offset, bank, length) is unpacked to $7F:0000
+ * (UnpackBegin, UnpackGroup) and copied to VRAM at the entry's address by
+ * DMA channel 0. Then the next destination ($6B) = $5800, and the count
+ * after the list gives 5-byte entries, each unpacked to the next
+ * destination on. The count kept at $1E. With no parts, it ends (through
+ * the JMP at $81:B92A).
+ * Entry: M 8-bit; DB = $81; called by JSL. Exit: P and D as at entry; A,
+ * X, Y as the last part left them; DB as at entry.
+ */
+void abi_LevelGraphicsLoad(void)
+{
+    lda8_v(0x80);  /* 81B92D lda */
+    sta8(ea_abs(VMAIN));  /* 81B92F sta */
+    php();  /* 81B932 php */
+    phd();  /* 81B933 phd */
+    op_rep(0x30);  /* 81B934 rep */
+    lda16_v(0x0000);  /* 81B936 lda */
+    tcd();  /* 81B939 tcd */
+    lda16(ea_abs(LEVEL));  /* 81B93A lda */
+    ACC16(asl);  /* 81B93D asl */
+    tay16();  /* 81B93E tay */
+    ldx16(ea_absy(LEVEL_GFX));  /* 81B93F ldx */
+    lda16(ea_absx(LEVEL_GFX));  /* 81B942 lda */
+    and16_v(0x00FF);  /* 81B945 and */
+    if (IF_Z) goto L_81B9F1;  /* 81B948 beq (81B92A jmp) */
+    sta16(ea_dp(LEVEL_GFX_LEFT));  /* 81B94A sta */
+L_81B94C:
+    lda16(ea_absx(LEVEL_GFX + 3));  /* 81B94C lda */
+    stz16(ea_dp(UNPACK_SOURCE));  /* 81B94F stz */
+    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81B951 sta */
+    lda16(ea_absx(LEVEL_GFX + 4));  /* 81B953 lda */
+    clc();  /* 81B956 clc */
+    adc16_v(0x0007);  /* 81B957 adc */
+    and16_v(0xFFF8);  /* 81B95A and */
+    ACC16(lsr);  /* 81B95D lsr */
+    ACC16(lsr);  /* 81B95E lsr */
+    ACC16(lsr);  /* 81B95F lsr */
+    sta16(ea_dp(UNPACK_GROUPS));  /* 81B960 sta */
+    lda16(ea_absx(LEVEL_GFX + 1));  /* 81B962 lda */
+    phx16();  /* 81B965 phx */
+    php();  /* 81B966 php */
+    phb();  /* 81B967 phb */
+    ldx16_v(0x0000);  /* 81B968 ldx */
+    abi_UnpackBegin();  /* 81B96B jsr */
+    if (IF_Z) goto L_81B975;  /* 81B96E beq */
+L_81B970:
+    abi_UnpackGroup();  /* 81B970 jsr */
+    if (!IF_Z) goto L_81B970;  /* 81B973 bne */
+L_81B975:
+    plb();  /* 81B975 plb */
+    plp();  /* 81B976 plp */
+    plx16();  /* 81B977 plx */
+    lda16(ea_absx(LEVEL_GFX + 6));  /* 81B978 lda */
+    sta16(ea_abs(VMADDL));  /* 81B97B sta */
+    lda16_v(0x1801);  /* 81B97E lda */
+    sta16(ea_abs(DMAP0));  /* 81B981 sta */
+    lda16_v(0x0000);  /* 81B984 lda */
+    sta16(ea_abs(A1T0L));  /* 81B987 sta */
+    lda16_v(0x007F);  /* 81B98A lda */
+    sta16(ea_abs(A1B0));  /* 81B98D sta */
+    lda16(ea_absx(LEVEL_GFX + 4));  /* 81B990 lda */
+    sta16(ea_abs(DAS0L));  /* 81B993 sta */
+    op_sep(0x20);  /* 81B996 sep */
+    lda8_v(0x01);  /* 81B998 lda */
+    sta8(ea_abs(MDMAEN));  /* 81B99A sta */
+    op_rep(0x20);  /* 81B99D rep */
+    clc();  /* 81B99F clc */
+    txa16();  /* 81B9A0 txa */
+    adc16_v(0x0007);  /* 81B9A1 adc */
+    tax16();  /* 81B9A4 tax */
+    MEM16(dec, ea_dp(LEVEL_GFX_LEFT));  /* 81B9A5 dec */
+    if (!IF_Z) goto L_81B94C;  /* 81B9A7 bne */
+    lda16_v(0x5800);  /* 81B9A9 lda */
+    sta16(ea_abs(UNPACK_NEXT));  /* 81B9AC sta */
+    lda16(ea_absx(LEVEL_GFX + 1));  /* 81B9AF lda */
+    and16_v(0x00FF);  /* 81B9B2 and */
+    if (IF_Z) goto L_81B9F1;  /* 81B9B5 beq */
+    and16_v(0x00FF);  /* 81B9B7 and */
+    sta16(ea_dp(LEVEL_GFX_LEFT));  /* 81B9BA sta */
+L_81B9BC:
+    lda16(ea_absx(LEVEL_GFX + 4));  /* 81B9BC lda */
+    stz16(ea_dp(UNPACK_SOURCE));  /* 81B9BF stz */
+    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81B9C1 sta */
+    lda16(ea_absx(LEVEL_GFX + 5));  /* 81B9C3 lda */
+    clc();  /* 81B9C6 clc */
+    adc16_v(0x0007);  /* 81B9C7 adc */
+    and16_v(0xFFF8);  /* 81B9CA and */
+    ACC16(lsr);  /* 81B9CD lsr */
+    ACC16(lsr);  /* 81B9CE lsr */
+    ACC16(lsr);  /* 81B9CF lsr */
+    sta16(ea_dp(UNPACK_GROUPS));  /* 81B9D0 sta */
+    phb();  /* 81B9D2 phb */
+    phx16();  /* 81B9D3 phx */
+    php();  /* 81B9D4 php */
+    lda16(ea_absx(LEVEL_GFX + 2));  /* 81B9D5 lda */
+    abi_UnpackBegin();  /* 81B9D8 jsr */
+    ldx16(ea_dp(UNPACK_NEXT));  /* 81B9DB ldx */
+L_81B9DD:
+    abi_UnpackGroup();  /* 81B9DD jsr */
+    if (!IF_Z) goto L_81B9DD;  /* 81B9E0 bne */
+    stx16(ea_dp(UNPACK_NEXT));  /* 81B9E2 stx */
+    plp();  /* 81B9E4 plp */
+    plx16();  /* 81B9E5 plx */
+    plb();  /* 81B9E6 plb */
+    clc();  /* 81B9E7 clc */
+    txa16();  /* 81B9E8 txa */
+    adc16_v(0x0005);  /* 81B9E9 adc */
+    tax16();  /* 81B9EC tax */
+    MEM16(dec, ea_dp(LEVEL_GFX_LEFT));  /* 81B9ED dec */
+    if (!IF_Z) goto L_81B9BC;  /* 81B9EF bne */
+L_81B9F1:
+    pld();  /* 81B9F1 pld */
+    plp();  /* 81B9F2 plp */
+    return;  /* 81B9F3 rtl */
+}
+
+/*
+ * @routine 81:BA9E AnimSetGraphicsUnpack
+ * WHAT IT DOES: Unpacks animation set A's graphics into bank $7F where the
+ * last unpack stopped, and notes where they went.
+ * HOW: With X, Y, D, A, DB and P kept on the stack: the next destination
+ * ($6B-$6D) is copied to $7F:E500 + A * 2; the set's entry (a word at
+ * $82:AC18 + A * 2) gives its length (low 14 bits, in 8-byte groups), its
+ * source offset and bank; when the length is not 0, UnpackBegin and
+ * UnpackGroup until no groups are left, from the next destination on,
+ * which moves past them.
+ * Entry: A low byte = the set; called by JSR. Exit: A low byte, X, Y
+ * (low bytes), D, DB and P as at entry; $6B = past the set's graphics.
+ */
+void abi_AnimSetGraphicsUnpack(void)
+{
+    phx8();  /* 81BA9E phx */
+    phy8();  /* 81BA9F phy */
+    phd();  /* 81BAA0 phd */
+    pha8();  /* 81BAA1 pha */
+    phb();  /* 81BAA2 phb */
+    php();  /* 81BAA3 php */
+    op_rep(0x30);  /* 81BAA4 rep */
+    and16_v(0x00FF);  /* 81BAA6 and */
+    ACC16(asl);  /* 81BAA9 asl */
+    tax16();  /* 81BAAA tax */
+    lda16(UNPACK_NEXT);  /* 81BAAB lda */
+    sta16(ea_longx(ANIM_SET_GFX_AT));  /* 81BAAF sta */
+    lda16(UNPACK_NEXT + 1);  /* 81BAB3 lda */
+    sta16(ea_longx(ANIM_SET_GFX_AT + 1));  /* 81BAB7 sta */
+    lda16_v(0x0000);  /* 81BABB lda */
+    tcd();  /* 81BABE tcd */
+    lda16(ea_longx(ANIM_SET_GFX));  /* 81BABF lda */
+    tax16();  /* 81BAC3 tax */
+    lda16(ea_longx(ANIM_SET_GFX_PARTS));  /* 81BAC4 lda */
+    if (IF_Z) goto L_81BAEA;  /* 81BAC8 beq */
+    and16_v(0x3FFF);  /* 81BACA and */
+    ACC16(lsr);  /* 81BACD lsr */
+    ACC16(lsr);  /* 81BACE lsr */
+    ACC16(lsr);  /* 81BACF lsr */
+    sta16(ea_dp(UNPACK_GROUPS));  /* 81BAD0 sta */
+    stz16(ea_dp(UNPACK_SOURCE));  /* 81BAD2 stz */
+    lda16(ea_longx(ANIM_SET_GFX_PARTS + 4));  /* 81BAD4 lda */
+    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81BAD8 sta */
+    lda16(ea_longx(ANIM_SET_GFX_PARTS + 2));  /* 81BADA lda */
+    abi_UnpackBegin();  /* 81BADE jsr */
+    ldx16(ea_dp(UNPACK_NEXT));  /* 81BAE1 ldx */
+L_81BAE3:
+    abi_UnpackGroup();  /* 81BAE3 jsr */
+    if (!IF_Z) goto L_81BAE3;  /* 81BAE6 bne */
+    stx16(ea_dp(UNPACK_NEXT));  /* 81BAE8 stx */
+L_81BAEA:
+    plp();  /* 81BAEA plp */
+    plb();  /* 81BAEB plb */
+    pla8();  /* 81BAEC pla */
+    pld();  /* 81BAED pld */
+    ply8();  /* 81BAEE ply */
+    plx8();  /* 81BAEF plx */
+    return;  /* 81BAF0 rts */
+}
+
+/*
+ * @routine 81:BAF1 UnpackSet
+ * WHAT IT DOES: Unpacks packed set A (graphics) into bank $7F.
+ * HOW: With P, DB and D kept on the stack and 16-bit registers:
+ * UnpackSetBegin, then UnpackGroup until no groups are left.
+ * Entry: A low byte = the set; called by JSL. Exit: P, DB and D as at
+ * entry; A, X, Y as the last group left them (X past the set in bank
+ * $7F).
+ */
+void abi_UnpackSet(void)
+{
+    phd();  /* 81BAF1 phd */
+    phb();  /* 81BAF2 phb */
+    php();  /* 81BAF3 php */
+    op_rep(0x30);  /* 81BAF4 rep */
+    abi_UnpackSetBegin();  /* 81BAF6 jsr */
+    if (IF_Z) goto L_81BB00;  /* 81BAF9 beq */
+L_81BAFB:
+    abi_UnpackGroup();  /* 81BAFB jsr */
+    if (!IF_Z) goto L_81BAFB;  /* 81BAFE bne */
+L_81BB00:
+    plp();  /* 81BB00 plp */
+    plb();  /* 81BB01 plb */
+    pld();  /* 81BB02 pld */
+    return;  /* 81BB03 rtl */
 }
 
 /*

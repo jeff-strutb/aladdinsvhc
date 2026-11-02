@@ -4,10 +4,15 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_CircleWipeStep(void);
+void abi_CircleWipePlot(void);
 
 /* The circle, drawn by the midpoint method an octant at a time. */
 #define CIRCLE_X 0x00002Cu         /* the octant's x, from the radius down (word) */
 #define CIRCLE_Y 0x00002Eu         /* the octant's y, from 0 up (word) */
+#define CIRCLE_TERM 0x000030u      /* the midpoint method's term (word) */
+#define CIRCLE_VIEW_X 0x001772u    /* subtracted from the point: words in layer 0's record */
+#define CIRCLE_VIEW_Y 0x001776u
 #define CIRCLE_CX 0x000032u        /* the centre's screen x (word) */
 #define CIRCLE_CY 0x000034u        /* the centre's scanline (word) */
 /* The plot's working bytes. */
@@ -116,3 +121,80 @@ L_81B348:
     return;  /* 81B38D rts */
 }
 
+/*
+ * @routine 81:B264 CircleWipeStep
+ * WHAT IT DOES: Draws the wipe's circle of radius A round the point X, Y
+ * into the window table, when the point is on screen.
+ * HOW: The octant's x = 0, y = A and the midpoint method's term ($30) =
+ * 3 - 2A; the centre on screen = X and Y less the words at $1772 and $1776
+ * (layer 0's record), and nothing is drawn when they are not below 256 and
+ * 224; the 256 scanlines' edges are set to $00FF (no window); then
+ * CircleWipePlot for each step while x is not past y, the term growing by
+ * 4x + 6 (term negative) or by 4(x - y) + 10 with y down one.
+ * Entry: M 16-bit, X 16-bit; A = the radius; X, Y = the point; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSL. Exit: M 16-bit, X 16-bit;
+ * drawn: A = the octant's y, C clear, X as CircleWipePlot left it; off
+ * screen: A = the difference that failed, C set; $2C-$34 the circle's
+ * working words.
+ */
+void abi_CircleWipeStep(void)
+{
+    stz16(ea_abs(CIRCLE_X));  /* 81B264 stz */
+    sta16(ea_abs(CIRCLE_Y));  /* 81B267 sta */
+    ACC16(asl);  /* 81B26A asl */
+    clc();  /* 81B26B clc */
+    adc16_v(0xFFFD);  /* 81B26C adc */
+    eor16_v(0xFFFF);  /* 81B26F eor */
+    ACC16(inc);  /* 81B272 inc */
+    sta16(ea_abs(CIRCLE_TERM));  /* 81B273 sta */
+    sec();  /* 81B276 sec */
+    txa16();  /* 81B277 txa */
+    sbc16_v(rd16(ea_abs(CIRCLE_VIEW_X)));  /* 81B278 sbc */
+    cmp16_v(0x0100);  /* 81B27B cmp */
+    if (IF_C) goto L_81B2D8;  /* 81B27E bcs */
+    sta16(ea_abs(CIRCLE_CX));  /* 81B280 sta */
+    sec();  /* 81B283 sec */
+    tya16();  /* 81B284 tya */
+    sbc16_v(rd16(ea_abs(CIRCLE_VIEW_Y)));  /* 81B285 sbc */
+    cmp16_v(0x00E0);  /* 81B288 cmp */
+    if (IF_C) goto L_81B2D8;  /* 81B28B bcs */
+    sta16(ea_abs(CIRCLE_CY));  /* 81B28D sta */
+    ldx16_v(0x0000);  /* 81B290 ldx */
+    lda16_v(0x00FF);  /* 81B293 lda */
+L_81B296:
+    sta16(ea_longx(WINDOW_EDGES));  /* 81B296 sta */
+    inx16();  /* 81B29A inx */
+    inx16();  /* 81B29B inx */
+    cpx16_v(0x0200);  /* 81B29C cpx */
+    if (!IF_C) goto L_81B296;  /* 81B29F bcc */
+L_81B2A1:
+    lda16(ea_abs(CIRCLE_Y));  /* 81B2A1 lda */
+    cmp16_v(rd16(ea_abs(CIRCLE_X)));  /* 81B2A4 cmp */
+    if (!IF_C) goto L_81B2D8;  /* 81B2A7 bcc */
+    abi_CircleWipePlot();  /* 81B2A9 jsr */
+    lda16(ea_abs(CIRCLE_TERM));  /* 81B2AC lda */
+    if (!IF_N) goto L_81B2BC;  /* 81B2AF bpl */
+    lda16(ea_abs(CIRCLE_X));  /* 81B2B1 lda */
+    ACC16(asl);  /* 81B2B4 asl */
+    ACC16(asl);  /* 81B2B5 asl */
+    clc();  /* 81B2B6 clc */
+    adc16_v(0x0006);  /* 81B2B7 adc */
+    goto L_81B2CC;  /* 81B2BA bra */
+L_81B2BC:
+    sec();  /* 81B2BC sec */
+    lda16(ea_abs(CIRCLE_X));  /* 81B2BD lda */
+    sbc16_v(rd16(ea_abs(CIRCLE_Y)));  /* 81B2C0 sbc */
+    ACC16(asl);  /* 81B2C3 asl */
+    ACC16(asl);  /* 81B2C4 asl */
+    clc();  /* 81B2C5 clc */
+    adc16_v(0x000A);  /* 81B2C6 adc */
+    MEM16(dec, ea_abs(CIRCLE_Y));  /* 81B2C9 dec */
+L_81B2CC:
+    clc();  /* 81B2CC clc */
+    adc16_v(rd16(ea_abs(CIRCLE_TERM)));  /* 81B2CD adc */
+    sta16(ea_abs(CIRCLE_TERM));  /* 81B2D0 sta */
+    MEM16(inc, ea_abs(CIRCLE_X));  /* 81B2D3 inc */
+    goto L_81B2A1;  /* 81B2D6 bra */
+L_81B2D8:
+    return;  /* 81B2D8 rtl */
+}

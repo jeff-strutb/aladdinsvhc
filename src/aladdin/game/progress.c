@@ -10,6 +10,8 @@ void abi_LevelCountersClear(void);
 void abi_DemoStart(void);
 void abi_PlayStartCounts(void);
 void abi_NewGameStateLong(void);
+void abi_DemoStartLong(void);
+void abi_PlayStartCountsLong(void);
 #include "wram.h"
 #include "wram_video.h"
 #include "wram_state.h"
@@ -20,6 +22,30 @@ void abi_NewGameStateLong(void);
 #define DEMO_SEQUENCES 0xB6FDu
 #define DEMO_STAGES 0xB70Au
 #define DEMO_0360 0xB717u
+
+/*
+ * @routine 81:8062 DemoStartLong
+ * WHAT IT DOES: Sets a demo up to play, for callers in other banks.
+ * HOW: DemoStart.
+ * Entry: as DemoStart; called by JSL. Exit: as DemoStart.
+ */
+void abi_DemoStartLong(void)
+{
+    abi_DemoStart();  /* 818062 jsr */
+    return;  /* 818065 rtl */
+}
+
+/*
+ * @routine 81:80DC PlayStartCountsLong
+ * WHAT IT DOES: Sets what play starts with, for callers in other banks.
+ * HOW: PlayStartCounts.
+ * Entry: as PlayStartCounts; called by JSL. Exit: as PlayStartCounts.
+ */
+void abi_PlayStartCountsLong(void)
+{
+    abi_PlayStartCounts();  /* 8180DC jsr */
+    return;  /* 8180DF rtl */
+}
 
 /*
  * @routine 81:8066 DemoStart
