@@ -93,8 +93,10 @@ def build():
     # A routine that is one JML (the actor loop's stub for a kind, entered
     # by its JMP (table,X) with no return address on the stack) is a stub,
     # not a routine the checks open a call at.
-    for o, (c, how) in list(starts.items()):
-        if how == 'jump' and rom[o] == 0x5C and mp[o] & CPU_CODE and not mp[o + 4] & CPU_CODE:
+    order0 = sorted(starts)
+    for i, o in enumerate(order0):
+        nxt = order0[i + 1] if i + 1 < len(order0) else len(rom)
+        if starts[o][1] == 'jump' and rom[o] == 0x5C and sum(1 for k in range(o, min(nxt, o + 8)) if mp[k] & CPU_CODE) == 4:
             starts[o] = ('cpu', 'stub')
     # A routine entered by a jump whose code yields by BRK is an actor's
     # code (docs/aladdin/ACTORS.md).
