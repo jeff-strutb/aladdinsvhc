@@ -658,6 +658,19 @@ L_05AD:
     spc_ret(); return;  /* 05B0 ret  */
 }
 
+/*
+ * @routine 85:83AE SoundCmdFC
+ * @spc 05B1
+ * WHAT IT DOES: Command $FC: sets the music's tempo offset from port 1, a
+ * signed value scaled by 3 x $69 / 256 into $C0-$C1.
+ * HOW: Port 1's magnitude times $69 (high byte kept at $A2) plus the
+ * magnitude times 3; negated (0 less it) when port 1 was negative. Port 1
+ * is written by the S-CPU only in SpcUpload, which ends every upload by
+ * writing 0 or 1 there, so the negative branch ($05B7, $05CC) is code the
+ * retail game never runs.
+ * Entry: reached from the command table (SoundCommand). Exit: YA = the
+ * offset, also at $C0; $A3 = 0.
+ */
 void abi_SoundCmdFC(void)
 {
     spc.a = spc_nz(spc_rd(0x00F5U));  /* 05B1 mov.w a,$00F5, not run by the traces */

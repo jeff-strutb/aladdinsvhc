@@ -1,0 +1,8 @@
+# The sound driver's start (SoundDriverStart, $02C0), which runs once after
+# the boot upload, before any script's first frame is traced as a call: a
+# unit call from the first level's state, marked noreturn (its main loop
+# never returns); the frames after it are compared.
+load build/aladdin/states/level1.state
+wait 10
+spccall 02C0 noreturn at=02F5
+wait 120

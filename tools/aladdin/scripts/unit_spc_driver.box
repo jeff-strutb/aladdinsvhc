@@ -13,13 +13,15 @@ wait 2
 spccall 045E a=F5 at=02F5
 wait 2
 # Command $F6 with $C6 = 2: the fade's step doubled, still running
-# ($0632). Its parameter is in port 3: the game queues $F6 with 1
-# (SoundQueueF6With1, kept) and sends it, port 3 then holding 1.
-call 81F9D2 long keep db=80 p=30
-wait 10
+# ($0632). The driver clears its input ports after every command, so the
+# parameter (port 3) exists only while the game's own $F6 is taken: $C6 is
+# staged by a harmless call (CurveAtY), then the game queues $F6 with 1
+# (SoundQueueF6With1, kept) and sends it.
 spcset 00C6 02
-spccall 045E a=F6 at=02F5
+spccall 0B8E y=00 at=02F5
 wait 2
+call 81F9D2 long keep db=80 p=30
+wait 60
 # A song number at or past the song count ($1DB0 = 1): taken off the count
 # until it is below ($046A).
 spcset 1DB0 01
@@ -60,4 +62,56 @@ spcset 00CB FF
 spcset 1E20 1B,01,80
 spcset 00B3 80
 spccall 06B1 x=00 at=02F5
+wait 2
+# Commands $F0 and $FB through the command table (play calls their code
+# directly or not at all).
+spccall 045E a=F0 at=02F5
+wait 2
+spccall 045E a=FB at=02F5
+wait 2
+# Sequencer commands $15, $1E and $1F (their handlers' table entries):
+# $15 a counter jump like $11, $1E and $1F (each with a parameter byte),
+# then a note.
+spcset 0018 00
+spcset 0000 20
+spcset 0008 1E
+spcset 0048 00
+spcset 1E20 15,03,24,1E,1E,00,1F,00,80
+spcset 00B3 80
+spccall 06B1 x=00 at=02F5
+wait 2
+# The echo filters 2 and 3 (EchoFirSet), and the pan curve at its top
+# (CurveAt8 with YA = $FFFF).
+spccall 0A6C a=02 at=02F5
+wait 2
+spccall 0A6C a=03 at=02F5
+wait 2
+spccall 0B90 a=FF y=FF at=02F5
+wait 2
+# FadeSet, which the driver reaches only by branches: level $1234, step 2.
+spccall 064B a=34 y=12 x=02 at=02F5
+wait 2
+# Two notes on voice 0 with its flags at $10 = $17 (bit 4 and low nibble 7):
+# the note length tables' entries for the lowest and highest note groups.
+spcset 0018 00
+spcset 0000 20
+spcset 0008 1E
+spcset 0010 17
+spcset 1E20 21
+spcset 00B3 80
+spccall 06B1 x=00 at=02F5
+wait 2
+spcset 0018 00
+spcset 0000 20
+spcset 0008 1E
+spcset 0010 17
+spcset 1E20 E1
+spcset 00B3 80
+spccall 06B1 x=00 at=02F5
+wait 2
+# VoiceVolumeSet with the voice's $0248 at 0 and $B0 clear: its second
+# step reads the curve's last entry ($0BD5).
+spcset 0248 00
+spcset 00B0 00
+spccall 0B17 x=00 at=02F5
 wait 2
