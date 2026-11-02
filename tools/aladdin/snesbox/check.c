@@ -110,6 +110,10 @@ static uint32_t norm(uint32_t a)
     return R_NONE << 24 | a;
 }
 
+/* An open-bus read's key in a call's record of reads: its whole address,
+   marked apart from a register's. */
+#define OPEN_BUS_KEY(a) (0x1000000u | ((a) & 0xFFFFFF))
+
 static uint8_t *phys(uint32_t n)
 {
     uint32_t off = n & 0xFFFFFF;
@@ -251,8 +255,12 @@ uint8_t rd8(uint32_t addr)
     count_access();
     uint32_t n = norm(addr);
     uint8_t v;
-    if (n >> 24 == R_IO) {
-        if (cur->cread < cur->oread.n && cur->oread.e[cur->cread].addr == (addr & 0xFFFF)) return cur->oread.e[cur->cread++].v;
+    /* Registers, and the open bus (no RAM or ROM there on this board:
+       a pointer gone wild reads it), answer with the values the original
+       read, in its order. */
+    if (n >> 24 == R_IO || n >> 24 == R_NONE) {
+        uint32_t key = n >> 24 == R_IO ? addr & 0xFFFF : OPEN_BUS_KEY(addr);
+        if (cur->cread < cur->oread.n && cur->oread.e[cur->cread].addr == key) return cur->oread.e[cur->cread++].v;
         cur->io_mismatch = 1;
         if (c_running) longjmp(*abort_c, 1);
         return 0;
@@ -767,9 +775,10 @@ static void on_read(uint32_t addr, uint8_t data)
         for (int i = 0; i < depth; i++) if (!ws[i]->in_irq) io_add(&ws[i]->oseq, n, 0);
         return;
     }
-    if (norm(addr) >> 24 != R_IO) return;
+    uint32_t r = norm(addr) >> 24;
+    if (r != R_IO && r != R_NONE) return;
     for (int i = 0; i < depth; i++)
-        if (!ws[i]->in_irq) io_add(&ws[i]->oread, addr & 0xFFFF, data);
+        if (!ws[i]->in_irq) io_add(&ws[i]->oread, r == R_IO ? addr & 0xFFFF : OPEN_BUS_KEY(addr), data);
 }
 
 static void on_interrupt(uint32_t resume_pc, uint16_t s)
@@ -960,6 +969,7 @@ typedef struct {
     FrameSlot fs[NSLOT];
     uint8_t ops[OPRING];
     uint32_t opaddr[OPRING];
+    uint8_t opval[OPRING];       /* a read's value (the open bus answers the hybrid's reads with it) */
 } Shared;
 
 static Shared *sh;
@@ -1073,6 +1083,7 @@ static int timed(uint32_t a);
 static FILE *trf;
 static long tr_lo = -1, tr_hi = -1;
 static uint8_t (*core_bus_peek)(uint32_t);
+static uint8_t ls_read_val;   /* the value of the read the core just made (its read hook comes before its timing hook) */
 static void trace_insn(uint32_t pc)
 {
     if (!trf || cur_frame < tr_lo || cur_frame > tr_hi) return;
@@ -1081,6 +1092,7 @@ static void trace_insn(uint32_t pc)
 }
 static void trace_read(uint32_t addr, uint8_t data)
 {
+    ls_read_val = data;
     if (!trf || cur_frame < tr_lo || cur_frame > tr_hi) return;
     if (timed(addr)) fprintf(trf, "  rd %06X=%02X @%u\n", addr, data, core_clock());
 }
@@ -1418,6 +1430,7 @@ static void ls_interrupt(uint32_t resume_pc, uint16_t s)
 static void ls_timing(int kind, int clocks, uint32_t addr)
 {
     if (!m.active || m.in_irq) return;
+    if (kind == 1) sh->opval[LOAD(sh->o_ops) % OPRING] = ls_read_val;
     tm_prev[1] = tm_prev[0];
     tm_prev[0].kind = (uint8_t)kind; tm_prev[0].addr = addr & 0xFFFFFF;
     ls_op((uint8_t)(kind << 4 | (clocks / 2)), addr);
@@ -1440,6 +1453,8 @@ static void ls_op(uint8_t op, uint32_t addr)
    is the S-CPU's alone and is accessed at once. */
 static uint8_t *cur_ops;
 static uint32_t *cur_addr;
+static uint8_t *cur_val;      /* each recorded read's value */
+static uint32_t ob_next;      /* where the search for the next open-bus read goes on */
 static uint32_t cur_n, cur_i, cur_cap;
 
 /* The call's record is taken while the original is still making it: a call
@@ -1478,12 +1493,14 @@ static void fetch_avail(void)
         cur_cap = avail + (avail >> 1) + 1024;
         cur_ops = realloc(cur_ops, cur_cap);
         cur_addr = realloc(cur_addr, (size_t)cur_cap * sizeof *cur_addr);
-        if (!cur_ops || !cur_addr) _exit(7);
+        cur_val = realloc(cur_val, cur_cap);
+        if (!cur_ops || !cur_addr || !cur_val) _exit(7);
     }
     for (uint32_t i = cur_n; i < avail; i++) {
         uint64_t o = (cur_rec->opoff + i) % OPRING;
         cur_ops[i] = sh->ops[o];
         cur_addr[i] = sh->opaddr[o];
+        cur_val[i] = sh->opval[o];
     }
     cur_n = avail;
     STORE(sh->h_ops, cur_rec->opoff + cur_n);
@@ -1511,12 +1528,14 @@ static int fetch_more(uint32_t need)
                 cur_cap = avail + (avail >> 1) + 1024;
                 cur_ops = realloc(cur_ops, cur_cap);
                 cur_addr = realloc(cur_addr, (size_t)cur_cap * sizeof *cur_addr);
-                if (!cur_ops || !cur_addr) _exit(7);
+                cur_val = realloc(cur_val, cur_cap);
+                if (!cur_ops || !cur_addr || !cur_val) _exit(7);
             }
             for (uint32_t i = cur_n; i < avail; i++) {
                 uint64_t o = (cur_rec->opoff + i) % OPRING;
                 cur_ops[i] = sh->ops[o];
                 cur_addr[i] = sh->opaddr[o];
+                cur_val[i] = sh->opval[o];
             }
             cur_n = avail;
             STORE(sh->h_ops, cur_rec->opoff + cur_n);
@@ -2134,7 +2153,65 @@ done:
     cyc_last = (long)to;
 }
 
+static uint8_t live_access_placed(int write, uint32_t addr, uint8_t value);
+static int open_bus(uint32_t a);
+
+/* The open bus reads back what was last on the data bus: in the original,
+   bytes of the instructions it fetched, which the C does not fetch. The
+   C's read of it is placed as any other and answered with the value the
+   original read at its matching read (the next one of that address).
+   (open_bus, below, says where.) */
+/* Addresses nothing answers on this board (no cartridge RAM or chips):
+   the CPU reads back its last bus byte there. Banks $00-$3F, $80-$BF:
+   $2000-$20FF, $2181-$3FFF, $4000-$4015, $4018-$41FF, $4220-$42FF,
+   $43xC-$43xE, $4380-$7FFF; and the low halves of banks $40-$7D and $C0-$FF. */
+static int open_bus(uint32_t a)
+{
+    uint32_t bank = a >> 16 & 0xFF, lo = a & 0xFFFF;
+    if (lo >= 0x8000 || bank == 0x7E || bank == 0x7F) return 0;
+    if (bank & 0x40) return 1;
+    if (lo < 0x2000) return 0;
+    if (lo < 0x2100) return 1;
+    if (lo < 0x2181) return 0;
+    if (lo < 0x4000) return 1;
+    if (lo == 0x4016 || lo == 0x4017) return 0;
+    if (lo < 0x4200) return 1;
+    if (lo < 0x4220) return 0;
+    if (lo < 0x4300) return 1;
+    if (lo < 0x4380) return (lo & 0xF) >= 0xC && (lo & 0xF) <= 0xE;   /* each channel's unused $43xC-$43xE */
+    return 1;
+}
+
+/* Reads whose value depends on the cycle they are made in, or on bus
+   activity the C does not make: the open bus (with the WRAM port's
+   write-only address, $2181-$2183); the PPU's write-only
+   registers ($2100-$2136, which read back the PPU's own last bus byte);
+   the H/V counter latch and counters ($2137, $213C-$213F); RDNMI, TIMEUP
+   and HVBJOY ($4210-$4212). The standard does not make the C cycle exact,
+   so these answer with the original's value. */
+static int read_from_record(uint32_t a)
+{
+    uint32_t bank = a >> 16 & 0xFF, lo = a & 0xFFFF;
+    if (open_bus(a)) return 1;
+    if ((bank & 0x40) || lo >= 0x8000) return 0;
+    if (lo >= 0x2100 && lo <= 0x2137) return 1;
+    if (lo >= 0x213C && lo <= 0x213F) return 1;
+    if (lo >= 0x4210 && lo <= 0x4212) return 1;
+    return 0;
+}
+
 static uint8_t live_access(int write, uint32_t addr, uint8_t value)
+{
+    if (write || !read_from_record(addr)) return live_access_placed(write, addr, value);
+    uint32_t j = ob_next > cur_i ? ob_next : cur_i;
+    for (; j < cur_n || fetch_more(j + 1); j++)
+        if (cur_ops[j] >> 4 == 1 && (cur_addr[j] & 0xFFFFFF) == (addr & 0xFFFFFF)) break;
+    uint8_t v = live_access_placed(0, addr, 0);
+    if (j < cur_n) { ob_next = j + 1; return cur_val[j]; }
+    return v;
+}
+
+static uint8_t live_access_placed(int write, uint32_t addr, uint8_t value)
 {
     uint8_t want = (uint8_t)(write ? 2 : 1);
     /* The original side has given up waiting for the hybrid: the C is in a
@@ -2331,7 +2408,7 @@ static int ls_take_record(const char *name)
        private copy of its cycles (the ring moves on). */
     uint64_t k = LOAD(sh->h_calls);
     WAIT_UNTIL(k < LOAD(sh->o_calls) || LOAD(sh->o_done));
-    cur_n = 0; cur_i = 0; pair_lo = -1; cur_open = 0; cur_cut = 0;
+    cur_n = 0; cur_i = 0; pair_lo = -1; cur_open = 0; cur_cut = 0; ob_next = 0;
     if (k < LOAD(sh->o_calls)) {
         CallRec *rec = &sh->calls[k % CALLRING];
         if (rec->frame != cur_frame) mismatched_calls++;
