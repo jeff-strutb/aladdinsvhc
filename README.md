@@ -16,16 +16,16 @@ _Snapshot 2026-11-01._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   24.6%   15,304 / 62,175 B of the game's code
+    ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   25.9%   16,092 / 62,175 B of the game's code
 M2  Byte exact (T4)
-    ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   24.4%   15,141 / 62,175 B of the game's code
+    ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   25.6%   15,929 / 62,175 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 62,175 B: 49,409 B the scripts have run and 12,766 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 294 routines behaviour exact, 293 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 62,175 B: 49,409 B the scripts have run and 12,766 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 306 routines behaviour exact, 305 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `█████░░░░░░░░░░░░░░░` 25.5%: 15,304/59,907 B | `█████░░░░░░░░░░░░░░░` 25.3%: 15,141/59,907 B |
+| **S-CPU (65816)** | `█████░░░░░░░░░░░░░░░` 26.9%: 16,092/59,907 B | `█████░░░░░░░░░░░░░░░` 26.6%: 15,929/59,907 B |
 | **SPC700 (sound)** | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B | `░░░░░░░░░░░░░░░░░░░░` 0.0%: 0/2,268 B |
 <!-- PROGRESS:END -->
 
@@ -38,7 +38,7 @@ have run and the 12,766 B the routine census (`tools/aladdin/census.py`) finds
 by following the code statically (calls, jumps, tables, handler pointers,
 task entries, orphans) where no script has gone. The numerator is the code
 bytes inside routines whose C is certified behaviour exact (T3) or whose
-assembly is also byte exact (T4), for M1, and T4 only for M2. 69 routine(s)
+assembly is also byte exact (T4), for M1, and T4 only for M2. 75 routine(s)
 are in the tree but not yet certified (T2).
 
 **Why not routines.** A routine count keeps growing as the work goes on:
