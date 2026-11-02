@@ -14,7 +14,7 @@ includeonce
 
 ; Demos and the start of play (game/progress.asm).
 !cheat_0009 = $0009             ; nonzero: play starts with 10 health marks and 99 at $0369; the title acts on it too
-!play_mode = $0331              ; 2: a demo plays, the pad read from its stream
+!play_mode = $0331              ; 2: a demo plays, the pad read from its stream; 1: the pads recorded (development); 0: the pads
 !demo_input_at = $033B          ; the demo's next pad entry: byte offset from $84:F700 (word)
 !demo_input_frames = $033E      ; frames left on its current pad entry
 !demo_number = $033F            ; the demo being played

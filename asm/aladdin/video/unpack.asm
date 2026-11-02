@@ -3,7 +3,10 @@
 ;
 ; An unpack reads its source through the long pointer at $65 (offset 0 in
 ; the source's bank, the offset itself in Y) and writes 8 bytes a group to
-; bank $7F at X; $69 counts the groups.
+; bank $7F at X; $69 counts the groups. A group is a flag byte and a fill
+; byte, then a byte for each set flag bit (bit 7 first: set, the next
+; literal byte; clear, the fill byte). The source runs on across banks,
+; past $FFFF at $8000 of the next.
 ; C: src/aladdin/video/unpack.c.
 
 incsrc "../include/macros.inc"
@@ -14,6 +17,9 @@ arch 65816
 ; Direct page (D = 0).
 !unpack_source = $65             ; the source's pointer (long)
 !unpack_groups = $69             ; the 8-byte groups left (word)
+!unpack_flags = $0C              ; the group's flag byte, shifted out bit by bit
+!unpack_fill = $0D               ; the group's fill byte
+!unpack_out = $0000              ; the destination: X is its address in bank $7F
 ; Bank $80: per set, 7 bytes: destination, source offset (words), bank,
 ; length (word).
 !unpack_sets = $F039
@@ -77,4 +83,137 @@ UnpackBegin:
     plb
     lda.b !unpack_groups
     ora.b !unpack_groups+1
+    rts
+
+; @routine 81:BB49 UnpackGroup
+; WHAT IT DOES: Unpacks one 8-byte group of packed data to $7F:X and
+; counts it off.
+; HOW: Takes the flag and fill bytes from the source, then for each of the
+; 8 bytes shifts the flags: a set bit stores the next source byte, a clear
+; one the fill byte. Each source step past $FFFF goes on at $8000 of the
+; next bank. X moves on 8; the groups left go down by one.
+; Entry: M 8-bit, X 16-bit; D = 0; DB = $7F; X = the destination; Y = the
+; source offset in the bank at UNPACK_SOURCE + 2; called by JSR
+; (UnpackSet). Exit: X = the next destination, A = X (16 bits, from
+; TXA/ADC), Y the next source offset; N and Z from the groups-left
+; decrement (Z set: none left); C from the ADC; M 8-bit, X 16-bit.
+%at($81BB49)
+UnpackGroup:
+    lda.b [!unpack_source],y
+    sta.b !unpack_flags
+    iny
+    bne .bBB55
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBB55:
+    lda.b [!unpack_source],y
+    sta.b !unpack_fill
+    iny
+    bne .bBB61
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBB61:
+    asl.b !unpack_flags
+    bcs .bBB69
+    lda.b !unpack_fill
+    bra .bBB73
+.bBB69:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBB73
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBB73:
+    sta.w !unpack_out,x
+    asl.b !unpack_flags
+    bcs .bBB7E
+    lda.b !unpack_fill
+    bra .bBB88
+.bBB7E:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBB88
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBB88:
+    sta.w !unpack_out+1,x
+    asl.b !unpack_flags
+    bcs .bBB93
+    lda.b !unpack_fill
+    bra .bBB9D
+.bBB93:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBB9D
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBB9D:
+    sta.w !unpack_out+2,x
+    asl.b !unpack_flags
+    bcs .bBBA8
+    lda.b !unpack_fill
+    bra .bBBB2
+.bBBA8:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBBB2
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBBB2:
+    sta.w !unpack_out+3,x
+    asl.b !unpack_flags
+    bcs .bBBBD
+    lda.b !unpack_fill
+    bra .bBBC7
+.bBBBD:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBBC7
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBBC7:
+    sta.w !unpack_out+4,x
+    asl.b !unpack_flags
+    bcs .bBBD2
+    lda.b !unpack_fill
+    bra .bBBDC
+.bBBD2:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBBDC
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBBDC:
+    sta.w !unpack_out+5,x
+    asl.b !unpack_flags
+    bcs .bBBE7
+    lda.b !unpack_fill
+    bra .bBBF1
+.bBBE7:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBBF1
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBBF1:
+    sta.w !unpack_out+6,x
+    asl.b !unpack_flags
+    bcs .bBBFC
+    lda.b !unpack_fill
+    bra .bBC06
+.bBBFC:
+    lda.b [!unpack_source],y
+    iny
+    bne .bBC06
+    ldy.w #$8000
+    inc.b !unpack_source+2
+.bBC06:
+    sta.w !unpack_out+7,x
+    rep.b #$20
+    clc
+    txa
+    adc.w #$0008
+    tax
+    dec.b !unpack_groups
+    sep.b #$20
     rts

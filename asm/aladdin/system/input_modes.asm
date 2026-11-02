@@ -6,10 +6,11 @@
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
 incsrc "../include/wram_pad.inc"
+incsrc "../include/wram_state.inc"
 
 arch 65816
 
-; InputRead's demo mode (input mode 2), entered only from InputRead.
+; InputRead's demo mode (play mode 2), entered only from InputRead.
 %at($81BD53)
 InputReadDemo:
     phx
@@ -32,17 +33,17 @@ InputReadDemo:
     sta.w !joy_held+1
     and.w !joy_pressed+1
     sta.w !joy_pressed+1
-    dec.w !demo_frames
+    dec.w !demo_input_frames
     bne .controls
     rep #$10
-    ldx.w !demo_pos
-    inc.w !demo_pos
-    inc.w !demo_pos
+    ldx.w !demo_input_at
+    inc.w !demo_input_at
+    inc.w !demo_input_at
     lda.l !demo_script,x
     and.b #$EF
     sta.w !demo_buttons
     lda.l !demo_script+1,x
-    sta.w !demo_frames
+    sta.w !demo_input_frames
     sep #$10
 .controls:
     jsr.w ControlsRead
@@ -55,7 +56,7 @@ InputReadDemo:
 ; actions: from the pads, or in the demo from its script (only the real
 ; pad's START kept, so a player can end the demo), or from the pads while
 ; the recorder writes them down.
-; HOW: Input mode 2 (the demo): reads the pads, clears every held and
+; HOW: Play mode 2 (the demo): reads the pads, clears every held and
 ; pressed byte, makes pad 1's high byte the real START plus the script's
 ; buttons and its pressed byte the ones not held last frame, and steps the
 ; script when its frame count runs out. Otherwise reads the pads, and in
@@ -65,13 +66,13 @@ InputReadDemo:
 ; Exit: as ControlsRead; X and Y unchanged; M 8-bit, X 8-bit.
 %at($81BDB1)
 InputRead:
-    lda.w !input_mode
+    lda.w !play_mode
     cmp.b #$02
     beq InputReadDemo
     phx
     phy
     jsr.w JoypadRead
-    lda.w !input_mode
+    lda.w !play_mode
     dec a
     bne .controls
     jsr.w InputRecord
@@ -97,7 +98,7 @@ InputRead:
 ; read of $FF at $70:0001 up: on this board the read is $70, so it never
 ; runs, and no script covers it.
 ; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
-; called by JSR (InputRead, input mode 1).
+; called by JSR (InputRead, play mode 1).
 ; Exit: M 8-bit, X 8-bit; A, X, Y, flags as its last step left them.
 %at($81BE5A)
 InputRecord:

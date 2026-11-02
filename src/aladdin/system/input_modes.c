@@ -7,6 +7,7 @@
 #include "ops65.h"
 #include "wram.h"
 #include "wram_pad.h"
+#include "wram_state.h"
 
 void abi_JoypadRead(void);
 void abi_ControlsRead(void);
@@ -18,7 +19,7 @@ void abi_InputRecord(void);
  * actions: from the pads, or in the demo from its script (only the real
  * pad's START kept, so a player can end the demo), or from the pads while
  * the recorder writes them down.
- * HOW: Input mode 2 (the demo): reads the pads, clears every held and
+ * HOW: Play mode 2 (the demo): reads the pads, clears every held and
  * pressed byte, makes pad 1's high byte the real START plus the script's
  * buttons and its pressed byte the ones not held last frame, and steps the
  * script when its frame count runs out. Otherwise reads the pads, and in
@@ -51,17 +52,17 @@ L_81BD53:
     sta8(ea_abs((JOY_HELD + 1)));  /* 81BD7C sta */
     and8_v(rd8(ea_abs((JOY_PRESSED + 1))));  /* 81BD7F and */
     sta8(ea_abs((JOY_PRESSED + 1)));  /* 81BD82 sta */
-    MEM8(dec, ea_abs(DEMO_FRAMES));  /* 81BD85 dec */
+    MEM8(dec, ea_abs(DEMO_INPUT_FRAMES));  /* 81BD85 dec */
     if (!IF_Z) goto L_81BDA7;  /* 81BD88 bne */
     op_rep(0x10);  /* 81BD8A rep */
-    ldx16(ea_abs(DEMO_POS));  /* 81BD8C ldx */
-    MEM8(inc, ea_abs(DEMO_POS));  /* 81BD8F inc */
-    MEM8(inc, ea_abs(DEMO_POS));  /* 81BD92 inc */
+    ldx16(ea_abs(DEMO_INPUT_AT));  /* 81BD8C ldx */
+    MEM8(inc, ea_abs(DEMO_INPUT_AT));  /* 81BD8F inc */
+    MEM8(inc, ea_abs(DEMO_INPUT_AT));  /* 81BD92 inc */
     lda8(ea_longx(DEMO_SCRIPT));  /* 81BD95 lda */
     and8_v(0xEF);  /* 81BD99 and */
     sta8(ea_abs(DEMO_BUTTONS));  /* 81BD9B sta */
     lda8(ea_longx((DEMO_SCRIPT + 1)));  /* 81BD9E lda */
-    sta8(ea_abs(DEMO_FRAMES));  /* 81BDA2 sta */
+    sta8(ea_abs(DEMO_INPUT_FRAMES));  /* 81BDA2 sta */
     op_sep(0x10);  /* 81BDA5 sep */
 L_81BDA7:
     abi_ControlsRead();  /* 81BDA7 jsr */
@@ -69,13 +70,13 @@ L_81BDA7:
     plx8();  /* 81BDAB plx */
     return;  /* 81BDAC rts */
 L_81BDB1:
-    lda8(ea_abs(INPUT_MODE));  /* 81BDB1 lda */
+    lda8(ea_abs(PLAY_MODE));  /* 81BDB1 lda */
     cmp8_v(0x02);  /* 81BDB4 cmp */
     if (IF_Z) goto L_81BD53;  /* 81BDB6 beq */
     phx8();  /* 81BDB8 phx */
     phy8();  /* 81BDB9 phy */
     abi_JoypadRead();  /* 81BDBA jsr */
-    lda8(ea_abs(INPUT_MODE));  /* 81BDBD lda */
+    lda8(ea_abs(PLAY_MODE));  /* 81BDBD lda */
     ACC8(dec);  /* 81BDC0 dec */
     if (!IF_Z) goto L_81BDC6;  /* 81BDC1 bne */
     abi_InputRecord();  /* 81BDC3 jsr */
@@ -103,7 +104,7 @@ L_81BDC6:
  * read of $FF at $70:0001 up: on this board the read is $70, so it never
  * runs, and no script covers it.
  * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
- * called by JSR (InputRead, input mode 1).
+ * called by JSR (InputRead, play mode 1).
  * Exit: M 8-bit, X 8-bit; A, X, Y, flags as its last step left them.
  */
 void abi_InputRecord(void)

@@ -16,7 +16,7 @@
 
 /* Demos and the start of play (game/progress.c). */
 #define CHEAT_0009 0x000009u          /* nonzero: play starts with 10 health marks and 99 at $0369; the title acts on it too */
-#define PLAY_MODE 0x000331u           /* 2: a demo plays, the pad read from its stream */
+#define PLAY_MODE 0x000331u           /* 2: a demo plays, the pad read from its stream; 1: the pads recorded (development; retail never sets it); 0: the pads */
 #define DEMO_INPUT_AT 0x00033Bu       /* the demo's next pad entry: byte offset from $84:F700 (word) */
 #define DEMO_INPUT_FRAMES 0x00033Eu   /* frames left on its current pad entry */
 #define DEMO_NUMBER 0x00033Fu         /* the demo being played */
