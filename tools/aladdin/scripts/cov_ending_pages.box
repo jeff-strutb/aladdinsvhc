@@ -1,0 +1,19 @@
+# The ending's text ($82:B0AD) on its last pages: the ending runs as
+# cov_ending.box runs it until the text has started (frame 10500), then
+# its page number ($00EE) is set to 11 so that pages 12 and 13 come
+# within the script: page 12's extra ($82:B1E0) and, after page 13, the
+# long waits and the text masked for good ($82:B164, $82:B17F). Play
+# reaches them only some 19000 frames in.
+load build/aladdin/states/stage_a0_s0.state
+wait 10500
+poke $0000EE 0B
+wait 3200
+# TextPageExtra ($82:B1CE) as a unit call with $00F4 0, which the text
+# never leaves it at (it sets 14): page 6 (its extra, $82:B1D9 on to
+# $82:B1F8), then page 5 (none).
+set 0000F4 00
+set 0000EE 06
+call 82B1CE d=0 db=82 p=30
+set 0000F4 00
+set 0000EE 05
+call 82B1CE d=0 db=82 p=30

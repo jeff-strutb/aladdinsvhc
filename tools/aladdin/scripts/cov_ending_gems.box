@@ -1,0 +1,9 @@
+# The ending with 50 or more of the counted items ($0376, the total the
+# stage ends add $0375 to): its stage task ($82:B29C) takes the other
+# branch ($82:B2DC on, and $82:B34A after its task starts). The state
+# that reaches the ending (stage_a0_s0) was built with none, so the
+# total is poked as the ending starts, then the ending runs as
+# cov_ending.box runs it until that task has run.
+load build/aladdin/states/stage_a0_s0.state
+poke $000376 32
+wait 10500

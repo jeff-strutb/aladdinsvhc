@@ -1,0 +1,8 @@
+# The title's wait for its demo ($80:9E8F, the screen 512 idle frames
+# after the title) left with START: the demo is skipped ($80:9EC8). Every
+# other script either starts a game from the title at once or leaves the
+# demo to play out.
+load build/aladdin/states/title.state
+wait 1900
+press START
+wait 120

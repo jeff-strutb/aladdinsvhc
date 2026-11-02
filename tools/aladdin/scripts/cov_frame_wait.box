@@ -1,0 +1,8 @@
+# The play loop's wait between frames ($81:82DE) with $03FB nonzero: the
+# loop waits $03FB frames instead of one ($81:82E5). Nothing in the retail
+# game writes $03FB (a development setting), so it is poked, in the first
+# level, for 60 frames.
+load build/aladdin/states/level1.state
+wait 10
+poke $0003FB 02
+wait 60
