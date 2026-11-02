@@ -367,3 +367,4 @@ anim:
     ldx8_v(0x10);
     jump_routine(ACTOR_END_OUT_OF_RANGE);
 }
+
