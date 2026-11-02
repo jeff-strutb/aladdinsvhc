@@ -15,6 +15,8 @@
 #define FIELD_SCROLL_Y (LAYER0 + LAYER_SCROLL_Y)
 /* In bank $80: the least and most x pixel from the screen's left edge */
 #define SCREEN_X_LIMITS 0xC9B9u
+/* In bank $80: the least and most y pixel from the screen's top */
+#define SCREEN_Y_LIMITS 0xC9C9u
 /* The player's y pixels (word), and its top byte */
 #define PLAYER_Y_PIXELS (PLAYER + ACTOR_Y + 1)
 #define V_0347 0x000347u
@@ -108,5 +110,36 @@ L_81E9A8:
 L_81E9AA:
     op_sep(0x20);  /* 81E9AA sep */
     return;  /* 81E9AC rts */
+}
+
+/*
+ * @routine 81:E9AD PlayerKeepOnScreen
+ * WHAT IT DOES: Keeps the actor on screen: x between 16 and 240 pixels
+ * from the play field's left edge, y between 24 and 216 from its top.
+ * HOW: PlayerKeepOnScreenX; then the play field's scroll Y plus each y
+ * limit (from the table) compared with its y pixels, unsigned; past one,
+ * its y set to it.
+ * Entry: M 8-bit; D = the actor's record; DB = $80; called by JSR. Exit: M
+ * 8-bit; A = the last limit computed; C from its comparison.
+ */
+void abi_PlayerKeepOnScreen(void)
+{
+    abi_PlayerKeepOnScreenX();  /* 81E9AD jsr */
+    op_rep(0x20);  /* 81E9B0 rep */
+    clc();  /* 81E9B2 clc */
+    lda16(ea_abs(0x1777));  /* 81E9B3 lda */
+    adc16_v(rd16(ea_abs(0xC9C9)));  /* 81E9B6 adc */
+    cmp16_v(rd16(ea_dp(0x0F)));  /* 81E9B9 cmp */
+    if (IF_C) goto L_81E9C8;  /* 81E9BB bcs */
+    clc();  /* 81E9BD clc */
+    lda16(ea_abs(0x1777));  /* 81E9BE lda */
+    adc16_v(rd16(ea_abs(0xC9CB)));  /* 81E9C1 adc */
+    cmp16_v(rd16(ea_dp(0x0F)));  /* 81E9C4 cmp */
+    if (IF_C) goto L_81E9CA;  /* 81E9C6 bcs */
+L_81E9C8:
+    sta16(ea_dp(0x0F));  /* 81E9C8 sta */
+L_81E9CA:
+    op_sep(0x20);  /* 81E9CA sep */
+    return;  /* 81E9CC rts */
 }
 

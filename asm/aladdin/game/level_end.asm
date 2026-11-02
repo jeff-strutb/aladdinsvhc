@@ -18,6 +18,33 @@ arch 65816
 !END_STEP_VRAM = $FDC5
 !END_LEVEL_PICTURES = $FDD5
 !END_PICTURE_TILE = $FDF1
+; In the data bank: the VRAM word addresses of the 16 blocks blanked (words).
+!END_BLANK_BLOCKS = $FE02
+
+; @routine 81:F958 LevelEndBlanks
+; WHAT IT DOES: Queues 16 blank 2x2-tile blocks for VRAM, at the addresses
+; of a table, and has the NMI send them.
+; HOW: From the queue's length, TileBlockBlank for each word of the table
+; at $FE02 (the last first); the new length kept, then the queue marked
+; ready (TILE_BLOCKS_PENDING counted up).
+; Entry: DB = $81 (the table's bank); called by JSR from the level-end
+; screen's set-up (81:F6B7). Exit: M 8-bit, X 8-bit; Y = $FE; A low = the
+; last address's low byte.
+%at($81F958)
+LevelEndBlanks:
+    rep.b #$30
+    ldx.w !tile_blocks_length
+    ldy.w #$001E
+.lF960:
+    lda.w !END_BLANK_BLOCKS,y
+    jsr.w TileBlockBlank
+    dey
+    dey
+    bpl .lF960
+    stx.w !tile_blocks_length
+    sep.b #$30
+    inc.w !tile_blocks_pending
+    rts
 
 ; @routine 81:F973 TileBlockBlank
 ; WHAT IT DOES: Writes a blank 2x2-tile block record at X in the tile-
@@ -40,7 +67,6 @@ TileBlockBlank:
     adc.w #$000A
     tax
     rts
-
 
 ; @routine 81:F98C LevelEndColumnTile
 ; WHAT IT DOES: Gives the tilemap word of the picture piece column $000C
@@ -73,7 +99,6 @@ LevelEndColumnTile:
     asl a
     ora.w !scratch+4
     rts
-
 
 ; @routine 81:F9B4 LevelEndColumnPlace
 ; WHAT IT DOES: Gives the VRAM address of column X's piece at step Y of

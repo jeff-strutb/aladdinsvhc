@@ -384,3 +384,110 @@ L_81E6CA:
     return;  /* 81E6CC rts */
 }
 
+/*
+ * @routine 81:E5DB CarpetSteerYAlt
+ * WHAT IT DOES: Pushes the other ride's vertical speed by its rate for the
+ * steering direction.
+ * HOW: No direction (negative): nothing. Else the up-down rate from the
+ * other ride's table; a rate of 0: CarpetSteadyY, then the same rate read
+ * again; then on in CarpetSteerY: added to the 24-bit speed, or taken away
+ * when bit 7 is set.
+ * Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+ * DB = $80; called by JSR from the ride's loop (81:E49C). Exit: as
+ * CarpetSteerY.
+ */
+void abi_CarpetSteerYAlt(void)
+{
+    lda8(ea_dp(0x14));  /* 81E5DB lda */
+    if (IF_N) goto L_81E62E;  /* 81E5DD bmi */
+    ACC8(asl);  /* 81E5DF asl */
+    tax8();  /* 81E5E0 tax */
+    lda8(ea_absx(0xC7CC));  /* 81E5E1 lda */
+    if (!IF_Z) goto L_81E5EC;  /* 81E5E4 bne */
+    abi_CarpetSteadyY();  /* 81E5E6 jsr */
+    lda8(ea_absx(0xC7CC));  /* 81E5E9 lda */
+L_81E5EC:
+    if (IF_N) goto L_81E615;  /* 81E5EC bmi */
+    goto L_81E603;  /* 81E5EE bra */
+L_81E603:
+    clc();  /* 81E603 clc */
+    adc8_v(rd8(ea_dp(0x1D)));  /* 81E604 adc */
+    sta8(ea_dp(0x1D));  /* 81E606 sta */
+    lda8(ea_dp(0x1E));  /* 81E608 lda */
+    adc8_v(0x00);  /* 81E60A adc */
+    sta8(ea_dp(0x1E));  /* 81E60C sta */
+    lda8(ea_dp(0x1F));  /* 81E60E lda */
+    adc8_v(0x00);  /* 81E610 adc */
+    sta8(ea_dp(0x1F));  /* 81E612 sta */
+    return;  /* 81E614 rts */
+L_81E615:
+    and8_v(0x7F);  /* 81E615 and */
+    sta8(ea_abs(0x002C));  /* 81E617 sta */
+    lda8(ea_dp(0x1D));  /* 81E61A lda */
+    sec();  /* 81E61C sec */
+    sbc8_v(rd8(ea_abs(0x002C)));  /* 81E61D sbc */
+    sta8(ea_dp(0x1D));  /* 81E620 sta */
+    lda8(ea_dp(0x1E));  /* 81E622 lda */
+    sbc8_v(0x00);  /* 81E624 sbc */
+    sta8(ea_dp(0x1E));  /* 81E626 sta */
+    lda8(ea_dp(0x1F));  /* 81E628 lda */
+    sbc8_v(0x00);  /* 81E62A sbc */
+    sta8(ea_dp(0x1F));  /* 81E62C sta */
+L_81E62E:
+    return;  /* 81E62E rts */
+}
+
+
+/*
+ * @routine 81:E5F0 CarpetSteerY
+ * WHAT IT DOES: Pushes the ride's vertical speed by its rate for the
+ * steering direction.
+ * HOW: No direction (negative): nothing. Else the up-down rate from the
+ * table; a rate of 0: CarpetSteadyY, then the same rate read again. Bit 7
+ * clear, added to the 24-bit speed; set, its low 7 bits (kept at $002C)
+ * taken away. A byte at a time.
+ * Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+ * DB = $80; called by JSR from the ride's loop (81:E49C). Exit: M 8-bit, X
+ * 8-bit; X = the direction times 2; A low = the speed's top byte; flags
+ * from the last add or subtract. No direction: A low = the direction, N
+ * set.
+ */
+void abi_CarpetSteerY(void)
+{
+    lda8(ea_dp(0x14));  /* 81E5F0 lda */
+    if (IF_N) goto L_81E62E;  /* 81E5F2 bmi */
+    ACC8(asl);  /* 81E5F4 asl */
+    tax8();  /* 81E5F5 tax */
+    lda8(ea_absx(0xC7B6));  /* 81E5F6 lda */
+    if (!IF_Z) goto L_81E601;  /* 81E5F9 bne */
+    abi_CarpetSteadyY();  /* 81E5FB jsr */
+    lda8(ea_absx(0xC7B6));  /* 81E5FE lda */
+L_81E601:
+    if (IF_N) goto L_81E615;  /* 81E601 bmi */
+    clc();  /* 81E603 clc */
+    adc8_v(rd8(ea_dp(0x1D)));  /* 81E604 adc */
+    sta8(ea_dp(0x1D));  /* 81E606 sta */
+    lda8(ea_dp(0x1E));  /* 81E608 lda */
+    adc8_v(0x00);  /* 81E60A adc */
+    sta8(ea_dp(0x1E));  /* 81E60C sta */
+    lda8(ea_dp(0x1F));  /* 81E60E lda */
+    adc8_v(0x00);  /* 81E610 adc */
+    sta8(ea_dp(0x1F));  /* 81E612 sta */
+    return;  /* 81E614 rts */
+L_81E615:
+    and8_v(0x7F);  /* 81E615 and */
+    sta8(ea_abs(0x002C));  /* 81E617 sta */
+    lda8(ea_dp(0x1D));  /* 81E61A lda */
+    sec();  /* 81E61C sec */
+    sbc8_v(rd8(ea_abs(0x002C)));  /* 81E61D sbc */
+    sta8(ea_dp(0x1D));  /* 81E620 sta */
+    lda8(ea_dp(0x1E));  /* 81E622 lda */
+    sbc8_v(0x00);  /* 81E624 sbc */
+    sta8(ea_dp(0x1E));  /* 81E626 sta */
+    lda8(ea_dp(0x1F));  /* 81E628 lda */
+    sbc8_v(0x00);  /* 81E62A sbc */
+    sta8(ea_dp(0x1F));  /* 81E62C sta */
+L_81E62E:
+    return;  /* 81E62E rts */
+}
+

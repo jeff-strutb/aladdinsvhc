@@ -13,6 +13,8 @@ arch 65816
 
 ; In bank $80: the least and most x pixel from the screen's left edge.
 !SCREEN_X_LIMITS = $C9B9
+; In bank $80: the least and most y pixel from the screen's top.
+!SCREEN_Y_LIMITS = $C9C9
 !v_0347 = $0347
 
 ; @routine 81:E8EC PlayerFallenTest
@@ -43,7 +45,6 @@ PlayerFallenTest:
 .lE908:
     rts
 
-
 ; @routine 81:E95C PlayerHurtCountdown
 ; WHAT IT DOES: Counts down the time the player cannot be hurt; when it
 ; runs out, the player can be hit again.
@@ -70,7 +71,6 @@ PlayerHurtCountdown:
 .lE97C:
     rts
 
-
 ; @routine 81:E990 PlayerKeepOnScreenX
 ; WHAT IT DOES: Keeps the actor's x on screen: between 16 and 240 pixels
 ; from the play field's left edge.
@@ -94,5 +94,33 @@ PlayerKeepOnScreenX:
 .lE9A8:
     sta.b !actor_x+1
 .lE9AA:
+    sep.b #$20
+    rts
+
+; @routine 81:E9AD PlayerKeepOnScreen
+; WHAT IT DOES: Keeps the actor on screen: x between 16 and 240 pixels
+; from the play field's left edge, y between 24 and 216 from its top.
+; HOW: PlayerKeepOnScreenX; then the play field's scroll Y plus each y
+; limit (from the table) compared with its y pixels, unsigned; past one,
+; its y set to it.
+; Entry: M 8-bit; D = the actor's record; DB = $80; called by JSR. Exit: M
+; 8-bit; A = the last limit computed; C from its comparison.
+%at($81E9AD)
+PlayerKeepOnScreen:
+    jsr.w PlayerKeepOnScreenX
+    rep.b #$20
+    clc
+    lda.w !layer0+!LAYER_SCROLL_Y
+    adc.w !SCREEN_Y_LIMITS
+    cmp.b !actor_y+1
+    bcs .lE9C8
+    clc
+    lda.w !layer0+!LAYER_SCROLL_Y
+    adc.w !SCREEN_Y_LIMITS+2
+    cmp.b !actor_y+1
+    bcs .lE9CA
+.lE9C8:
+    sta.b !actor_y+1
+.lE9CA:
     sep.b #$20
     rts
