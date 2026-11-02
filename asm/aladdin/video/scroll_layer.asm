@@ -264,6 +264,15 @@ EdgePlaceAt:
     ply
     jmp.w EdgeMapPlace
 
+; @routine 81:C173 TilemapWordLong
+; WHAT IT DOES: TilemapWord, for callers in other banks.
+; HOW: Calls it and returns long.
+; Entry: as TilemapWord; called by JSL. Exit: as TilemapWord.
+%at($81C173)
+TilemapWordLong:
+    jsr.w TilemapWord
+    rtl
+
 ; @routine 81:C177 TilemapWord
 ; WHAT IT DOES: Gives the tilemap word, in a layer's 64 by 32 tilemap,
 ; of the tile at a pixel position.

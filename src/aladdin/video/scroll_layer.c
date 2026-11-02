@@ -601,6 +601,17 @@ void abi_TilemapWord(void)
 }
 
 /*
+ * @routine 81:C173 TilemapWordLong
+ * WHAT IT DOES: TilemapWord, for callers in other banks.
+ * HOW: Calls it and returns long.
+ * Entry: as TilemapWord; called by JSL. Exit: as TilemapWord.
+ */
+void abi_TilemapWordLong(void)
+{
+    abi_TilemapWord();
+}
+
+/*
  * @routine 81:C1A2 EdgeMapPlace
  * WHAT IT DOES: Puts a layer's edge at a pixel position in the level's
  * map: its block, its metatile in the block and its tile in the metatile.
