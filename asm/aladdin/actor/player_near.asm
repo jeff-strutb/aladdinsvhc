@@ -1,101 +1,123 @@
-; player_near.asm: where an actor is against the player.
-;
-; The actor is the record the direct page is; the player's is !player.
-; Coordinates are the positions' whole pixels.
+; player_near.asm: tests of where Aladdin stands against an actor: just
+; in front of it, and close enough to take hold of it.
 ; C: src/aladdin/actor/player_near.c.
 
 incsrc "../include/macros.inc"
 incsrc "../include/actor.inc"
-incsrc "../include/wram.inc"
 
 arch 65816
 
-; Boxes round an actor: a half-width (and a half-height) per entry.
-!near_box_table = $81BC43       ; half-width, half-height: 4 bytes an entry
-!near_span_table = $81BC7B      ; half-width: 2 bytes an entry
+!PLAYER_X_PIXELS = !player+!actor_x+1
+!PLAYER_Y_PIXELS = !player+!actor_y+1
+!PLAYER_FLIP = !player+!actor_flip
+!PLAYER_SPEED_Y_WHOLE = !player+!actor_speed_y+1 ; negative: he is going up (word)
+!V_1427 = $1427                 ; nonzero: he can take hold whatever his state
+!PLAYER_STATE_8C_COUNT = $141B  ; counted up on entering state $8C
+!V_1448 = $1448                 ; 7 to $0F: no taking hold
+!V_141C = $141C                 ; zero: no taking hold
 
-; @routine 81:AB85 ActorSideOfPlayer
-; WHAT IT DOES: Says which way the actor must face to look at the player.
-; HOW: 0 (right) when the player's x is at or right of the actor's, else
-; 1 (left).
+; @routine 83:882E ActorGrabbableByPlayer
+; WHAT IT DOES: Tells whether Aladdin can take hold of the actor: he is
+; close in front of it and either $1427 is set, or no state $8C is
+; counted, $1448 is not 7 to $0F, $141C is nonzero and he is not rising
+; faster than 2 pixels a frame.
+; HOW: PlayerFacesActorClose; then the tests in that order, C clear for
+; yes (CLC) and set for no (SEP #$21).
 ; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
-; work RAM. Exit: A low byte and X = the facing; A high byte = the
-; player's x high byte; N clear, Z from the facing; C from the compare;
-; Y, V unchanged.
-%at($81AB85)
-ActorSideOfPlayer:
+; work RAM; called by JSR. Exit: M 8-bit; C clear for yes; A, X and the
+; other flags from the last test.
+%at($83882E)
+ActorGrabbableByPlayer:
+    jsl.l PlayerFacesActorClose
+    bcs .no
+    lda.w !V_1427
+    bne .yes
+    lda.w !PLAYER_STATE_8C_COUNT
+    bne .no
+    ldx.w !V_1448
+    cpx.b #$07
+    bcc .state
+    cpx.b #$10
+    bcc .no
+.state:
+    lda.w !V_141C
+    beq .no
     rep.b #$20
-    ldx.b #0
-    sec
-    lda.w !player+!actor_x+1
-    cmp.b !actor_x+1
-    bcs .right
-    inx
-.right:
+    lda.w !PLAYER_SPEED_Y_WHOLE
+    bpl .yes
+    cmp.w #$FFFE
+    bcc .no
+.yes:
+    clc
     sep.b #$20
-    txa
+    rts
+.no:
+    sep.b #$21
+    rts
+
+; @routine 83:8861 ActorGrabbableByPlayerLong
+; WHAT IT DOES: ActorGrabbableByPlayer for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorGrabbableByPlayer; called by JSL. Exit: as
+; ActorGrabbableByPlayer.
+ActorGrabbableByPlayerLong:
+    jsr.w ActorGrabbableByPlayer
     rtl
 
-; @routine 81:ACDE ActorNearPlayer
-; WHAT IT DOES: Says whether the player is inside a box round the actor:
-; within a half-width across and a half-height up or down.
-; HOW: Takes box Y's half-width and half-height and keeps them and their
-; doubles in scratch; x - player's x + half-width is below the width
-; (unsigned) when within it across; the same for y, tested only when x
-; passes.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the box's byte
-; offset. Exit: C clear when inside; A = the last sum (16 bits); N, Z, C
-; from its compare; scratch $0C-$13 = half-width, width, half-height,
-; height; M 8-bit; X, Y, V unchanged.
-%at($81ACDE)
-ActorNearPlayer:
-    rep.b #$20
-    lda.w !near_box_table,y
-    sta.w !scratch
-    asl a
-    sta.w !scratch+2
-    lda.w !near_box_table+2,y
-    sta.w !scratch+4
-    asl a
-    sta.w !scratch+6
+; @routine 83:8865 PlayerFacesActorNear
+; WHAT IT DOES: Tells whether Aladdin stands just in front of the actor:
+; his x plus 18 (8 when he faces left) less the actor's below 26, and his
+; y plus 2 less the actor's below 31, unsigned.
+; HOW: Two subtractions and unsigned compares on the pixel words.
+; Entry: D = the actor; DB a bank whose $0000-$1FFF is work RAM; called by
+; JSL. Exit: C clear when he does; A = the last difference (16 bits); N,
+; Z from the compare that decided, V from the last subtraction; M 8-bit;
+; X = his flip byte (low byte, X 8-bit), Y unchanged.
+%at($838865)
+PlayerFacesActorNear:
+    rep.b #$21
+    lda.w #$0012
+    ldx.w !PLAYER_FLIP
+    beq .facing
+    lda.w #$0008
+.facing:
+    adc.w !PLAYER_X_PIXELS
     sec
-    lda.b !actor_x+1
-    sbc.w !player+!actor_x+1
-    clc
-    adc.w !scratch
-    cmp.w !scratch+2
+    sbc.b !actor_x+1
+    cmp.w #$001A
     bcs .out
+    lda.w !PLAYER_Y_PIXELS
+    adc.w #$0002
     sec
-    lda.b !actor_y+1
-    sbc.w !player+!actor_y+1
-    clc
-    adc.w !scratch+4
-    cmp.w !scratch+6
+    sbc.b !actor_y+1
+    cmp.w #$001F
 .out:
     sep.b #$20
     rtl
 
-; @routine 81:AD68 ActorNearPlayerX
-; WHAT IT DOES: Says whether the player is within a half-width of the
-; actor across, whatever the height.
-; HOW: Takes span Y's half-width and keeps it and its double in scratch;
-; x - player's x + half-width is below the width (unsigned) when within.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the span's byte
-; offset. Exit: C clear when within; A = the sum (16 bits); N, Z, C from
-; its compare; scratch $0C-$0F = half-width, width; M 8-bit; X, Y, V
-; unchanged.
-%at($81AD68)
-ActorNearPlayerX:
-    rep.b #$20
-    lda.w !near_span_table,y
-    sta.w !scratch
-    asl a
-    sta.w !scratch+2
+; @routine 83:888C PlayerFacesActorClose
+; WHAT IT DOES: Tells whether Aladdin is close in front of the actor: his
+; x plus 22 (8 when he faces left) less the actor's below 30, and his y
+; plus 3 less the actor's below 26, unsigned.
+; HOW: As PlayerFacesActorNear, with the other offsets and sizes.
+; Entry: as PlayerFacesActorNear. Exit: as PlayerFacesActorNear.
+PlayerFacesActorClose:
+    rep.b #$21
+    lda.w #$0016
+    ldx.w !PLAYER_FLIP
+    beq .facing
+    lda.w #$0008
+.facing:
+    adc.w !PLAYER_X_PIXELS
     sec
-    lda.b !actor_x+1
-    sbc.w !player+!actor_x+1
-    clc
-    adc.w !scratch
-    cmp.w !scratch+2
+    sbc.b !actor_x+1
+    cmp.w #$001E
+    bcs .out
+    lda.w !PLAYER_Y_PIXELS
+    adc.w #$0003
+    sec
+    sbc.b !actor_y+1
+    cmp.w #$001A
+.out:
     sep.b #$20
     rtl
