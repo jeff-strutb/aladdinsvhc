@@ -1,0 +1,22 @@
+# The wait routine at $83:AEEC of an actor (its $06 = $31; record $0C4B
+# here) with its $42 set, in a level below 7: it turns round at x $0F00
+# and beyond ($83:AEF7). It appears only in later levels. Played as
+# cov_dungeon_switches.box's first part until the actor is there; then
+# unit calls with the level set to 0: at its own x, and with it and the
+# point actors are kept in range of ($1A44) moved to x $0F80.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 100
+hold RIGHT 20
+hold B 40
+set $00035E 00
+set $000C8D 01
+call 83AEEC d=0C4B db=80 p=30
+set $00035E 00
+set $000C8D 01
+set $000C57 80,0F
+set $001A44 80,0F
+call 83AEEC d=0C4B db=80 p=30

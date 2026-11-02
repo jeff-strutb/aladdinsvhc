@@ -18,7 +18,7 @@ arch 65816
 ; TileAtProbeLong, the kind ($0012) compared with 2. Its y negative: its
 ; return address dropped (PLA PLA, 8-bit), then into ActorEndOutOfRange
 ; after its pulls: ActorFreePlaced and the actor loop.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
 ; from the actor's code at its own level (83:C85A). Exit: M 16-bit (as
 ; TileAtProbeLong left it); A low = the kind; Z set when it is 2, C from
 ; the comparison. Above the top: does not return.

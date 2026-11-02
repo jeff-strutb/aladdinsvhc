@@ -18,7 +18,7 @@ arch 65816
 ; HOW: The top entry of the free list compared with the one under it
 ; (16-bit); not below, the two swapped. Then the child start at 83:C4EC
 ; twice, X = $1C, Y = 5 and X = $1E, Y = 4.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
 ; through the actor's table at 83:C324. Exit: M 8-bit, X 8-bit; as the
 ; child start left it.
 %at($83C33A)

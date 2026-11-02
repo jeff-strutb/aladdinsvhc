@@ -24,7 +24,7 @@ arch 65816
 ; the kind's offset from the table at its $47. TileChangeAdd at ($42, $44)
 ; with the first tile; the second nonzero: TileChangeAdd at ($42, $44 +
 ; 16).
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
 ; JSR. Exit: M 8-bit, X 8-bit; as TileChangeAdd, or A low = 0 and Z set
 ; when there is no second tile.
 %at($83E7F0)

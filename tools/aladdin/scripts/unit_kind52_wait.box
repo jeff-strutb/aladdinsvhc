@@ -1,0 +1,34 @@
+# The wait routine of actor kind $52 ($83:D518), which the third level
+# end of cov_level_ends.box starts (record $0BAB) and runs once: with its
+# $48 set it tests a shot ($83:D520); on animation frames 0-3 and 10 it
+# tests its zone against the test box and hurts the player
+# ($83:D534). Played as cov_level_ends.box until the actor is started;
+# then unit calls with its $48 set, on frame 0, and on frame 10 with the
+# test box on it, the point actors are kept in range of ($1A44) on it.
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+wait 70
+set $000BF3 01
+set $001A44 70,0C,A4,03
+call 83D518 d=0BAB db=80 p=30
+set $000BD2 00
+set $001A44 70,0C,A4,03
+call 83D518 d=0BAB db=80 p=30
+set $000BD2 0A
+set $001A44 70,0C,A4,03
+set $001484 70,0C,A4,03
+call 83D518 d=0BAB db=80 p=30

@@ -1,0 +1,9 @@
+# The step at $83:FB57 (from $83:C245): with its $44 positive and $1427
+# clear it sets $44 to $F0 ($83:FB62). No script's play leaves $1427
+# clear there. A unit call on pw5.state with a record's $44 = 1 and
+# $1427 = 0.
+load build/aladdin/states/pw5.state
+wait 2
+set $000B9F 01
+set $001427 00
+call 83FB57 d=0B5B db=80 p=30

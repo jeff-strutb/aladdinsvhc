@@ -1,0 +1,8 @@
+# The course platform's wait routine ($83:CAD1) with its $42 set: it
+# clears it and flips its direction's low bit ($83:CAE0). No script's play
+# sets a platform's $42. A unit call on stage_a1_s1.state on the platform
+# at $12DB with its $42 set.
+load build/aladdin/states/stage_a1_s1.state
+wait 2
+set $00131D 01
+call 83CAD1 d=12DB db=80 p=30
