@@ -70,7 +70,7 @@ Kind8FWalk:
     dec.b !actor_40
     bne .lFA8A
     lda.b !actor_facing
-    bne .lFAB7
+    bne Kind8FWalkEnd
     lda.b #$80
     sta.b !actor_y+1
     lda.b #$01
@@ -78,6 +78,11 @@ Kind8FWalk:
     sta.b !actor_flip
     bra .lFA86
 
+
+; Kind8FWalk's end, after its second crossing (after KindAnimateSendFAAE).
+%at($83FAB7)
+Kind8FWalkEnd:
+    jml.l ActorEndPlaced
 
 ; @routine 83:FABB Kind94Spark
 ; @actor
