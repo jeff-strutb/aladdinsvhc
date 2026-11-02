@@ -4,6 +4,7 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_TileChangeAdd(void);
 void abi_TileChangesApply(void);
 void abi_TilemapWordLong(void);
 void abi_TileChangeQueueQuarter(void);
@@ -218,4 +219,34 @@ L_819A4A:
 L_819A62:
     pld();  /* 819A62 pld */
     return;  /* 819A63 rtl */
+}
+
+/*
+ * @routine 81:9978 TileChangeAdd
+ * WHAT IT DOES: Queues a change of the map tile at a point to a new tile,
+ * for TileChangesApply to make.
+ * HOW: The record at the queue's end ($071B) gets the point's x and y, each
+ * with 8 added, and the new tile; the end moves on 8 bytes and the count
+ * ($0719) steps up.
+ * Entry: M 16-bit, X 16-bit; A = the new tile; X = the point's x; Y = its
+ * y; DB = $00-$3F or $80-$BF; called by JSL. Exit: X = the record's
+ * offset; A = it plus 8; Y unchanged.
+ */
+void abi_TileChangeAdd(void)
+{
+    phx16();  /* 819978 phx */
+    ldx16(ea_abs(0x071B));  /* 819979 ldx */
+    sta16(ea_absx(0x0721));  /* 81997C sta */
+    tya16();  /* 81997F tya */
+    ora16_v(0x0008);  /* 819980 ora */
+    sta16(ea_absx(0x071F));  /* 819983 sta */
+    pla16();  /* 819986 pla */
+    ora16_v(0x0008);  /* 819987 ora */
+    sta16(ea_absx(0x071D));  /* 81998A sta */
+    clc();  /* 81998D clc */
+    txa16();  /* 81998E txa */
+    adc16_v(0x0008);  /* 81998F adc */
+    sta16(ea_abs(0x071B));  /* 819992 sta */
+    MEM16(inc, ea_abs(0x0719));  /* 819995 inc */
+    return;  /* 819998 rtl */
 }

@@ -99,7 +99,7 @@ MapTileAddress:
     rts
 
 !tile_changes_count = $0719      ; changes queued (word)
-!tile_changes_071b = $071B       ; cleared with the queue (word)
+!tile_changes_end = $071B       ; byte offset past the last change queued (word)
 !tile_changes = $071D            ; per change, 8 bytes: x, y, new tile (words)
 ; Direct page (D = 0) for the view box.
 !view_w = $1C                    ; the box's width (word)
@@ -229,11 +229,38 @@ TileChangesApply:
     tay
     dec.w !tile_changes_count
     bne .l99E6
-    stz.w !tile_changes_071b
+    stz.w !tile_changes_end
     sep.b #$30
     lda.w !tile_writes_count
     beq .l9A62
     inc.w !tile_writes_pending
 .l9A62:
     pld
+    rtl
+
+; @routine 81:9978 TileChangeAdd
+; WHAT IT DOES: Queues a change of the map tile at a point to a new tile,
+; for TileChangesApply to make.
+; HOW: The record at the queue's end ($071B) gets the point's x and y, each
+; with 8 added, and the new tile; the end moves on 8 bytes and the count
+; ($0719) steps up.
+; Entry: M 16-bit, X 16-bit; A = the new tile; X = the point's x; Y = its
+; y; DB = $00-$3F or $80-$BF; called by JSL. Exit: X = the record's
+; offset; A = it plus 8; Y unchanged.
+%at($819978)
+TileChangeAdd:
+    phx
+    ldx.w !tile_changes_end
+    sta.w !tile_changes+4,x
+    tya
+    ora.w #$0008
+    sta.w !tile_changes+2,x
+    pla
+    ora.w #$0008
+    sta.w !tile_changes,x
+    clc
+    txa
+    adc.w #$0008
+    sta.w !tile_changes_end
+    inc.w !tile_changes_count
     rtl
