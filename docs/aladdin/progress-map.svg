@@ -13,18 +13,18 @@
 <rect x="102.0" y="397.2" width="80.3" height="66.4" fill="#3fb950"><title>ActorSpawnCopy  83D7D4  244B  T4  [actor]</title></rect>
 <rect x="182.9" y="15.5" width="79.9" height="66.1" fill="#3fb950"><title>BackdropActorShow  83F244  242B  T4  [actor]</title></rect>
 <rect x="263.4" y="15.5" width="75.9" height="66.1" fill="#3fb950"><title>ActorTouchesSecondPool  838578  230B  T4  [actor]</title></rect>
-<rect x="339.9" y="15.5" width="65.6" height="66.1" fill="#d29922"><title>ActorWaitHurtOnTouch  83D8CE  199B  T2  [actor]</title></rect>
-<rect x="406.1" y="15.5" width="55.6" height="66.1" fill="#d29922"><title>ActorWaitAnimRange18  83F487  169B  T2  [actor]</title></rect>
+<rect x="339.9" y="15.5" width="65.6" height="66.1" fill="#3fb950"><title>ActorWaitHurtOnTouch  83D8CE  199B  T4  [actor]</title></rect>
+<rect x="406.1" y="15.5" width="55.6" height="66.1" fill="#3fb950"><title>ActorWaitAnimRange18  83F487  169B  T4  [actor]</title></rect>
 <rect x="462.3" y="15.5" width="53.3" height="66.1" fill="#3fb950"><title>PlacementsScroll  82A79C  162B  T4  [actor]</title></rect>
 <rect x="516.2" y="15.5" width="47.3" height="66.1" fill="#d29922"><title>ActorWaitWake  83D2A2  144B  T2  [actor]</title></rect>
 <rect x="182.9" y="82.2" width="58.7" height="50.3" fill="#3fb950"><title>KindAnimate9533  849533  136B  T4  [actor]</title></rect>
 <rect x="242.1" y="82.2" width="55.2" height="50.3" fill="#d29922"><title>ActorWaitTest42Anim2  83D0EF  128B  T2  [actor]</title></rect>
-<rect x="297.9" y="82.2" width="54.3" height="50.3" fill="#d29922"><title>ActorWaitAnimRange10  83E458  126B  T2  [actor]</title></rect>
+<rect x="297.9" y="82.2" width="54.3" height="50.3" fill="#3fb950"><title>ActorWaitAnimRange10  83E458  126B  T4  [actor]</title></rect>
 <rect x="352.8" y="82.2" width="53.4" height="50.3" fill="#d29922"><title>ActorSpawnKind11AtPlayer  8384F4  124B  T2  [actor]</title></rect>
 <rect x="406.8" y="82.2" width="53.0" height="50.3" fill="#d29922"><title>ActorWaitTest42Anim  83CF8C  123B  T2  [actor]</title></rect>
 <rect x="460.4" y="82.2" width="53.0" height="50.3" fill="#3fb950"><title>ActorKind70Wait  83F36B  123B  T4  [actor]</title></rect>
 <rect x="514.0" y="82.2" width="49.5" height="50.3" fill="#3fb950"><title>ActorSeesPlayer  839A46  115B  T4  [actor]</title></rect>
-<rect x="182.9" y="133.1" width="49.4" height="50.0" fill="#d29922"><title>ActorWaitRange00  83E5B6  114B  T2  [actor]</title></rect>
+<rect x="182.9" y="133.1" width="49.4" height="50.0" fill="#3fb950"><title>ActorWaitRange00  83E5B6  114B  T4  [actor]</title></rect>
 <rect x="182.9" y="183.7" width="49.4" height="49.1" fill="#3fb950"><title>PlacementsByRow  82A9BB  112B  T4  [actor]</title></rect>
 <rect x="182.9" y="233.4" width="49.4" height="47.8" fill="#3fb950"><title>ActorDirectionToPlayer  81ABEA  109B  T4  [actor]</title></rect>
 <rect x="182.9" y="281.8" width="49.4" height="46.0" fill="#3fb950"><title>PlacementsDown  82A89D  105B  T4  [actor]</title></rect>
@@ -98,7 +98,7 @@
 <rect x="538.2" y="276.4" width="25.3" height="23.4" fill="#d29922"><title>ActorTakesShot  8381E8  28B  T2  [actor]</title></rect>
 <rect x="379.0" y="300.4" width="21.6" height="26.4" fill="#3fb950"><title>ActorSpawnSameLook  81A9CE  27B  T4  [actor]</title></rect>
 <rect x="379.0" y="327.3" width="21.6" height="24.4" fill="#3fb950"><title>ActorBobStep  83C3CB  25B  T4  [actor]</title></rect>
-<rect x="379.0" y="352.3" width="21.6" height="22.4" fill="#d29922"><title>ActorWaitAnimEnd10  83BD0B  23B  T2  [actor]</title></rect>
+<rect x="379.0" y="352.3" width="21.6" height="22.4" fill="#3fb950"><title>ActorWaitAnimEnd10  83BD0B  23B  T4  [actor]</title></rect>
 <rect x="379.0" y="375.3" width="21.6" height="22.4" fill="#3fb950"><title>PlatformDipStep  83CCBA  23B  T4  [actor]</title></rect>
 <rect x="379.0" y="398.3" width="21.6" height="21.4" fill="#3fb950"><title>ActorStateSet8C  838267  22B  T4  [actor]</title></rect>
 <rect x="379.0" y="420.2" width="21.6" height="21.4" fill="#3fb950"><title>ActorFallSpeedCap  83B61A  22B  T4  [actor]</title></rect>
@@ -124,7 +124,7 @@
 <rect x="422.5" y="384.3" width="19.9" height="19.9" fill="#3fb950"><title>BackdropDriftUp  83E666  19B  T4  [actor]</title></rect>
 <rect x="422.5" y="404.8" width="19.9" height="19.9" fill="#3fb950"><title>ActorListFindIdle  848A52  19B  T4  [actor]</title></rect>
 <rect x="422.5" y="425.3" width="19.9" height="18.8" fill="#3fb950"><title>ActorKind7FWait  8392B9  18B  T4  [actor]</title></rect>
-<rect x="422.5" y="444.8" width="19.9" height="18.8" fill="#d29922"><title>ActorEndOutOfRange  8396BE  18B  T2  [actor]</title></rect>
+<rect x="422.5" y="444.8" width="19.9" height="18.8" fill="#3fb950"><title>ActorEndOutOfRange  8396BE  18B  T4  [actor]</title></rect>
 <rect x="443.1" y="322.7" width="20.8" height="18.1" fill="#3fb950"><title>BlockPointInBounds  83E7DE  18B  T4  [actor]</title></rect>
 <rect x="464.4" y="322.7" width="19.6" height="18.1" fill="#3fb950"><title>ActorAlloc  81AB3F  17B  T4  [actor]</title></rect>
 <rect x="484.6" y="322.7" width="19.6" height="18.1" fill="#3fb950"><title>ActorSideOfPlayer  81AB85  17B  T4  [actor]</title></rect>
@@ -775,4 +775,4 @@
 <rect x="1563.1" y="888.8" width="17.4" height="9.1" fill="#d29922"><title>Bits035DExpand  83C2E7  9B  T2  [level]</title></rect>
 <rect x="1584.1" y="869.5" width="13.8" height="13.7" fill="#3fb950"><title>PadConfirmPressed  80A04F  13B  T4  [input]</title></rect>
 <rect x="1584.1" y="886.9" width="13.8" height="11.0" fill="#3fb950"><title>MultiplyBy  81A7E6  11B  T4  [math]</title></rect>
-<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 365 &#183; T3 behaviour-exact 1 &#183; 20,250/62,175 bytes exact (32.6%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
+<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 371 &#183; T3 behaviour-exact 1 &#183; 20,899/62,175 bytes exact (33.6%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
