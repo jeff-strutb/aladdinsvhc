@@ -9,8 +9,12 @@
  * A and the flags end as the last byte's ADC or SBC leaves them.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
 #include "actor.h"
+#include "hw.h"
+#include "wram.h"
+
+void abi_MultiplyBy(void);
 
 /* The direct-page byte `off` (bank 0, wrapping in 16 bits). */
 static uint32_t dp(uint8_t off)
@@ -563,4 +567,251 @@ void abi_ActorSpeedAddVector(void)
     op_sep(P_M);
     add_vector(cpu.x, ACTOR_SPEED_X, ACTOR_SPEED_Y);
     op_sep(P_X);
+}
+
+/*
+ * @routine 81:A411 ActorSpeedXSetAccel
+ * WHAT IT DOES: Sets the actor's horizontal acceleration to A and its
+ * horizontal speed from the speed table.
+ * HOW: Stores A as the acceleration, then goes on into ActorSpeedXSet.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; A low byte = the
+ * acceleration; Y = the entry's offset. Exit: as ActorSpeedXSet.
+ */
+void abi_ActorSpeedXSetAccel(void)
+{
+    sta8(ea_dp(ACTOR_ACCEL_X));  /* 81A411 sta */
+    abi_ActorSpeedXSet();
+}
+
+/*
+ * @routine 81:A627 ActorAccelerateXBack
+ * WHAT IT DOES: Takes the actor's acceleration from its horizontal speed,
+ * with no stop at 0: a brake that can turn into a move backwards.
+ * HOW: Takes the acceleration from the 24-bit horizontal speed.
+ * Entry: M 8-bit; D = the actor; called by JSL. Exit: A low byte = the
+ * speed's high byte; N, V, Z, C from its SBC; X, Y unchanged.
+ */
+void abi_ActorAccelerateXBack(void)
+{
+    sec();  /* 81A627 sec */
+    lda8(ea_dp(ACTOR_SPEED_X));  /* 81A628 lda */
+    sbc8_v(rd8(ea_dp(ACTOR_ACCEL_X)));  /* 81A62A sbc */
+    sta8(ea_dp(ACTOR_SPEED_X));  /* 81A62C sta */
+    lda8(ea_dp(ACTOR_SPEED_X + 1));  /* 81A62E lda */
+    sbc8_v(0x00);  /* 81A630 sbc */
+    sta8(ea_dp(ACTOR_SPEED_X + 1));  /* 81A632 sta */
+    lda8(ea_dp(ACTOR_SPEED_X + 2));  /* 81A634 lda */
+    sbc8_v(0x00);  /* 81A636 sbc */
+    sta8(ea_dp(ACTOR_SPEED_X + 2));  /* 81A638 sta */
+    return;  /* 81A63A rtl */
+}
+
+/*
+ * @routine 81:A657 ActorAccelerateYBack
+ * WHAT IT DOES: The actor's gravity pulls its vertical speed up, with no
+ * stop at 0.
+ * HOW: Takes the gravity from the 24-bit vertical speed.
+ * Entry: M 8-bit; D = the actor; called by JSL. Exit: A low byte = the
+ * speed's high byte; N, V, Z, C from its SBC; X, Y unchanged.
+ */
+void abi_ActorAccelerateYBack(void)
+{
+    sec();  /* 81A657 sec */
+    lda8(ea_dp(ACTOR_SPEED_Y));  /* 81A658 lda */
+    sbc8_v(rd8(ea_dp(ACTOR_ACCEL_Y)));  /* 81A65A sbc */
+    sta8(ea_dp(ACTOR_SPEED_Y));  /* 81A65C sta */
+    lda8(ea_dp(ACTOR_SPEED_Y + 1));  /* 81A65E lda */
+    sbc8_v(0x00);  /* 81A660 sbc */
+    sta8(ea_dp(ACTOR_SPEED_Y + 1));  /* 81A662 sta */
+    lda8(ea_dp(ACTOR_SPEED_Y + 2));  /* 81A664 lda */
+    sbc8_v(0x00);  /* 81A666 sbc */
+    sta8(ea_dp(ACTOR_SPEED_Y + 2));  /* 81A668 sta */
+    return;  /* 81A66A rtl */
+}
+
+/*
+ * @routine 81:A74C ActorMoveByVectorTimes
+ * WHAT IT DOES: Moves the actor by a vector from direction set X times A,
+ * the set's left vector when it faces left.
+ * HOW: The vector (the set's first, a word at $BBB9 + X, plus the facing)
+ * is copied to scratch: x at $0C-$0E, y at $10-$12. With A in WRMPYA,
+ * each part's fraction and pixels (16 bits) are multiplied by A
+ * (MultiplyBy) and kept to 16 bits; the high bytes are kept as they were.
+ * The parts are then added to the 24-bit x and y positions.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank, which also has the CPU's registers at $4200; X = the set's byte
+ * offset; A low byte = the multiplier; called by JSL. Exit: M and X
+ * 8-bit; X = the vector's low byte; Y = the low byte of the last product;
+ * A low byte = the y position's high byte; N, V, Z, C from its ADC;
+ * scratch $0C-$12 the scaled vector.
+ */
+void abi_ActorMoveByVectorTimes(void)
+{
+    pha8();  /* 81A74C pha */
+    op_rep(0x30);  /* 81A74D rep */
+    lda16(ea_dp(ACTOR_FACING));  /* 81A74F lda */
+    clc();  /* 81A751 clc */
+    and16_v(0x00FF);  /* 81A752 and */
+    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A755 adc */
+    tax16();  /* 81A758 tax */
+    op_sep(0x20);  /* 81A759 sep */
+    lda8(ea_longx(VECTOR_X_FRAC));  /* 81A75B lda */
+    sta8(ea_abs(SCRATCH));  /* 81A75F sta */
+    lda8(ea_longx(VECTOR_X_MID));  /* 81A762 lda */
+    sta8(ea_abs(SCRATCH + 1));  /* 81A766 sta */
+    lda8(ea_longx(VECTOR_X_HI));  /* 81A769 lda */
+    sta8(ea_abs(SCRATCH + 2));  /* 81A76D sta */
+    lda8(ea_longx(VECTOR_Y_FRAC));  /* 81A770 lda */
+    sta8(ea_abs(SCRATCH + 4));  /* 81A774 sta */
+    lda8(ea_longx(VECTOR_Y_MID));  /* 81A777 lda */
+    sta8(ea_abs(SCRATCH + 5));  /* 81A77B sta */
+    lda8(ea_longx(VECTOR_Y_HI));  /* 81A77E lda */
+    sta8(ea_abs(SCRATCH + 6));  /* 81A782 sta */
+    pla8();  /* 81A785 pla */
+    sta8(ea_abs(WRMPYA));  /* 81A786 sta */
+    lda8(ea_abs(SCRATCH));  /* 81A789 lda */
+    abi_MultiplyBy();  /* 81A78C jsr */
+    lda8(ea_abs(SCRATCH + 1));  /* 81A78F lda */
+    sty16(ea_abs(SCRATCH));  /* 81A792 sty */
+    abi_MultiplyBy();  /* 81A795 jsr */
+    tya8();  /* 81A798 tya */
+    clc();  /* 81A799 clc */
+    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A79A adc */
+    sta8(ea_abs(SCRATCH + 1));  /* 81A79D sta */
+    lda8(ea_abs(SCRATCH + 4));  /* 81A7A0 lda */
+    abi_MultiplyBy();  /* 81A7A3 jsr */
+    lda8(ea_abs(SCRATCH + 5));  /* 81A7A6 lda */
+    sty16(ea_abs(SCRATCH + 4));  /* 81A7A9 sty */
+    abi_MultiplyBy();  /* 81A7AC jsr */
+    tya8();  /* 81A7AF tya */
+    clc();  /* 81A7B0 clc */
+    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7B1 adc */
+    sta8(ea_abs(SCRATCH + 5));  /* 81A7B4 sta */
+    clc();  /* 81A7B7 clc */
+    lda8(ea_dp(ACTOR_X));  /* 81A7B8 lda */
+    adc8_v(rd8(ea_abs(SCRATCH)));  /* 81A7BA adc */
+    sta8(ea_dp(ACTOR_X));  /* 81A7BD sta */
+    lda8(ea_dp(ACTOR_X + 1));  /* 81A7BF lda */
+    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A7C1 adc */
+    sta8(ea_dp(ACTOR_X + 1));  /* 81A7C4 sta */
+    lda8(ea_dp(ACTOR_X + 2));  /* 81A7C6 lda */
+    adc8_v(rd8(ea_abs(SCRATCH + 2)));  /* 81A7C8 adc */
+    sta8(ea_dp(ACTOR_X + 2));  /* 81A7CB sta */
+    clc();  /* 81A7CD clc */
+    lda8(ea_dp(ACTOR_Y));  /* 81A7CE lda */
+    adc8_v(rd8(ea_abs(SCRATCH + 4)));  /* 81A7D0 adc */
+    sta8(ea_dp(ACTOR_Y));  /* 81A7D3 sta */
+    lda8(ea_dp(ACTOR_Y + 1));  /* 81A7D5 lda */
+    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7D7 adc */
+    sta8(ea_dp(ACTOR_Y + 1));  /* 81A7DA sta */
+    lda8(ea_dp(ACTOR_Y + 2));  /* 81A7DC lda */
+    adc8_v(rd8(ea_abs(SCRATCH + 6)));  /* 81A7DE adc */
+    sta8(ea_dp(ACTOR_Y + 2));  /* 81A7E1 sta */
+    op_sep(0x30);  /* 81A7E3 sep */
+    return;  /* 81A7E5 rtl */
+}
+
+/*
+ * @routine 81:A91D ActorSpeedSetVector
+ * WHAT IT DOES: Sets the actor's speeds to a vector from direction set X,
+ * the set's left vector when it faces left.
+ * HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+ * the vector; its 24-bit x and y parts are copied to the horizontal and
+ * vertical speeds.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank; X = the set's byte offset; called by JSL. Exit: M and X 8-bit; X
+ * = the vector's low byte; A low byte = the vertical speed's high byte;
+ * N, Z from it; C, V from the ADC; Y unchanged.
+ */
+void abi_ActorSpeedSetVector(void)
+{
+    op_rep(0x30);  /* 81A91D rep */
+    clc();  /* 81A91F clc */
+    lda16(ea_dp(ACTOR_FACING));  /* 81A920 lda */
+    and16_v(0x00FF);  /* 81A922 and */
+    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A925 adc */
+    tax16();  /* 81A928 tax */
+    op_sep(0x20);  /* 81A929 sep */
+    lda8(ea_longx(VECTOR_X_FRAC));  /* 81A92B lda */
+    sta8(ea_dp(ACTOR_SPEED_X));  /* 81A92F sta */
+    lda8(ea_longx(VECTOR_X_MID));  /* 81A931 lda */
+    sta8(ea_dp(ACTOR_SPEED_X + 1));  /* 81A935 sta */
+    lda8(ea_longx(VECTOR_X_HI));  /* 81A937 lda */
+    sta8(ea_dp(ACTOR_SPEED_X + 2));  /* 81A93B sta */
+    lda8(ea_longx(VECTOR_Y_FRAC));  /* 81A93D lda */
+    sta8(ea_dp(ACTOR_SPEED_Y));  /* 81A941 sta */
+    lda8(ea_longx(VECTOR_Y_MID));  /* 81A943 lda */
+    sta8(ea_dp(ACTOR_SPEED_Y + 1));  /* 81A947 sta */
+    lda8(ea_longx(VECTOR_Y_HI));  /* 81A949 lda */
+    sta8(ea_dp(ACTOR_SPEED_Y + 2));  /* 81A94D sta */
+    op_sep(0x10);  /* 81A94F sep */
+    return;  /* 81A951 rtl */
+}
+
+/*
+ * @routine 81:A952 ActorMoveByVectorX
+ * WHAT IT DOES: Moves the actor across by the x part of a vector from
+ * direction set X, the set's left vector when it faces left.
+ * HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+ * the vector; its 24-bit x part is added to the x position.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank; X = the set's byte offset; called by JSL. Exit: M and X 8-bit; X
+ * = the vector's low byte; A low byte = the x position's high byte; N,
+ * V, Z, C from its ADC; Y unchanged.
+ */
+void abi_ActorMoveByVectorX(void)
+{
+    lda8(ea_dp(ACTOR_FACING));  /* 81A952 lda */
+    op_rep(0x30);  /* 81A954 rep */
+    clc();  /* 81A956 clc */
+    and16_v(0x00FF);  /* 81A957 and */
+    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A95A adc */
+    tax16();  /* 81A95D tax */
+    op_sep(0x20);  /* 81A95E sep */
+    clc();  /* 81A960 clc */
+    lda8(ea_longx(VECTOR_X_FRAC));  /* 81A961 lda */
+    adc8_v(rd8(ea_dp(ACTOR_X)));  /* 81A965 adc */
+    sta8(ea_dp(ACTOR_X));  /* 81A967 sta */
+    lda8(ea_longx(VECTOR_X_MID));  /* 81A969 lda */
+    adc8_v(rd8(ea_dp(ACTOR_X + 1)));  /* 81A96D adc */
+    sta8(ea_dp(ACTOR_X + 1));  /* 81A96F sta */
+    lda8(ea_longx(VECTOR_X_HI));  /* 81A971 lda */
+    adc8_v(rd8(ea_dp(ACTOR_X + 2)));  /* 81A975 adc */
+    sta8(ea_dp(ACTOR_X + 2));  /* 81A977 sta */
+    op_sep(0x10);  /* 81A979 sep */
+    return;  /* 81A97B rtl */
+}
+
+/*
+ * @routine 81:A97C ActorMoveByVectorY
+ * WHAT IT DOES: Moves the actor up or down by the y part of a vector from
+ * direction set X, the set's left vector when it faces left.
+ * HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+ * the vector; its 24-bit y part is added to the y position.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank; X = the set's byte offset; called by JSL. Exit: M and X 8-bit; X
+ * = the vector's low byte; A low byte = the y position's high byte; N,
+ * V, Z, C from its ADC; Y unchanged.
+ */
+void abi_ActorMoveByVectorY(void)
+{
+    lda8(ea_dp(ACTOR_FACING));  /* 81A97C lda */
+    op_rep(0x30);  /* 81A97E rep */
+    clc();  /* 81A980 clc */
+    and16_v(0x00FF);  /* 81A981 and */
+    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A984 adc */
+    tax16();  /* 81A987 tax */
+    op_sep(0x20);  /* 81A988 sep */
+    clc();  /* 81A98A clc */
+    lda8(ea_longx(VECTOR_Y_FRAC));  /* 81A98B lda */
+    adc8_v(rd8(ea_dp(ACTOR_Y)));  /* 81A98F adc */
+    sta8(ea_dp(ACTOR_Y));  /* 81A991 sta */
+    lda8(ea_longx(VECTOR_Y_MID));  /* 81A993 lda */
+    adc8_v(rd8(ea_dp(ACTOR_Y + 1)));  /* 81A997 adc */
+    sta8(ea_dp(ACTOR_Y + 1));  /* 81A999 sta */
+    lda8(ea_longx(VECTOR_Y_HI));  /* 81A99B lda */
+    adc8_v(rd8(ea_dp(ACTOR_Y + 2)));  /* 81A99F adc */
+    sta8(ea_dp(ACTOR_Y + 2));  /* 81A9A1 sta */
+    op_sep(0x10);  /* 81A9A3 sep */
+    return;  /* 81A9A5 rtl */
 }

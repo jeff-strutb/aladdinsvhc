@@ -1,11 +1,85 @@
 /*
  * mode7_rotate.c: mode 7's matrix set for a rotation by an angle, from
- * the sine table in bank $82.
+ * the sine table in bank $82; and a task zooming the picture in.
  */
 #include "machine.h"
 #include "ops65.h"
 void abi_Mode7Rotate(void);
 void abi_RotateSine(void);
+void abi_Mode7ZoomInTask(void);
+void abi_TaskWait(void);
+void abi_TaskExit(void);
+
+#define M7A_SHADOW 0x038Du         /* mode 7's matrix as the NMI writes it: A and D (words) */
+#define M7D_SHADOW 0x0393u
+#define M7_CENTRE_Y 0x0397u        /* mode 7's centre, its y (word) */
+#define V_146B 0x146Bu
+
+/*
+ * @routine 81:B157 Mode7ZoomInTask
+ * WHAT IT DOES: A task that zooms the mode 7 picture in from a speck to
+ * full size, the centre drifting up and back, then ends.
+ * HOW: After 24 frames, A and D of the matrix (the scale) = $0FF0 and the
+ * centre's y = $80; each frame the scale drops by $20 and the centre's y
+ * by 1, until the scale's high byte is 1; then each frame the scale drops
+ * by $20 and the centre's y rises by 1, until the scale is below $0100;
+ * then the scale = $0100 (full size), the centre's y = $40, $146B = $80
+ * (purpose not yet established), and TaskExit.
+ * Entry: the task's start: M 8-bit; DB a bank whose $0000-$1FFF is work
+ * RAM. Exit: none: the task ends.
+ */
+void abi_Mode7ZoomInTask(void)
+{
+    lda8_v(0x18);  /* 81B157 lda */
+    jsl_frame(0x81B159u); abi_TaskWait();  /* 81B159 jsl */
+    op_rep(0x20);  /* 81B15D rep */
+    lda16_v(0x0FF0);  /* 81B15F lda */
+    sta16(ea_abs(M7A_SHADOW));  /* 81B162 sta */
+    sta16(ea_abs(M7D_SHADOW));  /* 81B165 sta */
+    lda16_v(0x0080);  /* 81B168 lda */
+    sta16(ea_abs(M7_CENTRE_Y));  /* 81B16B sta */
+    op_sep(0x20);  /* 81B16E sep */
+L_81B170:
+    lda8_v(0x01);  /* 81B170 lda */
+    jsl_frame(0x81B172u); abi_TaskWait();  /* 81B172 jsl */
+    clc();  /* 81B176 clc */
+    lda8(ea_abs(M7_CENTRE_Y));  /* 81B177 lda */
+    adc8_v(0xFF);  /* 81B17A adc */
+    sta8(ea_abs(M7_CENTRE_Y));  /* 81B17C sta */
+    sec();  /* 81B17F sec */
+    lda8(ea_abs(M7A_SHADOW));  /* 81B180 lda */
+    sbc8_v(0x20);  /* 81B183 sbc */
+    sta8(ea_abs(M7A_SHADOW));  /* 81B185 sta */
+    sta8(ea_abs(M7D_SHADOW));  /* 81B188 sta */
+    if (IF_C) goto L_81B170;  /* 81B18B bcs */
+    lda8(ea_abs(M7A_SHADOW + 1));  /* 81B18D lda */
+    ACC8(dec);  /* 81B190 dec */
+    sta8(ea_abs(M7A_SHADOW + 1));  /* 81B191 sta */
+    sta8(ea_abs(M7D_SHADOW + 1));  /* 81B194 sta */
+    cmp8_v(0x01);  /* 81B197 cmp */
+    if (IF_Z) goto L_81B19D;  /* 81B199 beq */
+    goto L_81B170;  /* 81B19B bra */
+L_81B19D:
+    lda8_v(0x01);  /* 81B19D lda */
+    jsl_frame(0x81B19Fu); abi_TaskWait();  /* 81B19F jsl */
+    clc();  /* 81B1A3 clc */
+    lda8(ea_abs(M7_CENTRE_Y));  /* 81B1A4 lda */
+    adc8_v(0x01);  /* 81B1A7 adc */
+    sta8(ea_abs(M7_CENTRE_Y));  /* 81B1A9 sta */
+    sec();  /* 81B1AC sec */
+    lda8(ea_abs(M7A_SHADOW));  /* 81B1AD lda */
+    sbc8_v(0x20);  /* 81B1B0 sbc */
+    sta8(ea_abs(M7A_SHADOW));  /* 81B1B2 sta */
+    sta8(ea_abs(M7D_SHADOW));  /* 81B1B5 sta */
+    if (IF_C) goto L_81B19D;  /* 81B1B8 bcs */
+    stz8(ea_abs(M7A_SHADOW));  /* 81B1BA stz */
+    stz8(ea_abs(M7D_SHADOW));  /* 81B1BD stz */
+    lda8_v(0x40);  /* 81B1C0 lda */
+    sta8(ea_abs(M7_CENTRE_Y));  /* 81B1C2 sta */
+    lda8_v(0x80);  /* 81B1C5 lda */
+    sta8(ea_abs(V_146B));  /* 81B1C7 sta */
+    abi_TaskExit(); return;  /* 81B1CA jmp */
+}
 
 /*
  * @routine 81:B1CD Mode7Rotate

@@ -796,6 +796,17 @@ ActorOutOfGround:
     sep.b #$32
     rtl
 
+; @routine 81:B74E PlayerOnFirmGroundProbe8
+; WHAT IT DOES: Says whether the player stands on firm ground at probe 8:
+; C set when the ground to its left or right is solid and not soft.
+; HOW: PlayerOnFirmGround's test with the probe offset 8.
+; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: as
+; PlayerOnFirmGround.
+%at($81B74E)
+PlayerOnFirmGroundProbe8:
+    ldx.b #8
+    bra PlayerOnFirmGroundAtX
+
 ; @routine 81:B756 PlayerOnFirmGround
 ; WHAT IT DOES: Says whether the player stands on firm ground at probe 0:
 ; C set when the ground to its left or right is solid and not soft.
@@ -808,11 +819,17 @@ ActorOutOfGround:
 %at($81B756)
 PlayerOnFirmGround:
     ldx.b #0
-    bra .test
-; Probe 4 (an entry no script takes).
-.probe4:
+    bra PlayerOnFirmGroundAtX
+; @routine 81:B75A PlayerOnFirmGroundProbe4
+; WHAT IT DOES: Says whether the player stands on firm ground at probe 4:
+; C set when the ground to its left or right is solid and not soft.
+; HOW: PlayerOnFirmGround's test with the probe offset 4.
+; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: as
+; PlayerOnFirmGround.
+PlayerOnFirmGroundProbe4:
     ldx.b #4
-.test:
+; The test the entries above share, at probe offset X.
+PlayerOnFirmGroundAtX:
     phd
     rep.b #$20
     lda.w #!player

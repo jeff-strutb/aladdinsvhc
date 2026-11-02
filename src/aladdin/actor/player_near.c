@@ -1,11 +1,11 @@
 /*
- * player_near.c: where an actor is against the player.
+ * player_near.c: where an actor is against the player, or a point.
  *
  * The actor is the record the direct page is; the player's is PLAYER.
  * Coordinates are the positions' whole pixels.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
 #include "actor.h"
 #include "wram.h"
 
@@ -25,6 +25,8 @@ static uint32_t dp(uint8_t off)
 
 /* Boxes round an actor: a half-width (and a half-height) per entry. */
 #define NEAR_BOX_TABLE 0xBC43u     /* half-width, half-height: 4 bytes an entry */
+#define NEAR_POINT_X (SCRATCH + 8)  /* ActorNearPoint's point (words) */
+#define NEAR_POINT_Y (SCRATCH + 10)
 #define NEAR_SPAN_TABLE 0xBC7Bu    /* half-width: 2 bytes an entry */
 
 /*
@@ -118,4 +120,45 @@ void abi_ActorNearPlayerX(void)
     half_and_span(NEAR_SPAN_TABLE, SCRATCH);
     within(ACTOR_X + 1, PLAYER_X_PIXEL, SCRATCH, SCRATCH + 2);
     op_sep(P_M);
+}
+
+/*
+ * @routine 81:AD17 ActorNearPoint
+ * WHAT IT DOES: Says whether the actor is inside a box round the point
+ * in scratch $14, $16: within a half-width across and a half-height up or
+ * down.
+ * HOW: Takes box Y's half-width and half-height and keeps them and their
+ * doubles in scratch; the actor's x - the point's x + half-width is below
+ * the width (unsigned) when within it across; the same for y, tested only
+ * when x passes.
+ * Entry: M 16-bit; D = the actor; DB = $81; Y = the box's byte offset;
+ * $14, $16 = the point (words); called by JSL. Exit: C clear when inside;
+ * A = the last sum; N, Z, C from its compare; scratch $0C-$13 =
+ * half-width, width, half-height, height; M 16-bit; X, Y, V unchanged.
+ */
+void abi_ActorNearPoint(void)
+{
+    lda16(ea_absy(NEAR_BOX_TABLE));  /* 81AD17 lda */
+    sta16(ea_abs(SCRATCH));  /* 81AD1A sta */
+    ACC16(asl);  /* 81AD1D asl */
+    sta16(ea_abs(SCRATCH + 2));  /* 81AD1E sta */
+    lda16(ea_absy(NEAR_BOX_TABLE + 2));  /* 81AD21 lda */
+    sta16(ea_abs(SCRATCH + 4));  /* 81AD24 sta */
+    ACC16(asl);  /* 81AD27 asl */
+    sta16(ea_abs(SCRATCH + 6));  /* 81AD28 sta */
+    sec();  /* 81AD2B sec */
+    lda16(ea_dp(ACTOR_X + 1));  /* 81AD2C lda */
+    sbc16_v(rd16(ea_abs(NEAR_POINT_X)));  /* 81AD2E sbc */
+    clc();  /* 81AD31 clc */
+    adc16_v(rd16(ea_abs(SCRATCH)));  /* 81AD32 adc */
+    cmp16_v(rd16(ea_abs(SCRATCH + 2)));  /* 81AD35 cmp */
+    if (IF_C) goto L_81AD47;  /* 81AD38 bcs */
+    sec();  /* 81AD3A sec */
+    lda16(ea_dp(ACTOR_Y + 1));  /* 81AD3B lda */
+    sbc16_v(rd16(ea_abs(NEAR_POINT_Y)));  /* 81AD3D sbc */
+    clc();  /* 81AD40 clc */
+    adc16_v(rd16(ea_abs(SCRATCH + 4)));  /* 81AD41 adc */
+    cmp16_v(rd16(ea_abs(SCRATCH + 6)));  /* 81AD44 cmp */
+L_81AD47:
+    return;  /* 81AD47 rtl */
 }

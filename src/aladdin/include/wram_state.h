@@ -14,4 +14,13 @@
 #define FRAME_COUNT 0x00032Eu         /* counts NMIs (8-bit) */
 #define CONTINUES 0x00035Bu           /* continues left (3 at the start of a game) */
 
+/* Demos and the start of play (game/progress.c). */
+#define CHEAT_0009 0x000009u          /* nonzero: play starts with 10 health marks and 99 at $0369; the title acts on it too */
+#define PLAY_MODE 0x000331u           /* 2: a demo plays, the pad read from its stream */
+#define DEMO_INPUT_AT 0x00033Bu       /* the demo's next pad entry: byte offset from $84:F700 (word) */
+#define DEMO_INPUT_FRAMES 0x00033Eu   /* frames left on its current pad entry */
+#define DEMO_NUMBER 0x00033Fu         /* the demo being played */
+#define HEALTH_MARKS 0x000365u        /* the player's health marks (most health) */
+#define HEALTH 0x000367u              /* the player's health */
+
 #endif

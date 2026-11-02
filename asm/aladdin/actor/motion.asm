@@ -10,6 +10,8 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/actor.inc"
+incsrc "../include/hw.inc"
+incsrc "../include/wram.inc"
 
 arch 65816
 
@@ -78,13 +80,21 @@ ActorMotionPresetY:
     sta.b !actor_accel_y
     rtl
 
+; @routine 81:A411 ActorSpeedXSetAccel
+; WHAT IT DOES: Sets the actor's horizontal acceleration to A and its
+; horizontal speed from the speed table.
+; HOW: Stores A as the acceleration, then goes on into ActorSpeedXSet.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; A low byte = the
+; acceleration; Y = the entry's offset. Exit: as ActorSpeedXSet.
+%at($81A411)
+ActorSpeedXSetAccel:
+    sta.b !actor_accel_x
 ; @routine 81:A413 ActorSpeedXSet
 ; WHAT IT DOES: Sets the actor's horizontal speed from the speed table.
 ; HOW: Copies the three bytes of the entry at byte offset Y.
 ; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the entry's offset.
 ; Exit: A low byte = the speed's high byte; N, Z from it; X, Y, C, V
 ; unchanged.
-%at($81A413)
 ActorSpeedXSet:
     lda.w !speed_x_table,y
     sta.b !actor_speed_x
@@ -365,6 +375,25 @@ ActorAccelerateY:
     sta.b !actor_speed_y+2
     rtl
 
+; @routine 81:A627 ActorAccelerateXBack
+; WHAT IT DOES: Takes the actor's acceleration from its horizontal speed,
+; with no stop at 0: a brake that can turn into a move backwards.
+; HOW: Takes the acceleration from the 24-bit horizontal speed.
+; Entry: M 8-bit; D = the actor; called by JSL. Exit: A low byte = the
+; speed's high byte; N, V, Z, C from its SBC; X, Y unchanged.
+ActorAccelerateXBack:
+    sec
+    lda.b !actor_speed_x
+    sbc.b !actor_accel_x
+    sta.b !actor_speed_x
+    lda.b !actor_speed_x+1
+    sbc.b #0
+    sta.b !actor_speed_x+1
+    lda.b !actor_speed_x+2
+    sbc.b #0
+    sta.b !actor_speed_x+2
+    rtl
+
 ; @routine 81:A63B ActorDecelerateX
 ; WHAT IT DOES: Slows the actor down horizontally by its acceleration,
 ; stopping it rather than turning it round.
@@ -389,6 +418,25 @@ ActorDecelerateX:
     stz.b !actor_speed_x+1
     stz.b !actor_speed_x+2
 .done:
+    rtl
+
+; @routine 81:A657 ActorAccelerateYBack
+; WHAT IT DOES: The actor's gravity pulls its vertical speed up, with no
+; stop at 0.
+; HOW: Takes the gravity from the 24-bit vertical speed.
+; Entry: M 8-bit; D = the actor; called by JSL. Exit: A low byte = the
+; speed's high byte; N, V, Z, C from its SBC; X, Y unchanged.
+ActorAccelerateYBack:
+    sec
+    lda.b !actor_speed_y
+    sbc.b !actor_accel_y
+    sta.b !actor_speed_y
+    lda.b !actor_speed_y+1
+    sbc.b #0
+    sta.b !actor_speed_y+1
+    lda.b !actor_speed_y+2
+    sbc.b #0
+    sta.b !actor_speed_y+2
     rtl
 
 ; @routine 81:A66B ActorDecelerateY
@@ -428,6 +476,85 @@ ActorDecelerateY:
 !vector_y_mid = $82D024
 !vector_y_hi = $82D42D
 !vector_sets = $BBB9
+
+; @routine 81:A74C ActorMoveByVectorTimes
+; WHAT IT DOES: Moves the actor by a vector from direction set X times A,
+; the set's left vector when it faces left.
+; HOW: The vector (the set's first, a word at $BBB9 + X, plus the facing)
+; is copied to scratch: x at $0C-$0E, y at $10-$12. With A in WRMPYA,
+; each part's fraction and pixels (16 bits) are multiplied by A
+; (MultiplyBy) and kept to 16 bits; the high bytes are kept as they were.
+; The parts are then added to the 24-bit x and y positions.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank, which also has the CPU's registers at $4200; X = the set's byte
+; offset; A low byte = the multiplier; called by JSL. Exit: M and X
+; 8-bit; X = the vector's low byte; Y = the low byte of the last product;
+; A low byte = the y position's high byte; N, V, Z, C from its ADC;
+; scratch $0C-$12 the scaled vector.
+%at($81A74C)
+ActorMoveByVectorTimes:
+    pha
+    rep.b #$30
+    lda.b !actor_facing
+    clc
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    lda.l !vector_x_frac,x
+    sta.w !scratch
+    lda.l !vector_x_mid,x
+    sta.w !scratch+1
+    lda.l !vector_x_hi,x
+    sta.w !scratch+2
+    lda.l !vector_y_frac,x
+    sta.w !scratch+4
+    lda.l !vector_y_mid,x
+    sta.w !scratch+5
+    lda.l !vector_y_hi,x
+    sta.w !scratch+6
+    pla
+    sta.w !WRMPYA
+    lda.w !scratch
+    jsr.w MultiplyBy
+    lda.w !scratch+1
+    sty.w !scratch
+    jsr.w MultiplyBy
+    tya
+    clc
+    adc.w !scratch+1
+    sta.w !scratch+1
+    lda.w !scratch+4
+    jsr.w MultiplyBy
+    lda.w !scratch+5
+    sty.w !scratch+4
+    jsr.w MultiplyBy
+    tya
+    clc
+    adc.w !scratch+5
+    sta.w !scratch+5
+    clc
+    lda.b !actor_x
+    adc.w !scratch
+    sta.b !actor_x
+    lda.b !actor_x+1
+    adc.w !scratch+1
+    sta.b !actor_x+1
+    lda.b !actor_x+2
+    adc.w !scratch+2
+    sta.b !actor_x+2
+    clc
+    lda.b !actor_y
+    adc.w !scratch+4
+    sta.b !actor_y
+    lda.b !actor_y+1
+    adc.w !scratch+5
+    sta.b !actor_y+1
+    lda.b !actor_y+2
+    adc.w !scratch+6
+    sta.b !actor_y+2
+    sep.b #$30
+    rtl
 
 ; @routine 81:A854 ActorMoveByVector
 ; WHAT IT DOES: Moves the actor by a vector from direction set X, the
@@ -507,5 +634,98 @@ ActorSpeedAddVector:
     lda.l !vector_y_hi,x
     adc.b !actor_speed_y+2
     sta.b !actor_speed_y+2
+    sep.b #$10
+    rtl
+
+; @routine 81:A91D ActorSpeedSetVector
+; WHAT IT DOES: Sets the actor's speeds to a vector from direction set X,
+; the set's left vector when it faces left.
+; HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+; the vector; its 24-bit x and y parts are copied to the horizontal and
+; vertical speeds.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank; X = the set's byte offset; called by JSL. Exit: M and X 8-bit; X
+; = the vector's low byte; A low byte = the vertical speed's high byte;
+; N, Z from it; C, V from the ADC; Y unchanged.
+ActorSpeedSetVector:
+    rep.b #$30
+    clc
+    lda.b !actor_facing
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    lda.l !vector_x_frac,x
+    sta.b !actor_speed_x
+    lda.l !vector_x_mid,x
+    sta.b !actor_speed_x+1
+    lda.l !vector_x_hi,x
+    sta.b !actor_speed_x+2
+    lda.l !vector_y_frac,x
+    sta.b !actor_speed_y
+    lda.l !vector_y_mid,x
+    sta.b !actor_speed_y+1
+    lda.l !vector_y_hi,x
+    sta.b !actor_speed_y+2
+    sep.b #$10
+    rtl
+
+; @routine 81:A952 ActorMoveByVectorX
+; WHAT IT DOES: Moves the actor across by the x part of a vector from
+; direction set X, the set's left vector when it faces left.
+; HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+; the vector; its 24-bit x part is added to the x position.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank; X = the set's byte offset; called by JSL. Exit: M and X 8-bit; X
+; = the vector's low byte; A low byte = the x position's high byte; N,
+; V, Z, C from its ADC; Y unchanged.
+ActorMoveByVectorX:
+    lda.b !actor_facing
+    rep.b #$30
+    clc
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    clc
+    lda.l !vector_x_frac,x
+    adc.b !actor_x
+    sta.b !actor_x
+    lda.l !vector_x_mid,x
+    adc.b !actor_x+1
+    sta.b !actor_x+1
+    lda.l !vector_x_hi,x
+    adc.b !actor_x+2
+    sta.b !actor_x+2
+    sep.b #$10
+    rtl
+
+; @routine 81:A97C ActorMoveByVectorY
+; WHAT IT DOES: Moves the actor up or down by the y part of a vector from
+; direction set X, the set's left vector when it faces left.
+; HOW: The set's first vector (a word at $BBB9 + X) plus the facing is
+; the vector; its 24-bit y part is added to the y position.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank; X = the set's byte offset; called by JSL. Exit: M and X 8-bit; X
+; = the vector's low byte; A low byte = the y position's high byte; N,
+; V, Z, C from its ADC; Y unchanged.
+ActorMoveByVectorY:
+    lda.b !actor_facing
+    rep.b #$30
+    clc
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    clc
+    lda.l !vector_y_frac,x
+    adc.b !actor_y
+    sta.b !actor_y
+    lda.l !vector_y_mid,x
+    adc.b !actor_y+1
+    sta.b !actor_y+1
+    lda.l !vector_y_hi,x
+    adc.b !actor_y+2
+    sta.b !actor_y+2
     sep.b #$10
     rtl

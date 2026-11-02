@@ -6,9 +6,12 @@
  * lists each set once, so each is loaded once.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
 #include "wram.h"
 #include "wram_video.h"
+
+void abi_AnimSetsListEnd(void);
+void abi_AnimSetsPlaces(void);
 
 static void set_a8(uint8_t v)
 {
@@ -200,4 +203,54 @@ void abi_AnimSetsListEnd(void)
     } while (a != NO_SET);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     cpu.x = x;
+}
+
+/*
+ * @routine 81:9086 AnimSetsPlaces
+ * WHAT IT DOES: For each actor type, finds where its animation set is in
+ * the level's list of sets.
+ * HOW: With the data bank at $7F: AnimSetsListEnd gives the sets listed;
+ * for each of the 256 types the place is 4 (not listed) unless its set is
+ * found in the list, when it is the set's place (offset / 2); the count
+ * of sets left to look at is kept in scratch $0E.
+ * Entry: M 8-bit, X 8-bit; called by JSR. Exit: Y = 0; X as the last
+ * type's search left it; $0C = the sets listed; DB as at entry, N and Z
+ * from it (PLB).
+ */
+void abi_AnimSetsPlaces(void)
+{
+    phb();  /* 819086 phb */
+    lda8_v(0x7F);  /* 819087 lda */
+    pha8();  /* 819089 pha */
+    plb();  /* 81908A plb */
+    abi_AnimSetsListEnd();  /* 81908B jsr */
+    txa8();  /* 81908E txa */
+    ACC8(lsr);  /* 81908F lsr */
+    ACC8(dec);  /* 819090 dec */
+    sta8(ea_abs(SCRATCH));  /* 819091 sta */
+    ldy8_v(0x00);  /* 819094 ldy */
+L_819096:
+    lda8(ea_abs(SCRATCH));  /* 819096 lda */
+    sta8(ea_abs(SCRATCH + 2));  /* 819099 sta */
+    lda8_v(0x04);  /* 81909C lda */
+    sta8(ea_absy((uint16_t)ANIM_SET_PLACE_OF_TYPE));  /* 81909E sta */
+    ldx8_v(0x00);  /* 8190A1 ldx */
+L_8190A3:
+    lda8(ea_absy((uint16_t)ANIM_SET_OF_TYPE));  /* 8190A3 lda */
+    cmp8_v(rd8(ea_absx((uint16_t)ANIM_SETS_USED)));  /* 8190A6 cmp */
+    if (!IF_Z) goto L_8190B2;  /* 8190A9 bne */
+    txa8();  /* 8190AB txa */
+    ACC8(lsr);  /* 8190AC lsr */
+    sta8(ea_absy((uint16_t)ANIM_SET_PLACE_OF_TYPE));  /* 8190AD sta */
+    goto L_8190B9;  /* 8190B0 bra */
+L_8190B2:
+    inx8();  /* 8190B2 inx */
+    inx8();  /* 8190B3 inx */
+    MEM8(dec, ea_abs(SCRATCH + 2));  /* 8190B4 dec */
+    if (!IF_Z) goto L_8190A3;  /* 8190B7 bne */
+L_8190B9:
+    iny8();  /* 8190B9 iny */
+    if (!IF_Z) goto L_819096;  /* 8190BA bne */
+    plb();  /* 8190BC plb */
+    return;  /* 8190BD rts */
 }

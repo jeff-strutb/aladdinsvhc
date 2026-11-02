@@ -6,9 +6,17 @@
  * a fade works from are kept at PALETTE_SAVED.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
 #include "wram.h"
 #include "wram_video.h"
+
+void abi_PaletteLoad(void);
+void abi_TaskWait(void);
+void abi_TaskExit(void);
+
+/* PaletteSequenceTask's six palette sets and the frames each is shown. */
+#define PALETTE_SEQUENCE_SETS 0xBA6Au
+#define PALETTE_SEQUENCE_FRAMES 0xBA70u
 
 static uint32_t abs_db(uint16_t addr)
 {
@@ -181,4 +189,28 @@ void abi_LevelPalettesLoad(void)
         cpu.y = y;
         cpu.p = nz8(cpu.p, y);
     }
+}
+
+/*
+ * @routine 81:9E75 PaletteSequenceTask
+ * WHAT IT DOES: A task that shows six palette sets in turn, each for its
+ * own frames, then ends.
+ * HOW: For Y from 5 down to 0: PaletteLoad of the set at $BA6A + Y, then
+ * TaskWait for the frames at $BA70 + Y; then TaskExit.
+ * Entry: the task's start: M 8-bit, X 8-bit; DB = $81. Exit: none: the
+ * task ends.
+ */
+void abi_PaletteSequenceTask(void)
+{
+    ldy8_v(0x05);  /* 819E75 ldy */
+L_819E77:
+    lda8(ea_absy(PALETTE_SEQUENCE_SETS));  /* 819E77 lda */
+    phy8();  /* 819E7A phy */
+    abi_PaletteLoad();  /* 819E7B jsl */
+    ply8();  /* 819E7F ply */
+    lda8(ea_absy(PALETTE_SEQUENCE_FRAMES));  /* 819E80 lda */
+    jsl_frame(0x819E83u); abi_TaskWait();  /* 819E83 jsl */
+    dey8();  /* 819E87 dey */
+    if (!IF_N) goto L_819E77;  /* 819E88 bpl */
+    abi_TaskExit(); return;  /* 819E8A jml */
 }

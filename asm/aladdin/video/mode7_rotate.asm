@@ -1,5 +1,5 @@
 ; mode7_rotate.asm: mode 7's matrix set for a rotation by an angle, from
-; the sine table in bank $82.
+; the sine table in bank $82; and a task zooming the picture in.
 ; C: src/aladdin/video/mode7_rotate.c.
 
 incsrc "../include/macros.inc"
@@ -11,7 +11,72 @@ arch 65816
 !m7b_shadow = $038F
 !m7c_shadow = $0391
 !m7d_shadow = $0393
+!m7_centre_y = $0397             ; mode 7's centre, its y (word)
+!V_146B = $146B
 !rotate_sines = $8287D3          ; a quarter turn of sines (words), 64 entries and the one past
+
+; @routine 81:B157 Mode7ZoomInTask
+; WHAT IT DOES: A task that zooms the mode 7 picture in from a speck to
+; full size, the centre drifting up and back, then ends.
+; HOW: After 24 frames, A and D of the matrix (the scale) = $0FF0 and the
+; centre's y = $80; each frame the scale drops by $20 and the centre's y
+; by 1, until the scale's high byte is 1; then each frame the scale drops
+; by $20 and the centre's y rises by 1, until the scale is below $0100;
+; then the scale = $0100 (full size), the centre's y = $40, $146B = $80
+; (purpose not yet established), and TaskExit.
+; Entry: the task's start: M 8-bit; DB a bank whose $0000-$1FFF is work
+; RAM. Exit: none: the task ends.
+%at($81B157)
+Mode7ZoomInTask:
+    lda.b #24
+    jsl.l TaskWait
+    rep.b #$20
+    lda.w #$0FF0
+    sta.w !m7a_shadow
+    sta.w !m7d_shadow
+    lda.w #$0080
+    sta.w !m7_centre_y
+    sep.b #$20
+.grow:
+    lda.b #1
+    jsl.l TaskWait
+    clc
+    lda.w !m7_centre_y
+    adc.b #$FF
+    sta.w !m7_centre_y
+    sec
+    lda.w !m7a_shadow
+    sbc.b #$20
+    sta.w !m7a_shadow
+    sta.w !m7d_shadow
+    bcs .grow
+    lda.w !m7a_shadow+1
+    dec a
+    sta.w !m7a_shadow+1
+    sta.w !m7d_shadow+1
+    cmp.b #1
+    beq .last
+    bra .grow
+.last:
+    lda.b #1
+    jsl.l TaskWait
+    clc
+    lda.w !m7_centre_y
+    adc.b #1
+    sta.w !m7_centre_y
+    sec
+    lda.w !m7a_shadow
+    sbc.b #$20
+    sta.w !m7a_shadow
+    sta.w !m7d_shadow
+    bcs .last
+    stz.w !m7a_shadow
+    stz.w !m7d_shadow
+    lda.b #$40
+    sta.w !m7_centre_y
+    lda.b #$80
+    sta.w !V_146B
+    jmp.w TaskExit
 
 ; @routine 81:B1CD Mode7Rotate
 ; WHAT IT DOES: Sets mode 7's matrix to a rotation by angle A (256 to a
@@ -22,7 +87,6 @@ arch 65816
 ; Entry: M 8-bit, X 8-bit; A = the angle; DB = $00-$3F or $80-$BF; called
 ; by JSL. Exit: M 8-bit; A as the last store left it (16 bits); X, Y the
 ; two entries.
-%at($81B1CD)
 Mode7Rotate:
     pha
     and.b #$3F

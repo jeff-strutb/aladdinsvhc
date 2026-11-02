@@ -87,4 +87,7 @@
 #define BG1_HELD 0x001A14u         /* nonzero: BG1's position is not taken from the play field */
 #define BG2_FOLLOWS 0x001A15u      /* 0: BG2 follows the backdrop layer; $40: its y only; $80: the play field's x; else neither */
 
+/* Per actor type, its set's place in the level's list (actor/anim_sets.c). */
+#define ANIM_SET_PLACE_OF_TYPE 0x7FE000u /* per actor type, its set's place in ANIM_SETS_USED; 4: not listed */
+
 #endif
