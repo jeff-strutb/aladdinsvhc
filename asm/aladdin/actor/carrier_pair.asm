@@ -118,7 +118,7 @@ CarrierPairSend:
     sep.b #$30
     inc.b !PAIRS_LIVE
     clc
-    lda.w $15E4
+    lda.w !actor_free_top
     adc.b #$04
-    sta.w $15E4
+    sta.w !actor_free_top
     rts
