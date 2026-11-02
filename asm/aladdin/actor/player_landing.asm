@@ -16,10 +16,9 @@ arch 65816
 !PLAYER_SPEED_Y_PIXELS = !player+!actor_speed_y+1 ; his vertical speed's whole part (word)
 !PLAYER_X_PIXELS = !player+!actor_x+1
 !PLAYER_Y_PIXELS = !player+!actor_y+1
-; Not yet filed: Aladdin's code to go on at $D77C of his bank, and him
-; stood on the actor's top (its Y less the boxes' half-heights).
-!PLAYER_STAND_ON_ACTOR = $8384D5
-!ACTOR_TAKE_B = $81EA3D         ; a record from the second free list: X, N set when none
+!PLAYER_CODE = !player+!actor_03 ; where his code goes on (word, his bank)
+!PLAYER_LANDED_CODE = $D77C     ; his code once landed on an actor
+!PLAYER_LANDED = $144E          ; 1: he has landed on an actor
 !KIND_11 = $11
 
 ; @routine 83:848D PlayerLandsOnActor
@@ -57,7 +56,7 @@ PlayerLandsOnActor:
     beq .no
     ldx.w !V_145A
     bmi .no
-    jsr.w !PLAYER_STAND_ON_ACTOR
+    jsr.w PlayerStandOnActor
     sep.b #$30
     jsr.w ActorSpawnKind11AtPlayer
     lda.b #$01
@@ -73,7 +72,7 @@ PlayerLandsOnActor:
 ; Exit: as the C states.
 %at($8384F4)
 ActorSpawnKind11AtPlayer:
-    jsl.l !ACTOR_TAKE_B
+    jsl.l ActorAllocBLong
     bmi .done
     lda.b #$0C
     sta.w !actor_state,x
@@ -91,4 +90,35 @@ ActorSpawnKind11AtPlayer:
     sta.w !actor_y+1,x
 .done:
     sep.b #$30
+    rts
+
+; @routine 83:84D5 PlayerStandOnActor
+; WHAT IT DOES: Stands Aladdin on the actor he has come down on: his code
+; goes on at his landing ($D77C of his bank) and his y is the actor's top.
+; HOW: Unless a state $8C is counted ($141B): $D77C as his code address,
+; his y pixels = the actor's less scratch $0010 (the boxes' half-heights
+; less 4, from ScratchBelowBy10), and $144E = 1. With $141B nonzero it
+; pulls its own return address and returns from its caller (M and X
+; 8-bit), code the retail game never runs: each of its five callers
+; ($83:8382, $83F6, $843E, $847E, $84BC) has just found $141B zero.
+; Entry: M 16-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSR. Exit: M 16-bit, X 8-bit; A = his y pixels; X =
+; 1; N, Z from X; C, V from the subtraction; Y unchanged.
+%at($8384D5)
+PlayerStandOnActor:
+    lda.w #!PLAYER_LANDED_CODE
+    ldx.w !PLAYER_STATE_8C_COUNT
+    bne .counted
+    sta.w !PLAYER_CODE
+    sec
+    lda.b !actor_y+1
+    sbc.w !scratch+4
+    sta.w !PLAYER_Y_PIXELS
+    ldx.b #1
+    stx.w !PLAYER_LANDED
+    rts
+.counted:
+    sep.b #$30
+    pla
+    pla
     rts

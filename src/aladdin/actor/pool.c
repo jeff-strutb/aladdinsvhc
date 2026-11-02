@@ -40,6 +40,44 @@ void abi_ActorAlloc(void)
 }
 
 /*
+ * @routine 81:EA41 ActorAllocB
+ * WHAT IT DOES: Takes a free record from the second pool (the five
+ * records from $09CB), if there is one.
+ * HOW: As ActorAlloc, on the second free list: its top offset, negative
+ * when none is free; else the offset steps down a word and the address at
+ * the old top is the record.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR. Exit: none free: Y = the offset; N set; X 8-bit and
+ * unchanged. Taken: X 16-bit; X = the record's address; Y = the old top
+ * offset; N, Z from X (N clear). A, C, V unchanged.
+ */
+void abi_ActorAllocB(void)
+{
+    uint8_t top = rd8(abs_db(ACTOR_FREE_TOP_B));
+
+    cpu.y = top;
+    cpu.p = nz8(cpu.p, top);
+    if (top & 0x80)
+        return;
+    op_rep(P_X);
+    wr8(abs_db(ACTOR_FREE_TOP_B), (uint8_t)(rd8_rmw(abs_db(ACTOR_FREE_TOP_B)) - 1));
+    wr8(abs_db(ACTOR_FREE_TOP_B), (uint8_t)(rd8_rmw(abs_db(ACTOR_FREE_TOP_B)) - 1));
+    cpu.x = rd16(abs_db((uint16_t)(ACTOR_FREE_LIST_B + cpu.y)));
+    cpu.p = nz16(cpu.p, cpu.x);
+}
+
+/*
+ * @routine 81:EA3D ActorAllocBLong
+ * WHAT IT DOES: ActorAllocB for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorAllocB; called by JSL. Exit: as ActorAllocB.
+ */
+void abi_ActorAllocBLong(void)
+{
+    abi_ActorAllocB();
+}
+
+/*
  * @routine 81:ADC0 ActorFreeListSort
  * WHAT IT DOES: Orders the top of the free list so the lowest record
  * addresses are taken first, when at least A records are free.

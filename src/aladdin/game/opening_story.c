@@ -12,6 +12,7 @@
 
 void abi_ActorSpawnAtLong(void);
 void abi_FrameEnd(void);
+void abi_PaletteCycleStartLong(void);
 void abi_LevelTablesClear(void);
 void abi_NmiDisable(void);
 void abi_NmiEnable(void);
@@ -66,7 +67,6 @@ void abi_OpeningScene6Start(void);
 #define LEVEL_LOAD 0x81825Bu        /* sets up the level LEVEL names */
 #define GFX_LOAD 0x81BAF1u          /* unpacks graphics set A */
 #define ACTORS_RESET 0x819D82u      /* every actor record freed */
-#define SLOT_15F1_START 0x81EC8Au   /* starts entry X of the slots at $15F1 with A */
 
 /* TaskCreate (or TaskExec) at site: its frame, as the JSL pushes it; the
    five (three) bytes after the JSL are its arguments. TaskCreate returns
@@ -198,7 +198,7 @@ static void scene_end(void)
     abi_PaletteLoad();
     ldx8_v(0x00);
     lda8_v(0x1F);
-    call_routine(SLOT_15F1_START, 1);
+    abi_PaletteCycleStartLong();
     ldx8_v(0x78);
     abi_OpeningActorPlace();
 }

@@ -142,3 +142,33 @@ ActorFreeListSort:
     sep.b #$20
 .done:
     rtl
+
+; @routine 81:EA3D ActorAllocBLong
+; WHAT IT DOES: ActorAllocB for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorAllocB; called by JSL. Exit: as ActorAllocB.
+%at($81EA3D)
+ActorAllocBLong:
+    jsr.w ActorAllocB
+    rtl
+
+; @routine 81:EA41 ActorAllocB
+; WHAT IT DOES: Takes a free record from the second pool (the five
+; records from $09CB), if there is one.
+; HOW: As ActorAlloc, on the second free list: its top offset, negative
+; when none is free; else the offset steps down a word and the address at
+; the old top is the record.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR. Exit: none free: Y = the offset; N set; X 8-bit and
+; unchanged. Taken: X 16-bit; X = the record's address; Y = the old top
+; offset; N, Z from X (N clear). A, C, V unchanged.
+%at($81EA41)
+ActorAllocB:
+    ldy.w !actor_free_top_b
+    bmi .none
+    rep.b #$10
+    dec.w !actor_free_top_b
+    dec.w !actor_free_top_b
+    ldx.w !actor_free_list_b,y
+.none:
+    rts
