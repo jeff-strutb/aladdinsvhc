@@ -14,6 +14,52 @@ arch 65816
 !FADE_CGADSUB = $9F             ; subtract, on BG1-4 and the sprites
 !FADE_WOBJSEL = $80             ; colour window 2 on
 
+; @routine 81:9F0E ColourFadeInTask
+; WHAT IT DOES: A task that fades the screen in from black by colour
+; math, then ends.
+; HOW: ColourFadeBegin; the grey at 31 (black) for one step, one frame's
+; wait, then ScreenFullBright; the grey steps from 31 down to 0
+; (ColourFadeStep); then ColourFadeOutTask's end: the colour window off
+; and TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; Y = the task's slot; its
+; parameter = the frames between steps (halved); DB a bank whose
+; $0000-$1FFF is work RAM. Exit: none: the task ends.
+%at($819F0E)
+ColourFadeInTask:
+    jsr.w ColourFadeBegin
+    ldx.b #31
+    jsr.w ColourFadeStep
+    lda.b #1
+    jsl.l TaskWait
+    jsl.l ScreenFullBright
+    ldx.b #31
+.step:
+    jsr.w ColourFadeStep
+    dex
+    bpl .step
+    bra ColourFadeOutTask_end
+
+; @routine 81:9F52 ColourFadeOutTask
+; WHAT IT DOES: A task that fades the screen out to black by colour math,
+; then ends.
+; HOW: ColourFadeBegin; the grey steps from 0 up to 31 (ColourFadeStep);
+; then the colour window off (WOBJSEL's shadow 0) and TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; Y = the task's slot; its
+; parameter = the frames between steps (halved); DB a bank whose
+; $0000-$1FFF is work RAM. Exit: none: the task ends.
+%at($819F52)
+ColourFadeOutTask:
+    jsr.w ColourFadeBegin
+    ldx.b #0
+.step:
+    jsr.w ColourFadeStep
+    inx
+    cpx.b #32
+    bne .step
+.end:
+    stz.w !wobjsel_shadow
+    jml.l TaskExit
+
 ; @routine 81:9F66 ColourFadeBegin
 ; WHAT IT DOES: Sets colour math up for a fade by subtraction, and halves
 ; the fade task's frames between steps (at least 1).
@@ -23,7 +69,6 @@ arch 65816
 ; $0000-$1FFF is work RAM; called by JSR. Exit: A low byte = the new
 ; parameter; N clear, Z clear; C = the parameter's old bit 0; X, Y, V
 ; unchanged.
-%at($819F66)
 ColourFadeBegin:
     lda.b #!FADE_CGADSUB
     sta.w !cgadsub_shadow

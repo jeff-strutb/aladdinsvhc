@@ -9,8 +9,13 @@ void abi_TileChangesApply(void);
 void abi_TilemapWordLong(void);
 void abi_TileChangeQueueQuarter(void);
 void abi_MapTileAddress(void);
+void abi_MapTileAt(void);
+void abi_MapTileSet(void);
+void abi_MapQuarterAt(void);
 #include "wram.h"
 #include "wram_video.h"
+
+#define LEVEL_TILES 0x7F0000u      /* the screens' tiles, a word each */
 
 /*
  * @routine 81:9A64 TileChangeQueueQuarter
@@ -249,4 +254,96 @@ void abi_TileChangeAdd(void)
     sta16(ea_abs(0x071B));  /* 819992 sta */
     MEM16(inc, ea_abs(0x0719));  /* 819995 inc */
     return;  /* 819998 rtl */
+}
+
+/*
+ * @routine 81:9A84 MapTileAt
+ * WHAT IT DOES: Reads the level's map tile under point X, Y.
+ * HOW: With the direct page at 0 (its own kept on the stack),
+ * MapTileAddress gives the tile's offset; the tile word is read from the
+ * level's tiles at $7F:0000.
+ * Entry: M 16-bit, X 16-bit; X = the x; Y = the y; called by JSL. Exit: A
+ * = the tile word; X = its offset; Y as at entry; D as at entry, N and Z
+ * from it (PLD); scratch as MapTileAddress leaves it.
+ */
+void abi_MapTileAt(void)
+{
+    phd();  /* 819A84 phd */
+    lda16_v(0x0000);  /* 819A85 lda */
+    tcd();  /* 819A88 tcd */
+    abi_MapTileAddress();  /* 819A89 jsr */
+    lda16(ea_longx(LEVEL_TILES));  /* 819A8C lda */
+    pld();  /* 819A90 pld */
+    return;  /* 819A91 rtl */
+}
+
+/*
+ * @routine 81:9B6D MapTileSet
+ * WHAT IT DOES: Puts tile word A into the level's map under point X, Y.
+ * HOW: With the direct page at 0 (its own kept on the stack, and A),
+ * MapTileAddress gives the tile's offset; A is written to the level's
+ * tiles there.
+ * Entry: M 16-bit, X 16-bit; A = the tile word; X = the x; Y = the y;
+ * called by JSL. Exit: A as at entry; X = the tile's offset; Y as at entry;
+ * D as at entry, N and Z from it (PLD); scratch as MapTileAddress leaves
+ * it.
+ */
+void abi_MapTileSet(void)
+{
+    phd();  /* 819B6D phd */
+    pha16();  /* 819B6E pha */
+    lda16_v(0x0000);  /* 819B6F lda */
+    tcd();  /* 819B72 tcd */
+    abi_MapTileAddress();  /* 819B73 jsr */
+    pla16();  /* 819B76 pla */
+    sta16(ea_longx(LEVEL_TILES));  /* 819B77 sta */
+    pld();  /* 819B7B pld */
+    return;  /* 819B7C rtl */
+}
+
+/*
+ * @routine 81:9B7D MapQuarterAt
+ * WHAT IT DOES: Reads the tilemap word of the 8x8 quarter of the map tile
+ * under the point in scratch $0C, $0E.
+ * HOW: With the direct page at 0 (its own kept on the stack):
+ * MapTileAddress; the point is put back; the quarter's offset (x bit 3
+ * gives 2, y bit 3 gives 4) is kept at $12 and added to the tile word,
+ * which indexes the level's tile quarters through the long pointer at
+ * $5A.
+ * Entry: DB any; $0C = the x; $0E = the y (words); $5A-$5C = the level's
+ * tile quarters; called by JSL. Exit: A = the tilemap word (16 bits); M
+ * and X 8-bit; Y = the low byte of its offset; X = the low byte of the
+ * tile's; $12 = the quarter's offset; D as at entry, N and Z from it
+ * (PLD).
+ */
+void abi_MapQuarterAt(void)
+{
+    op_rep(0x30);  /* 819B7D rep */
+    phd();  /* 819B7F phd */
+    lda16_v(0x0000);  /* 819B80 lda */
+    tcd();  /* 819B83 tcd */
+    ldx16(ea_dp(0x0C));  /* 819B84 ldx */
+    ldy16(ea_dp(0x0E));  /* 819B86 ldy */
+    phy16();  /* 819B88 phy */
+    phx16();  /* 819B89 phx */
+    abi_MapTileAddress();  /* 819B8A jsr */
+    pla16();  /* 819B8D pla */
+    sta16(ea_dp(0x0C));  /* 819B8E sta */
+    and16_v(0x0008);  /* 819B90 and */
+    ACC16(lsr);  /* 819B93 lsr */
+    ACC16(lsr);  /* 819B94 lsr */
+    sta16(ea_dp(0x12));  /* 819B95 sta */
+    pla16();  /* 819B97 pla */
+    sta16(ea_dp(0x0E));  /* 819B98 sta */
+    and16_v(0x0008);  /* 819B9A and */
+    ACC16(lsr);  /* 819B9D lsr */
+    tsb16(ea_dp(0x12));  /* 819B9E tsb */
+    clc();  /* 819BA0 clc */
+    lda16(ea_longx(LEVEL_TILES));  /* 819BA1 lda */
+    adc16_v(rd16(ea_dp(0x12)));  /* 819BA5 adc */
+    tay16();  /* 819BA7 tay */
+    lda16(ea_dpily(0x5A));  /* 819BA8 lda */
+    op_sep(0x30);  /* 819BAA sep */
+    pld();  /* 819BAC pld */
+    return;  /* 819BAD rtl */
 }

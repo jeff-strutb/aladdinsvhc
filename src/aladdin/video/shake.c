@@ -8,10 +8,13 @@
  * frame.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
 #include "wram.h"
 
 void abi_TaskWait(void);
+void abi_TaskExit(void);
+void abi_ShakeUp(void);
+void abi_ShakeDown(void);
 
 static uint32_t abs_db(uint16_t addr)
 {
@@ -25,6 +28,8 @@ static uint32_t dp(uint8_t off)
 
 /* The shake task's record, from its slot (the direct page). */
 #define SHAKE_LAYER 0x75u          /* the layer's byte offset in LAYER_OFFSET_Y */
+#define SHAKE_SWAYS 0x76u          /* sways left */
+#define SHAKE_TABLE 0xBAA3u        /* per shake, 4 bytes: layer, sways, frames, step */
 #define SHAKE_FRAMES 0x77u         /* frames in a half-sway */
 #define SHAKE_STEP 0x78u           /* pixels a frame */
 
@@ -90,4 +95,38 @@ void abi_ShakeUp(void)
 void abi_ShakeDown(void)
 {
     sway(1, 0x81A234);
+}
+
+/*
+ * @routine 81:A1D5 ShakeTask
+ * WHAT IT DOES: A task that shakes a layer up and down: the shake its
+ * parameter picks, then it ends.
+ * HOW: Its slot becomes the direct page; the parameter (a byte offset in
+ * the shake table at $BAA3) is replaced by the shake's four bytes: the
+ * layer, the sways, the frames of a half-sway and the step; then
+ * ShakeUp and ShakeDown for each sway; then TaskExit.
+ * Entry: the task's start: M 8-bit, X 8-bit; Y = the task's slot; DB =
+ * $81. Exit: none: the task ends.
+ */
+void abi_ShakeTask(void)
+{
+    lda8_v(0x00);  /* 81A1D5 lda */
+    xba();  /* 81A1D7 xba */
+    tya8();  /* 81A1D8 tya */
+    tcd();  /* 81A1D9 tcd */
+    ldx8(ea_dp(SHAKE_LAYER));  /* 81A1DA ldx */
+    lda8(ea_absx(SHAKE_TABLE));  /* 81A1DC lda */
+    sta8(ea_dp(SHAKE_LAYER));  /* 81A1DF sta */
+    lda8(ea_absx(SHAKE_TABLE + 1));  /* 81A1E1 lda */
+    sta8(ea_dp(SHAKE_SWAYS));  /* 81A1E4 sta */
+    lda8(ea_absx(SHAKE_TABLE + 2));  /* 81A1E6 lda */
+    sta8(ea_dp(SHAKE_FRAMES));  /* 81A1E9 sta */
+    lda8(ea_absx(SHAKE_TABLE + 3));  /* 81A1EB lda */
+    sta8(ea_dp(SHAKE_STEP));  /* 81A1EE sta */
+L_81A1F0:
+    abi_ShakeUp();  /* 81A1F0 jsr */
+    abi_ShakeDown();  /* 81A1F3 jsr */
+    MEM8(dec, ea_dp(SHAKE_SWAYS));  /* 81A1F6 dec */
+    if (!IF_Z) goto L_81A1F0;  /* 81A1F8 bne */
+    abi_TaskExit(); return;  /* 81A1FA jml */
 }

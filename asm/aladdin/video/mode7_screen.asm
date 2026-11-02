@@ -228,6 +228,68 @@ Mode7TileRowsConvert:
     rts
 
 
+; @routine 81:A23C TileBlockQueueRun
+; WHAT IT DOES: Queues one 16x16 block for the NMI to write to VRAM at
+; address A: four tiles numbered on from Y, two on top, two under.
+; HOW: A queue record of 10 bytes at the queue's end: the address, then
+; the tilemap words Y, Y + 1, Y + 2, Y + 3; the length steps by 10 and the
+; queue is marked ready.
+; Entry: M 16-bit, X 16-bit; A = the VRAM address; Y = the first tile's
+; tilemap word; DB a bank whose $0000-$1FFF is work RAM; called by JSL.
+; Exit: M and X 8-bit; A low byte = the new length's; X = the record's
+; offset (low byte); Y = its low byte at entry; N, Z from the ready flag's
+; increment.
+%at($81A23C)
+TileBlockQueueRun:
+    ldx.w !tile_blocks_length
+    sta.w !tile_blocks,x
+    tya
+    sta.w !tile_blocks+2,x
+    inc a
+    sta.w !tile_blocks+4,x
+    inc a
+    sta.w !tile_blocks+6,x
+    inc a
+    sta.w !tile_blocks+8,x
+    txa
+    clc
+    adc.w #10
+    sta.w !tile_blocks_length
+    sep.b #$30
+    inc.w !tile_blocks_pending
+    rtl
+
+; @routine 81:A260 TileBlockQueueOne
+; WHAT IT DOES: Queues one 16x16 block for the NMI to write to VRAM at
+; address A: a square of tiles from Y in a sheet 16 tiles wide.
+; HOW: A queue record of 10 bytes at the queue's end: the address, then
+; the tilemap words Y, Y + 1, Y + 16, Y + 17; the length steps by 10 and
+; the queue is marked ready.
+; Entry: M 16-bit, X 16-bit; A = the VRAM address; Y = the first tile's
+; tilemap word; DB a bank whose $0000-$1FFF is work RAM; called by JSL.
+; Exit: M and X 8-bit; A low byte = the new length's; X = the record's
+; offset (low byte); Y = its low byte at entry; N, Z from the ready flag's
+; increment.
+TileBlockQueueOne:
+    ldx.w !tile_blocks_length
+    sta.w !tile_blocks,x
+    tya
+    sta.w !tile_blocks+2,x
+    inc a
+    sta.w !tile_blocks+4,x
+    clc
+    adc.w #15
+    sta.w !tile_blocks+6,x
+    inc a
+    sta.w !tile_blocks+8,x
+    txa
+    clc
+    adc.w #10
+    sta.w !tile_blocks_length
+    sep.b #$30
+    inc.w !tile_blocks_pending
+    rtl
+
 ; @routine 81:A287 TileBlockQueue
 ; WHAT IT DOES: Queues a block of tiles for the NMI to write to VRAM: four
 ; tilemap rows of four tiles at VRAM address A, the tiles numbered from Y.

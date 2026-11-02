@@ -80,3 +80,6 @@ includeonce
 ; Which BG positions follow the scroll layers (video/bg_follow.asm).
 !bg1_held = $1A14               ; nonzero: BG1's position is not taken from the play field
 !bg2_follows = $1A15            ; 0: BG2 follows the backdrop layer; $40: its y only; $80: the play field's x; else neither
+
+; Per actor type, its set's place in the level's list (actor/anim_sets.asm).
+!anim_set_place_of_type = $7FE000 ; per actor type, its set's place in anim_sets_used; 4: not listed

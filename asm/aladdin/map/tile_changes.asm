@@ -20,6 +20,9 @@ arch 65816
 !tm_y = $0E
 !tm_place = $10
 !tm_screen = $14
+!tm_quarter = $12                ; MapQuarterAt: the quarter's offset in the tile (0, 2, 4, 6)
+!level_quarters = $5A            ; the level's tile quarters: a long pointer (word, then bank $5C)
+!tc_level_tiles = $7F0000        ; the screens' tiles, a word each
 
 ; @routine 81:9A64 TileChangeQueueQuarter
 ; WHAT IT DOES: Queues one 8x8 quarter of a changed map tile for the NMI
@@ -263,4 +266,86 @@ TileChangeAdd:
     adc.w #$0008
     sta.w !tile_changes_end
     inc.w !tile_changes_count
+    rtl
+
+; @routine 81:9A84 MapTileAt
+; WHAT IT DOES: Reads the level's map tile under point X, Y.
+; HOW: With the direct page at 0 (its own kept on the stack),
+; MapTileAddress gives the tile's offset; the tile word is read from the
+; level's tiles at $7F:0000.
+; Entry: M 16-bit, X 16-bit; X = the x; Y = the y; called by JSL. Exit: A
+; = the tile word; X = its offset; Y as at entry; D as at entry, N and Z
+; from it (PLD); scratch as MapTileAddress leaves it.
+%at($819A84)
+MapTileAt:
+    phd
+    lda.w #$0000
+    tcd
+    jsr.w MapTileAddress
+    lda.l !tc_level_tiles,x
+    pld
+    rtl
+
+; @routine 81:9B6D MapTileSet
+; WHAT IT DOES: Puts tile word A into the level's map under point X, Y.
+; HOW: With the direct page at 0 (its own kept on the stack, and A),
+; MapTileAddress gives the tile's offset; A is written to the level's
+; tiles there.
+; Entry: M 16-bit, X 16-bit; A = the tile word; X = the x; Y = the y;
+; called by JSL. Exit: A as at entry; X = the tile's offset; Y as at entry;
+; D as at entry, N and Z from it (PLD); scratch as MapTileAddress leaves
+; it.
+%at($819B6D)
+MapTileSet:
+    phd
+    pha
+    lda.w #$0000
+    tcd
+    jsr.w MapTileAddress
+    pla
+    sta.l !tc_level_tiles,x
+    pld
+    rtl
+
+; @routine 81:9B7D MapQuarterAt
+; WHAT IT DOES: Reads the tilemap word of the 8x8 quarter of the map tile
+; under the point in scratch $0C, $0E.
+; HOW: With the direct page at 0 (its own kept on the stack):
+; MapTileAddress; the point is put back; the quarter's offset (x bit 3
+; gives 2, y bit 3 gives 4) is kept at $12 and added to the tile word,
+; which indexes the level's tile quarters through the long pointer at
+; $5A.
+; Entry: DB any; $0C = the x; $0E = the y (words); $5A-$5C = the level's
+; tile quarters; called by JSL. Exit: A = the tilemap word (16 bits); M
+; and X 8-bit; Y = the low byte of its offset; X = the low byte of the
+; tile's; $12 = the quarter's offset; D as at entry, N and Z from it
+; (PLD).
+MapQuarterAt:
+    rep.b #$30
+    phd
+    lda.w #$0000
+    tcd
+    ldx.b !tm_x
+    ldy.b !tm_y
+    phy
+    phx
+    jsr.w MapTileAddress
+    pla
+    sta.b !tm_x
+    and.w #$0008
+    lsr a
+    lsr a
+    sta.b !tm_quarter
+    pla
+    sta.b !tm_y
+    and.w #$0008
+    lsr a
+    tsb.b !tm_quarter
+    clc
+    lda.l !tc_level_tiles,x
+    adc.b !tm_quarter
+    tay
+    lda.b [!level_quarters],y
+    sep.b #$30
+    pld
     rtl

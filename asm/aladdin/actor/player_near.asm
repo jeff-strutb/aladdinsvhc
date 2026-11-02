@@ -1,4 +1,4 @@
-; player_near.asm: where an actor is against the player.
+; player_near.asm: where an actor is against the player, or a point.
 ;
 ; The actor is the record the direct page is; the player's is !player.
 ; Coordinates are the positions' whole pixels.
@@ -12,6 +12,8 @@ arch 65816
 
 ; Boxes round an actor: a half-width (and a half-height) per entry.
 !near_box_table = $81BC43       ; half-width, half-height: 4 bytes an entry
+!near_point_x = !scratch+8      ; ActorNearPoint's point (words)
+!near_point_y = !scratch+10
 !near_span_table = $81BC7B      ; half-width: 2 bytes an entry
 
 ; @routine 81:AB85 ActorSideOfPlayer
@@ -98,4 +100,42 @@ ActorNearPlayerX:
     adc.w !scratch
     cmp.w !scratch+2
     sep.b #$20
+    rtl
+
+; @routine 81:AD17 ActorNearPoint
+; WHAT IT DOES: Says whether the actor is inside a box round the point
+; in scratch $14, $16: within a half-width across and a half-height up or
+; down.
+; HOW: Takes box Y's half-width and half-height and keeps them and their
+; doubles in scratch; the actor's x - the point's x + half-width is below
+; the width (unsigned) when within it across; the same for y, tested only
+; when x passes.
+; Entry: M 16-bit; D = the actor; DB = $81; Y = the box's byte offset;
+; $14, $16 = the point (words); called by JSL. Exit: C clear when inside;
+; A = the last sum; N, Z, C from its compare; scratch $0C-$13 =
+; half-width, width, half-height, height; M 16-bit; X, Y, V unchanged.
+%at($81AD17)
+ActorNearPoint:
+    lda.w !near_box_table,y
+    sta.w !scratch
+    asl a
+    sta.w !scratch+2
+    lda.w !near_box_table+2,y
+    sta.w !scratch+4
+    asl a
+    sta.w !scratch+6
+    sec
+    lda.b !actor_x+1
+    sbc.w !near_point_x
+    clc
+    adc.w !scratch
+    cmp.w !scratch+2
+    bcs .out
+    sec
+    lda.b !actor_y+1
+    sbc.w !near_point_y
+    clc
+    adc.w !scratch+4
+    cmp.w !scratch+6
+.out:
     rtl

@@ -169,3 +169,28 @@ LevelPalettesLoad:
     bne .set
 .done:
     rts
+
+; PaletteSequenceTask's six palette sets and the frames each is shown.
+!palette_sequence_sets = $BA6A
+!palette_sequence_frames = $BA70
+
+; @routine 81:9E75 PaletteSequenceTask
+; WHAT IT DOES: A task that shows six palette sets in turn, each for its
+; own frames, then ends.
+; HOW: For Y from 5 down to 0: PaletteLoad of the set at $BA6A + Y, then
+; TaskWait for the frames at $BA70 + Y; then TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; DB = $81. Exit: none: the
+; task ends.
+%at($819E75)
+PaletteSequenceTask:
+    ldy.b #5
+.set:
+    lda.w !palette_sequence_sets,y
+    phy
+    jsl.l PaletteLoad
+    ply
+    lda.w !palette_sequence_frames,y
+    jsl.l TaskWait
+    dey
+    bpl .set
+    jml.l TaskExit

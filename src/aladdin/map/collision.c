@@ -10,7 +10,7 @@
  * tile place $16, screen tiles offset $18, mirrored $1A, tile word $1C.
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
 #include "actor.h"
 #include "wram.h"
 #include "wram_video.h"
@@ -1054,4 +1054,71 @@ void abi_PlayerOnFirmGround(void)
     cpu.d |= (uint16_t)(op_pull8() << 8);
     cpu.p = nz16(cpu.p, cpu.d);
     cpu.p = (uint8_t)((cpu.p & ~P_C) | (firm ? P_C : 0));
+}
+
+/* PlayerOnFirmGround's test at probe offset X ($81:B75C), the code the
+   probe 8 and probe 4 entries share. */
+static void firm_ground_at_x(void)
+{
+    phd();  /* 81B75C phd */
+    op_rep(0x20);  /* 81B75D rep */
+    lda16_v(PLAYER);  /* 81B75F lda */
+    tcd();  /* 81B762 tcd */
+    op_sep(0x20);  /* 81B763 sep */
+    stx8(ea_dp(ACTOR_PROBE_AT));  /* 81B765 stx */
+    abi_GroundLeft();  /* 81B767 jsr */
+    if (!IF_C) goto L_81B77B;  /* 81B76A bcc */
+    lda8(ea_abs(TILE_BEHAVIOUR_BYTE));  /* 81B76C lda */
+    bit8_i(0x60);  /* 81B76F bit */
+    if (!IF_Z) goto L_81B77B;  /* 81B771 bne */
+    and8_v(0x07);  /* 81B773 and */
+    tax8();  /* 81B775 tax */
+    lda8(ea_absx(SOFT_KINDS));  /* 81B776 lda */
+    if (IF_Z) goto L_81B78F;  /* 81B779 beq */
+L_81B77B:
+    abi_GroundRight();  /* 81B77B jsr */
+    if (!IF_C) goto L_81B792;  /* 81B77E bcc */
+    lda8(ea_abs(TILE_BEHAVIOUR_BYTE));  /* 81B780 lda */
+    bit8_i(BEHAVIOUR_THROUGH);  /* 81B783 bit */
+    if (!IF_Z) goto L_81B792;  /* 81B785 bne */
+    and8_v(0x07);  /* 81B787 and */
+    tax8();  /* 81B789 tax */
+    lda8(ea_absx(SOFT_KINDS));  /* 81B78A lda */
+    if (!IF_Z) goto L_81B792;  /* 81B78D bne */
+L_81B78F:
+    pld();  /* 81B78F pld */
+    sec();  /* 81B790 sec */
+    return;  /* 81B791 rtl */
+L_81B792:
+    pld();  /* 81B792 pld */
+    clc();  /* 81B793 clc */
+    return;  /* 81B794 rtl */
+}
+
+/*
+ * @routine 81:B74E PlayerOnFirmGroundProbe8
+ * WHAT IT DOES: Says whether the player stands on firm ground at probe 8:
+ * C set when the ground to its left or right is solid and not soft.
+ * HOW: PlayerOnFirmGround's test with the probe offset 8.
+ * Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: as
+ * PlayerOnFirmGround.
+ */
+void abi_PlayerOnFirmGroundProbe8(void)
+{
+    ldx8_v(0x08);  /* 81B74E ldx */
+    firm_ground_at_x();  /* 81B750 bra */
+}
+
+/*
+ * @routine 81:B75A PlayerOnFirmGroundProbe4
+ * WHAT IT DOES: Says whether the player stands on firm ground at probe 4:
+ * C set when the ground to its left or right is solid and not soft.
+ * HOW: PlayerOnFirmGround's test with the probe offset 4.
+ * Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: as
+ * PlayerOnFirmGround.
+ */
+void abi_PlayerOnFirmGroundProbe4(void)
+{
+    ldx8_v(0x04);  /* 81B75A ldx */
+    firm_ground_at_x();
 }

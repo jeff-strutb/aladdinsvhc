@@ -100,6 +100,52 @@ AnimSetsListEnd:
     bne .pair
     rts
 
+; @routine 81:9086 AnimSetsPlaces
+; WHAT IT DOES: For each actor type, finds where its animation set is in
+; the level's list of sets.
+; HOW: With the data bank at $7F: AnimSetsListEnd gives the sets listed;
+; for each of the 256 types the place is 4 (not listed) unless its set is
+; found in the list, when it is the set's place (offset / 2); the count
+; of sets left to look at is kept in scratch $0E.
+; Entry: M 8-bit, X 8-bit; called by JSR. Exit: Y = 0; X as the last
+; type's search left it; $0C = the sets listed; DB as at entry, N and Z
+; from it (PLB).
+AnimSetsPlaces:
+    phb
+    lda.b #!WORK_BANK_HIGH
+    pha
+    plb
+    jsr.w AnimSetsListEnd
+    txa
+    lsr a
+    dec a
+    sta.w !scratch
+    ldy.b #0
+.type:
+    lda.w !scratch
+    sta.w !scratch+2
+    lda.b #4
+    sta.w !anim_set_place_of_type,y
+    ldx.b #0
+.search:
+    lda.w !anim_set_of_type,y
+    cmp.w !anim_sets_used,x
+    bne .next
+    txa
+    lsr a
+    sta.w !anim_set_place_of_type,y
+    bra .found
+.next:
+    inx
+    inx
+    dec.w !scratch+2
+    bne .search
+.found:
+    iny
+    bne .type
+    plb
+    rts
+
 ; @routine 81:9D0C AnimSetsOfLevel
 ; WHAT IT DOES: Marks the animation sets of the actor types the level has.
 ; HOW: With the data bank at $82: the level's actor list; for each of its

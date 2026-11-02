@@ -14,6 +14,8 @@ void abi_Mode7GraphicsConvert(void);
 void abi_Mode7TilesConvert(void);
 void abi_Mode7TileRowsConvert(void);
 void abi_TileBlockQueue(void);
+void abi_TileBlockQueueRun(void);
+void abi_TileBlockQueueOne(void);
 void abi_VramWordsToBuffer(void);
 void abi_SineTableBuild(void);
 void abi_Mode7MapToBuffer(void);
@@ -226,6 +228,75 @@ L_81B0E0:
     MEM16(dec, ea_dp(0x2C));  /* 81B0F6 dec */
     if (!IF_Z) goto L_81B097;  /* 81B0F8 bne */
     return;  /* 81B0FA rts */
+}
+
+/*
+ * @routine 81:A23C TileBlockQueueRun
+ * WHAT IT DOES: Queues one 16x16 block for the NMI to write to VRAM at
+ * address A: four tiles numbered on from Y, two on top, two under.
+ * HOW: A queue record of 10 bytes at the queue's end: the address, then
+ * the tilemap words Y, Y + 1, Y + 2, Y + 3; the length steps by 10 and the
+ * queue is marked ready.
+ * Entry: M 16-bit, X 16-bit; A = the VRAM address; Y = the first tile's
+ * tilemap word; DB a bank whose $0000-$1FFF is work RAM; called by JSL.
+ * Exit: M and X 8-bit; A low byte = the new length's; X = the record's
+ * offset (low byte); Y = its low byte at entry; N, Z from the ready flag's
+ * increment.
+ */
+void abi_TileBlockQueueRun(void)
+{
+    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A23C ldx */
+    sta16(ea_absx(TILE_BLOCKS));  /* 81A23F sta */
+    tya16();  /* 81A242 tya */
+    sta16(ea_absx(TILE_BLOCKS + 2));  /* 81A243 sta */
+    ACC16(inc);  /* 81A246 inc */
+    sta16(ea_absx(TILE_BLOCKS + 4));  /* 81A247 sta */
+    ACC16(inc);  /* 81A24A inc */
+    sta16(ea_absx(TILE_BLOCKS + 6));  /* 81A24B sta */
+    ACC16(inc);  /* 81A24E inc */
+    sta16(ea_absx(TILE_BLOCKS + 8));  /* 81A24F sta */
+    txa16();  /* 81A252 txa */
+    clc();  /* 81A253 clc */
+    adc16_v(0x000A);  /* 81A254 adc */
+    sta16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A257 sta */
+    op_sep(0x30);  /* 81A25A sep */
+    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81A25C inc */
+    return;  /* 81A25F rtl */
+}
+
+/*
+ * @routine 81:A260 TileBlockQueueOne
+ * WHAT IT DOES: Queues one 16x16 block for the NMI to write to VRAM at
+ * address A: a square of tiles from Y in a sheet 16 tiles wide.
+ * HOW: A queue record of 10 bytes at the queue's end: the address, then
+ * the tilemap words Y, Y + 1, Y + 16, Y + 17; the length steps by 10 and
+ * the queue is marked ready.
+ * Entry: M 16-bit, X 16-bit; A = the VRAM address; Y = the first tile's
+ * tilemap word; DB a bank whose $0000-$1FFF is work RAM; called by JSL.
+ * Exit: M and X 8-bit; A low byte = the new length's; X = the record's
+ * offset (low byte); Y = its low byte at entry; N, Z from the ready flag's
+ * increment.
+ */
+void abi_TileBlockQueueOne(void)
+{
+    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A260 ldx */
+    sta16(ea_absx(TILE_BLOCKS));  /* 81A263 sta */
+    tya16();  /* 81A266 tya */
+    sta16(ea_absx(TILE_BLOCKS + 2));  /* 81A267 sta */
+    ACC16(inc);  /* 81A26A inc */
+    sta16(ea_absx(TILE_BLOCKS + 4));  /* 81A26B sta */
+    clc();  /* 81A26E clc */
+    adc16_v(0x000F);  /* 81A26F adc */
+    sta16(ea_absx(TILE_BLOCKS + 6));  /* 81A272 sta */
+    ACC16(inc);  /* 81A275 inc */
+    sta16(ea_absx(TILE_BLOCKS + 8));  /* 81A276 sta */
+    txa16();  /* 81A279 txa */
+    clc();  /* 81A27A clc */
+    adc16_v(0x000A);  /* 81A27B adc */
+    sta16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A27E sta */
+    op_sep(0x30);  /* 81A281 sep */
+    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81A283 inc */
+    return;  /* 81A286 rtl */
 }
 
 /*
