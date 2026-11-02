@@ -109,7 +109,7 @@ void abi_PlayStartCountsLong(void)
  * frame left on the current entry; the stream's offset from the word table
  * at $B724 (the demo * 2); the progress sequence, the stage and $0360
  * from the byte tables at $B6FD, $B70A and $B717.
- * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: A low byte =
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: A low byte =
  * $0360's new value; X = the demo; Y = the demo * 2; N, Z from the last
  * load; C from the doubling; V unchanged.
  */
@@ -144,7 +144,7 @@ void abi_DemoStart(void)
  * HOW: Random = $C3, $032C = 1, $032D = 0; when $0009 is set, health
  * marks = 10, $036E = 1 and $0369 = $99; health = the health marks;
  * $0347, $036C and $035A cleared.
- * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: A low byte =
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: A low byte =
  * the health; N, Z from it; X, Y, C, V unchanged.
  */
 void abi_PlayStartCounts(void)
