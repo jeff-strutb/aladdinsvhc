@@ -1,38 +1,4 @@
 /*
- * @routine 83:84F4 ActorSpawnKind11AtPlayer
- * WHAT IT DOES: Starts an actor of kind $11 at Aladdin's feet: at his x,
- * 16 pixels below his y, in a record of the second free list.
- * HOW: The record taken through $81:EA3D; none free: nothing. Its state
- * $0C (to start), kind $11, byte $07 zero, byte $08 $80, and its x and y
- * pixels from his.
- * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM.
- * Exit: none free: N set, Y = the list's top offset (negative), A, X and
- * the other flags unchanged. Started: X = the record (low byte); Y = the
- * list's old top offset; A = the new y (16 bits); N, V, Z and C from
- * adding 16. M and X 8-bit either way.
- */
-void abi_ActorSpawnKind11AtPlayer(void)
-{
-    call_routine(ACTOR_TAKE_B, 1);
-    if (!IF_N) {
-        lda8_v(0x0C);
-        sta8(ea_absx(ACTOR_STATE));
-        lda8_v(KIND_11);
-        sta8(ea_absx(ACTOR_06));
-        stz8(ea_absx(ACTOR_07));
-        lda8_v(0x80);
-        sta8(ea_absx(ACTOR_08));
-        op_rep(0x20);
-        lda16(ea_abs(PLAYER_X_PIXELS));
-        sta16(ea_absx(ACTOR_X + 1));
-        lda16(ea_abs(PLAYER_Y_PIXELS));
-        clc();
-        adc16_v(0x0010);
-        sta16(ea_absx(ACTOR_Y + 1));
-    }
-    op_sep(0x30);
-}
-/*
  * @routine 83:848D PlayerLandsOnActor
  * WHAT IT DOES: Tells whether Aladdin has come down on top of the actor,
  * and if so stands him on it, his code going on at his landing, with an
@@ -76,4 +42,38 @@ void abi_PlayerLandsOnActor(void)
     return;
 no:
     op_sep(0x32);
+}
+/*
+ * @routine 83:84F4 ActorSpawnKind11AtPlayer
+ * WHAT IT DOES: Starts an actor of kind $11 at Aladdin's feet: at his x,
+ * 16 pixels below his y, in a record of the second free list.
+ * HOW: The record taken through $81:EA3D; none free: nothing. Its state
+ * $0C (to start), kind $11, byte $07 zero, byte $08 $80, and its x and y
+ * pixels from his.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM.
+ * Exit: none free: N set, Y = the list's top offset (negative), A, X and
+ * the other flags unchanged. Started: X = the record (low byte); Y = the
+ * list's old top offset; A = the new y (16 bits); N, V, Z and C from
+ * adding 16. M and X 8-bit either way.
+ */
+void abi_ActorSpawnKind11AtPlayer(void)
+{
+    call_routine(ACTOR_TAKE_B, 1);
+    if (!IF_N) {
+        lda8_v(0x0C);
+        sta8(ea_absx(ACTOR_STATE));
+        lda8_v(KIND_11);
+        sta8(ea_absx(ACTOR_06));
+        stz8(ea_absx(ACTOR_07));
+        lda8_v(0x80);
+        sta8(ea_absx(ACTOR_08));
+        op_rep(0x20);
+        lda16(ea_abs(PLAYER_X_PIXELS));
+        sta16(ea_absx(ACTOR_X + 1));
+        lda16(ea_abs(PLAYER_Y_PIXELS));
+        clc();
+        adc16_v(0x0010);
+        sta16(ea_absx(ACTOR_Y + 1));
+    }
+    op_sep(0x30);
 }

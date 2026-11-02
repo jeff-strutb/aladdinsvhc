@@ -185,3 +185,21 @@ void abi_OpeningScene2Start(void)
     ldx8_v(0x06);
     abi_OpeningActorPlace();
 }
+
+
+/* The end three scenes share ($80:AE43): the task at $82:8000 created in
+   slot 6 (parameter $18); a frame; palette $56; slot 0 at $15F1 started
+   with $1F; the actor of entry 20. */
+static void scene_end(void)
+{
+    task_create(0x80AE43u);
+    jsr_waits(0xAE4E, abi_FrameEnd);
+    lda8_v(0x56);
+    abi_PaletteLoad();
+    ldx8_v(0x00);
+    lda8_v(0x1F);
+    call_routine(SLOT_15F1_START, 1);
+    ldx8_v(0x78);
+    abi_OpeningActorPlace();
+}
+
