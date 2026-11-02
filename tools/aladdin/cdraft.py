@@ -59,6 +59,7 @@ class Known:
 
     def __init__(self, src=SRC):
         self.name, self.actor, self.waits, self.text = {}, set(), set(), {}
+        self.leaves = set()
         for f in sorted(glob.glob(os.path.join(src, '**', '*.c'), recursive=True)):
             t = open(f).read()
             for m in TAG.finditer(t):
@@ -71,6 +72,10 @@ class Known:
                 self.text[a] = body
                 if body and re.search(r'\b(task_yield|jsl_frame|abi_TaskWait)\b', body):
                     self.waits.add(a)
+                # ends its actor from a call (pulls its return address, then
+                # actor_leave): its caller's C pushes the return address
+                if body and 'actor_leave(' in body and not re.search(r'@actor\b', head):
+                    self.leaves.add(a)
         self.starts = set(self.name)
         cat = os.path.join(ROOT, 'build', 'aladdin', 'routines.csv')
         if os.path.exists(cat):
@@ -221,7 +226,7 @@ class Draft:
         its return does, and the C's call pushes and pulls it here."""
         n = self.callee(t)
         out = []
-        frame = n and (t in self.k.waits or t in INLINE)
+        frame = n and (t in self.k.waits or t in INLINE or t in self.k.leaves)
         if frame:
             if long:
                 out.append('jsl_frame(0x%06Xu);' % i.addr)
@@ -321,9 +326,16 @@ class Draft:
                 d += n
             elif i.mn in self.PULL:
                 d -= n
-                if d < 0:
-                    self.flag(i, "pulls from its caller's frame")
+                if d < -3:
+                    self.flag(i, "pulls past its caller's return address")
                     continue
+            # Its caller's return address pulled (d < 0): only on the way
+            # into the actor loop (actor_leave), the actor's code ended.
+            if d < 0 and i.mn in ('jmp', 'jml') and i.t in ACTOR_LOOP:
+                continue
+            if d < 0 and i.mn in ('rts', 'rtl', 'bra', 'brl', 'jmp', 'jml', 'rti'):
+                self.flag(i, "leaves through its caller's frame other than into the actor loop")
+                continue
             if i.mn in ('rts', 'rtl') and d != 0:
                 self.flag(i, 'returns with %d bytes of its own on the stack' % d)
                 continue

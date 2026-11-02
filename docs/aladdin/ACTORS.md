@@ -49,3 +49,16 @@ The same pieces as a task's waits:
 Proofs as for tasks: planted bugs (a wrong resume address, a dropped push,
 a wrong wait) turn A5 and A7 red, and every new piece reports pieces
 compared above 0.
+
+## A routine that ends its actor
+
+A routine the actor's code calls (by JSR, so not @actor) may end the actor
+itself: it pulls its own return address (PLA PLA, S back at the actor's
+level, its exit level) and jumps into the actor loop ($83:96BE,
+ActorEndOutOfRange). Its C does the same pulls and ends in actor_leave; a
+C caller pushes the return address first (as for a call that can wait) and
+pops it when the call returns. Both oracles end such a call where the PC
+reaches the loop at its exit level. On rand_level1_1, ActorEndOutOfRange's
+214 calls are identical on A5 and the lockstep run identical; one pull
+left out, the free left out, or the other loop entry each fail both
+(2026-11-01).

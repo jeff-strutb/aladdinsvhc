@@ -571,6 +571,17 @@ static void on_insn(uint32_t pc)
             if (!have) { core_regs(&r); have = 1; }
             if (r.s == ws[i]->irq_s) ws[i]->in_irq = 0;
         }
+    /* A routine the actor's code called ends the actor: it pulled its own
+       return address and jumps into the actor loop at its exit level (the
+       actor's). Judged up to here, as a C that left there (actor_leave). */
+    if (depth && (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER)) {
+        if (!have) { core_regs(&r); have = 1; }
+        while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq && r.s == ws[depth - 1]->exit_s) {
+            finish_piece(ws[depth - 1], 2);
+            a5_drop(ws[depth - 1]);
+            depth--;
+        }
+    }
     /* An actor yields (just after its BRK) or leaves its code for the
        actor loop: the watches from its piece up are judged up to here and
        parked under its record, or dropped when it left. */
@@ -1179,6 +1190,16 @@ static void ls_insn(uint32_t pc)
                 m.irq_resumed = 0;
                 return;
             }
+        } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && r.s == m.exit_s) {
+            /* A routine the actor's code called that ends the actor: it
+               pulled its own return address (S back at the actor's level,
+               its exit level) and jumps into the actor loop. */
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "OALEAVE frame %ld call %llu D=%04X S=%04X\n", cur_frame, (unsigned long long)m.call, r.d, r.s);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
+            return;
         }
         /* The call's task waits: the call ends here, at the scheduler, and
            is parked for the task's next turn. */
@@ -2573,6 +2594,10 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
             c->resume_s = rs;
             aparked[k] = c;
         } else ctx_abandon(c);
+    } else if (c->status == 3 && (out.pc == ACTOR_LOOP_NEXT || out.pc == ACTOR_LOOP_PLAYER)) {
+        /* a routine that ended its actor (actor_leave): nothing resumes it */
+        yields++;
+        ctx_abandon(c);
     } else if (c->status == 3) {
         uint8_t slot = wram[TASK_CURRENT];
         uint16_t rs = 0;
