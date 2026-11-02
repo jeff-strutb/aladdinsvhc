@@ -1,0 +1,41 @@
+/*
+ * @routine 80:A4DC ActorSpawnAt
+ * WHAT IT DOES: Starts a new actor of kind A's high byte at the place in
+ * SPAWN_X and SPAWN_Y, with A's low byte at its $07; nothing when no
+ * record is free.
+ * HOW: The low byte kept at $0030; the record taken by the routine at
+ * $82:AA2B (which sets the kind); its state $0C (new), its $07, and the
+ * whole pixels of its x and y from the two words.
+ * Entry: M 8-bit, X 8-bit; A = kind (high byte) and the byte for $07
+ * (low); DB a bank whose $0000-$1FFF is work RAM. Exit: started: X = the
+ * record (16 bits), A = the y word, M 16-bit, C clear, N and Z from the
+ * y; Y as $82:AA2B leaves it. None free: as $82:AA2B leaves them (C set).
+ */
+void abi_ActorSpawnAt(void)
+{
+    sta8(ea_abs(SPAWN_07));
+    xba();
+    call_routine(ACTOR_ALLOC, 1);
+    if (IF_C)
+        return;
+    lda8_v(ACTOR_NEW);
+    sta8(ea_absx(ACTOR_STATE));
+    lda8(ea_abs(SPAWN_07));
+    sta8(ea_absx(ACTOR_07));
+    op_rep(0x20);
+    lda16(ea_abs(SPAWN_X));
+    sta16(ea_absx(ACTOR_X + 1));
+    lda16(ea_abs(SPAWN_Y));
+    sta16(ea_absx(ACTOR_Y + 1));
+    clc();
+}
+/*
+ * @routine 80:A4D8 ActorSpawnAtLong
+ * WHAT IT DOES: ActorSpawnAt for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorSpawnAt; called by JSL. Exit: as ActorSpawnAt.
+ */
+void abi_ActorSpawnAtLong(void)
+{
+    abi_ActorSpawnAt();
+}

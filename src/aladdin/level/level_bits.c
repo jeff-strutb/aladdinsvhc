@@ -8,19 +8,3 @@
 /* Sets the byte at $7E:F260 + X from bit X of the table byte by $035D. */
 #define BIT_TO_BYTE 0x83C2F0u
 
-/*
- * @routine 83:C2E7 Bits035DExpand
- * WHAT IT DOES: Sets the eight bytes at $7E:F260 from the eight bits of the
- * byte for $035D in the table at $80:D27E, last first.
- * HOW: The routine at $83:C2F0 for X = 7 down to 0.
- * Entry: M 8-bit, X 8-bit; DB = $80; called by JSL. Exit: X = $FF; N set,
- * Z clear; A and Y as the last call leaves them; M and X 8-bit.
- */
-void abi_Bits035DExpand(void)
-{
-    ldx8_v(0x07);
-    do {
-        call_routine(BIT_TO_BYTE, 0);
-        dex8();
-    } while (!IF_N);
-}

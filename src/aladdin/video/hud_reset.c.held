@@ -1,0 +1,29 @@
+/*
+ * @routine 81:F433 HudRedrawAll
+ * WHAT IT DOES: Draws the status line afresh: its text, every health mark
+ * place, and then each of its values.
+ * HOW: Text 0; HudHealthMarkShow for each mark from the last down to the
+ * first; the shown health, $0363, $036D and the two counters zeroed; the
+ * digit's refresh at $81:F47F; then on into the refresh at $81:F456.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM.
+ * Exit: as the refresh at $81:F456 leaves them.
+ */
+void abi_HudRedrawAll(void)
+{
+    lda8_v(0x00);
+    call_routine(TEXT_DRAW, 1);
+    lda8(ea_abs(HEALTH_MARKS));
+    do {
+        pha8();
+        abi_HudHealthMarkShow();
+        pla8();
+        ACC8(dec);
+    } while (!IF_Z);
+    stz8(ea_abs(HEALTH_SHOWN));
+    stz8(ea_abs(HUD_0363));
+    stz8(ea_abs(HUD_036D));
+    stz8(ea_abs(HUD_COUNT_1_SHOWN));
+    stz8(ea_abs(HUD_COUNT_2_SHOWN));
+    call_routine(HUD_DIGIT_REFRESH, 0);
+    jump_routine(HUD_REFRESH);
+}
