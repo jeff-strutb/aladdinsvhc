@@ -112,10 +112,43 @@ keep:
     op_sep(0x20);
 }
 
-/* ActorWaitAnimEnd10 ($83:BD0B, asm/aladdin/actor/wait_step.asm) has no C
-   yet: when it ends the actor through the tail at $83:9738, the checker
-   takes the RTS of that tail's JSR ActorFreePlaced (S back at the call's
-   own level) for the call's return, as for ActorEndOutOfRange. */
+/*
+ * @routine 83:BD0B ActorWaitAnimEnd10
+ * WHAT IT DOES: Each frame it waits: its animation on; then, where
+ * LEVEL_035C is 6, it is ended once left behind (the tail at $83:9738);
+ * elsewhere once out of range (box $10).
+ * HOW: AnimStep, the compare, then a jump to either.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: kept: M 8-bit; as the tail at $83:9738 (A = the
+ * word less 31, M 8-bit) or ActorEndOutOfRange (M and X 8-bit, X = $10)
+ * returns. Ended: the loop goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitAnimEnd10(void)
+{
+    abi_AnimStep();
+    lda8(ea_abs(LEVEL_035C));
+    cmp8_v(0x06);
+    if (!IF_Z) goto range;
+    /* The tail at $83:9738: ended once the camera's x less 31 is past it. */
+    op_rep(0x21);
+    lda16(ea_abs(0x1773));
+    sbc16_v(0x001F);
+    if (IF_N) goto kept;
+    cmp16_v(rd16(ea_dp(0x0C)));
+    if (!IF_C) goto kept;
+    op_sep(0x30);           /* $83:96C6 */
+    pla8();
+    pla8();
+    abi_ActorFreePlaced();
+    actor_leave(0x8394BFu);
+    return;
+kept:
+    op_sep(0x20);
+    return;
+range:
+    ldx8_v(0x10);
+    jump_routine(0x8396BEu);
+}
 
 
 
@@ -125,4 +158,73 @@ keep:
 
 
 
+
+
+/*
+ * @routine 83:D8CE ActorWaitHurtOnTouch
+ * WHAT IT DOES: Each frame it waits: its animation on; unless bit 3 of
+ * its $07 is set, it hurts the player on touch; it is ended once left
+ * behind.
+ * HOW: AnimStep, ActorHurtsPlayerOnTouch, then on into the tail at
+ * $83:9738.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: kept: M 8-bit; A = the word at $1773 less 31; N,
+ * Z and C from its test. Ended: the loop goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitHurtOnTouch(void)
+{
+    abi_AnimStep();
+    lda8(ea_dp(ACTOR_07));
+    and8_v(0x08);
+    if (IF_Z)
+        abi_ActorHurtsPlayerOnTouch();
+    end_if_left_behind();
+}
+/*
+ * @routine 83:F487 ActorWaitAnimRange18
+ * WHAT IT DOES: Each frame it waits: its animation on, the update at
+ * $81:949E, and it ends once out of range (box $18).
+ * HOW: AnimStep, the call, then on into ActorEndOutOfRange with X = $18.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
+ * 8-bit, X = $18, C clear). Out of range: the actor is ended and the loop
+ * goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitAnimRange18(void)
+{
+    abi_AnimStep();
+    call_routine(SUB_81949E, 1);
+    ldx8_v(0x18);
+    jump_routine(ACTOR_END_OUT_OF_RANGE);
+}
+/*
+ * @routine 83:E458 ActorWaitAnimRange10
+ * WHAT IT DOES: Each frame it waits: its animation on, and it ends once
+ * out of range (box $10).
+ * HOW: AnimStep, then on into ActorEndOutOfRange with X = $10.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
+ * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
+ * goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitAnimRange10(void)
+{
+    abi_AnimStep();
+    ldx8_v(0x10);
+    jump_routine(ACTOR_END_OUT_OF_RANGE);
+}
+/*
+ * @routine 83:E5B6 ActorWaitRange00
+ * WHAT IT DOES: Each frame it waits, it ends once out of range (box 0).
+ * HOW: X = 0, then on into ActorEndOutOfRange.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
+ * 8-bit, X = 0, C clear). Out of range: the actor is ended and the loop
+ * goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitRange00(void)
+{
+    ldx8_v(0x00);
+    jump_routine(ACTOR_END_OUT_OF_RANGE);
+}
 

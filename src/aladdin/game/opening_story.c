@@ -203,3 +203,5 @@ static void scene_end(void)
     abi_OpeningActorPlace();
 }
 
+
+

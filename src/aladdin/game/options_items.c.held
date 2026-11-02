@@ -1,21 +1,4 @@
 /*
- * @routine 83:8BA8 OptionStereoToggle
- * WHAT IT DOES: The sound output item's step (left or right): switches
- * between stereo and monaural, seals the kept options and shows it.
- * HOW: Bit 7 of the second kept option flipped, KeptOptionsSeal, then on
- * into OptionStereoShow.
- * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM.
- * Exit: as OptionStereoShow.
- */
-void abi_OptionStereoToggle(void)
-{
-    lda8(ea_abs(SOUND_OUTPUT));
-    eor8_v(0x80);
-    sta8(ea_abs(SOUND_OUTPUT));
-    abi_KeptOptionsSeal();
-    abi_OptionStereoShow();
-}
-/*
  * @routine 83:8BB4 OptionStereoShow
  * WHAT IT DOES: Shows the sound output on the options screen, STEREO or
  * MONAURAL by bit 7 of the second kept option, and sends the sound driver
@@ -40,4 +23,21 @@ void abi_OptionStereoShow(void)
     if (!IF_N)
         ACC8(inc);
     abi_SoundQueueAdd();
+}
+/*
+ * @routine 83:8BA8 OptionStereoToggle
+ * WHAT IT DOES: The sound output item's step (left or right): switches
+ * between stereo and monaural, seals the kept options and shows it.
+ * HOW: Bit 7 of the second kept option flipped, KeptOptionsSeal, then on
+ * into OptionStereoShow.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM.
+ * Exit: as OptionStereoShow.
+ */
+void abi_OptionStereoToggle(void)
+{
+    lda8(ea_abs(SOUND_OUTPUT));
+    eor8_v(0x80);
+    sta8(ea_abs(SOUND_OUTPUT));
+    abi_KeptOptionsSeal();
+    abi_OptionStereoShow();
 }

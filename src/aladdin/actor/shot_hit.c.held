@@ -36,6 +36,29 @@ void abi_ActorTurnsShotBack(void)
     clc();
 }
 /*
+ * @routine 83:82B1 Spawn13AtYLong
+ * WHAT IT DOES: The routine at $83:82B5, which starts an actor of kind
+ * $13 at record Y's place, for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as $83:82B5: M 8-bit, X 16-bit; Y = the record; called by JSL.
+ * Exit: as $83:82B5.
+ */
+void abi_Spawn13AtYLong(void)
+{
+    call_routine(SPAWN_13_AT_Y, 0);
+}
+/*
+ * @routine 83:8196 ActorTurnsShotBackLong
+ * WHAT IT DOES: ActorTurnsShotBack for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorTurnsShotBack; called by JSL. Exit: as
+ * ActorTurnsShotBack.
+ */
+void abi_ActorTurnsShotBackLong(void)
+{
+    abi_ActorTurnsShotBack();
+}
+/*
  * @routine 83:80F8 ActorShotHit80FCLong
  * WHAT IT DOES: The routine at $83:80FC, which starts with the shot test,
  * for callers in other banks.
@@ -77,27 +100,4 @@ void abi_ActorTakesShot(void)
         }
     }
     op_sep(0x30);
-}
-/*
- * @routine 83:82B1 Spawn13AtYLong
- * WHAT IT DOES: The routine at $83:82B5, which starts an actor of kind
- * $13 at record Y's place, for callers in other banks.
- * HOW: JSR to it, then RTL.
- * Entry: as $83:82B5: M 8-bit, X 16-bit; Y = the record; called by JSL.
- * Exit: as $83:82B5.
- */
-void abi_Spawn13AtYLong(void)
-{
-    call_routine(SPAWN_13_AT_Y, 0);
-}
-/*
- * @routine 83:8196 ActorTurnsShotBackLong
- * WHAT IT DOES: ActorTurnsShotBack for callers in other banks.
- * HOW: JSR to it, then RTL.
- * Entry: as ActorTurnsShotBack; called by JSL. Exit: as
- * ActorTurnsShotBack.
- */
-void abi_ActorTurnsShotBackLong(void)
-{
-    abi_ActorTurnsShotBack();
 }
