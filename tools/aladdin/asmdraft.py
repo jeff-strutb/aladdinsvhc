@@ -72,7 +72,12 @@ def gsu_names(ins, pc, names, labels, missing):
     return ins
 
 
+# Calls with their arguments in the bytes after them: TaskCreate, TaskExec
+INLINE = {0x81BCB8: 5, 0x81BCF6: 3}
+
+
 def main(argv):
+    rom = open(os.path.join(B, 'baserom.sfc'), 'rb').read()
     rows = {r['addr']: r for r in csv.DictReader(open(os.path.join(B, 'routines.csv')))}
     names, labels, text = defines(), filed_labels(), listing()
     missing = set()
@@ -140,6 +145,12 @@ def main(argv):
                         missing.add((m.group(1), n.group(0)))
                 ins = '%s%s %s' % (m.group(1), m.group(2) or '', op)
             out.append('    ' + ins)
+            # TaskCreate and TaskExec take their arguments from the bytes
+            # after the call (they are data, not traced as code)
+            jl = re.match(r'jsl\.l \$([0-9A-F]{6})$', t[0])
+            if jl and int(jl.group(1), 16) in INLINE:
+                n = INLINE[int(jl.group(1), 16)]
+                out.append('    db ' + ','.join('$%02X' % b for b in rom[o + 4:o + 4 + n]))
         print('\n'.join(out) + '\n')
     if missing:
         print('; unnamed: ' + ' '.join(sorted({x[1] for x in missing})))

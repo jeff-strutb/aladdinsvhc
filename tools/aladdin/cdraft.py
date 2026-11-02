@@ -36,8 +36,12 @@ TAG = re.compile(r'@routine\s+([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4})\s+(\w+)')
 CPU_OP = 1
 
 # Calls whose arguments follow the call in the code (TaskCreate, TaskExec):
-# the call returns past them.
+# they read them through the return address, so a call to them pushes the
+# JSL's frame (jsl_frame), and TaskCreate returns past them (cpu.unwound).
+# TaskExec never returns: the task starts again at its new entry.
 INLINE = {0x81BCB8: 5, 0x81BCF6: 3}
+NORETURN = {0x81BCF6}
+TASK_WAIT = 0x81BD31
 # The actor loop, where actor code that ends jumps (docs/aladdin/ACTORS.md).
 ACTOR_LOOP = {0x8394BF, 0x83948B}
 
@@ -211,10 +215,14 @@ class Draft:
         return t != self.addr and t in self.k.starts
 
     def call(self, i, t, long):
-        """A JSR or JSL to t."""
+        """A JSR or JSL to t. A routine that can wait gets the frame its
+        call pushes, as its task's stack holds it while it waits: TaskWait
+        itself pulls it (its RTL, before the task resumes); for any other,
+        its return does, and the C's call pushes and pulls it here."""
         n = self.callee(t)
         out = []
-        if n and t in self.k.waits:
+        frame = n and (t in self.k.waits or t in INLINE)
+        if frame:
             if long:
                 out.append('jsl_frame(0x%06Xu);' % i.addr)
             else:
@@ -224,6 +232,12 @@ class Draft:
             out.append('abi_%s();' % n)
         else:
             out.append('call_routine(0x%06Xu, %d);' % (t, 1 if long else 0))
+        if t in INLINE and t not in NORETURN:
+            out.append('cpu.unwound = 0;')
+        elif t in NORETURN:
+            out.append('return;')
+        elif frame and t != TASK_WAIT:
+            out.append('cpu.s = (uint16_t)(cpu.s + %d);' % (3 if long else 2))
         return ' '.join(out)
 
     def tail(self, t):
@@ -264,6 +278,8 @@ class Draft:
                         todo.append(i.t)
                     break
                 elif mn in ('jmp', 'jml', 'rts', 'rtl', 'rti', 'stp', 'xce', 'wai', 'cop'):
+                    break
+                elif mn in ('jsr', 'jsl') and i.t in NORETURN:
                     break
                 elif mn in ('jsr', 'jsl') and i.t in INLINE:
                     a = (i.next & 0xFF0000) | ((i.next + INLINE[i.t]) & 0xFFFF)
@@ -443,7 +459,9 @@ class Draft:
                 continue
             out.append('    %s  /* %06X %s */' % (self.step(i), a, i.mn))
             ends = i.mn in ('bra', 'brl', 'jmp', 'jml', 'rts', 'rtl', 'rti', 'stp')
-            if i.mn in ('jsr', 'jsl') and i.t in INLINE:
+            if i.mn in ('jsr', 'jsl') and i.t in NORETURN:
+                prev_next = None
+            elif i.mn in ('jsr', 'jsl') and i.t in INLINE:
                 prev_next = (i.next & 0xFF0000) | ((i.next + INLINE[i.t]) & 0xFFFF)
             elif i.mn == 'brk' and not self.actor:
                 prev_next = None
