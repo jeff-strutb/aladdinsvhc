@@ -52,6 +52,7 @@ Level08ScreenSetup:
     ldx.b #$38
     lda.b #$10
     jsr.w PaletteCycleStart
+.colours:
     lda.b #$17
     sta.w !TM_SHADOW
     lda.b #$10
@@ -227,3 +228,26 @@ Level0CScreenSetup:
     lda.b #$21
     jsr.w PaletteCycleStart
     rts
+
+; @routine 81:8AC7 Level09ScreenSetup
+; WHAT IT DOES: Level 9's screen set-up: four palette cycles, then the
+; layers and colour maths of level 8.
+; HOW: PaletteCycleStart for (slot, cycle) (0, $19), ($0E, $1A), ($1C,
+; $26), ($2A, $27); then into Level08ScreenSetup's layers and colour maths.
+; Entry: M 8-bit, X 8-bit; reached by the jump through the table by level
+; at $81:8802 (81:87FF). Exit: by RTS; A = $53.
+%at($818AC7)
+Level09ScreenSetup:
+    ldx.b #$00
+    lda.b #$19
+    jsr.w PaletteCycleStart
+    ldx.b #$0E
+    lda.b #$1A
+    jsr.w PaletteCycleStart
+    ldx.b #$1C
+    lda.b #$26
+    jsr.w PaletteCycleStart
+    ldx.b #$2A
+    lda.b #$27
+    jsr.w PaletteCycleStart
+    bra Level08ScreenSetup_colours

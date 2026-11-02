@@ -259,3 +259,41 @@ void abi_Level0CScreenSetup(void)
     abi_PaletteCycleStart();  /* 818BA3 jsr */
     return;  /* 818BA6 rts */
 }
+
+/*
+ * @routine 81:8AC7 Level09ScreenSetup
+ * WHAT IT DOES: Level 9's screen set-up: four palette cycles, then the
+ * layers and colour maths of level 8.
+ * HOW: PaletteCycleStart for (slot, cycle) (0, $19), ($0E, $1A), ($1C,
+ * $26), ($2A, $27); then into Level08ScreenSetup's layers and colour maths.
+ * Entry: M 8-bit, X 8-bit; reached by the jump through the table by level
+ * at $81:8802 (81:87FF). Exit: by RTS; A = $53.
+ */
+void abi_Level09ScreenSetup(void)
+{
+    goto L_818AC7;
+L_818AB2:
+    lda8_v(0x17);  /* 818AB2 lda */
+    sta8(ea_abs(TM_SHADOW));  /* 818AB4 sta */
+    lda8_v(0x10);  /* 818AB7 lda */
+    sta8(ea_abs(TS_SHADOW));  /* 818AB9 sta */
+    lda8_v(0x03);  /* 818ABC lda */
+    sta8(ea_abs(CGWSEL_SHADOW));  /* 818ABE sta */
+    lda8_v(0x53);  /* 818AC1 lda */
+    sta8(ea_abs(CGADSUB_SHADOW));  /* 818AC3 sta */
+    return;  /* 818AC6 rts */
+L_818AC7:
+    ldx8_v(0x00);  /* 818AC7 ldx */
+    lda8_v(0x19);  /* 818AC9 lda */
+    abi_PaletteCycleStart();  /* 818ACB jsr */
+    ldx8_v(0x0E);  /* 818ACE ldx */
+    lda8_v(0x1A);  /* 818AD0 lda */
+    abi_PaletteCycleStart();  /* 818AD2 jsr */
+    ldx8_v(0x1C);  /* 818AD5 ldx */
+    lda8_v(0x26);  /* 818AD7 lda */
+    abi_PaletteCycleStart();  /* 818AD9 jsr */
+    ldx8_v(0x2A);  /* 818ADC ldx */
+    lda8_v(0x27);  /* 818ADE lda */
+    abi_PaletteCycleStart();  /* 818AE0 jsr */
+    goto L_818AB2;  /* 818AE3 bra */
+}
