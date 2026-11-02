@@ -1,6 +1,6 @@
 /*
- * player_grab.c: tests of where Aladdin stands against an actor: just in
- * front of it, and close enough to take hold of it.
+ * player_grab.c: whether Aladdin is close enough to an actor to take hold
+ * of it.
  */
 #include "machine.h"
 #include "ops65.h"
@@ -71,44 +71,15 @@ void abi_ActorGrabbableByPlayerLong(void)
 }
 
 /*
- * @routine 83:8865 PlayerFacesActorNear
- * WHAT IT DOES: Tells whether Aladdin stands just in front of the actor:
- * his x plus 18 (8 when he faces left) less the actor's below 26, and his
- * y plus 2 less the actor's below 31, unsigned.
- * HOW: Two subtractions and unsigned compares on the pixel words.
- * Entry: D = the actor; DB a bank whose $0000-$1FFF is work RAM; called by
- * JSL. Exit: C clear when he does; A = the last difference (16 bits); N,
- * Z from the compare that decided, V from the last subtraction; M 8-bit;
- * X = his flip byte (low byte, X 8-bit), Y unchanged.
- */
-void abi_PlayerFacesActorNear(void)
-{
-    op_rep(0x21);
-    lda16_v(0x0012);
-    ldx8(ea_abs(PLAYER_FLIP));
-    if (!IF_Z)
-        lda16_v(0x0008);
-    adc16_v(rd16(ea_abs(PLAYER_X_PIXELS)));
-    sec();
-    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    cmp16_v(0x001A);
-    if (!IF_C) {
-        lda16(ea_abs(PLAYER_Y_PIXELS));
-        adc16_v(0x0002);
-        sec();
-        sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));
-        cmp16_v(0x001F);
-    }
-    op_sep(0x20);
-}
-
-/*
  * @routine 83:888C PlayerFacesActorClose
  * WHAT IT DOES: Tells whether Aladdin is close in front of the actor: his
  * x plus 22 (8 when he faces left) less the actor's below 30, and his y
  * plus 3 less the actor's below 26, unsigned.
- * HOW: As PlayerFacesActorNear, with the other offsets and sizes.
- * Entry: as PlayerFacesActorNear. Exit: as PlayerFacesActorNear.
+ * HOW: Two subtractions and unsigned compares on the pixel words.
+ * Entry: D = the actor; DB a bank whose $0000-$1FFF is work RAM; called by
+ * JSL. Exit: C clear when he is; A = the last difference (16 bits); N,
+ * Z from the compare that decided, V from the last subtraction; M 8-bit;
+ * X = his flip byte (low byte, X 8-bit), Y unchanged.
  */
 void abi_PlayerFacesActorClose(void)
 {
