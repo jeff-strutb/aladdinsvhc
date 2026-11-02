@@ -30,7 +30,7 @@ void abi_ActorZoneHasTestPoint(void)
     clc();
     adc8_v(ZONE_FIRST);
     tay8();
-    call_routine(ZONE_PLACE, 0);
+    abi_ActorZonePlace();
     lda16(ea_absy(ZONES));
     and16_v(0x00FF);
     sta16(ea_abs(SCRATCH + 4));

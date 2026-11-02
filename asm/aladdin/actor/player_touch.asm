@@ -18,7 +18,6 @@ arch 65816
 !STOMPED = $8C                  ; the state a stomped actor goes into
 
 ; Not yet filed
-!PLAYER_BOUNCE = $8384D5        ; the player bounces up off the actor
 !STOMP_MARK = $8384F4           ; an actor of kind $11 started at the player's place
 !TOUCH_8362 = $838362           ; a touch test (ActorHitsTestBoxIfActive first)
 !TOUCH_844A = $83844A           ; a touch test (ActorHitsTestBoxIfActive first)
@@ -84,7 +83,7 @@ ActorStompOrHurt:
     bmi .none
     lda.w !PLAYER_SPEED_Y_WHOLE
     bmi .none
-    jsr.w !PLAYER_BOUNCE
+    jsr.w PlayerStandOnActor
     sep.b #$30
     asl.b !actor_09
     lsr.b !actor_09
@@ -129,7 +128,7 @@ ActorBouncesPlayer:
     beq .none
     ldx.w !V_145A
     bmi .none
-    jsr.w !PLAYER_BOUNCE
+    jsr.w PlayerStandOnActor
     sep.b #$30
     lda.b #$01
     rts

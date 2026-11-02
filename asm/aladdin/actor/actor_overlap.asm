@@ -19,9 +19,10 @@ arch 65816
 !SECOND_POOL_BOXES = $C580
 !ZONES = $BDA6
 !ZONE_FIRST = $64
-!ZONE_PLACE = $83879B           ; not yet filed: the zone's point beside the actor, to $000C and $000E
 !TEST_BOX_X_OVERLAP = $1484     ; the test box's centre
 !TEST_BOX_Y_OVERLAP = $1486
+!TEST_BOX_HALF_W = $1488        ; the test box's half-width and half-height
+!TEST_BOX_HALF_H = $148A
 
 ; ActorTouchesSecondPool's "none": C set, M 8-bit. It sits before the
 ; routine's entry.
@@ -147,7 +148,7 @@ ActorZoneHasTestPoint:
     clc
     adc.b #!ZONE_FIRST
     tay
-    jsr.w !ZONE_PLACE
+    jsr.w ActorZonePlace
     lda.w !ZONES,y
     and.w #$00FF
     sta.w !scratch+4
@@ -173,4 +174,116 @@ ActorZoneHasTestPoint:
     rts
 .out:
     sep.b #$31
+    rts
+
+; @routine 83:8743 ActorZoneHurtsPlayer
+; WHAT IT DOES: When the test box overlaps zone Y beside the actor, the
+; player is hurt (PlayerEnter8CFacing).
+; HOW: ActorZoneHasTestBox; C clear: PlayerEnter8CFacing, then C cleared.
+; Entry: as ActorZoneHasTestBox. Exit: no overlap: as ActorZoneHasTestBox
+; (C set). Hurt: C clear; the rest as PlayerEnter8CFacing leaves it.
+%at($838743)
+ActorZoneHurtsPlayer:
+    jsr.w ActorZoneHasTestBox
+    bcs .out
+    jsr.w PlayerEnter8CFacing
+    clc
+    rts
+.out:
+    rts
+
+; @routine 83:8752 ActorZoneHasTestBox
+; WHAT IT DOES: Tells whether the test box overlaps zone Y beside the
+; actor.
+; HOW: ActorZonePlace; the zone's half-width plus the test box's ($1488)
+; in $0010, doubled in $0012; its half-height plus the test box's ($148A)
+; in $0014, doubled in $0016; the point's x less the test box's centre,
+; plus the half-width sum, must be below the doubled sum, unsigned, then
+; the same for y.
+; Entry: M 8-bit; Y = the zone's offset; D = the actor; DB a bank whose
+; $0000-$1FFF is work RAM, the zones' bank; called by JSR. Exit: C clear
+; when they overlap; A = the last sum (16 bits), N and Z from the compare
+; that decided, V from its addition; M 8-bit; X, Y unchanged.
+%at($838752)
+ActorZoneHasTestBox:
+    jsr.w ActorZonePlace
+    lda.w !ZONES,y
+    and.w #$00FF
+    clc
+    adc.w !TEST_BOX_HALF_W
+    sta.w !scratch+4
+    asl a
+    sta.w !scratch+6
+    lda.w !ZONES+1,y
+    and.w #$00FF
+    clc
+    adc.w !TEST_BOX_HALF_H
+    sta.w !scratch+8
+    asl a
+    sta.w !scratch+10
+    sec
+    lda.w !scratch
+    sbc.w !TEST_BOX_X_OVERLAP
+    clc
+    adc.w !scratch+4
+    cmp.w !scratch+6
+    bcs .out
+    sec
+    lda.w !scratch+2
+    sbc.w !TEST_BOX_Y_OVERLAP
+    clc
+    adc.w !scratch+8
+    cmp.w !scratch+10
+.out:
+    sep.b #$20
+    rts
+
+; @routine 83:879B ActorZonePlace
+; WHAT IT DOES: Places zone Y beside the actor: the zone's point, ahead of
+; the actor by its facing, in $000C (x) and $000E (y).
+; HOW: The zone's signed x offset (byte 2 of its record) is added to the
+; actor's x pixels when its flip byte is zero and taken from them
+; otherwise; its signed y offset (byte 3) is added to its y pixels.
+; Entry: M 8-bit; Y = the zone's offset (the zones' table index); D = the
+; actor; DB a bank whose $0000-$1FFF is work RAM, the zones' bank; called
+; by JSR. Exit: M 16-bit; A = the point's y; N, V, Z, C from its addition;
+; X, Y unchanged.
+%at($83879B)
+ActorZonePlace:
+    lda.b !actor_flip
+    bne .flipped
+    rep.b #$20
+    lda.w !ZONES+2,y
+    and.w #$00FF
+    bit.w #$0080
+    beq .ahead
+    ora.w #$FF00
+.ahead:
+    clc
+    adc.b !actor_x+1
+    sta.w !scratch
+    bra .y
+.flipped:
+    rep.b #$20
+    lda.w !ZONES+2,y
+    and.w #$00FF
+    bit.w #$0080
+    beq .behind
+    ora.w #$FF00
+.behind:
+    sta.w !scratch
+    sec
+    lda.b !actor_x+1
+    sbc.w !scratch
+    sta.w !scratch
+.y:
+    lda.w !ZONES+3,y
+    and.w #$00FF
+    bit.w #$0080
+    beq .down
+    ora.w #$FF00
+.down:
+    clc
+    adc.b !actor_y+1
+    sta.w !scratch+2
     rts

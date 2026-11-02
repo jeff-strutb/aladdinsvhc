@@ -39,7 +39,6 @@ arch 65816
 !LEVEL_LOAD = $81825B           ; sets up the level !level names
 !GFX_LOAD = $81BAF1             ; unpacks graphics set A
 !ACTORS_RESET = $819D82         ; every actor record freed
-!SLOT_15F1_START = $81EC8A      ; starts entry X of the slots at $15F1 with A
 !TITLE_TASK = $809C91           ; the title screen's task
 !FADE_IN_TASK = $819E8E         ; the screen's fade in, a task
 !FADE_OUT_TASK = $819EB9        ; its fade out
@@ -320,7 +319,7 @@ OpeningSceneEnd:
     jsl.l PaletteLoad
     ldx.b #$00
     lda.b #$1F
-    jsl.l !SLOT_15F1_START
+    jsl.l PaletteCycleStartLong
     ldx.b #20*6
     jsr.w OpeningActorPlace
     rts
@@ -349,10 +348,10 @@ OpeningScene5Start:
     dl !SCENE_TASK
     ldx.b #$00
     lda.b #$28
-    jsl.l !SLOT_15F1_START
+    jsl.l PaletteCycleStartLong
     ldx.b #$0E
     lda.b #$29
-    jsl.l !SLOT_15F1_START
+    jsl.l PaletteCycleStartLong
     rts
 
 ; @routine 80:AEA5 ScreenFadeInStart

@@ -18,9 +18,12 @@
 #define SECOND_POOL_BOXES 0xC580u
 #define ZONES 0xBDA6u
 #define ZONE_FIRST 0x64
-#define ZONE_PLACE 0x83879Bu       /* not yet filed: the zone's point beside the actor, to $000C and $000E */
 #define TEST_BOX_X 0x001484u       /* the test box's centre */
 #define TEST_BOX_Y 0x001486u
+#define TEST_BOX_HALF_W 0x001488u  /* the test box's half-width and half-height */
+#define TEST_BOX_HALF_H 0x00148Au
+
+void abi_PlayerEnter8CFacing(void);
 
 /*
  * @routine 83:8578 ActorTouchesSecondPool
@@ -127,8 +130,114 @@ void abi_ActorTouchesSecondPoolLong(void)
     abi_ActorTouchesSecondPool();
 }
 
+/*
+ * @routine 83:879B ActorZonePlace
+ * WHAT IT DOES: Places zone Y beside the actor: the zone's point, ahead of
+ * the actor by its facing, in $000C (x) and $000E (y).
+ * HOW: The zone's signed x offset (byte 2 of its record) is added to the
+ * actor's x pixels when its flip byte is zero and taken from them
+ * otherwise; its signed y offset (byte 3) is added to its y pixels.
+ * Entry: M 8-bit; Y = the zone's offset (the zones' table index); D = the
+ * actor; DB a bank whose $0000-$1FFF is work RAM, the zones' bank; called
+ * by JSR. Exit: M 16-bit; A = the point's y; N, V, Z, C from its addition;
+ * X, Y unchanged.
+ */
+void abi_ActorZonePlace(void)
+{
+    lda8(ea_dp(ACTOR_FLIP));
+    op_rep(0x20);
+    if (IF_Z) {
+        lda16(ea_absy(ZONES + 2));
+        and16_v(0x00FF);
+        bit16_i(0x0080);
+        if (!IF_Z)
+            ora16_v(0xFF00);
+        clc();
+        adc16_v(rd16(ea_dp(ACTOR_X + 1)));
+        sta16(ea_abs(SCRATCH));
+    } else {
+        lda16(ea_absy(ZONES + 2));
+        and16_v(0x00FF);
+        bit16_i(0x0080);
+        if (!IF_Z)
+            ora16_v(0xFF00);
+        sta16(ea_abs(SCRATCH));
+        sec();
+        lda16(ea_dp(ACTOR_X + 1));
+        sbc16_v(rd16(ea_abs(SCRATCH)));
+        sta16(ea_abs(SCRATCH));
+    }
+    lda16(ea_absy(ZONES + 3));
+    and16_v(0x00FF);
+    bit16_i(0x0080);
+    if (!IF_Z)
+        ora16_v(0xFF00);
+    clc();
+    adc16_v(rd16(ea_dp(ACTOR_Y + 1)));
+    sta16(ea_abs(SCRATCH + 2));
+}
 
+/*
+ * @routine 83:8752 ActorZoneHasTestBox
+ * WHAT IT DOES: Tells whether the test box overlaps zone Y beside the
+ * actor.
+ * HOW: ActorZonePlace; the zone's half-width plus the test box's ($1488)
+ * in $0010, doubled in $0012; its half-height plus the test box's ($148A)
+ * in $0014, doubled in $0016; the point's x less the test box's centre,
+ * plus the half-width sum, must be below the doubled sum, unsigned, then
+ * the same for y.
+ * Entry: M 8-bit; Y = the zone's offset; D = the actor; DB a bank whose
+ * $0000-$1FFF is work RAM, the zones' bank; called by JSR. Exit: C clear
+ * when they overlap; A = the last sum (16 bits), N and Z from the compare
+ * that decided, V from its addition; M 8-bit; X, Y unchanged.
+ */
+void abi_ActorZoneHasTestBox(void)
+{
+    abi_ActorZonePlace();
+    lda16(ea_absy(ZONES));
+    and16_v(0x00FF);
+    clc();
+    adc16_v(rd16(ea_abs(TEST_BOX_HALF_W)));
+    sta16(ea_abs(SCRATCH + 4));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 6));
+    lda16(ea_absy(ZONES + 1));
+    and16_v(0x00FF);
+    clc();
+    adc16_v(rd16(ea_abs(TEST_BOX_HALF_H)));
+    sta16(ea_abs(SCRATCH + 8));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 10));
+    sec();
+    lda16(ea_abs(SCRATCH));
+    sbc16_v(rd16(ea_abs(TEST_BOX_X)));
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH + 4)));
+    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
+    if (!IF_C) {
+        sec();
+        lda16(ea_abs(SCRATCH + 2));
+        sbc16_v(rd16(ea_abs(TEST_BOX_Y)));
+        clc();
+        adc16_v(rd16(ea_abs(SCRATCH + 8)));
+        cmp16_v(rd16(ea_abs(SCRATCH + 10)));
+    }
+    op_sep(0x20);
+}
 
-
-
-
+/*
+ * @routine 83:8743 ActorZoneHurtsPlayer
+ * WHAT IT DOES: When the test box overlaps zone Y beside the actor, the
+ * player is hurt (PlayerEnter8CFacing).
+ * HOW: ActorZoneHasTestBox; C clear: PlayerEnter8CFacing, then C cleared.
+ * Entry: as ActorZoneHasTestBox. Exit: no overlap: as ActorZoneHasTestBox
+ * (C set). Hurt: C clear; the rest as PlayerEnter8CFacing leaves it.
+ */
+void abi_ActorZoneHurtsPlayer(void)
+{
+    abi_ActorZoneHasTestBox();
+    if (IF_C)
+        return;
+    abi_PlayerEnter8CFacing();
+    clc();
+}

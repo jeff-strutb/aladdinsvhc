@@ -183,8 +183,8 @@ void abi_OpeningScene5Start(void)
     task_create(0x80AE80u);
     ldx8_v(0x00);
     lda8_v(0x28);
-    call_routine(SLOT_15F1_START, 1);
+    abi_PaletteCycleStartLong();
     ldx8_v(0x0E);
     lda8_v(0x29);
-    call_routine(SLOT_15F1_START, 1);
+    abi_PaletteCycleStartLong();
 }

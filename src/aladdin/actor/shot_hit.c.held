@@ -18,7 +18,7 @@ void abi_ActorTurnsShotBack(void)
         op_sep(0x31);
         return;
     }
-    call_routine(SPAWN_13_AT_Y, 0);
+    abi_Spawn13AtY();
     lda8(ea_absy(ACTOR_FACING));
     eor8_v(0x01);
     sta8(ea_absy(ACTOR_FACING));
@@ -45,7 +45,7 @@ void abi_ActorTurnsShotBack(void)
  */
 void abi_Spawn13AtYLong(void)
 {
-    call_routine(SPAWN_13_AT_Y, 0);
+    abi_Spawn13AtY();
 }
 /*
  * @routine 83:8196 ActorTurnsShotBackLong
@@ -91,7 +91,7 @@ void abi_ActorTakesShot(void)
         sec();
         lda8(ea_absy(ACTOR_11));
         if (!IF_N) {
-            call_routine(SPAWN_11_AT_Y, 0);
+            abi_Spawn11AtY();
             lda8(ea_absy(ACTOR_FACING));
             sta8(ea_dp(ACTOR_FACING));
             sta8(ea_dp(ACTOR_FLIP));

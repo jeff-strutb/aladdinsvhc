@@ -41,7 +41,7 @@ void abi_ActorBouncesPlayer(void)
     if (IF_Z) goto none;
     ldx8(ea_abs(V_145A));
     if (IF_N) goto none;
-    call_routine(PLAYER_BOUNCE, 0);
+    abi_PlayerStandOnActor();
     op_sep(0x30);
     lda8_v(0x01);
     return;
@@ -88,7 +88,7 @@ void abi_ActorStompOrHurt(void)
     if (IF_N) goto none;
     lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
     if (IF_N) goto none;
-    call_routine(PLAYER_BOUNCE, 0);
+    abi_PlayerStandOnActor();
     op_sep(0x30);
     MEM8(asl, ea_dp(ACTOR_09));
     MEM8(lsr, ea_dp(ACTOR_09));

@@ -13,8 +13,6 @@ arch 65816
 
 ; Not yet filed
 !SHOT_TEST = $838578            ; C clear: a shot overlaps the actor (D); Y = its record, X 16-bit
-!SPAWN_11_AT_Y = $83827D        ; an actor of kind $11 started at record Y's place
-!SPAWN_13_AT_Y = $8382B5        ; an actor of kind $13 started at record Y's place
 !SHOT_HIT_80FC = $8380FC        ; the shot test, then (code no script has run)
 
 ; @routine 83:80F8 ActorShotHit80FCLong
@@ -48,7 +46,7 @@ ActorTurnsShotBackLong:
 ActorTurnsShotBack:
     jsr.w !SHOT_TEST
     bcs .none
-    jsr.w !SPAWN_13_AT_Y
+    jsr.w Spawn13AtY
     lda.w !actor_facing,y
     eor.b #$01
     sta.w !actor_facing,y
@@ -85,7 +83,7 @@ ActorTakesShot:
     sec
     lda.w !ACTOR_11,y
     bmi .done
-    jsr.w !SPAWN_11_AT_Y
+    jsr.w Spawn11AtY
     lda.w !actor_facing,y
     sta.b !actor_facing
     sta.b !actor_flip
@@ -103,5 +101,5 @@ ActorTakesShot:
 ; Exit: as the C states.
 %at($8382B1)
 Spawn13AtYLong:
-    jsr.w !SPAWN_13_AT_Y
+    jsr.w Spawn13AtY
     rtl

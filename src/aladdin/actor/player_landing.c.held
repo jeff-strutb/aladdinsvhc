@@ -35,7 +35,7 @@ void abi_PlayerLandsOnActor(void)
     if (IF_Z) goto no;
     ldx8(ea_abs(V_145A));
     if (IF_N) goto no;
-    call_routine(PLAYER_STAND_ON_ACTOR, 0);
+    abi_PlayerStandOnActor();
     op_sep(0x30);
     abi_ActorSpawnKind11AtPlayer();
     lda8_v(0x01);
@@ -58,7 +58,7 @@ no:
  */
 void abi_ActorSpawnKind11AtPlayer(void)
 {
-    call_routine(ACTOR_TAKE_B, 1);
+    abi_ActorAllocBLong();
     if (!IF_N) {
         lda8_v(0x0C);
         sta8(ea_absx(ACTOR_STATE));

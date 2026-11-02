@@ -11,6 +11,7 @@ void abi_ActorHitsTestBoxIfActive(void);
 void abi_ActorHurtsPlayerOnTouch(void);
 void abi_PlayerEnter8CFacing(void);
 void abi_ScratchBelowBy10(void);
+void abi_PlayerStandOnActor(void);
 
 #define ACTOR_11 0x11u              /* taken one from as the player stomps it */
 #define HEALTH 0x0367u              /* the player's health */
@@ -22,7 +23,6 @@ void abi_ScratchBelowBy10(void);
 #define STOMPED 0x8Cu               /* the state a stomped actor goes into */
 
 /* Not yet filed */
-#define PLAYER_BOUNCE 0x8384D5u     /* the player bounces up off the actor */
 #define STOMP_MARK 0x8384F4u        /* an actor of kind $11 started at the player's place */
 #define TOUCH_8362 0x838362u        /* a touch test (ActorHitsTestBoxIfActive first) */
 #define TOUCH_844A 0x83844Au        /* a touch test (ActorHitsTestBoxIfActive first) */

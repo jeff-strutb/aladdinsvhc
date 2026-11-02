@@ -1,0 +1,26 @@
+# Actor helpers in bank $83 whose branches random play never takes. Each
+# call starts from the first level's state (the machine is put back after
+# each call; a set applies to the next call only).
+load build/aladdin/states/level1.state
+wait 10
+# ActorZonePlace ($83:879B) with a zone whose x and y offsets are both
+# negative (the record at $83:BDA6, offsets $F2 and $A9): the sign
+# extensions on both of its facings, the player's record as the actor
+# (its flip byte at $08F0 zero, then one).
+set 0008F0 00
+call 83879B y=0 d=08DB db=83 p=30
+set 0008F0 01
+call 83879B y=0 d=08DB db=83 p=30
+# Spawn11AtY ($83:827D) and Spawn13AtY ($83:82B5) with the second pool
+# full (its top offset $15E6 negative): ActorAllocB finds none and the
+# registers are pulled back.
+set 0015E6 FF
+call 83827D x=1234 y=08DB d=08DB db=80 p=20
+set 0015E6 FF
+call 8382B5 x=1234 y=08DB d=08DB db=80 p=20
+# SequencesStep ($81:EC23) at the end of a sequence's list: record 0 at
+# $1645 running and started, its wait 1, index 0, length $10 and its list
+# at $81:EC23, whose entry at index 3 has a negative wait ($EB): the
+# sequence ends (active byte cleared).
+set 001645 01,00,10,00,00,01,23,EC,00,00,00,00,01,00,00,00
+call 81EC23 d=0000 db=81 p=30
