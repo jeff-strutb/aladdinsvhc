@@ -1,0 +1,11 @@
+# The wait routine of actor kind $67 ($83:E679, record $0B5B on
+# stage_a5_s2.state): with the player across x $04F8-$0E47 and the test
+# box at the height the routine takes from $1A2C, the player is put into
+# state $8C ($83:E6B1). No script's play takes the player there. A unit
+# call with the player at x $0900 and the test box's y at $00EA ($C0 less
+# $1A2C's $FFD6).
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+set $0008E7 00,09
+set $001486 EA,00
+call 83E679 d=0B5B db=80 p=30

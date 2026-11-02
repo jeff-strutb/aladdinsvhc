@@ -1,0 +1,8 @@
+# The step at $83:D078 (from an actor's code at $83:D071) for an actor
+# whose $07 has bits 2-4 clear ($83:D09A); no script's play
+# reaches it so. A unit call on pw5.state on record $0B5B with
+# its $07 = 0.
+load build/aladdin/states/pw5.state
+wait 2
+set $000B62 00
+call 83D078 d=0B5B db=80 p=30

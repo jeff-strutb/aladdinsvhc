@@ -1,0 +1,9 @@
+# The wait routine at $83:D64A: with its $45 clear, when the record its
+# $4E names has $46 set, it sets its own $45 ($83:D65C). No script's play
+# sets that partner's $46. A unit call on stage_a5_s1.state with record
+# $0B5B as the actor, its $4E naming itself and its $46 set.
+load build/aladdin/states/stage_a5_s1.state
+wait 2
+set $000BA0 00,01
+set $000BA9 5B,0B
+call 83D64A d=0B5B db=80 p=30

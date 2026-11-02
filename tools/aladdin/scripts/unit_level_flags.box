@@ -1,0 +1,12 @@
+# The eight flags at $7E:F260 that the level of pw5.state (level $0E)
+# sets up as it starts ($83:C2E7, from $81:8BEF): flag X gets 1 ($83:C2FB)
+# when bit X of the mask the table at $80:D27E gives for $035D is set.
+# The level's $035D is 0, whose mask is 0, so play never sets one. A unit
+# call of the set-up with $035D = 6 (mask $08) and with $035D = 8 (mask
+# $FC).
+load build/aladdin/states/pw5.state
+wait 10
+set $00035D 06
+call 83C2E7 long db=80 p=30
+set $00035D 08
+call 83C2E7 long db=80 p=30

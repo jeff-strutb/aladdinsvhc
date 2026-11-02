@@ -491,3 +491,88 @@ L_81E62E:
     return;  /* 81E62E rts */
 }
 
+/*
+ * @routine 81:E503 CarpetCruiseSet
+ * WHAT IT DOES: Sets the carpet's speed across to cruise: $0300 for the
+ * ride with $06 = 1, $0180 for the other.
+ * HOW: The record's $06 less 1: zero, the speed's three bytes 0, 3, 0;
+ * else $80, 1, 0.
+ * Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+ * DB = $80; called by JSR from the ride's loop (81:E49C). The game calls
+ * it only from the other ride's branch (81:E4EC): the $0300 setting is
+ * reached only by unit_carpet_cruise_check.box. Exit: M 8-bit; A low = the
+ * speed's pixel byte.
+ */
+void abi_CarpetCruiseSet(void)
+{
+    lda8(ea_dp(0x06));  /* 81E503 lda */
+    ACC8(dec);  /* 81E505 dec */
+    if (!IF_Z) goto L_81E511;  /* 81E506 bne */
+    stz8(ea_dp(0x19));  /* 81E508 stz */
+    lda8_v(0x03);  /* 81E50A lda */
+    sta8(ea_dp(0x1A));  /* 81E50C sta */
+    stz8(ea_dp(0x1B));  /* 81E50E stz */
+    return;  /* 81E510 rts */
+L_81E511:
+    lda8_v(0x80);  /* 81E511 lda */
+    sta8(ea_dp(0x19));  /* 81E513 sta */
+    lda8_v(0x01);  /* 81E515 lda */
+    sta8(ea_dp(0x1A));  /* 81E517 sta */
+    stz8(ea_dp(0x1B));  /* 81E519 stz */
+    return;  /* 81E51B rts */
+}
+
+
+/*
+ * @routine 81:E6CD CarpetSpeedYLimit
+ * WHAT IT DOES: Keeps the carpet's vertical speed within its limits: for
+ * the ride with $06 = 1 from -$01C0 up to $01E0 down; for the other from
+ * -$0240 to $0280.
+ * HOW: The speed (16-bit, from its fraction byte) signed: down past the
+ * limit, or up past the other, set to it.
+ * Entry: M 8-bit, X 8-bit; D = the carpet rider's record (the player's);
+ * DB = $80; called by JSR from the ride's loop (81:E49C). Exit: M 8-bit; A
+ * as the speed left or set.
+ */
+void abi_CarpetSpeedYLimit(void)
+{
+    lda8(ea_dp(0x06));  /* 81E6CD lda */
+    ACC8(dec);  /* 81E6CF dec */
+    if (!IF_Z) goto L_81E6F2;  /* 81E6D0 bne */
+    op_rep(0x20);  /* 81E6D2 rep */
+    lda16(ea_dp(0x1D));  /* 81E6D4 lda */
+    if (IF_N) goto L_81E6E5;  /* 81E6D6 bmi */
+    sec();  /* 81E6D8 sec */
+    cmp16_v(0x01E0);  /* 81E6D9 cmp */
+    if (!IF_C) goto L_81E710;  /* 81E6DC bcc */
+    lda16_v(0x01E0);  /* 81E6DE lda */
+    sta16(ea_dp(0x1D));  /* 81E6E1 sta */
+    goto L_81E710;  /* 81E6E3 bra */
+L_81E6E5:
+    sec();  /* 81E6E5 sec */
+    cmp16_v(0xFE40);  /* 81E6E6 cmp */
+    if (IF_C) goto L_81E710;  /* 81E6E9 bcs */
+    lda16_v(0xFE40);  /* 81E6EB lda */
+    sta16(ea_dp(0x1D));  /* 81E6EE sta */
+    goto L_81E710;  /* 81E6F0 bra */
+L_81E6F2:
+    op_rep(0x20);  /* 81E6F2 rep */
+    lda16(ea_dp(0x1D));  /* 81E6F4 lda */
+    if (IF_N) goto L_81E705;  /* 81E6F6 bmi */
+    sec();  /* 81E6F8 sec */
+    cmp16_v(0x0280);  /* 81E6F9 cmp */
+    if (!IF_C) goto L_81E710;  /* 81E6FC bcc */
+    lda16_v(0x0280);  /* 81E6FE lda */
+    sta16(ea_dp(0x1D));  /* 81E701 sta */
+    goto L_81E710;  /* 81E703 bra */
+L_81E705:
+    sec();  /* 81E705 sec */
+    cmp16_v(0xFDC0);  /* 81E706 cmp */
+    if (IF_C) goto L_81E710;  /* 81E709 bcs */
+    lda16_v(0xFDC0);  /* 81E70B lda */
+    sta16(ea_dp(0x1D));  /* 81E70E sta */
+L_81E710:
+    op_sep(0x20);  /* 81E710 sep */
+    return;  /* 81E712 rts */
+}
+

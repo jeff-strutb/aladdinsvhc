@@ -15,6 +15,11 @@ arch 65816
 !v_143e = $143E                 ; moved with the player's y (word)
 !TARGET_X = $1A                 ; where some actors move to: x pixels (word)
 !TARGET_Y = $1E                 ; and y pixels (word)
+!LIFT_STEP = $44                ; the lifting actor's step: 0 waiting, negative counting, positive lifting
+!v_1427 = $1427                 ; nonzero: the player is kept on the lifting actor
+!LIFT_RESUME = $D99B            ; the player's code resumed while it is lifted
+; Not yet filed: the test of the player against the lifting actor.
+!LIFT_TEST = $8288CF
 
 ; @routine 83:C1EC ActorStepCarry
 ; WHAT IT DOES: Moves the actor a step along its facing (vector set $0E)
@@ -58,6 +63,44 @@ ActorStepToTargetCarry:
 .lC216:
     sep.b #$20
     jsr.w ActorCarryPlayer
+    rts
+
+; @routine 83:FB57 ActorLiftPlayerStep
+; WHAT IT DOES: A step of an actor that lifts the player (from 83:C245):
+; at $44 = 0, when the test at 82:88CF finds the player, the player is
+; placed on it and $44 counts on; negative $44 counts on; positive, the
+; player is kept on it while $1427 is set, else $44 becomes $F0.
+; HOW: $44 zero: the test at 82:88CF; C clear: the player's $03-$04 =
+; $D99B, PlayerSpotAboveActor with X, $44 up. Negative: $44 up. Positive:
+; $1427 set, PlayerToActorAbove with X; else $44 = $F0.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+; JSR. Exit: M 8-bit, X 8-bit; as the call made.
+%at($83FB57)
+ActorLiftPlayerStep:
+    lda.b !LIFT_STEP
+    beq .lFB67
+    bmi .lFB7C
+    lda.w !v_1427
+    bne .lFB7F
+    lda.b #$F0
+    sta.b !LIFT_STEP
+.lFB66:
+    rts
+.lFB67:
+    jsl.l !LIFT_TEST
+    bcs .lFB66
+    rep.b #$20
+    lda.w #!LIFT_RESUME
+    sta.w !player+!actor_03
+    sep.b #$20
+    txa
+    jsl.l PlayerSpotAboveActor
+.lFB7C:
+    inc.b !LIFT_STEP
+    rts
+.lFB7F:
+    txa
+    jsl.l PlayerToActorAbove
     rts
 
 ; @routine 83:FBD6 ActorCarryPlayerLong

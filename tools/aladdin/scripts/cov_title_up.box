@@ -1,0 +1,9 @@
+# Up on the title screen's menu ($81:EDA6): the cursor moves up a choice,
+# wrapping from the first to the last ($81:EDC4). The other scripts only
+# press Down there. Up twice from GAME START: to OPTIONS, then PASS WORD.
+load build/aladdin/states/title.state
+wait 30
+press UP
+wait 20
+press UP
+wait 20

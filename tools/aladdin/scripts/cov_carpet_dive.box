@@ -1,0 +1,10 @@
+# The carpet ride of stage_a2_s1.state (the ride whose record has $06 =
+# 1) diving: its vertical speed's limit down ($81:E6D8, in $81:E6CD).
+# Random play there never steers down long enough. Down held, then down
+# and across, up, and down and back.
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+hold DOWN 120
+hold DOWN+RIGHT 120
+hold UP 60
+hold DOWN+LEFT 120

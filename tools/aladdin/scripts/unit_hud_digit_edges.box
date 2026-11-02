@@ -1,0 +1,15 @@
+# The status line's digit refresh ($81:F47F) for values no script shows:
+# 0 ($81:F4B1), negative ($81:F4A7) and above 100 ($81:F49B); and the mark
+# at $036D refreshed for value 0 ($81:F54C, its branch at $81:F556). Unit
+# calls on the first level, the value shown set apart from the value each
+# time.
+load build/aladdin/states/level1.state
+wait 10
+set $000363 05,00
+call 81F47F db=80 p=30
+set $000363 05,80
+call 81F47F db=80 p=30
+set $000363 05,65
+call 81F47F db=80 p=30
+set $00036D 01,00
+call 81F54C db=80 p=30

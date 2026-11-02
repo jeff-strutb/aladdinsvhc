@@ -1,0 +1,51 @@
+# The wait routine at $83:A012 of an actor (its $06 = $27; record $0CEB
+# here, beside the player) once its $42 is set, which only its untraced
+# start for $07 bit 3 sets ($83:9E58): touching the player, it plays
+# sound $4F, counts $036C up and ends; with $0367 = 0 it ends at once
+# ($83:A01B). Played as rand_pw1_1.box from pw1.state until the actor is
+# there, its $42 set; then again with $0367 also 0.
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 30
+poke $000D2D 01
+wait 10
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 30
+poke $000D2D 01
+poke $000367 00
+wait 10

@@ -17,6 +17,8 @@ void abi_ActorCreateChild(void);
 void abi_ActorMoveScaled(void);
 void abi_ActorSpawnFacingY(void);
 void abi_SoundQueueAdd(void);
+void abi_AnimStart(void);
+void abi_AnimStep(void);
 
 /* The platform's own fields of its record */
 #define COURSE_STEPS 0x22u         /* steps left before the next waypoint is kept */
@@ -235,7 +237,7 @@ void abi_PlatformMoveMeasure(void)
  * HOW: ActorCreateChild with kind $47; the child's x and y (6 bytes) from
  * the waypoint, its own $37 the waypoint's offset; the maker's offset
  * moves on $30.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; D = the
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; D = the
  * course maker; called by JSR, four times, once the course is worked out.
  * Exit: M 8-bit, X 8-bit; Y = the child (low byte); A low = the new
  * offset's low byte.
@@ -269,7 +271,7 @@ void abi_PlatformSpawnOnCourse(void)
  * WHAT IT DOES: Starts the platform's dip as the player lands on it: sound
  * A kept for it, dip phase 1, the dip back to 0.
  * HOW: A to $17, the phase to 1, then on into PlatformDipClear.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; A = the
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; A = the
  * sound command; called by JSR. Exit: as PlatformDipClear; A low = 1.
  */
 void abi_PlatformDipStart(void)
@@ -289,7 +291,7 @@ void abi_PlatformDipStart(void)
  * HOW: The height without the dip ($4D-$4F) put in its y; the direction's
  * 6-byte step (8 bytes a direction at $D304) to $000C-$0012;
  * ActorMoveScaled with the course speed; the new y kept back at $4D-$4F.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR (by the slowing and speeding steps at 83:CAFC and 83:CB10). Exit: M
  * 8-bit, X 8-bit (as ActorMoveScaled); A low = the y's top byte.
  */
@@ -344,7 +346,7 @@ void abi_PlatformCourseStep(void)
  * resume address from the direction's entry at $D312, $1C = $FF, $42 and
  * the dip phase zeroed, PlatformDipClear, $16 counted up. Its early
  * return, SEP #$30 and RTS, lies before its entry, at 83:CB90.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR from the platform's wait routine (83:CAD1). Exit: M 8-bit, X 8-bit;
  * A, X and Y as left by the last step taken.
  */
@@ -429,7 +431,7 @@ L_83CC15:
  * HOW: ActorSpawnFacingY with hit box $4B, facing 0 and the platform's
  * $40; started: the platform's address (TDC) to the child's $37-$38; bit 6
  * of $09: SoundQueueAdd with the sound kept at $17. The phase steps up.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR through the dip phase's table. Exit: M 8-bit; a child started: X
  * 8-bit; none: X as ActorSpawnFacingY left it.
  */
@@ -461,7 +463,7 @@ L_83CC62:
  * the next phase.
  * HOW: PlatformDipStep with the sinking rate (X = 0); the dip's pixels
  * (16-bit) 11 or more: the phase steps up (a 16-bit increment of $13).
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR through the dip phase's table. Exit: M 8-bit; X = 0; A = the dip's
  * pixels; C from the comparison.
  */
@@ -487,7 +489,7 @@ L_83CC76:
  * to the next phase (waiting for the player to step off).
  * HOW: PlatformDipStep with the rising rate (X = 3); the dip's pixels
  * (16-bit) below 3: the phase steps up (a 16-bit increment of $13).
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR through the dip phase's table. Exit: M 8-bit; X = 3; A = the dip's
  * pixels; C from the comparison.
  */
@@ -513,7 +515,7 @@ L_83CC8A:
  * again; at 11 pixels down, on to the last phase.
  * HOW: As PlatformDipSink: PlatformDipStep with X = 0; 11 or more: the
  * phase steps up (a 16-bit increment of $13).
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR through the dip phase's table. Exit: M 8-bit; X = 0; A = the dip's
  * pixels; C from the comparison.
  */
@@ -539,7 +541,7 @@ L_83CCA5:
  * height, the dip is zeroed and the phase back to 0 (idle).
  * HOW: PlatformDipStep with the rising rate (X = 3); the dip's top byte
  * negative: its three bytes and the phase zeroed.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR through the dip phase's table. Exit: M 8-bit; X = 3; A low = the
  * dip's top byte.
  */
@@ -564,7 +566,7 @@ L_83CCB9:
  * whether it is in a turn stretch.
  * HOW: The speed less 1, held at $20 at least; PlatformCourseStep;
  * PlatformTurnZoneTest.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR. Exit: as PlatformTurnZoneTest: C clear in a turn stretch.
  */
 void abi_PlatformCourseSlower(void)
@@ -590,7 +592,7 @@ L_83CB07:
  * whether it is in a turn stretch.
  * HOW: The speed plus 1, held at $80 at most; PlatformCourseStep;
  * PlatformTurnZoneTest.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR. Exit: as PlatformTurnZoneTest: C clear in a turn stretch.
  */
 void abi_PlatformCourseFaster(void)
@@ -615,7 +617,7 @@ L_83CB1B:
  * routine, then its y set to its height without the dip plus the dip.
  * HOW: JSR through the dip phase table at $83:CC34 by the phase; then the
  * 24-bit sum of BASE_Y and DIP, a byte at a time, to its y.
- * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $83; called by
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
  * JSR from the platform's wait routine (83:CAD1). Exit: M 8-bit; A low =
  * the y's top byte; X as the phase routine left it; flags from the last
  * add.
@@ -637,5 +639,41 @@ void abi_PlatformDipUpdate(void)
     adc8_v(rd8(ea_dp(0x4C)));  /* 83CC2F adc */
     sta8(ea_dp(0x10));  /* 83CC31 sta */
     return;  /* 83CC33 rts */
+}
+
+/*
+ * @routine 83:CAD1 PlatformWait
+ * WHAT IT DOES: The course platform's wait routine, each frame: its dip,
+ * how far it moved, its rider, a direction flip when its $42 is set, the
+ * course followed, and its animation by direction.
+ * HOW: JUMPED cleared; PlatformDipUpdate; PlatformMoveMeasure; the rider
+ * check at 83:CCF1; $42 set: cleared, $40 bit 0 flipped.
+ * PlatformCourseFollow; the direction ($40) unlike LAST_DIRECTION: kept,
+ * AnimStart with it. AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
+ * JSR from the actor loop (83:94D0) by kind $47. Exit: as AnimStep.
+ */
+void abi_PlatformWait(void)
+{
+    stz8(ea_dp(0x16));  /* 83CAD1 stz */
+    abi_PlatformDipUpdate();  /* 83CAD3 jsr */
+    abi_PlatformMoveMeasure();  /* 83CAD6 jsr */
+    call_routine(0x83CCF1u, 0);  /* 83CAD9 jsr */
+    lda8(ea_dp(0x42));  /* 83CADC lda */
+    if (IF_Z) goto L_83CAE8;  /* 83CADE beq */
+    stz8(ea_dp(0x42));  /* 83CAE0 stz */
+    lda8(ea_dp(0x40));  /* 83CAE2 lda */
+    eor8_v(0x01);  /* 83CAE4 eor */
+    sta8(ea_dp(0x40));  /* 83CAE6 sta */
+L_83CAE8:
+    abi_PlatformCourseFollow();  /* 83CAE8 jsr */
+    lda8(ea_dp(0x40));  /* 83CAEB lda */
+    cmp8_v(rd8(ea_dp(0x1C)));  /* 83CAED cmp */
+    if (IF_Z) goto L_83CAF7;  /* 83CAEF beq */
+    sta8(ea_dp(0x1C));  /* 83CAF1 sta */
+    abi_AnimStart();  /* 83CAF3 jsl */
+L_83CAF7:
+    abi_AnimStep();  /* 83CAF7 jsl */
+    return;  /* 83CAFB rts */
 }
 

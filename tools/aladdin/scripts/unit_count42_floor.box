@@ -1,0 +1,8 @@
+# The step at $83:E645 that counts an actor's word at $42 down (from its
+# code at $83:E60C and $83:E633) holds it at 0 ($83:E64D): no script's
+# actor calls it with the count at 0. A unit call on stage_a5_s2.state
+# with a record's $42 = 0.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+set $000B9D 00,00
+call 83E645 d=0B5B db=80 p=10
