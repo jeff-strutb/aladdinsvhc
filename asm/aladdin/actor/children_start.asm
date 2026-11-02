@@ -7,9 +7,6 @@ incsrc "../include/actor.inc"
 
 arch 65816
 
-; Not yet filed: starts a child (hit box $3D) at spawn point X with $07 =
-; Y, kept in the actor's list of children ($40 + 2 * $44).
-!CHILD_START = $83C4EC
 !CHILD_COUNT = $14              ; children it has started (83:D078)
 !v_035a = $035A
 !v_036c = $036C
@@ -40,10 +37,10 @@ ActorStartTwoChildren:
     sep.b #$20
     ldx.b #$1C
     ldy.b #$05
-    jsr.w !CHILD_START
+    jsr.w ChildStartListed
     ldx.b #$1E
     ldy.b #$04
-    jsr.w !CHILD_START
+    jsr.w ChildStartListed
     rts
 
 ; @routine 83:D078 ActorVariantChildStep
