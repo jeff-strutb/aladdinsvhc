@@ -11,6 +11,8 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_video.inc"
+incsrc "../include/hw.inc"
 
 arch 65816
 
@@ -20,11 +22,226 @@ arch 65816
 !unpack_flags = $0C              ; the group's flag byte, shifted out bit by bit
 !unpack_fill = $0D               ; the group's fill byte
 !unpack_out = $0000              ; the destination: X is its address in bank $7F
+!unpack_next = $006B             ; where the next unpack goes in bank $7F (word)
+!level_gfx_left = $1E            ; LevelGraphicsLoad: parts left
+; Bank $81: per level a word, its graphics list's offset from here: a
+; count, 7-byte VRAM parts (source offset, bank, length, VRAM address),
+; then a count and 5-byte kept parts (source offset, bank, length).
+!level_gfx = $DF98
+; Per animation set a word: its graphics entry's offset from
+; anim_set_gfx_parts; per entry: length (low 14 bits), source offset
+; (words), bank. Where each set's graphics went in bank $7F (words).
+!anim_set_gfx = $82AC18
+!anim_set_gfx_parts = $82AC58
+!anim_set_gfx_at = $7FE500
 ; Bank $80: per set, 7 bytes: destination, source offset (words), bank,
 ; length (word).
 !unpack_sets = $F039
 !UNPACK_SET_BANK = $80
 !UNPACK_DEST_BANK = $7F
+
+%at($81B92A)
+; LevelGraphicsLoad's way out when the level has no parts (it branches
+; back here).
+LevelGraphicsNone:
+    jmp.w LevelGraphicsLoad_done
+; @routine 81:B92D LevelGraphicsLoad
+; WHAT IT DOES: Loads the level's graphics: the parts that go to VRAM
+; now, then the parts kept unpacked in bank $7F.
+; HOW: VMAIN = $80; with P and D kept and D = 0, 16-bit: the level's list
+; (a word at $81:DF98 + level * 2) gives a count; for each 7-byte entry
+; the part (source offset, bank, length) is unpacked to $7F:0000
+; (UnpackBegin, UnpackGroup) and copied to VRAM at the entry's address by
+; DMA channel 0. Then the next destination ($6B) = $5800, and the count
+; after the list gives 5-byte entries, each unpacked to the next
+; destination on. The count kept at $1E. With no parts, it ends (through
+; the JMP at $81:B92A).
+; Entry: M 8-bit; DB = $81; called by JSL. Exit: P and D as at entry; A,
+; X, Y as the last part left them; DB as at entry.
+LevelGraphicsLoad:
+    lda.b #$80
+    sta.w !VMAIN
+    php
+    phd
+    rep.b #$30
+    lda.w #$0000
+    tcd
+    lda.w !level
+    asl a
+    tay
+    ldx.w !level_gfx,y
+    lda.w !level_gfx,x
+    and.w #$00FF
+    beq LevelGraphicsNone
+    sta.b !level_gfx_left
+.vram_part:
+    lda.w !level_gfx+3,x
+    stz.b !unpack_source
+    sta.b !unpack_source+2
+    lda.w !level_gfx+4,x
+    clc
+    adc.w #$0007
+    and.w #$FFF8
+    lsr a
+    lsr a
+    lsr a
+    sta.b !unpack_groups
+    lda.w !level_gfx+1,x
+    phx
+    php
+    phb
+    ldx.w #$0000
+    jsr.w UnpackBegin
+    beq .unpacked
+.group:
+    jsr.w UnpackGroup
+    bne .group
+.unpacked:
+    plb
+    plp
+    plx
+    lda.w !level_gfx+6,x
+    sta.w !VMADDL
+    lda.w #$1801
+    sta.w !DMAP0
+    lda.w #$0000
+    sta.w !A1T0L
+    lda.w #!UNPACK_DEST_BANK
+    sta.w !A1B0
+    lda.w !level_gfx+4,x
+    sta.w !DAS0L
+    sep.b #$20
+    lda.b #$01
+    sta.w !MDMAEN
+    rep.b #$20
+    clc
+    txa
+    adc.w #$0007
+    tax
+    dec.b !level_gfx_left
+    bne .vram_part
+    lda.w #$5800
+    sta.w !unpack_next
+    lda.w !level_gfx+1,x
+    and.w #$00FF
+    beq .done
+    and.w #$00FF
+    sta.b !level_gfx_left
+.kept_part:
+    lda.w !level_gfx+4,x
+    stz.b !unpack_source
+    sta.b !unpack_source+2
+    lda.w !level_gfx+5,x
+    clc
+    adc.w #$0007
+    and.w #$FFF8
+    lsr a
+    lsr a
+    lsr a
+    sta.b !unpack_groups
+    phb
+    phx
+    php
+    lda.w !level_gfx+2,x
+    jsr.w UnpackBegin
+    ldx.b !unpack_next
+.kept_group:
+    jsr.w UnpackGroup
+    bne .kept_group
+    stx.b !unpack_next
+    plp
+    plx
+    plb
+    clc
+    txa
+    adc.w #$0005
+    tax
+    dec.b !level_gfx_left
+    bne .kept_part
+.done:
+    pld
+    plp
+    rtl
+
+; @routine 81:BA9E AnimSetGraphicsUnpack
+; WHAT IT DOES: Unpacks animation set A's graphics into bank $7F where the
+; last unpack stopped, and notes where they went.
+; HOW: With X, Y, D, A, DB and P kept on the stack: the next destination
+; ($6B-$6D) is copied to $7F:E500 + A * 2; the set's entry (a word at
+; $82:AC18 + A * 2) gives its length (low 14 bits, in 8-byte groups), its
+; source offset and bank; when the length is not 0, UnpackBegin and
+; UnpackGroup until no groups are left, from the next destination on,
+; which moves past them.
+; Entry: A low byte = the set; called by JSR. Exit: A low byte, X, Y
+; (low bytes), D, DB and P as at entry; $6B = past the set's graphics.
+%at($81BA9E)
+AnimSetGraphicsUnpack:
+    phx
+    phy
+    phd
+    pha
+    phb
+    php
+    rep.b #$30
+    and.w #$00FF
+    asl a
+    tax
+    lda.l !unpack_next
+    sta.l !anim_set_gfx_at,x
+    lda.l !unpack_next+1
+    sta.l !anim_set_gfx_at+1,x
+    lda.w #$0000
+    tcd
+    lda.l !anim_set_gfx,x
+    tax
+    lda.l !anim_set_gfx_parts,x
+    beq .done
+    and.w #$3FFF
+    lsr a
+    lsr a
+    lsr a
+    sta.b !unpack_groups
+    stz.b !unpack_source
+    lda.l !anim_set_gfx_parts+4,x
+    sta.b !unpack_source+2
+    lda.l !anim_set_gfx_parts+2,x
+    jsr.w UnpackBegin
+    ldx.b !unpack_next
+.group:
+    jsr.w UnpackGroup
+    bne .group
+    stx.b !unpack_next
+.done:
+    plp
+    plb
+    pla
+    pld
+    ply
+    plx
+    rts
+
+; @routine 81:BAF1 UnpackSet
+; WHAT IT DOES: Unpacks packed set A (graphics) into bank $7F.
+; HOW: With P, DB and D kept on the stack and 16-bit registers:
+; UnpackSetBegin, then UnpackGroup until no groups are left.
+; Entry: A low byte = the set; called by JSL. Exit: P, DB and D as at
+; entry; A, X, Y as the last group left them (X past the set in bank
+; $7F).
+UnpackSet:
+    phd
+    phb
+    php
+    rep.b #$30
+    jsr.w UnpackSetBegin
+    beq .done
+.group:
+    jsr.w UnpackGroup
+    bne .group
+.done:
+    plp
+    plb
+    pld
+    rtl
 
 ; @routine 81:BB04 UnpackSetBegin
 ; WHAT IT DOES: Sets up the unpacking of packed set A (the graphics sets
@@ -36,7 +253,6 @@ arch 65816
 ; UnpackBegin.
 ; Entry: M 16-bit, X 16-bit; A low byte = the set; called by JSR. Exit:
 ; as UnpackBegin; X = where the set goes; D = 0.
-%at($81BB04)
 UnpackSetBegin:
     and.w #$00FF
     sta.w !scratch

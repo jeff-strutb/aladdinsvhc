@@ -3,12 +3,16 @@
 ; C: src/aladdin/video/circle_wipe.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram_video.inc"
 
 arch 65816
 
 ; The circle, drawn by the midpoint method an octant at a time.
 !circle_x = $002C               ; octant's x, from the radius down (word)
 !circle_y = $002E               ; octant's y, from 0 up (word)
+!circle_term = $0030            ; the midpoint method's term (word)
+!circle_view_x = !layer0+58     ; subtracted from the point: words in layer 0's record
+!circle_view_y = !layer0+62
 !circle_cx = $0032              ; centre's screen x (word)
 !circle_cy = $0034              ; centre's scanline (word)
 ; The plot's working bytes.
@@ -20,7 +24,81 @@ arch 65816
 !row_down_y = $001A             ; scanline centre + y, then its offset
 !window_edges = $7F5000         ; window edges per scanline: left, right
 
-; @routine 81:B2D9 CircleWipePlot
+; @routine 81:B264 CircleWipeStep
+; WHAT IT DOES: Draws the wipe's circle of radius A round the point X, Y
+; into the window table, when the point is on screen.
+; HOW: The octant's x = 0, y = A and the midpoint method's term ($30) =
+; 3 - 2A; the centre on screen = X and Y less the words at $1772 and $1776
+; (layer 0's record), and nothing is drawn when they are not below 256 and
+; 224; the 256 scanlines' edges are set to $00FF (no window); then
+; CircleWipePlot for each step while x is not past y, the term growing by
+; 4x + 6 (term negative) or by 4(x - y) + 10 with y down one.
+; Entry: M 16-bit, X 16-bit; A = the radius; X, Y = the point; DB a bank
+; whose $0000-$1FFF is work RAM; called by JSL. Exit: M 16-bit, X 16-bit;
+; drawn: A = the octant's y, C clear, X as CircleWipePlot left it; off
+; screen: A = the difference that failed, C set; $2C-$34 the circle's
+; working words.
+%at($81B264)
+CircleWipeStep:
+    stz.w !circle_x
+    sta.w !circle_y
+    asl a
+    clc
+    adc.w #$FFFD
+    eor.w #$FFFF
+    inc a
+    sta.w !circle_term
+    sec
+    txa
+    sbc.w !circle_view_x
+    cmp.w #$0100
+    bcs .done
+    sta.w !circle_cx
+    sec
+    tya
+    sbc.w !circle_view_y
+    cmp.w #$00E0
+    bcs .done
+    sta.w !circle_cy
+    ldx.w #$0000
+    lda.w #$00FF
+.clear:
+    sta.l !window_edges,x
+    inx
+    inx
+    cpx.w #$0200
+    bcc .clear
+.step:
+    lda.w !circle_y
+    cmp.w !circle_x
+    bcc .done
+    jsr.w CircleWipePlot
+    lda.w !circle_term
+    bpl .y_down
+    lda.w !circle_x
+    asl a
+    asl a
+    clc
+    adc.w #$0006
+    bra .term
+.y_down:
+    sec
+    lda.w !circle_x
+    sbc.w !circle_y
+    asl a
+    asl a
+    clc
+    adc.w #$000A
+    dec.w !circle_y
+.term:
+    clc
+    adc.w !circle_term
+    sta.w !circle_term
+    inc.w !circle_x
+    bra .step
+.done:
+    rtl
+
 ; WHAT IT DOES: Puts one step of the circle into the window table: its
 ; eight symmetric points as the left and right edges of four scanlines.
 ; HOW: Clamps centre x -/+ x and -/+ y to 0..$FF, and the scanlines centre
@@ -31,7 +109,6 @@ arch 65816
 ; (CircleWipeStep). Exit: M 16-bit, X 16-bit; A = the -/+ x span (word),
 ; X = scanline centre + y's offset; N and Z from the last load; C as the
 ; last clamp left it.
-%at($81B2D9)
 CircleWipePlot:
     sep.b #$30
     sec

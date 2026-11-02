@@ -815,3 +815,41 @@ void abi_ActorMoveByVectorY(void)
     op_sep(0x10);  /* 81A9A3 sep */
     return;  /* 81A9A5 rtl */
 }
+
+/*
+ * @routine 81:A574 ActorBobY
+ * WHAT IT DOES: Moves the actor up and down in a bob: its vertical speed
+ * swings between about half a pixel a frame down and up.
+ * HOW: With $49 clear, ActorAccelerateY, and once the speed is down at
+ * $0081 or more, $49 is set; with $49 set, ActorAccelerateYBack, and once
+ * the speed is up past $FF80, $49 is cleared; then ActorMoveY.
+ * Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMoveY; M
+ * 8-bit.
+ */
+void abi_ActorBobY(void)
+{
+    lda8(ea_dp(ACTOR_49));  /* 81A574 lda */
+    if (!IF_Z) goto L_81A58D;  /* 81A576 bne */
+    abi_ActorAccelerateY();  /* 81A578 jsl */
+    if (IF_N) goto L_81A5A0;  /* 81A57C bmi */
+    op_rep(0x20);  /* 81A57E rep */
+    lda16(ea_dp(ACTOR_SPEED_Y));  /* 81A580 lda */
+    cmp16_v(0x0081);  /* 81A582 cmp */
+    if (!IF_C) goto L_81A5A0;  /* 81A585 bcc */
+    op_sep(0x20);  /* 81A587 sep */
+    MEM8(inc, ea_dp(ACTOR_49));  /* 81A589 inc */
+    goto L_81A5A0;  /* 81A58B bra */
+L_81A58D:
+    abi_ActorAccelerateYBack();  /* 81A58D jsl */
+    if (!IF_N) goto L_81A5A0;  /* 81A591 bpl */
+    op_rep(0x20);  /* 81A593 rep */
+    lda16(ea_dp(ACTOR_SPEED_Y));  /* 81A595 lda */
+    cmp16_v(0xFF80);  /* 81A597 cmp */
+    if (IF_C) goto L_81A5A0;  /* 81A59A bcs */
+    op_sep(0x20);  /* 81A59C sep */
+    stz8(ea_dp(ACTOR_49));  /* 81A59E stz */
+L_81A5A0:
+    op_sep(0x20);  /* 81A5A0 sep */
+    abi_ActorMoveY();  /* 81A5A2 jsl */
+    return;  /* 81A5A6 rtl */
+}

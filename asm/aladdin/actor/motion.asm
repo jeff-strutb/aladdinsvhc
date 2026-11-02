@@ -279,11 +279,44 @@ ActorMoveY:
     sta.b !actor_y+2
     rtl
 
+; @routine 81:A574 ActorBobY
+; WHAT IT DOES: Moves the actor up and down in a bob: its vertical speed
+; swings between about half a pixel a frame down and up.
+; HOW: With $49 clear, ActorAccelerateY, and once the speed is down at
+; $0081 or more, $49 is set; with $49 set, ActorAccelerateYBack, and once
+; the speed is up past $FF80, $49 is cleared; then ActorMoveY.
+; Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMoveY; M
+; 8-bit.
+ActorBobY:
+    lda.b !actor_49
+    bne .up
+    jsl.l ActorAccelerateY
+    bmi .move
+    rep.b #$20
+    lda.b !actor_speed_y
+    cmp.w #$0081
+    bcc .move
+    sep.b #$20
+    inc.b !actor_49
+    bra .move
+.up:
+    jsl.l ActorAccelerateYBack
+    bpl .move
+    rep.b #$20
+    lda.b !actor_speed_y
+    cmp.w #$FF80
+    bcs .move
+    sep.b #$20
+    stz.b !actor_49
+.move:
+    sep.b #$20
+    jsl.l ActorMoveY
+    rtl
+
 ; @routine 81:A5A7 ActorMoveX
 ; WHAT IT DOES: Moves the actor by its horizontal speed the way it faces.
 ; HOW: ActorMoveXNear, for callers in other banks.
 ; Entry: as ActorMoveXNear; called by JSL. Exit: as ActorMoveXNear.
-%at($81A5A7)
 ActorMoveX:
     jsr.w ActorMoveXNear
     rtl
