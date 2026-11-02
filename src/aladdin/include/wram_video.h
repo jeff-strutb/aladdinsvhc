@@ -35,6 +35,7 @@
 #define BG1_X_SHIFT 0x001A18u
 #define BG2_X_SHIFT 0x001A20u
 #define BG2_Y_SHIFT 0x001A24u
+#define BACKDROP_OFFSET_Y 0x001A2Bu /* the backdrop layer's y less the play field's: fraction, then pixels (word) */
 #define BG2_X_HELD 0x00083Cu          /* nonzero: BG2's horizontal scroll is not written */
 
 /* Scroll layers: records of $156 bytes, the play field's (layer 0) and the
@@ -94,5 +95,9 @@
 /* While the layers' tilemaps fill as a level starts (video/scroll_layer.c) */
 #define FILL_LAYERS_LEFT 0x001A90u  /* layers left to fill */
 #define FILL_COLUMNS_LEFT 0x001A91u /* columns left to draw in this one */
+
+/* The text bands (video/text_bands.c): per band, the window byte HDMA
+   channel 5 writes for it (16 bytes), then the channel's two tables' copies. */
+#define TEXT_BANDS 0x001C8Eu
 
 #endif

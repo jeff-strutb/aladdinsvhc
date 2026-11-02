@@ -563,3 +563,70 @@ ActorCreateChild8:
     lda.b #$00
 .lA9BE:
     rtl
+
+
+; @routine 82:A72C PlacementsStart
+; WHAT IT DOES: Indexes the level's placements as it starts, sets the
+; placing points from the camera, and creates the actors of the 12 bands
+; down from 64 pixels left of the camera.
+; HOW: With D = 0 and DB = $82: PlacementsIndex; the last placement's
+; flags byte ($7E:C6FF) set to $FF; from the scroll y, placed_y and the
+; bands (y - 64) / 32 and (y + 288) / 32 at placed_band_x; from the scroll
+; x, placed_x and the bands (x + 288) / 32 and (x - 64) / 32 at
+; placed_band_y; PlacementsDown for 12 bands from (x - 64) / 32.
+; Entry: DB, D any; called by JSL. Exit: M 8-bit, X 8-bit; D and DB as at
+; entry; Y = 0.
+%at($82A72C)
+PlacementsStart:
+    sep.b #$30
+    phd
+    lda.b #$00
+    pha
+    pha
+    pld
+    phb
+    lda.b #$82
+    pha
+    plb
+    jsr.w PlacementsIndex
+    lda.b #$FF
+    sta.l !placement_flags+255
+    rep.b #$21
+    lda.w !layer0+!LAYER_SCROLL_Y
+    pha
+    sta.w !placed_y
+    adc.w #$0120
+    jsr.w ShiftRight5
+    sta.w !placed_band_x+2
+    pla
+    sec
+    sbc.w #$0040
+    jsr.w ShiftRight5
+    sta.w !placed_band_x
+    lda.w !layer0+!LAYER_SCROLL_X
+    pha
+    sta.w !placed_x
+    clc
+    adc.w #$0120
+    jsr.w ShiftRight5
+    sta.w !placed_band_y
+    pla
+    sec
+    sbc.w #$0040
+    jsr.w ShiftRight5
+    sta.w !placed_band_y+2
+    sep.b #$30
+    tax
+    ldy.b #$0C
+.band:
+    phx
+    phy
+    jsr.w PlacementsDown
+    ply
+    plx
+    inx
+    dey
+    bne .band
+    plb
+    pld
+    rtl
