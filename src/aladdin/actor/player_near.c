@@ -8,6 +8,7 @@
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
+#include "wram_player.h"
 
 static uint32_t abs_db(uint16_t addr)
 {
@@ -161,4 +162,84 @@ void abi_ActorNearPoint(void)
     cmp16_v(rd16(ea_abs(SCRATCH + 6)));  /* 81AD44 cmp */
 L_81AD47:
     return;  /* 81AD47 rtl */
+}
+
+/*
+ * @routine 81:AC68 ActorAimAt
+ * WHAT IT DOES: The direction from the actor to the point in scratch $10,
+ * $12: an entry of the direction table at $BC03.
+ * HOW: The differences across (point x - actor's x) and up or down, made
+ * positive; the octant from their signs (+4 the point above, +2 left) and
+ * which is larger (+1 up or down); the step in it from the smaller against
+ * the larger (under 1/8, 3/8, 5/8, 7/8 of it, else 4, the larger / 8 kept
+ * at $0E); the table's byte at the octant * 8 + the step.
+ * Entry: M 16-bit, X 16-bit; D = the actor; DB = $81; $10, $12 = the point
+ * (words); called by JSL. Exit: M and X 8-bit; A low byte = the direction;
+ * X = the table offset, Y = the octant (low bytes); scratch $0C = the
+ * octant * 8, $0E = the larger difference / 8.
+ */
+void abi_ActorAimAt(void)
+{
+    ldy16_v(0x0000);  /* 81AC68 ldy */
+    lda16(ea_abs(V_0012));  /* 81AC6B lda */
+    sec();  /* 81AC6E sec */
+    sbc16_v(rd16(ea_dp(0x0F)));  /* 81AC6F sbc */
+    if (IF_C) goto L_81AC7A;  /* 81AC71 bcs */
+    eor16_v(0xFFFF);  /* 81AC73 eor */
+    ACC16(inc);  /* 81AC76 inc */
+    ldy16_v(0x0004);  /* 81AC77 ldy */
+L_81AC7A:
+    sta16(ea_abs(SCRATCH));  /* 81AC7A sta */
+    lda16(ea_abs(0x0010));  /* 81AC7D lda */
+    sec();  /* 81AC80 sec */
+    sbc16_v(rd16(ea_dp(0x0C)));  /* 81AC81 sbc */
+    if (IF_C) goto L_81AC8B;  /* 81AC83 bcs */
+    eor16_v(0xFFFF);  /* 81AC85 eor */
+    ACC16(inc);  /* 81AC88 inc */
+    iny16();  /* 81AC89 iny */
+    iny16();  /* 81AC8A iny */
+L_81AC8B:
+    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81AC8B cmp */
+    if (IF_C) goto L_81AC98;  /* 81AC8E bcs */
+    iny16();  /* 81AC90 iny */
+    ldx16(ea_abs(SCRATCH));  /* 81AC91 ldx */
+    sta16(ea_abs(SCRATCH));  /* 81AC94 sta */
+    txa16();  /* 81AC97 txa */
+L_81AC98:
+    ldx16_v(0x0000);  /* 81AC98 ldx */
+    ACC16(lsr);  /* 81AC9B lsr */
+    ACC16(lsr);  /* 81AC9C lsr */
+    ACC16(lsr);  /* 81AC9D lsr */
+    sta16(ea_abs(0x000E));  /* 81AC9E sta */
+    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACA1 cmp */
+    if (IF_C) goto L_81ACCB;  /* 81ACA4 bcs */
+    inx16();  /* 81ACA6 inx */
+    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACA7 adc */
+    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACAA adc */
+    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACAD cmp */
+    if (IF_C) goto L_81ACCB;  /* 81ACB0 bcs */
+    inx16();  /* 81ACB2 inx */
+    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACB3 adc */
+    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACB6 adc */
+    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACB9 cmp */
+    if (IF_C) goto L_81ACCB;  /* 81ACBC bcs */
+    inx16();  /* 81ACBE inx */
+    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACBF adc */
+    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACC2 adc */
+    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACC5 cmp */
+    if (IF_C) goto L_81ACCB;  /* 81ACC8 bcs */
+    inx16();  /* 81ACCA inx */
+L_81ACCB:
+    tya16();  /* 81ACCB tya */
+    ACC16(asl);  /* 81ACCC asl */
+    ACC16(asl);  /* 81ACCD asl */
+    ACC16(asl);  /* 81ACCE asl */
+    sta16(ea_abs(SCRATCH));  /* 81ACCF sta */
+    txa16();  /* 81ACD2 txa */
+    clc();  /* 81ACD3 clc */
+    adc16_v(rd16(ea_abs(SCRATCH)));  /* 81ACD4 adc */
+    tax16();  /* 81ACD7 tax */
+    lda16(ea_absx(0xBC03));  /* 81ACD8 lda */
+    op_sep(0x30);  /* 81ACDB sep */
+    return;  /* 81ACDD rtl */
 }

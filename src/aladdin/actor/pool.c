@@ -5,7 +5,9 @@
  * addresses (ACTOR_FREE_LIST, ACTOR_FREE_TOP the offset of its top word).
  */
 #include "machine.h"
-#include "cpu_ops.h"
+#include "ops65.h"
+void abi_ActorFreeListSortHigh(void);
+void abi_ActorFreeListTake(void);
 #include "actor.h"
 #include "wram.h"
 
@@ -190,4 +192,125 @@ void abi_ActorRecordsInit(void)
     cpu.x = 0xFFFF;
     cpu.p = nz16(cpu.p, 0xFFFF);
     op_sep(P_M | P_X);
+}
+
+/*
+ * @routine 81:ADFC ActorFreeListSortHigh
+ * WHAT IT DOES: Orders the top of the free list so the highest record
+ * addresses are taken first, when at least A records are free; with
+ * fewer, says so.
+ * HOW: With fewer than A free (the top offset / 2 below A), A = $FF. Else
+ * A passes of a bubble sort from the top down: each pass compares A pairs
+ * of neighbouring entries, and swaps a pair whose lower entry is the
+ * larger or the same; the passes are counted in scratch $0C.
+ * Entry: M 8-bit, X 8-bit; A low byte = the passes; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSL. Exit: none free: Y = the top
+ * offset; N set. Too few: A low byte = $FF; N set. Sorted: M 8-bit; scratch $0C = 0; Y = the top
+ * offset; X = 0; A = the last entry compared or swapped (16 bits); Z set;
+ * C from the last compare; V unchanged.
+ */
+void abi_ActorFreeListSortHigh(void)
+{
+    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 81ADFC ldy */
+    if (IF_N) goto L_81AE34;  /* 81ADFF bmi */
+    sta8(ea_abs(SCRATCH));  /* 81AE01 sta */
+    stz8(ea_abs(0x000D));  /* 81AE04 stz */
+    tya8();  /* 81AE07 tya */
+    ACC8(lsr);  /* 81AE08 lsr */
+    cmp8_v(rd8(ea_abs(SCRATCH)));  /* 81AE09 cmp */
+    if (!IF_C) goto L_81AE35;  /* 81AE0C bcc */
+    op_rep(0x20);  /* 81AE0E rep */
+L_81AE10:
+    phy8();  /* 81AE10 phy */
+    ldx8(ea_abs(SCRATCH));  /* 81AE11 ldx */
+L_81AE14:
+    lda16(ea_absy(0x15A0));  /* 81AE14 lda */
+    cmp16_v(rd16(ea_absy(ACTOR_FREE_LIST)));  /* 81AE17 cmp */
+    if (!IF_C) goto L_81AE27;  /* 81AE1A bcc */
+    pha16();  /* 81AE1C pha */
+    lda16(ea_absy(ACTOR_FREE_LIST));  /* 81AE1D lda */
+    sta16(ea_absy(0x15A0));  /* 81AE20 sta */
+    pla16();  /* 81AE23 pla */
+    sta16(ea_absy(ACTOR_FREE_LIST));  /* 81AE24 sta */
+L_81AE27:
+    dey8();  /* 81AE27 dey */
+    dey8();  /* 81AE28 dey */
+    dex8();  /* 81AE29 dex */
+    if (!IF_Z) goto L_81AE14;  /* 81AE2A bne */
+    ply8();  /* 81AE2C ply */
+    MEM16(dec, ea_abs(SCRATCH));  /* 81AE2D dec */
+    if (!IF_Z) goto L_81AE10;  /* 81AE30 bne */
+    op_sep(0x20);  /* 81AE32 sep */
+L_81AE34:
+    return;  /* 81AE34 rtl */
+L_81AE35:
+    lda8_v(0xFF);  /* 81AE35 lda */
+    return;  /* 81AE37 rtl */
+}
+
+/*
+ * @routine 81:AE38 ActorFreeListTake
+ * WHAT IT DOES: Takes A / 2 + 1 records off the top of the free list at
+ * once, ordered so the lowest address comes first; with too few free, says
+ * so.
+ * HOW: With the top offset below A (or none free), C clear. Else the top
+ * steps down A + 2 bytes, and A / 2 passes of a bubble sort (counted in
+ * scratch $0E) order the entries taken: each pass compares neighbouring
+ * pairs from the old top down and swaps a pair whose upper entry is the
+ * smaller.
+ * Entry: M 8-bit, X 8-bit; A low byte = the bytes (twice the records less
+ * one); DB a bank whose $0000-$1FFF is work RAM; called by JSL. Exit: too
+ * few: C clear; Y = the top offset. Taken: C set; Y = the offset of the
+ * first record taken (the new top + 2); M 8-bit; scratch $0C = A + 2, $0E
+ * = 0; X = 0.
+ */
+void abi_ActorFreeListTake(void)
+{
+    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 81AE38 ldy */
+    if (IF_N) goto L_81AE88;  /* 81AE3B bmi */
+    sta8(ea_abs(SCRATCH));  /* 81AE3D sta */
+    cpy8_v(rd8(ea_abs(SCRATCH)));  /* 81AE40 cpy */
+    if (!IF_C) goto L_81AE88;  /* 81AE43 bcc */
+    pha8();  /* 81AE45 pha */
+    ACC8(lsr);  /* 81AE46 lsr */
+    sta8(ea_abs(0x000E));  /* 81AE47 sta */
+    stz8(ea_abs(0x000F));  /* 81AE4A stz */
+    pla8();  /* 81AE4D pla */
+    ACC8(inc);  /* 81AE4E inc */
+    ACC8(inc);  /* 81AE4F inc */
+    sta8(ea_abs(SCRATCH));  /* 81AE50 sta */
+    sec();  /* 81AE53 sec */
+    tya8();  /* 81AE54 tya */
+    sbc8_v(rd8(ea_abs(SCRATCH)));  /* 81AE55 sbc */
+    sta8(ea_abs(ACTOR_FREE_TOP));  /* 81AE58 sta */
+    op_rep(0x20);  /* 81AE5B rep */
+L_81AE5D:
+    phy8();  /* 81AE5D phy */
+    ldx8(ea_abs(0x000E));  /* 81AE5E ldx */
+L_81AE61:
+    lda16(ea_absy(ACTOR_FREE_LIST));  /* 81AE61 lda */
+    cmp16_v(rd16(ea_absy(0x15A0)));  /* 81AE64 cmp */
+    if (IF_C) goto L_81AE74;  /* 81AE67 bcs */
+    pha16();  /* 81AE69 pha */
+    lda16(ea_absy(0x15A0));  /* 81AE6A lda */
+    sta16(ea_absy(ACTOR_FREE_LIST));  /* 81AE6D sta */
+    pla16();  /* 81AE70 pla */
+    sta16(ea_absy(0x15A0));  /* 81AE71 sta */
+L_81AE74:
+    dey8();  /* 81AE74 dey */
+    dey8();  /* 81AE75 dey */
+    dex8();  /* 81AE76 dex */
+    if (!IF_Z) goto L_81AE61;  /* 81AE77 bne */
+    ply8();  /* 81AE79 ply */
+    MEM16(dec, ea_abs(0x000E));  /* 81AE7A dec */
+    if (!IF_Z) goto L_81AE5D;  /* 81AE7D bne */
+    op_sep(0x20);  /* 81AE7F sep */
+    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 81AE81 ldy */
+    iny8();  /* 81AE84 iny */
+    iny8();  /* 81AE85 iny */
+    sec();  /* 81AE86 sec */
+    return;  /* 81AE87 rtl */
+L_81AE88:
+    clc();  /* 81AE88 clc */
+    return;  /* 81AE89 rtl */
 }

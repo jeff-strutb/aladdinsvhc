@@ -143,6 +143,120 @@ ActorFreeListSort:
 .done:
     rtl
 
+; @routine 81:ADFC ActorFreeListSortHigh
+; WHAT IT DOES: Orders the top of the free list so the highest record
+; addresses are taken first, when at least A records are free; with
+; fewer, says so.
+; HOW: With fewer than A free (the top offset / 2 below A), A = $FF. Else
+; A passes of a bubble sort from the top down: each pass compares A pairs
+; of neighbouring entries, and swaps a pair whose lower entry is the
+; larger or the same; the passes are counted in scratch $0C.
+; Entry: M 8-bit, X 8-bit; A low byte = the passes; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSL. Exit: none free: Y = the top
+; offset; N set. Too few: A low byte = $FF; N set. Sorted: M 8-bit; scratch $0C = 0; Y = the top
+; offset; X = 0; A = the last entry compared or swapped (16 bits); Z set;
+; C from the last compare; V unchanged.
+%at($81ADFC)
+ActorFreeListSortHigh:
+    ldy.w !actor_free_top
+    bmi .done
+    sta.w !scratch
+    stz.w !scratch+1
+    tya
+    lsr a
+    cmp.w !scratch
+    bcc .few
+    rep.b #$20
+.pass:
+    phy
+    ldx.w !scratch
+.pair:
+    lda.w !actor_free_list-2,y
+    cmp.w !actor_free_list,y
+    bcc .next
+    pha
+    lda.w !actor_free_list,y
+    sta.w !actor_free_list-2,y
+    pla
+    sta.w !actor_free_list,y
+.next:
+    dey
+    dey
+    dex
+    bne .pair
+    ply
+    dec.w !scratch
+    bne .pass
+    sep.b #$20
+.done:
+    rtl
+.few:
+    lda.b #$FF
+    rtl
+
+; @routine 81:AE38 ActorFreeListTake
+; WHAT IT DOES: Takes A / 2 + 1 records off the top of the free list at
+; once, ordered so the lowest address comes first; with too few free, says
+; so.
+; HOW: With the top offset below A (or none free), C clear. Else the top
+; steps down A + 2 bytes, and A / 2 passes of a bubble sort (counted in
+; scratch $0E) order the entries taken: each pass compares neighbouring
+; pairs from the old top down and swaps a pair whose upper entry is the
+; smaller.
+; Entry: M 8-bit, X 8-bit; A low byte = the bytes (twice the records less
+; one); DB a bank whose $0000-$1FFF is work RAM; called by JSL. Exit: too
+; few: C clear; Y = the top offset. Taken: C set; Y = the offset of the
+; first record taken (the new top + 2); M 8-bit; scratch $0C = A + 2, $0E
+; = 0; X = 0.
+ActorFreeListTake:
+    ldy.w !actor_free_top
+    bmi .few
+    sta.w !scratch
+    cpy.w !scratch
+    bcc .few
+    pha
+    lsr a
+    sta.w !scratch+2
+    stz.w !scratch+3
+    pla
+    inc a
+    inc a
+    sta.w !scratch
+    sec
+    tya
+    sbc.w !scratch
+    sta.w !actor_free_top
+    rep.b #$20
+.pass:
+    phy
+    ldx.w !scratch+2
+.pair:
+    lda.w !actor_free_list,y
+    cmp.w !actor_free_list-2,y
+    bcs .next
+    pha
+    lda.w !actor_free_list-2,y
+    sta.w !actor_free_list,y
+    pla
+    sta.w !actor_free_list-2,y
+.next:
+    dey
+    dey
+    dex
+    bne .pair
+    ply
+    dec.w !scratch+2
+    bne .pass
+    sep.b #$20
+    ldy.w !actor_free_top
+    iny
+    iny
+    sec
+    rtl
+.few:
+    clc
+    rtl
+
 ; @routine 81:EA3D ActorAllocBLong
 ; WHAT IT DOES: ActorAllocB for callers in other banks.
 ; HOW: JSR to it, then RTL.
