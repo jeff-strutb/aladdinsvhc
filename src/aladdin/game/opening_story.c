@@ -153,3 +153,112 @@ void abi_ScreenFadeOutStart(void)
     task_create(0x80AEAFu);
 }
 
+
+/*
+ * @routine 80:AE17 OpeningScene6Start
+ * WHAT IT DOES: Sets up the sixth scene of the opening story: seven
+ * actors, the sprite task, then the end it shares with the third and
+ * fourth scenes.
+ * HOW: OpeningActorPlace with entries 16, 17, 18, 5, 6, 14 and 15; the
+ * task at $81:F332 in slot 4 with parameter 5; then from $80:AE43 the
+ * task at $82:8000 in slot 6, a frame (FrameEnd), palette $56, slot 0 at
+ * $15F1 started with $1F and the actor of entry 20.
+ * Entry: M 8-bit, X 8-bit; called by JSR from the story's task; DB = $80,
+ * whose $0000-$1FFF is work RAM. Exit: as OpeningActorPlace leaves them.
+ */
+void abi_OpeningScene6Start(void)
+{
+    static const uint8_t at[7] = { 0x60, 0x66, 0x6C, 0x1E, 0x24, 0x54, 0x5A };
+    int i;
+
+    for (i = 0; i < 7; i++) {
+        ldx8_v(at[i]);
+        abi_OpeningActorPlace();
+    }
+    task_create(0x80AE3Au);
+    scene_end();
+}
+/*
+ * @routine 80:AEC0 OpeningActorPlace
+ * WHAT IT DOES: Places one of the opening story's actors: entry X of its
+ * table gives the kind, the byte its code reads at $07, and the place.
+ * HOW: The entry's x and y in the spawn words (SPAWN_X, SPAWN_Y), its
+ * kind in A's high byte and the byte in its low; ActorSpawnAtLong; 8-bit
+ * registers after.
+ * Entry: M 8-bit, X 8-bit; X = the entry's offset (6 bytes an entry); DB =
+ * $80, the table's bank, whose $0000-$1FFF is work RAM. Exit: M and X
+ * 8-bit (the high bytes of X and Y cleared); A, the low bytes of X and Y
+ * and the flags but M and X as ActorSpawnAtLong leaves them.
+ */
+void abi_OpeningActorPlace(void)
+{
+    op_rep(0x20);
+    lda16(ea_absx(OPENING_ACTORS + 2));
+    sta16(ea_abs(SPAWN_X));
+    lda16(ea_absx(OPENING_ACTORS + 4));
+    sta16(ea_abs(SPAWN_Y));
+    op_sep(0x20);
+    lda8(ea_absx(OPENING_ACTORS));
+    xba();
+    lda8(ea_absx(OPENING_ACTORS + 1));
+    abi_ActorSpawnAtLong();
+    op_sep(0x30);
+}
+/*
+ * @routine 80:ADE8 OpeningScene4Start
+ * WHAT IT DOES: Sets up the fourth scene of the opening story: nine
+ * actors, then the scenes' common end.
+ * HOW: OpeningActorPlace with entries 10, 11, 13, 12, 4, 6, 8, 21 and 9,
+ * then the end at $80:AE43 as OpeningScene3Start.
+ * Entry: M 8-bit, X 8-bit; called by JSR from the story's task; DB = $80,
+ * whose $0000-$1FFF is work RAM. Exit: as OpeningActorPlace leaves them.
+ */
+void abi_OpeningScene4Start(void)
+{
+    static const uint8_t at[9] = { 0x3C, 0x42, 0x4E, 0x48, 0x18, 0x24, 0x30, 0x7E, 0x36 };
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        ldx8_v(at[i]);
+        abi_OpeningActorPlace();
+    }
+    scene_end();
+}
+/*
+ * @routine 80:ADE1 OpeningScene3Start
+ * WHAT IT DOES: Sets up the third scene of the opening story: one actor,
+ * then the scenes' common end.
+ * HOW: OpeningActorPlace with entry 7, then the end at $80:AE43 (in
+ * OpeningScene6Start): the task at $82:8000 in slot 6, a frame
+ * (FrameEnd), palette $56, slot 0 at $15F1 started with $1F, the actor of
+ * entry 20.
+ * Entry: M 8-bit, X 8-bit; called by JSR from the story's task; DB = $80,
+ * whose $0000-$1FFF is work RAM. Exit: as OpeningActorPlace leaves them.
+ */
+void abi_OpeningScene3Start(void)
+{
+    ldx8_v(0x2A);
+    abi_OpeningActorPlace();
+    scene_end();
+}
+/*
+ * @routine 80:ADC6 OpeningScene2Start
+ * WHAT IT DOES: Sets up the second scene of the opening story: its song
+ * and four actors.
+ * HOW: SongPlay $1F; OpeningActorPlace with entries 0, 2, 3 and 1.
+ * Entry: M 8-bit, X 8-bit; called by JSR; DB = $80, whose $0000-$1FFF is
+ * work RAM. Exit: as OpeningActorPlace leaves them.
+ */
+void abi_OpeningScene2Start(void)
+{
+    lda8_v(0x1F);
+    abi_SongPlay();
+    ldx8_v(0x00);
+    abi_OpeningActorPlace();
+    ldx8_v(0x0C);
+    abi_OpeningActorPlace();
+    ldx8_v(0x12);
+    abi_OpeningActorPlace();
+    ldx8_v(0x06);
+    abi_OpeningActorPlace();
+}

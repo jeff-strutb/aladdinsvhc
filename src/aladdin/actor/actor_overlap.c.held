@@ -1,4 +1,15 @@
 /*
+ * @routine 83:87E8 ActorZoneHasTestPointLong
+ * WHAT IT DOES: ActorZoneHasTestPoint for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorZoneHasTestPoint; called by JSL. Exit: as
+ * ActorZoneHasTestPoint.
+ */
+void abi_ActorZoneHasTestPointLong(void)
+{
+    abi_ActorZoneHasTestPoint();
+}
+/*
  * @routine 83:87EC ActorZoneHasTestPoint
  * WHAT IT DOES: Tells whether the test box's centre is inside zone Y
  * beside the actor: a box placed by the actor's position and facing.
@@ -45,15 +56,4 @@ void abi_ActorZoneHasTestPoint(void)
     return;
 out:
     op_sep(0x31);
-}
-/*
- * @routine 83:87E8 ActorZoneHasTestPointLong
- * WHAT IT DOES: ActorZoneHasTestPoint for callers in other banks.
- * HOW: JSR to it, then RTL.
- * Entry: as ActorZoneHasTestPoint; called by JSL. Exit: as
- * ActorZoneHasTestPoint.
- */
-void abi_ActorZoneHasTestPointLong(void)
-{
-    abi_ActorZoneHasTestPoint();
 }

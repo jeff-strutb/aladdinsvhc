@@ -19,3 +19,4 @@ void abi_HudHealthMarkShow(void);
 #define HUD_DIGIT_REFRESH 0x81F47Fu /* the digit at $0363 drawn when it differs from $0364 */
 #define HUD_REFRESH 0x81F456u       /* each value drawn that differs from the one shown */
 
+

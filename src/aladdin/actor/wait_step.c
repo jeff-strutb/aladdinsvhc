@@ -124,3 +124,24 @@ keep:
 
 
 
+
+/*
+ * @routine 83:D8CE ActorWaitHurtOnTouch
+ * WHAT IT DOES: Each frame it waits: its animation on; unless bit 3 of
+ * its $07 is set, it hurts the player on touch; it is ended once left
+ * behind.
+ * HOW: AnimStep, ActorHurtsPlayerOnTouch, then on into the tail at
+ * $83:9738.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: kept: M 8-bit; A = the word at $1773 less 31; N,
+ * Z and C from its test. Ended: the loop goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitHurtOnTouch(void)
+{
+    abi_AnimStep();
+    lda8(ea_dp(ACTOR_07));
+    and8_v(0x08);
+    if (IF_Z)
+        abi_ActorHurtsPlayerOnTouch();
+    end_if_left_behind();
+}

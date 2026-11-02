@@ -1,29 +1,27 @@
 /*
- * @routine 83:E5B6 ActorWaitRange00
- * WHAT IT DOES: Each frame it waits, it ends once out of range (box 0).
- * HOW: X = 0, then on into ActorEndOutOfRange.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
- * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
- * 8-bit, X = 0, C clear). Out of range: the actor is ended and the loop
- * goes on at $83:94BF, no return.
- */
-void abi_ActorWaitRange00(void)
-{
-    ldx8_v(0x00);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
-}
-/*
- * @routine 83:E458 ActorWaitAnimRange10
- * WHAT IT DOES: Each frame it waits: its animation on, and it ends once
- * out of range (box $10).
- * HOW: AnimStep, then on into ActorEndOutOfRange with X = $10.
+ * @routine 83:CF8C ActorWaitTest42Anim
+ * WHAT IT DOES: Each frame it waits: while $42 is 0, the tests at
+ * $83:840F (true: $42 up by 1) and $83:81E8 (C clear: up by 2); then its
+ * animation on, and it ends once out of range (box $10).
+ * HOW: The tests, AnimStep, then on into ActorEndOutOfRange with X = $10.
  * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
  * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
  * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
  * goes on at $83:94BF, no return.
  */
-void abi_ActorWaitAnimRange10(void)
+void abi_ActorWaitTest42Anim(void)
 {
+    lda8(ea_dp(ACTOR_42));
+    if (!IF_Z) goto anim;
+    call_routine(SUB_83840F, 0);
+    if (IF_Z) goto second;
+    MEM8(inc, ea_dp(ACTOR_42));
+second:
+    call_routine(SUB_8381E8, 0);
+    if (IF_C) goto anim;
+    MEM8(inc, ea_dp(ACTOR_42));
+    MEM8(inc, ea_dp(ACTOR_42));
+anim:
     abi_AnimStep();
     ldx8_v(0x10);
     jump_routine(ACTOR_END_OUT_OF_RANGE);
@@ -46,6 +44,47 @@ void abi_ActorWaitTurnAnim08(void)
     abi_AnimStep();
     call_routine(SUB_81949E, 1);
     ldx8_v(0x08);
+    jump_routine(ACTOR_END_OUT_OF_RANGE);
+}
+/*
+ * @routine 83:D0EF ActorWaitTest42Anim2
+ * WHAT IT DOES: Each frame it waits: while $42 is 0, the test at $83:840F
+ * (true: $42 up by 1); the call at $83:865E with Y = $20; its animation
+ * on, and it ends once out of range (box $10).
+ * HOW: In turn, then on into ActorEndOutOfRange with X = $10.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
+ * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
+ * goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitTest42Anim2(void)
+{
+    lda8(ea_dp(ACTOR_42));
+    if (!IF_Z) goto call;
+    call_routine(SUB_83840F, 0);
+    if (IF_Z) goto call;
+    MEM8(inc, ea_dp(ACTOR_42));
+call:
+    ldy8_v(0x20);
+    call_routine(SUB_83865E, 0);
+    abi_AnimStep();
+    ldx8_v(0x10);
+    jump_routine(ACTOR_END_OUT_OF_RANGE);
+}
+/*
+ * @routine 83:E458 ActorWaitAnimRange10
+ * WHAT IT DOES: Each frame it waits: its animation on, and it ends once
+ * out of range (box $10).
+ * HOW: AnimStep, then on into ActorEndOutOfRange with X = $10.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
+ * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
+ * goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitAnimRange10(void)
+{
+    abi_AnimStep();
+    ldx8_v(0x10);
     jump_routine(ACTOR_END_OUT_OF_RANGE);
 }
 /*
@@ -82,6 +121,36 @@ not_holding:
     if (IF_Z) return;
     lda8_v(0x05);
     call_routine(SUB_82BB26, 1);
+}
+/*
+ * @routine 83:D2A2 ActorWaitWake
+ * WHAT IT DOES: Each frame it waits: when bit 1 of its $07 is clear, $41
+ * is set and the test at $83:848D is true, it wakes: state bits $8C set,
+ * bit 7 of $09 (the wait routine) cleared. It ends once out of range (box
+ * $10).
+ * HOW: TSB/TRB on its fields, then on into ActorEndOutOfRange with X =
+ * $10.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
+ * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
+ * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
+ * goes on at $83:94BF, no return.
+ */
+void abi_ActorWaitWake(void)
+{
+    lda8(ea_dp(ACTOR_07));
+    and8_v(0x02);
+    if (!IF_Z) goto range;
+    lda8(ea_dp(ACTOR_41));
+    if (IF_Z) goto range;
+    call_routine(SUB_83848D, 0);
+    if (IF_Z) goto range;
+    lda8_v(0x8C);
+    tsb8(ea_dp(ACTOR_STATE));
+    lda8_v(0x80);
+    trb8(ea_dp(ACTOR_09));
+range:
+    ldx8_v(0x10);
+    jump_routine(ACTOR_END_OUT_OF_RANGE);
 }
 /*
  * @routine 83:DFCD ActorWaitStepSounds
@@ -123,61 +192,6 @@ tail:
     end_if_left_behind();
 }
 /*
- * @routine 83:D0EF ActorWaitTest42Anim2
- * WHAT IT DOES: Each frame it waits: while $42 is 0, the test at $83:840F
- * (true: $42 up by 1); the call at $83:865E with Y = $20; its animation
- * on, and it ends once out of range (box $10).
- * HOW: In turn, then on into ActorEndOutOfRange with X = $10.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
- * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
- * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
- * goes on at $83:94BF, no return.
- */
-void abi_ActorWaitTest42Anim2(void)
-{
-    lda8(ea_dp(ACTOR_42));
-    if (!IF_Z) goto call;
-    call_routine(SUB_83840F, 0);
-    if (IF_Z) goto call;
-    MEM8(inc, ea_dp(ACTOR_42));
-call:
-    ldy8_v(0x20);
-    call_routine(SUB_83865E, 0);
-    abi_AnimStep();
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
-}
-/*
- * @routine 83:D2A2 ActorWaitWake
- * WHAT IT DOES: Each frame it waits: when bit 1 of its $07 is clear, $41
- * is set and the test at $83:848D is true, it wakes: state bits $8C set,
- * bit 7 of $09 (the wait routine) cleared. It ends once out of range (box
- * $10).
- * HOW: TSB/TRB on its fields, then on into ActorEndOutOfRange with X =
- * $10.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
- * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
- * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
- * goes on at $83:94BF, no return.
- */
-void abi_ActorWaitWake(void)
-{
-    lda8(ea_dp(ACTOR_07));
-    and8_v(0x02);
-    if (!IF_Z) goto range;
-    lda8(ea_dp(ACTOR_41));
-    if (IF_Z) goto range;
-    call_routine(SUB_83848D, 0);
-    if (IF_Z) goto range;
-    lda8_v(0x8C);
-    tsb8(ea_dp(ACTOR_STATE));
-    lda8_v(0x80);
-    trb8(ea_dp(ACTOR_09));
-range:
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
-}
-/*
  * @routine 83:F487 ActorWaitAnimRange18
  * WHAT IT DOES: Each frame it waits: its animation on, the update at
  * $81:949E, and it ends once out of range (box $18).
@@ -195,50 +209,16 @@ void abi_ActorWaitAnimRange18(void)
     jump_routine(ACTOR_END_OUT_OF_RANGE);
 }
 /*
- * @routine 83:CF8C ActorWaitTest42Anim
- * WHAT IT DOES: Each frame it waits: while $42 is 0, the tests at
- * $83:840F (true: $42 up by 1) and $83:81E8 (C clear: up by 2); then its
- * animation on, and it ends once out of range (box $10).
- * HOW: The tests, AnimStep, then on into ActorEndOutOfRange with X = $10.
+ * @routine 83:E5B6 ActorWaitRange00
+ * WHAT IT DOES: Each frame it waits, it ends once out of range (box 0).
+ * HOW: X = 0, then on into ActorEndOutOfRange.
  * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
  * the actor loop. Exit: in range: as ActorEndOutOfRange returns (M and X
- * 8-bit, X = $10, C clear). Out of range: the actor is ended and the loop
+ * 8-bit, X = 0, C clear). Out of range: the actor is ended and the loop
  * goes on at $83:94BF, no return.
  */
-void abi_ActorWaitTest42Anim(void)
+void abi_ActorWaitRange00(void)
 {
-    lda8(ea_dp(ACTOR_42));
-    if (!IF_Z) goto anim;
-    call_routine(SUB_83840F, 0);
-    if (IF_Z) goto second;
-    MEM8(inc, ea_dp(ACTOR_42));
-second:
-    call_routine(SUB_8381E8, 0);
-    if (IF_C) goto anim;
-    MEM8(inc, ea_dp(ACTOR_42));
-    MEM8(inc, ea_dp(ACTOR_42));
-anim:
-    abi_AnimStep();
-    ldx8_v(0x10);
+    ldx8_v(0x00);
     jump_routine(ACTOR_END_OUT_OF_RANGE);
-}
-/*
- * @routine 83:D8CE ActorWaitHurtOnTouch
- * WHAT IT DOES: Each frame it waits: its animation on; unless bit 3 of
- * its $07 is set, it hurts the player on touch; it is ended once left
- * behind.
- * HOW: AnimStep, ActorHurtsPlayerOnTouch, then on into the tail at
- * $83:9738.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
- * the actor loop. Exit: kept: M 8-bit; A = the word at $1773 less 31; N,
- * Z and C from its test. Ended: the loop goes on at $83:94BF, no return.
- */
-void abi_ActorWaitHurtOnTouch(void)
-{
-    abi_AnimStep();
-    lda8(ea_dp(ACTOR_07));
-    and8_v(0x08);
-    if (IF_Z)
-        abi_ActorHurtsPlayerOnTouch();
-    end_if_left_behind();
 }

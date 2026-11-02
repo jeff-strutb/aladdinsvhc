@@ -62,3 +62,4 @@ void abi_OptionCursorClear(void)
     op_sep(0x30);
     MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
 }
+
