@@ -1,0 +1,4 @@
+Scripts held out of the gate: each runs past the per-call check's limit
+(1200 s) and is parked here until that is fixed. unit_hdma_full serves
+helper a's held batch; unit_brightness_fade_in_step covers BrightnessUpTask's
+and BrightnessDownTask's step-0/1 branch, which retail never takes.
