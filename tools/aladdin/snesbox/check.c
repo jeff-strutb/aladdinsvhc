@@ -127,6 +127,17 @@ static uint8_t *phys(uint32_t n)
 
 #define TASK_SLOTS 8
 #define TASK_CURRENT 0x0327u   /* offset of the running task's slot */
+/* A task's start: the scheduler's RTL (via) lands at the entry with S
+   three above the running task's stack top, its entry pulled
+   (docs/aladdin/TASKS.md). Its code never returns: it ends at the task's
+   waits, its exit or its exec, judged in pieces as a call that waits. */
+static int task_entry_at(uint8_t via, uint16_t s)
+{
+    uint8_t slot = wram[TASK_CURRENT];
+    if (via != 0x6B || slot % 0x18 || slot / 0x18 >= TASK_SLOTS) return 0;
+    uint16_t top = (uint16_t)(wram[0x73 + slot] | wram[0x74 + slot] << 8);
+    return top && s == (uint16_t)(top + 3);
+}
 #define TASK_SCHEDULER 0x81BC7Fu
 #define TASK_SCHEDULER_S 0x0326u
 
@@ -745,6 +756,9 @@ static void on_insn(uint32_t pc)
         w->ret_pc = 0xFFFFFFFFu;
         w->exit_s = (uint16_t)sp;
         w->actor = 1;
+    } else if (task_entry_at(via, (uint16_t)sp)) {
+        w->ret_pc = 0xFFFFFFFFu;
+        w->exit_s = (uint16_t)sp;
     } else if (via == 0x20 || via == 0xFC) {
         w->ret_pc = (pc & 0xFF0000) | (uint16_t)(word + 1);
         w->exit_s = (uint16_t)(sp + 2);
@@ -1122,7 +1136,7 @@ static void trace_write(uint32_t addr, uint8_t data, int kind)
    parked under its slot and goes on, as a record of its own, where the task
    resumes (the hybrid parks its coroutine the same way: ls_finish). */
 static struct {
-    int valid, noreturn, depth;
+    int valid, noreturn, depth, exit_calls;
     uint32_t resume, ret_pc, pc;
     uint16_t resume_s, exit_s, entry_s;
     uint16_t open[64];
@@ -1222,6 +1236,7 @@ static void ls_insn(uint32_t pc)
                 opark[k].valid = 1; opark[k].resume = res; opark[k].resume_s = rs;
                 opark[k].ret_pc = m.ret_pc; opark[k].exit_s = m.exit_s; opark[k].entry_s = m.entry_s;
                 opark[k].pc = m_pc; opark[k].noreturn = m.noreturn; opark[k].depth = m.depth;
+                opark[k].exit_calls = m.exit_calls;
                 memcpy(opark[k].open, m.open, sizeof m.open);
                 memcpy(opark[k].open_pc, m.open_pc, sizeof m.open_pc);
             }
@@ -1343,6 +1358,9 @@ static void ls_insn(uint32_t pc)
             ls_noreturn_pc = keep;
             m.ret_pc = opark[t].ret_pc; m.exit_s = opark[t].exit_s; m.entry_s = opark[t].entry_s;
             m_pc = opark[t].pc; m.noreturn = opark[t].noreturn; m.depth = opark[t].depth;
+            /* calls it made from its exit level before it waited (a task's
+               start, whose level is its exit level) still return there */
+            m.exit_calls = opark[t].exit_calls;
             memcpy(m.open, opark[t].open, sizeof m.open);
             memcpy(m.open_pc, opark[t].open_pc, sizeof m.open_pc);
             if (calls_from >= 0 && cur_frame >= calls_from)
@@ -1379,6 +1397,13 @@ static void ls_insn(uint32_t pc)
     if (is_actor_entry(pc) && is_jump_op(*core_opcode)) {
         o_open(pc, &r);
         m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.actor = 1;
+        return;
+    }
+    /* A task's start, where the scheduler's RTL lands: its first piece,
+       ending where the task first waits (or exits). */
+    if (task_entry_at(*core_opcode, r.s)) {
+        o_open(pc, &r);
+        m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s;
         return;
     }
     if (!entry(pc, &r, &m.ret_pc, &m.exit_s)) return;
@@ -2520,7 +2545,7 @@ static int ls_exec(uint32_t pc)
     core_regs(&r);
     uint32_t ret; uint16_t exit_s;
     int actor = is_actor_entry(pc) && is_jump_op(*core_opcode);
-    if (actor) { ret = 0xFFFFFFFFu; exit_s = r.s; }
+    if (actor || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
     else if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
     ls_cur_name = routines[idx].name;
     ls_entry_pc = pc;

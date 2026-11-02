@@ -60,6 +60,7 @@ class Known:
     def __init__(self, src=SRC):
         self.name, self.actor, self.waits, self.text = {}, set(), set(), {}
         self.leaves = set()
+        callees = {}
         for f in sorted(glob.glob(os.path.join(src, '**', '*.c'), recursive=True)):
             t = open(f).read()
             for m in TAG.finditer(t):
@@ -70,12 +71,29 @@ class Known:
                     self.actor.add(a)
                 body = function_body(t, 'abi_' + m.group(3))
                 self.text[a] = body
-                if body and re.search(r'\b(task_yield|jsl_frame|abi_TaskWait)\b', body):
+                # with the bodies of the file's own helpers it calls
+                # (ShakeUp waits inside sway)
+                whole = body or ''
+                for h in set(re.findall(r'\b([a-z_]\w*)\(', whole)):
+                    hb = function_body(t, h, True) if re.search(r'\bstatic\b[^;{]*\b%s\(' % h, t) else None
+                    if hb:
+                        whole += hb
+                callees[a] = set(re.findall(r'\babi_(\w+)\(', whole))
+                if re.search(r'\b(task_yield|jsl_frame|abi_TaskWait)\b', whole):
                     self.waits.add(a)
                 # ends its actor from a call (pulls its return address, then
                 # actor_leave): its caller's C pushes the return address
                 if body and 'actor_leave(' in body and not re.search(r'@actor\b', head):
                     self.leaves.add(a)
+        # A routine that calls one that can wait can wait too.
+        by_name = {n: a for a, n in self.name.items()}
+        grew = True
+        while grew:
+            grew = False
+            for a, cs in callees.items():
+                if a not in self.waits and any(by_name.get(c) in self.waits for c in cs):
+                    self.waits.add(a)
+                    grew = True
         self.starts = set(self.name)
         cat = os.path.join(ROOT, 'build', 'aladdin', 'routines.csv')
         if os.path.exists(cat):
@@ -94,8 +112,8 @@ def header_names():
     return names
 
 
-def function_body(text, fn):
-    m = re.search(r'\bvoid\s+%s\s*\(\s*void\s*\)\s*\{' % re.escape(fn), text)
+def function_body(text, fn, any_args=False):
+    m = re.search((r'\b\w+\s+%s\s*\([^)]*\)\s*\{' if any_args else r'\bvoid\s+%s\s*\(\s*void\s*\)\s*\{') % re.escape(fn), text)
     if not m:
         return None
     depth, i = 1, m.end()
