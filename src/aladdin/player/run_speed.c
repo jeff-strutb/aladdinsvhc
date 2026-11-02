@@ -4,6 +4,8 @@
  * and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram_player.h"
@@ -26,51 +28,57 @@ void abi_PadFacing(void);
  */
 void abi_PlayerRunSpeed(void)
 {
-    abi_PadFacing();  /* 81D1A0 jsr */
-    if (IF_N) goto L_81D1BD;  /* 81D1A3 bmi */
-    cmp8_v(rd8(ea_dp(0x14)));  /* 81D1A5 cmp */
-    if (!IF_Z) goto L_81D1D6;  /* 81D1A7 bne */
-    op_rep(0x20);  /* 81D1A9 rep */
-    clc();  /* 81D1AB clc */
-    lda16(ea_dp(0x19));  /* 81D1AC lda */
-    adc16_v(rd16(ea_abs(PLAYER_RUN_ACCEL)));  /* 81D1AE adc */
-    cmp16_v(rd16(ea_abs(PLAYER_TOP_SPEED)));  /* 81D1B1 cmp */
-    if (!IF_C) goto L_81D1B9;  /* 81D1B4 bcc */
-    lda16(ea_abs(PLAYER_TOP_SPEED));  /* 81D1B6 lda */
-L_81D1B9:
-    sta16(ea_dp(0x19));  /* 81D1B9 sta */
-    goto L_81D1F2;  /* 81D1BB bra */
-L_81D1BD:
-    lda8(ea_abs(PLAYER_SLOWED));  /* 81D1BD lda */
-    if (!IF_Z) goto L_81D1F4;  /* 81D1C0 bne */
-    op_rep(0x20);  /* 81D1C2 rep */
-    lda16(ea_dp(0x19));  /* 81D1C4 lda */
-    if (IF_Z) goto L_81D1F2;  /* 81D1C6 beq */
-    lda16(ea_abs(PLAYER_RUN_DECEL));  /* 81D1C8 lda */
-    clc();  /* 81D1CB clc */
-    adc16_v(rd16(ea_dp(0x19)));  /* 81D1CC adc */
-    sta16(ea_dp(0x19));  /* 81D1CE sta */
-    if (!IF_N) goto L_81D1F2;  /* 81D1D0 bpl */
-    stz16(ea_dp(0x19));  /* 81D1D2 stz */
-    goto L_81D1F2;  /* 81D1D4 bra */
-L_81D1D6:
-    op_rep(0x20);  /* 81D1D6 rep */
-    lda16(ea_abs(PLAYER_TURN_DECEL));  /* 81D1D8 lda */
-    clc();  /* 81D1DB clc */
-    adc16_v(rd16(ea_dp(0x19)));  /* 81D1DC adc */
-    sta16(ea_dp(0x19));  /* 81D1DE sta */
-    if (!IF_N) goto L_81D1F2;  /* 81D1E0 bpl */
-    eor16_v(0xFFFF);  /* 81D1E2 eor */
-    ACC16(inc);  /* 81D1E5 inc */
-    sta16(ea_dp(0x19));  /* 81D1E6 sta */
-    op_sep(0x20);  /* 81D1E8 sep */
-    lda8(ea_dp(0x14));  /* 81D1EA lda */
-    eor8_v(0x01);  /* 81D1EC eor */
-    sta8(ea_dp(0x14));  /* 81D1EE sta */
-    goto L_81D1F4;  /* 81D1F0 bra */
-L_81D1F2:
-    op_sep(0x20);  /* 81D1F2 sep */
-L_81D1F4:
-    return;  /* 81D1F4 rts */
+    uint16_t speed, top;
+    uint8_t v;
+
+    abi_PadFacing();
+    if (cpu.p & P_N) {                    /* no direction held: slowing */
+        v = rd8(dba(PLAYER_SLOWED));
+        a8_load(v);
+        if (v)
+            return;
+        op_rep(P_M);
+        speed = dp16(ACTOR_SPEED_X);
+        a16_load(speed);
+        if (speed) {
+            a16_load(rd16(dba(PLAYER_RUN_DECEL)));
+            flag_set(P_C, 0);
+            cpu.a = op_adc16(cpu.a, speed, &cpu.p);
+            dp16_set(ACTOR_SPEED_X, cpu.a);
+            if (cpu.a & 0x8000)
+                dp16_set(ACTOR_SPEED_X, 0);
+        }
+        op_sep(P_M);
+        return;
+    }
+    cmp8_of((uint8_t)cpu.a, rd8(dpa(ACTOR_FACING)));
+    if (cpu.p & P_Z) {                    /* held his way: faster, to the top speed */
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(dp16(ACTOR_SPEED_X), rd16(dba(PLAYER_RUN_ACCEL)), &cpu.p);
+        top = rd16(dba(PLAYER_TOP_SPEED));
+        cmp16_of(cpu.a, top);
+        if (cpu.a >= top)
+            a16_load(top);
+        dp16_set(ACTOR_SPEED_X, cpu.a);
+        op_sep(P_M);
+        return;
+    }
+    /* held the other way: slowing, and past 0 he turns */
+    op_rep(P_M);
+    a16_load(rd16(dba(PLAYER_TURN_DECEL)));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(cpu.a, dp16(ACTOR_SPEED_X), &cpu.p);
+    dp16_set(ACTOR_SPEED_X, cpu.a);
+    if (!(cpu.a & 0x8000)) {
+        op_sep(P_M);
+        return;
+    }
+    a16_load((uint16_t)((cpu.a ^ 0xFFFF) + 1));
+    dp16_set(ACTOR_SPEED_X, cpu.a);
+    op_sep(P_M);
+    v = (uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01);
+    a8_load(v);
+    wr8(dpa(ACTOR_FACING), v);
 }
 

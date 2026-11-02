@@ -5,6 +5,8 @@
  * task. Its task runs in slot 0: the slot's parameter byte is the scene.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "hw.h"
 #include "wram.h"
@@ -102,7 +104,7 @@ static void jsr_waits(uint16_t ret, void (*f)(void))
  */
 void abi_OpeningScene1Start(void)
 {
-    lda8_v(0x1C);
+    a8_load(0x1C);
     abi_SongPlay();
     task_create(0x80ADBCu);
 }
@@ -152,15 +154,15 @@ void abi_ScreenFadeOutStart(void)
  */
 void abi_OpeningActorPlace(void)
 {
-    op_rep(0x20);
-    lda16(ea_absx(OPENING_ACTORS + 2));
-    sta16(ea_abs(SPAWN_X));
-    lda16(ea_absx(OPENING_ACTORS + 4));
-    sta16(ea_abs(SPAWN_Y));
-    op_sep(0x20);
-    lda8(ea_absx(OPENING_ACTORS));
-    xba();
-    lda8(ea_absx(OPENING_ACTORS + 1));
+    uint32_t entry = dba(OPENING_ACTORS) + cpu.x;
+    uint16_t y = rd16(entry + 4);
+
+    wr16(dba(SPAWN_X), rd16(entry + 2));
+    wr16(dba(SPAWN_Y), y);
+    cpu.a = y;
+    a8_load(rd8(entry));                  /* the kind, into A's high byte */
+    op_xba();
+    a8_load(rd8(entry + 1));              /* its $07 */
     abi_ActorSpawnAtLong();
     op_sep(0x30);
 }
@@ -174,16 +176,14 @@ void abi_OpeningActorPlace(void)
  */
 void abi_OpeningScene2Start(void)
 {
-    lda8_v(0x1F);
+    static const uint8_t entries[4] = { 0x00, 0x0C, 0x12, 0x06 };
+
+    a8_load(0x1F);
     abi_SongPlay();
-    ldx8_v(0x00);
-    abi_OpeningActorPlace();
-    ldx8_v(0x0C);
-    abi_OpeningActorPlace();
-    ldx8_v(0x12);
-    abi_OpeningActorPlace();
-    ldx8_v(0x06);
-    abi_OpeningActorPlace();
+    for (int i = 0; i < 4; i++) {
+        x8_load(entries[i]);
+        abi_OpeningActorPlace();
+    }
 }
 
 
@@ -194,12 +194,12 @@ static void scene_end(void)
 {
     task_create(0x80AE43u);
     jsr_waits(0xAE4E, abi_FrameEnd);
-    lda8_v(0x56);
+    a8_load(0x56);
     abi_PaletteLoad();
-    ldx8_v(0x00);
-    lda8_v(0x1F);
+    x8_load(0x00);
+    a8_load(0x1F);
     abi_PaletteCycleStartLong();
-    ldx8_v(0x78);
+    x8_load(0x78);
     abi_OpeningActorPlace();
 }
 

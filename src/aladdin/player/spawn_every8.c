@@ -3,10 +3,14 @@
  * named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
 void abi_ActorSpawnFacing(void);
+
+#define V_032D 0x032Du  /* the high byte of the word at $032C: a spawn when its low 3 bits are 0 */
 
 /*
  * @routine 81:DD90 PlayerSpawnEvery8
@@ -23,26 +27,27 @@ void abi_ActorSpawnFacing(void);
  */
 void abi_PlayerSpawnEvery8(void)
 {
-    lda8(ea_abs(0x032D));  /* 81DD90 lda */
-    and8_v(0x07);  /* 81DD93 and */
-    if (!IF_Z) goto L_81DDAF;  /* 81DD95 bne */
-    lda8_v(0x02);  /* 81DD97 lda */
-    sta8(ea_dp(0x21));  /* 81DD99 sta */
-    lda8(ea_dp(0x15));  /* 81DD9B lda */
-    pha8();  /* 81DD9D pha */
-    ldx8(ea_dp(0x14));  /* 81DD9E ldx */
-    stx8(ea_dp(0x15));  /* 81DDA0 stx */
-    lda8_v(0x34);  /* 81DDA2 lda */
-    ldy8_v(0x01);  /* 81DDA4 ldy */
-    abi_ActorSpawnFacing();  /* 81DDA6 jsl */
-    if (IF_N) goto L_81DDB0;  /* 81DDAA bmi */
-    pla8();  /* 81DDAC pla */
-    sta8(ea_dp(0x15));  /* 81DDAD sta */
-L_81DDAF:
-    return;  /* 81DDAF rts */
-L_81DDB0:
-    op_sep(0x10);  /* 81DDB0 sep */
-    pla8();  /* 81DDB2 pla */
-    return;  /* 81DDB3 rts */
+    uint8_t phase = rd8(dba(V_032D)) & 0x07;
+
+    a8_load(phase);
+    if (phase)
+        return;
+    /* kind $34 from spawn point 2, facing his way */
+    a8_load(0x02);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x02);
+    a8_load(rd8(dpa(ACTOR_FLIP)));
+    pha8();                               /* his flip, kept */
+    x8_load(rd8(dpa(ACTOR_FACING)));
+    wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.x);
+    a8_load(0x34);
+    y8_load(0x01);
+    abi_ActorSpawnFacing();
+    if (cpu.p & P_N) {                    /* none free: the flip stays */
+        op_sep(P_X);
+        pla8();
+        return;
+    }
+    pla8();
+    wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
 }
 

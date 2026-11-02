@@ -44,13 +44,11 @@ void abi_DspWrite(void)
  */
 void abi_DspWriteVoice(void)
 {
+    /* the voice's nibble (bits 4-6) with the register's (A kept on the
+       stack meanwhile, as the original) */
     spc_push(spc.a);
-    spc_st(spc_dp(DSP_VOICE_REG), spc.y);
-    spc.a = spc_nz(spc.x);
-    spc.a = spc_xcn(spc.a);
-    spc.a = spc_and(spc.a, 0x70);
-    spc.a = spc_or(spc.a, spc_rd(spc_dp(DSP_VOICE_REG)));
-    spc.y = spc_nz(spc.a);
+    spc_put(spc_dp(DSP_VOICE_REG), spc.y);
+    spc.y = spc_nz((uint8_t)(((spc.x << 4 | spc.x >> 4) & 0x70) | spc_rd(spc_dp(DSP_VOICE_REG))));
     spc.a = spc_pull();
     abi_DspWrite();
 }
@@ -67,9 +65,8 @@ void abi_DspWriteVoice(void)
  */
 void abi_VoiceAdsr1Set(void)
 {
-    spc.y = spc_nz(DSP_V_ADSR1);
-    spc.a = spc_nz(spc_rd((uint16_t)(VOICE_ADSR1 + spc.x)));
-    spc.a = spc_and(spc.a, 0x7F);
+    spc.y = DSP_V_ADSR1;
+    spc.a = spc_rd((uint16_t)(VOICE_ADSR1 + spc.x)) & 0x7F;
     abi_DspWriteVoice();
 }
 
@@ -83,8 +80,8 @@ void abi_VoiceAdsr1Set(void)
  */
 void abi_VoiceRelease(void)
 {
-    spc.y = spc_nz(DSP_V_GAIN);
-    spc.a = spc_nz(GAIN_DECREASE);
+    spc.y = DSP_V_GAIN;
+    spc.a = GAIN_DECREASE;
     spc_call(abi_DspWriteVoice, 0x041B);
     abi_VoiceAdsr1Set();
 }

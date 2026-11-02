@@ -3,6 +3,8 @@
  * (a screen effect's HDMA table copied into place in the vertical blank).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_WramMovesRun(void);
 #include "actor.h"
@@ -11,6 +13,13 @@ void abi_WramMovesRun(void);
 #include "wram_player.h"
 #include "wram_state.h"
 #include "wram_video.h"
+
+/* Copies within bank $7E queued for the NMI: the queue's length in bytes,
+   then 6 bytes each: source, destination, length less one (words). */
+#define WRAM_MOVES_LEN 0x1705u
+#define WRAM_MOVE_FROM 0x1707u
+#define WRAM_MOVE_TO 0x1709u
+#define WRAM_MOVE_SIZE 0x170Bu
 
 /*
  * @routine 80:8721 WramMovesRun
@@ -24,29 +33,30 @@ void abi_WramMovesRun(void);
  */
 void abi_WramMovesRun(void)
 {
-    lda8(ea_abs(0x1705));  /* 808721 lda */
-    if (IF_Z) goto L_80874E;  /* 808724 beq */
-    op_rep(0x10);  /* 808726 rep */
-L_808728:
-    sec();  /* 808728 sec */
-    lda8(ea_abs(0x1705));  /* 808729 lda */
-    sbc8_v(0x06);  /* 80872C sbc */
-    sta8(ea_abs(0x1705));  /* 80872E sta */
-    if (IF_N) goto L_808749;  /* 808731 bmi */
-    phb();  /* 808733 phb */
-    ldy16(ea_abs(0x1705));  /* 808734 ldy */
-    ldx16(ea_absy(0x170B));  /* 808737 ldx */
-    txa8();  /* 80873A txa */
-    ldx16(ea_absy(0x1709));  /* 80873B ldx */
-    phx16();  /* 80873E phx */
-    ldx16(ea_absy(0x1707));  /* 80873F ldx */
-    ply16();  /* 808742 ply */
-    mvn(0x7E, 0x7E);  /* 808743 mvn */
-    plb();  /* 808746 plb */
-    goto L_808728;  /* 808747 bra */
-L_808749:
-    op_sep(0x10);  /* 808749 sep */
-    stz8(ea_abs(0x1705));  /* 80874B stz */
-L_80874E:
-    return;  /* 80874E rts */
+    uint8_t len = rd8(dba(WRAM_MOVES_LEN));
+
+    a8_load(len);
+    if (!len)
+        return;
+    op_rep(P_X);
+    /* from the last entry back to the first */
+    for (;;) {
+        flag_set(P_C, 1);
+        len = op_sbc8(rd8(dba(WRAM_MOVES_LEN)), 6, &cpu.p);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | len);
+        wr8(dba(WRAM_MOVES_LEN), len);
+        if (len & 0x80)
+            break;
+        phb();
+        cpu.y = rd16(dba(WRAM_MOVES_LEN));
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | (uint8_t)rd16(dba(WRAM_MOVE_SIZE) + cpu.y));
+        cpu.x = rd16(dba(WRAM_MOVE_TO) + cpu.y);
+        phx16();                          /* the destination, by the stack */
+        cpu.x = rd16(dba(WRAM_MOVE_FROM) + cpu.y);
+        ply16();
+        mvn(0x7E, 0x7E);                  /* the copy: A + 1 bytes */
+        plb();
+    }
+    op_sep(P_X);
+    wr8(dba(WRAM_MOVES_LEN), 0);
 }

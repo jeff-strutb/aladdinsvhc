@@ -6,7 +6,11 @@
  * level.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_HdmaChannelFree(void);
 void abi_HdmaEffect10(void);
 void abi_HdmaEffect11(void);
@@ -44,24 +48,17 @@ void abi_WindowLinesFromShape(void);
  */
 void abi_WindowColoursWait(void)
 {
-    lda8_v(0x03);  /* 828226 lda */
-    sta8(ea_abs(TMW_SHADOW));  /* 828228 sta */
-    stz8(ea_abs(TSW_SHADOW));  /* 82822B stz */
-    lda8_v(0x30);  /* 82822E lda */
-    sta8(ea_abs(WOBJSEL_SHADOW));  /* 828230 sta */
-    lda8_v(0x20);  /* 828233 lda */
-    sta8(ea_abs(CGWSEL_SHADOW));  /* 828235 sta */
-    lda8_v(0x20);  /* 828238 lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 82823A sta */
-    lda8_v(0x06);  /* 82823D lda */
-    sta8(ea_abs(COLDATA_RED));  /* 82823F sta */
-    lda8_v(0x03);  /* 828242 lda */
-    sta8(ea_abs(COLDATA_GREEN));  /* 828244 sta */
-    lda8_v(0x16);  /* 828247 lda */
-    sta8(ea_abs(COLDATA_BLUE));  /* 828249 sta */
-    lda8_v(0x01);  /* 82824C lda */
-    jsl_frame(0x82824Eu); abi_TaskWait();  /* 82824E jsl */
-    return;  /* 828252 rts */
+    wr8(dba(TMW_SHADOW), 0x03);
+    wr8(dba(TSW_SHADOW), 0x00);
+    wr8(dba(WOBJSEL_SHADOW), 0x30);
+    wr8(dba(CGWSEL_SHADOW), 0x20);
+    wr8(dba(CGADSUB_SHADOW), 0x20);
+    wr8(dba(COLDATA_RED), 0x06);
+    wr8(dba(COLDATA_GREEN), 0x03);
+    wr8(dba(COLDATA_BLUE), 0x16);
+    a8_load(0x01);
+    jsl_frame(0x82824Eu);
+    abi_TaskWait();
 }
 
 /*
@@ -83,49 +80,50 @@ void abi_WindowColoursWait(void)
  */
 void abi_WindowLinesFromShape(void)
 {
-    ldy16(ea_abs(0xBBAE));  /* 828253 ldy */
-L_828256:
-    op_sep(0x20);  /* 828256 sep */
-    lda8(ea_absy(0xBBAE));  /* 828258 lda */
-    sta8(ea_abs(0x002C));  /* 82825B sta */
-    lda8(ea_absy(0xBBAF));  /* 82825E lda */
-    sta8(ea_abs(0x002D));  /* 828261 sta */
-    sec();  /* 828264 sec */
-    sbc8_v(rd8(ea_abs(0x002C)));  /* 828265 sbc */
-    ACC8(lsr);  /* 828268 lsr */
-    clc();  /* 828269 clc */
-    adc8_v(rd8(ea_abs(0x002C)));  /* 82826A adc */
-    sta8(ea_abs(0x002E));  /* 82826D sta */
-    sec();  /* 828270 sec */
-    sbc8_v(rd8(ea_abs(0x0032)));  /* 828271 sbc */
-    cmp8_v(rd8(ea_abs(0x002C)));  /* 828274 cmp */
-    if (IF_C) goto L_82827C;  /* 828277 bcs */
-    lda8(ea_abs(0x002C));  /* 828279 lda */
-L_82827C:
-    clc();  /* 82827C clc */
-    adc8_v(rd8(ea_abs(0x0030)));  /* 82827D adc */
-    sta8(ea_longx(BAND_POS));  /* 828280 sta */
-    clc();  /* 828284 clc */
-    lda8(ea_abs(0x002E));  /* 828285 lda */
-    adc8_v(rd8(ea_abs(0x0032)));  /* 828288 adc */
-    cmp8_v(rd8(ea_abs(0x002D)));  /* 82828B cmp */
-    if (!IF_C) goto L_828293;  /* 82828E bcc */
-    lda8(ea_abs(0x002D));  /* 828290 lda */
-L_828293:
-    clc();  /* 828293 clc */
-    adc8_v(rd8(ea_abs(0x0030)));  /* 828294 adc */
-    sta8(ea_longx(0x7EF801u));  /* 828297 sta */
-    dex16();  /* 82829B dex */
-    dex16();  /* 82829C dex */
-    if (IF_N) goto L_8282A8;  /* 82829D bmi */
-    dey16();  /* 82829F dey */
-    dey16();  /* 8282A0 dey */
-    if (IF_Z) goto L_8282A8;  /* 8282A1 beq */
-    MEM8(dec, ea_abs(0x0033));  /* 8282A3 dec */
-    if (!IF_Z) goto L_828256;  /* 8282A6 bne */
-L_8282A8:
-    op_sep(0x20);  /* 8282A8 sep */
-    return;  /* 8282AA rts */
+    uint16_t y = rd16(dba(0xBBAE)), x = cpu.x;
+    uint8_t left, right, mid, a;
+
+    for (;;) {
+        op_sep(P_M);
+        /* the shape's edges and their middle; each edge pulled in toward
+           the middle by $32, not past the shape, then moved by $30 */
+        left = rd8(dba(0xBBAE) + y);
+        wr8(dba(0x002C), left);
+        right = rd8(dba(0xBBAF) + y);
+        wr8(dba(0x002D), right);
+        flag_set(P_C, 1);
+        mid = op_sbc8(right, left, &cpu.p);
+        flag_set(P_C, 0);
+        mid = op_adc8((uint8_t)(mid >> 1), left, &cpu.p);
+        wr8(dba(0x002E), mid);
+        flag_set(P_C, 1);
+        a = op_sbc8(mid, rd8(dba(0x0032)), &cpu.p);
+        if (a < left)
+            a = left;
+        flag_set(P_C, 0);
+        wr8(BAND_POS + x, op_adc8(a, rd8(dba(0x0030)), &cpu.p));
+        flag_set(P_C, 0);
+        a = op_adc8(mid, rd8(dba(0x0032)), &cpu.p);
+        if (a >= right)
+            a = right;
+        flag_set(P_C, 0);
+        a = op_adc8(a, rd8(dba(0x0030)), &cpu.p);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+        wr8(0x7EF801u + x, a);
+        x -= 2;
+        nz16_of(x);
+        if (x & 0x8000)
+            break;
+        y -= 2;
+        nz16_of(y);
+        if (!y)
+            break;
+        if (!dec8_at(dba(0x0033)))
+            break;
+    }
+    cpu.x = x;
+    cpu.y = y;
+    op_sep(P_M);
 }
 
 /*
@@ -140,31 +138,38 @@ L_8282A8:
  */
 void abi_HalfSineBuild(void)
 {
-    lda8_v(0x82);  /* 8282AB lda */
-    pha8();  /* 8282AD pha */
-    plb();  /* 8282AE plb */
-    ldx8_v(0x00);  /* 8282AF ldx */
-    ldy8_v(0x00);  /* 8282B1 ldy */
-L_8282B3:
-    lda8(ea_absy(0x87D4));  /* 8282B3 lda */
-    sta8(ea_longx(0x7F5600u));  /* 8282B6 sta */
-    eor8_v(0xFF);  /* 8282BA eor */
-    sta8(ea_longx(0x7F5680u));  /* 8282BC sta */
-    phx8();  /* 8282C0 phx */
-    txa8();  /* 8282C1 txa */
-    eor8_v(0x3F);  /* 8282C2 eor */
-    tax8();  /* 8282C4 tax */
-    lda8(ea_absy(0x87D4));  /* 8282C5 lda */
-    sta8(ea_longx(0x7F5640u));  /* 8282C8 sta */
-    eor8_v(0xFF);  /* 8282CC eor */
-    sta8(ea_longx(0x7F56C0u));  /* 8282CE sta */
-    plx8();  /* 8282D2 plx */
-    iny8();  /* 8282D3 iny */
-    iny8();  /* 8282D4 iny */
-    inx8();  /* 8282D5 inx */
-    cpx8_v(0x40);  /* 8282D6 cpx */
-    if (!IF_C) goto L_8282B3;  /* 8282D8 bcc */
-    return;  /* 8282DA rts */
+    uint8_t x, v;
+
+    /* each quarter's 64 steps, forward and back, and their complements */
+    cpu.db = 0x82;
+    for (x = 0; x < 0x40; x++) {
+        v = rd8(0x8287D4u + (uint8_t)(x << 1));
+        wr8(0x7F5600u + x, v);
+        wr8(0x7F5680u + x, (uint8_t)~v);
+        wr8(0x7F5640u + (x ^ 0x3F), v);
+        wr8(0x7F56C0u + (x ^ 0x3F), (uint8_t)~v);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | (uint8_t)~v);
+    }
+    cpu.x = 0x40;
+    cpu.y = 0x80;
+    cmp8_of(0x40, 0x40);
+}
+
+/* The point less the camera (`at`, kept in `keep`) on screen: below
+   `size`, or within `margin` before it. */
+static int on_screen(uint16_t at, uint16_t keep, uint16_t size, uint16_t margin)
+{
+    uint16_t v;
+
+    wr16(dba(keep), at);
+    cmp16_of(at, size);
+    if (at < size)
+        return 1;
+    flag_set(P_C, 0);
+    v = op_adc16(at, margin, &cpu.p);
+    cpu.a = v;
+    cmp16_of(v, size);
+    return v < size;
 }
 
 /*
@@ -186,97 +191,68 @@ L_8282B3:
  */
 void abi_WindowBoxAt(void)
 {
-    goto L_828417;
-L_828415:
-    sec();  /* 828415 sec */
-    return;  /* 828416 rts */
-L_828417:
-    sec();  /* 828417 sec */
-    lda16(ea_abs(SCRATCH));  /* 828418 lda */
-    sbc16_v(rd16(ea_abs(0x1773)));  /* 82841B sbc */
-    sta16(ea_abs(0x002C));  /* 82841E sta */
-    cmp16_v(0x0100);  /* 828421 cmp */
-    if (!IF_C) goto L_82842F;  /* 828424 bcc */
-    clc();  /* 828426 clc */
-    adc16_v(0x0080);  /* 828427 adc */
-    cmp16_v(0x0100);  /* 82842A cmp */
-    if (IF_C) goto L_828415;  /* 82842D bcs */
-L_82842F:
-    sec();  /* 82842F sec */
-    lda16(ea_abs(0x000E));  /* 828430 lda */
-    sbc16_v(rd16(ea_abs(0x1777)));  /* 828433 sbc */
-    sta16(ea_abs(0x002E));  /* 828436 sta */
-    cmp16_v(0x00E0);  /* 828439 cmp */
-    if (!IF_C) goto L_828447;  /* 82843C bcc */
-    clc();  /* 82843E clc */
-    adc16_v(0x0060);  /* 82843F adc */
-    cmp16_v(0x00E0);  /* 828442 cmp */
-    if (IF_C) goto L_828415;  /* 828445 bcs */
-L_828447:
-    lda16(ea_abs(0x002E));  /* 828447 lda */
-    if (IF_N) goto L_828486;  /* 82844A bmi */
-    if (IF_Z) goto L_828486;  /* 82844C beq */
-    cmp16_v(0x0080);  /* 82844E cmp */
-    if (!IF_C) goto L_828467;  /* 828451 bcc */
-    sbc16_v(0x007F);  /* 828453 sbc */
-    sta16(ea_longx(0x7F5600u));  /* 828456 sta */
-    lda16_v(0x00FF);  /* 82845A lda */
-    sta16(ea_longx(0x7F5601u));  /* 82845D sta */
-    inx8();  /* 828461 inx */
-    inx8();  /* 828462 inx */
-    inx8();  /* 828463 inx */
-    lda16_v(0x007F);  /* 828464 lda */
-L_828467:
-    sta16(ea_longx(0x7F5600u));  /* 828467 sta */
-    lda16_v(0x00FF);  /* 82846B lda */
-    sta16(ea_longx(0x7F5601u));  /* 82846E sta */
-    inx8();  /* 828472 inx */
-    inx8();  /* 828473 inx */
-    inx8();  /* 828474 inx */
-    sec();  /* 828475 sec */
-    lda16_v(0x00E0);  /* 828476 lda */
-    sbc16_v(rd16(ea_abs(0x002E)));  /* 828479 sbc */
-    cmp16_v(0x0060);  /* 82847C cmp */
-    if (!IF_C) goto L_82848D;  /* 82847F bcc */
-    lda16_v(0x0060);  /* 828481 lda */
-    goto L_82848D;  /* 828484 bra */
-L_828486:
-    clc();  /* 828486 clc */
-    lda16(ea_abs(0x002E));  /* 828487 lda */
-    adc16_v(0x0061);  /* 82848A adc */
-L_82848D:
-    sta16(ea_longx(0x7F5600u));  /* 82848D sta */
-    lda16(ea_abs(0x002C));  /* 828491 lda */
-    if (!IF_N) goto L_8284A0;  /* 828494 bpl */
-    clc();  /* 828496 clc */
-    adc16_v(0x0080);  /* 828497 adc */
-    xba();  /* 82849A xba */
-    and16_v(0xFF00);  /* 82849B and */
-    goto L_8284C2;  /* 82849E bra */
-L_8284A0:
-    sec();  /* 8284A0 sec */
-    lda16_v(0x0100);  /* 8284A1 lda */
-    sbc16_v(rd16(ea_abs(0x002C)));  /* 8284A4 sbc */
-    cmp16_v(0x0081);  /* 8284A7 cmp */
-    if (!IF_C) goto L_8284BC;  /* 8284AA bcc */
-    op_sep(0x20);  /* 8284AC sep */
-    clc();  /* 8284AE clc */
-    lda8(ea_abs(0x002C));  /* 8284AF lda */
-    adc8_v(0x80);  /* 8284B2 adc */
-    xba();  /* 8284B4 xba */
-    lda8(ea_abs(0x002C));  /* 8284B5 lda */
-    op_rep(0x20);  /* 8284B8 rep */
-    goto L_8284C2;  /* 8284BA bra */
-L_8284BC:
-    lda16(ea_abs(0x002C));  /* 8284BC lda */
-    ora16_v(0xFF00);  /* 8284BF ora */
-L_8284C2:
-    sta16(ea_longx(0x7F5601u));  /* 8284C2 sta */
-    inx8();  /* 8284C6 inx */
-    inx8();  /* 8284C7 inx */
-    inx8();  /* 8284C8 inx */
-    clc();  /* 8284C9 clc */
-    return;  /* 8284CA rts */
+    uint8_t x = (uint8_t)cpu.x;
+    uint16_t at, v;
+
+    flag_set(P_C, 1);
+    at = op_sbc16(rd16(dba(SCRATCH)), rd16(dba(0x1773)), &cpu.p);
+    cpu.a = at;
+    if (!on_screen(at, 0x002C, 0x0100, 0x0080))
+        goto off;
+    flag_set(P_C, 1);
+    at = op_sbc16(rd16(dba(0x000E)), rd16(dba(0x1777)), &cpu.p);
+    cpu.a = at;
+    if (!on_screen(at, 0x002E, 0x00E0, 0x0060))
+        goto off;
+    /* the lines above the box (up to 2 entries of at most $7F), then the
+       box's height (to the screen's foot, at most $60) */
+    at = rd16(dba(0x002E));
+    if ((at & 0x8000) || !at) {
+        flag_set(P_C, 0);
+        v = op_adc16(at, 0x0061, &cpu.p);
+    } else {
+        if (at >= 0x0080) {
+            flag_set(P_C, 1);
+            wr16(0x7F5600u + x, op_sbc16(at, 0x007F, &cpu.p));
+            wr16(0x7F5601u + x, 0x00FF);
+            x = (uint8_t)(x + 3);
+            at = 0x007F;
+        }
+        wr16(0x7F5600u + x, at);
+        wr16(0x7F5601u + x, 0x00FF);
+        x = (uint8_t)(x + 3);
+        flag_set(P_C, 1);
+        v = op_sbc16(0x00E0, rd16(dba(0x002E)), &cpu.p);
+        cmp16_of(v, 0x0060);
+        if (v >= 0x0060)
+            v = 0x0060;
+    }
+    wr16(0x7F5600u + x, v);
+    /* the window's left and right edges */
+    at = rd16(dba(0x002C));
+    if (at & 0x8000) {
+        flag_set(P_C, 0);
+        v = (uint16_t)((op_adc16(at, 0x0080, &cpu.p) & 0x00FF) << 8);
+    } else {
+        flag_set(P_C, 1);
+        v = op_sbc16(0x0100, at, &cpu.p);
+        cmp16_of(v, 0x0081);
+        if (v >= 0x0081) {
+            flag_set(P_C, 0);
+            v = (uint16_t)(op_adc8((uint8_t)at, 0x80, &cpu.p) << 8 | (uint8_t)at);
+        } else {
+            v = (uint16_t)(at | 0xFF00);
+        }
+    }
+    cpu.a = v;
+    wr16(0x7F5601u + x, v);
+    x = (uint8_t)(x + 3);
+    cpu.x = x;
+    nz8_of(x);
+    flag_set(P_C, 0);
+    return;
+off:
+    flag_set(P_C, 1);
 }
 
 

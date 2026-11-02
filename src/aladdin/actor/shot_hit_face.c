@@ -4,6 +4,8 @@
  * Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -31,27 +33,34 @@ void abi_ActorTouchesSecondPoolLong(void);
  */
 void abi_ActorShotHitFace(void)
 {
-    abi_ActorTouchesSecondPoolLong();  /* 84821A jsl */
-    if (IF_C) goto L_848246;  /* 84821E bcs */
-    ldx16(ea_dp(ACTOR_X + 1));  /* 848220 ldx */
-    cpx16_v(rd16(ea_abs(PLAYER + ACTOR_X + 1)));  /* 848222 cpx */
-    lda8_v(0x00);  /* 848225 lda */
-    ACC8(rol);  /* 848227 rol */
-    sta8(ea_dp(ACTOR_FACING));  /* 848228 sta */
-    sta8(ea_dp(ACTOR_FLIP));  /* 84822A sta */
-    lda8_v(0xCC);  /* 84822C lda */
-    sta8(ea_dp(ACTOR_STATE));  /* 84822E sta */
-    lda8(ea_dp(ACTOR_42));  /* 848230 lda */
-    sta8(ea_dp(ACTOR_46));  /* 848232 sta */
-    if (!IF_Z) goto L_84823A;  /* 848234 bne */
-    abi_ActorStateSet8CLong();  /* 848236 jsl */
-L_84823A:
-    op_rep(0x20);  /* 84823A rep */
-    lda16(ea_absy(ACTOR_X + 1));  /* 84823C lda */
-    sta16(ea_dp(HIT_SHOT_X));  /* 84823F sta */
-    lda16(ea_absy(ACTOR_Y + 1));  /* 848241 lda */
-    sta16(ea_dp(HIT_SHOT_Y));  /* 848244 sta */
-L_848246:
-    op_sep(0x30);  /* 848246 sep */
-    return;  /* 848248 rts */
+    uint16_t x, px, y;
+    uint8_t face, hits;
+
+    abi_ActorTouchesSecondPoolLong();
+    if (cpu.p & P_C) {
+        op_sep(0x30);
+        return;
+    }
+    /* hit by the shot record Y: it faces the player */
+    x = dp16(ACTOR_X + 1);
+    px = rd16(dba(PLAYER + ACTOR_X + 1));
+    cpu.x = x;
+    face = x >= px;                       /* 1: he is to its left */
+    a8_load(face);
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_FACING), face);
+    wr8(dpa(ACTOR_FLIP), face);
+    a8_load(0xCC);
+    wr8(dpa(ACTOR_STATE), 0xCC);
+    hits = rd8(dpa(ACTOR_42));
+    a8_load(hits);
+    wr8(dpa(ACTOR_46), hits);
+    if (!hits)
+        abi_ActorStateSet8CLong();
+    op_rep(P_M);
+    dp16_set(HIT_SHOT_X, rd16(dba(ACTOR_X + 1) + cpu.y));
+    y = rd16(dba(ACTOR_Y + 1) + cpu.y);
+    dp16_set(HIT_SHOT_Y, y);
+    a16_load(y);
+    op_sep(0x30);
 }

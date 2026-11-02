@@ -7,6 +7,8 @@
  * near. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram_video.h"
@@ -38,16 +40,14 @@
  */
 void abi_ActorStepRight3(void)
 {
-    clc();
-    lda8(ea_dp(ACTOR_X));
-    adc8_v(0x00);
-    sta8(ea_dp(ACTOR_X));
-    lda8(ea_dp(ACTOR_X + 1));
-    adc8_v(0x03);
-    sta8(ea_dp(ACTOR_X + 1));
-    lda8(ea_dp(ACTOR_X + 2));
-    adc8_v(0x00);
-    sta8(ea_dp(ACTOR_X + 2));
+    uint8_t top;
+
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_X), op_adc8(rd8(dpa(ACTOR_X)), 0x00, &cpu.p));
+    wr8(dpa(ACTOR_X + 1), op_adc8(rd8(dpa(ACTOR_X + 1)), 0x03, &cpu.p));
+    top = op_adc8(rd8(dpa(ACTOR_X + 2)), 0x00, &cpu.p);
+    wr8(dpa(ACTOR_X + 2), top);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | top);
 }
 
 /*
@@ -66,21 +66,54 @@ void abi_ActorStepRight3(void)
  */
 void abi_BackdropPictureStep(void)
 {
-    MEM8(dec, ea_dp(PICTURE_TIME));
-    if (!IF_N)
+    uint8_t at, v;
+
+    if (!(dec8_at(dpa(PICTURE_TIME)) & 0x80))
         return;
-    ldy8(ea_dp(PICTURE_AT));
-    iny8();
-    iny8();
-    lda8(ea_absy(PICTURE_FRAMES - 1));
-    if (IF_N)
-        ldy8_v(0x00);
-    lda8(ea_absy(PICTURE_FRAMES + 1));
-    and8_v(0x7F);
-    sta8(ea_dp(PICTURE_TIME));
-    lda8(ea_absy(PICTURE_FRAMES));
-    sta8(ea_abs(VRAM_UPLOAD_NUMBER));
-    sty8(ea_dp(PICTURE_AT));
+    /* the next frame (back to the first after a negative entry): its
+       time and its upload */
+    at = (uint8_t)(rd8(dpa(PICTURE_AT)) + 2);
+    cpu.y = at;
+    v = rd8(dba(PICTURE_FRAMES - 1) + at);
+    a8_load(v);
+    if (v & 0x80) {
+        y8_load(0x00);
+        at = 0;
+    }
+    a8_load(rd8(dba(PICTURE_FRAMES + 1) + at) & 0x7F);
+    wr8(dpa(PICTURE_TIME), (uint8_t)cpu.a);
+    a8_load(rd8(dba(PICTURE_FRAMES) + at));
+    wr8(dba(VRAM_UPLOAD_NUMBER), (uint8_t)cpu.a);
+    wr8(dpa(PICTURE_AT), at);
+}
+
+/* Its distance from the point `from` in one axis, plus 256: below 512
+   when within 256 either side. */
+static int near_point(uint16_t mine, uint16_t from)
+{
+    uint16_t d;
+
+    flag_set(P_C, 1);
+    d = op_sbc16(mine, rd16(dba(from)), &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, 0x0100, &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x0200);
+    return d < 0x0200;
+}
+
+/* The backdrop's scroll in one axis: the actor's offset from the screen's
+   middle (128), turned. */
+static void backdrop_scroll(uint16_t mine, uint16_t play, uint16_t back)
+{
+    uint16_t d;
+
+    flag_set(P_C, 1);
+    d = op_sbc16(mine, rd16(dba(play)), &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, 0x0080, &cpu.p);
+    a16_load((uint16_t)((d ^ 0xFFFF) + 1));
+    wr16(dba(back), cpu.a);
 }
 
 /*
@@ -101,45 +134,16 @@ void abi_BackdropPictureStep(void)
  */
 void abi_BackdropActorShow(void)
 {
-    op_rep(0x20);
-    sec();
-    lda16(ea_dp(ACTOR_X + 1));
-    sbc16_v(rd16(ea_abs(RANGE_X)));
-    clc();
-    adc16_v(0x0100);
-    cmp16_v(0x0200);
-    if (IF_C)
-        goto far;
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_abs(RANGE_Y)));
-    clc();
-    adc16_v(0x0100);
-    cmp16_v(0x0200);
-    if (IF_C)
-        goto far;
-    sec();
-    lda16(ea_dp(ACTOR_X + 1));
-    sbc16_v(rd16(ea_abs(PLAY_X)));
-    sec();
-    sbc16_v(0x0080);
-    eor16_v(0xFFFF);
-    ACC16(inc);
-    sta16(ea_abs(BACK_X));
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_abs(PLAY_Y)));
-    sec();
-    sbc16_v(0x0080);
-    eor16_v(0xFFFF);
-    ACC16(inc);
-    sta16(ea_abs(BACK_Y));
-    op_sep(0x20);
-    lda8_v(LAYERS_WITH_BACKDROP);
-    sta8(ea_abs(TM_SHADOW));
-    return;
-far:
-    op_sep(0x20);
-    lda8_v(LAYERS_NO_BACKDROP);
-    sta8(ea_abs(TM_SHADOW));
+    op_rep(P_M);
+    if (near_point(dp16(ACTOR_X + 1), RANGE_X) && near_point(dp16(ACTOR_Y + 1), RANGE_Y)) {
+        backdrop_scroll(dp16(ACTOR_X + 1), PLAY_X, BACK_X);
+        backdrop_scroll(dp16(ACTOR_Y + 1), PLAY_Y, BACK_Y);
+        op_sep(P_M);
+        a8_load(LAYERS_WITH_BACKDROP);
+        wr8(dba(TM_SHADOW), LAYERS_WITH_BACKDROP);
+        return;
+    }
+    op_sep(P_M);
+    a8_load(LAYERS_NO_BACKDROP);
+    wr8(dba(TM_SHADOW), LAYERS_NO_BACKDROP);
 }

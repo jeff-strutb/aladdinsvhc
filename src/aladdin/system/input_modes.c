@@ -4,6 +4,8 @@
  * writes them into cartridge RAM (a development mode retail never enters).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "wram_pad.h"
@@ -12,6 +14,43 @@
 void abi_JoypadRead(void);
 void abi_ControlsRead(void);
 void abi_InputRecord(void);
+
+/* The demo's input: the pad read (for its Start, bit 4 of the high byte),
+   the rest from the demo's script, a step of it each time its frames run
+   out. */
+static void demo_input(void)
+{
+    uint8_t before = rd8(dba(JOY_HELD + 1)), held;
+
+    a8_load(before);
+    pha8();
+    abi_JoypadRead();
+    wr8(dba(JOY_HELD), 0);
+    wr8(dba(JOY_PRESSED), 0);
+    wr8(dba(JOY_HELD + 2), 0);
+    wr8(dba(JOY_PRESSED + 2), 0);
+    wr8(dba(JOY_HELD + 3), 0);
+    wr8(dba(JOY_PRESSED + 3), 0);
+    pla8();
+    a8_load((uint8_t)((uint8_t)cpu.a ^ 0xFF));
+    wr8(dba(JOY_PRESSED + 1), (uint8_t)cpu.a);
+    held = (uint8_t)((rd8(dba(JOY_HELD + 1)) & 0x10) | rd8(dba(DEMO_BUTTONS)));
+    a8_load(held);
+    wr8(dba(JOY_HELD + 1), held);
+    a8_load((uint8_t)(held & rd8(dba(JOY_PRESSED + 1))));
+    wr8(dba(JOY_PRESSED + 1), (uint8_t)cpu.a);
+    if (!dec8_at(dba(DEMO_INPUT_FRAMES))) {
+        op_rep(P_X);
+        cpu.x = rd16(dba(DEMO_INPUT_AT));
+        inc8_at(dba(DEMO_INPUT_AT));
+        inc8_at(dba(DEMO_INPUT_AT));
+        a8_load(rd8(DEMO_SCRIPT + cpu.x) & 0xEF);
+        wr8(dba(DEMO_BUTTONS), (uint8_t)cpu.a);
+        a8_load(rd8(DEMO_SCRIPT + 1 + cpu.x));
+        wr8(dba(DEMO_INPUT_FRAMES), (uint8_t)cpu.a);
+        op_sep(P_X);
+    }
+}
 
 /*
  * @routine 81:BDB1 InputRead
@@ -30,61 +69,24 @@ void abi_InputRecord(void);
  */
 void abi_InputRead(void)
 {
-    goto L_81BDB1;
-L_81BD53:
-    phx8();  /* 81BD53 phx */
-    phy8();  /* 81BD54 phy */
-    lda8(ea_abs((JOY_HELD + 1)));  /* 81BD55 lda */
-    pha8();  /* 81BD58 pha */
-    abi_JoypadRead();  /* 81BD59 jsr */
-    stz8(ea_abs(JOY_HELD));  /* 81BD5C stz */
-    stz8(ea_abs(JOY_PRESSED));  /* 81BD5F stz */
-    stz8(ea_abs((JOY_HELD + 2)));  /* 81BD62 stz */
-    stz8(ea_abs((JOY_PRESSED + 2)));  /* 81BD65 stz */
-    stz8(ea_abs((JOY_HELD + 3)));  /* 81BD68 stz */
-    stz8(ea_abs((JOY_PRESSED + 3)));  /* 81BD6B stz */
-    pla8();  /* 81BD6E pla */
-    eor8_v(0xFF);  /* 81BD6F eor */
-    sta8(ea_abs((JOY_PRESSED + 1)));  /* 81BD71 sta */
-    lda8(ea_abs((JOY_HELD + 1)));  /* 81BD74 lda */
-    and8_v(0x10);  /* 81BD77 and */
-    ora8_v(rd8(ea_abs(DEMO_BUTTONS)));  /* 81BD79 ora */
-    sta8(ea_abs((JOY_HELD + 1)));  /* 81BD7C sta */
-    and8_v(rd8(ea_abs((JOY_PRESSED + 1))));  /* 81BD7F and */
-    sta8(ea_abs((JOY_PRESSED + 1)));  /* 81BD82 sta */
-    MEM8(dec, ea_abs(DEMO_INPUT_FRAMES));  /* 81BD85 dec */
-    if (!IF_Z) goto L_81BDA7;  /* 81BD88 bne */
-    op_rep(0x10);  /* 81BD8A rep */
-    ldx16(ea_abs(DEMO_INPUT_AT));  /* 81BD8C ldx */
-    MEM8(inc, ea_abs(DEMO_INPUT_AT));  /* 81BD8F inc */
-    MEM8(inc, ea_abs(DEMO_INPUT_AT));  /* 81BD92 inc */
-    lda8(ea_longx(DEMO_SCRIPT));  /* 81BD95 lda */
-    and8_v(0xEF);  /* 81BD99 and */
-    sta8(ea_abs(DEMO_BUTTONS));  /* 81BD9B sta */
-    lda8(ea_longx((DEMO_SCRIPT + 1)));  /* 81BD9E lda */
-    sta8(ea_abs(DEMO_INPUT_FRAMES));  /* 81BDA2 sta */
-    op_sep(0x10);  /* 81BDA5 sep */
-L_81BDA7:
-    abi_ControlsRead();  /* 81BDA7 jsr */
-    ply8();  /* 81BDAA ply */
-    plx8();  /* 81BDAB plx */
-    return;  /* 81BDAC rts */
-L_81BDB1:
-    lda8(ea_abs(PLAY_MODE));  /* 81BDB1 lda */
-    cmp8_v(0x02);  /* 81BDB4 cmp */
-    if (IF_Z) goto L_81BD53;  /* 81BDB6 beq */
-    phx8();  /* 81BDB8 phx */
-    phy8();  /* 81BDB9 phy */
-    abi_JoypadRead();  /* 81BDBA jsr */
-    lda8(ea_abs(PLAY_MODE));  /* 81BDBD lda */
-    ACC8(dec);  /* 81BDC0 dec */
-    if (!IF_Z) goto L_81BDC6;  /* 81BDC1 bne */
-    abi_InputRecord();  /* 81BDC3 jsr */
-L_81BDC6:
-    abi_ControlsRead();  /* 81BDC6 jsr */
-    ply8();  /* 81BDC9 ply */
-    plx8();  /* 81BDCA plx */
-    return;  /* 81BDCB rts */
+    uint8_t mode = rd8(dba(PLAY_MODE));
+
+    a8_load(mode);
+    cmp8_of(mode, 0x02);
+    phx8();
+    phy8();
+    if (mode == 0x02) {
+        demo_input();
+    } else {
+        abi_JoypadRead();
+        mode = rd8(dba(PLAY_MODE));
+        a8_load((uint8_t)(mode - 1));
+        if (mode == 0x01)                 /* play mode 1: the input recorded */
+            abi_InputRecord();
+    }
+    abi_ControlsRead();
+    ply8();
+    plx8();
 }
 
 /*
@@ -110,58 +112,64 @@ L_81BDC6:
 void abi_InputRecord(void)
 {
     uint16_t to;
+    uint8_t step = rd8(dba(RECORD_STEP)), held, n;
 
-    lda8(ea_abs(RECORD_STEP));  /* 81BE5A lda */
-    ACC8(asl);  /* 81BE5D asl */
-    tax8();  /* 81BE5E tax */
-    to = rd16(0x810000u | (uint16_t)(0xBE62 + cpu.x));  /* 81BE5F jmp (BE62,x) */
-    if (to == 0xBE66) goto L_81BE66;
-    if (to == 0xBE7F) goto L_81BE7F;
-    jump_routine(0x810000u | to); return;
-L_81BE66:
-    ldx8_v(0x00);  /* 81BE66 ldx */
-    txa8();  /* 81BE68 txa */
-L_81BE69:
-    sta8(ea_longx(RECORD_BUF));  /* 81BE69 sta */
-    dex8();  /* 81BE6D dex */
-    if (!IF_Z) goto L_81BE69;  /* 81BE6E bne */
-    stz8(ea_abs(RECORD_POS));  /* 81BE70 stz */
-    stz8(ea_abs((RECORD_POS + 1)));  /* 81BE73 stz */
-    stz8(ea_abs(JOY_HELD));  /* 81BE76 stz */
-    stz8(ea_abs((JOY_HELD + 1)));  /* 81BE79 stz */
-    MEM8(inc, ea_abs(RECORD_STEP));  /* 81BE7C inc */
-L_81BE7F:
-    ldx8(ea_abs(RECORD_POS));  /* 81BE7F ldx */
-    lda8(ea_abs((JOY_HELD + 1)));  /* 81BE82 lda */
-    cmp8_v(rd8(ea_longx(RECORD_BUF)));  /* 81BE85 cmp */
-    if (!IF_Z) goto L_81BE9D;  /* 81BE89 bne */
-    tay8();  /* 81BE8B tay */
-    lda8(ea_longx((RECORD_BUF + 1)));  /* 81BE8C lda */
-    ACC8(inc);  /* 81BE90 inc */
-    sta8(ea_longx((RECORD_BUF + 1)));  /* 81BE91 sta */
-    if (!IF_Z) goto L_81BEB3;  /* 81BE95 bne */
-    ACC8(dec);  /* 81BE97 dec */
-    sta8(ea_longx((RECORD_BUF + 1)));  /* 81BE98 sta */
-    tya8();  /* 81BE9C tya */
-L_81BE9D:
-    sta8(ea_longx((RECORD_BUF + 2)));  /* 81BE9D sta */
-    lda8(ea_longx((RECORD_BUF + 3)));  /* 81BEA1 lda */
-    ACC8(inc);  /* 81BEA5 inc */
-    sta8(ea_longx((RECORD_BUF + 3)));  /* 81BEA6 sta */
-    inx8();  /* 81BEAA inx */
-    inx8();  /* 81BEAB inx */
-    cpx8_v(0xFE);  /* 81BEAC cpx */
-    if (IF_Z) goto L_81BEB4;  /* 81BEAE beq */
-    stx8(ea_abs(RECORD_POS));  /* 81BEB0 stx */
-L_81BEB3:
-    return;  /* 81BEB3 rts */
-L_81BEB4:
-    stx8(ea_abs(RECORD_END));  /* 81BEB4 stx */
-L_81BEB7:
-    abi_JoypadRead();  /* 81BEB7 jsr */
-    lda8(ea_abs((JOY_HELD + 3)));  /* 81BEBA lda */
-    bit8_i(0x04);  /* 81BEBD bit */
-    if (IF_Z) goto L_81BEB7;  /* 81BEBF beq */
-    stz8(ea_abs(RECORD_STEP));  /* 81BEC1 stz */
-    return;  /* 81BEC4 rts */
+    cpu.x = (uint8_t)(step << 1);
+    flag_set(P_C, step & 0x80);
+    a8_load((uint8_t)cpu.x);
+    to = rd16(0x810000u | (uint16_t)(0xBE62 + cpu.x));   /* JMP ($BE62,X) */
+    if (to == 0xBE66) {
+        /* step 0: the buffer and the pad cleared, then on as step 1 */
+        x8_load(0x00);
+        a8_load(0x00);
+        do {
+            wr8(RECORD_BUF + cpu.x, 0x00);
+            x8_load((uint8_t)(cpu.x - 1));
+        } while (cpu.x);
+        wr8(dba(RECORD_POS), 0);
+        wr8(dba(RECORD_POS + 1), 0);
+        wr8(dba(JOY_HELD), 0);
+        wr8(dba(JOY_HELD + 1), 0);
+        inc8_at(dba(RECORD_STEP));
+    } else if (to != 0xBE7F) {
+        jump_routine(0x810000u | to);
+        return;
+    }
+    /* step 1: the pad's high byte kept with how many frames it held, two
+       bytes an entry */
+    x8_load(rd8(dba(RECORD_POS)));
+    held = rd8(dba(JOY_HELD + 1));
+    a8_load(held);
+    n = rd8(RECORD_BUF + cpu.x);          /* (outside work RAM: each byte read once, as the original) */
+    cmp8_of(held, n);
+    if (held == n) {
+        cpu.y = held;
+        n = (uint8_t)(rd8(RECORD_BUF + 1 + cpu.x) + 1);
+        a8_load(n);
+        wr8(RECORD_BUF + 1 + cpu.x, n);
+        if (n)
+            return;
+        a8_load(0xFF);                    /* the count held at 255: a new entry */
+        wr8(RECORD_BUF + 1 + cpu.x, 0xFF);
+        a8_load(held);
+    }
+    wr8(RECORD_BUF + 2 + cpu.x, (uint8_t)cpu.a);
+    n = (uint8_t)(rd8(RECORD_BUF + 3 + cpu.x) + 1);
+    a8_load(n);
+    wr8(RECORD_BUF + 3 + cpu.x, n);
+    cpu.x = (uint8_t)(cpu.x + 2);
+    cmp8_of((uint8_t)cpu.x, 0xFE);
+    if (cpu.x != 0xFE) {
+        wr8(dba(RECORD_POS), (uint8_t)cpu.x);
+        return;
+    }
+    /* the buffer full: wait for Select, then record again */
+    wr8(dba(RECORD_END), (uint8_t)cpu.x);
+    do {
+        abi_JoypadRead();
+        held = rd8(dba(JOY_HELD + 3));
+        a8_load(held);
+        flag_set(P_Z, !(held & 0x04));
+    } while (!(held & 0x04));
+    wr8(dba(RECORD_STEP), 0);
 }

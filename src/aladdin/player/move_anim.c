@@ -6,6 +6,8 @@
  * actor kind has a row in a table that gives the animation for each move.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram_player.h"
@@ -27,11 +29,13 @@ void abi_AnimStart(void);
  */
 void abi_AnimOfMove(void)
 {
-    ldx8(ea_dp(ACTOR_06));
-    clc();
-    adc8_v(rd8(ea_absx(ANIM_OF_MOVE)));
-    tax8();
-    lda8(ea_absx(ANIM_OF_MOVE));
+    uint8_t move = (uint8_t)cpu.a, at;
+
+    x8_load(rd8(dpa(ACTOR_06)));
+    flag_set(P_C, 0);
+    at = op_adc8(move, rd8(dba(ANIM_OF_MOVE) + cpu.x), &cpu.p);
+    cpu.x = at;
+    a8_load(rd8(dba(ANIM_OF_MOVE) + at));
 }
 
 /*
@@ -44,7 +48,7 @@ void abi_AnimOfMove(void)
  */
 void abi_PlayerMoveStart(void)
 {
-    sta8(ea_abs(PLAYER_MOVE));
+    wr8(dba(PLAYER_MOVE), (uint8_t)cpu.a);
     abi_AnimOfMove();
     abi_AnimStart();
 }
@@ -58,7 +62,7 @@ void abi_PlayerMoveStart(void)
  */
 void abi_PlayerMoveStartAlso(void)
 {
-    sta8(ea_abs(PLAYER_MOVE));
+    wr8(dba(PLAYER_MOVE), (uint8_t)cpu.a);
     abi_AnimOfMove();
     abi_AnimStart();
 }

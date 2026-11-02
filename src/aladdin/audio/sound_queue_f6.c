@@ -3,6 +3,8 @@
  * gives (the entry inside SoundQueueF6With1, past its LDA #1).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 
 void abi_SoundQueueAdd(void);
@@ -23,10 +25,10 @@ void abi_SoundQueueAdd(void);
  */
 void abi_SoundQueueF6(void)
 {
-    xba();
-    lda8_v(SOUND_CMD_F6);
-    sta8(ea_abs(SOUND_SPECIAL));
+    op_xba();                             /* the parameter waits in A's high byte */
+    a8_load(SOUND_CMD_F6);
+    wr8(dba(SOUND_SPECIAL), SOUND_CMD_F6);
     abi_SoundQueueAdd();
-    xba();
+    op_xba();
     abi_SoundQueueAdd();
 }

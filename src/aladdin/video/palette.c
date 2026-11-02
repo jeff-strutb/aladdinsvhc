@@ -6,6 +6,8 @@
  * a fade works from are kept at PALETTE_SAVED.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_PaletteChannelStep(void);
 #include "wram.h"
@@ -29,6 +31,9 @@ static uint32_t abs_db(uint16_t addr)
 #define PALETTE_LOADS 0x84C000u
 #define PALETTE_DATA 0xC000u
 #define PALETTE_BANK 0x84
+
+#define PALETTE_COLOUR 0x060Au  /* the colour being stepped (BGR555) */
+#define PALETTE_STEP 0x0608u    /* the step, signed (word) */
 
 /*
  * @routine 81:98C5 PaletteLoad
@@ -207,36 +212,24 @@ void abi_LevelPalettesLoad(void)
  */
 void abi_PaletteChannelStep(void)
 {
-    lda16(ea_abs(0x060A));  /* 819E06 lda */
-    and16_v(0x001F);  /* 819E09 and */
-    clc();  /* 819E0C clc */
-    adc16_v(rd16(ea_abs(0x0608)));  /* 819E0D adc */
-    if (!IF_N) goto L_819E17;  /* 819E10 bpl */
-    lda16_v(0x0000);  /* 819E12 lda */
-    goto L_819E1F;  /* 819E15 bra */
-L_819E17:
-    cmp16_v(0x0020);  /* 819E17 cmp */
-    if (!IF_C) goto L_819E1F;  /* 819E1A bcc */
-    lda16_v(0x001F);  /* 819E1C lda */
-L_819E1F:
-    ACC16(lsr);  /* 819E1F lsr */
-    ACC16(ror);  /* 819E20 ror */
-    ACC16(ror);  /* 819E21 ror */
-    ACC16(ror);  /* 819E22 ror */
-    ACC16(ror);  /* 819E23 ror */
-    ACC16(ror);  /* 819E24 ror */
-    ACC16(ror);  /* 819E25 ror */
-    and16_v(0x7E00);  /* 819E26 and */
-    sta16(ea_abs(SCRATCH));  /* 819E29 sta */
-    lda16(ea_abs(0x060A));  /* 819E2C lda */
-    ACC16(lsr);  /* 819E2F lsr */
-    ACC16(lsr);  /* 819E30 lsr */
-    ACC16(lsr);  /* 819E31 lsr */
-    ACC16(lsr);  /* 819E32 lsr */
-    ACC16(lsr);  /* 819E33 lsr */
-    ora16_v(rd16(ea_abs(SCRATCH)));  /* 819E34 ora */
-    sta16(ea_abs(0x060A));  /* 819E37 sta */
-    return;  /* 819E3A rts */
+    uint16_t colour = rd16(dba(PALETTE_COLOUR)), v, channel;
+
+    /* the low channel stepped, held to 0-31, moves to the top; the other
+       two move down */
+    flag_set(P_C, 0);
+    v = op_adc16((uint16_t)(colour & 0x001F), rd16(dba(PALETTE_STEP)), &cpu.p);
+    if (v & 0x8000) {
+        v = 0;
+    } else {
+        cmp16_of(v, 0x0020);
+        if (v >= 0x0020)
+            v = 0x001F;
+    }
+    channel = (uint16_t)(v << 10);
+    wr16(dba(SCRATCH), channel);
+    flag_set(P_C, (colour >> 4) & 1);
+    a16_load((uint16_t)((colour >> 5) | channel));
+    wr16(dba(PALETTE_COLOUR), cpu.a);
 }
 
 /*
@@ -250,15 +243,16 @@ L_819E1F:
  */
 void abi_PaletteSequenceTask(void)
 {
-    ldy8_v(0x05);  /* 819E75 ldy */
-L_819E77:
-    lda8(ea_absy(PALETTE_SEQUENCE_SETS));  /* 819E77 lda */
-    phy8();  /* 819E7A phy */
-    abi_PaletteLoad();  /* 819E7B jsl */
-    ply8();  /* 819E7F ply */
-    lda8(ea_absy(PALETTE_SEQUENCE_FRAMES));  /* 819E80 lda */
-    jsl_frame(0x819E83u); abi_TaskWait();  /* 819E83 jsl */
-    dey8();  /* 819E87 dey */
-    if (!IF_N) goto L_819E77;  /* 819E88 bpl */
-    abi_TaskExit(); return;  /* 819E8A jml */
+    y8_load(0x05);
+    do {                                  /* six palettes, each its frames */
+        a8_load(rd8(dba(PALETTE_SEQUENCE_SETS) + cpu.y));
+        phy8();
+        abi_PaletteLoad();
+        ply8();
+        a8_load(rd8(dba(PALETTE_SEQUENCE_FRAMES) + cpu.y));
+        jsl_frame(0x819E83u);
+        abi_TaskWait();
+        y8_load((uint8_t)(cpu.y - 1));
+    } while (!(cpu.y & 0x80));
+    abi_TaskExit();
 }

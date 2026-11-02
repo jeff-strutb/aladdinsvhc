@@ -4,6 +4,8 @@
  * once the camera is past x $08E8.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_MoverEndSound(void);
 void abi_MoverSound(void);
@@ -17,6 +19,9 @@ void abi_CameraPastX08E8(void);
 #include "wram_state.h"
 #include "wram_video.h"
 
+#define BACKDROP_STEPS 0xD7CAu  /* by facing, 4 bytes: the backdrop offset's step (in the bank DB names) */
+#define MOVER_SOUNDED 0x43u      /* nonzero: its end sound was queued */
+
 /*
  * @routine 84:9083 BackdropOffsetStep
  * WHAT IT DOES: Moves the backdrop layer against the play field by one
@@ -28,21 +33,20 @@ void abi_CameraPastX08E8(void);
  */
 void abi_BackdropOffsetStep(void)
 {
-    op_rep(0x20);  /* 849083 rep */
-    lda16(ea_dp(0x14));  /* 849085 lda */
-    ACC16(asl);  /* 849087 asl */
-    ACC16(asl);  /* 849088 asl */
-    tax8();  /* 849089 tax */
-    clc();  /* 84908A clc */
-    lda16(ea_abs(BACKDROP_OFFSET_Y));  /* 84908B lda */
-    adc16_v(rd16(ea_absx(0xD7CA)));  /* 84908E adc */
-    sta16(ea_abs(BACKDROP_OFFSET_Y));  /* 849091 sta */
-    lda16(ea_abs(0x1A2D));  /* 849094 lda */
-    adc16_v(rd16(ea_absx(0xD7CC)));  /* 849097 adc */
-    sta16(ea_abs(0x1A2D));  /* 84909A sta */
-    MEM16(dec, ea_dp(0x40));  /* 84909D dec */
-    op_sep(0x20);  /* 84909F sep */
-    return;  /* 8490A1 rts */
+    uint16_t at, n;
+
+    op_rep(P_M);
+    at = (uint16_t)(dp16(ACTOR_FACING) << 2);
+    cpu.x = (uint8_t)at;
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(rd16(dba(BACKDROP_OFFSET_Y)), rd16(dba(BACKDROP_STEPS) + cpu.x), &cpu.p);
+    wr16(dba(BACKDROP_OFFSET_Y), cpu.a);
+    cpu.a = op_adc16(rd16(dba(BACKDROP_OFFSET_Y + 2)), rd16(dba(BACKDROP_STEPS + 2) + cpu.x), &cpu.p);
+    wr16(dba(BACKDROP_OFFSET_Y + 2), cpu.a);
+    n = (uint16_t)(dp16(ACTOR_40) - 1);
+    dp16_set(ACTOR_40, n);
+    nz16_of(n);
+    op_sep(P_M);
 }
 
 /*
@@ -55,11 +59,11 @@ void abi_BackdropOffsetStep(void)
  */
 void abi_CameraPastX08E8(void)
 {
-    op_rep(0x20);  /* 8490B7 rep */
-    lda16(ea_abs(0x1773));  /* 8490B9 lda */
-    cmp16_v(0x08E8);  /* 8490BC cmp */
-    op_sep(0x20);  /* 8490BF sep */
-    return;  /* 8490C1 rts */
+    uint16_t x = rd16(dba(LAYER0 + LAYER_SCROLL_X));
+
+    cpu.a = x;
+    cmp16_of(x, 0x08E8);
+    op_sep(P_M);
 }
 
 /*
@@ -74,18 +78,22 @@ void abi_CameraPastX08E8(void)
  */
 void abi_MoverEndSound(void)
 {
-    abi_CameraPastX08E8();  /* 8490A2 jsr */
-    if (!IF_C) goto L_8490B4;  /* 8490A5 bcc */
-    lda8(ea_dp(0x43));  /* 8490A7 lda */
-    if (!IF_Z) goto L_8490B3;  /* 8490A9 bne */
-    lda8_v(0xF1);  /* 8490AB lda */
-    abi_SoundQueueAdd();  /* 8490AD jsl */
-    MEM8(inc, ea_dp(0x43));  /* 8490B1 inc */
-L_8490B3:
-    return;  /* 8490B3 rtl */
-L_8490B4:
-    stz8(ea_dp(0x43));  /* 8490B4 stz */
-    return;  /* 8490B6 rtl */
+    uint8_t sounded, n;
+
+    abi_CameraPastX08E8();
+    if (!(cpu.p & P_C)) {
+        wr8(dpa(MOVER_SOUNDED), 0);
+        return;
+    }
+    sounded = rd8(dpa(MOVER_SOUNDED));
+    a8_load(sounded);
+    if (sounded)
+        return;
+    a8_load(0xF1);
+    abi_SoundQueueAdd();
+    n = (uint8_t)(rd8(dpa(MOVER_SOUNDED)) + 1);
+    wr8(dpa(MOVER_SOUNDED), n);
+    nz8_of(n);
 }
 
 /*
@@ -99,11 +107,10 @@ L_8490B4:
  */
 void abi_MoverSound(void)
 {
-    tax8();  /* 8490C2 tax */
-    abi_CameraPastX08E8();  /* 8490C3 jsr */
-    if (IF_C) goto L_8490CD;  /* 8490C6 bcs */
-    txa8();  /* 8490C8 txa */
-    abi_SoundQueueAdd();  /* 8490C9 jsl */
-L_8490CD:
-    return;  /* 8490CD rts */
+    x8_load((uint8_t)cpu.a);              /* the command, kept */
+    abi_CameraPastX08E8();
+    if (cpu.p & P_C)
+        return;
+    a8_load((uint8_t)cpu.x);
+    abi_SoundQueueAdd();
 }

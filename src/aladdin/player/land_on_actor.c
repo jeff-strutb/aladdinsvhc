@@ -3,6 +3,8 @@
  * stands on it. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -32,48 +34,57 @@
  */
 void abi_PlayerLandOnActor(void)
 {
-    bit8_v(rd8(ea_dp(ACTOR_09)));  /* 8289E3 bit */
-    if (!IF_V) goto L_828A3F;  /* 8289E5 bvc */
-    lda8(ea_abs(V_1428));  /* 8289E7 lda */
-    ora8_v(rd8(ea_abs(V_1427)));  /* 8289EA ora */
-    if (!IF_Z) goto L_828A3F;  /* 8289ED bne */
-    lda8(ea_abs(PLAYER + ACTOR_SPEED_Y + 2));  /* 8289EF lda */
-    if (IF_N) goto L_828A3F;  /* 8289F2 bmi */
-    op_rep(0x20);  /* 8289F4 rep */
-    sec();  /* 8289F6 sec */
-    lda16(ea_dp(ACTOR_X + 1));  /* 8289F7 lda */
-    sbc16_v(rd16(ea_abs(PLAYER + ACTOR_X + 1)));  /* 8289F9 sbc */
-    clc();  /* 8289FC clc */
-    adc16_v(rd16(ea_absy(LAND_BOXES)));  /* 8289FD adc */
-    cmp16_v(rd16(ea_absy(LAND_BOXES + 2)));  /* 828A00 cmp */
-    if (IF_C) goto L_828A3F;  /* 828A03 bcs */
-    sec();  /* 828A05 sec */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 828A06 lda */
-    sbc16_v(rd16(ea_abs(PLAYER + ACTOR_Y + 1)));  /* 828A08 sbc */
-    clc();  /* 828A0B clc */
-    adc16_v(rd16(ea_absy(LAND_BOXES + 4)));  /* 828A0C adc */
-    cmp16_v(rd16(ea_absy(LAND_BOXES + 6)));  /* 828A0F cmp */
-    if (IF_C) goto L_828A3F;  /* 828A12 bcs */
-    MEM16(inc, ea_abs(SCRATCH));  /* 828A14 inc */
-    clc();  /* 828A17 clc */
-    lda16(ea_abs(PLAYER + ACTOR_Y + 1));  /* 828A18 lda */
-    adc16_v(rd16(ea_absy(LAND_BOXES + 8)));  /* 828A1B adc */
-    cmp16_v(rd16(ea_dp(ACTOR_Y + 1)));  /* 828A1E cmp */
-    if (IF_C) goto L_828A3F;  /* 828A20 bcs */
-    sec();  /* 828A22 sec */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 828A23 lda */
-    sbc16_v(rd16(ea_absy(LAND_BOXES + 4)));  /* 828A25 sbc */
-    ACC16(inc);  /* 828A28 inc */
-    sta16(ea_abs(PLAYER + ACTOR_Y + 1));  /* 828A29 sta */
-    op_sep(0x30);  /* 828A2C sep */
-    stz8(ea_abs(PLAYER + ACTOR_SPEED_Y));  /* 828A2E stz */
-    stz8(ea_abs(PLAYER + ACTOR_SPEED_Y + 1));  /* 828A31 stz */
-    stz8(ea_abs(PLAYER + ACTOR_SPEED_Y + 2));  /* 828A34 stz */
-    MEM8(inc, ea_abs(V_1428));  /* 828A37 inc */
-    stz8(ea_abs(V_141C));  /* 828A3A stz */
-    clc();  /* 828A3D clc */
-    return;  /* 828A3E rtl */
-L_828A3F:
-    op_sep(0x31);  /* 828A3F sep */
-    return;  /* 828A41 rtl */
+    uint32_t box = dba(LAND_BOXES) + cpu.y;
+    uint8_t flags = rd8(dpa(ACTOR_09));
+    uint16_t d, py;
+
+    bit8_of((uint8_t)cpu.a, flags);
+    if (!(flags & 0x40))
+        goto no;
+    a8_load((uint8_t)(rd8(dba(V_1428)) | rd8(dba(V_1427))));
+    if ((uint8_t)cpu.a)
+        goto no;
+    a8_load(rd8(dba(PLAYER + ACTOR_SPEED_Y + 2)));
+    if ((uint8_t)cpu.a & 0x80)            /* rising */
+        goto no;
+    /* the box (offset, then width: x, then y) round the actor */
+    op_rep(P_M);
+    flag_set(P_C, 1);
+    d = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, rd16(box), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, rd16(box + 2));
+    if (d >= rd16(box + 2))
+        goto no;
+    flag_set(P_C, 1);
+    d = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(PLAYER + ACTOR_Y + 1)), &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, rd16(box + 4), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, rd16(box + 6));
+    if (d >= rd16(box + 6))
+        goto no;
+    inc16_at(dba(SCRATCH));
+    /* his feet above its top: he stands on it */
+    flag_set(P_C, 0);
+    py = op_adc16(rd16(dba(PLAYER + ACTOR_Y + 1)), rd16(box + 8), &cpu.p);
+    cpu.a = py;
+    cmp16_of(py, dp16(ACTOR_Y + 1));
+    if (py >= dp16(ACTOR_Y + 1))
+        goto no;
+    flag_set(P_C, 1);
+    d = op_sbc16(dp16(ACTOR_Y + 1), rd16(box + 4), &cpu.p);
+    a16_load((uint16_t)(d + 1));
+    wr16(dba(PLAYER + ACTOR_Y + 1), cpu.a);
+    op_sep(0x30);
+    wr8(dba(PLAYER + ACTOR_SPEED_Y), 0);
+    wr8(dba(PLAYER + ACTOR_SPEED_Y + 1), 0);
+    wr8(dba(PLAYER + ACTOR_SPEED_Y + 2), 0);
+    inc8_at(dba(V_1428));
+    wr8(dba(V_141C), 0);
+    flag_set(P_C, 0);
+    return;
+no:
+    op_sep(0x31);
 }

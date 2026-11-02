@@ -4,6 +4,8 @@
  * by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "wram_player.h"
@@ -27,21 +29,27 @@ void abi_TileAtProbeLong(void);
  */
 void abi_ActorFallTileTest(void)
 {
-    op_rep(0x21);  /* 83C903 rep */
-    lda16(ea_dp(0x0C));  /* 83C905 lda */
-    sta16(ea_abs(SCRATCH));  /* 83C907 sta */
-    lda16(ea_dp(0x0F));  /* 83C90A lda */
-    if (IF_N) goto L_83C91E;  /* 83C90C bmi */
-    adc16_v(0x000A);  /* 83C90E adc */
-    sta16(ea_abs(0x000E));  /* 83C911 sta */
-    abi_TileAtProbeLong();  /* 83C914 jsl */
-    lda8(ea_abs(V_0012));  /* 83C918 lda */
-    cmp8_v(0x02);  /* 83C91B cmp */
-    return;  /* 83C91D rts */
-L_83C91E:
-    op_sep(0x20);  /* 83C91E sep */
-    pla8();  /* 83C920 pla */
-    pla8();  /* 83C921 pla */
-    actor_leave(0x8396CAu); return;  /* 83C922 jmp ActorEndPlaced */
+    uint16_t y;
+    uint8_t kind;
+
+    op_rep(0x21);
+    wr16(dba(SCRATCH), dp16(ACTOR_X + 1));
+    y = dp16(ACTOR_Y + 1);
+    a16_load(y);
+    if (y & 0x8000) {
+        /* above the top of the map: the actor ends */
+        op_sep(P_M);
+        pla8();                           /* its own return dropped */
+        pla8();
+        actor_leave(0x8396CAu);           /* ActorEndPlaced */
+        return;
+    }
+    /* the tile 10 pixels below it */
+    cpu.a = op_adc16(y, 0x000A, &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
+    abi_TileAtProbeLong();
+    kind = rd8(dba(V_0012));
+    a8_load(kind);
+    cmp8_of(kind, 0x02);
 }
 

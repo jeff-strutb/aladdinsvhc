@@ -3,6 +3,8 @@
  * of it.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -31,28 +33,43 @@ void abi_PlayerFacesActorClose(void);
 
 void abi_ActorGrabbableByPlayer(void)
 {
+    uint8_t v;
+    uint16_t rise;
+
     abi_PlayerFacesActorClose();
-    if (IF_C) goto no;
-    lda8(ea_abs(V_1427));
-    if (!IF_Z) goto yes;
-    lda8(ea_abs(PLAYER_STATE_8C_COUNT));
-    if (!IF_Z) goto no;
-    ldx8(ea_abs(V_1448));
-    cpx8_v(0x07);
-    if (IF_C) {
-        cpx8_v(0x10);
-        if (!IF_C) goto no;
+    if (cpu.p & P_C)
+        goto no;
+    v = rd8(dba(V_1427));
+    a8_load(v);
+    if (v)
+        goto yes;
+    v = rd8(dba(PLAYER_STATE_8C_COUNT));
+    a8_load(v);
+    if (v)
+        goto no;
+    v = rd8(dba(V_1448));
+    x8_load(v);
+    cmp8_of(v, 0x07);
+    if (v >= 0x07) {
+        cmp8_of(v, 0x10);
+        if (v < 0x10)
+            goto no;
     }
-    lda8(ea_abs(V_141C));
-    if (IF_Z) goto no;
-    op_rep(0x20);
-    lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
-    if (!IF_N) goto yes;
-    cmp16_v(0xFFFE);
-    if (!IF_C) goto no;
+    v = rd8(dba(V_141C));
+    a8_load(v);
+    if (!v)
+        goto no;
+    op_rep(P_M);
+    rise = rd16(dba(PLAYER_SPEED_Y_WHOLE));
+    a16_load(rise);
+    if (!(rise & 0x8000))
+        goto yes;
+    cmp16_of(rise, 0xFFFE);               /* rising faster than 2 pixels a frame */
+    if (rise < 0xFFFE)
+        goto no;
 yes:
-    clc();
-    op_sep(0x20);
+    flag_set(P_C, 0);
+    op_sep(P_M);
     return;
 no:
     op_sep(0x21);
@@ -83,21 +100,27 @@ void abi_ActorGrabbableByPlayerLong(void)
  */
 void abi_PlayerFacesActorClose(void)
 {
+    uint8_t flip = rd8(dba(PLAYER_FLIP));
+    uint16_t d;
+
     op_rep(0x21);
-    lda16_v(0x0016);
-    ldx8(ea_abs(PLAYER_FLIP));
-    if (!IF_Z)
-        lda16_v(0x0008);
-    adc16_v(rd16(ea_abs(PLAYER_X_PIXELS)));
-    sec();
-    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    cmp16_v(0x001E);
-    if (!IF_C) {
-        lda16(ea_abs(PLAYER_Y_PIXELS));
-        adc16_v(0x0003);
-        sec();
-        sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));
-        cmp16_v(0x001A);
+    a16_load(0x0016);
+    x8_load(flip);
+    if (flip)
+        a16_load(0x0008);
+    /* across: his reach point (16 or 8 pixels ahead) within 30 of it */
+    d = op_adc16((uint16_t)cpu.a, rd16(dba(PLAYER_X_PIXELS)), &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, dp16(ACTOR_X + 1), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x001E);
+    if (d < 0x001E) {
+        /* down: his y plus 3 within 26 of it */
+        d = op_adc16(rd16(dba(PLAYER_Y_PIXELS)), 0x0003, &cpu.p);
+        flag_set(P_C, 1);
+        d = op_sbc16(d, dp16(ACTOR_Y + 1), &cpu.p);
+        cpu.a = d;
+        cmp16_of(d, 0x001A);
     }
-    op_sep(0x20);
+    op_sep(P_M);
 }

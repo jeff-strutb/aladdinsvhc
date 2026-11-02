@@ -5,6 +5,8 @@
  * scene on. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -19,6 +21,30 @@ void abi_AnimStart(void);
 #define KIND70_CARRYING 0x40u  /* frames of the first flight; then nonzero while it carries the escort */
 #define SCENE_CUE 0x146Cu  /* counted up by scripted actors as the scene goes on */
 #define SCENE_CUE_C2 0x00C2u  /* counted up when the hit one has waited; another actor waits for it */
+
+/* The flyer's carry of the escort, tested each frame: within 8 of its
+   hold point across and 16 down, it takes hold. 0: not yet. */
+static int escort_in_reach(void)
+{
+    uint16_t d;
+
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    d = op_adc16(dp16(ACTOR_X + 1), 0xFFE8, &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, rd16(dba(ACTOR_ESCORT + ACTOR_X + 1)), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x0008);
+    if (d >= 0x0008)
+        return 0;
+    flag_set(P_C, 0);
+    d = op_adc16(dp16(ACTOR_Y + 1), 0x0010, &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, rd16(dba(ACTOR_ESCORT + ACTOR_Y + 1)), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x0010);
+    return d < 0x0010;
+}
 
 /*
  * @routine 83:F296 Kind70Start
@@ -45,104 +71,96 @@ void abi_AnimStart(void);
  */
 void abi_Kind70Start(void)
 {
-    lda8_v(0x90);  /* 83F296 lda */
-    tsb8(ea_dp(ACTOR_09));  /* 83F298 tsb */
-    lda8(ea_dp(ACTOR_07));  /* 83F29A lda */
-    if (IF_Z) goto L_83F2A1;  /* 83F29C beq */
-    goto L_83F339;  /* 83F29E jmp */
-L_83F2A1:
-    stz8(ea_dp(KIND70_CARRYING));  /* 83F2A1 stz */
-    lda8_v(0x00);  /* 83F2A3 lda */
-    abi_AnimStart();  /* 83F2A5 jsl */
-    lda8_v(0x20);  /* 83F2A9 lda */
-    actor_wait(0x83F2ABu);  /* 83F2AB cop */
-    lda8_v(0x01);  /* 83F2AD lda */
-    abi_AnimStart();  /* 83F2AF jsl */
-    lda8_v(0x17);  /* 83F2B3 lda */
-    actor_wait(0x83F2B5u);  /* 83F2B5 cop */
-    op_rep(0x21);  /* 83F2B7 rep */
-    lda16(ea_dp(ACTOR_X + 1));  /* 83F2B9 lda */
-    adc16_v(0x0010);  /* 83F2BB adc */
-    sta16(ea_dp(ACTOR_X + 1));  /* 83F2BE sta */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 83F2C0 lda */
-    sec();  /* 83F2C2 sec */
-    sbc16_v(0x000D);  /* 83F2C3 sbc */
-    sta16(ea_dp(ACTOR_Y + 1));  /* 83F2C6 sta */
-    op_sep(0x20);  /* 83F2C8 sep */
-    lda8_v(0x02);  /* 83F2CA lda */
-    abi_AnimStart();  /* 83F2CC jsl */
-    ldy8_v(0x4F);  /* 83F2D0 ldy */
-    abi_ActorMotionPreset();  /* 83F2D2 jsl */
-    lda8_v(0x28);  /* 83F2D6 lda */
-    sta8(ea_dp(KIND70_CARRYING));  /* 83F2D8 sta */
-L_83F2DA:
-    actor_yield(0x83F2DAu);  /* 83F2DA brk */
-    abi_ActorFly();  /* 83F2DC jsl */
-    MEM8(dec, ea_dp(KIND70_CARRYING));  /* 83F2E0 dec */
-    if (!IF_Z) goto L_83F2DA;  /* 83F2E2 bne */
-    lda8_v(0x18);  /* 83F2E4 lda */
-    sta8(ea_dp(ACTOR_ACCEL_Y));  /* 83F2E6 sta */
-L_83F2E8:
-    actor_yield(0x83F2E8u);  /* 83F2E8 brk */
-    abi_ActorFlyAgainst();  /* 83F2EA jsl */
-    ldx8_v(0x00);  /* 83F2EE ldx */
-    push16(0xF2F2); abi_ActorEndOutOfRange(); cpu.s = (uint16_t)(cpu.s + 2);  /* 83F2F0 jsr */
-    lda8(ea_dp(KIND70_CARRYING));  /* 83F2F3 lda */
-    if (IF_Z) goto L_83F30B;  /* 83F2F5 beq */
-    op_rep(0x20);  /* 83F2F7 rep */
-    clc();  /* 83F2F9 clc */
-    lda16(ea_dp(ACTOR_X + 1));  /* 83F2FA lda */
-    adc16_v(0xFFE2);  /* 83F2FC adc */
-    sta16(ea_abs(ACTOR_ESCORT + ACTOR_X + 1));  /* 83F2FF sta */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 83F302 lda */
-    sta16(ea_abs(ACTOR_ESCORT + ACTOR_Y + 1));  /* 83F304 sta */
-L_83F307:
-    op_sep(0x20);  /* 83F307 sep */
-    goto L_83F2E8;  /* 83F309 bra */
-L_83F30B:
-    lda8(ea_abs(ACTOR_ESCORT + ACTOR_SPEED_Y + 2));  /* 83F30B lda */
-    if (IF_N) goto L_83F2E8;  /* 83F30E bmi */
-    op_rep(0x20);  /* 83F310 rep */
-    clc();  /* 83F312 clc */
-    lda16(ea_dp(ACTOR_X + 1));  /* 83F313 lda */
-    adc16_v(0xFFE8);  /* 83F315 adc */
-    sec();  /* 83F318 sec */
-    sbc16_v(rd16(ea_abs(ACTOR_ESCORT + ACTOR_X + 1)));  /* 83F319 sbc */
-    cmp16_v(0x0008);  /* 83F31C cmp */
-    if (IF_C) goto L_83F307;  /* 83F31F bcs */
-    clc();  /* 83F321 clc */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 83F322 lda */
-    adc16_v(0x0010);  /* 83F324 adc */
-    sec();  /* 83F327 sec */
-    sbc16_v(rd16(ea_abs(ACTOR_ESCORT + ACTOR_Y + 1)));  /* 83F328 sbc */
-    cmp16_v(0x0010);  /* 83F32B cmp */
-    if (IF_C) goto L_83F307;  /* 83F32E bcs */
-    op_sep(0x20);  /* 83F330 sep */
-    MEM8(inc, ea_abs(SCENE_CUE));  /* 83F332 inc */
-    MEM8(inc, ea_dp(KIND70_CARRYING));  /* 83F335 inc */
-    goto L_83F2E8;  /* 83F337 bra */
-L_83F339:
-    lda8_v(0x01);  /* 83F339 lda */
-    sta8(ea_dp(ACTOR_FACING));  /* 83F33B sta */
-    sta8(ea_dp(ACTOR_FLIP));  /* 83F33D sta */
-    lda8_v(0x03);  /* 83F33F lda */
-    abi_AnimStart();  /* 83F341 jsl */
-L_83F345:
-    actor_yield(0x83F345u);  /* 83F345 brk */
-    lda8(ea_dp(ACTOR_09));  /* 83F347 lda */
-    bit8_i(0x40);  /* 83F349 bit */
-    if (IF_Z) goto L_83F345;  /* 83F34B beq */
-    MEM8(inc, ea_abs(SCENE_CUE));  /* 83F34D inc */
-    lda8_v(0x80);  /* 83F350 lda */
-    actor_wait(0x83F352u);  /* 83F352 cop */
-    MEM8(inc, ea_abs(SCENE_CUE_C2));  /* 83F354 inc */
-    lda8_v(0x04);  /* 83F357 lda */
-    abi_AnimStart();  /* 83F359 jsl */
-    lda8_v(0x20);  /* 83F35D lda */
-    actor_wait(0x83F35Fu);  /* 83F35F cop */
-    lda8_v(0x05);  /* 83F361 lda */
-    abi_AnimStart();  /* 83F363 jsl */
-L_83F367:
-    actor_yield(0x83F367u);  /* 83F367 brk */
-    goto L_83F367;  /* 83F369 bra */
+    uint8_t flags, carrying;
+    uint16_t y;
+
+    a8_load(0x90);
+    tsb_at(dpa(ACTOR_09), 0x90);
+    a8_load(rd8(dpa(ACTOR_07)));
+    if ((uint8_t)cpu.a) {
+        /* the hit one: when it is shown, the scene's cues */
+        a8_load(0x01);
+        wr8(dpa(ACTOR_FACING), 0x01);
+        wr8(dpa(ACTOR_FLIP), 0x01);
+        a8_load(0x03);
+        abi_AnimStart();
+        do {
+            actor_yield(0x83F345u);
+            flags = rd8(dpa(ACTOR_09));
+            a8_load(flags);
+            flag_set(P_Z, !(flags & 0x40));
+        } while (!(flags & 0x40));
+        inc8_at(dba(SCENE_CUE));
+        a8_load(0x80);
+        actor_wait(0x83F352u);
+        inc8_at(dba(SCENE_CUE_C2));
+        a8_load(0x04);
+        abi_AnimStart();
+        a8_load(0x20);
+        actor_wait(0x83F35Fu);
+        a8_load(0x05);
+        abi_AnimStart();
+        for (;;)
+            actor_yield(0x83F367u);
+    }
+    /* the flyer: two poses, a hop up and right, $28 frames of flight */
+    wr8(dpa(KIND70_CARRYING), 0);
+    a8_load(0x00);
+    abi_AnimStart();
+    a8_load(0x20);
+    actor_wait(0x83F2ABu);
+    a8_load(0x01);
+    abi_AnimStart();
+    a8_load(0x17);
+    actor_wait(0x83F2B5u);
+    op_rep(0x21);
+    cpu.a = op_adc16(dp16(ACTOR_X + 1), 0x0010, &cpu.p);
+    dp16_set(ACTOR_X + 1, cpu.a);
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(dp16(ACTOR_Y + 1), 0x000D, &cpu.p);
+    dp16_set(ACTOR_Y + 1, cpu.a);
+    op_sep(P_M);
+    a8_load(0x02);
+    abi_AnimStart();
+    y8_load(0x4F);
+    abi_ActorMotionPreset();
+    a8_load(0x28);
+    wr8(dpa(KIND70_CARRYING), 0x28);
+    do {
+        actor_yield(0x83F2DAu);
+        abi_ActorFly();
+    } while (dec8_at(dpa(KIND70_CARRYING)));
+    /* then up, till out of range; it takes the escort (falling) when in
+       reach, and carries it */
+    a8_load(0x18);
+    wr8(dpa(ACTOR_ACCEL_Y), 0x18);
+    for (;;) {
+        actor_yield(0x83F2E8u);
+        abi_ActorFlyAgainst();
+        x8_load(0x00);
+        call_frame(0xF2F2, abi_ActorEndOutOfRange);
+        carrying = rd8(dpa(KIND70_CARRYING));
+        a8_load(carrying);
+        if (carrying) {
+            op_rep(P_M);
+            flag_set(P_C, 0);
+            cpu.a = op_adc16(dp16(ACTOR_X + 1), 0xFFE2, &cpu.p);
+            wr16(dba(ACTOR_ESCORT + ACTOR_X + 1), cpu.a);
+            y = dp16(ACTOR_Y + 1);
+            wr16(dba(ACTOR_ESCORT + ACTOR_Y + 1), y);
+            a16_load(y);
+            op_sep(P_M);
+            continue;
+        }
+        a8_load(rd8(dba(ACTOR_ESCORT + ACTOR_SPEED_Y + 2)));
+        if ((uint8_t)cpu.a & 0x80)
+            continue;
+        if (!escort_in_reach()) {
+            op_sep(P_M);
+            continue;
+        }
+        op_sep(P_M);
+        inc8_at(dba(SCENE_CUE));
+        inc8_at(dpa(KIND70_CARRYING));
+    }
 }

@@ -3,11 +3,16 @@
  * Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
 void abi_ActorFree(void);
 void abi_ActorTileSlotRelease(void);
+
+#define SECOND_POOL_FIRST 0x09CBu  /* the second pool's first record; ACTOR_POOL follows its last */
+#define ACTOR_RECORD_SIZE 0x0050u
 
 /*
  * @routine 83:95C1 SecondPoolFreeAll
@@ -21,27 +26,26 @@ void abi_ActorTileSlotRelease(void);
  */
 void abi_SecondPoolFreeAll(void)
 {
-    phd();  /* 8395C1 phd */
-    php();  /* 8395C2 php */
-    op_rep(0x20);  /* 8395C3 rep */
-    lda16_v(0x09CB);  /* 8395C5 lda */
-    tcd();  /* 8395C8 tcd */
-L_8395C9:
-    ldx8(ea_dp(0x00));  /* 8395C9 ldx */
-    if (IF_Z) goto L_8395D7;  /* 8395CB beq */
-    op_sep(0x20);  /* 8395CD sep */
-    abi_ActorFree();  /* 8395CF jsr */
-    abi_ActorTileSlotRelease();  /* 8395D2 jsr */
-    op_rep(0x20);  /* 8395D5 rep */
-L_8395D7:
-    clc();  /* 8395D7 clc */
-    tdc();  /* 8395D8 tdc */
-    adc16_v(0x0050);  /* 8395D9 adc */
-    tcd();  /* 8395DC tcd */
-    cmp16_v(0x0B5B);  /* 8395DD cmp */
-    if (!IF_Z) goto L_8395C9;  /* 8395E0 bne */
-    plp();  /* 8395E2 plp */
-    pld();  /* 8395E3 pld */
-    return;  /* 8395E4 rtl */
+    phd();
+    php();
+    op_rep(P_M);
+    cpu.a = cpu.d = SECOND_POOL_FIRST;
+    do {
+        uint8_t state = rd8(dpa(ACTOR_STATE));
+
+        x8_load(state);
+        if (state) {
+            op_sep(P_M);
+            abi_ActorFree();
+            abi_ActorTileSlotRelease();
+            op_rep(P_M);
+        }
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(cpu.d, ACTOR_RECORD_SIZE, &cpu.p);
+        cpu.d = cpu.a;
+        cmp16_of(cpu.a, ACTOR_POOL);
+    } while (cpu.d != ACTOR_POOL);
+    plp();
+    pld();
 }
 

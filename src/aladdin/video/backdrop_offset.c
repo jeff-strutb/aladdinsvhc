@@ -4,6 +4,8 @@
  * by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram_video.h"
 
@@ -21,15 +23,15 @@
  */
 void abi_BackdropFollowOffsetY(void)
 {
-    lda16(ea_abs(0x1773));  /* 81CA6A lda */
-    sta16(ea_abs(0x18C9));  /* 81CA6D sta */
-    clc();  /* 81CA70 clc */
-    lda16(ea_abs(0x1776));  /* 81CA71 lda */
-    adc16_v(rd16(ea_abs(BACKDROP_OFFSET_Y)));  /* 81CA74 adc */
-    sta16(ea_abs(0x18CC));  /* 81CA77 sta */
-    lda16(ea_abs(0x1778));  /* 81CA7A lda */
-    adc16_v(rd16(ea_abs(BACKDROP_OFFSET_Y + 2)));  /* 81CA7D adc */
-    sta16(ea_abs(0x18CE));  /* 81CA80 sta */
-    return;  /* 81CA83 rts */
+    uint16_t low;
+
+    /* x: the play field's; y (fraction byte up, 4 bytes): the play field's
+       plus the offset */
+    wr16(dba(LAYER1 + LAYER_SCROLL_X), rd16(dba(LAYER0 + LAYER_SCROLL_X)));
+    flag_set(P_C, 0);
+    low = op_adc16(rd16(dba(LAYER0 + LAYER_SCROLL_Y - 1)), rd16(dba(BACKDROP_OFFSET_Y)), &cpu.p);
+    wr16(dba(LAYER1 + LAYER_SCROLL_Y - 1), low);
+    cpu.a = op_adc16(rd16(dba(LAYER0 + LAYER_SCROLL_Y + 1)), rd16(dba(BACKDROP_OFFSET_Y + 2)), &cpu.p);
+    wr16(dba(LAYER1 + LAYER_SCROLL_Y + 1), cpu.a);
 }
 

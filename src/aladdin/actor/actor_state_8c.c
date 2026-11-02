@@ -4,6 +4,8 @@
  * ActorStateSet8C for callers in other banks.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -21,13 +23,11 @@ void abi_ActorStateSet8C(void);
  */
 void abi_ActorStateSet8CSelf(void)
 {
-    MEM8(asl, ea_dp(ACTOR_09));
-    MEM8(lsr, ea_dp(ACTOR_09));
-    lda8(ea_dp(ACTOR_08));
-    ora8_v(0x80);
-    sta8(ea_dp(ACTOR_08));
-    lda8_v(0x8C);
-    sta8(ea_dp(ACTOR_STATE));
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x80));
+    a8_load(0x8C);
+    wr8(dpa(ACTOR_STATE), 0x8C);
 }
 
 /*

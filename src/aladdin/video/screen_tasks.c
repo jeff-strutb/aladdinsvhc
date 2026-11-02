@@ -3,6 +3,8 @@
  * palette sequences, layer shakes), and runs of text-layer words.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_TextLayoutDraw(void);
 void abi_BrightnessUpTask(void);
@@ -36,18 +38,15 @@ void abi_RandomNext(void);
  */
 void abi_TextLayerCopyWords(void)
 {
-L_819774:
-    lda16(ea_absy(0x0000));  /* 819774 lda */
-    sta16(ea_longx(TEXT_TILEMAP));  /* 819777 sta */
-    if (IF_C) goto L_81977F;  /* 81977B bcs */
-    iny16();  /* 81977D iny */
-    iny16();  /* 81977E iny */
-L_81977F:
-    inx16();  /* 81977F inx */
-    inx16();  /* 819780 inx */
-    MEM16(dec, ea_abs(SCRATCH));  /* 819781 dec */
-    if (!IF_Z) goto L_819774;  /* 819784 bne */
-    return;  /* 819786 rts */
+    int repeat = (cpu.p & P_C) != 0;
+
+    do {                                  /* the run's words (one, repeated, with C) */
+        cpu.a = rd16(dba(0) + cpu.y);
+        wr16((TEXT_TILEMAP + cpu.x) & 0xFFFFFF, cpu.a);
+        if (!repeat)
+            cpu.y = (uint16_t)(cpu.y + 2);
+        cpu.x = (uint16_t)(cpu.x + 2);
+    } while (dec16_at(dba(SCRATCH)));
 }
 
 /*
@@ -62,18 +61,15 @@ L_81977F:
  */
 void abi_TextLayerBlankWords(void)
 {
-L_819787:
-    lda16_v(0x0020);  /* 819787 lda */
-    sta16(ea_longx(TEXT_TILEMAP));  /* 81978A sta */
-    if (IF_C) goto L_819792;  /* 81978E bcs */
-    iny16();  /* 819790 iny */
-    iny16();  /* 819791 iny */
-L_819792:
-    inx16();  /* 819792 inx */
-    inx16();  /* 819793 inx */
-    MEM16(dec, ea_abs(SCRATCH));  /* 819794 dec */
-    if (!IF_Z) goto L_819787;  /* 819797 bne */
-    return;  /* 819799 rts */
+    int repeat = (cpu.p & P_C) != 0;
+
+    cpu.a = 0x0020;
+    do {
+        wr16((TEXT_TILEMAP + cpu.x) & 0xFFFFFF, 0x0020);
+        if (!repeat)
+            cpu.y = (uint16_t)(cpu.y + 2);
+        cpu.x = (uint16_t)(cpu.x + 2);
+    } while (dec16_at(dba(SCRATCH)));
 }
 
 
@@ -92,25 +88,24 @@ L_819792:
  */
 void abi_RandomFromList(void)
 {
-    op_rep(0x30);  /* 81AE8A rep */
-    lda16(ea_absx(0xDCE7));  /* 81AE8C lda */
-    tay16();  /* 81AE8F tay */
-    op_sep(0x20);  /* 81AE90 sep */
-    lda8(ea_absy(0xDCE7));  /* 81AE92 lda */
-    sta8(ea_abs(0x001C));  /* 81AE95 sta */
-    abi_RandomNext();  /* 81AE98 jsl */
-    and8_v(rd8(ea_abs(0x001C)));  /* 81AE9C and */
-    op_rep(0x20);  /* 81AE9F rep */
-    and16_v(0x00FF);  /* 81AEA1 and */
-    sta16(ea_abs(0x001C));  /* 81AEA4 sta */
-    tya16();  /* 81AEA7 tya */
-    clc();  /* 81AEA8 clc */
-    adc16_v(rd16(ea_abs(0x001C)));  /* 81AEA9 adc */
-    tay16();  /* 81AEAC tay */
-    lda16(ea_absy(0xDCE8));  /* 81AEAD lda */
-    op_sep(0x30);  /* 81AEB0 sep */
-    tay8();  /* 81AEB2 tay */
-    return;  /* 81AEB3 rtl */
+    uint8_t mask;
+    uint16_t pick;
+
+    op_rep(0x30);
+    cpu.y = rd16(dba(0xDCE7) + cpu.x);   /* the list: its mask, then its entries */
+    op_sep(P_M);
+    mask = rd8(dba(0xDCE7) + cpu.y);
+    a8_load(mask);
+    wr8(dba(0x001C), mask);
+    abi_RandomNext();
+    pick = (uint8_t)((uint8_t)cpu.a & rd8(dba(0x001C)));
+    cpu.a = pick;
+    wr16(dba(0x001C), pick);
+    flag_set(P_C, 0);
+    cpu.y = op_adc16(cpu.y, pick, &cpu.p);
+    a16_load(rd16(dba(0xDCE8) + cpu.y));
+    op_sep(0x30);
+    y8_load((uint8_t)cpu.a);
 }
 
 /*
@@ -128,46 +123,55 @@ void abi_RandomFromList(void)
  */
 void abi_TextLayoutDraw(void)
 {
-    sta8(ea_abs(0x000F));  /* 819734 sta */
-    ACC8(asl);  /* 819737 asl */
-    ACC8(lsr);  /* 819738 lsr */
-    tax8();  /* 819739 tax */
-    phb();  /* 81973A phb */
-    lda8_v(0x82);  /* 81973B lda */
-    pha8();  /* 81973D pha */
-    plb();  /* 81973E plb */
-    op_rep(0x10);  /* 81973F rep */
-    ldy16(ea_absx(0xB575));  /* 819741 ldy */
-L_819744:
-    op_sep(0x20);  /* 819744 sep */
-    lda8(ea_absy(0x0000));  /* 819746 lda */
-    if (IF_Z) goto L_819770;  /* 819749 beq */
-    iny16();  /* 81974B iny */
-    pha8();  /* 81974C pha */
-    ACC8(rol);  /* 81974D rol */
-    ACC8(rol);  /* 81974E rol */
-    pla8();  /* 81974F pla */
-    op_rep(0x20);  /* 819750 rep */
-    and16_v(0x003F);  /* 819752 and */
-    sta16(ea_abs(SCRATCH));  /* 819755 sta */
-    ldx16(ea_absy(0x0000));  /* 819758 ldx */
-    iny16();  /* 81975B iny */
-    iny16();  /* 81975C iny */
-    lda16(ea_abs(0x000E));  /* 81975D lda */
-    if (!IF_N) goto L_819767;  /* 819760 bpl */
-    abi_TextLayerBlankWords();  /* 819762 jsr */
-    goto L_81976A;  /* 819765 bra */
-L_819767:
-    abi_TextLayerCopyWords();  /* 819767 jsr */
-L_81976A:
-    if (!IF_C) goto L_819744;  /* 81976A bcc */
-    iny16();  /* 81976C iny */
-    iny16();  /* 81976D iny */
-    if (IF_C) goto L_819744;  /* 81976E bcs */
-L_819770:
-    op_sep(0x30);  /* 819770 sep */
-    plb();  /* 819772 plb */
-    return;  /* 819773 rts */
+    uint8_t layout = (uint8_t)cpu.a, run;
+
+    wr8(dba(SCRATCH + 3), layout);        /* bit 7: blank instead of copy */
+    cpu.x = layout & 0x7F;
+    phb();
+    a8_load(0x82);
+    pha8();
+    plb();
+    op_rep(P_X);
+    cpu.y = rd16(dba(0xB575) + cpu.x);
+    /* each run: a byte (bit 6 repeat, low 6 bits the count), its place
+       (word), then its words (one when repeated); 0 ends */
+    for (;;) {
+        op_sep(P_M);
+        run = rd8(dba(0) + cpu.y);
+        a8_load(run);
+        if (!run)
+            break;
+        cpu.y = (uint16_t)(cpu.y + 1);
+        pha8();
+        flag_set(P_C, run & 0x40);
+        pla8();
+        op_rep(P_M);
+        cpu.a = run & 0x3F;
+        wr16(dba(SCRATCH), cpu.a);
+        cpu.x = rd16(dba(0) + cpu.y);
+        cpu.y = (uint16_t)(cpu.y + 2);
+        a16_load(rd16(dba(SCRATCH + 2)));
+        if (cpu.a & 0x8000)
+            abi_TextLayerBlankWords();
+        else
+            abi_TextLayerCopyWords();
+        if (cpu.p & P_C)
+            cpu.y = (uint16_t)(cpu.y + 2);
+    }
+    op_sep(0x30);
+    plb();
+}
+
+/* The task's frames between steps: its parameter halved, at least 1. */
+static void steps_halved(void)
+{
+    uint8_t param = rd8(dba(TASK_PARAM) + cpu.y);
+
+    flag_set(P_C, param & 1);
+    a8_load((uint8_t)(param >> 1));
+    if (!(uint8_t)cpu.a)
+        a8_load(0x01);
+    wr8(dba(TASK_PARAM) + cpu.y, (uint8_t)cpu.a);
 }
 
 /*
@@ -184,26 +188,23 @@ L_819770:
  */
 void abi_BrightnessUpTask(void)
 {
-    lda8(ea_abs(INIDISP_SHADOW));  /* 819E8E lda */
-    and8_v(0x0F);  /* 819E91 and */
-    sta8(ea_abs(INIDISP_SHADOW));  /* 819E93 sta */
-    cmp8_v(0x0F);  /* 819E96 cmp */
-    if (IF_Z) goto L_819EB5;  /* 819E98 beq */
-    lda8(ea_absy(TASK_PARAM));  /* 819E9A lda */
-    ACC8(lsr);  /* 819E9D lsr */
-    if (!IF_Z) goto L_819EA1;  /* 819E9E bne */
-    ACC8(inc);  /* 819EA0 inc */
-L_819EA1:
-    sta8(ea_absy(TASK_PARAM));  /* 819EA1 sta */
-L_819EA4:
-    lda8(ea_absy(TASK_PARAM));  /* 819EA4 lda */
-    jsl_frame(0x819EA7u); abi_TaskWait();  /* 819EA7 jsl */
-    MEM8(inc, ea_abs(INIDISP_SHADOW));  /* 819EAB inc */
-    lda8(ea_abs(INIDISP_SHADOW));  /* 819EAE lda */
-    cmp8_v(0x0F);  /* 819EB1 cmp */
-    if (!IF_Z) goto L_819EA4;  /* 819EB3 bne */
-L_819EB5:
-    abi_TaskExit(); return;  /* 819EB5 jml */
+    uint8_t level = rd8(dba(INIDISP_SHADOW)) & 0x0F;
+
+    a8_load(level);
+    wr8(dba(INIDISP_SHADOW), level);
+    cmp8_of(level, 0x0F);
+    if (level != 0x0F) {
+        steps_halved();
+        do {                              /* up a step each wait, to full */
+            a8_load(rd8(dba(TASK_PARAM) + cpu.y));
+            jsl_frame(0x819EA7u);
+            abi_TaskWait();
+            level = inc8_at(dba(INIDISP_SHADOW));
+            a8_load(level);
+            cmp8_of(level, 0x0F);
+        } while (level != 0x0F);
+    }
+    abi_TaskExit();
 }
 
 /*
@@ -220,21 +221,17 @@ L_819EB5:
  */
 void abi_BrightnessDownTask(void)
 {
-    lda8(ea_abs(INIDISP_SHADOW));  /* 819EB9 lda */
-    and8_v(0x0F);  /* 819EBC and */
-    sta8(ea_abs(INIDISP_SHADOW));  /* 819EBE sta */
-    if (IF_Z) goto L_819ED9;  /* 819EC1 beq */
-    lda8(ea_absy(TASK_PARAM));  /* 819EC3 lda */
-    ACC8(lsr);  /* 819EC6 lsr */
-    if (!IF_Z) goto L_819ECA;  /* 819EC7 bne */
-    ACC8(inc);  /* 819EC9 inc */
-L_819ECA:
-    sta8(ea_absy(TASK_PARAM));  /* 819ECA sta */
-L_819ECD:
-    lda8(ea_absy(TASK_PARAM));  /* 819ECD lda */
-    jsl_frame(0x819ED0u); abi_TaskWait();  /* 819ED0 jsl */
-    MEM8(dec, ea_abs(INIDISP_SHADOW));  /* 819ED4 dec */
-    if (!IF_Z) goto L_819ECD;  /* 819ED7 bne */
-L_819ED9:
-    abi_TaskExit(); return;  /* 819ED9 jml */
+    uint8_t level = rd8(dba(INIDISP_SHADOW)) & 0x0F;
+
+    a8_load(level);
+    wr8(dba(INIDISP_SHADOW), level);
+    if (level) {
+        steps_halved();
+        do {                              /* down a step each wait, to 0 */
+            a8_load(rd8(dba(TASK_PARAM) + cpu.y));
+            jsl_frame(0x819ED0u);
+            abi_TaskWait();
+        } while (dec8_at(dba(INIDISP_SHADOW)));
+    }
+    abi_TaskExit();
 }

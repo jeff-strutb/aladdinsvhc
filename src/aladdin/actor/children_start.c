@@ -3,6 +3,8 @@
  * in order first. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -23,6 +25,9 @@ void abi_PlayerOnFirmGroundProbe8(void);
 void abi_SoundQueueAdd(void);
 
 
+#define V_035A 0x00035Au  /* bits the actors that use it set */
+#define V_036C 0x00036Cu
+
 /*
  * @routine 83:D078 ActorVariantChildStep
  * WHAT IT DOES: For an actor with a variant in bits 2-4 of $07: makes it
@@ -37,28 +42,32 @@ void abi_SoundQueueAdd(void);
  */
 void abi_ActorVariantChildStep(void)
 {
-    lda8(ea_dp(0x07));  /* 83D078 lda */
-    and8_v(0x1C);  /* 83D07A and */
-    if (IF_Z) goto L_83D09A;  /* 83D07C beq */
-    ACC8(lsr);  /* 83D07E lsr */
-    ACC8(lsr);  /* 83D07F lsr */
-    ora8_v(0x08);  /* 83D080 ora */
-    sta8(ea_dp(0x07));  /* 83D082 sta */
-    MEM8(inc, ea_dp(0x14));  /* 83D084 inc */
-    lda8_v(0x3E);  /* 83D086 lda */
-    sta8(ea_dp(0x21));  /* 83D088 sta */
-    lda8_v(0x30);  /* 83D08A lda */
-    abi_ActorCreateChild8();  /* 83D08C jsl */
-    if (!IF_Z) goto L_83D099;  /* 83D090 bne */
-    lda8(ea_dp(0x41));  /* 83D092 lda */
-    tsb8(ea_abs(0x035A));  /* 83D094 tsb */
-    MEM8(dec, ea_dp(0x14));  /* 83D097 dec */
-L_83D099:
-    return;  /* 83D099 rts */
-L_83D09A:
-    lda8(ea_dp(0x41));  /* 83D09A lda */
-    tsb8(ea_abs(0x035A));  /* 83D09C tsb */
-    MEM8(inc, ea_abs(0x036C));  /* 83D09F inc */
-    return;  /* 83D0A2 rts */
+    uint8_t variant = rd8(dpa(ACTOR_07)) & 0x1C, n;
+
+    a8_load(variant);
+    if (!variant) {
+        a8_load(rd8(dpa(ACTOR_41)));
+        tsb_at(dba(V_035A), (uint8_t)cpu.a);
+        n = (uint8_t)(rd8(dba(V_036C)) + 1);
+        wr8(dba(V_036C), n);
+        nz8_of(n);
+        return;
+    }
+    /* a kind $30 child at spawn point $3E, its variant in $07 */
+    a8_load((uint8_t)((variant >> 2) | 0x08));
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_07), (uint8_t)cpu.a);
+    wr8(dpa(ACTOR_FACING), (uint8_t)(rd8(dpa(ACTOR_FACING)) + 1));
+    a8_load(0x3E);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x3E);
+    a8_load(0x30);
+    abi_ActorCreateChild8();
+    if (!(cpu.p & P_Z))
+        return;
+    a8_load(rd8(dpa(ACTOR_41)));
+    tsb_at(dba(V_035A), (uint8_t)cpu.a);
+    n = (uint8_t)(rd8(dpa(ACTOR_FACING)) - 1);
+    wr8(dpa(ACTOR_FACING), n);
+    nz8_of(n);
 }
 

@@ -3,12 +3,15 @@
  * set. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
 void abi_GroundBehindBit4(void);
 
 #define GROUND_PUSHED 0x001429u     /* 2 while the player stands on ground that pushes, else 0 */
+#define PUSH_TOP_SPEED 0x0280       /* the fastest the push carries him */
 
 /*
  * @routine 81:CE86 PlayerGroundPush
@@ -25,65 +28,36 @@ void abi_GroundBehindBit4(void);
  */
 void abi_PlayerGroundPush(void)
 {
-    stz8(ea_abs(0x1429));  /* 81CE86 stz */
-    lda8_v(0x18);  /* 81CE89 lda */
-    sta8(ea_dp(0x18));  /* 81CE8B sta */
-    abi_GroundBehindBit4();  /* 81CE8D jsl */
-    if (IF_Z) goto L_81CEF3;  /* 81CE91 beq */
-    if (IF_C) goto L_81CEC5;  /* 81CE93 bcs */
-    lda8_v(0x02);  /* 81CE95 lda */
-    sta8(ea_abs(0x1429));  /* 81CE97 sta */
-    lda8(ea_dp(0x14));  /* 81CE9A lda */
-    if (IF_Z) goto L_81CEB5;  /* 81CE9C beq */
-    op_rep(0x20);  /* 81CE9E rep */
-    lda16(ea_dp(0x19));  /* 81CEA0 lda */
-    clc();  /* 81CEA2 clc */
-    adc16_v(0x0080);  /* 81CEA3 adc */
-    sec();  /* 81CEA6 sec */
-    cmp16_v(0x0280);  /* 81CEA7 cmp */
-    if (!IF_C) goto L_81CEAF;  /* 81CEAA bcc */
-    lda16_v(0x0280);  /* 81CEAC lda */
-L_81CEAF:
-    sta16(ea_dp(0x19));  /* 81CEAF sta */
-    op_sep(0x20);  /* 81CEB1 sep */
-    goto L_81CEF3;  /* 81CEB3 bra */
-L_81CEB5:
-    op_rep(0x20);  /* 81CEB5 rep */
-    lda16(ea_dp(0x19));  /* 81CEB7 lda */
-    sec();  /* 81CEB9 sec */
-    sbc16_v(0x0080);  /* 81CEBA sbc */
-    if (!IF_C) goto L_81CEC1;  /* 81CEBD bcc */
-    sta16(ea_dp(0x19));  /* 81CEBF sta */
-L_81CEC1:
-    op_sep(0x20);  /* 81CEC1 sep */
-    goto L_81CEF3;  /* 81CEC3 bra */
-L_81CEC5:
-    lda8_v(0x02);  /* 81CEC5 lda */
-    sta8(ea_abs(0x1429));  /* 81CEC7 sta */
-    lda8(ea_dp(0x14));  /* 81CECA lda */
-    if (IF_Z) goto L_81CEDE;  /* 81CECC beq */
-    op_rep(0x20);  /* 81CECE rep */
-    lda16(ea_dp(0x19));  /* 81CED0 lda */
-    sec();  /* 81CED2 sec */
-    sbc16_v(0x0080);  /* 81CED3 sbc */
-    if (!IF_C) goto L_81CEDA;  /* 81CED6 bcc */
-    sta16(ea_dp(0x19));  /* 81CED8 sta */
-L_81CEDA:
-    op_sep(0x20);  /* 81CEDA sep */
-    goto L_81CEF3;  /* 81CEDC bra */
-L_81CEDE:
-    op_rep(0x20);  /* 81CEDE rep */
-    lda16(ea_dp(0x19));  /* 81CEE0 lda */
-    clc();  /* 81CEE2 clc */
-    adc16_v(0x0080);  /* 81CEE3 adc */
-    sec();  /* 81CEE6 sec */
-    cmp16_v(0x0280);  /* 81CEE7 cmp */
-    if (!IF_C) goto L_81CEEF;  /* 81CEEA bcc */
-    lda16_v(0x0280);  /* 81CEEC lda */
-L_81CEEF:
-    sta16(ea_dp(0x19));  /* 81CEEF sta */
-    op_sep(0x20);  /* 81CEF1 sep */
-L_81CEF3:
-    return;  /* 81CEF3 rts */
+    int pushed_left, faster;
+    uint16_t speed;
+
+    wr8(dba(GROUND_PUSHED), 0);
+    a8_load(0x18);
+    wr8(dpa(ACTOR_18), 0x18);
+    abi_GroundBehindBit4();
+    if (cpu.p & P_Z)
+        return;
+    pushed_left = cpu.p & P_C;
+    a8_load(0x02);
+    wr8(dba(GROUND_PUSHED), 0x02);
+    a8_load(rd8(dpa(ACTOR_FACING)));
+    /* with the push: faster, to its top speed; against it: slower, to 0 */
+    faster = pushed_left ? !(uint8_t)cpu.a : (uint8_t)cpu.a != 0;
+    op_rep(P_M);
+    if (faster) {
+        flag_set(P_C, 0);
+        speed = op_adc16(dp16(ACTOR_SPEED_X), 0x0080, &cpu.p);
+        cpu.a = speed;
+        cmp16_of(speed, PUSH_TOP_SPEED);
+        if (speed >= PUSH_TOP_SPEED)
+            a16_load(PUSH_TOP_SPEED);
+        dp16_set(ACTOR_SPEED_X, cpu.a);
+    } else {
+        flag_set(P_C, 1);
+        cpu.a = op_sbc16(dp16(ACTOR_SPEED_X), 0x0080, &cpu.p);
+        if (cpu.p & P_C)
+            dp16_set(ACTOR_SPEED_X, cpu.a);
+    }
+    op_sep(P_M);
 }
 

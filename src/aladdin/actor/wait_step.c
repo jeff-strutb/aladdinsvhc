@@ -6,6 +6,8 @@
  * is out of the camera's range.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
@@ -18,6 +20,16 @@ void abi_SoundQueueAdd(void);
 /* ActorEndOutOfRange (asm/aladdin/actor/actor_range.asm; its C is held
    back): ends the actor and goes on with the loop's next record when it
    is out of range by box X, else returns. */
+void abi_ActorPictureSend(void);
+void abi_ActorStompOrHurt(void);
+void abi_ActorHitByShotCC(void);
+void abi_ActorBouncesPlayer(void);
+void abi_ActorTakesShot(void);
+void abi_ActorSolidForPlayer(void);
+void abi_PlayerLandsOnActor(void);
+void abi_PlayerToActorBelow(void);
+void abi_ActorEndOutOfRange(void);
+
 #define ACTOR_END_OUT_OF_RANGE 0x8396BEu
 #define ACTOR_LOOP_NEXT 0x8394BFu  /* the loop's next record */
 #define SUB_81949E 0x81949Eu
@@ -53,10 +65,12 @@ void abi_SoundQueueAdd(void);
  */
 void abi_ActorWaitAnimIf07Bit4(void)
 {
-    lda8(ea_dp(ACTOR_07));
-    bit8_i(0x10);
-    if (IF_Z) return;
-    abi_AnimStep();
+    uint8_t v = rd8(dpa(ACTOR_07));
+
+    a8_load(v);
+    flag_set(P_Z, !(v & 0x10));
+    if (v & 0x10)
+        abi_AnimStep();
 }
 
 /*
@@ -88,28 +102,29 @@ void abi_ActorWaitAnimB(void)
    ended (its return dropped, ActorFreePlaced, on to the loop's next
    record) when the word at $1773 less 31 is not negative and not below
    its x pixel. Else back with M 8-bit. */
+/* The actor ends (freed, the loop goes on) once the camera's x less 32
+   (an SBC #$1F with C clear) is at or past its x; else M back to 8-bit. */
 static void end_if_left_behind(void)
 {
+    uint16_t edge;
+
     op_rep(0x21);
-    lda16(ea_abs(V_1773));
-    sbc16_v(0x001F);
-    if (IF_N) goto keep;
-    cmp16_v(rd16(ea_dp(ACTOR_X + 1)));
-    if (IF_C) {
-        op_sep(0x30);
-        pla8();
-        pla8();
-        /* JSR ActorFreePlaced at $83:96CA: its return address on the
-           stack while it runs, pulled by its RTS */
-        wr8(cpu.s, 0x96); cpu.s--;
-        wr8(cpu.s, 0xCC); cpu.s--;
-        abi_ActorFreePlaced();
-        cpu.s += 2;
-        actor_leave(ACTOR_LOOP_NEXT);
-        return;
+    edge = op_sbc16(rd16(dba(V_1773)), 0x001F, &cpu.p);
+    cpu.a = edge;
+    if (!(edge & 0x8000)) {
+        cmp16_of(edge, dp16(ACTOR_X + 1));
+        if (edge >= dp16(ACTOR_X + 1)) {
+            op_sep(0x30);
+            pla8();
+            pla8();
+            /* JSR ActorFreePlaced at $83:96CA: its return address on the
+               stack while it runs, pulled by its RTS */
+            call_frame(0x96CC, abi_ActorFreePlaced);
+            actor_leave(ACTOR_LOOP_NEXT);
+            return;
+        }
     }
-keep:
-    op_sep(0x20);
+    op_sep(P_M);
 }
 
 /*
@@ -125,29 +140,34 @@ keep:
  */
 void abi_ActorWaitAnimEnd10(void)
 {
+    uint8_t level;
+    uint16_t edge;
+
     abi_AnimStep();
-    lda8(ea_abs(LEVEL_035C));
-    cmp8_v(0x06);
-    if (!IF_Z) goto range;
-    /* The tail at $83:9738: ended once the camera's x less 31 is past it. */
+    level = rd8(dba(LEVEL_035C));
+    a8_load(level);
+    cmp8_of(level, 0x06);
+    if (level != 0x06) {
+        x8_load(0x10);
+        abi_ActorEndOutOfRange();
+        return;
+    }
+    /* the tail at $83:9738: ended once the camera's x less 32 is past it */
     op_rep(0x21);
-    lda16(ea_abs(0x1773));
-    sbc16_v(0x001F);
-    if (IF_N) goto kept;
-    cmp16_v(rd16(ea_dp(0x0C)));
-    if (!IF_C) goto kept;
-    op_sep(0x30);           /* $83:96C6 */
-    pla8();
-    pla8();
-    abi_ActorFreePlaced();
-    actor_leave(0x8394BFu);
-    return;
-kept:
-    op_sep(0x20);
-    return;
-range:
-    ldx8_v(0x10);
-    jump_routine(0x8396BEu);
+    edge = op_sbc16(rd16(dba(V_1773)), 0x001F, &cpu.p);
+    cpu.a = edge;
+    if (!(edge & 0x8000)) {
+        cmp16_of(edge, dp16(ACTOR_X + 1));
+        if (edge >= dp16(ACTOR_X + 1)) {
+            op_sep(0x30);                 /* $83:96C6 */
+            pla8();
+            pla8();
+            abi_ActorFreePlaced();
+            actor_leave(ACTOR_LOOP_NEXT);
+            return;
+        }
+    }
+    op_sep(P_M);
 }
 
 
@@ -174,9 +194,8 @@ range:
 void abi_ActorWaitHurtOnTouch(void)
 {
     abi_AnimStep();
-    lda8(ea_dp(ACTOR_07));
-    and8_v(0x08);
-    if (IF_Z)
+    a8_load(rd8(dpa(ACTOR_07)) & 0x08);
+    if (!(uint8_t)cpu.a)
         abi_ActorHurtsPlayerOnTouch();
     end_if_left_behind();
 }
@@ -193,9 +212,9 @@ void abi_ActorWaitHurtOnTouch(void)
 void abi_ActorWaitAnimRange18(void)
 {
     abi_AnimStep();
-    call_routine(SUB_81949E, 1);
-    ldx8_v(0x18);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    abi_ActorPictureSend();
+    x8_load(0x18);
+    abi_ActorEndOutOfRange();
 }
 /*
  * @routine 83:E458 ActorWaitAnimRange10
@@ -210,8 +229,8 @@ void abi_ActorWaitAnimRange18(void)
 void abi_ActorWaitAnimRange10(void)
 {
     abi_AnimStep();
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    x8_load(0x10);
+    abi_ActorEndOutOfRange();
 }
 /*
  * @routine 83:E5B6 ActorWaitRange00
@@ -224,8 +243,8 @@ void abi_ActorWaitAnimRange10(void)
  */
 void abi_ActorWaitRange00(void)
 {
-    ldx8_v(0x00);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    x8_load(0x00);
+    abi_ActorEndOutOfRange();
 }
 
 
@@ -242,17 +261,17 @@ void abi_ActorWaitRange00(void)
  */
 void abi_ActorWaitTest42Anim2(void)
 {
-    lda8(ea_dp(ACTOR_42));
-    if (!IF_Z) goto call;
-    call_routine(SUB_83840F, 0);
-    if (IF_Z) goto call;
-    MEM8(inc, ea_dp(ACTOR_42));
-call:
-    ldy8_v(0x20);
-    call_routine(SUB_83865E, 0);
+    a8_load(rd8(dpa(ACTOR_42)));
+    if (!(uint8_t)cpu.a) {                /* not yet bounced on: a bounce counts */
+        abi_ActorBouncesPlayer();
+        if (!(cpu.p & P_Z))
+            inc8_at(dpa(ACTOR_42));
+    }
+    y8_load(0x20);
+    abi_ActorSolidForPlayer();
     abi_AnimStep();
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    x8_load(0x10);
+    abi_ActorEndOutOfRange();
 }
 /*
  * @routine 83:D2A2 ActorWaitWake
@@ -269,20 +288,21 @@ call:
  */
 void abi_ActorWaitWake(void)
 {
-    lda8(ea_dp(ACTOR_07));
-    and8_v(0x02);
-    if (!IF_Z) goto range;
-    lda8(ea_dp(ACTOR_41));
-    if (IF_Z) goto range;
-    call_routine(SUB_83848D, 0);
-    if (IF_Z) goto range;
-    lda8_v(0x8C);
-    tsb8(ea_dp(ACTOR_STATE));
-    lda8_v(0x80);
-    trb8(ea_dp(ACTOR_09));
-range:
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    a8_load(rd8(dpa(ACTOR_07)) & 0x02);
+    if (!(uint8_t)cpu.a) {
+        a8_load(rd8(dpa(ACTOR_41)));
+        if ((uint8_t)cpu.a) {
+            abi_PlayerLandsOnActor();
+            if (!(cpu.p & P_Z)) {         /* landed on: it wakes (state $8C) */
+                a8_load(0x8C);
+                tsb_at(dpa(ACTOR_STATE), 0x8C);
+                a8_load(0x80);
+                trb_at(dpa(ACTOR_09), 0x80);
+            }
+        }
+    }
+    x8_load(0x10);
+    abi_ActorEndOutOfRange();
 }
 /*
  * @routine 83:9E0A ActorWaitHoldPlayer
@@ -298,26 +318,33 @@ range:
  */
 void abi_ActorWaitHoldPlayer(void)
 {
+    uint8_t v;
+
     abi_AnimStep();
-    lda8(ea_dp(ACTOR_42));
-    if (IF_Z) goto not_holding;
-    lda8(ea_abs(PLAYER + ACTOR_Y + 1));
-    cmp8_v(FLOOR_Y);
-    if (!IF_C) return;
-    lda8(ea_abs(PLAYER + ACTOR_SPEED_Y + 2));
-    if (IF_N) return;
-    lda8_v(FLOOR_Y);
-    sta8(ea_abs(PLAYER + ACTOR_Y + 1));
-    stz8(ea_abs(PLAYER + ACTOR_Y + 2));
-    lda8_v(0x01);
-    sta8(ea_abs(V_1428));
-    stz8(ea_abs(V_141C));
-    return;
-not_holding:
-    lda8(ea_dp(ACTOR_44));
-    if (IF_Z) return;
-    lda8_v(0x05);
-    call_routine(SUB_82BB26, 1);
+    a8_load(rd8(dpa(ACTOR_42)));
+    if (!(uint8_t)cpu.a) {
+        a8_load(rd8(dpa(ACTOR_44)));
+        if ((uint8_t)cpu.a) {
+            a8_load(0x05);
+            abi_PlayerToActorBelow();
+        }
+        return;
+    }
+    /* holding him: below FLOOR_Y and falling, he is put at it, standing */
+    v = rd8(dba(PLAYER + ACTOR_Y + 1));
+    a8_load(v);
+    cmp8_of(v, FLOOR_Y);
+    if (v < FLOOR_Y)
+        return;
+    a8_load(rd8(dba(PLAYER + ACTOR_SPEED_Y + 2)));
+    if ((uint8_t)cpu.a & 0x80)
+        return;
+    a8_load(FLOOR_Y);
+    wr8(dba(PLAYER + ACTOR_Y + 1), FLOOR_Y);
+    wr8(dba(PLAYER + ACTOR_Y + 2), 0);
+    a8_load(0x01);
+    wr8(dba(V_1428), 0x01);
+    wr8(dba(V_141C), 0);
 }
 /*
  * @routine 83:9C06 ActorWaitTurnAnim08
@@ -332,12 +359,12 @@ not_holding:
  */
 void abi_ActorWaitTurnAnim08(void)
 {
-    call_routine(SUB_8383C9, 0);
-    call_routine(SUB_838135, 0);
+    abi_ActorStompOrHurt();
+    abi_ActorHitByShotCC();
     abi_AnimStep();
-    call_routine(SUB_81949E, 1);
-    ldx8_v(0x08);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    abi_ActorPictureSend();
+    x8_load(0x08);
+    abi_ActorEndOutOfRange();
 }
 /*
  * @routine 83:CF8C ActorWaitTest42Anim
@@ -352,20 +379,20 @@ void abi_ActorWaitTurnAnim08(void)
  */
 void abi_ActorWaitTest42Anim(void)
 {
-    lda8(ea_dp(ACTOR_42));
-    if (!IF_Z) goto anim;
-    call_routine(SUB_83840F, 0);
-    if (IF_Z) goto second;
-    MEM8(inc, ea_dp(ACTOR_42));
-second:
-    call_routine(SUB_8381E8, 0);
-    if (IF_C) goto anim;
-    MEM8(inc, ea_dp(ACTOR_42));
-    MEM8(inc, ea_dp(ACTOR_42));
-anim:
+    a8_load(rd8(dpa(ACTOR_42)));
+    if (!(uint8_t)cpu.a) {                /* a bounce counts 1, a shot 2 */
+        abi_ActorBouncesPlayer();
+        if (!(cpu.p & P_Z))
+            inc8_at(dpa(ACTOR_42));
+        abi_ActorTakesShot();
+        if (!(cpu.p & P_C)) {
+            inc8_at(dpa(ACTOR_42));
+            inc8_at(dpa(ACTOR_42));
+        }
+    }
     abi_AnimStep();
-    ldx8_v(0x10);
-    jump_routine(ACTOR_END_OUT_OF_RANGE);
+    x8_load(0x10);
+    abi_ActorEndOutOfRange();
 }
 
 

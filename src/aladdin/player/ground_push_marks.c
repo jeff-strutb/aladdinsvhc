@@ -4,6 +4,8 @@
  * only then. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -35,54 +37,40 @@ void abi_AnimStart(void);
  */
 void abi_GroundPushMark(void)
 {
-    lda8(ea_dp(ACTOR_09));  /* 83E480 lda */
-    ora8_v(0x90);  /* 83E482 ora */
-    sta8(ea_dp(ACTOR_09));  /* 83E484 sta */
-    op_rep(0x20);  /* 83E486 rep */
-    lda16_v(0x0600);  /* 83E488 lda */
-    sta16(ea_dp(ACTOR_LOOK));  /* 83E48B sta */
-    op_sep(0x20);  /* 83E48D sep */
-    lda8_v(0x0A);  /* 83E48F lda */
-    sta8(ea_dp(MARK_ANIM_WANTED));  /* 83E491 sta */
-    sta8(ea_dp(MARK_ANIM));  /* 83E493 sta */
-    abi_AnimStart();  /* 83E495 jsl */
-    lda8(ea_dp(ACTOR_08));  /* 83E499 lda */
-    ora8_v(0x01);  /* 83E49B ora */
-    and8_v(0xF7);  /* 83E49D and */
-    sta8(ea_dp(ACTOR_08));  /* 83E49F sta */
-L_83E4A1:
-    actor_yield(0x83E4A1u);  /* 83E4A1 brk */
-    op_rep(0x20);  /* 83E4A3 rep */
-    lda16(ea_abs(PLAYER_X));  /* 83E4A5 lda */
-    sta16(ea_dp(ACTOR_X + 1));  /* 83E4A8 sta */
-    lda16(ea_abs(PLAYER_Y));  /* 83E4AA lda */
-    clc();  /* 83E4AD clc */
-    adc16_v(0x0018);  /* 83E4AE adc */
-    sta16(ea_dp(ACTOR_Y + 1));  /* 83E4B1 sta */
-    op_sep(0x20);  /* 83E4B3 sep */
-    lda8(ea_abs(GROUND_PUSHED));  /* 83E4B5 lda */
-    if (!IF_Z) goto L_83E4C2;  /* 83E4B8 bne */
-    lda8(ea_dp(ACTOR_08));  /* 83E4BA lda */
-    and8_v(0xF7);  /* 83E4BC and */
-    sta8(ea_dp(ACTOR_08));  /* 83E4BE sta */
-    goto L_83E4A1;  /* 83E4C0 bra */
-L_83E4C2:
-    lda8(ea_dp(ACTOR_08));  /* 83E4C2 lda */
-    ora8_v(0x08);  /* 83E4C4 ora */
-    sta8(ea_dp(ACTOR_08));  /* 83E4C6 sta */
-    lda8(ea_abs(GROUND_PUSHED));  /* 83E4C8 lda */
-    ACC8(dec);  /* 83E4CB dec */
-    if (!IF_Z) goto L_83E4DF;  /* 83E4CC bne */
-    lda8_v(0x0A);  /* 83E4CE lda */
-L_83E4D0:
-    sta8(ea_dp(MARK_ANIM_WANTED));  /* 83E4D0 sta */
-    sec();  /* 83E4D2 sec */
-    cmp8_v(rd8(ea_dp(MARK_ANIM)));  /* 83E4D3 cmp */
-    if (IF_Z) goto L_83E4A1;  /* 83E4D5 beq */
-    sta8(ea_dp(MARK_ANIM));  /* 83E4D7 sta */
-    abi_AnimStart();  /* 83E4D9 jsl */
-    goto L_83E4A1;  /* 83E4DD bra */
-L_83E4DF:
-    lda8_v(0x09);  /* 83E4DF lda */
-    goto L_83E4D0;  /* 83E4E1 bra */
+    uint8_t pushed, anim;
+
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0x90));
+    dp16_set(ACTOR_LOOK, 0x0600);
+    cpu.a = 0x0600;
+    a8_load(0x0A);
+    wr8(dpa(MARK_ANIM_WANTED), 0x0A);
+    wr8(dpa(MARK_ANIM), 0x0A);
+    abi_AnimStart();
+    a8_load((uint8_t)((rd8(dpa(ACTOR_08)) | 0x01) & 0xF7));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    for (;;) {
+        actor_yield(0x83E4A1u);
+        /* at the player's feet; shown (bit 3) while the ground pushes him */
+        dp16_set(ACTOR_X + 1, rd16(dba(PLAYER_X)));
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(rd16(dba(PLAYER_Y)), 0x0018, &cpu.p);
+        dp16_set(ACTOR_Y + 1, cpu.a);
+        pushed = rd8(dba(GROUND_PUSHED));
+        a8_load(pushed);
+        if (!pushed) {
+            a8_load((uint8_t)(rd8(dpa(ACTOR_08)) & 0xF7));
+            wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+            continue;
+        }
+        a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x08));
+        wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+        anim = pushed == 1 ? 0x0A : 0x09;   /* sliding, pushed */
+        a8_load(anim);
+        wr8(dpa(MARK_ANIM_WANTED), anim);
+        cmp8_of(anim, rd8(dpa(MARK_ANIM)));
+        if (anim == rd8(dpa(MARK_ANIM)))
+            continue;
+        wr8(dpa(MARK_ANIM), anim);
+        abi_AnimStart();
+    }
 }

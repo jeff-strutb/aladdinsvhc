@@ -6,6 +6,8 @@
  * described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -37,25 +39,26 @@ void abi_PaletteLoad(void);
  */
 void abi_Kind7DKeepSpot(void)
 {
-    lda8_v(0x80);  /* 8490CE lda */
-    sta8(ea_dp(ACTOR_09));  /* 8490D0 sta */
-    lda8_v(0x20);  /* 8490D2 lda */
-    sta8(ea_dp(KIND7D_16));  /* 8490D4 sta */
-    lda8_v(0xD8);  /* 8490D6 lda */
-    sta8(ea_dp(KIND7D_16 + 1));  /* 8490D8 sta */
-    lda8(ea_dp(ACTOR_Y + 1));  /* 8490DA lda */
-    and8_v(0x3F);  /* 8490DC and */
-    sta8(ea_dp(ACTOR_07));  /* 8490DE sta */
-    ACC8(asl);  /* 8490E0 asl */
-    tax8();  /* 8490E1 tax */
-    lda8(ea_absx(KIND7D_SPOTS));  /* 8490E2 lda */
-    sta8(ea_dp(ACTOR_40));  /* 8490E5 sta */
-    lda8(ea_absx(KIND7D_SPOTS + 1));  /* 8490E7 lda */
-    sta8(ea_dp(FLYOFF_LEFT));  /* 8490EA sta */
-L_8490EC:
-    actor_yield(0x8490ECu);  /* 8490EC brk */
-    abi_ActorKeepSpot();  /* 8490EE jsl */
-    goto L_8490EC;  /* 8490F2 bra */
+    uint8_t spot;
+
+    a8_load(0x80);
+    wr8(dpa(ACTOR_09), 0x80);
+    a8_load(0x20);
+    wr8(dpa(KIND7D_16), 0x20);
+    a8_load(0xD8);
+    wr8(dpa(KIND7D_16 + 1), 0xD8);
+    spot = rd8(dpa(ACTOR_Y + 1)) & 0x3F;
+    wr8(dpa(ACTOR_07), spot);
+    cpu.x = (uint8_t)(spot << 1);
+    flag_set(P_C, 0);
+    a8_load(rd8(dba(KIND7D_SPOTS) + cpu.x));
+    wr8(dpa(ACTOR_40), (uint8_t)cpu.a);
+    a8_load(rd8(dba(KIND7D_SPOTS + 1) + cpu.x));
+    wr8(dpa(FLYOFF_LEFT), (uint8_t)cpu.a);
+    for (;;) {
+        actor_yield(0x8490ECu);
+        abi_ActorKeepSpot();
+    }
 }
 
 
@@ -73,24 +76,21 @@ L_8490EC:
  */
 void abi_ActorFlyOffEnd(void)
 {
-    lda8_v(0x80);  /* 83C925 lda */
-    trb8(ea_dp(ACTOR_09));  /* 83C927 trb */
-    ACC8(lsr);  /* 83C929 lsr */
-    ldy8_v(0x2A);  /* 83C92A ldy */
-    if (IF_C) goto L_83C92F;  /* 83C92C bcs */
-    iny8();  /* 83C92E iny */
-L_83C92F:
-    abi_ActorMotionPreset();  /* 83C92F jsl */
-    lda8_v(0x03);  /* 83C933 lda */
-    abi_AnimStart();  /* 83C935 jsl */
-    lda8_v(0x18);  /* 83C939 lda */
-    sta8(ea_dp(FLYOFF_LEFT));  /* 83C93B sta */
-L_83C93D:
-    actor_yield(0x83C93Du);  /* 83C93D brk */
-    abi_ActorFly();  /* 83C93F jsl */
-    MEM8(dec, ea_dp(FLYOFF_LEFT));  /* 83C943 dec */
-    if (!IF_Z) goto L_83C93D;  /* 83C945 bne */
-    abi_ActorEndPlaced(); return;  /* 83C947 jmp */
+    a8_load(0x80);
+    trb_at(dpa(ACTOR_09), 0x80);          /* it can no longer be hit */
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x40);
+    flag_set(P_C, 0);
+    y8_load(0x2B);                        /* LDY #$2A; INY (the LSR left C clear) */
+    abi_ActorMotionPreset();
+    a8_load(0x03);
+    abi_AnimStart();
+    a8_load(0x18);
+    wr8(dpa(FLYOFF_LEFT), 0x18);
+    do {
+        actor_yield(0x83C93Du);
+        abi_ActorFly();
+    } while (dec8_at(dpa(FLYOFF_LEFT)));
+    abi_ActorEndPlaced();
 }
 
 
@@ -106,22 +106,18 @@ L_83C93D:
  */
 void abi_Kind7AFly(void)
 {
-    stz8(ea_dp(ACTOR_FACING));  /* 83F757 stz */
-    stz8(ea_dp(ACTOR_FLIP));  /* 83F759 stz */
-    lda8(ea_dp(ACTOR_08));  /* 83F75B lda */
-    ora8_v(0x02);  /* 83F75D ora */
-    sta8(ea_dp(ACTOR_08));  /* 83F75F sta */
-    lda8(ea_dp(ACTOR_09));  /* 83F761 lda */
-    ora8_v(0x10);  /* 83F763 ora */
-    sta8(ea_dp(ACTOR_09));  /* 83F765 sta */
-    lda8_v(0x00);  /* 83F767 lda */
-    abi_AnimStart();  /* 83F769 jsl */
-    ldy8_v(0x53);  /* 83F76D ldy */
-    abi_ActorMotionPreset();  /* 83F76F jsl */
-L_83F773:
-    actor_yield(0x83F773u);  /* 83F773 brk */
-    abi_ActorFly();  /* 83F775 jsl */
-    goto L_83F773;  /* 83F779 bra */
+    wr8(dpa(ACTOR_FACING), 0);
+    wr8(dpa(ACTOR_FLIP), 0);
+    wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0x10));
+    a8_load(0x00);
+    abi_AnimStart();
+    y8_load(0x53);
+    abi_ActorMotionPreset();
+    for (;;) {
+        actor_yield(0x83F773u);
+        abi_ActorFly();
+    }
 }
 
 
@@ -137,20 +133,15 @@ L_83F773:
  */
 void abi_Kind4AShow(void)
 {
-    lda8(ea_dp(ACTOR_09));  /* 83B496 lda */
-    ora8_v(0x90);  /* 83B498 ora */
-    sta8(ea_dp(ACTOR_09));  /* 83B49A sta */
-    stz8(ea_dp(ACTOR_FACING));  /* 83B49C stz */
-    stz8(ea_dp(ACTOR_FLIP));  /* 83B49E stz */
-    op_rep(0x20);  /* 83B4A0 rep */
-    lda16_v(0x0600);  /* 83B4A2 lda */
-    sta16(ea_dp(ACTOR_LOOK));  /* 83B4A5 sta */
-    op_sep(0x20);  /* 83B4A7 sep */
-    lda8_v(0x0A);  /* 83B4A9 lda */
-    abi_PaletteLoad();  /* 83B4AB jsl */
-    lda8_v(0x06);  /* 83B4AF lda */
-    abi_AnimStart();  /* 83B4B1 jsl */
-L_83B4B5:
-    actor_yield(0x83B4B5u);  /* 83B4B5 brk */
-    goto L_83B4B5;  /* 83B4B7 bra */
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0x90));
+    wr8(dpa(ACTOR_FACING), 0);
+    wr8(dpa(ACTOR_FLIP), 0);
+    dp16_set(ACTOR_LOOK, 0x0600);
+    cpu.a = 0x0600;
+    a8_load(0x0A);
+    abi_PaletteLoad();
+    a8_load(0x06);
+    abi_AnimStart();
+    for (;;)
+        actor_yield(0x83B4B5u);
 }

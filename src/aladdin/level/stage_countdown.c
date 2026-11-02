@@ -3,6 +3,8 @@
  * its table as a stage starts.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_StageCountdownSet(void);
 #include "actor.h"
@@ -11,6 +13,8 @@ void abi_StageCountdownSet(void);
 #include "wram_player.h"
 #include "wram_state.h"
 #include "wram_video.h"
+
+#define STAGE_COUNTDOWNS 0xDB99u  /* by stage, its countdown (words, in the bank DB names) */
 
 /*
  * @routine 82:B563 StageCountdownSet
@@ -23,12 +27,12 @@ void abi_StageCountdownSet(void);
  */
 void abi_StageCountdownSet(void)
 {
-    lda8(ea_abs(V_033F));  /* 82B563 lda */
-    ACC8(asl);  /* 82B566 asl */
-    tax8();  /* 82B567 tax */
-    lda8(ea_absx(0xDB99));  /* 82B568 lda */
-    sta8(ea_abs(V_0343));  /* 82B56B sta */
-    lda8(ea_absx(0xDB9A));  /* 82B56E lda */
-    sta8(ea_abs(0x0344));  /* 82B571 sta */
-    return;  /* 82B574 rts */
+    uint8_t stage = rd8(dba(V_033F));
+    uint8_t at = (uint8_t)(stage << 1);
+    uint16_t count = rd16(dba(STAGE_COUNTDOWNS + at));
+
+    x8_load(at);
+    flag_set(P_C, stage & 0x80);
+    wr16(dba(V_0343), count);
+    a8_load((uint8_t)(count >> 8));
 }

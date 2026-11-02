@@ -4,6 +4,8 @@
  * and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -23,6 +25,23 @@ void abi_ActorMoveByVectorY(void);
 void abi_PlayerSpotAboveActor(void);
 void abi_PlayerToActorAbove(void);
 
+/* How far the actor moved in one axis since it was kept (its pixels
+   less KEPT), added to the player's and to a second word. */
+static void carry_axis(uint16_t now, uint16_t kept, uint16_t player, uint16_t other)
+{
+    uint16_t moved;
+
+    flag_set(P_C, 1);
+    moved = op_sbc16(now, kept, &cpu.p);
+    push16(moved);
+    flag_set(P_C, 0);
+    wr16(dba(player), op_adc16(moved, rd16(dba(player)), &cpu.p));
+    pla16();
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(moved, rd16(dba(other)), &cpu.p);
+    wr16(dba(other), cpu.a);
+}
+
 /*
  * @routine 83:FBDA ActorCarryPlayer
  * WHAT IT DOES: Carries the player along with the actor it rides: moves
@@ -36,34 +55,15 @@ void abi_PlayerToActorAbove(void);
  */
 void abi_ActorCarryPlayer(void)
 {
-    lda8(ea_dp(CARRIES));  /* 83FBDA lda */
-    if (IF_Z) goto L_83FC0C;  /* 83FBDC beq */
-    op_rep(0x20);  /* 83FBDE rep */
-    sec();  /* 83FBE0 sec */
-    lda16(ea_dp(0x0C));  /* 83FBE1 lda */
-    sbc16_v(rd16(ea_dp(KEPT_X)));  /* 83FBE3 sbc */
-    pha16();  /* 83FBE5 pha */
-    clc();  /* 83FBE6 clc */
-    adc16_v(rd16(ea_abs(PLAYER_X)));  /* 83FBE7 adc */
-    sta16(ea_abs(PLAYER_X));  /* 83FBEA sta */
-    pla16();  /* 83FBED pla */
-    clc();  /* 83FBEE clc */
-    adc16_v(rd16(ea_abs(V_143B)));  /* 83FBEF adc */
-    sta16(ea_abs(V_143B));  /* 83FBF2 sta */
-    sec();  /* 83FBF5 sec */
-    lda16(ea_dp(0x0F));  /* 83FBF6 lda */
-    sbc16_v(rd16(ea_dp(KEPT_Y)));  /* 83FBF8 sbc */
-    pha16();  /* 83FBFA pha */
-    clc();  /* 83FBFB clc */
-    adc16_v(rd16(ea_abs(PLAYER_Y)));  /* 83FBFC adc */
-    sta16(ea_abs(PLAYER_Y));  /* 83FBFF sta */
-    pla16();  /* 83FC02 pla */
-    clc();  /* 83FC03 clc */
-    adc16_v(rd16(ea_abs(V_143E)));  /* 83FC04 adc */
-    sta16(ea_abs(V_143E));  /* 83FC07 sta */
-    op_sep(0x20);  /* 83FC0A sep */
-L_83FC0C:
-    return;  /* 83FC0C rts */
+    uint8_t carries = rd8(dpa(CARRIES));
+
+    a8_load(carries);
+    if (!carries)
+        return;
+    op_rep(P_M);
+    carry_axis(dp16(ACTOR_X + 1), dp16(KEPT_X), PLAYER_X, V_143B);
+    carry_axis(dp16(ACTOR_Y + 1), dp16(KEPT_Y), PLAYER_Y, V_143E);
+    op_sep(P_M);
 }
 
 
@@ -78,14 +78,16 @@ L_83FC0C:
  */
 void abi_ActorFacePlayer(void)
 {
-    op_rep(0x10);  /* 83FC96 rep */
-    ldx16(ea_dp(0x0C));  /* 83FC98 ldx */
-    cpx16_v(rd16(ea_abs(PLAYER_X)));  /* 83FC9A cpx */
-    lda8_v(0x00);  /* 83FC9D lda */
-    ACC8(rol);  /* 83FC9F rol */
-    sta8(ea_dp(0x14));  /* 83FCA0 sta */
-    op_sep(0x10);  /* 83FCA2 sep */
-    return;  /* 83FCA4 rts */
+    uint16_t x = dp16(ACTOR_X + 1);
+    uint8_t facing;
+
+    op_rep(P_X);
+    cpu.x = x;
+    facing = x >= rd16(dba(PLAYER_X));    /* 1: he is to its left */
+    a8_load(facing);
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_FACING), facing);
+    op_sep(P_X);
 }
 
 /*
@@ -98,10 +100,9 @@ void abi_ActorFacePlayer(void)
  */
 void abi_ActorStepCarry(void)
 {
-    ldx8_v(0x0E);  /* 83C1EC ldx */
-    abi_ActorMoveByVector();  /* 83C1EE jsl */
-    abi_ActorCarryPlayer();  /* 83C1F2 jsr */
-    return;  /* 83C1F5 rts */
+    x8_load(0x0E);
+    abi_ActorMoveByVector();
+    abi_ActorCarryPlayer();
 }
 
 
@@ -118,25 +119,29 @@ void abi_ActorStepCarry(void)
  */
 void abi_ActorStepToTargetCarry(void)
 {
-    op_rep(0x20);  /* 83C1F6 rep */
-    lda16(ea_dp(0x0C));  /* 83C1F8 lda */
-    cmp16_v(rd16(ea_dp(0x1A)));  /* 83C1FA cmp */
-    if (IF_Z) goto L_83C208;  /* 83C1FC beq */
-    op_sep(0x20);  /* 83C1FE sep */
-    ldx8_v(0x08);  /* 83C200 ldx */
-    abi_ActorMoveByVectorX();  /* 83C202 jsl */
-    op_rep(0x20);  /* 83C206 rep */
-L_83C208:
-    lda16(ea_dp(0x0F));  /* 83C208 lda */
-    cmp16_v(rd16(ea_dp(0x1E)));  /* 83C20A cmp */
-    if (IF_Z) goto L_83C216;  /* 83C20C beq */
-    op_sep(0x20);  /* 83C20E sep */
-    ldx8_v(0x08);  /* 83C210 ldx */
-    abi_ActorMoveByVectorY();  /* 83C212 jsl */
-L_83C216:
-    op_sep(0x20);  /* 83C216 sep */
-    abi_ActorCarryPlayer();  /* 83C218 jsr */
-    return;  /* 83C21B rts */
+    uint16_t now;
+
+    /* a step toward its target ($1A, $1E) in each axis it is not at */
+    op_rep(P_M);
+    now = dp16(ACTOR_X + 1);
+    cpu.a = now;
+    cmp16_of(now, dp16(0x1A));
+    if (now != dp16(0x1A)) {
+        op_sep(P_M);
+        x8_load(0x08);
+        abi_ActorMoveByVectorX();
+        op_rep(P_M);
+    }
+    now = dp16(ACTOR_Y + 1);
+    cpu.a = now;
+    cmp16_of(now, dp16(0x1E));
+    if (now != dp16(0x1E)) {
+        op_sep(P_M);
+        x8_load(0x08);
+        abi_ActorMoveByVectorY();
+    }
+    op_sep(P_M);
+    abi_ActorCarryPlayer();
 }
 
 

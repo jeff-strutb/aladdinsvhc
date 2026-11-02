@@ -5,6 +5,8 @@
  * described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -26,6 +28,40 @@ void abi_Spawn13AtYLong(void);
 #define SHOT_11 0x11u
 #define SHOT_LAUNCH 0x40u  /* frames left before bit 7 of $08 is cleared */
 #define V_1774 0x1774u  /* the high byte of the word at $1773 (the camera's x) */
+
+/* The shot is gone: off the screen, or below the level's floor (levels
+   8 and $10: past the map's bottom; level $0E before screen 7: at its
+   top row). */
+static int shot_gone(void)
+{
+    uint8_t level = rd8(dba(LEVEL)), v;
+
+    a8_load(level);
+    cmp8_of(level, 0x08);
+    if (level != 0x08)
+        cmp8_of(level, 0x10);
+    if (level == 0x08 || level == 0x10) {
+        v = rd8(dpa(ACTOR_Y + 2));
+        a8_load(v);
+        if (v & 0x80)
+            return 1;
+    } else {
+        cmp8_of(level, 0x0E);
+        if (level == 0x0E) {
+            v = rd8(dba(V_1774));
+            a8_load(v);
+            cmp8_of(v, 0x07);
+            if (v < 0x07) {
+                v = rd8(dpa(ACTOR_Y + 2));
+                a8_load(v);
+                if (!v)
+                    return 1;
+            }
+        }
+    }
+    a8_load(rd8(dpa(ACTOR_09)) & 0x40);
+    return !(uint8_t)cpu.a;
+}
 
 /*
  * @routine 81:EABA ShotFly
@@ -50,74 +86,58 @@ void abi_Spawn13AtYLong(void);
  */
 void abi_ShotFly(void)
 {
-    stz8(ea_dp(ACTOR_X));  /* 81EABA stz */
-    stz8(ea_dp(ACTOR_Y));  /* 81EABC stz */
-    lda8_v(0x50);  /* 81EABE lda */
-    sta8(ea_dp(ACTOR_09));  /* 81EAC0 sta */
-    lda8_v(0x07);  /* 81EAC2 lda */
-    abi_AnimStart();  /* 81EAC4 jsl */
-    lda8_v(0x04);  /* 81EAC8 lda */
-    sta8(ea_dp(ACTOR_2C));  /* 81EACA sta */
-    ldy8(ea_dp(ACTOR_07));  /* 81EACC ldy */
-    abi_ActorMotionPreset();  /* 81EACE jsl */
-    stz8(ea_dp(ACTOR_X));  /* 81EAD2 stz */
-    stz8(ea_dp(ACTOR_Y));  /* 81EAD4 stz */
-    op_rep(0x20);  /* 81EAD6 rep */
-    lda16_v(0xC9FF);  /* 81EAD8 lda */
-    sta16(ea_dp(SHOT_16));  /* 81EADB sta */
-    op_sep(0x20);  /* 81EADD sep */
-    stz8(ea_dp(SHOT_11));  /* 81EADF stz */
-    stz8(ea_dp(ACTOR_18));  /* 81EAE1 stz */
-    lda8_v(0x80);  /* 81EAE3 lda */
-    tsb8(ea_dp(ACTOR_08));  /* 81EAE5 tsb */
-    lda8_v(0x02);  /* 81EAE7 lda */
-    sta8(ea_dp(SHOT_LAUNCH));  /* 81EAE9 sta */
-L_81EAEB:
-    actor_yield(0x81EAEBu);  /* 81EAEB brk */
-    lda8(ea_abs(LEVEL));  /* 81EAED lda */
-    cmp8_v(0x08);  /* 81EAF0 cmp */
-    if (IF_Z) goto L_81EB09;  /* 81EAF2 beq */
-    cmp8_v(0x10);  /* 81EAF4 cmp */
-    if (IF_Z) goto L_81EB09;  /* 81EAF6 beq */
-    cmp8_v(0x0E);  /* 81EAF8 cmp */
-    if (!IF_Z) goto L_81EB0D;  /* 81EAFA bne */
-    lda8(ea_abs(V_1774));  /* 81EAFC lda */
-    cmp8_v(0x07);  /* 81EAFF cmp */
-    if (IF_C) goto L_81EB0D;  /* 81EB01 bcs */
-    lda8(ea_dp(ACTOR_Y + 2));  /* 81EB03 lda */
-    if (IF_Z) goto L_81EB76;  /* 81EB05 beq */
-    goto L_81EB0D;  /* 81EB07 bra */
-L_81EB09:
-    lda8(ea_dp(ACTOR_Y + 2));  /* 81EB09 lda */
-    if (IF_N) goto L_81EB76;  /* 81EB0B bmi */
-L_81EB0D:
-    lda8(ea_dp(ACTOR_09));  /* 81EB0D lda */
-    and8_v(0x40);  /* 81EB0F and */
-    if (IF_Z) goto L_81EB76;  /* 81EB11 beq */
-    abi_AnimStep();  /* 81EB13 jsl */
-    abi_ActorMove();  /* 81EB17 jsl */
-    lda8(ea_dp(SHOT_LAUNCH));  /* 81EB1B lda */
-    if (IF_Z) goto L_81EB29;  /* 81EB1D beq */
-    MEM8(dec, ea_dp(SHOT_LAUNCH));  /* 81EB1F dec */
-    if (!IF_Z) goto L_81EAEB;  /* 81EB21 bne */
-    lda8(ea_dp(ACTOR_08));  /* 81EB23 lda */
-    and8_v(0x7F);  /* 81EB25 and */
-    sta8(ea_dp(ACTOR_08));  /* 81EB27 sta */
-L_81EB29:
-    abi_ActorInGround();  /* 81EB29 jsl */
-    if (!IF_C) goto L_81EAEB;  /* 81EB2D bcc */
-    bit8_v(rd8(ea_abs(V_0012)));  /* 81EB2F bit */
-    if (IF_V) goto L_81EAEB;  /* 81EB32 bvs */
-    op_rep(0x30);  /* 81EB34 rep */
-    tdc();  /* 81EB36 tdc */
-    tay16();  /* 81EB37 tay */
-    op_sep(0x20);  /* 81EB38 sep */
-    abi_Spawn13AtYLong();  /* 81EB3A jsl */
-    op_sep(0x30);  /* 81EB3E sep */
-    abi_ActorEnd(); return;  /* 81EB40 jml */
-L_81EB76:
-    op_sep(0x30);  /* 81EB76 sep */
-    abi_ActorEnd(); return;  /* 81EB78 jml */
+    uint8_t ground;
+
+    wr8(dpa(ACTOR_X), 0);
+    wr8(dpa(ACTOR_Y), 0);
+    a8_load(0x50);
+    wr8(dpa(ACTOR_09), 0x50);
+    a8_load(0x07);
+    abi_AnimStart();
+    a8_load(0x04);
+    wr8(dpa(ACTOR_2C), 0x04);
+    y8_load(rd8(dpa(ACTOR_07)));           /* its course */
+    abi_ActorMotionPreset();
+    wr8(dpa(ACTOR_X), 0);
+    wr8(dpa(ACTOR_Y), 0);
+    dp16_set(SHOT_16, 0xC9FF);
+    cpu.a = 0xC9FF;
+    wr8(dpa(SHOT_11), 0);
+    wr8(dpa(ACTOR_18), 0);
+    a8_load(0x80);
+    tsb_at(dpa(ACTOR_08), 0x80);
+    a8_load(0x02);
+    wr8(dpa(SHOT_LAUNCH), 0x02);
+    for (;;) {
+        actor_yield(0x81EAEBu);
+        if (shot_gone())
+            break;
+        abi_AnimStep();
+        abi_ActorMove();
+        a8_load(rd8(dpa(SHOT_LAUNCH)));
+        if ((uint8_t)cpu.a) {
+            if (dec8_at(dpa(SHOT_LAUNCH)))
+                continue;
+            a8_load((uint8_t)(rd8(dpa(ACTOR_08)) & 0x7F));
+            wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+        }
+        /* into the ground (not one it passes through): a mark, and gone */
+        abi_ActorInGround();
+        if (!(cpu.p & P_C))
+            continue;
+        ground = rd8(dba(V_0012));
+        bit8_of((uint8_t)cpu.a, ground);
+        if (ground & 0x40)
+            continue;
+        op_rep(0x30);
+        cpu.a = cpu.y = cpu.d;
+        nz16_of(cpu.d);
+        op_sep(P_M);
+        abi_Spawn13AtYLong();
+        break;
+    }
+    op_sep(0x30);
+    abi_ActorEnd();
 }
 
 
@@ -137,27 +157,29 @@ L_81EB76:
  */
 void abi_ShotHit(void)
 {
-    actor_yield(0x81EB44u);  /* 81EB44 brk */
-    lda8_v(0x08);  /* 81EB46 lda */
-    abi_SoundQueueAdd();  /* 81EB48 jsl */
-    lda8(ea_dp(ACTOR_08));  /* 81EB4C lda */
-    ora8_v(0x80);  /* 81EB4E ora */
-    sta8(ea_dp(ACTOR_08));  /* 81EB50 sta */
-    abi_ActorAllocBLong();  /* 81EB52 jsl */
-    if (IF_N) goto L_81EB76;  /* 81EB56 bmi */
-    lda8_v(0x0C);  /* 81EB58 lda */
-    sta8(ea_absx(ACTOR_STATE));  /* 81EB5A sta */
-    lda8_v(0x11);  /* 81EB5D lda */
-    sta8(ea_absx(ACTOR_06));  /* 81EB5F sta */
-    stz8(ea_absx(ACTOR_07));  /* 81EB62 stz */
-    lda8_v(0x80);  /* 81EB65 lda */
-    sta8(ea_absx(ACTOR_08));  /* 81EB67 sta */
-    op_rep(0x20);  /* 81EB6A rep */
-    lda16(ea_dp(ACTOR_X + 1));  /* 81EB6C lda */
-    sta16(ea_absx(ACTOR_X + 1));  /* 81EB6E sta */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 81EB71 lda */
-    sta16(ea_absx(ACTOR_Y + 1));  /* 81EB73 sta */
-L_81EB76:
-    op_sep(0x30);  /* 81EB76 sep */
-    abi_ActorEnd(); return;  /* 81EB78 jml */
+    actor_yield(0x81EB44u);
+    a8_load(0x08);
+    abi_SoundQueueAdd();
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x80));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    abi_ActorAllocBLong();
+    if (!(cpu.p & P_N)) {                 /* a kind $11 mark where it hit */
+        uint32_t mark = dba(0) + cpu.x;
+        uint16_t y;
+
+        a8_load(0x0C);
+        wr8(mark + ACTOR_STATE, 0x0C);
+        a8_load(0x11);
+        wr8(mark + ACTOR_06, 0x11);
+        wr8(mark + ACTOR_07, 0);
+        a8_load(0x80);
+        wr8(mark + ACTOR_08, 0x80);
+        op_rep(P_M);
+        wr16(mark + ACTOR_X + 1, dp16(ACTOR_X + 1));
+        y = dp16(ACTOR_Y + 1);
+        wr16(mark + ACTOR_Y + 1, y);
+        a16_load(y);
+    }
+    op_sep(0x30);
+    abi_ActorEnd();
 }

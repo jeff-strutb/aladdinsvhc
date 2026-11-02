@@ -7,6 +7,7 @@
  * command is sent before the driver has taken the last one.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "hw.h"
 #include "wram.h"
@@ -133,6 +134,14 @@ void abi_SoundQueueAdd(void)
 #define SOUND_CMD_F2 0xF2
 #define SOUND_CMD_F6 0xF6
 
+/* Special command `cmd` queued and kept as the last one. */
+static void queue_special(uint8_t cmd)
+{
+    a8_load(cmd);
+    wr8(dba(SOUND_SPECIAL), cmd);
+    abi_SoundQueueAdd();
+}
+
 /*
  * @routine 81:F9F7 SoundQueueF2
  * WHAT IT DOES: Queues sound command $F2, keeping it as the last special
@@ -143,9 +152,7 @@ void abi_SoundQueueAdd(void)
  */
 void abi_SoundQueueF2(void)
 {
-    lda8_v(SOUND_CMD_F2);
-    sta8(ea_abs(SOUND_SPECIAL));
-    abi_SoundQueueAdd();
+    queue_special(SOUND_CMD_F2);
 }
 
 /*
@@ -158,11 +165,9 @@ void abi_SoundQueueF2(void)
  */
 void abi_SoundQueueF6With1(void)
 {
-    lda8_v(0x01);
-    xba();
-    lda8_v(SOUND_CMD_F6);
-    sta8(ea_abs(SOUND_SPECIAL));
-    abi_SoundQueueAdd();
-    xba();
+    a8_load(0x01);
+    op_xba();                             /* the parameter 1 waits in A's high byte */
+    queue_special(SOUND_CMD_F6);
+    op_xba();
     abi_SoundQueueAdd();
 }

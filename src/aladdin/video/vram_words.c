@@ -4,6 +4,8 @@
  * to it).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "hw.h"
 
@@ -28,26 +30,22 @@
  */
 void abi_VramWordsUpload(void)
 {
-    lda8(ea_abs(VRAM_WORDS_PENDING));
-    if (IF_Z) return;
-    stz8(ea_abs(VRAM_WORDS_PENDING));
-    lda8_v(VMAIN_STEP_HIGH);
-    sta8(ea_abs(VMAIN));
-    lda8_v(DMA_FOUR_REGS);
-    sta8(ea_abs(DMAP0));
-    lda8_v(VMADDL & 0xFF);
-    sta8(ea_abs(BBAD0));
-    op_rep(0x20);
-    lda16_v(VRAM_WORDS);
-    sta16(ea_abs(A1T0L));
-    lda16_v(0x0000);
-    sta16(ea_abs(A1B0));
-    op_sep(0x20);
-    lda8(ea_abs(VRAM_WORDS_COUNT));
-    ACC8(asl);
-    ACC8(asl);
-    sta8(ea_abs(DAS0L));
-    op_sep(0x20);
-    lda8_v(0x01);
-    sta8(ea_abs(MDMAEN));
+    uint8_t pending = rd8(dba(VRAM_WORDS_PENDING)), count;
+
+    a8_load(pending);
+    if (!pending)
+        return;
+    wr8(dba(VRAM_WORDS_PENDING), 0);
+    /* DMA channel 0: the list, 4 bytes a pair, to VMADDL and VMDATA */
+    wr8(dba((uint16_t)VMAIN), VMAIN_STEP_HIGH);
+    wr8(dba((uint16_t)DMAP0), DMA_FOUR_REGS);
+    wr8(dba((uint16_t)BBAD0), VMADDL & 0xFF);
+    wr16(dba((uint16_t)A1T0L), VRAM_WORDS);
+    wr16(dba((uint16_t)A1B0), 0x0000);
+    count = rd8(dba(VRAM_WORDS_COUNT));
+    flag_set(P_C, (count >> 6) & 1);
+    cpu.a = (uint8_t)(count << 2);
+    wr8(dba((uint16_t)DAS0L), (uint8_t)cpu.a);
+    a8_load(0x01);
+    wr8(dba((uint16_t)MDMAEN), 0x01);
 }

@@ -8,6 +8,10 @@ incsrc "../include/wram.inc"
 
 arch 65816
 
+!MENU_CHOICE = $0849             ; the menu's choice
+!MENU_CHOICE_WAS = $084A         ; the choice the mark was drawn at
+!MENU_CHOICE_PLACES = $CE28      ; by choice: its tilemap offset (words, the DB bank)
+
 
 ; @routine 81:EF39 MenuMarkDraw
 ; WHAT IT DOES: Draws the selection mark at a menu choice: its seven tiles
@@ -36,4 +40,29 @@ MenuMarkDraw:
     lda.w #$2014
     sta.l !text_tilemap+132,x
     plp
+    rtl
+
+; @routine 81:EE04 MenuMarkMove
+; WHAT IT DOES: Moves a menu's selection mark from the choice it was at
+; to the one now chosen.
+; HOW: MenuMarkErase at the tilemap offset of choice MENU_CHOICE_WAS
+; (from the table MENU_CHOICE_PLACES, by twice the choice), MenuMarkDraw
+; at that of MENU_CHOICE, with 16-bit X.
+; Entry: M 8-bit, X 8-bit; DB = $81, the table's bank; called by JSL
+; (81:EDD1, 80:9F42). Exit: M 8-bit, X 8-bit; P otherwise as MenuMarkDraw
+; leaves it; A = $2014; Y = twice the choice.
+%at($81EE04)
+MenuMarkMove:
+    lda.w !MENU_CHOICE_WAS
+    asl a
+    tay
+    rep.b #$10
+    ldx.w !MENU_CHOICE_PLACES,y
+    jsl.l MenuMarkErase
+    lda.w !MENU_CHOICE
+    asl a
+    tay
+    ldx.w !MENU_CHOICE_PLACES,y
+    jsl.l MenuMarkDraw
+    sep.b #$10
     rtl

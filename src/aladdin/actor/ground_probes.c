@@ -4,6 +4,8 @@
  * toward the player.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorLedgeAhead(void);
 void abi_ActorOutOfWall8(void);
@@ -17,6 +19,8 @@ void abi_PointInGroundLong(void);
 #include "wram_state.h"
 #include "wram_video.h"
 
+#define PROBES_LEFT 0x002Cu  /* scratch: probes left */
+
 /*
  * @routine A5:EB17 ActorOutOfWall8
  * WHAT IT DOES: Moves the actor out of a wall at its probe 8 in front:
@@ -27,9 +31,32 @@ void abi_PointInGroundLong(void);
  */
 void abi_ActorOutOfWall8(void)
 {
-    lda8_v(0x08);  /* A5EB17 lda */
-    abi_ActorOutOfWallLong();  /* A5EB19 jsl */
-    return;  /* A5EB1D rts */
+    a8_load(0x08);
+    abi_ActorOutOfWallLong();
+}
+
+/* The point a probe up from the last (16 pixels) */
+static void probe_up(void)
+{
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(rd16(dba(SCRATCH + 2)), 0xFFF0, &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
+}
+
+/* PointInGroundLong at the point (P kept across it), then whether its
+   tile is ground (the kind's low 3 bits). */
+static int ground_at_point(void)
+{
+    uint8_t kind;
+
+    php();
+    abi_PointInGroundLong();
+    plp();
+    op_sep(0x30);
+    kind = rd8(dba(V_0012)) & 0x07;
+    a8_load(kind);
+    return kind != 0;
 }
 
 /*
@@ -47,58 +74,38 @@ void abi_ActorOutOfWall8(void)
  */
 void abi_ActorLedgeAhead(void)
 {
-    op_rep(0x20);  /* A5EA2C rep */
-    lda16_v(0x0030);  /* A5EA2E lda */
-    ldx8(ea_dp(0x14));  /* A5EA31 ldx */
-    if (IF_Z) goto L_A5EA38;  /* A5EA33 beq */
-    lda16_v(0xFFD0);  /* A5EA35 lda */
-L_A5EA38:
-    clc();  /* A5EA38 clc */
-    adc16_v(rd16(ea_dp(0x0C)));  /* A5EA39 adc */
-    sta16(ea_abs(SCRATCH));  /* A5EA3B sta */
-    clc();  /* A5EA3E clc */
-    lda16_v(0x0020);  /* A5EA3F lda */
-    adc16_v(rd16(ea_dp(0x0F)));  /* A5EA42 adc */
-    sta16(ea_abs(0x000E));  /* A5EA44 sta */
-    lda16_v(0x0004);  /* A5EA47 lda */
-    sta16(ea_abs(0x002C));  /* A5EA4A sta */
-L_A5EA4D:
-    php();  /* A5EA4D php */
-    abi_PointInGroundLong();  /* A5EA4E jsl */
-    plp();  /* A5EA52 plp */
-    op_sep(0x30);  /* A5EA53 sep */
-    lda8(ea_abs(V_0012));  /* A5EA55 lda */
-    and8_v(0x07);  /* A5EA58 and */
-    if (!IF_Z) goto L_A5EA6F;  /* A5EA5A bne */
-    MEM8(dec, ea_abs(0x002C));  /* A5EA5C dec */
-    if (IF_Z) goto L_A5EA8F;  /* A5EA5F beq */
-    op_rep(0x20);  /* A5EA61 rep */
-    clc();  /* A5EA63 clc */
-    lda16(ea_abs(0x000E));  /* A5EA64 lda */
-    adc16_v(0xFFF0);  /* A5EA67 adc */
-    sta16(ea_abs(0x000E));  /* A5EA6A sta */
-    goto L_A5EA4D;  /* A5EA6D bra */
-L_A5EA6F:
-    op_rep(0x20);  /* A5EA6F rep */
-    clc();  /* A5EA71 clc */
-    lda16(ea_abs(0x000E));  /* A5EA72 lda */
-    adc16_v(0xFFF0);  /* A5EA75 adc */
-    sta16(ea_abs(0x000E));  /* A5EA78 sta */
-    php();  /* A5EA7B php */
-    abi_PointInGroundLong();  /* A5EA7C jsl */
-    plp();  /* A5EA80 plp */
-    op_sep(0x30);  /* A5EA81 sep */
-    lda8(ea_abs(V_0012));  /* A5EA83 lda */
-    and8_v(0x07);  /* A5EA86 and */
-    if (IF_Z) goto L_A5EA91;  /* A5EA88 beq */
-    MEM8(dec, ea_abs(0x002C));  /* A5EA8A dec */
-    if (!IF_Z) goto L_A5EA6F;  /* A5EA8D bne */
-L_A5EA8F:
-    sec();  /* A5EA8F sec */
-    return;  /* A5EA90 rts */
-L_A5EA91:
-    clc();  /* A5EA91 clc */
-    return;  /* A5EA92 rts */
+    uint8_t facing = rd8(dpa(ACTOR_FACING));
+    uint16_t ahead = facing ? 0xFFD0 : 0x0030;
+
+    /* 48 pixels ahead, 32 below: up to 4 probes up for ground, then up
+       to the rest for the space above it */
+    op_rep(P_M);
+    a16_load(0x0030);
+    x8_load(facing);
+    if (facing)
+        a16_load(0xFFD0);
+    flag_set(P_C, 0);
+    wr16(dba(SCRATCH), op_adc16(ahead, dp16(ACTOR_X + 1), &cpu.p));
+    a16_load(0x0020);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(0x0020, dp16(ACTOR_Y + 1), &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
+    a16_load(0x0004);
+    wr16(dba(PROBES_LEFT), 0x0004);
+    while (!ground_at_point()) {
+        if (!dec8_at(dba(PROBES_LEFT)))
+            goto none;
+        probe_up();
+    }
+    do {
+        probe_up();
+        if (!ground_at_point()) {
+            flag_set(P_C, 0);
+            return;
+        }
+    } while (dec8_at(dba(PROBES_LEFT)));
+none:
+    flag_set(P_C, 1);
 }
 
 /*
@@ -115,39 +122,43 @@ L_A5EA91:
  */
 void abi_ActorProbeUpTowardPlayer(void)
 {
-    op_rep(0x20);  /* A5F242 rep */
-    clc();  /* A5F244 clc */
-    adc16_v(rd16(ea_dp(0x0F)));  /* A5F245 adc */
-    sta16(ea_abs(0x000E));  /* A5F247 sta */
-    txa16();  /* A5F24A txa */
-    sta16(ea_abs(0x002C));  /* A5F24B sta */
-    lda16(ea_abs(0x08E7));  /* A5F24E lda */
-    cmp16_v(rd16(ea_dp(0x0C)));  /* A5F251 cmp */
-    tya16();  /* A5F253 tya */
-    if (IF_C) goto L_A5F25A;  /* A5F254 bcs */
-    eor16_v(0xFFFF);  /* A5F256 eor */
-    ACC16(inc);  /* A5F259 inc */
-L_A5F25A:
-    clc();  /* A5F25A clc */
-    adc16_v(rd16(ea_dp(0x0C)));  /* A5F25B adc */
-    sta16(ea_abs(SCRATCH));  /* A5F25D sta */
-L_A5F260:
-    abi_PointInGroundLong();  /* A5F260 jsl */
-    op_sep(0x30);  /* A5F264 sep */
-    lda8(ea_abs(V_0012));  /* A5F266 lda */
-    bit8_i(0x48);  /* A5F269 bit */
-    if (!IF_Z) goto L_A5F280;  /* A5F26B bne */
-    op_rep(0x20);  /* A5F26D rep */
-    clc();  /* A5F26F clc */
-    lda16(ea_abs(0x000E));  /* A5F270 lda */
-    adc16_v(0xFFF0);  /* A5F273 adc */
-    sta16(ea_abs(0x000E));  /* A5F276 sta */
-    MEM16(dec, ea_abs(0x002C));  /* A5F279 dec */
-    if (!IF_Z) goto L_A5F260;  /* A5F27C bne */
-    sec();  /* A5F27E sec */
-    return;  /* A5F27F rts */
-L_A5F280:
-    op_rep(0x20);  /* A5F280 rep */
-    clc();  /* A5F282 clc */
-    return;  /* A5F283 rts */
+    uint16_t px, offset;
+    uint8_t kind;
+
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(cpu.a, dp16(ACTOR_Y + 1), &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
+    cpu.a = (uint8_t)cpu.x;               /* the probes */
+    wr16(dba(PROBES_LEFT), cpu.a);
+    /* across: Y pixels the player's way */
+    px = rd16(dba(PLAYER + ACTOR_X + 1));
+    cmp16_of(px, dp16(ACTOR_X + 1));
+    offset = cpu.y;
+    nz16_of(offset);
+    if (px < dp16(ACTOR_X + 1))
+        offset = (uint16_t)((offset ^ 0xFFFF) + 1);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(offset, dp16(ACTOR_X + 1), &cpu.p);
+    wr16(dba(SCRATCH), cpu.a);
+    for (;;) {                            /* up 16 a probe till one meets a wall */
+        abi_PointInGroundLong();
+        op_sep(0x30);
+        kind = rd8(dba(V_0012));
+        a8_load(kind);
+        flag_set(P_Z, !(kind & 0x48));
+        if (kind & 0x48) {
+            op_rep(P_M);
+            flag_set(P_C, 0);
+            return;
+        }
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(rd16(dba(SCRATCH + 2)), 0xFFF0, &cpu.p);
+        wr16(dba(SCRATCH + 2), cpu.a);
+        if (!dec16_at(dba(PROBES_LEFT))) {
+            flag_set(P_C, 1);
+            return;
+        }
+    }
 }

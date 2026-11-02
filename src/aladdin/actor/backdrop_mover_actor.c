@@ -4,6 +4,8 @@
  * flies off. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -38,39 +40,37 @@ void abi_MoverSound(void);
  */
 void abi_BackdropMover(void)
 {
-    op_rep(0x20);  /* 849044 rep */
-    stz16(ea_dp(ACTOR_X));  /* 849046 stz */
-    stz16(ea_dp(ACTOR_X + 2));  /* 849048 stz */
-    stz16(ea_dp(ACTOR_Y + 1));  /* 84904A stz */
-    op_sep(0x20);  /* 84904C sep */
-    lda8_v(0x80);  /* 84904E lda */
-    sta8(ea_dp(ACTOR_09));  /* 849050 sta */
-    stz8(ea_dp(MOVER_HUM));  /* 849052 stz */
-    stz8(ea_dp(MOVER_43));  /* 849054 stz */
-L_849056:
-    lda8_v(0x33);  /* 849056 lda */
-    sta8(ea_dp(ACTOR_40));  /* 849058 sta */
-    lda8_v(0x03);  /* 84905A lda */
-    sta8(ea_dp(ACTOR_41));  /* 84905C sta */
-L_84905E:
-    actor_yield(0x84905Eu);  /* 84905E brk */
-    MEM8(dec, ea_dp(MOVER_HUM));  /* 849060 dec */
-    if (!IF_N) goto L_84906D;  /* 849062 bpl */
-    lda8_v(0x3F);  /* 849064 lda */
-    abi_MoverSound();  /* 849066 jsr */
-    lda8_v(0x30);  /* 849069 lda */
-    sta8(ea_dp(MOVER_HUM));  /* 84906B sta */
-L_84906D:
-    abi_BackdropOffsetStep();  /* 84906D jsr */
-    if (!IF_Z) goto L_84905E;  /* 849070 bne */
-    lda8_v(0x0D);  /* 849072 lda */
-    abi_MoverSound();  /* 849074 jsr */
-    lda8_v(0x3F);  /* 849077 lda */
-    actor_wait(0x849079u);  /* 849079 cop */
-    lda8(ea_dp(ACTOR_FACING));  /* 84907B lda */
-    eor8_v(0x01);  /* 84907D eor */
-    sta8(ea_dp(ACTOR_FACING));  /* 84907F sta */
-    goto L_849056;  /* 849081 bra */
+    dp16_set(ACTOR_X, 0);
+    dp16_set(ACTOR_X + 2, 0);
+    dp16_set(ACTOR_Y + 1, 0);
+    a8_load(0x80);
+    wr8(dpa(ACTOR_09), 0x80);
+    wr8(dpa(MOVER_HUM), 0);
+    wr8(dpa(MOVER_43), 0);
+    for (;;) {
+        /* $0333 frames moving the backdrop its way, humming every $30 */
+        a8_load(0x33);
+        wr8(dpa(ACTOR_40), 0x33);
+        a8_load(0x03);
+        wr8(dpa(ACTOR_41), 0x03);
+        do {
+            actor_yield(0x84905Eu);
+            if (dec8_at(dpa(MOVER_HUM)) & 0x80) {
+                a8_load(0x3F);
+                abi_MoverSound();
+                a8_load(0x30);
+                wr8(dpa(MOVER_HUM), 0x30);
+            }
+            abi_BackdropOffsetStep();
+        } while (!(cpu.p & P_Z));
+        /* its stop's sound, a wait, then the other way */
+        a8_load(0x0D);
+        abi_MoverSound();
+        a8_load(0x3F);
+        actor_wait(0x849079u);
+        a8_load((uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01));
+        wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+    }
 }
 
 
@@ -90,41 +90,37 @@ L_84906D:
  */
 void abi_KindA3Shot(void)
 {
-    lda8(ea_dp(ACTOR_08));  /* 848349 lda */
-    ora8_v(0x02);  /* 84834B ora */
-    sta8(ea_dp(ACTOR_08));  /* 84834D sta */
-    lda8(ea_dp(ACTOR_09));  /* 84834F lda */
-    ora8_v(0x80);  /* 848351 ora */
-    sta8(ea_dp(ACTOR_09));  /* 848353 sta */
-    op_rep(0x20);  /* 848355 rep */
-    lda16_v(0x0400);  /* 848357 lda */
-    sta16(ea_dp(ACTOR_LOOK));  /* 84835A sta */
-    op_sep(0x20);  /* 84835C sep */
-    stz8(ea_dp(ACTOR_FLIP));  /* 84835E stz */
-    ldx8(ea_dp(ACTOR_07));  /* 848360 ldx */
-    sta8(ea_dp(ACTOR_FACING));  /* 848362 sta */
-    lda8(ea_absx(A3_ANIMS));  /* 848364 lda */
-    abi_AnimStart();  /* 848367 jsl */
-    lda8_v(0x08);  /* 84836B lda */
-    actor_wait(0x84836Du);  /* 84836D cop */
-    lda8(ea_dp(ACTOR_07));  /* 84836F lda */
-    ACC8(asl);  /* 848371 asl */
-    tax8();  /* 848372 tax */
-    op_rep(0x20);  /* 848373 rep */
-    clc();  /* 848375 clc */
-    lda16(ea_absx(A3_STEPS));  /* 848376 lda */
-    adc16_v(rd16(ea_dp(ACTOR_X + 1)));  /* 848379 adc */
-    sta16(ea_dp(ACTOR_X + 1));  /* 84837B sta */
-    op_sep(0x20);  /* 84837D sep */
-    lda8_v(0x08);  /* 84837F lda */
-    actor_wait(0x848381u);  /* 848381 cop */
-    ldy8_v(0x6C);  /* 848383 ldy */
-    abi_ActorMotionPreset();  /* 848385 jsl */
-L_848389:
-    actor_yield(0x848389u);  /* 848389 brk */
-    abi_ActorFly();  /* 84838B jsl */
-    lda8(ea_dp(ACTOR_09));  /* 84838F lda */
-    bit8_i(0x40);  /* 848391 bit */
-    if (!IF_Z) goto L_848389;  /* 848393 bne */
-    abi_ActorEndPlaced(); return;  /* 848395 jml */
+    uint8_t variant, flags;
+
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    a8_load((uint8_t)(rd8(dpa(ACTOR_09)) | 0x80));
+    wr8(dpa(ACTOR_09), (uint8_t)cpu.a);
+    dp16_set(ACTOR_LOOK, 0x0400);
+    cpu.a = 0x0400;
+    wr8(dpa(ACTOR_FLIP), 0);
+    variant = rd8(dpa(ACTOR_07));
+    x8_load(variant);
+    wr8(dpa(ACTOR_FACING), 0x00);         /* A's low byte, 0 */
+    a8_load(rd8(dba(A3_ANIMS) + cpu.x));
+    abi_AnimStart();
+    a8_load(0x08);
+    actor_wait(0x84836Du);
+    /* it steps out across by its variant's step, then flies */
+    cpu.x = (uint8_t)(variant << 1);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(rd16(dba(A3_STEPS) + cpu.x), dp16(ACTOR_X + 1), &cpu.p);
+    dp16_set(ACTOR_X + 1, cpu.a);
+    a8_load(0x08);
+    actor_wait(0x848381u);
+    y8_load(0x6C);
+    abi_ActorMotionPreset();
+    do {
+        actor_yield(0x848389u);
+        abi_ActorFly();
+        flags = rd8(dpa(ACTOR_09));
+        a8_load(flags);
+        flag_set(P_Z, !(flags & 0x40));
+    } while (flags & 0x40);
+    abi_ActorEndPlaced();
 }

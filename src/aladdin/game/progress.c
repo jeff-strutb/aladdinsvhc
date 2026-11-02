@@ -3,6 +3,8 @@
  * progress leads to.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_GameStartTask(void);
 void abi_LevelPlayStartTask(void);
@@ -24,6 +26,7 @@ void abi_PlayStartCountsLong(void);
 #define DEMO_SEQUENCES 0xB6FDu
 #define DEMO_STAGES 0xB70Au
 #define DEMO_0360 0xB717u
+#define LEVEL_BY_PROGRESS 0xB73Eu  /* by sequence its first entry's offset; then the levels (in the bank DB names) */
 
 /*
  * @routine 81:8062 DemoStartLong
@@ -65,25 +68,22 @@ void abi_PlayStartCountsLong(void)
  */
 void abi_DemoStart(void)
 {
-    lda8_v(0x02);  /* 818066 lda */
-    sta8(ea_abs(PLAY_MODE));  /* 818068 sta */
-    lda8_v(0x01);  /* 81806B lda */
-    sta8(ea_abs(DEMO_INPUT_FRAMES));  /* 81806D sta */
-    ldx8(ea_abs(DEMO_NUMBER));  /* 818070 ldx */
-    txa8();  /* 818073 txa */
-    ACC8(asl);  /* 818074 asl */
-    tay8();  /* 818075 tay */
-    lda8(ea_absy(DEMO_INPUTS));  /* 818076 lda */
-    sta8(ea_abs(DEMO_INPUT_AT));  /* 818079 sta */
-    lda8(ea_absy(DEMO_INPUTS + 1));  /* 81807C lda */
-    sta8(ea_abs(DEMO_INPUT_AT + 1));  /* 81807F sta */
-    lda8(ea_absx(DEMO_SEQUENCES));  /* 818082 lda */
-    sta8(ea_abs(LEVEL_035C));  /* 818085 sta */
-    lda8(ea_absx(DEMO_STAGES));  /* 818088 lda */
-    sta8(ea_abs(0x035D));  /* 81808B sta */
-    lda8(ea_absx(DEMO_0360));  /* 81808E lda */
-    sta8(ea_abs(0x0360));  /* 818091 sta */
-    return;  /* 818094 rts */
+    uint8_t demo = rd8(dba(DEMO_NUMBER)), v;
+
+    a8_load(0x02);
+    wr8(dba(PLAY_MODE), 0x02);
+    a8_load(0x01);
+    wr8(dba(DEMO_INPUT_FRAMES), 0x01);
+    /* the demo's inputs, and its sequence, stage and $0360 */
+    x8_load(demo);
+    flag_set(P_C, demo & 0x80);
+    cpu.y = (uint8_t)(demo << 1);
+    wr16(dba(DEMO_INPUT_AT), rd16(dba(DEMO_INPUTS) + cpu.y));
+    wr8(dba(LEVEL_035C), rd8(dba(DEMO_SEQUENCES) + demo));
+    wr8(dba(0x035D), rd8(dba(DEMO_STAGES) + demo));
+    v = rd8(dba(DEMO_0360) + demo);
+    a8_load(v);
+    wr8(dba(0x0360), v);
 }
 
 /*
@@ -99,27 +99,24 @@ void abi_DemoStart(void)
  */
 void abi_PlayStartCounts(void)
 {
-    lda8_v(0xC3);  /* 8180E0 lda */
-    sta8(ea_abs(RANDOM));  /* 8180E2 sta */
-    lda8_v(0x01);  /* 8180E5 lda */
-    sta8(ea_abs(0x032C));  /* 8180E7 sta */
-    stz8(ea_abs(0x032D));  /* 8180EA stz */
-    lda8(ea_abs(CHEAT_0009));  /* 8180ED lda */
-    if (IF_Z) goto L_818101;  /* 8180F0 beq */
-    lda8_v(0x0A);  /* 8180F2 lda */
-    sta8(ea_abs(HEALTH_MARKS));  /* 8180F4 sta */
-    lda8_v(0x01);  /* 8180F7 lda */
-    sta8(ea_abs(0x036E));  /* 8180F9 sta */
-    lda8_v(0x99);  /* 8180FC lda */
-    sta8(ea_abs(0x0369));  /* 8180FE sta */
-L_818101:
-    lda8(ea_abs(HEALTH_MARKS));  /* 818101 lda */
-    sta8(ea_abs(HEALTH));  /* 818104 sta */
-    stz8(ea_abs(0x0347));  /* 818107 stz */
-    stz8(ea_abs(0x036C));  /* 81810A stz */
-    stz8(ea_abs(0x035A));  /* 81810D stz */
-    stz8(ea_abs(0x036C));  /* 818110 stz */
-    return;  /* 818113 rts */
+    uint8_t cheat, health;
+
+    wr8(dba(RANDOM), 0xC3);
+    wr8(dba(0x032C), 0x01);
+    wr8(dba(0x032D), 0x00);
+    cheat = rd8(dba(CHEAT_0009));
+    a8_load(cheat);
+    if (cheat) {                          /* 10 marks, the 2x2 mark, 99 apples */
+        wr8(dba(HEALTH_MARKS), 0x0A);
+        wr8(dba(0x036E), 0x01);
+        wr8(dba(0x0369), 0x99);
+    }
+    health = rd8(dba(HEALTH_MARKS));
+    a8_load(health);
+    wr8(dba(HEALTH), health);
+    wr8(dba(0x0347), 0);
+    wr8(dba(0x036C), 0);
+    wr8(dba(0x035A), 0);
 }
 
 /*
@@ -148,27 +145,18 @@ void abi_NewGameStateLong(void)
  */
 void abi_NewGameState(void)
 {
-    abi_LevelCountersClear();  /* 818118 jsl */
-    abi_LevelFromProgress();  /* 81811C jsr */
-    lda8_v(0x03);  /* 81811F lda */
-    sta8(ea_abs(0x0362));  /* 818121 sta */
-    sta8(ea_abs(0x0363));  /* 818124 sta */
-    sta8(ea_abs(0x0364));  /* 818127 sta */
-    lda8_v(0x03);  /* 81812A lda */
-    sta8(ea_abs(0x0365));  /* 81812C sta */
-    sta8(ea_abs(0x0366));  /* 81812F sta */
-    sta8(ea_abs(0x0367));  /* 818132 sta */
-    lda8_v(0x10);  /* 818135 lda */
-    sta8(ea_abs(0x0369));  /* 818137 sta */
-    sta8(ea_abs(0x0368));  /* 81813A sta */
-    stz8(ea_abs(0x036B));  /* 81813D stz */
-    stz8(ea_abs(0x036A));  /* 818140 stz */
-    stz8(ea_abs(0x036E));  /* 818143 stz */
-    stz8(ea_abs(0x036D));  /* 818146 stz */
-    stz8(ea_abs(0x0358));  /* 818149 stz */
-    stz8(ea_abs(0x036C));  /* 81814C stz */
-    stz8(ea_abs(0x035A));  /* 81814F stz */
-    return;  /* 818152 rts */
+    static const uint16_t threes[6] = { 0x0362, 0x0363, 0x0364, 0x0365, 0x0366, 0x0367 };
+    static const uint16_t zeros[7] = { 0x036B, 0x036A, 0x036E, 0x036D, 0x0358, 0x036C, 0x035A };
+
+    abi_LevelCountersClear();
+    abi_LevelFromProgress();
+    for (int i = 0; i < 6; i++)           /* 3 lives, health 3, both shown */
+        wr8(dba(threes[i]), 0x03);
+    wr8(dba(0x0369), 0x10);               /* 10 apples, shown */
+    wr8(dba(0x0368), 0x10);
+    for (int i = 0; i < 7; i++)
+        wr8(dba(zeros[i]), 0x00);
+    a8_load(0x10);
 }
 
 /*
@@ -183,12 +171,13 @@ void abi_NewGameState(void)
  */
 void abi_LevelFromProgress(void)
 {
-    ldx8(ea_abs(LEVEL_035C));  /* 818157 ldx */
-    clc();  /* 81815A clc */
-    lda8(ea_absx(0xB73E));  /* 81815B lda */
-    adc8_v(rd8(ea_abs(0x035D)));  /* 81815E adc */
-    tax8();  /* 818161 tax */
-    lda8(ea_absx(0xB73E));  /* 818162 lda */
-    sta8(ea_abs(LEVEL));  /* 818165 sta */
-    return;  /* 818168 rts */
+    uint8_t at, level;
+
+    x8_load(rd8(dba(LEVEL_035C)));
+    flag_set(P_C, 0);
+    at = op_adc8(rd8(dba(LEVEL_BY_PROGRESS) + cpu.x), rd8(dba(0x035D)), &cpu.p);
+    cpu.x = at;
+    level = rd8(dba(LEVEL_BY_PROGRESS) + at);
+    a8_load(level);
+    wr8(dba(LEVEL), level);
 }

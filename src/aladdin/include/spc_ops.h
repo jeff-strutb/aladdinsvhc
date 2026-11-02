@@ -123,6 +123,16 @@ static inline void spc_st(uint16_t addr, uint8_t v)
     spc_wr(addr, v);
 }
 
+/* A store as C makes it: to an I/O register ($F0-$FF) with the SPC700's
+   dummy read first (it reaches the hardware), to RAM a plain write. */
+static inline void spc_put(uint16_t addr, uint8_t v)
+{
+    if ((addr & 0xFFF0) == 0x00F0)
+        spc_st(addr, v);
+    else
+        spc_wr(addr, v);
+}
+
 static inline void spc_rmw(uint16_t addr, uint8_t (*op)(uint8_t))
 {
     uint8_t v = spc_rd(addr);

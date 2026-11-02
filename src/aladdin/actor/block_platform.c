@@ -5,6 +5,8 @@
  * time. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -37,14 +39,16 @@
  */
 void abi_BlockPointInBounds(void)
 {
-    op_rep(0x20);
-    sec();
-    lda16(ea_dp(BLOCK_X));
-    sbc16_v(0x0080);
-    clc();
-    adc16_v(0x0060);
-    cmp16_v(0x00C0);
-    op_sep(0x20);
+    uint16_t d;
+
+    op_rep(P_M);
+    flag_set(P_C, 1);
+    d = op_sbc16(dp16(BLOCK_X), 0x0080, &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, 0x0060, &cpu.p);      /* x from $20 to $DF */
+    cpu.a = d;
+    cmp16_of(d, 0x00C0);
+    op_sep(P_M);
 }
 
 /*
@@ -62,33 +66,24 @@ void abi_BlockPointInBounds(void)
  */
 void abi_BlockPointStep(void)
 {
+    uint16_t alt, pick, dy;
+
     op_rep(0x30);
-    lda16(ea_dp(BLOCK_ALT));
-    and16_v(0x0001);
-    ACC16(asl);
-    tax16();
-    lda16(ea_dp(ACTOR_47));
-    ACC16(asl);
-    ora16_v(rd16(ea_dp(ACTOR_FACING)));
-    and16_v(0x00FF);
-    ACC16(asl);
-    ACC16(asl);
-    clc();
-    adc16_v(rd16(ea_absx(BLOCK_STEPS)));
-    tax16();
-    clc();
-    lda16(ea_dp(BLOCK_X));
-    adc16_v(rd16(ea_absx(BLOCK_STEPS)));
-    sta16(ea_dp(BLOCK_X));
-    lda16(ea_absx(BLOCK_STEPS + 2));
-    ldy16(ea_dp(BACK_LEG));
-    if (!IF_Z) {
-        eor16_v(0xFFFF);
-        ACC16(inc);
-    }
-    clc();
-    adc16_v(rd16(ea_dp(BLOCK_Y)));
-    sta16(ea_dp(BLOCK_Y));
+    alt = (uint16_t)((dp16(BLOCK_ALT) & 0x0001) << 1);
+    pick = (uint16_t)((((dp16(ACTOR_47) << 1) | dp16(ACTOR_FACING)) & 0x00FF) << 2);
+    flag_set(P_C, 0);
+    cpu.x = op_adc16(pick, rd16(dba(BLOCK_STEPS) + alt), &cpu.p);
+    /* x by the step; y by it, turned on the way back */
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(dp16(BLOCK_X), rd16(dba(BLOCK_STEPS) + cpu.x), &cpu.p);
+    dp16_set(BLOCK_X, cpu.a);
+    dy = rd16(dba(BLOCK_STEPS + 2) + cpu.x);
+    cpu.y = dp16(BACK_LEG);
+    if (cpu.y)
+        dy = (uint16_t)((dy ^ 0xFFFF) + 1);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(dy, dp16(BLOCK_Y), &cpu.p);
+    dp16_set(BLOCK_Y, cpu.a);
     op_sep(0x30);
 }
 
@@ -106,34 +101,23 @@ void abi_BlockPointStep(void)
  */
 void abi_BlockPlatformMove(void)
 {
-    ldx8(ea_dp(ACTOR_07));
-    lda8(ea_dp(ACTOR_47));
-    ACC8(asl);
-    ora8_v(rd8(ea_dp(BACK_LEG)));
-    ACC8(asl);
-    ora8_v(rd8(ea_dp(ACTOR_FACING)));
-    clc();
-    adc8_v(rd8(ea_absx(MOVE_LISTS)));
-    tay8();
-    ldx8(ea_absy(MOVE_PICKS));
-    clc();
-    lda8(ea_dp(ACTOR_X));
-    adc8_v(rd8(ea_absx(MOVE_PICKS)));
-    sta8(ea_dp(ACTOR_X));
-    lda8(ea_dp(ACTOR_X + 1));
-    adc8_v(rd8(ea_absx(MOVE_PICKS + 1)));
-    sta8(ea_dp(ACTOR_X + 1));
-    lda8(ea_dp(ACTOR_X + 2));
-    adc8_v(rd8(ea_absx(MOVE_PICKS + 2)));
-    sta8(ea_dp(ACTOR_X + 2));
-    clc();
-    lda8(ea_dp(ACTOR_Y));
-    adc8_v(rd8(ea_absx(MOVE_PICKS + 3)));
-    sta8(ea_dp(ACTOR_Y));
-    lda8(ea_dp(ACTOR_Y + 1));
-    adc8_v(rd8(ea_absx(MOVE_PICKS + 4)));
-    sta8(ea_dp(ACTOR_Y + 1));
-    lda8(ea_dp(ACTOR_Y + 2));
-    adc8_v(rd8(ea_absx(MOVE_PICKS + 5)));
-    sta8(ea_dp(ACTOR_Y + 2));
+    uint8_t pick, v = 0;
+
+    /* the move picked by its variant, $47, the leg and its facing */
+    x8_load(rd8(dpa(ACTOR_07)));
+    pick = (uint8_t)((uint8_t)(((uint8_t)(rd8(dpa(ACTOR_47)) << 1) | rd8(dpa(BACK_LEG))) << 1) | rd8(dpa(ACTOR_FACING)));
+    flag_set(P_C, 0);
+    cpu.y = op_adc8(pick, rd8(dba(MOVE_LISTS) + cpu.x), &cpu.p);
+    x8_load(rd8(dba(MOVE_PICKS) + cpu.y));
+    /* x and y (24-bit each) moved by it */
+    for (int axis = 0; axis < 2; axis++) {
+        uint16_t at = axis ? ACTOR_Y : ACTOR_X;
+
+        flag_set(P_C, 0);
+        for (int i = 0; i < 3; i++) {
+            v = op_adc8(rd8(dpa((uint16_t)(at + i))), rd8(dba(MOVE_PICKS + 3 * axis + i) + cpu.x), &cpu.p);
+            wr8(dpa((uint16_t)(at + i)), v);
+        }
+    }
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | v);
 }

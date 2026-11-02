@@ -1,10 +1,14 @@
 /*
  * actor_waits_small.c: small actor routines: two routines actors run each
  * frame they wait (hit tests, then their end out of range), kind $82's
- * start (shown, and stays), a turn of the vertical speed, and a place on
- * the escort actor. Drafted by cdraft.py; named and described by hand.
+ * start (shown, and stays), a turn of the vertical speed, a place on
+ * the escort actor, kind $69's wait and its end riding the escort, kind $3C's
+ * start (it drifts up and down), two more wait routines, and a flight
+ * frame that stops rising. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -17,8 +21,31 @@ void abi_ActorPictureSend(void);
 void abi_ActorStompOrHurt(void);
 void abi_AnimStart(void);
 void abi_AnimStep(void);
+void abi_ActorOnEscort(void);
+void abi_ActorEndPlaced(void);
+void abi_ActorSpeedXSet(void);
+void abi_ActorSpeedYSet(void);
+void abi_ActorSpeedYTurn(void);
+void abi_ActorStopsShot(void);
+void abi_PlayerLandsOnActor(void);
+void abi_SoundQueueAdd(void);
+void abi_ActorHitsTestBoxIfPlayerFreeLong(void);
+void abi_PlayerEnter8CFacingLong(void);
+void abi_ActorFlyAgainst(void);
 
 #define WAIT_HITS 0x42u  /* counted up each frame a shot does not down it */
+
+/* Kind $69's end: what it sets in the escort's record, and its count */
+#define ESCORT_CODE (ACTOR_ESCORT + ACTOR_03)  /* where the escort's code goes on (word) */
+#define ESCORT_ON_CODE 0xE554u                 /* the escort's code once kind $69 is done */
+#define KIND69_FRAMES 0x40u                    /* frames left of each of its two poses */
+#define KIND3C_16 0x16u                        /* word: $D282 */
+#define KIND3C_LEG 0x40u                       /* frames left before its vertical speed turns */
+/* Not yet filed (no script reaches it): kind $3C's frames after its
+   first, each ActorMoveY, its vertical speed turned every $55. */
+#define KIND3C_DRIFT 0x83B0FFu
+#define KIND69_RIDING 0x42u                    /* nonzero: kind $69 rides on the escort */
+#define V_00BD 0x0000BDu                       /* counted up as each such end finishes; a camera trigger task clears it */
 
 /*
  * @routine 83:AA47 ActorWaitHitsRange8
@@ -34,12 +61,12 @@ void abi_AnimStep(void);
  */
 void abi_ActorWaitHitsRange8(void)
 {
-    abi_AnimStep();  /* 83AA47 jsl */
-    abi_ActorPictureSend();  /* 83AA4B jsl */
-    abi_ActorStompOrHurt();  /* 83AA4F jsr */
-    abi_ActorHitByShotCC();  /* 83AA52 jsr */
-    ldx8_v(0x08);  /* 83AA55 ldx */
-    abi_ActorEndOutOfRange(); return;  /* 83AA57 jmp */
+    abi_AnimStep();
+    abi_ActorPictureSend();
+    abi_ActorStompOrHurt();
+    abi_ActorHitByShotCC();
+    x8_load(0x08);
+    abi_ActorEndOutOfRange();
 }
 
 
@@ -57,14 +84,16 @@ void abi_ActorWaitHitsRange8(void)
  */
 void abi_ActorWaitHitsRange0(void)
 {
-    abi_ActorStompOrHurt();  /* 83B630 jsr */
-    abi_ActorDownedByShot();  /* 83B633 jsr */
-    if (IF_C) goto L_83B63A;  /* 83B636 bcs */
-    MEM8(inc, ea_dp(WAIT_HITS));  /* 83B638 inc */
-L_83B63A:
-    abi_AnimStep();  /* 83B63A jsl */
-    ldx8_v(0x00);  /* 83B63E ldx */
-    abi_ActorEndOutOfRange(); return;  /* 83B640 jmp */
+    abi_ActorStompOrHurt();
+    abi_ActorDownedByShot();
+    if (!(cpu.p & P_C)) {
+        uint8_t hits = (uint8_t)(rd8(dpa(WAIT_HITS)) + 1);
+        wr8(dpa(WAIT_HITS), hits);
+        nz8_of(hits);
+    }
+    abi_AnimStep();
+    x8_load(0x00);
+    abi_ActorEndOutOfRange();
 }
 
 
@@ -80,17 +109,12 @@ L_83B63A:
  */
 void abi_Kind82Show(void)
 {
-    lda8(ea_dp(ACTOR_08));  /* 84951D lda */
-    ora8_v(0x02);  /* 84951F ora */
-    sta8(ea_dp(ACTOR_08));  /* 849521 sta */
-    lda8(ea_dp(ACTOR_09));  /* 849523 lda */
-    ora8_v(0xB0);  /* 849525 ora */
-    sta8(ea_dp(ACTOR_09));  /* 849527 sta */
-    lda8_v(0x00);  /* 849529 lda */
-    abi_AnimStart();  /* 84952B jsl */
-L_84952F:
-    actor_yield(0x84952Fu);  /* 84952F brk */
-    goto L_84952F;  /* 849531 bra */
+    wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0xB0));
+    a8_load(0x00);
+    abi_AnimStart();
+    for (;;)
+        actor_yield(0x84952Fu);
 }
 
 
@@ -105,16 +129,12 @@ L_84952F:
  */
 void abi_ActorSpeedYTurn(void)
 {
-    lda8(ea_dp(ACTOR_SPEED_Y + 2));  /* 83B109 lda */
-    eor8_v(0xFF);  /* 83B10B eor */
-    sta8(ea_dp(ACTOR_SPEED_Y + 2));  /* 83B10D sta */
-    op_rep(0x20);  /* 83B10F rep */
-    lda16(ea_dp(ACTOR_SPEED_Y));  /* 83B111 lda */
-    eor16_v(0xFFFF);  /* 83B113 eor */
-    ACC16(inc);  /* 83B116 inc */
-    sta16(ea_dp(ACTOR_SPEED_Y));  /* 83B117 sta */
-    op_sep(0x20);  /* 83B119 sep */
-    return;  /* 83B11B rts */
+    uint16_t low;
+
+    wr8(dpa(ACTOR_SPEED_Y + 2), (uint8_t)(rd8(dpa(ACTOR_SPEED_Y + 2)) ^ 0xFF));
+    low = (uint16_t)((dp16(ACTOR_SPEED_Y) ^ 0xFFFF) + 1);
+    dp16_set(ACTOR_SPEED_Y, low);
+    a16_load(low);
 }
 
 
@@ -128,13 +148,207 @@ void abi_ActorSpeedYTurn(void)
  */
 void abi_ActorOnEscort(void)
 {
-    op_rep(0x20);  /* 83EB4B rep */
-    lda16(ea_abs(ACTOR_ESCORT + ACTOR_X + 1));  /* 83EB4D lda */
-    sta16(ea_dp(ACTOR_X + 1));  /* 83EB50 sta */
-    clc();  /* 83EB52 clc */
-    lda16(ea_abs(ACTOR_ESCORT + ACTOR_Y + 1));  /* 83EB53 lda */
-    adc16_v(0xFFFC);  /* 83EB56 adc */
-    sta16(ea_dp(ACTOR_Y + 1));  /* 83EB59 sta */
-    op_sep(0x20);  /* 83EB5B sep */
-    return;  /* 83EB5D rts */
+    dp16_set(ACTOR_X + 1, rd16(dba(ACTOR_ESCORT + ACTOR_X + 1)));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(rd16(dba(ACTOR_ESCORT + ACTOR_Y + 1)), 0xFFFC, &cpu.p);
+    dp16_set(ACTOR_Y + 1, cpu.a);
+}
+
+/* Kind $69's pose on the escort: animation `anim`, then 32 frames on it. */
+static void ride_escort(uint8_t anim, uint32_t brk_at)
+{
+    uint8_t frames;
+
+    a8_load(anim);
+    abi_AnimStart();
+    a8_load(0x20);
+    wr8(dpa(KIND69_FRAMES), 0x20);
+    do {
+        actor_yield(brk_at);
+        abi_AnimStep();
+        abi_ActorOnEscort();
+        frames = (uint8_t)(rd8(dpa(KIND69_FRAMES)) - 1);
+        wr8(dpa(KIND69_FRAMES), frames);
+        nz8_of(frames);
+    } while (frames);
+}
+
+/*
+ * @routine 83:EADC Kind69EscortEnd
+ * @actor
+ * WHAT IT DOES: Actor kind $69's code in state $8C: it sets the escort
+ * going on at $E554 of its bank, rides on the escort through two
+ * animations of 32 frames each, counts itself in $00BD and ends.
+ * HOW: The escort's $08 bit 3 set, its $07 = 6, its code word $E554;
+ * animation 2, then each frame (BRK first) AnimStep and ActorOnEscort,
+ * 32 times; animation 3, the same 32 times; V_00BD up; ActorEndPlaced.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
+ * the actor loop's jump for kind $69 in state $8C (the table at
+ * $83:8DFD). Exit: never returns.
+ */
+void abi_Kind69EscortEnd(void)
+{
+    uint8_t bits = rd8(dba(ACTOR_ESCORT + ACTOR_08));
+    uint8_t done;
+
+    wr8(dba(ACTOR_ESCORT + ACTOR_08), (uint8_t)(bits | 0x08));
+    wr8(dba(ACTOR_ESCORT + ACTOR_07), 0x06);
+    wr16(dba(ESCORT_CODE), ESCORT_ON_CODE);
+    cpu.a = ESCORT_ON_CODE;
+    ride_escort(0x02, 0x83EAFAu);
+    ride_escort(0x03, 0x83EB11u);
+    done = (uint8_t)(rd8(dba(V_00BD)) + 1);
+    wr8(dba(V_00BD), done);
+    nz8_of(done);
+    abi_ActorEndPlaced();
+}
+
+/*
+ * @routine 83:B0CB Kind3CDrift
+ * @actor
+ * WHAT IT DOES: Actor kind $3C: shown facing right, given the speeds of
+ * entries $15 (horizontal) and $42 (vertical), it drifts up and down: its
+ * vertical speed turns every $55 frames.
+ * HOW: ACTOR_08 bit 1 and ACTOR_09 bits $90 set; KIND3C_16 = $D282;
+ * facing and flip 0; animation 0; ActorSpeedXSet $15, ActorSpeedYSet $42;
+ * KIND3C_LEG $55 and ActorSpeedYTurn, then a yield. What it does after
+ * that (each frame ActorMoveY, the count down, at 0 again from $55 and a
+ * turn) is at KIND3C_DRIFT, which no script reaches: its C is not
+ * written, and it runs as the original's (jump_routine).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
+ * the actor loop's jump for kind $3C in state $0C (the table at
+ * $83:8CAB). Exit: never returns.
+ */
+void abi_Kind3CDrift(void)
+{
+    wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0x90));
+    dp16_set(KIND3C_16, 0xD282);
+    wr8(dpa(ACTOR_FACING), 0);
+    wr8(dpa(ACTOR_FLIP), 0);
+    cpu.a = 0xD200;
+    nz8_of(0x00);
+    abi_AnimStart();
+    y8_load(0x15);
+    abi_ActorSpeedXSet();
+    y8_load(0x42);
+    abi_ActorSpeedYSet();
+    a8_load(0x55);
+    wr8(dpa(KIND3C_LEG), 0x55);
+    abi_ActorSpeedYTurn();
+    actor_yield(0x83B0FDu);
+    jump_routine(KIND3C_DRIFT);
+}
+
+/*
+ * @routine 83:EB24 Kind69Wait
+ * WHAT IT DOES: What actor kind $69 runs each frame it waits: its
+ * animation; while it rides the escort it stays on it, can stop the
+ * player's shots, and when Aladdin lands on it, it goes into state $8C
+ * (its end, Kind69EscortEnd) with sound $12.
+ * HOW: AnimStep; KIND69_RIDING zero: nothing more. Else ActorOnEscort,
+ * the escort's $08 bit 3 cleared, ActorStopsShot, PlayerLandsOnActor;
+ * landed (Z clear): bit 7 of its $09 cleared, its state $8C,
+ * SoundQueueAdd $12.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor loop's wait table (83:94D0). Exit: M 8-bit; not
+ * riding: as AnimStep; else as PlayerLandsOnActor or SoundQueueAdd.
+ */
+void abi_Kind69Wait(void)
+{
+    uint8_t riding, bits;
+
+    abi_AnimStep();
+    riding = rd8(dpa(KIND69_RIDING));
+    a8_load(riding);
+    if (!riding)
+        return;
+    abi_ActorOnEscort();
+    /* TRB: Z from A AND the byte, then the bit cleared */
+    a8_load(0x08);
+    bits = rd8(dba(ACTOR_ESCORT + ACTOR_08));
+    flag_set(P_Z, !(bits & 0x08));
+    wr8(dba(ACTOR_ESCORT + ACTOR_08), (uint8_t)(bits & ~0x08));
+    abi_ActorStopsShot();
+    abi_PlayerLandsOnActor();
+    if (cpu.p & P_Z)
+        return;
+    /* Aladdin landed on it: its end, with sound $12 */
+    a8_load(0x80);
+    bits = rd8(dpa(ACTOR_09));
+    flag_set(P_Z, !(bits & 0x80));
+    wr8(dpa(ACTOR_09), (uint8_t)(bits & ~0x80));
+    a8_load(0x8C);
+    wr8(dpa(ACTOR_STATE), 0x8C);
+    a8_load(0x12);
+    abi_SoundQueueAdd();
+}
+
+/*
+ * @routine 83:ABD8 ActorWaitEndLowKinds
+ * WHAT IT DOES: What an actor runs each frame it waits: its animation; an
+ * actor whose $07 has a low nibble below 2 ends when it is out of range by
+ * box 0.
+ * HOW: AnimStep; ACTOR_07 AND $0F against 2: 2 or more, RTS; below, X = 0
+ * and on into ActorEndOutOfRange (JMP).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor loop's wait table (83:94D0). Exit: as AnimStep with A
+ * low = the nibble and C set; or as ActorEndOutOfRange.
+ */
+void abi_ActorWaitEndLowKinds(void)
+{
+    uint8_t low;
+
+    abi_AnimStep();
+    low = rd8(dpa(ACTOR_07)) & 0x0F;
+    a8_load(low);
+    cmp8_of(low, 0x02);
+    if (low >= 0x02)
+        return;
+    x8_load(0x00);
+    abi_ActorEndOutOfRange();
+}
+
+/*
+ * @routine 84:95D4 ActorWaitGrabsPlayer
+ * WHAT IT DOES: The wait work the actor loop's stub at $83:92DC calls each
+ * frame: the actor's animation, and when the player, free to be caught,
+ * meets its box, he goes into state $8C facing it.
+ * HOW: AnimStep; ActorHitsTestBoxIfPlayerFreeLong: met (C clear),
+ * PlayerEnter8CFacingLong.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSL. Exit: as
+ * the test (C set) or as PlayerEnter8CFacingLong.
+ */
+void abi_ActorWaitGrabsPlayer(void)
+{
+    abi_AnimStep();
+    abi_ActorHitsTestBoxIfPlayerFreeLong();
+    if (!IF_C)
+        abi_PlayerEnter8CFacingLong();
+}
+
+/*
+ * @routine 84:A7D4 ActorFlyAgainstNoRise
+ * WHAT IT DOES: A frame of flight with the vertical pull reversed, which
+ * stops the actor's vertical motion once its vertical speed has gone
+ * negative (upward).
+ * HOW: ActorFlyAgainst; with the speed's top byte negative, the
+ * acceleration ($20) and the 24-bit vertical speed cleared.
+ * Entry: M 8-bit; D = the actor; called by JSR (84:A630, A6B0, A6D9,
+ * A74E). Exit: M 8-bit; as ActorFlyAgainst, or A low = the speed's top
+ * byte, N set.
+ */
+void abi_ActorFlyAgainstNoRise(void)
+{
+    uint8_t top;
+
+    abi_ActorFlyAgainst();
+    top = rd8(dpa(ACTOR_SPEED_Y + 2));
+    a8_load(top);
+    if (!(top & 0x80))
+        return;
+    wr8(dpa(ACTOR_ACCEL_Y), 0);
+    wr8(dpa(ACTOR_SPEED_Y), 0);
+    wr8(dpa(ACTOR_SPEED_Y + 1), 0);
+    wr8(dpa(ACTOR_SPEED_Y + 2), 0);
 }

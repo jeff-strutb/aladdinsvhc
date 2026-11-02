@@ -4,6 +4,8 @@
  * and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 
 #define LOAD_LIST_PTR 0x4Cu        /* in the direct page: the list's next byte (word) */
@@ -18,9 +20,10 @@
  */
 void abi_LoadListNext(void)
 {
-    op_rep(0x20);  /* 81F303 rep */
-    MEM16(inc, ea_dp(LOAD_LIST_PTR));  /* 81F305 inc */
-    op_sep(0x20);  /* 81F307 sep */
-    return;  /* 81F309 rts */
+    uint16_t next = (uint16_t)(dp16(LOAD_LIST_PTR) + 1);
+
+    dp16_set(LOAD_LIST_PTR, next);
+    nz16_of(next);
+    op_sep(P_M);
 }
 

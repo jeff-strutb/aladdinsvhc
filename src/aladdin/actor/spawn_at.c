@@ -3,6 +3,8 @@
  * work RAM words, started at its next turn.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -32,21 +34,25 @@
  */
 void abi_ActorSpawnAt(void)
 {
-    sta8(ea_abs(SPAWN_07));
-    xba();
+    uint32_t rec;
+    uint16_t y;
+
+    wr8(dba(SPAWN_07), (uint8_t)cpu.a);
+    op_xba();                             /* the kind */
     call_routine(ACTOR_ALLOC, 1);
-    if (IF_C)
+    if (cpu.p & P_C)
         return;
-    lda8_v(ACTOR_NEW);
-    sta8(ea_absx(ACTOR_STATE));
-    lda8(ea_abs(SPAWN_07));
-    sta8(ea_absx(ACTOR_07));
-    op_rep(0x20);
-    lda16(ea_abs(SPAWN_X));
-    sta16(ea_absx(ACTOR_X + 1));
-    lda16(ea_abs(SPAWN_Y));
-    sta16(ea_absx(ACTOR_Y + 1));
-    clc();
+    rec = dba(0) + cpu.x;
+    a8_load(ACTOR_NEW);
+    wr8(rec + ACTOR_STATE, ACTOR_NEW);
+    a8_load(rd8(dba(SPAWN_07)));
+    wr8(rec + ACTOR_07, (uint8_t)cpu.a);
+    op_rep(P_M);
+    wr16(rec + ACTOR_X + 1, rd16(dba(SPAWN_X)));
+    y = rd16(dba(SPAWN_Y));
+    wr16(rec + ACTOR_Y + 1, y);
+    a16_load(y);
+    flag_set(P_C, 0);
 }
 /*
  * @routine 80:A4D8 ActorSpawnAtLong

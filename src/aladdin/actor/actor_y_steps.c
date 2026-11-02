@@ -5,6 +5,8 @@
  * frames, back 1 a frame for 56, or the other way by its byte at $07).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "actor_anim.h"
@@ -31,36 +33,38 @@
  */
 void abi_ActorYByFrame47(void)
 {
-    lda8(ea_dp(ACTOR_FRAME));
-    cmp8_v(rd8(ea_dp(ACTOR_47)));
-    if (IF_Z) goto keep;
-    ACC8(asl);
-    tax8();
-    op_rep(0x21);
-    lda16(ea_absx(FRAME_Y_STEPS_47));
-    adc16_v(rd16(ea_dp(ACTOR_Y + 1)));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
-    lda8(ea_dp(ACTOR_FRAME));
-keep:
-    sta8(ea_dp(ACTOR_47));
+    uint8_t frame = rd8(dpa(ACTOR_FRAME)), was = rd8(dpa(ACTOR_47));
+
+    a8_load(frame);
+    cmp8_of(frame, was);
+    if (frame != was) {                   /* a new frame: its y step */
+        cpu.x = (uint8_t)(frame << 1);
+        op_rep(0x21);
+        cpu.a = op_adc16(rd16(dba(FRAME_Y_STEPS_47) + cpu.x), dp16(ACTOR_Y + 1), &cpu.p);
+        dp16_set(ACTOR_Y + 1, cpu.a);
+        op_sep(P_M);
+        a8_load(frame);
+    }
+    wr8(dpa(ACTOR_47), frame);
 }
 
 /* The step by entry A: (A * 4) into BOB_STEPS. */
-static void bob_step(void)
+/* The y moved by bob step `step` (4 bytes an entry: the y word's step,
+   then the top byte's). */
+static void bob_step(uint8_t step)
 {
-    ACC8(asl);
-    ACC8(asl);
-    tax8();
-    op_rep(0x20);
-    clc();
-    lda16(ea_dp(ACTOR_Y + 1));
-    adc16_v(rd16(ea_absx(BOB_STEPS)));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
-    lda8(ea_dp(ACTOR_Y + 2));
-    adc8_v(rd8(ea_absx(BOB_STEPS + 2)));
-    sta8(ea_dp(ACTOR_Y + 2));
+    uint16_t y;
+    uint8_t top;
+
+    cpu.x = (uint8_t)(step << 2);
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    y = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(BOB_STEPS) + cpu.x), &cpu.p);
+    dp16_set(ACTOR_Y + 1, y);
+    op_sep(P_M);
+    top = op_adc8(rd8(dpa(ACTOR_Y + 2)), rd8(dba(BOB_STEPS + 2) + cpu.x), &cpu.p);
+    wr8(dpa(ACTOR_Y + 2), top);
+    cpu.a = (uint16_t)((y & 0xFF00) | top);
 }
 
 /*
@@ -73,10 +77,7 @@ static void bob_step(void)
  */
 void abi_ActorBobReturnStep(void)
 {
-    lda8(ea_dp(ACTOR_07));
-    ACC8(inc);
-    ACC8(inc);
-    bob_step();
+    bob_step((uint8_t)(rd8(dpa(ACTOR_07)) + 2));
 }
 
 /*
@@ -91,6 +92,5 @@ void abi_ActorBobReturnStep(void)
  */
 void abi_ActorBobStep(void)
 {
-    lda8(ea_dp(ACTOR_07));
-    bob_step();
+    bob_step(rd8(dpa(ACTOR_07)));
 }

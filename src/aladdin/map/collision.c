@@ -10,6 +10,8 @@
  * tile place $16, screen tiles offset $18, mirrored $1A, tile word $1C.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
@@ -1058,41 +1060,42 @@ void abi_PlayerOnFirmGround(void)
 
 /* PlayerOnFirmGround's test at probe offset X ($81:B75C), the code the
    probe 8 and probe 4 entries share. */
+/* Ground under one side of the player that does not give way: a tile his
+   probe meets whose behaviour lets him stand (not passed through) and
+   whose kind is not soft. Left side first, then right. */
+static int firm_side(int left, uint8_t through)
+{
+    uint8_t behaviour, kind, soft;
+
+    if (left)
+        abi_GroundLeft();
+    else
+        abi_GroundRight();
+    if (!(cpu.p & P_C))
+        return 0;
+    behaviour = rd8(dba(TILE_BEHAVIOUR_BYTE));
+    a8_load(behaviour);
+    flag_set(P_Z, !(behaviour & through));
+    if (behaviour & through)
+        return 0;
+    kind = behaviour & 0x07;
+    x8_load(kind);
+    soft = rd8(dba(SOFT_KINDS) + kind);
+    a8_load(soft);
+    return !soft;
+}
+
 static void firm_ground_at_x(void)
 {
-    phd();  /* 81B75C phd */
-    op_rep(0x20);  /* 81B75D rep */
-    lda16_v(PLAYER);  /* 81B75F lda */
-    tcd();  /* 81B762 tcd */
-    op_sep(0x20);  /* 81B763 sep */
-    stx8(ea_dp(ACTOR_PROBE_AT));  /* 81B765 stx */
-    abi_GroundLeft();  /* 81B767 jsr */
-    if (!IF_C) goto L_81B77B;  /* 81B76A bcc */
-    lda8(ea_abs(TILE_BEHAVIOUR_BYTE));  /* 81B76C lda */
-    bit8_i(0x60);  /* 81B76F bit */
-    if (!IF_Z) goto L_81B77B;  /* 81B771 bne */
-    and8_v(0x07);  /* 81B773 and */
-    tax8();  /* 81B775 tax */
-    lda8(ea_absx(SOFT_KINDS));  /* 81B776 lda */
-    if (IF_Z) goto L_81B78F;  /* 81B779 beq */
-L_81B77B:
-    abi_GroundRight();  /* 81B77B jsr */
-    if (!IF_C) goto L_81B792;  /* 81B77E bcc */
-    lda8(ea_abs(TILE_BEHAVIOUR_BYTE));  /* 81B780 lda */
-    bit8_i(BEHAVIOUR_THROUGH);  /* 81B783 bit */
-    if (!IF_Z) goto L_81B792;  /* 81B785 bne */
-    and8_v(0x07);  /* 81B787 and */
-    tax8();  /* 81B789 tax */
-    lda8(ea_absx(SOFT_KINDS));  /* 81B78A lda */
-    if (!IF_Z) goto L_81B792;  /* 81B78D bne */
-L_81B78F:
-    pld();  /* 81B78F pld */
-    sec();  /* 81B790 sec */
-    return;  /* 81B791 rtl */
-L_81B792:
-    pld();  /* 81B792 pld */
-    clc();  /* 81B793 clc */
-    return;  /* 81B794 rtl */
+    int firm;
+
+    phd();
+    cpu.a = cpu.d = PLAYER;
+    nz16_of(PLAYER);
+    wr8(dpa(ACTOR_PROBE_AT), (uint8_t)cpu.x);
+    firm = firm_side(1, 0x60) || firm_side(0, BEHAVIOUR_THROUGH);
+    pld();
+    flag_set(P_C, firm);
 }
 
 /*
@@ -1105,8 +1108,8 @@ L_81B792:
  */
 void abi_PlayerOnFirmGroundProbe8(void)
 {
-    ldx8_v(0x08);  /* 81B74E ldx */
-    firm_ground_at_x();  /* 81B750 bra */
+    x8_load(0x08);
+    firm_ground_at_x();
 }
 
 /*
@@ -1119,6 +1122,6 @@ void abi_PlayerOnFirmGroundProbe8(void)
  */
 void abi_PlayerOnFirmGroundProbe4(void)
 {
-    ldx8_v(0x04);  /* 81B75A ldx */
+    x8_load(0x04);
     firm_ground_at_x();
 }

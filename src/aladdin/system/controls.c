@@ -3,6 +3,8 @@
  * options assign them.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "wram_pad.h"
@@ -29,54 +31,38 @@
  */
 void abi_ControlsRead(void)
 {
-    stz8(ea_abs((ACTION_HELD + 1)));  /* 81BDE9 stz */
-    stz8(ea_abs((ACTION_PRESSED + 1)));  /* 81BDEC stz */
-    stz8(ea_abs(ACTION_HELD));  /* 81BDEF stz */
-    stz8(ea_abs(ACTION_PRESSED));  /* 81BDF2 stz */
-    stz8(ea_abs((ACTION_HELD + 2)));  /* 81BDF5 stz */
-    stz8(ea_abs((ACTION_PRESSED + 2)));  /* 81BDF8 stz */
-    stz8(ea_abs((ACTION_HELD + 3)));  /* 81BDFB stz */
-    stz8(ea_abs((ACTION_PRESSED + 3)));  /* 81BDFE stz */
-    op_rep(0x20);  /* 81BE01 rep */
-    lda16(ea_abs(JOY_HELD));  /* 81BE03 lda */
-    sta16(ea_abs(PAD1_HELD));  /* 81BE06 sta */
-    lda16(ea_abs(JOY_PRESSED));  /* 81BE09 lda */
-    sta16(ea_abs(PAD1_PRESSED_COPY));  /* 81BE0C sta */
-    lda16(ea_abs(PAD1_HELD));  /* 81BE0F lda */
-    bit16_v(rd16(ea_abs((CONTROL_MASKS + 2))));  /* 81BE12 bit */
-    if (IF_Z) goto L_81BE1A;  /* 81BE15 beq */
-    MEM16(inc, ea_abs((ACTION_HELD + 1)));  /* 81BE17 inc */
-L_81BE1A:
-    bit16_v(rd16(ea_abs(CONTROL_MASKS)));  /* 81BE1A bit */
-    if (IF_Z) goto L_81BE22;  /* 81BE1D beq */
-    MEM16(inc, ea_abs(ACTION_HELD));  /* 81BE1F inc */
-L_81BE22:
-    bit16_v(rd16(ea_abs((CONTROL_MASKS + 4))));  /* 81BE22 bit */
-    if (IF_Z) goto L_81BE2A;  /* 81BE25 beq */
-    MEM16(inc, ea_abs((ACTION_HELD + 2)));  /* 81BE27 inc */
-L_81BE2A:
-    bit16_v(rd16(ea_abs((CONTROL_MASKS + 6))));  /* 81BE2A bit */
-    if (IF_Z) goto L_81BE32;  /* 81BE2D beq */
-    MEM16(inc, ea_abs((ACTION_HELD + 3)));  /* 81BE2F inc */
-L_81BE32:
-    lda16(ea_abs(PAD1_PRESSED_COPY));  /* 81BE32 lda */
-    bit16_v(rd16(ea_abs((CONTROL_MASKS + 2))));  /* 81BE35 bit */
-    if (IF_Z) goto L_81BE3D;  /* 81BE38 beq */
-    MEM16(inc, ea_abs((ACTION_PRESSED + 1)));  /* 81BE3A inc */
-L_81BE3D:
-    bit16_v(rd16(ea_abs(CONTROL_MASKS)));  /* 81BE3D bit */
-    if (IF_Z) goto L_81BE45;  /* 81BE40 beq */
-    MEM16(inc, ea_abs(ACTION_PRESSED));  /* 81BE42 inc */
-L_81BE45:
-    op_sep(0x20);  /* 81BE45 sep */
-    bit8_v(rd8(ea_abs((CONTROL_MASKS + 4))));  /* 81BE47 bit */
-    if (IF_Z) goto L_81BE4F;  /* 81BE4A beq */
-    MEM8(inc, ea_abs((ACTION_PRESSED + 2)));  /* 81BE4C inc */
-L_81BE4F:
-    bit8_v(rd8(ea_abs((CONTROL_MASKS + 6))));  /* 81BE4F bit */
-    if (IF_Z) goto L_81BE57;  /* 81BE52 beq */
-    MEM8(inc, ea_abs((ACTION_PRESSED + 3)));  /* 81BE54 inc */
-L_81BE57:
-    op_sep(0x20);  /* 81BE57 sep */
-    return;  /* 81BE59 rts */
+    /* by action: the mask's offset in CONTROL_MASKS, its count's in
+       ACTION_HELD and ACTION_PRESSED (the counts are bytes, counted up as
+       words: the higher byte catches the carry) */
+    static const uint8_t mask[4] = { 2, 0, 4, 6 };
+    static const uint8_t count[4] = { 1, 0, 2, 3 };
+    uint16_t pad;
+
+    for (int i = 0; i < 4; i++) {
+        wr8(dba(ACTION_HELD + count[i]), 0);
+        wr8(dba(ACTION_PRESSED + count[i]), 0);
+    }
+    op_rep(P_M);
+    wr16(dba(PAD1_HELD), rd16(dba(JOY_HELD)));
+    wr16(dba(PAD1_PRESSED_COPY), rd16(dba(JOY_PRESSED)));
+    pad = rd16(dba(PAD1_HELD));
+    a16_load(pad);
+    for (int i = 0; i < 4; i++) {
+        bit16_of(pad, rd16(dba(CONTROL_MASKS + mask[i])));
+        if (!(cpu.p & P_Z))
+            inc16_at(dba(ACTION_HELD + count[i]));
+    }
+    pad = rd16(dba(PAD1_PRESSED_COPY));
+    a16_load(pad);
+    for (int i = 0; i < 2; i++) {
+        bit16_of(pad, rd16(dba(CONTROL_MASKS + mask[i])));
+        if (!(cpu.p & P_Z))
+            inc16_at(dba(ACTION_PRESSED + count[i]));
+    }
+    op_sep(P_M);
+    for (int i = 2; i < 4; i++) {         /* the last two by the low byte only */
+        bit8_of((uint8_t)pad, rd8(dba(CONTROL_MASKS + mask[i])));
+        if (!(cpu.p & P_Z))
+            inc8_at(dba(ACTION_PRESSED + count[i]));
+    }
 }

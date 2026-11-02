@@ -5,7 +5,11 @@
  * cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 #include "wram.h"
 #include "hw.h"
 #include "wram_video.h"
@@ -22,6 +26,40 @@ void abi_PaletteCycleStart(void);
 #define V_7FF481 0x7FF481u
 #define V_7FF495 0x7FF495u
 
+/* PaletteCycleStart of cycle `a` at slot offset `x`. */
+static void cycle(uint8_t x, uint8_t a)
+{
+    x8_load(x);
+    a8_load(a);
+    abi_PaletteCycleStart();
+}
+
+/* The layers on the main and sub screens, and the colour math. */
+static void layers(uint8_t tm, uint8_t ts, uint8_t cgwsel, uint8_t cgadsub)
+{
+    wr8(dba(TM_SHADOW), tm);
+    wr8(dba(TS_SHADOW), ts);
+    wr8(dba(CGWSEL_SHADOW), cgwsel);
+    a8_load(cgadsub);
+    wr8(dba(CGADSUB_SHADOW), cgadsub);
+}
+
+/* HDMA channel 4 writing BG2's vertical scroll from $7E:F400 (the
+   table named for the NMI too), and turned on. */
+static void bg2_scroll_hdma(void)
+{
+    wr8(dba(DMAP4), 0x02);
+    wr8(dba(BBAD4), 0x0F);
+    wr8(dba(A1T4L), 0x00);
+    wr8(dba(HDMA_TABLE_AT), 0x00);
+    wr8(dba(A1T4H), 0xF4);
+    wr8(dba(HDMA_TABLE_AT_HIGH), 0xF4);
+    wr8(dba(A1B4), 0x7E);
+    wr8(dba(DASB4), 0x00);
+    a8_load(0x10);
+    wr8(dba(HDMAEN_SHADOW), 0x10);
+}
+
 /*
  * @routine 81:8A88 Level08ScreenSetup
  * WHAT IT DOES: Level 8's screen set-up: six palette cycles, layers 1-3
@@ -37,35 +75,28 @@ void abi_PaletteCycleStart(void);
  */
 void abi_Level08ScreenSetup(void)
 {
-    ldx8_v(0x54);  /* 818A88 ldx */
-    lda8_v(0x2D);  /* 818A8A lda */
-    abi_PaletteCycleStart();  /* 818A8C jsr */
-    ldx8_v(0x00);  /* 818A8F ldx */
-    lda8_v(0x08);  /* 818A91 lda */
-    abi_PaletteCycleStart();  /* 818A93 jsr */
-    ldx8_v(0x0E);  /* 818A96 ldx */
-    lda8_v(0x09);  /* 818A98 lda */
-    abi_PaletteCycleStart();  /* 818A9A jsr */
-    ldx8_v(0x1C);  /* 818A9D ldx */
-    lda8_v(0x0E);  /* 818A9F lda */
-    abi_PaletteCycleStart();  /* 818AA1 jsr */
-    ldx8_v(0x2A);  /* 818AA4 ldx */
-    lda8_v(0x0F);  /* 818AA6 lda */
-    abi_PaletteCycleStart();  /* 818AA8 jsr */
-    ldx8_v(0x38);  /* 818AAB ldx */
-    lda8_v(0x10);  /* 818AAD lda */
-    abi_PaletteCycleStart();  /* 818AAF jsr */
-    lda8_v(0x17);  /* 818AB2 lda */
-    sta8(ea_abs(TM_SHADOW));  /* 818AB4 sta */
-    lda8_v(0x10);  /* 818AB7 lda */
-    sta8(ea_abs(TS_SHADOW));  /* 818AB9 sta */
-    lda8_v(0x03);  /* 818ABC lda */
-    sta8(ea_abs(CGWSEL_SHADOW));  /* 818ABE sta */
-    lda8_v(0x53);  /* 818AC1 lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 818AC3 sta */
-    return;  /* 818AC6 rts */
+    cycle(0x54, 0x2D);
+    cycle(0x00, 0x08);
+    cycle(0x0E, 0x09);
+    cycle(0x1C, 0x0E);
+    cycle(0x2A, 0x0F);
+    cycle(0x38, 0x10);
+    layers(0x17, 0x10, 0x03, 0x53);
 }
 
+
+/* The eight cycles levels $0B and $0C share. */
+static void cycles_0b(void)
+{
+    cycle(0x00, 0x00);
+    cycle(0x0E, 0x01);
+    cycle(0x1C, 0x03);
+    cycle(0x2A, 0x0B);
+    cycle(0x54, 0x18);
+    cycle(0x64, 0x1B);
+    cycle(0x74, 0x1E);
+    cycle(0x84, 0x21);
+}
 
 /*
  * @routine 81:8B1C Level0BScreenSetup
@@ -81,41 +112,10 @@ void abi_Level08ScreenSetup(void)
  */
 void abi_Level0BScreenSetup(void)
 {
-    ldx8_v(0x00);  /* 818B1C ldx */
-    lda8_v(0x00);  /* 818B1E lda */
-    abi_PaletteCycleStart();  /* 818B20 jsr */
-    ldx8_v(0x0E);  /* 818B23 ldx */
-    lda8_v(0x01);  /* 818B25 lda */
-    abi_PaletteCycleStart();  /* 818B27 jsr */
-    ldx8_v(0x1C);  /* 818B2A ldx */
-    lda8_v(0x03);  /* 818B2C lda */
-    abi_PaletteCycleStart();  /* 818B2E jsr */
-    ldx8_v(0x2A);  /* 818B31 ldx */
-    lda8_v(0x0B);  /* 818B33 lda */
-    abi_PaletteCycleStart();  /* 818B35 jsr */
-    ldx8_v(0x54);  /* 818B38 ldx */
-    lda8_v(0x18);  /* 818B3A lda */
-    abi_PaletteCycleStart();  /* 818B3C jsr */
-    ldx8_v(0x64);  /* 818B3F ldx */
-    lda8_v(0x1B);  /* 818B41 lda */
-    abi_PaletteCycleStart();  /* 818B43 jsr */
-    ldx8_v(0x74);  /* 818B46 ldx */
-    lda8_v(0x1E);  /* 818B48 lda */
-    abi_PaletteCycleStart();  /* 818B4A jsr */
-    ldx8_v(0x84);  /* 818B4D ldx */
-    lda8_v(0x21);  /* 818B4F lda */
-    abi_PaletteCycleStart();  /* 818B51 jsr */
-    lda8_v(0x17);  /* 818B54 lda */
-    sta8(ea_abs(TM_SHADOW));  /* 818B56 sta */
-    lda8_v(0x15);  /* 818B59 lda */
-    sta8(ea_abs(TS_SHADOW));  /* 818B5B sta */
-    lda8_v(0x03);  /* 818B5E lda */
-    sta8(ea_abs(CGWSEL_SHADOW));  /* 818B60 sta */
-    lda8_v(0x73);  /* 818B63 lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 818B65 sta */
-    lda8_v(0x02);  /* 818B68 lda */
-    sta8(ea_abs(V_083F));  /* 818B6A sta */
-    return;  /* 818B6D rts */
+    cycles_0b();
+    layers(0x17, 0x15, 0x03, 0x73);
+    a8_load(0x02);
+    wr8(dba(V_083F), 0x02);
 }
 
 
@@ -134,32 +134,12 @@ void abi_Level0BScreenSetup(void)
  */
 void abi_Level02ScreenSetup(void)
 {
-    lda8_v(0x0E);  /* 8188C5 lda */
-    sta8(ea_abs(V_083F));  /* 8188C7 sta */
-    lda8_v(0x40);  /* 8188CA lda */
-    sta8(ea_abs(BG2_FOLLOWS));  /* 8188CC sta */
-    lda8_v(0x08);  /* 8188CF lda */
-    sta8(V_7FF441);  /* 8188D1 sta */
-    lda8_v(0x06);  /* 8188D5 lda */
-    sta8(V_7FF457);  /* 8188D7 sta */
-    lda8_v(0x0C);  /* 8188DB lda */
-    sta8(ea_abs(V_1C7D));  /* 8188DD sta */
-    lda8_v(0x02);  /* 8188E0 lda */
-    sta8(ea_abs(DMAP4));  /* 8188E2 sta */
-    lda8_v(0x0F);  /* 8188E5 lda */
-    sta8(ea_abs(BBAD4));  /* 8188E7 sta */
-    lda8_v(0x00);  /* 8188EA lda */
-    sta8(ea_abs(A1T4L));  /* 8188EC sta */
-    sta8(ea_abs(HDMA_TABLE_AT));  /* 8188EF sta */
-    lda8_v(0xF4);  /* 8188F2 lda */
-    sta8(ea_abs(A1T4H));  /* 8188F4 sta */
-    sta8(ea_abs(HDMA_TABLE_AT_HIGH));  /* 8188F7 sta */
-    lda8_v(0x7E);  /* 8188FA lda */
-    sta8(ea_abs(A1B4));  /* 8188FC sta */
-    stz8(ea_abs(DASB4));  /* 8188FF stz */
-    lda8_v(0x10);  /* 818902 lda */
-    sta8(ea_abs(HDMAEN_SHADOW));  /* 818904 sta */
-    return;  /* 818907 rts */
+    wr8(dba(V_083F), 0x0E);
+    wr8(dba(BG2_FOLLOWS), 0x40);
+    wr8(V_7FF441, 0x08);
+    wr8(V_7FF457, 0x06);
+    wr8(dba(V_1C7D), 0x0C);
+    bg2_scroll_hdma();
 }
 
 
@@ -178,46 +158,17 @@ void abi_Level02ScreenSetup(void)
  */
 void abi_Level00ScreenSetup(void)
 {
-    lda8_v(0x0A);  /* 81888B lda */
-    sta8(ea_abs(V_083F));  /* 81888D sta */
-    lda8_v(0x40);  /* 818890 lda */
-    sta8(ea_abs(BG2_FOLLOWS));  /* 818892 sta */
-    ldx8_v(0x54);  /* 818895 ldx */
-    lda8_v(0x00);  /* 818897 lda */
-    abi_PaletteCycleStart();  /* 818899 jsr */
-    lda8_v(0x18);  /* 81889C lda */
-    sta8(V_7FF481);  /* 81889E sta */
-    sta8(V_7FF495);  /* 8188A2 sta */
-    ldx8_v(0x54);  /* 8188A6 ldx */
-    lda8_v(0x00);  /* 8188A8 lda */
-    abi_PaletteCycleStart();  /* 8188AA jsr */
-    ldx8_v(0x64);  /* 8188AD ldx */
-    lda8_v(0x03);  /* 8188AF lda */
-    abi_PaletteCycleStart();  /* 8188B1 jsr */
-    ldx8_v(0x74);  /* 8188B4 ldx */
-    lda8_v(0x06);  /* 8188B6 lda */
-    abi_PaletteCycleStart();  /* 8188B8 jsr */
-    ldx8_v(0x84);  /* 8188BB ldx */
-    lda8_v(0x09);  /* 8188BD lda */
-    abi_PaletteCycleStart();  /* 8188BF jsr */
-    goto L_8188E0;  /* 8188C2 bra */
-L_8188E0:
-    lda8_v(0x02);  /* 8188E0 lda */
-    sta8(ea_abs(DMAP4));  /* 8188E2 sta */
-    lda8_v(0x0F);  /* 8188E5 lda */
-    sta8(ea_abs(BBAD4));  /* 8188E7 sta */
-    lda8_v(0x00);  /* 8188EA lda */
-    sta8(ea_abs(A1T4L));  /* 8188EC sta */
-    sta8(ea_abs(HDMA_TABLE_AT));  /* 8188EF sta */
-    lda8_v(0xF4);  /* 8188F2 lda */
-    sta8(ea_abs(A1T4H));  /* 8188F4 sta */
-    sta8(ea_abs(HDMA_TABLE_AT_HIGH));  /* 8188F7 sta */
-    lda8_v(0x7E);  /* 8188FA lda */
-    sta8(ea_abs(A1B4));  /* 8188FC sta */
-    stz8(ea_abs(DASB4));  /* 8188FF stz */
-    lda8_v(0x10);  /* 818902 lda */
-    sta8(ea_abs(HDMAEN_SHADOW));  /* 818904 sta */
-    return;  /* 818907 rts */
+    wr8(dba(V_083F), 0x0A);
+    wr8(dba(BG2_FOLLOWS), 0x40);
+    cycle(0x54, 0x00);
+    a8_load(0x18);
+    wr8(V_7FF481, 0x18);
+    wr8(V_7FF495, 0x18);
+    cycle(0x54, 0x00);
+    cycle(0x64, 0x03);
+    cycle(0x74, 0x06);
+    cycle(0x84, 0x09);
+    bg2_scroll_hdma();
 }
 
 
@@ -233,31 +184,7 @@ L_8188E0:
  */
 void abi_Level0CScreenSetup(void)
 {
-    ldx8_v(0x00);  /* 818B6E ldx */
-    lda8_v(0x00);  /* 818B70 lda */
-    abi_PaletteCycleStart();  /* 818B72 jsr */
-    ldx8_v(0x0E);  /* 818B75 ldx */
-    lda8_v(0x01);  /* 818B77 lda */
-    abi_PaletteCycleStart();  /* 818B79 jsr */
-    ldx8_v(0x1C);  /* 818B7C ldx */
-    lda8_v(0x03);  /* 818B7E lda */
-    abi_PaletteCycleStart();  /* 818B80 jsr */
-    ldx8_v(0x2A);  /* 818B83 ldx */
-    lda8_v(0x0B);  /* 818B85 lda */
-    abi_PaletteCycleStart();  /* 818B87 jsr */
-    ldx8_v(0x54);  /* 818B8A ldx */
-    lda8_v(0x18);  /* 818B8C lda */
-    abi_PaletteCycleStart();  /* 818B8E jsr */
-    ldx8_v(0x64);  /* 818B91 ldx */
-    lda8_v(0x1B);  /* 818B93 lda */
-    abi_PaletteCycleStart();  /* 818B95 jsr */
-    ldx8_v(0x74);  /* 818B98 ldx */
-    lda8_v(0x1E);  /* 818B9A lda */
-    abi_PaletteCycleStart();  /* 818B9C jsr */
-    ldx8_v(0x84);  /* 818B9F ldx */
-    lda8_v(0x21);  /* 818BA1 lda */
-    abi_PaletteCycleStart();  /* 818BA3 jsr */
-    return;  /* 818BA6 rts */
+    cycles_0b();
 }
 
 /*
@@ -271,29 +198,9 @@ void abi_Level0CScreenSetup(void)
  */
 void abi_Level09ScreenSetup(void)
 {
-    goto L_818AC7;
-L_818AB2:
-    lda8_v(0x17);  /* 818AB2 lda */
-    sta8(ea_abs(TM_SHADOW));  /* 818AB4 sta */
-    lda8_v(0x10);  /* 818AB7 lda */
-    sta8(ea_abs(TS_SHADOW));  /* 818AB9 sta */
-    lda8_v(0x03);  /* 818ABC lda */
-    sta8(ea_abs(CGWSEL_SHADOW));  /* 818ABE sta */
-    lda8_v(0x53);  /* 818AC1 lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 818AC3 sta */
-    return;  /* 818AC6 rts */
-L_818AC7:
-    ldx8_v(0x00);  /* 818AC7 ldx */
-    lda8_v(0x19);  /* 818AC9 lda */
-    abi_PaletteCycleStart();  /* 818ACB jsr */
-    ldx8_v(0x0E);  /* 818ACE ldx */
-    lda8_v(0x1A);  /* 818AD0 lda */
-    abi_PaletteCycleStart();  /* 818AD2 jsr */
-    ldx8_v(0x1C);  /* 818AD5 ldx */
-    lda8_v(0x26);  /* 818AD7 lda */
-    abi_PaletteCycleStart();  /* 818AD9 jsr */
-    ldx8_v(0x2A);  /* 818ADC ldx */
-    lda8_v(0x27);  /* 818ADE lda */
-    abi_PaletteCycleStart();  /* 818AE0 jsr */
-    goto L_818AB2;  /* 818AE3 bra */
+    cycle(0x00, 0x19);
+    cycle(0x0E, 0x1A);
+    cycle(0x1C, 0x26);
+    cycle(0x2A, 0x27);
+    layers(0x17, 0x10, 0x03, 0x53);
 }

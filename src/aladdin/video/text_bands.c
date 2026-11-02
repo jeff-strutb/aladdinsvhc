@@ -4,6 +4,8 @@
  * window bytes handed to HDMA channel 5 a frame at a time.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_TaskWait(void);
 void abi_TextBandsConceal(void);
@@ -16,6 +18,29 @@ void abi_TextPageDraw(void);
 #include "wram_player.h"
 #include "wram_state.h"
 #include "wram_video.h"
+
+#define TEXT_BANDS_HDMA 0x0352u    /* the HDMA table the bands use (word: $CEEF or $CF3B) */
+#define TEXT_BANDS_FLIP 0xF9u      /* in the direct page: its low bit picks the buffer */
+#define TEXT_BAND_STEP 0xF7u       /* in the direct page: the band being revealed or concealed */
+#define TEXT_PAGE_LINES 0xF5u      /* in the direct page: the next line's place (word) */
+#define BAND_ROWS_A 0xCF87u        /* by band, its two rows' offsets in TEXT_BANDS (in the bank DB names) */
+#define BAND_ROWS_B 0xCF8Bu
+
+/* Band row values from band TEXT_BAND_STEP set to `value`, committed, then
+   a wait of 4 frames (returning at `site`). */
+static void band_set(uint8_t value, uint32_t site)
+{
+    x8_load(rd8(dpa(TEXT_BAND_STEP)));
+    a8_load(value);
+    y8_load(rd8(dba(BAND_ROWS_A) + cpu.x));
+    wr8(dba(TEXT_BANDS) + cpu.y, value);
+    y8_load(rd8(dba(BAND_ROWS_B) + cpu.x));
+    wr8(dba(TEXT_BANDS) + cpu.y, value);
+    abi_TextBandsCommit();
+    a8_load(0x04);
+    jsl_frame(site);
+    abi_TaskWait();
+}
 
 /*
  * @routine 82:B270 TextBandsCommit
@@ -30,28 +55,33 @@ void abi_TextPageDraw(void);
  */
 void abi_TextBandsCommit(void)
 {
-    ldx8_v(0x0F);  /* 82B270 ldx */
-    ldy8_v(0x1F);  /* 82B272 ldy */
-    lda8_v(0xEF);  /* 82B274 lda */
-    sta8(ea_abs(0x0352));  /* 82B276 sta */
-    lda8_v(0xCE);  /* 82B279 lda */
-    sta8(ea_abs(0x0353));  /* 82B27B sta */
-    lda8(ea_dp(0xF9));  /* 82B27E lda */
-    ACC8(lsr);  /* 82B280 lsr */
-    if (!IF_C) goto L_82B28F;  /* 82B281 bcc */
-    ldy8_v(0x2F);  /* 82B283 ldy */
-    lda8_v(0x3B);  /* 82B285 lda */
-    sta8(ea_abs(0x0352));  /* 82B287 sta */
-    lda8_v(0xCF);  /* 82B28A lda */
-    sta8(ea_abs(0x0353));  /* 82B28C sta */
-L_82B28F:
-    lda8(ea_absx(TEXT_BANDS));  /* 82B28F lda */
-    sta8(ea_absy(TEXT_BANDS));  /* 82B292 sta */
-    dey8();  /* 82B295 dey */
-    dex8();  /* 82B296 dex */
-    if (!IF_N) goto L_82B28F;  /* 82B297 bpl */
-    MEM8(inc, ea_dp(0xF9));  /* 82B299 inc */
-    return;  /* 82B29B rts */
+    uint8_t flip = rd8(dpa(TEXT_BANDS_FLIP)), v;
+
+    /* the 16 band values copied into the buffer the flip picks, and the
+       HDMA pointed at it */
+    x8_load(0x0F);
+    y8_load(0x1F);
+    a8_load(0xEF);
+    wr8(dba(TEXT_BANDS_HDMA), 0xEF);
+    a8_load(0xCE);
+    wr8(dba(TEXT_BANDS_HDMA + 1), 0xCE);
+    a8_load((uint8_t)(flip >> 1));
+    flag_set(P_C, flip & 1);
+    if (flip & 1) {
+        y8_load(0x2F);
+        a8_load(0x3B);
+        wr8(dba(TEXT_BANDS_HDMA), 0x3B);
+        a8_load(0xCF);
+        wr8(dba(TEXT_BANDS_HDMA + 1), 0xCF);
+    }
+    do {
+        v = rd8(dba(TEXT_BANDS) + cpu.x);
+        a8_load(v);
+        wr8(dba(TEXT_BANDS) + cpu.y, v);
+        cpu.y = (uint8_t)(cpu.y - 1);
+        x8_load((uint8_t)(cpu.x - 1));
+    } while (!(cpu.x & 0x80));
+    inc8_at(dpa(TEXT_BANDS_FLIP));
 }
 
 /*
@@ -70,38 +100,36 @@ L_82B28F:
  */
 void abi_TextPageDraw(void)
 {
-    lda8(ea_absy(0x0000));  /* 82B190 lda */
-    sta8(ea_abs(SCRATCH));  /* 82B193 sta */
-    iny16();  /* 82B196 iny */
-L_82B197:
-    phy16();  /* 82B197 phy */
-    ldx16(ea_dp(0xF5));  /* 82B198 ldx */
-    ldy16(ea_absx(0x0000));  /* 82B19A ldy */
-    inx16();  /* 82B19D inx */
-    inx16();  /* 82B19E inx */
-    stx16(ea_dp(0xF5));  /* 82B19F stx */
-    tyx16();  /* 82B1A1 tyx */
-    ply16();  /* 82B1A2 ply */
-    lda8(ea_absy(0x0000));  /* 82B1A3 lda */
-    sta8(ea_abs(0x000D));  /* 82B1A6 sta */
-    lda8(ea_absy(0x0001));  /* 82B1A9 lda */
-    sta8(ea_abs(0x000E));  /* 82B1AC sta */
-    iny16();  /* 82B1AF iny */
-    iny16();  /* 82B1B0 iny */
-L_82B1B1:
-    lda8(ea_absy(0x0000));  /* 82B1B1 lda */
-    sta8(ea_longx(TEXT_TILEMAP));  /* 82B1B4 sta */
-    lda8(ea_abs(0x000D));  /* 82B1B8 lda */
-    sta8(ea_longx(0x7ED801u));  /* 82B1BB sta */
-    inx16();  /* 82B1BF inx */
-    inx16();  /* 82B1C0 inx */
-    iny16();  /* 82B1C1 iny */
-    MEM8(dec, ea_dp(0x0E));  /* 82B1C2 dec */
-    if (!IF_Z) goto L_82B1B1;  /* 82B1C4 bne */
-    MEM8(dec, ea_dp(0x0C));  /* 82B1C6 dec */
-    if (!IF_Z) goto L_82B197;  /* 82B1C8 bne */
-    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));  /* 82B1CA inc */
-    return;  /* 82B1CD rts */
+    uint8_t lines = rd8(dba(0) + cpu.y);
+
+    a8_load(lines);
+    wr8(dba(SCRATCH), lines);
+    cpu.y = (uint16_t)(cpu.y + 1);
+    do {
+        /* each line: its place from the list, its attribute and length,
+           its characters */
+        phy16();
+        cpu.x = dp16(TEXT_PAGE_LINES);
+        cpu.y = rd16(dba(0) + cpu.x);
+        cpu.x = (uint16_t)(cpu.x + 2);
+        dp16_set(TEXT_PAGE_LINES, cpu.x);
+        cpu.x = cpu.y;
+        ply16();
+        a8_load(rd8(dba(0) + cpu.y));
+        wr8(dba(SCRATCH + 1), (uint8_t)cpu.a);
+        a8_load(rd8(dba(1) + cpu.y));
+        wr8(dba(SCRATCH + 2), (uint8_t)cpu.a);
+        cpu.y = (uint16_t)(cpu.y + 2);
+        do {
+            a8_load(rd8(dba(0) + cpu.y));
+            wr8((TEXT_TILEMAP + cpu.x) & 0xFFFFFF, (uint8_t)cpu.a);
+            a8_load(rd8(dba(SCRATCH + 1)));
+            wr8((TEXT_TILEMAP + 1 + cpu.x) & 0xFFFFFF, (uint8_t)cpu.a);
+            cpu.x = (uint16_t)(cpu.x + 2);
+            cpu.y = (uint16_t)(cpu.y + 1);
+        } while (dec8_at(dpa(SCRATCH + 2)));
+    } while (dec8_at(dpa(SCRATCH)));
+    inc8_at(dba(TEXT_TILEMAP_UPLOAD));
 }
 
 /*
@@ -115,22 +143,15 @@ L_82B1B1:
  */
 void abi_TextBandsReveal(void)
 {
-    stz8(ea_dp(0xF7));  /* 82B224 stz */
-L_82B226:
-    ldx8(ea_dp(0xF7));  /* 82B226 ldx */
-    lda8_v(0x00);  /* 82B228 lda */
-    ldy8(ea_absx(0xCF87));  /* 82B22A ldy */
-    sta8(ea_absy(TEXT_BANDS));  /* 82B22D sta */
-    ldy8(ea_absx(0xCF8B));  /* 82B230 ldy */
-    sta8(ea_absy(TEXT_BANDS));  /* 82B233 sta */
-    abi_TextBandsCommit();  /* 82B236 jsr */
-    lda8_v(0x04);  /* 82B239 lda */
-    jsl_frame(0x82B23Bu); abi_TaskWait();  /* 82B23B jsl */
-    MEM8(inc, ea_dp(0xF7));  /* 82B23F inc */
-    lda8(ea_dp(0xF7));  /* 82B241 lda */
-    cmp8_v(0x04);  /* 82B243 cmp */
-    if (!IF_Z) goto L_82B226;  /* 82B245 bne */
-    return;  /* 82B247 rts */
+    uint8_t step;
+
+    wr8(dpa(TEXT_BAND_STEP), 0);
+    do {                                  /* the four bands cleared, one each 4 frames */
+        band_set(0x00, 0x82B23Bu);
+        step = inc8_at(dpa(TEXT_BAND_STEP));
+        a8_load(step);
+        cmp8_of(step, 0x04);
+    } while (step != 0x04);
 }
 
 /*
@@ -144,21 +165,12 @@ L_82B226:
  */
 void abi_TextBandsConceal(void)
 {
-    lda8_v(0x03);  /* 82B248 lda */
-    sta8(ea_dp(0xF7));  /* 82B24A sta */
-L_82B24C:
-    ldx8(ea_dp(0xF7));  /* 82B24C ldx */
-    lda8_v(0x08);  /* 82B24E lda */
-    ldy8(ea_absx(0xCF87));  /* 82B250 ldy */
-    sta8(ea_absy(TEXT_BANDS));  /* 82B253 sta */
-    ldy8(ea_absx(0xCF8B));  /* 82B256 ldy */
-    sta8(ea_absy(TEXT_BANDS));  /* 82B259 sta */
-    abi_TextBandsCommit();  /* 82B25C jsr */
-    lda8_v(0x04);  /* 82B25F lda */
-    jsl_frame(0x82B261u); abi_TaskWait();  /* 82B261 jsl */
-    MEM8(dec, ea_dp(0xF7));  /* 82B265 dec */
-    if (!IF_N) goto L_82B24C;  /* 82B267 bpl */
-    lda8_v(0x28);  /* 82B269 lda */
-    jsl_frame(0x82B26Bu); abi_TaskWait();  /* 82B26B jsl */
-    return;  /* 82B26F rts */
+    a8_load(0x03);
+    wr8(dpa(TEXT_BAND_STEP), 0x03);
+    do                                    /* the four bands set to 8, last first */
+        band_set(0x08, 0x82B261u);
+    while (!(dec8_at(dpa(TEXT_BAND_STEP)) & 0x80));
+    a8_load(0x28);
+    jsl_frame(0x82B26Bu);
+    abi_TaskWait();
 }

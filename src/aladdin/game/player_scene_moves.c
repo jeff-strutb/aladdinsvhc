@@ -5,6 +5,8 @@
  * named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -22,6 +24,18 @@ void abi_AnimStart(void);
 #define SCENE_CUE 0x146Cu  /* counted up by scripted actors as the scene goes on */
 #define HOP_TIME 0x42u  /* frames left of its run */
 
+/* Each frame (BRK at `brk_at` first) until the scene's cue is given. */
+static void wait_cue(uint32_t brk_at)
+{
+    uint8_t cue;
+
+    do {
+        actor_yield(brk_at);
+        cue = rd8(dba(SCENE_CUE));
+        a8_load(cue);
+    } while (!cue);
+}
+
 /*
  * @routine A5:EC45 PlayerSceneLeap
  * @actor
@@ -38,46 +52,58 @@ void abi_AnimStart(void);
  */
 void abi_PlayerSceneLeap(void)
 {
-    lda8_v(0x00);  /* A5EC45 lda */
-    abi_AnimStart();  /* A5EC47 jsl */
-    lda8_v(0x20);  /* A5EC4B lda */
-    actor_wait(0xA5EC4Du);  /* A5EC4D cop */
-    lda8_v(0x02);  /* A5EC4F lda */
-    abi_AnimStart();  /* A5EC51 jsl */
-    ldy8_v(0x0F);  /* A5EC55 ldy */
-    abi_ActorSpeedXFromA5();  /* A5EC57 jsr */
-L_A5EC5A:
-    actor_yield(0xA5EC5Au);  /* A5EC5A brk */
-    abi_ActorMoveX();  /* A5EC5C jsl */
-    abi_ActorSnapToGround();  /* A5EC60 jsl */
-    if (!IF_Z) goto L_A5EC5A;  /* A5EC64 bne */
-    stz8(ea_abs(SCENE_CUE));  /* A5EC66 stz */
-    lda8_v(0x0C);  /* A5EC69 lda */
-    abi_AnimStart();  /* A5EC6B jsl */
-    lda8_v(0x38);  /* A5EC6F lda */
-    sta8(ea_dp(ACTOR_ACCEL_Y));  /* A5EC71 sta */
-    ldy8_v(0x12);  /* A5EC73 ldy */
-    abi_ActorSpeedYFromA5();  /* A5EC75 jsr */
-L_A5EC78:
-    actor_yield(0xA5EC78u);  /* A5EC78 brk */
-    abi_ActorFly();  /* A5EC7A jsl */
-    lda8(ea_abs(SCENE_CUE));  /* A5EC7E lda */
-    if (IF_Z) goto L_A5EC78;  /* A5EC81 beq */
-    stz8(ea_abs(SCENE_CUE));  /* A5EC83 stz */
-    lda8_v(0x0D);  /* A5EC86 lda */
-    abi_AnimStart();  /* A5EC88 jsl */
-L_A5EC8C:
-    actor_yield(0xA5EC8Cu);  /* A5EC8C brk */
-    lda8(ea_abs(SCENE_CUE));  /* A5EC8E lda */
-    if (IF_Z) goto L_A5EC8C;  /* A5EC91 beq */
-    lda8_v(0x80);  /* A5EC93 lda */
-    trb8(ea_dp(ACTOR_09));  /* A5EC95 trb */
-L_A5EC97:
-    lda8_v(0x7F);  /* A5EC97 lda */
-    actor_wait(0xA5EC99u);  /* A5EC99 cop */
-    goto L_A5EC97;  /* A5EC9B bra */
+    uint8_t cue;
+
+    a8_load(0x00);
+    abi_AnimStart();
+    a8_load(0x20);
+    actor_wait(0xA5EC4Du);
+    /* runs till he is off the ground */
+    a8_load(0x02);
+    abi_AnimStart();
+    y8_load(0x0F);
+    abi_ActorSpeedXFromA5();
+    do {
+        actor_yield(0xA5EC5Au);
+        abi_ActorMoveX();
+        abi_ActorSnapToGround();
+    } while (!(cpu.p & P_Z));
+    /* leaps, until the cue */
+    wr8(dba(SCENE_CUE), 0);
+    a8_load(0x0C);
+    abi_AnimStart();
+    a8_load(0x38);
+    wr8(dpa(ACTOR_ACCEL_Y), 0x38);
+    y8_load(0x12);
+    abi_ActorSpeedYFromA5();
+    do {
+        actor_yield(0xA5EC78u);
+        abi_ActorFly();
+        cue = rd8(dba(SCENE_CUE));
+        a8_load(cue);
+    } while (!cue);
+    wr8(dba(SCENE_CUE), 0);
+    a8_load(0x0D);
+    abi_AnimStart();
+    wait_cue(0xA5EC8Cu);
+    a8_load(0x80);
+    trb_at(dpa(ACTOR_09), 0x80);
+    for (;;) {
+        a8_load(0x7F);
+        actor_wait(0xA5EC99u);
+    }
 }
 
+
+/* Each frame (BRK at `brk_at` first) falling until he is in the ground. */
+static void fall_to_ground(uint32_t brk_at)
+{
+    do {
+        actor_yield(brk_at);
+        abi_ActorFall();
+        abi_ActorOutOfGround();
+    } while (cpu.p & P_Z);
+}
 
 /*
  * @routine A5:EC9D PlayerSceneHops
@@ -96,53 +122,44 @@ L_A5EC97:
  */
 void abi_PlayerSceneHops(void)
 {
-    lda8_v(0x02);  /* A5EC9D lda */
-    sta8(ea_dp(ACTOR_4D));  /* A5EC9F sta */
-    lda8_v(0x01);  /* A5ECA1 lda */
-    sta8(ea_dp(ACTOR_FACING));  /* A5ECA3 sta */
-    sta8(ea_dp(ACTOR_FLIP));  /* A5ECA5 sta */
-    lda8_v(0x38);  /* A5ECA7 lda */
-    sta8(ea_dp(ACTOR_ACCEL_Y));  /* A5ECA9 sta */
-    ldy8_v(0x06);  /* A5ECAB ldy */
-    abi_ActorSpeedYFromA5();  /* A5ECAD jsr */
-L_A5ECB0:
-    actor_yield(0xA5ECB0u);  /* A5ECB0 brk */
-    abi_ActorFall();  /* A5ECB2 jsl */
-    abi_ActorOutOfGround();  /* A5ECB6 jsl */
-    if (IF_Z) goto L_A5ECB0;  /* A5ECBA beq */
-L_A5ECBC:
-    ldy8_v(0x06);  /* A5ECBC ldy */
-    abi_ActorSpeedYFromA5();  /* A5ECBE jsr */
-    ldy8_v(0x0C);  /* A5ECC1 ldy */
-    abi_ActorSpeedXFromA5();  /* A5ECC3 jsr */
-    lda8_v(0x01);  /* A5ECC6 lda */
-    abi_AnimStart();  /* A5ECC8 jsl */
-    lda8_v(0x30);  /* A5ECCC lda */
-    sta8(ea_dp(HOP_TIME));  /* A5ECCE sta */
-L_A5ECD0:
-    actor_yield(0xA5ECD0u);  /* A5ECD0 brk */
-    abi_ActorMoveX();  /* A5ECD2 jsl */
-    abi_ActorSnapToGround();  /* A5ECD6 jsl */
-    MEM8(dec, ea_dp(HOP_TIME));  /* A5ECDA dec */
-    if (!IF_Z) goto L_A5ECD0;  /* A5ECDC bne */
-    lda8_v(0x00);  /* A5ECDE lda */
-    abi_AnimStart();  /* A5ECE0 jsl */
-    lda8_v(0x30);  /* A5ECE4 lda */
-    actor_wait(0xA5ECE6u);  /* A5ECE6 cop */
-    lda8_v(0x0A);  /* A5ECE8 lda */
-    abi_AnimStart();  /* A5ECEA jsl */
-    lda8_v(0x10);  /* A5ECEE lda */
-    actor_wait(0xA5ECF0u);  /* A5ECF0 cop */
-    lda8_v(0x00);  /* A5ECF2 lda */
-    abi_AnimStart();  /* A5ECF4 jsl */
-    lda8_v(0x38);  /* A5ECF8 lda */
-    sta8(ea_dp(ACTOR_ACCEL_Y));  /* A5ECFA sta */
-    ldy8_v(0x0C);  /* A5ECFC ldy */
-    abi_ActorSpeedYFromA5();  /* A5ECFE jsr */
-L_A5ED01:
-    actor_yield(0xA5ED01u);  /* A5ED01 brk */
-    abi_ActorFall();  /* A5ED03 jsl */
-    abi_ActorOutOfGround();  /* A5ED07 jsl */
-    if (IF_Z) goto L_A5ED01;  /* A5ED0B beq */
-    goto L_A5ECBC;  /* A5ED0D bra */
+    a8_load(0x02);
+    wr8(dpa(ACTOR_4D), 0x02);
+    a8_load(0x01);
+    wr8(dpa(ACTOR_FACING), 0x01);
+    wr8(dpa(ACTOR_FLIP), 0x01);
+    a8_load(0x38);
+    wr8(dpa(ACTOR_ACCEL_Y), 0x38);
+    y8_load(0x06);
+    abi_ActorSpeedYFromA5();
+    fall_to_ground(0xA5ECB0u);
+    for (;;) {                            /* a hop left, a pause, again */
+        y8_load(0x06);
+        abi_ActorSpeedYFromA5();
+        y8_load(0x0C);
+        abi_ActorSpeedXFromA5();
+        a8_load(0x01);
+        abi_AnimStart();
+        a8_load(0x30);
+        wr8(dpa(HOP_TIME), 0x30);
+        do {
+            actor_yield(0xA5ECD0u);
+            abi_ActorMoveX();
+            abi_ActorSnapToGround();
+        } while (dec8_at(dpa(HOP_TIME)));
+        a8_load(0x00);
+        abi_AnimStart();
+        a8_load(0x30);
+        actor_wait(0xA5ECE6u);
+        a8_load(0x0A);
+        abi_AnimStart();
+        a8_load(0x10);
+        actor_wait(0xA5ECF0u);
+        a8_load(0x00);
+        abi_AnimStart();
+        a8_load(0x38);
+        wr8(dpa(ACTOR_ACCEL_Y), 0x38);
+        y8_load(0x0C);
+        abi_ActorSpeedYFromA5();
+        fall_to_ground(0xA5ED01u);
+    }
 }

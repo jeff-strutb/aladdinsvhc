@@ -3,6 +3,8 @@
  * down, wrapping, and shown.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 
 void abi_SoundQueueF2(void);
@@ -23,19 +25,24 @@ void abi_SoundTestShow(void);
  */
 void abi_SoundTestStep(void)
 {
-    if (IF_C) goto up;
-    MEM8(dec, ea_abs(SOUND_TEST));
-    if (!IF_N) goto show;
-    lda8_v(SOUND_TEST_LAST);
-    sta8(ea_abs(SOUND_TEST));
-    goto show;
-up:
-    MEM8(inc, ea_abs(SOUND_TEST));
-    lda8(ea_abs(SOUND_TEST));
-    cmp8_v(SOUND_TEST_LAST + 1);
-    if (!IF_C) goto show;
-    stz8(ea_abs(SOUND_TEST));
-show:
+    uint8_t n;
+
+    if (!(cpu.p & P_C)) {                 /* down, from the first to the last */
+        n = (uint8_t)(rd8(dba(SOUND_TEST)) - 1);
+        wr8(dba(SOUND_TEST), n);
+        nz8_of(n);
+        if (n & 0x80) {
+            a8_load(SOUND_TEST_LAST);
+            wr8(dba(SOUND_TEST), SOUND_TEST_LAST);
+        }
+    } else {                              /* up, from the last to the first */
+        n = (uint8_t)(rd8(dba(SOUND_TEST)) + 1);
+        wr8(dba(SOUND_TEST), n);
+        a8_load(n);
+        cmp8_of(n, SOUND_TEST_LAST + 1);
+        if (n >= SOUND_TEST_LAST + 1)
+            wr8(dba(SOUND_TEST), 0);
+    }
     abi_SoundQueueF2();
     abi_SoundTestShow();
 }

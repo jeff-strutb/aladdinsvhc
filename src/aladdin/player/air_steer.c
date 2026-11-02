@@ -4,6 +4,8 @@
  * hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram_player.h"
@@ -19,6 +21,18 @@ void abi_ActorDecelerateX(void);
 #define AIR_TOP_TOWARD 0xC78A
 #define AIR_LEAST_AGAINST 0xC796
 #define AIR_SETTLE 0xC7A2
+
+/* The table entry for the held direction's speed, by the dash: twice
+   `at` plus the dash twice. */
+static uint8_t by_dash(uint8_t at)
+{
+    uint8_t dash = rd8(dba(PLAYER_DASH));
+
+    flag_set(P_C, 0);
+    at = op_adc8(at, dash, &cpu.p);
+    flag_set(P_C, 0);
+    return op_adc8(at, dash, &cpu.p);
+}
 
 /*
  * @routine 81:CF2E PlayerAirSteer
@@ -38,103 +52,98 @@ void abi_ActorDecelerateX(void);
  */
 void abi_PlayerAirSteer(void)
 {
-    lda8(ea_abs(V_1428));
-    if (IF_Z) goto from_0012;
-    ldx8(ea_abs(V_1434));
-    if (!IF_Z) goto dir;
-    ldx8_v(0x02);
-    goto dir;
-from_0012:
-    ldx8(ea_abs(V_0012));
-dir:
-    txa8();
-    and8_v(0x07);
-    if (IF_Z) goto settle;
-    cmp8_v(0x02);
-    if (IF_Z) goto settle;
-    cmp8_v(0x03);
-    if (IF_Z) goto settle;
-    txa8();
-    ACC8(rol);
-    ACC8(rol);
-    and8_v(0x01);
-    eor8_v(rd8(ea_dp(ACTOR_FACING)));
-    if (IF_Z) goto against;
-    txa8();
-    and8_v(0x03);
-    ACC8(asl);
+    uint8_t v, dir, low, toward;
+    uint16_t limit, speed;
+
+    /* the direction held: the pad's, or the scripted one */
+    v = rd8(dba(V_1428));
+    a8_load(v);
+    if (v) {
+        x8_load(rd8(dba(V_1434)));
+        if (!cpu.x)
+            x8_load(0x02);
+    } else {
+        x8_load(rd8(dba(V_0012)));
+    }
+    dir = (uint8_t)cpu.x;
+    low = dir & 0x07;
+    a8_load(low);
+    if (!low)
+        goto settle;
+    cmp8_of(low, 0x02);
+    if (low == 0x02)
+        goto settle;
+    cmp8_of(low, 0x03);
+    if (low == 0x03)
+        goto settle;
+    flag_set(P_C, dir & 0x40);
+    a8_load((uint8_t)(((dir >> 7) & 1) ^ rd8(dpa(ACTOR_FACING))));
+    toward = (uint8_t)cpu.a;
+    if (toward) {
+        /* held his way: faster, to the top speed */
+        a8_load((uint8_t)((dir & 0x03) << 1));
+        flag_set(P_C, 0);
+        pha8();
+        cpu.y = op_adc8((uint8_t)cpu.a, rd8(dba(PLAYER_DASH)), &cpu.p);
+        a8_load(rd8(dba(AIR_ACCEL_TOWARD) + cpu.y));
+        wr8(dpa(ACTOR_ACCEL_X), (uint8_t)cpu.a);
+        abi_ActorAccelerateX();
+        pla8();
+        cpu.x = by_dash((uint8_t)((uint8_t)cpu.a << 1));
+        limit = rd16(dba(AIR_TOP_TOWARD) + cpu.x);
+        speed = dp16(ACTOR_SPEED_X);
+        cpu.a = limit;
+        cmp16_of(limit, speed);
+        if (limit < speed)
+            dp16_set(ACTOR_SPEED_X, limit);
+        op_sep(P_M);
+        return;
+    }
+    /* held the other way: slower, to the least */
+    a8_load(dir & 0x03);
     pha8();
-    clc();
-    adc8_v(rd8(ea_abs(PLAYER_DASH)));
-    tay8();
-    lda8(ea_absy(AIR_ACCEL_TOWARD));
-    sta8(ea_dp(ACTOR_ACCEL_X));
-    abi_ActorAccelerateX();
-    pla8();
-    ACC8(asl);
-    clc();
-    adc8_v(rd8(ea_abs(PLAYER_DASH)));
-    clc();
-    adc8_v(rd8(ea_abs(PLAYER_DASH)));
-    tax8();
-    op_rep(0x20);
-    lda16(ea_absx(AIR_TOP_TOWARD));
-    cmp16_v(rd16(ea_dp(ACTOR_SPEED_X)));
-    if (!IF_C)
-        sta16(ea_dp(ACTOR_SPEED_X));
-    op_sep(0x20);
-    return;
-against:
-    txa8();
-    and8_v(0x03);
-    pha8();
-    tay8();
-    lda8(ea_absy(AIR_ACCEL_AGAINST));
-    sta8(ea_dp(ACTOR_ACCEL_X));
+    cpu.y = dir & 0x03;
+    a8_load(rd8(dba(AIR_ACCEL_AGAINST) + cpu.y));
+    wr8(dpa(ACTOR_ACCEL_X), (uint8_t)cpu.a);
     abi_ActorDecelerateX();
     pla8();
-    ACC8(asl);
-    ACC8(asl);
-    clc();
-    adc8_v(rd8(ea_abs(PLAYER_DASH)));
-    clc();
-    adc8_v(rd8(ea_abs(PLAYER_DASH)));
-    tax8();
-    op_rep(0x20);
-    lda16(ea_absx(AIR_LEAST_AGAINST));
-    cmp16_v(rd16(ea_dp(ACTOR_SPEED_X)));
-    if (IF_C)
-        sta16(ea_dp(ACTOR_SPEED_X));
-    op_sep(0x20);
+    cpu.x = by_dash((uint8_t)((uint8_t)cpu.a << 2));
+    limit = rd16(dba(AIR_LEAST_AGAINST) + cpu.x);
+    speed = dp16(ACTOR_SPEED_X);
+    cpu.a = limit;
+    cmp16_of(limit, speed);
+    if (limit >= speed)
+        dp16_set(ACTOR_SPEED_X, limit);
+    op_sep(P_M);
     return;
 settle:
-    op_rep(0x10);
-    lda8_v(0x00);
-    xba();
-    lda8(ea_abs(PLAYER_DASH));
-    ACC8(asl);
-    tay16();
-    ldx16(ea_absy(AIR_SETTLE));
-    cpx16_v(rd16(ea_dp(ACTOR_SPEED_X)));
-    if (IF_Z) goto done;
-    if (!IF_C) goto above;
-    cpx16_v(rd16(ea_dp(ACTOR_SPEED_X)));
-    if (IF_C)
-        stx16(ea_dp(ACTOR_SPEED_X));
-    lda8_v(0x28);
-    sta8(ea_dp(ACTOR_ACCEL_X));
-    abi_ActorAccelerateX();
-    goto done;
-above:
-    lda8_v(0x08);
-    sta8(ea_dp(ACTOR_ACCEL_X));
-    abi_ActorDecelerateX();
-    ldx16_v(0x0180);
-    cpx16_v(rd16(ea_dp(ACTOR_SPEED_X)));
-    if (IF_C)
-        stx16(ea_dp(ACTOR_SPEED_X));
-done:
-    op_sep(0x10);
+    /* no way held: the speed settles toward its dash's speed */
+    op_rep(P_X);
+    v = rd8(dba(PLAYER_DASH));
+    flag_set(P_C, v & 0x80);
+    cpu.a = (uint8_t)(v << 1);
+    cpu.y = cpu.a;
+    cpu.x = rd16(dba(AIR_SETTLE) + cpu.y);
+    speed = dp16(ACTOR_SPEED_X);
+    cmp16_of(cpu.x, speed);
+    if (cpu.x != speed) {
+        if (cpu.x > speed) {
+            dp16_set(ACTOR_SPEED_X, cpu.x);
+            a8_load(0x28);
+            wr8(dpa(ACTOR_ACCEL_X), 0x28);
+            abi_ActorAccelerateX();
+        } else {
+            a8_load(0x08);
+            wr8(dpa(ACTOR_ACCEL_X), 0x08);
+            abi_ActorDecelerateX();
+            cpu.x = 0x0180;
+            speed = dp16(ACTOR_SPEED_X);
+            cmp16_of(0x0180, speed);
+            if (0x0180 >= speed)
+                dp16_set(ACTOR_SPEED_X, 0x0180);
+        }
+    }
+    op_sep(P_X);
 }
 
 /*
@@ -148,16 +157,15 @@ done:
  */
 void abi_PlayerSpeedLeast(void)
 {
-    op_rep(0x20);
-    lda16(ea_dp(ACTOR_SPEED_X));
-    sec();
-    cmp16_v(0x00C0);
-    if (!IF_C) {
-        MEM16(inc, ea_abs(PLAYER_SLOWED));
-        lda16_v(0x00C0);
-        sta16(ea_dp(ACTOR_SPEED_X));
+    uint16_t speed = dp16(ACTOR_SPEED_X);
+
+    cpu.a = speed;
+    cmp16_of(speed, 0x00C0);
+    if (speed < 0x00C0) {                 /* held to $C0, counted */
+        inc16_at(dba(PLAYER_SLOWED));
+        a16_load(0x00C0);
+        dp16_set(ACTOR_SPEED_X, 0x00C0);
     }
-    op_sep(0x20);
 }
 
 /*
@@ -169,12 +177,9 @@ void abi_PlayerSpeedLeast(void)
  */
 void abi_PlayerPosRestore(void)
 {
-    op_rep(0x20);
-    lda16(ea_abs(PLAYER_POS_SAVED));
-    sta16(ea_dp(ACTOR_X + 1));
-    lda16(ea_abs(PLAYER_POS_SAVED + 2));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
+    dp16_set(ACTOR_X + 1, rd16(dba(PLAYER_POS_SAVED)));
+    a16_load(rd16(dba(PLAYER_POS_SAVED + 2)));
+    dp16_set(ACTOR_Y + 1, cpu.a);
 }
 
 /*
@@ -187,8 +192,8 @@ void abi_PlayerPosRestore(void)
  */
 void abi_PlayerFlagsClear(void)
 {
-    stz8(ea_abs(V_1A08));
-    stz8(ea_abs(V_141C));
-    stz8(ea_abs(V_142D));
-    stz8(ea_abs(V_144D));
+    wr8(dba(V_1A08), 0);
+    wr8(dba(V_141C), 0);
+    wr8(dba(V_142D), 0);
+    wr8(dba(V_144D), 0);
 }

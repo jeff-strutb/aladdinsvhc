@@ -9,6 +9,7 @@
 incsrc "../include/macros.inc"
 incsrc "../include/actor.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_video.inc"
 
 arch 65816
 
@@ -28,10 +29,18 @@ arch 65816
 !COURSE_AT = $37                ; the offset of its waypoint in the course; the course maker's: where the next platform starts (word)
 !LAST_DIRECTION = $1C           ; the direction it last took ($FF: none)
 !JUMPED = $16                   ; nonzero: it was moved along the course this frame
+!DIRECTION = $40                ; the direction it moves along the course: 0 or 1
+!DIRECTION_FLIP = $42           ; nonzero: the wait routine flips DIRECTION
+!FIELD_21 = $21                 ; zeroed at its start; no code filed so far reads it
 
 ; The course's waypoints, 8 bytes each: x and y (24-bit, fraction first),
 ; the direction and the speed.
 !COURSE = $7F5000
+!WAYPOINT_SIZE = 8
+; The course starts at x $2A, y $1C0 and is worked out to x $1000.
+!COURSE_START_X = $002A
+!COURSE_START_Y = $01C0
+!COURSE_END_X_HIGH = $10
 ; In the bank DB names: the number of turn stretches, then 6 bytes each:
 ; the first x pixel and the x pixel past it (words).
 !TURN_ZONE_COUNT = $D2F7
@@ -51,6 +60,157 @@ arch 65816
 !v_1a44 = $1A44
 ; Not yet filed: the check of the platform's rider.
 !RIDER_CHECK = $83CCF1
+; Not yet filed (no script reaches it): a platform's part of the course in
+; a turn stretch.
+!PLATFORM_IN_TURN = $83CAA8
+
+; @routine 83:C96E PlatformCourseStart
+; @actor
+; WHAT IT DOES: Starts a platform of kind $47. The first one (actor_07
+; zero) is the course maker: it works the course out from x $2A, y $1C0
+; to x $1000, starts four platforms along it, and from then on keeps the
+; course's live waypoint (COURSE_LIVE) at the screen's middle as the
+; play field scrolls. A platform it started (actor_07 nonzero) goes on in
+; PlatformOnCourseStart.
+; HOW: The maker: speed $20, the waypoint step count 1, the course empty.
+; It steps the course slowing (PlatformCourseSlower, facing 0) while out
+; of a turn stretch and speeding (PlatformCourseFaster, facing 1) while
+; in one, keeping a waypoint every 38 steps, until its x pixel's high
+; byte is $10. Then the free list sorted for as many passes as half its
+; top offset (ActorFreeListSortHigh), actor_07 to 1 for its children,
+; PlatformSpawnOnCourse four times from waypoint 6 ($30), COURSE_LIVE 18.
+; Each frame after its yield: with the play field's x at or past its x
+; before the move, COURSE_LIVE goes on one when the x plus $80 reaches
+; the next waypoint's x; else back one when the x plus $80 is below the
+; live waypoint's x.
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; reached
+; as the kind's start. Exit: the maker never leaves (it yields each
+; frame); a platform it started: as PlatformOnCourseStart.
+%at($83C96E)
+PlatformCourseStart:
+    lda.b !actor_07
+    beq .maker
+    jmp.w PlatformOnCourseStart
+.maker:
+    lda.b #$20
+    sta.b !COURSE_SPEED
+    rep.b #$20
+    lda.w #!COURSE_START_X
+    sta.b !actor_x+1
+    lda.w #!COURSE_START_Y
+    sta.b !actor_y+1
+    sta.b !BASE_Y+1
+    stz.b !COURSE_END
+    sep.b #$20
+    lda.b #$01
+    sta.b !COURSE_STEPS
+.stretch:
+    stz.b !actor_facing
+.slowing:
+    lda.b !actor_x+2
+    cmp.b #!COURSE_END_X_HIGH
+    beq .worked_out
+    jsr.w PlatformCourseRecord
+    jsr.w PlatformCourseSlower
+    bcs .slowing
+    inc.b !actor_facing
+.speeding:
+    jsr.w PlatformCourseRecord
+    jsr.w PlatformCourseFaster
+    bcc .speeding
+    bra .stretch
+.worked_out:
+    lda.w !actor_free_top
+    lsr a
+    jsl.l ActorFreeListSortHigh
+    inc.b !actor_07
+    lda.b #6*!WAYPOINT_SIZE
+    sta.b !COURSE_AT
+    stz.b !COURSE_AT+1
+    jsr.w PlatformSpawnOnCourse
+    jsr.w PlatformSpawnOnCourse
+    jsr.w PlatformSpawnOnCourse
+    jsr.w PlatformSpawnOnCourse
+    lda.b #18
+    sta.w !COURSE_LIVE
+.frame:
+    sep.b #$30
+    brk.b #$00
+    rep.b #$30
+    lda.w !layer0+!LAYER_SCROLL_X
+    cmp.w !scroll_x_before
+    bcc .scrolled_left
+    lda.w !COURSE_LIVE
+    asl a
+    asl a
+    asl a
+    tax
+    clc
+    lda.w !layer0+!LAYER_SCROLL_X
+    adc.w #$0080
+    cmp.l !COURSE+!WAYPOINT_SIZE+1,x
+    bcc .frame
+    inc.w !COURSE_LIVE
+    bra .frame
+.scrolled_left:
+    lda.w !COURSE_LIVE
+    asl a
+    asl a
+    asl a
+    tax
+    clc
+    lda.w !layer0+!LAYER_SCROLL_X
+    adc.w #$0080
+    cmp.l !COURSE+1,x
+    bcs .frame
+    dec.w !COURSE_LIVE
+    bra .frame
+
+; @routine 83:CA75 PlatformOnCourseStart
+; @actor
+; WHAT IT DOES: Starts a platform the course maker put on the course:
+; nothing riding it, no dip, sprite bits $02 and $90, speed $20, its
+; height without the dip its y; then each frame it steps along the
+; course, slowing, until it reaches a turn stretch.
+; HOW: FIELD_21, DIRECTION, DIRECTION_FLIP and RIDDEN zeroed;
+; PlatformDipClear; LAST_DIRECTION $FF; actor_08 2, actor_09 $90;
+; COURSE_SPEED $20; BASE_Y the 24-bit y; facing 0. Then yield,
+; PlatformPositionKeep and PlatformCourseSlower each frame while C is set
+; (out of a turn stretch). In one it goes on at PLATFORM_IN_TURN, which
+; no script reaches yet and is not filed (there it asks for a direction
+; flip each time it enters or leaves a stretch, and PlatformCourseFollow
+; can set its resume address there, $83:CAB0, for direction 1; no script
+; does either).
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; jumped
+; to from PlatformCourseStart. Exit: never returns to its caller: it
+; yields each frame.
+%at($83CA75)
+PlatformOnCourseStart:
+    stz.b !FIELD_21
+    stz.b !DIRECTION
+    stz.b !DIRECTION_FLIP
+    stz.b !RIDDEN
+    jsr.w PlatformDipClear
+    lda.b #$FF
+    sta.b !LAST_DIRECTION
+    lda.b #$02
+    sta.b !actor_08
+    lda.b #$90
+    sta.b !actor_09
+    lda.b #$20
+    sta.b !COURSE_SPEED
+    lda.b !actor_y
+    sta.b !BASE_Y
+    rep.b #$20
+    lda.b !actor_y+1
+    sta.b !BASE_Y+1
+    sep.b #$20
+    stz.b !actor_facing
+.frame:
+    brk.b #$00
+    jsr.w PlatformPositionKeep
+    jsr.w PlatformCourseSlower
+    bcs .frame
 
 ; @routine 83:CA11 PlatformSpawnOnCourse
 ; WHAT IT DOES: Starts one more platform on the course: a child of kind

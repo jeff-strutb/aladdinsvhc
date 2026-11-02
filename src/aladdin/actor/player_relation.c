@@ -3,6 +3,8 @@
  * whether it is inside a box in front of the actor.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorDirectionToPlayer(void);
 void abi_PlayerInFrontBox(void);
@@ -23,62 +25,58 @@ void abi_PlayerInFrontBox(void);
  */
 void abi_ActorDirectionToPlayer(void)
 {
-    op_rep(0x30);  /* 81ABEA rep */
-    ldx16_v(0x08DB);  /* 81ABEC ldx */
-    lda16(ea_absx(SCRATCH));  /* 81ABEF lda */
-    sta16(ea_abs(0x0010));  /* 81ABF2 sta */
-    lda16(ea_absx(0x000F));  /* 81ABF5 lda */
-    sta16(ea_abs((SCRATCH + 6)));  /* 81ABF8 sta */
-    ldy16_v(0x0000);  /* 81ABFB ldy */
-    lda16(ea_abs((SCRATCH + 6)));  /* 81ABFE lda */
-    sec();  /* 81AC01 sec */
-    sbc16_v(rd16(ea_dp(0x0F)));  /* 81AC02 sbc */
-    if (IF_C) goto L_81AC0D;  /* 81AC04 bcs */
-    eor16_v(0xFFFF);  /* 81AC06 eor */
-    ACC16(inc);  /* 81AC09 inc */
-    ldy16_v(0x0004);  /* 81AC0A ldy */
-L_81AC0D:
-    sta16(ea_abs(SCRATCH));  /* 81AC0D sta */
-    lda16(ea_abs(0x0010));  /* 81AC10 lda */
-    sec();  /* 81AC13 sec */
-    sbc16_v(rd16(ea_dp(0x0C)));  /* 81AC14 sbc */
-    if (IF_C) goto L_81AC1E;  /* 81AC16 bcs */
-    eor16_v(0xFFFF);  /* 81AC18 eor */
-    ACC16(inc);  /* 81AC1B inc */
-    iny16();  /* 81AC1C iny */
-    iny16();  /* 81AC1D iny */
-L_81AC1E:
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81AC1E cmp */
-    if (IF_C) goto L_81AC2B;  /* 81AC21 bcs */
-    iny16();  /* 81AC23 iny */
-    ldx16(ea_abs(SCRATCH));  /* 81AC24 ldx */
-    sta16(ea_abs(SCRATCH));  /* 81AC27 sta */
-    txa16();  /* 81AC2A txa */
-L_81AC2B:
-    ldx16_v(0x0000);  /* 81AC2B ldx */
-    ACC16(lsr);  /* 81AC2E lsr */
-    ACC16(lsr);  /* 81AC2F lsr */
-    sta16(ea_abs(0x000E));  /* 81AC30 sta */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81AC33 cmp */
-    if (IF_C) goto L_81AC45;  /* 81AC36 bcs */
-    inx16();  /* 81AC38 inx */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81AC39 adc */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81AC3C adc */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81AC3F cmp */
-    if (IF_C) goto L_81AC45;  /* 81AC42 bcs */
-    inx16();  /* 81AC44 inx */
-L_81AC45:
-    tya16();  /* 81AC45 tya */
-    ACC16(asl);  /* 81AC46 asl */
-    ACC16(asl);  /* 81AC47 asl */
-    sta16(ea_abs(SCRATCH));  /* 81AC48 sta */
-    txa16();  /* 81AC4B txa */
-    clc();  /* 81AC4C clc */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 81AC4D adc */
-    tax16();  /* 81AC50 tax */
-    lda16(ea_absx(0xBBE3));  /* 81AC51 lda */
-    op_sep(0x30);  /* 81AC54 sep */
-    return;  /* 81AC56 rtl */
+    uint16_t dy, dx, small, large, quarter, a;
+
+    op_rep(0x30);
+    cpu.x = PLAYER;
+    wr16(dba(SCRATCH + 4), rd16(dba(PLAYER + ACTOR_X + 1)));
+    wr16(dba(SCRATCH + 6), rd16(dba(PLAYER + ACTOR_Y + 1)));
+    /* the distances (Y: bit 2 when he is above, bit 1 when left) */
+    cpu.y = 0;
+    flag_set(P_C, 1);
+    dy = op_sbc16(rd16(dba(SCRATCH + 6)), dp16(ACTOR_Y + 1), &cpu.p);
+    if (!(cpu.p & P_C)) {
+        dy = (uint16_t)((dy ^ 0xFFFF) + 1);
+        cpu.y = 4;
+    }
+    wr16(dba(SCRATCH), dy);
+    flag_set(P_C, 1);
+    dx = op_sbc16(rd16(dba(SCRATCH + 4)), dp16(ACTOR_X + 1), &cpu.p);
+    if (!(cpu.p & P_C)) {
+        dx = (uint16_t)((dx ^ 0xFFFF) + 1);
+        cpu.y = (uint16_t)(cpu.y + 2);
+    }
+    /* bit 0 when the y distance is the greater: SCRATCH the smaller */
+    cmp16_of(dx, dy);
+    large = dx;
+    small = dy;
+    if (dx < dy) {
+        cpu.y = (uint16_t)(cpu.y + 1);
+        cpu.x = dy;
+        wr16(dba(SCRATCH), dx);
+        large = dy;
+        small = dx;
+    }
+    /* how steep: 0 when the smaller is within a quarter of the larger,
+       1 within three quarters, else 2 */
+    cpu.x = 0;
+    flag_set(P_C, (large >> 1) & 1);
+    quarter = (uint16_t)(large >> 2);
+    wr16(dba(SCRATCH + 2), quarter);
+    cmp16_of(quarter, small);
+    if (quarter < small) {
+        cpu.x = 1;
+        a = op_adc16(quarter, quarter, &cpu.p);
+        a = op_adc16(a, quarter, &cpu.p);
+        cmp16_of(a, small);
+        if (a < small)
+            cpu.x = 2;
+    }
+    wr16(dba(SCRATCH), (uint16_t)(cpu.y << 2));
+    flag_set(P_C, 0);
+    cpu.x = op_adc16(cpu.x, rd16(dba(SCRATCH)), &cpu.p);
+    a16_load(rd16(dba(0xBBE3) + cpu.x));
+    op_sep(0x30);
 }
 
 /*
@@ -96,35 +94,34 @@ L_81AC45:
  */
 void abi_PlayerInFrontBox(void)
 {
-    ldy8(ea_dp(0x14));  /* 81AEFD ldy */
-    goto L_81AF03;  /* 81AEFF bra */
-L_81AF03:
-    op_rep(0x20);  /* 81AF03 rep */
-    lda16(ea_absx(0xBC8F));  /* 81AF05 lda */
-    sta16(ea_abs(SCRATCH));  /* 81AF08 sta */
-    ACC16(asl);  /* 81AF0B asl */
-    sta16(ea_abs(0x000E));  /* 81AF0C sta */
-    lda16(ea_absx(0xBC91));  /* 81AF0F lda */
-    adc16_v(rd16(ea_absx(0xBC93)));  /* 81AF12 adc */
-    sta16(ea_abs(0x0010));  /* 81AF15 sta */
-    lda16(ea_dp(0x0F));  /* 81AF18 lda */
-    clc();  /* 81AF1A clc */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 81AF1B adc */
-    sec();  /* 81AF1E sec */
-    sbc16_v(rd16(ea_abs(0x08EA)));  /* 81AF1F sbc */
-    cmp16_v(rd16(ea_abs(0x000E)));  /* 81AF22 cmp */
-    if (IF_C) goto L_81AF38;  /* 81AF25 bcs */
-    dey8();  /* 81AF27 dey */
-    if (IF_N) goto L_81AF2C;  /* 81AF28 bmi */
-    inx8();  /* 81AF2A inx */
-    inx8();  /* 81AF2B inx */
-L_81AF2C:
-    lda16(ea_dp(0x0C));  /* 81AF2C lda */
-    adc16_v(rd16(ea_absx(0xBC91)));  /* 81AF2E adc */
-    sec();  /* 81AF31 sec */
-    sbc16_v(rd16(ea_abs(0x08E7)));  /* 81AF32 sbc */
-    cmp16_v(rd16(ea_abs(0x0010)));  /* 81AF35 cmp */
-L_81AF38:
-    op_sep(0x20);  /* 81AF38 sep */
-    return;  /* 81AF3A rtl */
+    uint32_t box = dba(0xBC8F) + cpu.x;
+    uint16_t half, d;
+
+    y8_load(rd8(dpa(ACTOR_FACING)));
+    op_rep(P_M);
+    /* the box: half its height, its height, its width */
+    half = rd16(box);
+    wr16(dba(SCRATCH), half);
+    flag_set(P_C, half & 0x8000);
+    wr16(dba(SCRATCH + 2), (uint16_t)(half << 1));
+    wr16(dba(SCRATCH + 4), op_adc16(rd16(box + 2), rd16(box + 4), &cpu.p));
+    flag_set(P_C, 0);
+    d = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(SCRATCH)), &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_Y + 1)), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, rd16(dba(SCRATCH + 2)));
+    if (d < rd16(dba(SCRATCH + 2))) {
+        /* across, on the side it faces */
+        cpu.y = (uint8_t)(cpu.y - 1);
+        nz8_of((uint8_t)cpu.y);
+        if (!(cpu.y & 0x80))
+            cpu.x = (uint8_t)(cpu.x + 2);
+        d = op_adc16(dp16(ACTOR_X + 1), rd16(dba(0xBC91) + cpu.x), &cpu.p);
+        flag_set(P_C, 1);
+        d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
+        cpu.a = d;
+        cmp16_of(d, rd16(dba(SCRATCH + 4)));
+    }
+    op_sep(P_M);
 }

@@ -3,6 +3,8 @@
  * whether the player is within its box on each axis.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -10,6 +12,25 @@
 #define PLAYER_Y_PIXELS (PLAYER + ACTOR_Y + 1)
 #define BOX_HALF_W 0x0010          /* the box: 16 pixels each side in x */
 #define BOX_HALF_H 0x003C          /* 60 pixels each side in y */
+
+/* Counts the word at `count` up when `mine` less `his` lies within
+   `half` either side; A and the flags as the test leaves them. */
+static void count_within(uint16_t mine, uint16_t his, uint16_t half, uint16_t count)
+{
+    uint16_t d;
+
+    flag_set(P_C, 1);
+    d = op_sbc16(mine, his, &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, half, &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, (uint16_t)(2 * half));
+    if (d < 2 * half) {
+        uint16_t n = (uint16_t)(dp16(count) + 1);
+        dp16_set(count, n);
+        nz16_of(n);
+    }
+}
 
 /*
  * @routine 83:C47E ActorPlayerBoxCount
@@ -27,20 +48,6 @@
  */
 void abi_ActorPlayerBoxCount(void)
 {
-    sec();
-    lda16(ea_dp(ACTOR_X + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_X_PIXELS)));
-    clc();
-    adc16_v(BOX_HALF_W);
-    cmp16_v(2 * BOX_HALF_W);
-    if (!IF_C)
-        MEM16(inc, ea_dp(ACTOR_45));
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_Y_PIXELS)));
-    clc();
-    adc16_v(BOX_HALF_H);
-    cmp16_v(2 * BOX_HALF_H);
-    if (!IF_C)
-        MEM16(inc, ea_dp(ACTOR_47));
+    count_within(dp16(ACTOR_X + 1), rd16(dba(PLAYER_X_PIXELS)), BOX_HALF_W, ACTOR_45);
+    count_within(dp16(ACTOR_Y + 1), rd16(dba(PLAYER_Y_PIXELS)), BOX_HALF_H, ACTOR_47);
 }

@@ -4,6 +4,8 @@
  * hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "wram_video.h"
@@ -14,6 +16,8 @@
    flag (1, 2, 4 ... $80) */
 #define LEVEL_FLAG_MASKS 0xD27Eu
 #define FLAG_BITS 0xBCA1u
+
+#define FLAG_SPOTS 0xD24Au  /* by level from $0E: the offset of its spots; there, the count, then 4 bytes a spot: x, y (in the bank DB names) */
 
 /*
  * @routine 83:C2F0 LevelFlagFromMask
@@ -29,14 +33,14 @@
  */
 void abi_LevelFlagFromMask(void)
 {
-    ldy8(ea_abs(0x035D));  /* 83C2F0 ldy */
-    lda8(ea_absy(0xD27E));  /* 83C2F3 lda */
-    and8_v(rd8(ea_absx(0xBCA1)));  /* 83C2F6 and */
-    if (IF_Z) goto L_83C2FD;  /* 83C2F9 beq */
-    lda8_v(0x01);  /* 83C2FB lda */
-L_83C2FD:
-    sta8(ea_longx(0x7EF260u));  /* 83C2FD sta */
-    return;  /* 83C301 rts */
+    uint8_t set;
+
+    y8_load(rd8(dba(V_035D)));
+    set = (uint8_t)(rd8(dba(LEVEL_FLAG_MASKS) + cpu.y) & rd8(dba(FLAG_BITS) + cpu.x));
+    a8_load(set);
+    if (set)
+        a8_load(0x01);
+    wr8(LEVEL_FLAGS + cpu.x, (uint8_t)cpu.a);
 }
 
 /*
@@ -54,40 +58,38 @@ L_83C2FD:
  */
 void abi_LevelFlagSpotFind(void)
 {
-    lda8_v(0x07);  /* 83C2A9 lda */
-    trb8(ea_abs(SCRATCH));  /* 83C2AB trb */
-    trb8(ea_abs(0x000E));  /* 83C2AE trb */
-    sec();  /* 83C2B1 sec */
-    lda8(ea_abs(LEVEL));  /* 83C2B2 lda */
-    sbc8_v(0x0E);  /* 83C2B5 sbc */
-    ACC8(asl);  /* 83C2B7 asl */
-    tax8();  /* 83C2B8 tax */
-    op_rep(0x20);  /* 83C2B9 rep */
-    ldy8(ea_absx(0xD24A));  /* 83C2BB ldy */
-    ldx8(ea_absy(0xD24A));  /* 83C2BE ldx */
-L_83C2C1:
-    lda16(ea_absy(0xD24B));  /* 83C2C1 lda */
-    and16_v(0xFFF8);  /* 83C2C4 and */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 83C2C7 cmp */
-    if (!IF_Z) goto L_83C2D7;  /* 83C2CA bne */
-    lda16(ea_absy(0xD24D));  /* 83C2CC lda */
-    and16_v(0xFFF8);  /* 83C2CF and */
-    cmp16_v(rd16(ea_abs(0x000E)));  /* 83C2D2 cmp */
-    if (IF_Z) goto L_83C2E2;  /* 83C2D5 beq */
-L_83C2D7:
-    iny8();  /* 83C2D7 iny */
-    iny8();  /* 83C2D8 iny */
-    iny8();  /* 83C2D9 iny */
-    iny8();  /* 83C2DA iny */
-    dex8();  /* 83C2DB dex */
-    if (!IF_Z) goto L_83C2C1;  /* 83C2DC bne */
-    op_sep(0x20);  /* 83C2DE sep */
-    sec();  /* 83C2E0 sec */
-    return;  /* 83C2E1 rts */
-L_83C2E2:
-    op_sep(0x20);  /* 83C2E2 sep */
-    dex8();  /* 83C2E4 dex */
-    clc();  /* 83C2E5 clc */
-    return;  /* 83C2E6 rts */
+    uint8_t at;
+    uint16_t v;
+
+    /* the point to 8-pixel cells */
+    a8_load(0x07);
+    trb_at(dba(SCRATCH), 0x07);
+    trb_at(dba(SCRATCH + 2), 0x07);
+    flag_set(P_C, 1);
+    at = op_sbc8(rd8(dba(LEVEL)), 0x0E, &cpu.p);
+    cpu.x = (uint8_t)(at << 1);
+    op_rep(P_M);
+    y8_load(rd8(dba(FLAG_SPOTS) + cpu.x));
+    x8_load(rd8(dba(FLAG_SPOTS) + cpu.y));
+    do {
+        v = rd16(dba(FLAG_SPOTS + 1) + cpu.y) & 0xFFF8;
+        cpu.a = v;
+        cmp16_of(v, rd16(dba(SCRATCH)));
+        if (v == rd16(dba(SCRATCH))) {
+            v = rd16(dba(FLAG_SPOTS + 3) + cpu.y) & 0xFFF8;
+            cpu.a = v;
+            cmp16_of(v, rd16(dba(SCRATCH + 2)));
+            if (v == rd16(dba(SCRATCH + 2))) {
+                op_sep(P_M);
+                x8_load((uint8_t)(cpu.x - 1));
+                flag_set(P_C, 0);
+                return;
+            }
+        }
+        cpu.y = (uint8_t)(cpu.y + 4);
+        x8_load((uint8_t)(cpu.x - 1));
+    } while (cpu.x);
+    op_sep(P_M);
+    flag_set(P_C, 1);
 }
 

@@ -4,13 +4,17 @@
  * frame. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
+#include "actor_anim.h"
 #include "wram_player.h"
 
 void abi_PlayerMoveStart(void);
 void abi_AnimOfMove(void);
 void abi_AnimResume(void);
+void abi_PlayerMoveKeepFrame(void);
 
 /*
  * @routine 81:DC9D PlayerMoveChange
@@ -23,11 +27,11 @@ void abi_AnimResume(void);
  */
 void abi_PlayerMoveChange(void)
 {
-    cmp8_v(rd8(ea_abs(PLAYER_MOVE)));  /* 81DC9D cmp */
-    if (IF_Z) goto L_81DCAC;  /* 81DCA0 beq */
-    abi_PlayerMoveStart(); return;
-L_81DCAC:
-    return;  /* 81DCAC rts */
+    uint8_t move = (uint8_t)cpu.a, now = rd8(dba(PLAYER_MOVE));
+
+    cmp8_of(move, now);
+    if (move != now)
+        abi_PlayerMoveStart();
 }
 
 
@@ -44,27 +48,43 @@ L_81DCAC:
  */
 void abi_PlayerRunMove(void)
 {
-    op_rep(0x10);  /* 81CF1C rep */
-    lda8_v(0x02);  /* 81CF1E lda */
-    ldx16(ea_dp(0x19));  /* 81CF20 ldx */
-    cpx16_v(0x0200);  /* 81CF22 cpx */
-    if (!IF_C) goto L_81CF29;  /* 81CF25 bcc */
-    lda8_v(0x03);  /* 81CF27 lda */
-L_81CF29:
-    op_sep(0x10);  /* 81CF29 sep */
-    goto L_81DC7D;  /* 81CF2B jmp */
-L_81DC7D:
-    cmp8_v(rd8(ea_abs(PLAYER_MOVE)));  /* 81DC7D cmp */
-    if (IF_Z) goto L_81DCAC;  /* 81DC80 beq */
-    sta8(ea_abs(PLAYER_MOVE));  /* 81DC82 sta */
-    lda8(ea_dp(0x2F));  /* 81DC85 lda */
-    pha8();  /* 81DC87 pha */
-    abi_AnimOfMove();  /* 81DC88 jsr */
-    abi_AnimResume();  /* 81DC8B jsl */
-    pla8();  /* 81DC8F pla */
-    sta8(ea_dp(0x2F));  /* 81DC90 sta */
-    return;  /* 81DC92 rts */
-L_81DCAC:
-    return;  /* 81DCAC rts */
-}
+    uint16_t speed;
 
+    op_rep(P_X);
+    a8_load(0x02);                        /* running below 2 pixels a frame */
+    speed = dp16(ACTOR_SPEED_X);
+    cpu.x = speed;
+    cmp16_of(speed, 0x0200);
+    if (speed >= 0x0200)
+        a8_load(0x03);                    /* at 2 or more */
+    op_sep(P_X);
+    abi_PlayerMoveKeepFrame();
+}
+/*
+ * @routine 81:DC7D PlayerMoveKeepFrame
+ * WHAT IT DOES: Puts the player into move A, unless he is in it already,
+ * keeping his animation's frame: the new move's animation resumes at the
+ * frame the old one had reached.
+ * HOW: A against PLAYER_MOVE: the same, out at PlayerMoveStart's RTS
+ * ($81:DCAC). Else A to PLAYER_MOVE; the frame ($2F) pushed; AnimOfMove,
+ * AnimResume; the frame pulled back into $2F.
+ * Entry: M 8-bit, X 8-bit; A = the move; D = the player's record; DB =
+ * $80; jumped to (PlayerRunMove). Exit: the same move: A low = the move,
+ * Z set; changed: A low = the frame kept, N and Z from it; X and Y as
+ * AnimResume left them.
+ */
+void abi_PlayerMoveKeepFrame(void)
+{
+    uint8_t move = (uint8_t)cpu.a;
+
+    cmp8_of(move, rd8(dba(PLAYER_MOVE)));
+    if (move == rd8(dba(PLAYER_MOVE)))
+        return;
+    wr8(dba(PLAYER_MOVE), move);
+    a8_load(rd8(dpa(ACTOR_FRAME)));
+    pha8();                               /* the frame, kept across the change */
+    abi_AnimOfMove();
+    abi_AnimResume();
+    pla8();
+    wr8(dpa(ACTOR_FRAME), (uint8_t)cpu.a);
+}

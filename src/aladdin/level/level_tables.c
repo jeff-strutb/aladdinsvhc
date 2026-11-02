@@ -2,7 +2,11 @@
  * level_tables.c: values the level takes from per-level tables.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_LevelExitCheck(void);
 void abi_LevelStartPlace(void);
 void abi_LevelCompanionStart(void);
@@ -80,6 +84,10 @@ void abi_LevelSpotsSet(void)
     op_sep(P_X);
 }
 
+/* A word of the data bank. */
+static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
+static void db16_set(uint16_t addr, uint16_t v) { wr16(dba(addr), v); }
+
 /*
  * @routine 81:84B2 LevelStartPlace
  * WHAT IT DOES: Puts the player and the camera at the level's start (its
@@ -98,84 +106,55 @@ void abi_LevelSpotsSet(void)
  */
 void abi_LevelStartPlace(void)
 {
-    ldx8_v(0x00);  /* 8184B2 ldx */
-L_8184B4:
-    stz8(ea_absx(LAYER0));  /* 8184B4 stz */
-    dex8();  /* 8184B7 dex */
-    if (!IF_N) goto L_8184B4;  /* 8184B8 bpl */
-    lda8(ea_abs(LEVEL));  /* 8184BA lda */
-    ACC8(asl);  /* 8184BD asl */
-    tay8();  /* 8184BE tay */
-    lda8(ea_abs(0x0360));  /* 8184BF lda */
-    ACC8(asl);  /* 8184C2 asl */
-    ACC8(asl);  /* 8184C3 asl */
-    sta8(ea_abs(SCRATCH));  /* 8184C4 sta */
-    stz8(ea_abs(0x000D));  /* 8184C7 stz */
-    op_rep(0x30);  /* 8184CA rep */
-    clc();  /* 8184CC clc */
-    lda16(ea_absy(0xED9D));  /* 8184CD lda */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 8184D0 adc */
-    tax16();  /* 8184D3 tax */
-    lda16(ea_absx(0xED9D));  /* 8184D4 lda */
-    pha16();  /* 8184D7 pha */
-    and16_v(0x7FFF);  /* 8184D8 and */
-    sta16(ea_abs(0x08E7));  /* 8184DB sta */
-    stz16(ea_abs(0x08EF));  /* 8184DE stz */
-    pla16();  /* 8184E1 pla */
-    if (!IF_N) goto L_8184EA;  /* 8184E2 bpl */
-    lda16_v(0x0101);  /* 8184E4 lda */
-    sta16(ea_abs(0x08EF));  /* 8184E7 sta */
-L_8184EA:
-    lda16(ea_absx(0xED9F));  /* 8184EA lda */
-    sta16(ea_abs(0x08EA));  /* 8184ED sta */
-    clc();  /* 8184F0 clc */
-    lda16(ea_absy(0xEF15));  /* 8184F1 lda */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 8184F4 adc */
-    tax16();  /* 8184F7 tax */
-    lda16(ea_absx(0x0000));  /* 8184F8 lda */
-    sta16(ea_abs(0x1773));  /* 8184FB sta */
-    sta16(ea_abs(SCROLL_X_BEFORE));  /* 8184FE sta */
-    sta16(ea_abs(0x176C));  /* 818501 sta */
-    ldy16(ea_abs(LEVEL));  /* 818504 ldy */
-    cpy16_v(0x0010);  /* 818507 cpy */
-    if (IF_Z) goto L_818512;  /* 81850A beq */
-    ldy16(ea_abs(0x083F));  /* 81850C ldy */
-    if (!IF_Z) goto L_818512;  /* 81850F bne */
-    ACC16(lsr);  /* 818511 lsr */
-L_818512:
-    sta16(ea_abs(0x18C9));  /* 818512 sta */
-    sta16(ea_abs(0x18C2));  /* 818515 sta */
-    lda16(ea_absx(SOUND_SEQ));  /* 818518 lda */
-    sta16(ea_abs(0x1777));  /* 81851B sta */
-    sta16(ea_abs(SCROLL_Y_BEFORE));  /* 81851E sta */
-    sta16(ea_abs(0x176E));  /* 818521 sta */
-    ldy16(ea_abs(LEVEL));  /* 818524 ldy */
-    if (IF_Z) goto L_81853E;  /* 818527 beq */
-    cpy16_v(0x0003);  /* 818529 cpy */
-    if (IF_Z) goto L_81853E;  /* 81852C beq */
-    cpy16_v(0x000D);  /* 81852E cpy */
-    if (IF_Z) goto L_81853E;  /* 818531 beq */
-    cpy16_v(0x0014);  /* 818533 cpy */
-    if (IF_Z) goto L_81853E;  /* 818536 beq */
-    cpy16_v(0x001A);  /* 818538 cpy */
-    if (IF_Z) goto L_81853E;  /* 81853B beq */
-    ACC16(lsr);  /* 81853D lsr */
-L_81853E:
-    sta16(ea_abs(0x18CD));  /* 81853E sta */
-    sta16(ea_abs(0x18C4));  /* 818541 sta */
-    clc();  /* 818544 clc */
-    lda16(ea_abs(0x1773));  /* 818545 lda */
-    adc16_v(0x0080);  /* 818548 adc */
-    sta16(ea_abs(0x1A44));  /* 81854B sta */
-    clc();  /* 81854E clc */
-    lda16(ea_abs(0x1777));  /* 81854F lda */
-    adc16_v(0x0080);  /* 818552 adc */
-    sta16(ea_abs(0x1A46));  /* 818555 sta */
-    stz16(ea_abs(0x1A40));  /* 818558 stz */
-    lda16_v(0x7F00);  /* 81855B lda */
-    sta16(ea_abs(0x1A42));  /* 81855E sta */
-    op_sep(0x30);  /* 818561 sep */
-    return;  /* 818563 rts */
+    uint16_t y, x, v;
+
+    wr8(dba((uint16_t)LAYER0), 0);
+    /* the level's entry for the restart point ($0360, 4 bytes each) */
+    y = (uint8_t)(rd8(dba(LEVEL)) << 1);
+    wr8(dba(SCRATCH), (uint8_t)(rd8(dba(0x0360)) << 2));
+    wr8(dba(0x000D), 0);
+    op_rep(0x30);
+    /* the player's place: x (bit 15 set: facing left) and y */
+    flag_set(P_C, 0);
+    x = op_adc16(db16((uint16_t)(0xED9D + y)), db16(SCRATCH), &cpu.p);
+    v = db16((uint16_t)(0xED9D + x));
+    db16_set(0x08E7, v & 0x7FFF);
+    db16_set(0x08EF, v & 0x8000 ? 0x0101 : 0x0000);
+    db16_set(0x08EA, db16((uint16_t)(0xED9F + x)));
+    /* the camera's: layer 0's scroll, the backdrop's half of it in the plain set-up
+       except on level $10 */
+    flag_set(P_C, 0);
+    x = op_adc16(db16((uint16_t)(0xEF15 + y)), db16(SCRATCH), &cpu.p);
+    v = db16(x);
+    db16_set(0x1773, v);
+    db16_set((uint16_t)SCROLL_X_BEFORE, v);
+    db16_set(0x176C, v);
+    cpu.y = db16(LEVEL);
+    if (cpu.y != 0x0010) {
+        cpu.y = db16(0x083F);
+        if (!cpu.y)
+            v >>= 1;
+    }
+    db16_set(0x18C9, v);
+    db16_set(0x18C2, v);
+    v = db16((uint16_t)(SOUND_SEQ + x));
+    db16_set(0x1777, v);
+    db16_set((uint16_t)SCROLL_Y_BEFORE, v);
+    db16_set(0x176E, v);
+    cpu.y = db16(LEVEL);
+    if (cpu.y != 0x0000 && cpu.y != 0x0003 && cpu.y != 0x000D && cpu.y != 0x0014 && cpu.y != 0x001A)
+        v >>= 1;
+    db16_set(0x18CD, v);
+    db16_set(0x18C4, v);
+    cpu.x = x;
+    flag_set(P_C, 0);
+    db16_set(0x1A44, op_adc16(db16(0x1773), 0x0080, &cpu.p));
+    flag_set(P_C, 0);
+    db16_set(0x1A46, op_adc16(db16(0x1777), 0x0080, &cpu.p));
+    db16_set(0x1A40, 0);
+    a16_load(0x7F00);
+    db16_set(0x1A42, 0x7F00);
+    op_sep(0x30);
 }
 
 /*
@@ -190,33 +169,29 @@ L_81853E:
  */
 void abi_LevelCompanionStart(void)
 {
-    ldx8(ea_abs(LEVEL));  /* 818623 ldx */
-    lda8(ea_absx(0xB7BB));  /* 818626 lda */
-    if (IF_Z) goto L_818663;  /* 818629 beq */
-    ACC8(dec);  /* 81862B dec */
-    sta8(ea_abs(0x0982));  /* 81862C sta */
-    lda8_v(0x0C);  /* 81862F lda */
-    sta8(ea_abs(0x097B));  /* 818631 sta */
-    lda8_v(0x72);  /* 818634 lda */
-    sta8(ea_abs(0x0981));  /* 818636 sta */
-    op_rep(0x20);  /* 818639 rep */
-    lda16_v(0x0240);  /* 81863B lda */
-    sta16(ea_abs(0x09A6));  /* 81863E sta */
-    lda16(ea_abs(0x08E7));  /* 818641 lda */
-    sta16(ea_abs(0x0987));  /* 818644 sta */
-    lda16(ea_abs(0x08EA));  /* 818647 lda */
-    sta16(ea_abs(0x098A));  /* 81864A sta */
-    op_sep(0x20);  /* 81864D sep */
-    lda8_v(0x3A);  /* 81864F lda */
-    abi_PaletteLoad();  /* 818651 jsl */
-    lda8(ea_abs(LEVEL));  /* 818655 lda */
-    sec();  /* 818658 sec */
-    cmp8_v(0x12);  /* 818659 cmp */
-    if (!IF_Z) goto L_818663;  /* 81865B bne */
-    lda8_v(0x48);  /* 81865D lda */
-    abi_PaletteLoad();  /* 81865F jsl */
-L_818663:
-    return;  /* 818663 rts */
+    uint8_t v;
+
+    x8_load(rd8(dba(LEVEL)));
+    a8_load(rd8(dba(0xB7BB) + cpu.x));
+    if (!(uint8_t)cpu.a)
+        return;
+    /* the companion's record: kind, state, its time and place (the
+       player's) */
+    wr8(dba(0x0982), (uint8_t)(cpu.a - 1));
+    wr8(dba(0x097B), 0x0C);
+    wr8(dba(0x0981), 0x72);
+    db16_set(0x09A6, 0x0240);
+    db16_set(0x0987, db16(0x08E7));
+    cpu.a = db16(0x08EA);
+    db16_set(0x098A, cpu.a);
+    a8_load(0x3A);
+    abi_PaletteLoad();
+    a8_load(v = rd8(dba(LEVEL)));
+    cmp8_of(v, 0x12);
+    if (v != 0x12)
+        return;
+    a8_load(0x48);
+    abi_PaletteLoad();
 }
 
 
@@ -232,24 +207,29 @@ L_818663:
  */
 void abi_RestartPointCheck(void)
 {
-    op_rep(0x20);  /* 8186F0 rep */
-    ldx8(ea_abs(0x0360));  /* 8186F2 ldx */
-    if (!IF_Z) goto L_818713;  /* 8186F5 bne */
-    lda16(ea_abs(0x1423));  /* 8186F7 lda */
-    if (!IF_Z) goto L_818713;  /* 8186FA bne */
-    lda16(ea_abs(LEVEL));  /* 8186FC lda */
-    and16_v(0x00FF);  /* 8186FF and */
-    ACC16(asl);  /* 818702 asl */
-    tax8();  /* 818703 tax */
-    lda16(ea_absx(0xF015));  /* 818704 lda */
-    if (IF_N) goto L_818713;  /* 818707 bmi */
-    cmp16_v(rd16(ea_abs(0x1773)));  /* 818709 cmp */
-    if (IF_C) goto L_818713;  /* 81870C bcs */
-    ldx8_v(0x01);  /* 81870E ldx */
-    stx8(ea_abs(0x0360));  /* 818710 stx */
-L_818713:
-    op_sep(0x30);  /* 818713 sep */
-    return;  /* 818715 rts */
+    uint16_t at;
+
+    op_rep(P_M);
+    x8_load(rd8(dba(0x0360)));
+    if ((uint8_t)cpu.x)
+        goto out;
+    a16_load(db16(0x1423));
+    if (cpu.a)
+        goto out;
+    /* the level's restart x: passed by the camera, the point is set */
+    cpu.a = (uint16_t)((db16(LEVEL) & 0x00FF) << 1);
+    flag_set(P_C, 0);
+    x8_load((uint8_t)cpu.a);
+    a16_load(at = db16((uint16_t)(0xF015 + cpu.x)));
+    if (at & 0x8000)
+        goto out;
+    cmp16_of(at, db16(0x1773));
+    if (at >= db16(0x1773))
+        goto out;
+    x8_load(0x01);
+    wr8(dba(0x0360), 0x01);
+out:
+    op_sep(0x30);
 }
 
 /*
@@ -270,88 +250,77 @@ L_818713:
  */
 void abi_LevelExitCheck(void)
 {
-    lda8(ea_abs(V_141C));  /* 81872E lda */
-    ora8_v(rd8(ea_abs(0x1423)));  /* 818731 ora */
-    ora8_v(rd8(ea_abs(0x141B)));  /* 818734 ora */
-    if (!IF_Z) goto L_81877A;  /* 818737 bne */
-    lda8(ea_abs(LEVEL_SPOT_COUNT));  /* 818739 lda */
-    if (IF_Z) goto L_81877A;  /* 81873C beq */
-    tay8();  /* 81873E tay */
-    ldx8(ea_abs(LEVEL));  /* 81873F ldx */
-    lda8(ea_absx(0xB96B));  /* 818742 lda */
-    if (!IF_Z) goto L_81877B;  /* 818745 bne */
-    op_rep(0x30);  /* 818747 rep */
-    ldx16(ea_abs(LEVEL_SPOTS));  /* 818749 ldx */
-L_81874C:
-    sec();  /* 81874C sec */
-    lda16(ea_absx(0xEC1F));  /* 81874D lda */
-    sbc16_v(rd16(ea_abs(0x08E7)));  /* 818750 sbc */
-    clc();  /* 818753 clc */
-    adc16_v(0x0008);  /* 818754 adc */
-    cmp16_v(0x0010);  /* 818757 cmp */
-    if (IF_C) goto L_81876F;  /* 81875A bcs */
-    ldx16(ea_abs(LEVEL_SPOTS));  /* 81875C ldx */
-    sec();  /* 81875F sec */
-    lda16(ea_absx(0xEC21));  /* 818760 lda */
-    sbc16_v(rd16(ea_abs(0x08EA)));  /* 818763 sbc */
-    clc();  /* 818766 clc */
-    adc16_v(0x0008);  /* 818767 adc */
-    cmp16_v(0x0010);  /* 81876A cmp */
-    if (!IF_C) goto L_81879D;  /* 81876D bcc */
-L_81876F:
-    clc();  /* 81876F clc */
-    txa16();  /* 818770 txa */
-    adc16_v(0x0006);  /* 818771 adc */
-    tax16();  /* 818774 tax */
-    dey16();  /* 818775 dey */
-    if (!IF_Z) goto L_81874C;  /* 818776 bne */
-L_818778:
-    op_sep(0x30);  /* 818778 sep */
-L_81877A:
-    return;  /* 81877A rts */
-L_81877B:
-    op_rep(0x30);  /* 81877B rep */
-    ldx16(ea_abs(LEVEL_SPOTS));  /* 81877D ldx */
-    sec();  /* 818780 sec */
-    lda16(ea_absx(0xEC1F));  /* 818781 lda */
-    sbc16_v(rd16(ea_abs(0x1773)));  /* 818784 sbc */
-    if (IF_C) goto L_818778;  /* 818787 bcs */
-    goto L_81879D;  /* 818789 bra */
-L_81879D:
-    op_sep(0x20);  /* 81879D sep */
-    ldx16(ea_abs(LEVEL_SPOTS));  /* 81879F ldx */
-    lda8(ea_absx(0xEC23));  /* 8187A2 lda */
-    lda8(ea_absx(0xEC24));  /* 8187A5 lda */
-    pha8();  /* 8187A8 pha */
-    and8_v(0x7F);  /* 8187A9 and */
-    sta8(ea_abs(0x035D));  /* 8187AB sta */
-    if (!IF_Z) goto L_8187B9;  /* 8187AE bne */
-    ldx16(ea_abs(LEVEL_035C));  /* 8187B0 ldx */
-    lda8(ea_absx(0xB988));  /* 8187B3 lda */
-    sta8(ea_abs(LEVEL_035C));  /* 8187B6 sta */
-L_8187B9:
-    ldx16_v(0x0000);  /* 8187B9 ldx */
-    pla8();  /* 8187BC pla */
-    ACC8(asl);  /* 8187BD asl */
-    if (!IF_C) goto L_8187C1;  /* 8187BE bcc */
-    inx16();  /* 8187C0 inx */
-L_8187C1:
-    ldy16(ea_abs(LEVEL));  /* 8187C1 ldy */
-    lda8(ea_absy(0xB96B));  /* 8187C4 lda */
-    if (IF_Z) goto L_8187CE;  /* 8187C7 beq */
-    ldy16_v(0xE730);  /* 8187C9 ldy */
-    goto L_8187D1;  /* 8187CC bra */
-L_8187CE:
-    ldy16_v(0xCBF9);  /* 8187CE ldy */
-L_8187D1:
-    sty16(ea_abs(0x08DE));  /* 8187D1 sty */
-    lda8_v(0x80);  /* 8187D4 lda */
-    tsb8(ea_abs(0x0347));  /* 8187D6 tsb */
-    op_sep(0x30);  /* 8187D9 sep */
-    stx8(ea_abs(0x08F0));  /* 8187DB stx */
-    stx8(ea_abs(0x08EF));  /* 8187DE stx */
-    MEM8(inc, ea_abs(0x1423));  /* 8187E1 inc */
-    MEM8(inc, ea_abs(0x1454));  /* 8187E4 inc */
-    stz8(ea_abs(0x0360));  /* 8187E7 stz */
-    return;  /* 8187EA rts */
+    uint16_t d;
+    uint8_t to;
+
+    a8_load(rd8(dba(V_141C)) | rd8(dba(0x1423)) | rd8(dba(0x141B)));
+    if ((uint8_t)cpu.a)
+        return;
+    a8_load(rd8(dba(LEVEL_SPOT_COUNT)));
+    if (!(uint8_t)cpu.a)
+        return;
+    y8_load((uint8_t)cpu.a);
+    x8_load(rd8(dba(LEVEL)));
+    a8_load(rd8(dba(0xB96B) + cpu.x));
+    op_rep(0x30);
+    cpu.x = db16(LEVEL_SPOTS);
+    if ((uint8_t)cpu.a) {
+        /* scrolling levels: the exit once the camera is past its x */
+        flag_set(P_C, 1);
+        cpu.a = op_sbc16(db16((uint16_t)(0xEC1F + cpu.x)), db16(0x1773), &cpu.p);
+        if (cpu.p & P_C)
+            goto out;
+        goto leave;
+    }
+    /* the others: the player within 8 of a spot, each 6 bytes (the y test
+       reads the first spot's, as the original) */
+    for (;;) {
+        flag_set(P_C, 1);
+        d = op_sbc16(db16((uint16_t)(0xEC1F + cpu.x)), db16(0x08E7), &cpu.p);
+        flag_set(P_C, 0);
+        cpu.a = d = op_adc16(d, 0x0008, &cpu.p);
+        cmp16_of(d, 0x0010);
+        if (d < 0x0010) {
+            cpu.x = db16(LEVEL_SPOTS);
+            flag_set(P_C, 1);
+            d = op_sbc16(db16((uint16_t)(0xEC21 + cpu.x)), db16(0x08EA), &cpu.p);
+            flag_set(P_C, 0);
+            cpu.a = d = op_adc16(d, 0x0008, &cpu.p);
+            cmp16_of(d, 0x0010);
+            if (d < 0x0010)
+                goto leave;
+        }
+        flag_set(P_C, 0);
+        cpu.x = cpu.a = op_adc16(cpu.x, 0x0006, &cpu.p);
+        cpu.y--;
+        nz16_of(cpu.y);
+        if (!cpu.y)
+            goto out;
+    }
+leave:
+    /* where the exit leads, and the player's facing there */
+    op_sep(P_M);
+    cpu.x = db16(LEVEL_SPOTS);
+    to = rd8(dba(0xEC24) + cpu.x);
+    wr8(dba(0x035D), to & 0x7F);
+    if (!(to & 0x7F)) {
+        cpu.x = db16(LEVEL_035C);
+        wr8(dba(LEVEL_035C), rd8(dba(0xB988) + cpu.x));
+    }
+    cpu.x = to >> 7;
+    flag_set(P_C, to & 0x80);
+    cpu.y = db16(LEVEL);
+    cpu.y = rd8(dba(0xB96B) + cpu.y) ? 0xE730 : 0xCBF9;
+    db16_set(0x08DE, cpu.y);
+    a8_load(0x80);
+    tsb_at(dba(0x0347), 0x80);
+    op_sep(0x30);
+    wr8(dba(0x08F0), (uint8_t)cpu.x);
+    wr8(dba(0x08EF), (uint8_t)cpu.x);
+    inc8_at(dba(0x1423));
+    inc8_at(dba(0x1454));
+    wr8(dba(0x0360), 0);
+    return;
+out:
+    op_sep(0x30);
 }

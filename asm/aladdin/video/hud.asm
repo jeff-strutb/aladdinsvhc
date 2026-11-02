@@ -1,10 +1,11 @@
 ; hud.asm: the play screen's status line in the text layer: the health
 ; marks, the two counters, a digit and a 2x2 mark. Each is drawn when
-; its shown value falls behind the game's (the refresh at $81:F43C).
+; its shown value falls behind the game's (HudRefresh, each frame).
 ; C: src/aladdin/video/hud.c.
 
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_state.inc"
 
 arch 65816
 
@@ -19,6 +20,45 @@ arch 65816
 !HUD_VALUE_SHOWN = $0363        ; that value as shown
 !HUD_MARK_VALUE = $036E         ; zero: the 2x2 mark is blank
 !HUD_MARK_SHOWN = $036D         ; that value as shown
+!HEALTH_MARK_GAINED_TILE = $60  ; the mark drawn as health is gained (HEALTH_MARK_TILE as it is lost)
+!HUD_COUNT_1 = $0369            ; the first counter's value
+!HUD_COUNT_2 = $036B            ; the second counter's value
+
+; @routine 81:F456 HudRefresh
+; WHAT IT DOES: Each frame, brings the status line up to the game: the
+; 2x2 mark, the two counters, then either one health mark (when the
+; health shown differs from the health) or the digit.
+; HOW: Each shown value against its value: the mark (HudMarkRefresh),
+; counter 1 (HudCount1Show), counter 2 (HudCount2Show) when they differ.
+; Health shown equal to the health: on into HudDigitRefresh. Above or
+; equal (C set): HudHealthMarkShow of the shown health (one mark lost).
+; Below: one mark gained: the shown health up one, and the mark at the
+; old shown health's place drawn with tile $60 (its code, HudHealthChanged,
+; lies after HudDigitRefresh and goes on inside HudHealthMarkShow, at its
+; store of the shown health).
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR (81:82D8, and on from 81:F433). Exit: as
+; HudDigitRefresh, or as HudHealthMarkShow with Y = $60 or $6A.
+%at($81F456)
+HudRefresh:
+    lda.w !HUD_MARK_VALUE
+    cmp.w !HUD_MARK_SHOWN
+    beq .count_1
+    jsr.w HudMarkRefresh
+.count_1:
+    lda.w !HUD_COUNT_1
+    cmp.w !HUD_COUNT_1_SHOWN
+    beq .count_2
+    jsr.w HudCount1Show
+.count_2:
+    lda.w !HUD_COUNT_2
+    cmp.w !HUD_COUNT_2_SHOWN
+    beq .health
+    jsr.w HudCount2Show
+.health:
+    lda.w !HEALTH_SHOWN
+    cmp.w !health
+    bne HudHealthChanged
 
 ; @routine 81:F47F HudDigitRefresh
 ; WHAT IT DOES: Draws the status line's digit for the value at $0364 when
@@ -72,6 +112,14 @@ HudDigitRefresh:
     lda.b #$01
     sta.w !text_tilemap_upload
     rts
+; HudRefresh's health step: lost, HudHealthMarkShow; gained, the mark at
+; the shown health drawn with HEALTH_MARK_GAINED_TILE.
+HudHealthChanged:
+    bcs HudHealthMarkShow
+    ldy.b #!HEALTH_MARK_GAINED_TILE
+    tax
+    inc a
+    bra HudHealthMarkPlace
 
 ; @routine 81:F4D0 HudHealthMarkShow
 ; WHAT IT DOES: Draws health mark A (1 up) in the status line, and keeps
@@ -88,6 +136,7 @@ HudHealthMarkShow:
     ldy.b #!HEALTH_MARK_TILE
     dec a
     tax
+HudHealthMarkPlace:
     sta.w !HEALTH_SHOWN
     lda.l !HEALTH_MARK_PLACES,x
     tax

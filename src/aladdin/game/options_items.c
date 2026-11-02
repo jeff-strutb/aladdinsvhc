@@ -4,6 +4,8 @@
  * and right on an item call its step through the table at $83:8B59.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "wram_state.h"
@@ -44,23 +46,23 @@ void abi_OptionExitStep(void)
  */
 void abi_OptionCursorClear(void)
 {
-    ldy8_v(0x06);
+    static const int16_t cells[7] = { -62, 0, 2, 4, 64, 66, 68 };
+    uint8_t up;
+
+    y8_load(0x06);
     op_rep(0x30);
-    do {
-        ldx16(ea_absy(CURSOR_PLACES));
-        lda16_v(0x0000);
-        sta16(ea_longx(TEXT_TILEMAP - 62));
-        sta16(ea_longx(TEXT_TILEMAP));
-        sta16(ea_longx(TEXT_TILEMAP + 2));
-        sta16(ea_longx(TEXT_TILEMAP + 4));
-        sta16(ea_longx(TEXT_TILEMAP + 64));
-        sta16(ea_longx(TEXT_TILEMAP + 66));
-        sta16(ea_longx(TEXT_TILEMAP + 68));
-        dey16();
-        dey16();
-    } while (!IF_N);
+    cpu.a = 0;
+    do {                                  /* each of the four items' places */
+        cpu.x = rd16(dba(CURSOR_PLACES) + cpu.y);
+        for (int i = 0; i < 7; i++)
+            wr16((uint32_t)(TEXT_TILEMAP + cells[i] + cpu.x) & 0xFFFFFF, 0x0000);
+        cpu.y = (uint16_t)(cpu.y - 2);
+        nz16_of(cpu.y);
+    } while (!(cpu.y & 0x8000));
     op_sep(0x30);
-    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
+    up = (uint8_t)(rd8(dba(TEXT_TILEMAP_UPLOAD)) + 1);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), up);
+    nz8_of(up);
 }
 
 

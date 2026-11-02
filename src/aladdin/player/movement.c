@@ -7,6 +7,8 @@
  * a fall speed of 5.5 pixels a frame.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram_pad.h"
@@ -27,41 +29,30 @@ void abi_PadFacing(void);
  */
 void abi_ActorStepX(void)
 {
-    lda8(ea_dp(ACTOR_FACING));
-    if (!IF_Z) goto left;
-    clc();
-    lda8(ea_dp(ACTOR_X));
-    adc8_v(rd8(ea_dp(ACTOR_SPEED_X)));
-    sta8(ea_dp(ACTOR_X));
-    lda8(ea_dp(ACTOR_X + 1));
-    adc8_v(rd8(ea_dp(ACTOR_SPEED_X + 1)));
-    sta8(ea_dp(ACTOR_X + 1));
-    lda8(ea_dp(ACTOR_X + 2));
-    adc8_v(rd8(ea_dp(ACTOR_SPEED_X + 2)));
-    sta8(ea_dp(ACTOR_X + 2));
-    return;
-left:
-    sec();
-    lda8(ea_dp(ACTOR_X));
-    sbc8_v(rd8(ea_dp(ACTOR_SPEED_X)));
-    sta8(ea_dp(ACTOR_X));
-    lda8(ea_dp(ACTOR_X + 1));
-    sbc8_v(rd8(ea_dp(ACTOR_SPEED_X + 1)));
-    sta8(ea_dp(ACTOR_X + 1));
-    lda8(ea_dp(ACTOR_X + 2));
-    sbc8_v(rd8(ea_dp(ACTOR_SPEED_X + 2)));
-    sta8(ea_dp(ACTOR_X + 2));
+    uint8_t left = rd8(dpa(ACTOR_FACING)), v = left;
+
+    a8_load(left);
+    /* the 24-bit x moved by the speed, its way */
+    flag_set(P_C, left != 0);
+    for (int i = 0; i < 3; i++) {
+        uint8_t x = rd8(dpa(ACTOR_X + i)), s = rd8(dpa(ACTOR_SPEED_X + i));
+
+        v = left ? op_sbc8(x, s, &cpu.p) : op_adc8(x, s, &cpu.p);
+        wr8(dpa(ACTOR_X + i), v);
+    }
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | v);
 }
 
 /* The fall speed's cap: the speed's word above 5.5 becomes 5.5 */
+/* The fall speed held to FALL_SPEED_MAX. */
 static void fall_cap(void)
 {
-    op_rep(0x20);
-    lda16_v(FALL_SPEED_MAX);
-    cmp16_v(rd16(ea_dp(ACTOR_SPEED_Y)));
-    if (!IF_C)
-        sta16(ea_dp(ACTOR_SPEED_Y));
-    op_sep(0x20);
+    uint16_t speed = dp16(ACTOR_SPEED_Y);
+
+    cpu.a = FALL_SPEED_MAX;
+    cmp16_of(FALL_SPEED_MAX, speed);
+    if (FALL_SPEED_MAX < speed)
+        dp16_set(ACTOR_SPEED_Y, FALL_SPEED_MAX);
 }
 
 /*
@@ -76,10 +67,11 @@ static void fall_cap(void)
  */
 void abi_ActorFallCap(void)
 {
-    lda8(ea_dp(ACTOR_SPEED_Y + 2));
-    if (IF_N)
-        return;
-    fall_cap();
+    uint8_t top = rd8(dpa(ACTOR_SPEED_Y + 2));
+
+    a8_load(top);
+    if (!(top & 0x80))
+        fall_cap();
 }
 
 /*
@@ -94,19 +86,16 @@ void abi_ActorFallCap(void)
  */
 void abi_ActorGravity(void)
 {
-    clc();
-    lda8(ea_dp(ACTOR_SPEED_Y));
-    adc8_v(rd8(ea_dp(ACTOR_ACCEL_Y)));
-    sta8(ea_dp(ACTOR_SPEED_Y));
-    lda8(ea_dp(ACTOR_SPEED_Y + 1));
-    adc8_v(0x00);
-    sta8(ea_dp(ACTOR_SPEED_Y + 1));
-    lda8(ea_dp(ACTOR_SPEED_Y + 2));
-    adc8_v(0x00);
-    sta8(ea_dp(ACTOR_SPEED_Y + 2));
-    if (IF_N)
-        return;
-    fall_cap();
+    uint8_t v;
+
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_SPEED_Y), op_adc8(rd8(dpa(ACTOR_SPEED_Y)), rd8(dpa(ACTOR_ACCEL_Y)), &cpu.p));
+    wr8(dpa(ACTOR_SPEED_Y + 1), op_adc8(rd8(dpa(ACTOR_SPEED_Y + 1)), 0x00, &cpu.p));
+    v = op_adc8(rd8(dpa(ACTOR_SPEED_Y + 2)), 0x00, &cpu.p);
+    wr8(dpa(ACTOR_SPEED_Y + 2), v);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | v);
+    if (!(v & 0x80))
+        fall_cap();
 }
 
 /*
@@ -119,10 +108,10 @@ void abi_ActorGravity(void)
  */
 void abi_PlayerGroundYSave(void)
 {
-    op_rep(0x20);
-    lda16(ea_dp(ACTOR_Y + 1));
-    sta16(ea_abs(PLAYER_GROUND_Y));
-    op_sep(0x20);
+    uint16_t y = dp16(ACTOR_Y + 1);
+
+    wr16(dba(PLAYER_GROUND_Y), y);
+    a16_load(y);
 }
 
 /*
@@ -136,10 +125,9 @@ void abi_PlayerGroundYSave(void)
  */
 void abi_PlayerTopSpeedHold(void)
 {
-    lda8(ea_dp(ACTOR_SPEED_X));
-    sta8(ea_abs(PLAYER_TOP_SPEED));
-    lda8(ea_dp(ACTOR_SPEED_X + 1));
-    sta8(ea_abs(PLAYER_TOP_SPEED + 1));
+    wr8(dba(PLAYER_TOP_SPEED), rd8(dpa(ACTOR_SPEED_X)));
+    a8_load(rd8(dpa(ACTOR_SPEED_X + 1)));
+    wr8(dba(PLAYER_TOP_SPEED + 1), (uint8_t)cpu.a);
 }
 
 /*
@@ -153,12 +141,12 @@ void abi_PlayerTopSpeedHold(void)
  */
 void abi_PlayerTopSpeedCap(void)
 {
-    op_rep(0x20);
-    lda16_v(0x0180);
-    cmp16_v(rd16(ea_abs(PLAYER_TOP_SPEED)));
-    if (IF_C)
-        sta16(ea_abs(PLAYER_TOP_SPEED));
-    op_sep(0x20);
+    uint16_t top = rd16(dba(PLAYER_TOP_SPEED));
+
+    cpu.a = 0x0180;
+    cmp16_of(0x0180, top);
+    if (0x0180 >= top)
+        wr16(dba(PLAYER_TOP_SPEED), 0x0180);
 }
 
 /*
@@ -172,14 +160,10 @@ void abi_PlayerTopSpeedCap(void)
  */
 void abi_PlayerRunRatesSet(void)
 {
-    op_rep(0x20);
-    lda16_v(0x0020);
-    sta16(ea_abs(PLAYER_RUN_ACCEL));
-    lda16_v(0xFFF8);
-    sta16(ea_abs(PLAYER_RUN_DECEL));
-    lda16_v(0xFFC0);
-    sta16(ea_abs(PLAYER_TURN_DECEL));
-    op_sep(0x20);
+    wr16(dba(PLAYER_RUN_ACCEL), 0x0020);
+    wr16(dba(PLAYER_RUN_DECEL), 0xFFF8);
+    wr16(dba(PLAYER_TURN_DECEL), 0xFFC0);
+    a16_load(0xFFC0);
 }
 
 /*
@@ -194,7 +178,6 @@ void abi_PlayerRunRatesSet(void)
 void abi_PlayerFlipByPad(void)
 {
     abi_PadFacing();
-    if (IF_N)
-        return;
-    sta8(ea_dp(ACTOR_FLIP));
+    if (!(cpu.p & P_N))
+        wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
 }

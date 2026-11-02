@@ -4,6 +4,8 @@
  * stomp it).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -59,6 +61,49 @@ void abi_ActorStompOrHurtLong(void)
 {
     abi_ActorStompOrHurt();
 }
+/* The player's tests, each as its LDX (or LDA) leaves the registers. */
+static uint8_t x_from(uint16_t addr)
+{
+    uint8_t v = rd8(dba(addr));
+
+    x8_load(v);
+    return v;
+}
+
+static int rising(void)
+{
+    uint16_t v = rd16(dba(PLAYER_SPEED_Y_WHOLE));
+
+    a16_load(v);
+    return (v & 0x8000) != 0;
+}
+
+/* Not the bouncing actor ($1448 $3C), touching the test box, from above:
+   the tests the bounce routines make first. 0 when one says no. */
+static int touch_from_above(int skip_1448)
+{
+    if (!skip_1448) {
+        uint8_t v = rd8(dba(V_1448));
+
+        a8_load(v);
+        cmp8_of(v, 0x3C);
+        if (v == 0x3C)
+            return 0;
+    }
+    abi_ActorHitsTestBoxIfActive();
+    if (cpu.p & P_C)
+        return 0;
+    op_rep(P_M);
+    return 1;
+}
+
+/* He can stand on it: alive, not counting state $8C, $141C set, $145A not
+   negative. */
+static int can_stand(void)
+{
+    return x_from(HEALTH) && !x_from(V_141B) && x_from(V_141C) && !(x_from(V_145A) & 0x80);
+}
+
 /*
  * @routine 83:840F ActorBouncesPlayer
  * WHAT IT DOES: When Aladdin comes down on the actor from above (and can
@@ -74,27 +119,14 @@ void abi_ActorStompOrHurtLong(void)
  */
 void abi_ActorBouncesPlayer(void)
 {
-    lda8(ea_abs(V_1448));
-    cmp8_v(0x3C);
-    if (IF_Z) goto none;
-    abi_ActorHitsTestBoxIfActive();
-    if (IF_C) goto none;
-    op_rep(0x20);
+    if (!touch_from_above(0))
+        goto none;
     abi_ScratchBelowBy10();
-    if (IF_C) goto none;
-    lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
-    if (IF_N) goto none;
-    ldx8(ea_abs(HEALTH));
-    if (IF_Z) goto none;
-    ldx8(ea_abs(V_141B));
-    if (!IF_Z) goto none;
-    ldx8(ea_abs(V_141C));
-    if (IF_Z) goto none;
-    ldx8(ea_abs(V_145A));
-    if (IF_N) goto none;
+    if ((cpu.p & P_C) || rising() || !can_stand())
+        goto none;
     abi_PlayerStandOnActor();
     op_sep(0x30);
-    lda8_v(0x01);
+    a8_load(0x01);
     return;
 none:
     op_sep(0x32);
@@ -118,34 +150,27 @@ none:
  */
 void abi_ActorStompOrHurt(void)
 {
-    abi_ActorHitsTestBoxIfActive();
-    if (IF_C)
+    if (!touch_from_above(1))
         goto none;
-    op_rep(0x20);
     abi_ScratchBelowBy10();
-    if (IF_C) {
+    if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
         abi_PlayerEnter8CFacing();
-        lda8_v(0x01);
+        a8_load(0x01);
         return;
     }
-    ldx8(ea_abs(HEALTH));
-    if (IF_Z) goto none;
-    ldx8(ea_abs(V_141B));
-    if (!IF_Z) goto none;
-    ldx8(ea_abs(V_141C));
-    if (IF_Z) goto none;
-    ldx8(ea_abs(V_145A));
-    if (IF_N) goto none;
-    lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
-    if (IF_N) goto none;
+    if (!can_stand() || rising())
+        goto none;
+    /* stomped: it can no longer be hit, goes into state $8C, one hit
+       less, a mark at his feet */
     abi_PlayerStandOnActor();
     op_sep(0x30);
-    MEM8(asl, ea_dp(ACTOR_09));
-    MEM8(lsr, ea_dp(ACTOR_09));
-    lda8_v(STOMPED);
-    sta8(ea_dp(ACTOR_STATE));
-    MEM8(dec, ea_dp(ACTOR_11));
+    nz8_of((uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
+    flag_set(P_C, 0);
+    a8_load(STOMPED);
+    wr8(dpa(ACTOR_STATE), STOMPED);
+    dec8_at(dpa(ACTOR_11));
     call_routine(STOMP_MARK, 0);
 none:
     op_sep(0x32);
@@ -170,37 +195,32 @@ none:
  */
 void abi_ActorStompedByPlayer(void)
 {
-    abi_ActorHitsTestBoxIfActive();
-    if (IF_C)
+    uint16_t code;
+
+    if (!touch_from_above(1))
         goto out;
-    op_rep(0x20);
     abi_ScratchBelowBy10();
-    if (IF_C) {
+    if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
         abi_PlayerEnter8CFacing();
         return;
     }
-    ldx8(ea_abs(V_145A));
-    if (IF_N) goto refused;
-    ldx8(ea_abs(V_141C));
-    if (IF_Z) goto refused;
-    lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
-    if (IF_N) goto refused;
-    ldx8(ea_abs(V_141B));
-    if (!IF_Z) goto refused;
+    if ((x_from(V_145A) & 0x80) || !x_from(V_141C) || rising() || x_from(V_141B))
+        goto refused;
+    /* stomped: its code kept, it can no longer be hit, state $8C, one hit
+       less, the stomp's sound */
     abi_PlayerStandOnActor();
-    lda16(ea_dp(ACTOR_03));
-    sta16(ea_dp(ACTOR_35));
+    code = dp16(ACTOR_03);
+    dp16_set(ACTOR_35, code);
+    a16_load(code);
     op_sep(0x30);
-    MEM8(asl, ea_dp(ACTOR_09));
-    MEM8(lsr, ea_dp(ACTOR_09));
-    lda8(ea_dp(ACTOR_08));
-    ora8_v(0x80);
-    sta8(ea_dp(ACTOR_08));
-    lda8_v(STOMPED);
-    sta8(ea_dp(ACTOR_STATE));
-    MEM8(dec, ea_dp(ACTOR_11));
-    lda8_v(STOMP_SOUND);
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x80));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    a8_load(STOMPED);
+    wr8(dpa(ACTOR_STATE), STOMPED);
+    dec8_at(dpa(ACTOR_11));
+    a8_load(STOMP_SOUND);
     abi_SoundQueueAdd();
 out:
     op_sep(0x30);
@@ -239,32 +259,20 @@ void abi_ActorStompedByPlayerLong(void)
  */
 void abi_ActorBouncesOrHurtsPlayer(void)
 {
-    lda8(ea_abs(V_1448));
-    cmp8_v(0x3C);
-    if (IF_Z) goto none;
-    abi_ActorHitsTestBoxIfActive();
-    if (IF_C) goto none;
-    op_rep(0x20);
+    if (!touch_from_above(0))
+        goto none;
     abi_ScratchBelowBy10();
-    if (IF_C) {
+    if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
         abi_PlayerEnter8CFacing();
-        lda8_v(0x02);
+        a8_load(0x02);
         return;
     }
-    ldx8(ea_abs(HEALTH));
-    if (IF_Z) goto none;
-    ldx8(ea_abs(V_141B));
-    if (!IF_Z) goto none;
-    ldx8(ea_abs(V_141C));
-    if (IF_Z) goto none;
-    ldx8(ea_abs(V_145A));
-    if (IF_N) goto none;
-    lda16(ea_abs(PLAYER_SPEED_Y_WHOLE));
-    if (IF_N) goto none;
+    if (!can_stand() || rising())
+        goto none;
     abi_PlayerStandOnActor();
     op_sep(0x30);
-    lda8_v(0x01);
+    a8_load(0x01);
     return;
 none:
     op_sep(0x32);

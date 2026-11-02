@@ -4,6 +4,8 @@
  * of). Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -30,24 +32,29 @@ void abi_AnimStart(void);
  */
 void abi_KindA1Hit(void)
 {
-    lda8_v(0x00);  /* 84A9FC lda */
-    abi_AnimStart();  /* 84A9FE jsl */
-    lda8(ea_dp(ACTOR_08));  /* 84AA02 lda */
-    ora8_v(0x10);  /* 84AA04 ora */
-    sta8(ea_dp(ACTOR_08));  /* 84AA06 sta */
-    lda8(ea_dp(ACTOR_41));  /* 84AA08 lda */
-    if (IF_Z) goto L_84AA10;  /* 84AA0A beq */
-    lda8_v(0x08);  /* 84AA0C lda */
-    actor_wait(0x84AA0Eu);  /* 84AA0E cop */
-L_84AA10:
-    ldy8_v(0x1F);  /* 84AA10 ldy */
-    abi_ActorMotionPreset();  /* 84AA12 jsl */
-L_84AA16:
-    actor_yield(0x84AA16u);  /* 84AA16 brk */
-    abi_ActorFly();  /* 84AA18 jsl */
-    bit8_v(rd8(ea_dp(ACTOR_09)));  /* 84AA1C bit */
-    if (IF_V) goto L_84AA16;  /* 84AA1E bvs */
-    abi_ActorEndPlaced(); return;  /* 84AA20 jml */
+    uint8_t wait, flags;
+
+    a8_load(0x00);
+    abi_AnimStart();
+    wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x10));
+    wait = rd8(dpa(ACTOR_41));
+    a8_load(wait);
+    if (wait) {
+        a8_load(0x08);
+        actor_wait(0x84AA0Eu);
+    }
+    /* it falls away on motion $1F until it is off the screen */
+    y8_load(0x1F);
+    abi_ActorMotionPreset();
+    do {
+        actor_yield(0x84AA16u);
+        abi_ActorFly();
+        flags = rd8(dpa(ACTOR_09));       /* BIT: N, V from it, Z from A AND it */
+        flag_set(P_N, flags & 0x80);
+        flag_set(P_V, flags & 0x40);
+        flag_set(P_Z, !((uint8_t)cpu.a & flags));
+    } while (flags & 0x40);
+    abi_ActorEndPlaced();
 }
 
 
@@ -65,22 +72,27 @@ L_84AA16:
  */
 void abi_KindA6Stay(void)
 {
-    lda8_v(0x03);  /* 84AC3F lda */
-    sta8(ea_dp(ACTOR_08));  /* 84AC41 sta */
-    lda8_v(0x00);  /* 84AC43 lda */
-    abi_AnimStart();  /* 84AC45 jsl */
-    lda8(ea_dp(ACTOR_07));  /* 84AC49 lda */
-    sta8(ea_dp(ACTOR_FLIP));  /* 84AC4B sta */
-    op_rep(0x20);  /* 84AC4D rep */
-L_84AC4F:
-    actor_yield(0x84AC4Fu);  /* 84AC4F brk */
-    sec();  /* 84AC51 sec */
-    lda16(ea_abs(RANGE_Y));  /* 84AC52 lda */
-    sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));  /* 84AC55 sbc */
-    clc();  /* 84AC57 clc */
-    adc16_v(0x0100);  /* 84AC58 adc */
-    cmp16_v(0x0200);  /* 84AC5B cmp */
-    if (!IF_C) goto L_84AC4F;  /* 84AC5E bcc */
-    op_sep(0x20);  /* 84AC60 sep */
-    abi_ActorEndPlaced(); return;  /* 84AC62 jml */
+    uint8_t flip;
+    uint16_t d;
+
+    a8_load(0x03);
+    wr8(dpa(ACTOR_08), 0x03);
+    a8_load(0x00);
+    abi_AnimStart();
+    flip = rd8(dpa(ACTOR_07));
+    a8_load(flip);
+    wr8(dpa(ACTOR_FLIP), flip);
+    op_rep(P_M);
+    /* until it is 256 pixels or more above or below the range point */
+    do {
+        actor_yield(0x84AC4Fu);
+        flag_set(P_C, 1);
+        d = op_sbc16(rd16(dba(RANGE_Y)), dp16(ACTOR_Y + 1), &cpu.p);
+        flag_set(P_C, 0);
+        d = op_adc16(d, 0x0100, &cpu.p);
+        cpu.a = d;
+        cmp16_of(d, 0x0200);
+    } while (d < 0x0200);
+    op_sep(P_M);
+    abi_ActorEndPlaced();
 }

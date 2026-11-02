@@ -3,6 +3,8 @@
  * top, bumps his head on its bottom, or is pushed out of its sides.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
@@ -15,6 +17,23 @@
 #define PLAYER_ON_ACTOR 0x001428u   /* nonzero: he stands on an actor */
 #define V_141C 0x00141Cu            /* zero: he does not bump his head */
 #define HEALTH 0x000367u            /* the player's health */
+
+/* His offset from the actor in one axis plus `half`, against `whole`:
+   nonzero when within. */
+static int inside(uint16_t mine, uint16_t his, uint16_t half, uint16_t whole, int plus_one)
+{
+    uint16_t d;
+
+    flag_set(P_C, 1);
+    d = op_sbc16(mine, his, &cpu.p);
+    if (plus_one)
+        d = (uint16_t)(d + 1);
+    flag_set(P_C, 0);
+    d = op_adc16(d, half, &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, whole);
+    return d < whole;
+}
 
 /*
  * @routine 83:865E ActorSolidForPlayer
@@ -38,120 +57,104 @@
  */
 void abi_ActorSolidForPlayer(void)
 {
-    bit8_v(rd8(ea_dp(ACTOR_09)));
-    if (!IF_V) goto none;
-    lda8(ea_abs(PLAYER_ON_ACTOR));
-    if (!IF_Z) goto none;
-    op_rep(0x20);
-    lda16(ea_absy(SOLID_BOXES));
-    sta16(ea_abs(SCRATCH));
-    ACC16(asl);
-    sta16(ea_abs(SCRATCH + 2));
-    lda16(ea_absy(SOLID_BOXES + 2));
+    uint32_t box = dba(SOLID_BOXES) + cpu.y;
+    uint16_t half, low, ay, ax;
+    uint8_t flags = rd8(dpa(ACTOR_09)), v;
+
+    bit8_of((uint8_t)cpu.a, flags);
+    if (!(flags & 0x40))
+        goto none;
+    a8_load(rd8(dba(PLAYER_ON_ACTOR)));
+    if ((uint8_t)cpu.a)
+        goto none;
+    /* its box: half-width and width, half-height and height, and the
+       half-height less 8 and twice it (its upper part) */
+    op_rep(P_M);
+    half = rd16(box);
+    wr16(dba(SCRATCH), half);
+    wr16(dba(SCRATCH + 2), (uint16_t)(half << 1));
+    half = rd16(box + 2);
+    cpu.a = half;
     pha16();
-    sta16(ea_abs(SCRATCH + 4));
-    ACC16(asl);
-    sta16(ea_abs(SCRATCH + 6));
+    wr16(dba(SCRATCH + 4), half);
+    wr16(dba(SCRATCH + 6), (uint16_t)(half << 1));
     pla16();
-    sec();
-    sbc16_v(0x0008);
-    sta16(ea_abs(SCRATCH + 8));
-    ACC16(asl);
-    sta16(ea_abs(SCRATCH + 10));
-    /* his x before the move inside the box, his y inside it but above
-       its lower part */
-    sec();
-    lda16(ea_dp(ACTOR_X + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_X_BEFORE)));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH)));
-    cmp16_v(rd16(ea_abs(SCRATCH + 2)));
-    if (IF_C) goto sides;
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_Y_PIXELS)));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH + 8)));
-    cmp16_v(rd16(ea_abs(SCRATCH + 10)));
-    if (!IF_C) goto sides;
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_Y_PIXELS)));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH + 4)));
-    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
-    if (IF_C) goto sides;
-    lda16(ea_dp(ACTOR_Y + 1));
-    cmp16_v(rd16(ea_abs(PLAYER_Y_PIXELS)));
-    if (IF_C) goto top;
-    /* he is below the box's middle */
-    ldx8(ea_abs(V_141C));
-    if (IF_Z) goto blocked;
-    ldx8(ea_abs(PLAYER_SPEED_Y + 2));
-    if (!IF_N) goto blocked;
-    adc16_v(rd16(ea_abs(SCRATCH + 4)));
-    sta16(ea_abs(PLAYER_Y_PIXELS));
-    stz16(ea_abs(PLAYER_SPEED_Y));
+    flag_set(P_C, 1);
+    low = op_sbc16(half, 0x0008, &cpu.p);
+    wr16(dba(SCRATCH + 8), low);
+    flag_set(P_C, low & 0x8000);
+    wr16(dba(SCRATCH + 10), (uint16_t)(low << 1));
+    /* his x before the move inside the box, his y inside it but not its
+       upper part: he came from above or below */
+    if (!inside(dp16(ACTOR_X + 1), rd16(dba(PLAYER_X_BEFORE)), rd16(dba(SCRATCH)), rd16(dba(SCRATCH + 2)), 0)
+        || inside(dp16(ACTOR_Y + 1), rd16(dba(PLAYER_Y_PIXELS)), rd16(dba(SCRATCH + 8)), rd16(dba(SCRATCH + 10)), 0)
+        || !inside(dp16(ACTOR_Y + 1), rd16(dba(PLAYER_Y_PIXELS)), rd16(dba(SCRATCH + 4)), rd16(dba(SCRATCH + 6)), 0))
+        goto sides;
+    ay = dp16(ACTOR_Y + 1);
+    cpu.a = ay;
+    cmp16_of(ay, rd16(dba(PLAYER_Y_PIXELS)));
+    if (ay >= rd16(dba(PLAYER_Y_PIXELS)))
+        goto top;
+    /* below its middle: he bumps his head when rising */
+    v = rd8(dba(V_141C));
+    x8_load(v);
+    if (!v)
+        goto blocked;
+    v = rd8(dba(PLAYER_SPEED_Y + 2));
+    x8_load(v);
+    if (!(v & 0x80))
+        goto blocked;
+    cpu.a = op_adc16(cpu.a, rd16(dba(SCRATCH + 4)), &cpu.p);
+    wr16(dba(PLAYER_Y_PIXELS), cpu.a);
+    wr16(dba(PLAYER_SPEED_Y), 0);
     op_sep(0x71);
-    stz8(ea_abs(PLAYER_SPEED_Y + 2));
+    wr8(dba(PLAYER_SPEED_Y + 2), 0);
     return;
 blocked:
     op_sep(0x60);
-    sec();
+    flag_set(P_C, 1);
     return;
 top:
-    ldx8(ea_abs(PLAYER_SPEED_Y + 1));
-    if (IF_N) goto blocked;
-    ACC16(inc);
-    sbc16_v(rd16(ea_abs(SCRATCH + 4)));
-    sta16(ea_abs(PLAYER_Y_PIXELS));
+    /* above it: when not rising, he stands on it */
+    v = rd8(dba(PLAYER_SPEED_Y + 1));
+    x8_load(v);
+    if (v & 0x80)
+        goto blocked;
+    cpu.a = op_sbc16((uint16_t)(cpu.a + 1), rd16(dba(SCRATCH + 4)), &cpu.p);
+    wr16(dba(PLAYER_Y_PIXELS), cpu.a);
     op_sep(0x30);
-    lda8(ea_abs(HEALTH));
-    if (IF_Z) {
-        op_rep(0x20);
-        clc();
-        lda16(ea_abs(PLAYER_Y_PIXELS));
-        adc16_v(0x0004);
-        sta16(ea_abs(PLAYER_Y_PIXELS));
-        op_sep(0x20);
+    a8_load(rd8(dba(HEALTH)));
+    if (!(uint8_t)cpu.a) {                /* dead: 4 lower */
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(rd16(dba(PLAYER_Y_PIXELS)), 0x0004, &cpu.p);
+        wr16(dba(PLAYER_Y_PIXELS), cpu.a);
+        op_sep(P_M);
     }
-    MEM8(inc, ea_abs(PLAYER_ON_ACTOR));
-    stz8(ea_abs(V_141C));
-    clc();
-    clv();
+    inc8_at(dba(PLAYER_ON_ACTOR));
+    wr8(dba(V_141C), 0);
+    flag_set(P_C, 0);
+    flag_set(P_V, 0);
     return;
 sides:
-    sec();
-    lda16(ea_dp(ACTOR_X + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_X_PIXELS)));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH)));
-    cmp16_v(rd16(ea_abs(SCRATCH + 2)));
-    if (IF_C) goto out;
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_abs(PLAYER_Y_PIXELS)));
-    ACC16(inc);
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH + 4)));
-    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
-    if (IF_C) goto out;
-    lda16(ea_dp(ACTOR_X + 1));
-    cmp16_v(rd16(ea_abs(PLAYER_X_PIXELS)));
-    if (IF_C) {
-        sbc16_v(rd16(ea_abs(SCRATCH)));
-        sta16(ea_abs(PLAYER_X_PIXELS));
-    } else {
-        clc();
-        ACC16(inc);
-        adc16_v(rd16(ea_abs(SCRATCH)));
-        sta16(ea_abs(PLAYER_X_PIXELS));
+    /* his x now inside the box and his y within it: pushed out sideways */
+    if (inside(dp16(ACTOR_X + 1), rd16(dba(PLAYER_X_PIXELS)), rd16(dba(SCRATCH)), rd16(dba(SCRATCH + 2)), 0)
+        && inside(dp16(ACTOR_Y + 1), rd16(dba(PLAYER_Y_PIXELS)), rd16(dba(SCRATCH + 4)), rd16(dba(SCRATCH + 6)), 1)) {
+        ax = dp16(ACTOR_X + 1);
+        cpu.a = ax;
+        cmp16_of(ax, rd16(dba(PLAYER_X_PIXELS)));
+        if (ax >= rd16(dba(PLAYER_X_PIXELS))) {
+            cpu.a = op_sbc16(ax, rd16(dba(SCRATCH)), &cpu.p);
+        } else {
+            flag_set(P_C, 0);
+            cpu.a = op_adc16((uint16_t)(ax + 1), rd16(dba(SCRATCH)), &cpu.p);
+        }
+        wr16(dba(PLAYER_X_PIXELS), cpu.a);
     }
-out:
     op_sep(0x31);
-    clv();
+    flag_set(P_V, 0);
     return;
 none:
-    clv();
-    sec();
+    flag_set(P_V, 0);
+    flag_set(P_C, 1);
 }

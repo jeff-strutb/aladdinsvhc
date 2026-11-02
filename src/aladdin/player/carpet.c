@@ -12,7 +12,11 @@
  * and an up-down rate, signed by bit 7 (set: take away).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 #include "actor.h"
 
 void abi_PlayerMoveStart(void);
@@ -30,6 +34,33 @@ void abi_PlayerMoveStart(void);
 /* In bank $80: per direction, 0 level, positive dive, negative climb */
 #define CARPET_TILT 0xC7E1u
 
+/* The 24-bit speed at `at` up or down by a rate: bit 7 set, down by the
+   other 7 bits (kept in $002C). */
+static void speed_step(uint16_t at, uint8_t rate)
+{
+    if (rate & 0x80) {
+        rate &= 0x7F;
+        wr8(dba(0x002C), rate);
+        flag_set(P_C, 1);
+        wr8(dpa(at), op_sbc8(rd8(dpa(at)), rate, &cpu.p));
+        wr8(dpa(at + 1), op_sbc8(rd8(dpa(at + 1)), 0x00, &cpu.p));
+        a8_load(op_sbc8(rd8(dpa(at + 2)), 0x00, &cpu.p));
+    } else {
+        flag_set(P_C, 0);
+        wr8(dpa(at), op_adc8(rate, rd8(dpa(at)), &cpu.p));
+        wr8(dpa(at + 1), op_adc8(rd8(dpa(at + 1)), 0x00, &cpu.p));
+        a8_load(op_adc8(rd8(dpa(at + 2)), 0x00, &cpu.p));
+    }
+    wr8(dpa(at + 2), (uint8_t)cpu.a);
+}
+
+/* PlayerMoveStart with move `move`. */
+static void move_start(uint8_t move)
+{
+    a8_load(move);
+    abi_PlayerMoveStart();
+}
+
 /*
  * @routine 81:E555 CarpetLevelOut
  * WHAT IT DOES: Levels the carpet off when it is tilted: out of a dive
@@ -43,20 +74,17 @@ void abi_PlayerMoveStart(void);
  */
 void abi_CarpetLevelOut(void)
 {
-    lda8(ea_dp(CARPET_DIVING));  /* 81E555 lda */
-    if (IF_Z) goto L_81E561;  /* 81E557 beq */
-    stz8(ea_dp(CARPET_DIVING));  /* 81E559 stz */
-    lda8_v(0x04);  /* 81E55B lda */
-    abi_PlayerMoveStart();  /* 81E55D jsr */
-    return;  /* 81E560 rts */
-L_81E561:
-    lda8(ea_dp(CARPET_CLIMBING));  /* 81E561 lda */
-    if (IF_Z) goto L_81E56C;  /* 81E563 beq */
-    stz8(ea_dp(CARPET_CLIMBING));  /* 81E565 stz */
-    lda8_v(0x02);  /* 81E567 lda */
-    abi_PlayerMoveStart();  /* 81E569 jsr */
-L_81E56C:
-    return;  /* 81E56C rts */
+    a8_load(rd8(dpa(CARPET_DIVING)));
+    if ((uint8_t)cpu.a) {
+        wr8(dpa(CARPET_DIVING), 0);
+        move_start(0x04);
+        return;
+    }
+    a8_load(rd8(dpa(CARPET_CLIMBING)));
+    if ((uint8_t)cpu.a) {
+        wr8(dpa(CARPET_CLIMBING), 0);
+        move_start(0x02);
+    }
 }
 
 
@@ -76,31 +104,49 @@ L_81E56C:
  */
 void abi_CarpetTilt(void)
 {
-    ldx8(ea_dp(CARPET_DIRECTION));  /* 81E56D ldx */
-    lda8(ea_absx(CARPET_TILT));  /* 81E56F lda */
-    if (IF_Z) goto L_81E594;  /* 81E572 beq */
-    if (IF_N) goto L_81E584;  /* 81E574 bmi */
-    lda8(ea_dp(CARPET_DIVING));  /* 81E576 lda */
-    if (!IF_Z) goto L_81E591;  /* 81E578 bne */
-    MEM8(inc, ea_dp(CARPET_DIVING));  /* 81E57A inc */
-    stz8(ea_dp(CARPET_CLIMBING));  /* 81E57C stz */
-    lda8_v(0x03);  /* 81E57E lda */
-    abi_PlayerMoveStart();  /* 81E580 jsr */
-    return;  /* 81E583 rts */
-L_81E584:
-    lda8(ea_dp(CARPET_CLIMBING));  /* 81E584 lda */
-    if (!IF_Z) goto L_81E591;  /* 81E586 bne */
-    MEM8(inc, ea_dp(CARPET_CLIMBING));  /* 81E588 inc */
-    stz8(ea_dp(CARPET_DIVING));  /* 81E58A stz */
-    lda8_v(0x01);  /* 81E58C lda */
-    abi_PlayerMoveStart();  /* 81E58E jsr */
-L_81E591:
-    lda8_v(0x01);  /* 81E591 lda */
-    return;  /* 81E593 rts */
-L_81E594:
-    abi_CarpetLevelOut(); return;  /* 81E594 jmp */
+    uint8_t tilt;
+
+    x8_load(rd8(dpa(CARPET_DIRECTION)));
+    a8_load(tilt = rd8(dba(CARPET_TILT) + cpu.x));
+    if (!tilt) {
+        abi_CarpetLevelOut();
+        return;
+    }
+    if (!(tilt & 0x80)) {
+        /* down: a new dive */
+        a8_load(rd8(dpa(CARPET_DIVING)));
+        if (!(uint8_t)cpu.a) {
+            inc8_at(dpa(CARPET_DIVING));
+            wr8(dpa(CARPET_CLIMBING), 0);
+            move_start(0x03);
+            return;
+        }
+    } else {
+        /* up: a new climb */
+        a8_load(rd8(dpa(CARPET_CLIMBING)));
+        if (!(uint8_t)cpu.a) {
+            inc8_at(dpa(CARPET_CLIMBING));
+            wr8(dpa(CARPET_DIVING), 0);
+            move_start(0x01);
+        }
+    }
+    a8_load(0x01);
 }
 
+
+/* The x speed by the direction's rate in `rates`. */
+static void steer_x(uint16_t rates)
+{
+    uint8_t dir = rd8(dpa(CARPET_DIRECTION));
+
+    a8_load(dir);
+    if (dir & 0x80)
+        return;
+    flag_set(P_C, dir & 0x80);
+    x8_load((uint8_t)(dir << 1));
+    a8_load(rd8(dba(rates) + cpu.x));
+    speed_step(0x19, (uint8_t)cpu.a);
+}
 
 /*
  * @routine 81:E597 CarpetSteerXAlt
@@ -115,39 +161,7 @@ L_81E594:
  */
 void abi_CarpetSteerXAlt(void)
 {
-    lda8(ea_dp(CARPET_DIRECTION));  /* 81E597 lda */
-    if (IF_N) goto L_81E5DA;  /* 81E599 bmi */
-    ACC8(asl);  /* 81E59B asl */
-    tax8();  /* 81E59C tax */
-    lda8(ea_absx(CARPET_RATES_ALT));  /* 81E59D lda */
-    if (IF_N) goto L_81E5C1;  /* 81E5A0 bmi */
-    goto L_81E5AF;  /* 81E5A2 bra */
-L_81E5AF:
-    clc();  /* 81E5AF clc */
-    adc8_v(rd8(ea_dp(0x19)));  /* 81E5B0 adc */
-    sta8(ea_dp(0x19));  /* 81E5B2 sta */
-    lda8(ea_dp(0x1A));  /* 81E5B4 lda */
-    adc8_v(0x00);  /* 81E5B6 adc */
-    sta8(ea_dp(0x1A));  /* 81E5B8 sta */
-    lda8(ea_dp(0x1B));  /* 81E5BA lda */
-    adc8_v(0x00);  /* 81E5BC adc */
-    sta8(ea_dp(0x1B));  /* 81E5BE sta */
-    return;  /* 81E5C0 rts */
-L_81E5C1:
-    and8_v(0x7F);  /* 81E5C1 and */
-    sta8(ea_abs(0x002C));  /* 81E5C3 sta */
-    lda8(ea_dp(0x19));  /* 81E5C6 lda */
-    sec();  /* 81E5C8 sec */
-    sbc8_v(rd8(ea_abs(0x002C)));  /* 81E5C9 sbc */
-    sta8(ea_dp(0x19));  /* 81E5CC sta */
-    lda8(ea_dp(0x1A));  /* 81E5CE lda */
-    sbc8_v(0x00);  /* 81E5D0 sbc */
-    sta8(ea_dp(0x1A));  /* 81E5D2 sta */
-    lda8(ea_dp(0x1B));  /* 81E5D4 lda */
-    sbc8_v(0x00);  /* 81E5D6 sbc */
-    sta8(ea_dp(0x1B));  /* 81E5D8 sta */
-L_81E5DA:
-    return;  /* 81E5DA rts */
+    steer_x(CARPET_RATES_ALT);
 }
 
 
@@ -166,39 +180,30 @@ L_81E5DA:
  */
 void abi_CarpetSteerX(void)
 {
-    lda8(ea_dp(CARPET_DIRECTION));  /* 81E5A4 lda */
-    if (IF_N) goto L_81E5DA;  /* 81E5A6 bmi */
-    ACC8(asl);  /* 81E5A8 asl */
-    tax8();  /* 81E5A9 tax */
-    lda8(ea_absx(CARPET_RATES));  /* 81E5AA lda */
-    if (IF_N) goto L_81E5C1;  /* 81E5AD bmi */
-    clc();  /* 81E5AF clc */
-    adc8_v(rd8(ea_dp(0x19)));  /* 81E5B0 adc */
-    sta8(ea_dp(0x19));  /* 81E5B2 sta */
-    lda8(ea_dp(0x1A));  /* 81E5B4 lda */
-    adc8_v(0x00);  /* 81E5B6 adc */
-    sta8(ea_dp(0x1A));  /* 81E5B8 sta */
-    lda8(ea_dp(0x1B));  /* 81E5BA lda */
-    adc8_v(0x00);  /* 81E5BC adc */
-    sta8(ea_dp(0x1B));  /* 81E5BE sta */
-    return;  /* 81E5C0 rts */
-L_81E5C1:
-    and8_v(0x7F);  /* 81E5C1 and */
-    sta8(ea_abs(0x002C));  /* 81E5C3 sta */
-    lda8(ea_dp(0x19));  /* 81E5C6 lda */
-    sec();  /* 81E5C8 sec */
-    sbc8_v(rd8(ea_abs(0x002C)));  /* 81E5C9 sbc */
-    sta8(ea_dp(0x19));  /* 81E5CC sta */
-    lda8(ea_dp(0x1A));  /* 81E5CE lda */
-    sbc8_v(0x00);  /* 81E5D0 sbc */
-    sta8(ea_dp(0x1A));  /* 81E5D2 sta */
-    lda8(ea_dp(0x1B));  /* 81E5D4 lda */
-    sbc8_v(0x00);  /* 81E5D6 sbc */
-    sta8(ea_dp(0x1B));  /* 81E5D8 sta */
-L_81E5DA:
-    return;  /* 81E5DA rts */
+    steer_x(CARPET_RATES);
 }
 
+
+/* Cruise: direction 9 (speed up) below `top`, else 8 (slow). */
+static void cruise_x(uint16_t top)
+{
+    uint16_t speed;
+
+    op_rep(P_M);
+    speed = dp16(0x19);
+    cpu.a = speed;
+    cmp16_of(speed, top);
+    op_sep(P_M);
+    if (speed >= top) {
+        a8_load(0x08);
+        wr8(dpa(CARPET_DIRECTION), 0x08);
+        wr8(dpa(CARPET_SLOWED), 0x08);
+    } else {
+        a8_load(0x09);
+        wr8(dpa(CARPET_DIRECTION), 0x09);
+        wr8(dpa(CARPET_SPED_UP), 0x09);
+    }
+}
 
 /*
  * @routine 81:E62F CarpetCruiseXAlt
@@ -214,33 +219,17 @@ L_81E5DA:
  */
 void abi_CarpetCruiseXAlt(void)
 {
-    lda8(ea_dp(CARPET_SPED_UP));  /* 81E62F lda */
-    if (IF_Z) goto L_81E637;  /* 81E631 beq */
-    lda8(ea_dp(CARPET_SLOWED));  /* 81E633 lda */
-    if (!IF_Z) goto L_81E65F;  /* 81E635 bne */
-L_81E637:
-    op_rep(0x20);  /* 81E637 rep */
-    lda16(ea_dp(0x19));  /* 81E639 lda */
-    sec();  /* 81E63B sec */
-    cmp16_v(0x0181);  /* 81E63C cmp */
-    if (IF_C) goto L_81E656;  /* 81E63F bcs */
-    goto L_81E64D;  /* 81E641 bra */
-L_81E64D:
-    op_sep(0x20);  /* 81E64D sep */
-    lda8_v(0x09);  /* 81E64F lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E651 sta */
-    sta8(ea_dp(CARPET_SPED_UP));  /* 81E653 sta */
-    return;  /* 81E655 rts */
-L_81E656:
-    op_sep(0x20);  /* 81E656 sep */
-    lda8_v(0x08);  /* 81E658 lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E65A sta */
-    sta8(ea_dp(CARPET_SLOWED));  /* 81E65C sta */
-    return;  /* 81E65E rts */
-L_81E65F:
-    lda8_v(0x0A);  /* 81E65F lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E661 sta */
-    return;  /* 81E663 rts */
+    a8_load(rd8(dpa(CARPET_SPED_UP)));
+    if ((uint8_t)cpu.a) {
+        a8_load(rd8(dpa(CARPET_SLOWED)));
+        if ((uint8_t)cpu.a) {
+            /* both done: steady */
+            a8_load(0x0A);
+            wr8(dpa(CARPET_DIRECTION), 0x0A);
+            return;
+        }
+    }
+    cruise_x(0x0181);
 }
 
 
@@ -258,22 +247,7 @@ L_81E65F:
  */
 void abi_CarpetCruiseX(void)
 {
-    op_rep(0x20);  /* 81E643 rep */
-    lda16(ea_dp(0x19));  /* 81E645 lda */
-    sec();  /* 81E647 sec */
-    cmp16_v(0x0300);  /* 81E648 cmp */
-    if (IF_C) goto L_81E656;  /* 81E64B bcs */
-    op_sep(0x20);  /* 81E64D sep */
-    lda8_v(0x09);  /* 81E64F lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E651 sta */
-    sta8(ea_dp(CARPET_SPED_UP));  /* 81E653 sta */
-    return;  /* 81E655 rts */
-L_81E656:
-    op_sep(0x20);  /* 81E656 sep */
-    lda8_v(0x08);  /* 81E658 lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E65A sta */
-    sta8(ea_dp(CARPET_SLOWED));  /* 81E65C sta */
-    return;  /* 81E65E rts */
+    cruise_x(0x0300);
 }
 
 
@@ -290,32 +264,58 @@ L_81E656:
  */
 void abi_CarpetSteadyY(void)
 {
-    op_rep(0x20);  /* 81E664 rep */
-    lda16(ea_dp(0x1D));  /* 81E666 lda */
-    if (IF_Z) goto L_81E684;  /* 81E668 beq */
-    if (IF_N) goto L_81E678;  /* 81E66A bmi */
-    cmp16_v(0x0007);  /* 81E66C cmp */
-    if (!IF_C) goto L_81E684;  /* 81E66F bcc */
-    op_sep(0x20);  /* 81E671 sep */
-    lda8_v(0x06);  /* 81E673 lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E675 sta */
-    return;  /* 81E677 rts */
-L_81E678:
-    cmp16_v(0xFFF8);  /* 81E678 cmp */
-    if (IF_C) goto L_81E684;  /* 81E67B bcs */
-    op_sep(0x20);  /* 81E67D sep */
-    lda8_v(0x02);  /* 81E67F lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E681 sta */
-    return;  /* 81E683 rts */
-L_81E684:
-    stz16(ea_dp(0x1D));  /* 81E684 stz */
-    op_sep(0x20);  /* 81E686 sep */
-    stz8(ea_dp(0x1F));  /* 81E688 stz */
-    lda8_v(0xFF);  /* 81E68A lda */
-    sta8(ea_dp(CARPET_DIRECTION));  /* 81E68C sta */
-    return;  /* 81E68E rts */
+    uint16_t speed;
+
+    op_rep(P_M);
+    a16_load(speed = dp16(0x1D));
+    if (speed & 0x8000) {
+        /* rising faster than 8/256: steer down */
+        cmp16_of(speed, 0xFFF8);
+        if (speed < 0xFFF8) {
+            op_sep(P_M);
+            a8_load(0x02);
+            wr8(dpa(CARPET_DIRECTION), 0x02);
+            return;
+        }
+    } else if (speed) {
+        /* falling faster than 7/256: steer up */
+        cmp16_of(speed, 0x0007);
+        if (speed >= 0x0007) {
+            op_sep(P_M);
+            a8_load(0x06);
+            wr8(dpa(CARPET_DIRECTION), 0x06);
+            return;
+        }
+    }
+    /* near still: stopped, no steering */
+    dp16_set(0x1D, 0);
+    op_sep(P_M);
+    wr8(dpa(0x1F), 0);
+    a8_load(0xFF);
+    wr8(dpa(CARPET_DIRECTION), 0xFF);
 }
 
+
+/* The x speed kept within $0020 and `top`. */
+static void limit_x(uint16_t top)
+{
+    uint16_t speed;
+
+    op_rep(P_M);
+    a16_load(speed = dp16(0x19));
+    cmp16_of(speed, top);
+    if (speed >= top) {
+        a16_load(top);
+        dp16_set(0x19, top);
+    } else {
+        cmp16_of(speed, 0x0020);
+        if (speed < 0x0020) {
+            a16_load(0x0020);
+            dp16_set(0x19, 0x0020);
+        }
+    }
+    op_sep(P_M);
+}
 
 /*
  * @routine 81:E68F CarpetSpeedXLimitAlt
@@ -331,23 +331,7 @@ L_81E684:
  */
 void abi_CarpetSpeedXLimitAlt(void)
 {
-    op_rep(0x20);  /* 81E68F rep */
-    lda16(ea_dp(0x19));  /* 81E691 lda */
-    sec();  /* 81E693 sec */
-    cmp16_v(0x0380);  /* 81E694 cmp */
-    if (!IF_C) goto L_81E6A0;  /* 81E697 bcc */
-    lda16_v(0x0380);  /* 81E699 lda */
-    sta16(ea_dp(0x19));  /* 81E69C sta */
-    goto L_81E6AB;  /* 81E69E bra */
-L_81E6A0:
-    sec();  /* 81E6A0 sec */
-    cmp16_v(0x0020);  /* 81E6A1 cmp */
-    if (IF_C) goto L_81E6AB;  /* 81E6A4 bcs */
-    lda16_v(0x0020);  /* 81E6A6 lda */
-    sta16(ea_dp(0x19));  /* 81E6A9 sta */
-L_81E6AB:
-    op_sep(0x20);  /* 81E6AB sep */
-    return;  /* 81E6AD rts */
+    limit_x(0x0380);
 }
 
 
@@ -365,23 +349,26 @@ L_81E6AB:
  */
 void abi_CarpetSpeedXLimit(void)
 {
-    op_rep(0x20);  /* 81E6AE rep */
-    lda16(ea_dp(0x19));  /* 81E6B0 lda */
-    sec();  /* 81E6B2 sec */
-    cmp16_v(0x0480);  /* 81E6B3 cmp */
-    if (!IF_C) goto L_81E6BF;  /* 81E6B6 bcc */
-    lda16_v(0x0480);  /* 81E6B8 lda */
-    sta16(ea_dp(0x19));  /* 81E6BB sta */
-    goto L_81E6CA;  /* 81E6BD bra */
-L_81E6BF:
-    sec();  /* 81E6BF sec */
-    cmp16_v(0x0020);  /* 81E6C0 cmp */
-    if (IF_C) goto L_81E6CA;  /* 81E6C3 bcs */
-    lda16_v(0x0020);  /* 81E6C5 lda */
-    sta16(ea_dp(0x19));  /* 81E6C8 sta */
-L_81E6CA:
-    op_sep(0x20);  /* 81E6CA sep */
-    return;  /* 81E6CC rts */
+    limit_x(0x0480);
+}
+
+/* The y speed by the direction's rate in `rates`; none: CarpetSteadyY
+   first. */
+static void steer_y(uint16_t rates)
+{
+    uint8_t dir = rd8(dpa(0x14));
+
+    a8_load(dir);
+    if (dir & 0x80)
+        return;
+    flag_set(P_C, 0);
+    x8_load((uint8_t)(dir << 1));
+    a8_load(rd8(dba(rates) + cpu.x));
+    if (!(uint8_t)cpu.a) {
+        abi_CarpetSteadyY();
+        a8_load(rd8(dba(rates) + cpu.x));
+    }
+    speed_step(0x1D, (uint8_t)cpu.a);
 }
 
 /*
@@ -398,43 +385,7 @@ L_81E6CA:
  */
 void abi_CarpetSteerYAlt(void)
 {
-    lda8(ea_dp(0x14));  /* 81E5DB lda */
-    if (IF_N) goto L_81E62E;  /* 81E5DD bmi */
-    ACC8(asl);  /* 81E5DF asl */
-    tax8();  /* 81E5E0 tax */
-    lda8(ea_absx(0xC7CC));  /* 81E5E1 lda */
-    if (!IF_Z) goto L_81E5EC;  /* 81E5E4 bne */
-    abi_CarpetSteadyY();  /* 81E5E6 jsr */
-    lda8(ea_absx(0xC7CC));  /* 81E5E9 lda */
-L_81E5EC:
-    if (IF_N) goto L_81E615;  /* 81E5EC bmi */
-    goto L_81E603;  /* 81E5EE bra */
-L_81E603:
-    clc();  /* 81E603 clc */
-    adc8_v(rd8(ea_dp(0x1D)));  /* 81E604 adc */
-    sta8(ea_dp(0x1D));  /* 81E606 sta */
-    lda8(ea_dp(0x1E));  /* 81E608 lda */
-    adc8_v(0x00);  /* 81E60A adc */
-    sta8(ea_dp(0x1E));  /* 81E60C sta */
-    lda8(ea_dp(0x1F));  /* 81E60E lda */
-    adc8_v(0x00);  /* 81E610 adc */
-    sta8(ea_dp(0x1F));  /* 81E612 sta */
-    return;  /* 81E614 rts */
-L_81E615:
-    and8_v(0x7F);  /* 81E615 and */
-    sta8(ea_abs(0x002C));  /* 81E617 sta */
-    lda8(ea_dp(0x1D));  /* 81E61A lda */
-    sec();  /* 81E61C sec */
-    sbc8_v(rd8(ea_abs(0x002C)));  /* 81E61D sbc */
-    sta8(ea_dp(0x1D));  /* 81E620 sta */
-    lda8(ea_dp(0x1E));  /* 81E622 lda */
-    sbc8_v(0x00);  /* 81E624 sbc */
-    sta8(ea_dp(0x1E));  /* 81E626 sta */
-    lda8(ea_dp(0x1F));  /* 81E628 lda */
-    sbc8_v(0x00);  /* 81E62A sbc */
-    sta8(ea_dp(0x1F));  /* 81E62C sta */
-L_81E62E:
-    return;  /* 81E62E rts */
+    steer_y(0xC7CC);
 }
 
 
@@ -454,41 +405,7 @@ L_81E62E:
  */
 void abi_CarpetSteerY(void)
 {
-    lda8(ea_dp(0x14));  /* 81E5F0 lda */
-    if (IF_N) goto L_81E62E;  /* 81E5F2 bmi */
-    ACC8(asl);  /* 81E5F4 asl */
-    tax8();  /* 81E5F5 tax */
-    lda8(ea_absx(0xC7B6));  /* 81E5F6 lda */
-    if (!IF_Z) goto L_81E601;  /* 81E5F9 bne */
-    abi_CarpetSteadyY();  /* 81E5FB jsr */
-    lda8(ea_absx(0xC7B6));  /* 81E5FE lda */
-L_81E601:
-    if (IF_N) goto L_81E615;  /* 81E601 bmi */
-    clc();  /* 81E603 clc */
-    adc8_v(rd8(ea_dp(0x1D)));  /* 81E604 adc */
-    sta8(ea_dp(0x1D));  /* 81E606 sta */
-    lda8(ea_dp(0x1E));  /* 81E608 lda */
-    adc8_v(0x00);  /* 81E60A adc */
-    sta8(ea_dp(0x1E));  /* 81E60C sta */
-    lda8(ea_dp(0x1F));  /* 81E60E lda */
-    adc8_v(0x00);  /* 81E610 adc */
-    sta8(ea_dp(0x1F));  /* 81E612 sta */
-    return;  /* 81E614 rts */
-L_81E615:
-    and8_v(0x7F);  /* 81E615 and */
-    sta8(ea_abs(0x002C));  /* 81E617 sta */
-    lda8(ea_dp(0x1D));  /* 81E61A lda */
-    sec();  /* 81E61C sec */
-    sbc8_v(rd8(ea_abs(0x002C)));  /* 81E61D sbc */
-    sta8(ea_dp(0x1D));  /* 81E620 sta */
-    lda8(ea_dp(0x1E));  /* 81E622 lda */
-    sbc8_v(0x00);  /* 81E624 sbc */
-    sta8(ea_dp(0x1E));  /* 81E626 sta */
-    lda8(ea_dp(0x1F));  /* 81E628 lda */
-    sbc8_v(0x00);  /* 81E62A sbc */
-    sta8(ea_dp(0x1F));  /* 81E62C sta */
-L_81E62E:
-    return;  /* 81E62E rts */
+    steer_y(0xC7B6);
 }
 
 /*
@@ -505,21 +422,17 @@ L_81E62E:
  */
 void abi_CarpetCruiseSet(void)
 {
-    lda8(ea_dp(0x06));  /* 81E503 lda */
-    ACC8(dec);  /* 81E505 dec */
-    if (!IF_Z) goto L_81E511;  /* 81E506 bne */
-    stz8(ea_dp(0x19));  /* 81E508 stz */
-    lda8_v(0x03);  /* 81E50A lda */
-    sta8(ea_dp(0x1A));  /* 81E50C sta */
-    stz8(ea_dp(0x1B));  /* 81E50E stz */
-    return;  /* 81E510 rts */
-L_81E511:
-    lda8_v(0x80);  /* 81E511 lda */
-    sta8(ea_dp(0x19));  /* 81E513 sta */
-    lda8_v(0x01);  /* 81E515 lda */
-    sta8(ea_dp(0x1A));  /* 81E517 sta */
-    stz8(ea_dp(0x1B));  /* 81E519 stz */
-    return;  /* 81E51B rts */
+    /* the ride with $06 = 1 cruises at 3, the other at 1.5 */
+    a8_load((uint8_t)(rd8(dpa(0x06)) - 1));
+    if (!(uint8_t)cpu.a) {
+        wr8(dpa(0x19), 0x00);
+        a8_load(0x03);
+    } else {
+        wr8(dpa(0x19), 0x80);
+        a8_load(0x01);
+    }
+    wr8(dpa(0x1A), (uint8_t)cpu.a);
+    wr8(dpa(0x1B), 0x00);
 }
 
 
@@ -536,43 +449,28 @@ L_81E511:
  */
 void abi_CarpetSpeedYLimit(void)
 {
-    lda8(ea_dp(0x06));  /* 81E6CD lda */
-    ACC8(dec);  /* 81E6CF dec */
-    if (!IF_Z) goto L_81E6F2;  /* 81E6D0 bne */
-    op_rep(0x20);  /* 81E6D2 rep */
-    lda16(ea_dp(0x1D));  /* 81E6D4 lda */
-    if (IF_N) goto L_81E6E5;  /* 81E6D6 bmi */
-    sec();  /* 81E6D8 sec */
-    cmp16_v(0x01E0);  /* 81E6D9 cmp */
-    if (!IF_C) goto L_81E710;  /* 81E6DC bcc */
-    lda16_v(0x01E0);  /* 81E6DE lda */
-    sta16(ea_dp(0x1D));  /* 81E6E1 sta */
-    goto L_81E710;  /* 81E6E3 bra */
-L_81E6E5:
-    sec();  /* 81E6E5 sec */
-    cmp16_v(0xFE40);  /* 81E6E6 cmp */
-    if (IF_C) goto L_81E710;  /* 81E6E9 bcs */
-    lda16_v(0xFE40);  /* 81E6EB lda */
-    sta16(ea_dp(0x1D));  /* 81E6EE sta */
-    goto L_81E710;  /* 81E6F0 bra */
-L_81E6F2:
-    op_rep(0x20);  /* 81E6F2 rep */
-    lda16(ea_dp(0x1D));  /* 81E6F4 lda */
-    if (IF_N) goto L_81E705;  /* 81E6F6 bmi */
-    sec();  /* 81E6F8 sec */
-    cmp16_v(0x0280);  /* 81E6F9 cmp */
-    if (!IF_C) goto L_81E710;  /* 81E6FC bcc */
-    lda16_v(0x0280);  /* 81E6FE lda */
-    sta16(ea_dp(0x1D));  /* 81E701 sta */
-    goto L_81E710;  /* 81E703 bra */
-L_81E705:
-    sec();  /* 81E705 sec */
-    cmp16_v(0xFDC0);  /* 81E706 cmp */
-    if (IF_C) goto L_81E710;  /* 81E709 bcs */
-    lda16_v(0xFDC0);  /* 81E70B lda */
-    sta16(ea_dp(0x1D));  /* 81E70E sta */
-L_81E710:
-    op_sep(0x20);  /* 81E710 sep */
-    return;  /* 81E712 rts */
+    uint16_t speed, top, least;
+
+    /* within -$1C0..$1E0 on the ride with $06 = 1, -$240..$280 on the
+       other */
+    a8_load((uint8_t)(rd8(dpa(0x06)) - 1));
+    top = (uint8_t)cpu.a ? 0x0280 : 0x01E0;
+    least = (uint8_t)cpu.a ? 0xFDC0 : 0xFE40;
+    op_rep(P_M);
+    a16_load(speed = dp16(0x1D));
+    if (speed & 0x8000) {
+        cmp16_of(speed, least);
+        if (speed < least) {
+            a16_load(least);
+            dp16_set(0x1D, least);
+        }
+    } else {
+        cmp16_of(speed, top);
+        if (speed >= top) {
+            a16_load(top);
+            dp16_set(0x1D, top);
+        }
+    }
+    op_sep(P_M);
 }
 

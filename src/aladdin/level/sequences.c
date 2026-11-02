@@ -10,6 +10,8 @@
  * (byte, negative ends the list), then the word.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 
 #define SEQUENCES 0x1645u
@@ -38,18 +40,21 @@
  */
 void abi_SequenceStart(void)
 {
-    lda8_v(0x80);
-    sta8(ea_dp(SEQ_STARTED));
-    sta8(ea_dp(SEQ_INDEX));
-    lda8_v(0x01);
-    sta8(ea_dp(SEQ_WAIT));
-    ldx8(ea_dp(SEQ_ID));
-    lda8(ea_absx(SEQUENCE_TABLE));
-    sta8(ea_dp(SEQ_LENGTH));
-    op_rep(0x20);
-    lda16(ea_absx(SEQUENCE_TABLE + 1));
-    sta16(ea_dp(SEQ_LIST));
-    op_sep(0x20);
+    uint8_t length;
+    uint16_t list;
+
+    a8_load(0x80);
+    wr8(dpa(SEQ_STARTED), 0x80);
+    wr8(dpa(SEQ_INDEX), 0x80);
+    a8_load(0x01);
+    wr8(dpa(SEQ_WAIT), 0x01);
+    x8_load(rd8(dpa(SEQ_ID)));
+    length = rd8(dba(SEQUENCE_TABLE) + cpu.x);
+    a8_load(length);
+    wr8(dpa(SEQ_LENGTH), length);
+    list = rd16(dba(SEQUENCE_TABLE + 1) + cpu.x);
+    dp16_set(SEQ_LIST, list);
+    a16_load(list);
 }
 
 /*
@@ -69,49 +74,51 @@ void abi_SequenceStart(void)
 void abi_SequencesStep(void)
 {
     phd();
-    lda8_v(SEQUENCES >> 8);
-    xba();
-    lda8_v(SEQUENCES & 0xFF);
-    tcd();
-    do {
-        lda8(ea_dp(SEQ_ACTIVE));
-        if (IF_Z)
-            goto next;
-        lda8(ea_dp(SEQ_STARTED));
-        if (IF_Z)
-            abi_SequenceStart();
-        MEM8(dec, ea_dp(SEQ_WAIT));
-        if (!IF_Z)
-            goto next;
-        lda8(ea_dp(SEQ_INDEX));
-        clc();
-        adc8_v(0x03);
-        cmp8_v(rd8(ea_dp(SEQ_LENGTH)));
-        if (IF_C)
-            lda8_v(0x00);
-        sta8(ea_dp(SEQ_INDEX));
-        tay8();
-        lda8(ea_dpiy(SEQ_LIST));
-        sta8(ea_dp(SEQ_WAIT));
-        if (IF_N) {
-            stz8(ea_dp(SEQ_ACTIVE));
-            goto next;
+    cpu.a = cpu.d = SEQUENCES;
+    nz16_of(SEQUENCES);
+    do {                                  /* each sequence record */
+        uint8_t active = rd8(dpa(SEQ_ACTIVE));
+
+        a8_load(active);
+        if (active) {
+            a8_load(rd8(dpa(SEQ_STARTED)));
+            if (!(uint8_t)cpu.a)
+                abi_SequenceStart();
+            if (!dec8_at(dpa(SEQ_WAIT))) {
+                /* its wait done: the next entry (3 bytes: frames, word),
+                   from the first after the last */
+                uint32_t list = dba(dp16(SEQ_LIST));
+                uint8_t at, wait;
+
+                flag_set(P_C, 0);
+                at = op_adc8(rd8(dpa(SEQ_INDEX)), 0x03, &cpu.p);
+                a8_load(at);
+                cmp8_of(at, rd8(dpa(SEQ_LENGTH)));
+                if (at >= rd8(dpa(SEQ_LENGTH))) {
+                    at = 0;
+                    a8_load(0);
+                }
+                wr8(dpa(SEQ_INDEX), at);
+                cpu.y = at;
+                wait = rd8(list + at);
+                a8_load(wait);
+                wr8(dpa(SEQ_WAIT), wait);
+                if (wait & 0x80) {        /* the end: it stops */
+                    wr8(dpa(SEQ_ACTIVE), 0);
+                } else {
+                    cpu.y = (uint8_t)(at + 1);
+                    dp16_set(SEQ_WORD, rd16(list + cpu.y));
+                    a8_load(0x02);
+                    wr8(dpa(SEQ_NEW), 0x02);
+                }
+            }
         }
-        iny8();
-        op_rep(0x20);
-        lda16(ea_dpiy(SEQ_LIST));
-        sta16(ea_dp(SEQ_WORD));
-        op_sep(0x20);
-        lda8_v(0x02);
-        sta8(ea_dp(SEQ_NEW));
-next:
-        op_rep(0x20);
-        tdc();
-        clc();
-        adc16_v(SEQUENCE_SIZE);
-        tcd();
-        cmp16_v(SEQUENCES_END);
-        op_sep(0x20);
-    } while (!IF_Z);
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(cpu.d, SEQUENCE_SIZE, &cpu.p);
+        cpu.d = cpu.a;
+        cmp16_of(cpu.a, SEQUENCES_END);
+        op_sep(P_M);
+    } while (cpu.d != SEQUENCES_END);
     pld();
 }

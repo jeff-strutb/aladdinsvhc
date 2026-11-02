@@ -7,7 +7,11 @@
  * and $10-$12; each is a byte at a time multiplied by the speed.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_ActorBobAnimate(void);
 void abi_AnimStep(void);
 void abi_ActorBob(void);
@@ -31,19 +35,48 @@ void abi_MultiplyBy(void);
  */
 void abi_ActorSpeedUpMove(void)
 {
-    clc();  /* 81A4AF clc */
-    lda8(ea_dp(0x19));  /* 81A4B0 lda */
-    adc8_v(rd8(ea_dp(0x1C)));  /* 81A4B2 adc */
-    sta8(ea_dp(0x19));  /* 81A4B4 sta */
-    lda8(ea_dp(0x1A));  /* 81A4B6 lda */
-    adc8_v(0x00);  /* 81A4B8 adc */
-    sta8(ea_dp(0x1A));  /* 81A4BA sta */
-    lda8(ea_dp(0x1B));  /* 81A4BC lda */
-    adc8_v(0x00);  /* 81A4BE adc */
-    sta8(ea_dp(0x1B));  /* 81A4C0 sta */
-    goto L_81A4E0;  /* 81A4C2 bra */
-L_81A4E0:
-    abi_ActorMove(); return;  /* 81A4E0 jmp */
+    flag_set(P_C, 0);
+    wr8(dpa(0x19), op_adc8(rd8(dpa(0x19)), rd8(dpa(0x1C)), &cpu.p));
+    wr8(dpa(0x1A), op_adc8(rd8(dpa(0x1A)), 0x00, &cpu.p));
+    a8_load(op_adc8(rd8(dpa(0x1B)), 0x00, &cpu.p));
+    wr8(dpa(0x1B), (uint8_t)cpu.a);
+    abi_ActorMove();
+}
+
+/* The step at $0C-$12 times the speed: each axis's low and middle bytes
+   by the multiplier, the two products overlapped into 24 bits; then added
+   to the actor's x and y. Shared with motion.c. */
+void actor_scale_and_move(uint8_t speed)
+{
+    uint8_t a;
+
+    wr8(dba((uint16_t)WRMPYA), speed);
+    a8_load(rd8(dba(SCRATCH)));
+    abi_MultiplyBy();
+    a8_load(rd8(dba(SCRATCH + 1)));
+    wr16(dba(SCRATCH), cpu.y);
+    abi_MultiplyBy();
+    flag_set(P_C, 0);
+    a8_load(op_adc8((uint8_t)cpu.y, rd8(dba(SCRATCH + 1)), &cpu.p));
+    wr8(dba(SCRATCH + 1), (uint8_t)cpu.a);
+    a8_load(rd8(dba(SCRATCH + 4)));
+    abi_MultiplyBy();
+    a8_load(rd8(dba(SCRATCH + 5)));
+    wr16(dba(SCRATCH + 4), cpu.y);
+    abi_MultiplyBy();
+    flag_set(P_C, 0);
+    wr8(dba(SCRATCH + 5), op_adc8((uint8_t)cpu.y, rd8(dba(SCRATCH + 5)), &cpu.p));
+    flag_set(P_C, 0);
+    wr8(dpa(0x0B), op_adc8(rd8(dpa(0x0B)), rd8(dba(SCRATCH)), &cpu.p));
+    wr8(dpa(0x0C), op_adc8(rd8(dpa(0x0C)), rd8(dba(SCRATCH + 1)), &cpu.p));
+    wr8(dpa(0x0D), op_adc8(rd8(dpa(0x0D)), rd8(dba(SCRATCH + 2)), &cpu.p));
+    flag_set(P_C, 0);
+    wr8(dpa(0x0E), op_adc8(rd8(dpa(0x0E)), rd8(dba(SCRATCH + 4)), &cpu.p));
+    wr8(dpa(0x0F), op_adc8(rd8(dpa(0x0F)), rd8(dba(SCRATCH + 5)), &cpu.p));
+    a = op_adc8(rd8(dpa(0x10)), rd8(dba(SCRATCH + 6)), &cpu.p);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
+    wr8(dpa(0x10), a);
+    op_sep(0x30);
 }
 
 /*
@@ -57,69 +90,23 @@ L_81A4E0:
  */
 void abi_ActorMoveAlong(void)
 {
-    pha8();  /* 81A73D pha */
-    op_rep(0x20);  /* 81A73E rep */
-    tya16();  /* 81A740 tya */
-    clc();  /* 81A741 clc */
-    adc16_v(0x01B6);  /* 81A742 adc */
-    tax16();  /* 81A745 tax */
-    goto L_81A759;  /* 81A746 bra */
-L_81A759:
-    op_sep(0x20);  /* 81A759 sep */
-    lda8(ea_longx(0x82C000u));  /* 81A75B lda */
-    sta8(ea_abs(SCRATCH));  /* 81A75F sta */
-    lda8(ea_longx(0x82C409u));  /* 81A762 lda */
-    sta8(ea_abs(SCRATCH + 1));  /* 81A766 sta */
-    lda8(ea_longx(0x82C812u));  /* 81A769 lda */
-    sta8(ea_abs(SCRATCH + 2));  /* 81A76D sta */
-    lda8(ea_longx(0x82CC1Bu));  /* 81A770 lda */
-    sta8(ea_abs(SCRATCH + 4));  /* 81A774 sta */
-    lda8(ea_longx(0x82D024u));  /* 81A777 lda */
-    sta8(ea_abs(SCRATCH + 5));  /* 81A77B sta */
-    lda8(ea_longx(0x82D42Du));  /* 81A77E lda */
-    sta8(ea_abs((SCRATCH + 6)));  /* 81A782 sta */
-    pla8();  /* 81A785 pla */
-    sta8(ea_abs(WRMPYA));  /* 81A786 sta */
-    lda8(ea_abs(SCRATCH));  /* 81A789 lda */
-    abi_MultiplyBy();  /* 81A78C jsr */
-    lda8(ea_abs(SCRATCH + 1));  /* 81A78F lda */
-    sty16(ea_abs(SCRATCH));  /* 81A792 sty */
-    abi_MultiplyBy();  /* 81A795 jsr */
-    tya8();  /* 81A798 tya */
-    clc();  /* 81A799 clc */
-    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A79A adc */
-    sta8(ea_abs(SCRATCH + 1));  /* 81A79D sta */
-    lda8(ea_abs(SCRATCH + 4));  /* 81A7A0 lda */
-    abi_MultiplyBy();  /* 81A7A3 jsr */
-    lda8(ea_abs(SCRATCH + 5));  /* 81A7A6 lda */
-    sty16(ea_abs(SCRATCH + 4));  /* 81A7A9 sty */
-    abi_MultiplyBy();  /* 81A7AC jsr */
-    tya8();  /* 81A7AF tya */
-    clc();  /* 81A7B0 clc */
-    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7B1 adc */
-    sta8(ea_abs(SCRATCH + 5));  /* 81A7B4 sta */
-    clc();  /* 81A7B7 clc */
-    lda8(ea_dp(0x0B));  /* 81A7B8 lda */
-    adc8_v(rd8(ea_abs(SCRATCH)));  /* 81A7BA adc */
-    sta8(ea_dp(0x0B));  /* 81A7BD sta */
-    lda8(ea_dp(0x0C));  /* 81A7BF lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A7C1 adc */
-    sta8(ea_dp(0x0C));  /* 81A7C4 sta */
-    lda8(ea_dp(0x0D));  /* 81A7C6 lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 2)));  /* 81A7C8 adc */
-    sta8(ea_dp(0x0D));  /* 81A7CB sta */
-    clc();  /* 81A7CD clc */
-    lda8(ea_dp(0x0E));  /* 81A7CE lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 4)));  /* 81A7D0 adc */
-    sta8(ea_dp(0x0E));  /* 81A7D3 sta */
-    lda8(ea_dp(0x0F));  /* 81A7D5 lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7D7 adc */
-    sta8(ea_dp(0x0F));  /* 81A7DA sta */
-    lda8(ea_dp(0x10));  /* 81A7DC lda */
-    adc8_v(rd8(ea_abs((SCRATCH + 6))));  /* 81A7DE adc */
-    sta8(ea_dp(0x10));  /* 81A7E1 sta */
-    op_sep(0x30);  /* 81A7E3 sep */
-    return;  /* 81A7E5 rtl */
+    uint8_t speed = (uint8_t)cpu.a;
+    uint16_t at;
+
+    /* the direction's step, a byte at a time from the six tables */
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    at = op_adc16(cpu.y, 0x01B6, &cpu.p);
+    cpu.a = at;
+    cpu.x = at;
+    op_sep(P_M);
+    wr8(dba(SCRATCH), rd8(0x82C000u + at));
+    wr8(dba(SCRATCH + 1), rd8(0x82C409u + at));
+    wr8(dba(SCRATCH + 2), rd8(0x82C812u + at));
+    wr8(dba(SCRATCH + 4), rd8(0x82CC1Bu + at));
+    wr8(dba(SCRATCH + 5), rd8(0x82D024u + at));
+    wr8(dba(SCRATCH + 6), rd8(0x82D42Du + at));
+    actor_scale_and_move(speed);
 }
 
 /*
@@ -134,50 +121,8 @@ L_81A759:
  */
 void abi_ActorMoveScaled(void)
 {
-    op_rep(0x10);  /* 81A748 rep */
-    goto L_81A786;  /* 81A74A bra */
-L_81A786:
-    sta8(ea_abs(WRMPYA));  /* 81A786 sta */
-    lda8(ea_abs(SCRATCH));  /* 81A789 lda */
-    abi_MultiplyBy();  /* 81A78C jsr */
-    lda8(ea_abs(SCRATCH + 1));  /* 81A78F lda */
-    sty16(ea_abs(SCRATCH));  /* 81A792 sty */
-    abi_MultiplyBy();  /* 81A795 jsr */
-    tya8();  /* 81A798 tya */
-    clc();  /* 81A799 clc */
-    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A79A adc */
-    sta8(ea_abs(SCRATCH + 1));  /* 81A79D sta */
-    lda8(ea_abs(SCRATCH + 4));  /* 81A7A0 lda */
-    abi_MultiplyBy();  /* 81A7A3 jsr */
-    lda8(ea_abs(SCRATCH + 5));  /* 81A7A6 lda */
-    sty16(ea_abs(SCRATCH + 4));  /* 81A7A9 sty */
-    abi_MultiplyBy();  /* 81A7AC jsr */
-    tya8();  /* 81A7AF tya */
-    clc();  /* 81A7B0 clc */
-    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7B1 adc */
-    sta8(ea_abs(SCRATCH + 5));  /* 81A7B4 sta */
-    clc();  /* 81A7B7 clc */
-    lda8(ea_dp(0x0B));  /* 81A7B8 lda */
-    adc8_v(rd8(ea_abs(SCRATCH)));  /* 81A7BA adc */
-    sta8(ea_dp(0x0B));  /* 81A7BD sta */
-    lda8(ea_dp(0x0C));  /* 81A7BF lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A7C1 adc */
-    sta8(ea_dp(0x0C));  /* 81A7C4 sta */
-    lda8(ea_dp(0x0D));  /* 81A7C6 lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 2)));  /* 81A7C8 adc */
-    sta8(ea_dp(0x0D));  /* 81A7CB sta */
-    clc();  /* 81A7CD clc */
-    lda8(ea_dp(0x0E));  /* 81A7CE lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 4)));  /* 81A7D0 adc */
-    sta8(ea_dp(0x0E));  /* 81A7D3 sta */
-    lda8(ea_dp(0x0F));  /* 81A7D5 lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7D7 adc */
-    sta8(ea_dp(0x0F));  /* 81A7DA sta */
-    lda8(ea_dp(0x10));  /* 81A7DC lda */
-    adc8_v(rd8(ea_abs((SCRATCH + 6))));  /* 81A7DE adc */
-    sta8(ea_dp(0x10));  /* 81A7E1 sta */
-    op_sep(0x30);  /* 81A7E3 sep */
-    return;  /* 81A7E5 rtl */
+    op_rep(P_X);
+    actor_scale_and_move((uint8_t)cpu.a);
 }
 
 /*
@@ -189,13 +134,11 @@ L_81A786:
  */
 void abi_ActorKeepSpot(void)
 {
-    op_rep(0x20);  /* 819D56 rep */
-    lda16(ea_dp(0x0C));  /* 819D58 lda */
-    sta16(ea_dp(0x4C));  /* 819D5A sta */
-    lda16(ea_dp(0x0F));  /* 819D5C lda */
-    sta16(ea_dp(0x4E));  /* 819D5E sta */
-    op_sep(0x20);  /* 819D60 sep */
-    return;  /* 819D62 rtl */
+    op_rep(P_M);
+    dp16_set(0x4C, dp16(0x0C));
+    a16_load(dp16(0x0F));
+    dp16_set(0x4E, cpu.a);
+    op_sep(P_M);
 }
 
 /*
@@ -206,16 +149,7 @@ void abi_ActorKeepSpot(void)
  */
 void abi_SignExtend(void)
 {
-    pha16();  /* 81945F pha */
-    and16_v(0x0080);  /* 819460 and */
-    if (!IF_Z) goto L_81946A;  /* 819463 bne */
-    pla16();  /* 819465 pla */
-    and16_v(0x00FF);  /* 819466 and */
-    return;  /* 819469 rts */
-L_81946A:
-    pla16();  /* 81946A pla */
-    ora16_v(0xFF00);  /* 81946B ora */
-    return;  /* 81946E rts */
+    a16_load(cpu.a & 0x0080 ? (uint16_t)(cpu.a | 0xFF00) : (uint16_t)(cpu.a & 0x00FF));
 }
 
 /*
@@ -230,30 +164,32 @@ L_81946A:
  */
 void abi_ActorBob(void)
 {
-    op_rep(0x20);  /* 84A7AD rep */
-    ldy8(ea_dp(0x44));  /* 84A7AF ldy */
-    if (IF_Z) goto L_84A7CF;  /* 84A7B1 beq */
-    if (!IF_N) goto L_84A7C1;  /* 84A7B3 bpl */
-    lda16(ea_dp(0x0F));  /* 84A7B5 lda */
-    ACC16(dec);  /* 84A7B7 dec */
-    sta16(ea_dp(0x0F));  /* 84A7B8 sta */
-    iny8();  /* 84A7BA iny */
-    if (!IF_Z) goto L_84A7CF;  /* 84A7BB bne */
-    ldy8_v(0x05);  /* 84A7BD ldy */
-    goto L_84A7CF;  /* 84A7BF bra */
-L_84A7C1:
-    lda16(ea_dp(0x0F));  /* 84A7C1 lda */
-    ACC16(inc);  /* 84A7C3 inc */
-    sta16(ea_dp(0x0F));  /* 84A7C4 sta */
-    dey8();  /* 84A7C6 dey */
-    if (!IF_Z) goto L_84A7CF;  /* 84A7C7 bne */
-    ldx8(ea_dp(0x42));  /* 84A7C9 ldx */
-    if (IF_Z) goto L_84A7CF;  /* 84A7CB beq */
-    ldy8_v(0xFB);  /* 84A7CD ldy */
-L_84A7CF:
-    sty8(ea_dp(0x44));  /* 84A7CF sty */
-    op_sep(0x20);  /* 84A7D1 sep */
-    return;  /* 84A7D3 rts */
+    uint8_t count;
+
+    op_rep(P_M);
+    y8_load(count = rd8(dpa(0x44)));
+    if (count & 0x80) {
+        /* rising: a pixel up, and after 5 the other way */
+        a16_load((uint16_t)(dp16(0x0F) - 1));
+        dp16_set(0x0F, cpu.a);
+        y8_load(++count);
+        if (!count)
+            y8_load(count = 0x05);
+    } else if (count) {
+        /* falling: a pixel down; at 0, up again while $42 is nonzero */
+        a16_load((uint16_t)(dp16(0x0F) + 1));
+        dp16_set(0x0F, cpu.a);
+        y8_load(--count);
+        if (!count) {
+            x8_load(rd8(dpa(0x42)));
+            if ((uint8_t)cpu.x) {
+                count = 0xFB;
+                y8_load(count);
+            }
+        }
+    }
+    wr8(dpa(0x44), count);
+    op_sep(P_M);
 }
 
 /*
@@ -266,10 +202,8 @@ L_84A7CF:
  */
 void abi_ActorBobAnimate(void)
 {
-    abi_AnimStep();  /* 84A7A1 jsl */
-    lda8(ea_dp(0x42));  /* 84A7A5 lda */
-    if (IF_Z) goto L_84A7AC;  /* 84A7A7 beq */
-    abi_ActorBob();  /* 84A7A9 jsr */
-L_84A7AC:
-    return;  /* 84A7AC rtl */
+    abi_AnimStep();
+    a8_load(rd8(dpa(0x42)));
+    if ((uint8_t)cpu.a)
+        abi_ActorBob();
 }

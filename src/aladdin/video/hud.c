@@ -1,11 +1,14 @@
 /*
  * hud.c: the play screen's status line in the text layer: the health
  * marks, the two counters, a digit and a 2x2 mark. Each is drawn when
- * its shown value falls behind the game's (the refresh at $81:F43C).
+ * its shown value falls behind the game's (HudRefresh, each frame).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
+#include "wram_state.h"
 
 #define HEALTH_SHOWN 0x000366u     /* the health the marks show */
 #define HUD_COUNT_1_SHOWN 0x000368u /* the first counter as shown (its value at $0369) */
@@ -14,6 +17,18 @@
 #define HEALTH_MARK_TILE 0x6A      /* the mark's top tile; its bottom is 16 on */
 #define HUD_TILE_BITS 0x2C00       /* palette and priority of the status line's tiles */
 #define DIGIT_TILE_0 0x05          /* the counters' digit tiles start here; bottoms 16 on */
+#define HEALTH_MARK_GAINED_TILE 0x60 /* the mark drawn as health is gained (HEALTH_MARK_TILE as it is lost) */
+#define HUD_COUNT_1 0x000369u      /* the first counter's value */
+#define HUD_COUNT_2 0x00036Bu      /* the second counter's value */
+#define HUD_VALUE 0x000364u        /* the value the status line's digit shows (less 1) */
+#define HUD_VALUE_SHOWN 0x000363u  /* that value as shown */
+#define HUD_MARK_VALUE 0x00036Eu   /* zero: the 2x2 mark is blank */
+#define HUD_MARK_SHOWN 0x00036Du   /* that value as shown */
+
+void abi_HudMarkRefresh(void);
+void abi_HudCount1Show(void);
+void abi_HudCount2Show(void);
+void abi_HudDigitRefresh(void);
 
 /*
  * @routine 81:F4D0 HudHealthMarkShow
@@ -29,48 +44,46 @@
  */
 void abi_HudHealthMarkShow(void)
 {
-    ldy8_v(HEALTH_MARK_TILE);
-    ACC8(dec);
-    tax8();
-    sta8(ea_abs(HEALTH_SHOWN));
-    lda8(ea_longx(HEALTH_MARK_PLACES));
-    tax8();
-    op_rep(0x20);
-    tya16();
-    ora16_v(HUD_TILE_BITS);
-    sta16(ea_longx(TEXT_TILEMAP + 74));
-    clc();
-    adc16_v(0x0010);
-    sta16(ea_longx(TEXT_TILEMAP + 138));
-    op_sep(0x20);
-    lda8_v(0x01);
-    sta8(ea_abs(TEXT_TILEMAP_UPLOAD));
+    uint8_t mark = (uint8_t)((uint8_t)cpu.a - 1), place;
+    uint16_t top, bottom;
+
+    cpu.y = HEALTH_MARK_TILE;
+    cpu.x = mark;
+    wr8(dba(HEALTH_SHOWN), mark);
+    place = rd8(HEALTH_MARK_PLACES + mark);
+    cpu.x = place;
+    /* its top tile, and its bottom (16 on) a row below */
+    top = HUD_TILE_BITS | HEALTH_MARK_TILE;
+    wr16((TEXT_TILEMAP + 74 + place) & 0xFFFFFF, top);
+    flag_set(P_C, 0);
+    bottom = op_adc16(top, 0x0010, &cpu.p);
+    wr16((TEXT_TILEMAP + 138 + place) & 0xFFFFFF, bottom);
+    cpu.a = (uint16_t)((bottom & 0xFF00) | 0x01);
+    nz8_of(0x01);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), 0x01);
 }
 
 /* A's two hex digits as big digits: tops at `top` and `top` + 2 in the
    text tilemap, bottoms a row below; the value kept at `shown`. */
+/* A's two hex digits as big digits: tops at `top` and `top` + 2 in the
+   text tilemap, bottoms a row below; the value kept at `shown`. */
 static void counter_show(uint32_t shown, uint32_t top)
 {
-    sta8(ea_abs((uint16_t)shown));
+    uint8_t value = (uint8_t)cpu.a, digit;
+
+    wr8(dba((uint16_t)shown), value);
     pha8();
-    ACC8(lsr);
-    ACC8(lsr);
-    ACC8(lsr);
-    ACC8(lsr);
-    clc();
-    adc8_v(DIGIT_TILE_0);
-    sta8(top);
-    ora8_v(0x10);
-    sta8(top + 64);
-    clc();
+    flag_set(P_C, 0);
+    digit = op_adc8((uint8_t)(value >> 4), DIGIT_TILE_0, &cpu.p);
+    wr8(top, digit);
+    wr8(top + 64, (uint8_t)(digit | 0x10));
+    flag_set(P_C, 0);
     pla8();
-    and8_v(0x0F);
-    adc8_v(DIGIT_TILE_0);
-    sta8(top + 2);
-    ora8_v(0x10);
-    sta8(top + 66);
-    lda8_v(0x01);
-    sta8(ea_abs(TEXT_TILEMAP_UPLOAD));
+    digit = op_adc8((uint8_t)(value & 0x0F), DIGIT_TILE_0, &cpu.p);
+    wr8(top + 2, digit);
+    wr8(top + 66, (uint8_t)(digit | 0x10));
+    a8_load(0x01);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), 0x01);
 }
 
 /*
@@ -118,44 +131,46 @@ void abi_HudCount2Show(void)
  */
 void abi_HudDigitRefresh(void)
 {
-    lda8(ea_abs(0x0364));  /* 81F47F lda */
-    cmp8_v(rd8(ea_abs(0x0363)));  /* 81F482 cmp */
-    if (!IF_Z) goto L_81F488;  /* 81F485 bne */
-    return;  /* 81F487 rts */
-L_81F488:
-    sta8(ea_abs(0x0363));  /* 81F488 sta */
-    lda8(ea_abs(0x0363));  /* 81F48B lda */
-    if (IF_N) goto L_81F4A7;  /* 81F48E bmi */
-    ACC8(dec);  /* 81F490 dec */
-    if (IF_N) goto L_81F4B1;  /* 81F491 bmi */
-    cmp8_v(0x09);  /* 81F493 cmp */
-    if (!IF_C) goto L_81F4B3;  /* 81F495 bcc */
-    cmp8_v(0x64);  /* 81F497 cmp */
-    if (!IF_C) goto L_81F4A3;  /* 81F499 bcc */
-    lda8_v(0x63);  /* 81F49B lda */
-    sta8(ea_abs(0x0364));  /* 81F49D sta */
-    sta8(ea_abs(0x0363));  /* 81F4A0 sta */
-L_81F4A3:
-    lda8_v(0x09);  /* 81F4A3 lda */
-    goto L_81F4B3;  /* 81F4A5 bra */
-L_81F4A7:
-    pha8();  /* 81F4A7 pha */
-    lda8_v(0x2E);  /* 81F4A8 lda */
-    sta8(0x7ED908u);  /* 81F4AA sta */
-    pla8();  /* 81F4AE pla */
-    goto L_81F4B3;  /* 81F4AF bra */
-L_81F4B1:
-    lda8_v(0x00);  /* 81F4B1 lda */
-L_81F4B3:
-    clc();  /* 81F4B3 clc */
-    and8_v(0x0F);  /* 81F4B4 and */
-    adc8_v(0x05);  /* 81F4B6 adc */
-    sta8(0x7ED8C6u);  /* 81F4B8 sta */
-    ora8_v(0x10);  /* 81F4BC ora */
-    sta8(0x7ED906u);  /* 81F4BE sta */
-    lda8_v(0x01);  /* 81F4C2 lda */
-    sta8(ea_abs(TEXT_TILEMAP_UPLOAD));  /* 81F4C4 sta */
-    return;  /* 81F4C7 rts */
+    uint8_t value = rd8(dba(HUD_VALUE)), digit;
+
+    a8_load(value);
+    cmp8_of(value, rd8(dba(HUD_VALUE_SHOWN)));
+    if (value == rd8(dba(HUD_VALUE_SHOWN)))
+        return;
+    wr8(dba(HUD_VALUE_SHOWN), value);
+    a8_load(rd8(dba(HUD_VALUE_SHOWN)));
+    if (value & 0x80) {                   /* negative: a mark beside the digit */
+        pha8();
+        a8_load(0x2E);
+        wr8(TEXT_TILEMAP + 264, 0x2E);
+        pla8();
+        digit = value;
+    } else {                              /* the value less 1: 0 to 9 */
+        digit = (uint8_t)(value - 1);
+        a8_load(digit);
+        if (digit & 0x80) {
+            a8_load(0x00);
+            digit = 0;
+        } else {
+            cmp8_of(digit, 0x09);
+            if (digit >= 0x09) {
+                cmp8_of(digit, 0x64);
+                if (digit >= 0x64) {      /* held at 99 */
+                    a8_load(0x63);
+                    wr8(dba(HUD_VALUE), 0x63);
+                    wr8(dba(HUD_VALUE_SHOWN), 0x63);
+                }
+                a8_load(0x09);
+                digit = 9;
+            }
+        }
+    }
+    flag_set(P_C, 0);
+    digit = op_adc8((uint8_t)(digit & 0x0F), 0x05, &cpu.p);
+    wr8(TEXT_TILEMAP + 198, digit);
+    wr8(TEXT_TILEMAP + 262, (uint8_t)(digit | 0x10));
+    a8_load(0x01);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), 0x01);
 }
 
 
@@ -171,28 +186,76 @@ L_81F4B3:
  */
 void abi_HudMarkRefresh(void)
 {
-    op_rep(0x20);  /* 81F54C rep */
-    ldx8(ea_abs(0x036E));  /* 81F54E ldx */
-    stx8(ea_abs(0x036D));  /* 81F551 stx */
-    if (!IF_Z) goto L_81F56B;  /* 81F554 bne */
-    lda16_v(0x2020);  /* 81F556 lda */
-    sta16(0x7ED8AAu);  /* 81F559 sta */
-    sta16(0x7ED8ACu);  /* 81F55D sta */
-    sta16(0x7ED8EAu);  /* 81F561 sta */
-    sta16(0x7ED8ECu);  /* 81F565 sta */
-    goto L_81F587;  /* 81F569 bra */
-L_81F56B:
-    lda16_v(0x2462);  /* 81F56B lda */
-    sta16(0x7ED8AAu);  /* 81F56E sta */
-    lda16_v(0x2463);  /* 81F572 lda */
-    sta16(0x7ED8ACu);  /* 81F575 sta */
-    lda16_v(0x2472);  /* 81F579 lda */
-    sta16(0x7ED8EAu);  /* 81F57C sta */
-    lda16_v(0x2473);  /* 81F580 lda */
-    sta16(0x7ED8ECu);  /* 81F583 sta */
-L_81F587:
-    op_sep(0x20);  /* 81F587 sep */
-    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));  /* 81F589 inc */
-    return;  /* 81F58C rts */
+    static const uint16_t places[4] = { 0xAA, 0xAC, 0xEA, 0xEC };
+    static const uint16_t mark[4] = { 0x2462, 0x2463, 0x2472, 0x2473 };
+    uint8_t value = rd8(dba(HUD_MARK_VALUE));
+
+    x8_load(value);
+    wr8(dba(HUD_MARK_SHOWN), value);
+    for (int i = 0; i < 4; i++) {         /* the 2x2 mark, or blanks */
+        cpu.a = value ? mark[i] : 0x2020;
+        wr16(TEXT_TILEMAP + places[i], cpu.a);
+    }
+    inc8_at(dba(TEXT_TILEMAP_UPLOAD));
 }
 
+/* A shown value against the game's: A and the flags as the compare
+   leaves them; nonzero when they differ. */
+static int differs(uint16_t value, uint16_t shown)
+{
+    uint8_t v = rd8(dba(value));
+
+    a8_load(v);
+    cmp8_of(v, rd8(dba(shown)));
+    return !(cpu.p & P_Z);
+}
+
+/*
+ * @routine 81:F456 HudRefresh
+ * WHAT IT DOES: Each frame, brings the status line up to the game: the
+ * 2x2 mark, the two counters, then either one health mark (when the
+ * health shown differs from the health) or the digit.
+ * HOW: Each shown value against its value: the mark (HudMarkRefresh),
+ * counter 1 (HudCount1Show), counter 2 (HudCount2Show) when they differ.
+ * Health shown equal to the health: on into HudDigitRefresh. Above or
+ * equal (C set): HudHealthMarkShow of the shown health (one mark lost).
+ * Below: one mark gained: the shown health up one, and the mark at the
+ * old shown health's place drawn with tile $60 (its code, $81:F4C8, lies
+ * after HudDigitRefresh and goes on inside HudHealthMarkShow, at its
+ * store of the shown health).
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR (81:82D8, and on from 81:F433). Exit: as
+ * HudDigitRefresh, or as HudHealthMarkShow with Y = $60 or $6A.
+ */
+void abi_HudRefresh(void)
+{
+    uint8_t shown, place;
+
+    if (differs(HUD_MARK_VALUE, HUD_MARK_SHOWN))
+        abi_HudMarkRefresh();
+    if (differs(HUD_COUNT_1, HUD_COUNT_1_SHOWN))
+        abi_HudCount1Show();
+    if (differs(HUD_COUNT_2, HUD_COUNT_2_SHOWN))
+        abi_HudCount2Show();
+    if (!differs(HEALTH_SHOWN, HEALTH)) {
+        abi_HudDigitRefresh();
+        return;
+    }
+    if (cpu.p & P_C) {                    /* health lost: one mark down */
+        abi_HudHealthMarkShow();
+        return;
+    }
+    /* health gained: the next mark up drawn with the gained tile */
+    shown = (uint8_t)cpu.a;
+    wr8(dba(HEALTH_SHOWN), (uint8_t)(shown + 1));
+    place = rd8(HEALTH_MARK_PLACES + shown);
+    wr16(TEXT_TILEMAP + 74 + place, HUD_TILE_BITS | HEALTH_MARK_GAINED_TILE);
+    wr16(TEXT_TILEMAP + 138 + place, (HUD_TILE_BITS | HEALTH_MARK_GAINED_TILE) + 0x0010);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), 0x01);
+    cpu.x = place;
+    cpu.y = HEALTH_MARK_GAINED_TILE;
+    cpu.a = (uint16_t)(HUD_TILE_BITS | 0x01);
+    nz8_of(0x01);
+    flag_set(P_C, 0);
+    flag_set(P_V, 0);
+}

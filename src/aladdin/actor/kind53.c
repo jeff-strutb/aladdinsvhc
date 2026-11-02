@@ -4,6 +4,8 @@
  * named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "actor_anim.h"
@@ -20,7 +22,7 @@ void abi_AnimStart(void);
 void abi_AnimStep(void);
 void abi_SoundQueueAdd(void);
 
-#define ACTOR_END_PLACED 0x8396CAu
+void abi_ActorEndPlaced(void);
 #define KIND53_16 0x16u           /* word: $D38C */
 #define KIND53_LET_GO 0x45u       /* nonzero: its holder has let it go (copied from the holder's) */
 #define KIND53_BOUNCES 0x40u      /* bounces left; then frames left breaking */
@@ -33,46 +35,51 @@ void abi_SoundQueueAdd(void);
 
 /* The break: its breaking animation (sound $24 when it can be hit), $28
    frames of it, one less live in the counting record, and its end. */
+/* It breaks: animation 8 (with sound $24 when on the screen) for $28
+   frames, its kind's live count down one, and it ends. */
 static void kind53_break(void)
 {
-    lda8_v(0x08);
+    uint8_t shown;
+
+    a8_load(0x08);
     abi_AnimStart();
-    lda8(ea_dp(ACTOR_09));
-    and8_v(0x40);
-    if (IF_Z) goto quiet;
-    lda8_v(0x24);
-    abi_SoundQueueAdd();
-quiet:
-    lda8_v(0x28);
-    sta8(ea_dp(KIND53_BOUNCES));
-breaking:
-    actor_yield(0x83D6C0u);
-    abi_AnimStep();
-    MEM8(dec, ea_dp(KIND53_BOUNCES));
-    if (!IF_Z) goto breaking;
-    op_rep(0x10);
-    ldx16(ea_dp(KIND53_COUNTER));
-    MEM8(dec, ea_absx(COUNTER_LIVE));
-    op_sep(0x10);
-    jump_routine(ACTOR_END_PLACED);
+    shown = rd8(dpa(ACTOR_09)) & 0x40;
+    a8_load(shown);
+    if (shown) {
+        a8_load(0x24);
+        abi_SoundQueueAdd();
+    }
+    a8_load(0x28);
+    wr8(dpa(KIND53_BOUNCES), 0x28);
+    do {
+        actor_yield(0x83D6C0u);
+        abi_AnimStep();
+    } while (dec8_at(dpa(KIND53_BOUNCES)));
+    op_rep(P_X);
+    cpu.x = dp16(KIND53_COUNTER);
+    dec8_at(dba(COUNTER_LIVE) + cpu.x);
+    op_sep(P_X);
+    abi_ActorEndPlaced();
 }
 
 /* One bounce's flight: on until it is back on the ground, turned round
    at each wall. */
+/* Each frame (BRK at `brk_at` first): flight, turned back from walls,
+   until it is in the ground. */
 static void kind53_fly(uint32_t brk_at)
 {
     for (;;) {
         actor_yield(brk_at);
         abi_ActorFly();
         abi_ActorOutOfWallProbe4();
-        if (IF_C) {
-            lda8(ea_dp(ACTOR_FACING));
-            eor8_v(0x01);
-            sta8(ea_dp(ACTOR_FACING));
-            sta8(ea_dp(ACTOR_FLIP));
+        if (cpu.p & P_C) {
+            a8_load((uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01));
+            wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+            wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
         }
         abi_ActorOutOfGround();
-        if (!IF_Z) return;
+        if (!(cpu.p & P_Z))
+            return;
     }
 }
 
@@ -97,89 +104,90 @@ static void kind53_fly(uint32_t brk_at)
  */
 void abi_Kind53Held(void)
 {
-    lda8_v(0x03);
-    sta8(ea_dp(ACTOR_08));
-    lda8_v(0x90);
-    sta8(ea_dp(ACTOR_09));
-    op_rep(0x20);
-    lda16_v(0xD38C);
-    sta16(ea_dp(KIND53_16));
-    lda16_v(0x0600);
-    sta16(ea_dp(ACTOR_LOOK));
-    op_sep(0x20);
-    stz8(ea_dp(KIND53_LET_GO));
-    lda8_v(0x01);
-    sta8(ea_dp(ACTOR_FACING));
-    sta8(ea_dp(ACTOR_FLIP));
-    lda8_v(0x07);
+    uint32_t holder;
+    uint8_t v;
+
+    a8_load(0x03);
+    wr8(dpa(ACTOR_08), 0x03);
+    a8_load(0x90);
+    wr8(dpa(ACTOR_09), 0x90);
+    dp16_set(KIND53_16, 0xD38C);
+    dp16_set(ACTOR_LOOK, 0x0600);
+    cpu.a = 0x0600;
+    wr8(dpa(KIND53_LET_GO), 0);
+    a8_load(0x01);
+    wr8(dpa(ACTOR_FACING), 0x01);
+    wr8(dpa(ACTOR_FLIP), 0x01);
+    a8_load(0x07);
     abi_AnimStart();
-held:
-    actor_yield(0x83D58Au);
-    lda8(ea_dp(KIND53_LET_GO));
-    if (!IF_Z) goto let_go;
-    op_rep(0x10);
-    ldx16(ea_dp(KIND53_HOLDER));
-    lda8(ea_absx(ACTOR_FACING));
-    sta8(ea_dp(ACTOR_FACING));
-    lda8(ea_absx(ACTOR_FLIP));
-    sta8(ea_dp(ACTOR_FLIP));
-    lda8(ea_absx(ACTOR_FRAME));
-    op_sep(0x10);
-    ACC8(asl);
-    ACC8(asl);
-    tax8();
-    op_rep(0x20);
-    lda16(ea_absx(KIND53_HELD_AT));
-    sta16(ea_dp(ACTOR_X + 1));
-    lda16(ea_absx(KIND53_HELD_AT + 2));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_rep(0x11);
-    ldx16(ea_dp(KIND53_HOLDER));
-    lda16(ea_absx(ACTOR_X + 1));
-    adc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    sta16(ea_dp(ACTOR_X + 1));
-    clc();
-    lda16(ea_absx(ACTOR_Y + 1));
-    adc16_v(rd16(ea_dp(ACTOR_Y + 1)));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
-    lda8(ea_absx(KIND53_LET_GO));
-    sta8(ea_dp(KIND53_LET_GO));
-    op_sep(0x10);
-    if (IF_Z) goto held;
-let_go:
-    lda8_v(0x10);
+    /* held: at its holder's hand for the holder's frame, facing its way */
+    for (;;) {
+        actor_yield(0x83D58Au);
+        v = rd8(dpa(KIND53_LET_GO));
+        a8_load(v);
+        if (v)
+            break;
+        op_rep(P_X);
+        cpu.x = dp16(KIND53_HOLDER);
+        holder = dba(0) + cpu.x;
+        a8_load(rd8(holder + ACTOR_FACING));
+        wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+        a8_load(rd8(holder + ACTOR_FLIP));
+        wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
+        v = rd8(holder + ACTOR_FRAME);
+        a8_load(v);
+        op_sep(P_X);
+        cpu.x = (uint8_t)(v << 2);
+        op_rep(P_M);
+        dp16_set(ACTOR_X + 1, rd16(dba(KIND53_HELD_AT) + cpu.x));
+        dp16_set(ACTOR_Y + 1, rd16(dba(KIND53_HELD_AT + 2) + cpu.x));
+        op_rep(0x11);
+        cpu.x = dp16(KIND53_HOLDER);
+        holder = dba(0) + cpu.x;
+        cpu.a = op_adc16(rd16(holder + ACTOR_X + 1), dp16(ACTOR_X + 1), &cpu.p);
+        dp16_set(ACTOR_X + 1, cpu.a);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(rd16(holder + ACTOR_Y + 1), dp16(ACTOR_Y + 1), &cpu.p);
+        dp16_set(ACTOR_Y + 1, cpu.a);
+        op_sep(P_M);
+        v = rd8(holder + KIND53_LET_GO);
+        a8_load(v);
+        wr8(dpa(KIND53_LET_GO), v);
+        op_sep(P_X);
+        if (v)
+            break;
+    }
+    /* let go: it falls to the ground, then bounces 8 times, then breaks */
+    a8_load(0x10);
     abi_ActorMotionReset();
-    lda8(ea_dp(ACTOR_FLIP));
-    and8_v(0x01);
-    sta8(ea_dp(ACTOR_FACING));
-    sta8(ea_dp(ACTOR_FLIP));
-falling:
-    actor_yield(0x83D5DEu);
-    abi_ActorFall();
-    abi_ActorOutOfGround();
-    if (IF_Z) goto falling;
-    lda8_v(0x30);
+    a8_load(rd8(dpa(ACTOR_FLIP)) & 0x01);
+    wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+    wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
+    do {
+        actor_yield(0x83D5DEu);
+        abi_ActorFall();
+        abi_ActorOutOfGround();
+    } while (cpu.p & P_Z);
+    a8_load(0x30);
     abi_SoundQueueAdd();
-    ldy8_v(0x42);
+    y8_load(0x42);
     abi_ActorMotionPreset();
     kind53_fly(0x83D5F6u);
-    lda8_v(0x08);
-    sta8(ea_dp(KIND53_BOUNCES));
-bounce:
-    lda8(ea_dp(ACTOR_09));
-    and8_v(0x40);
-    if (IF_Z) goto silent;
-    lda8_v(0x30);
-    abi_SoundQueueAdd();
-silent:
-    ldy8_v(0x4E);
-    abi_ActorSpeedYSet();
-    kind53_fly(0x83D626u);
-    MEM8(dec, ea_dp(KIND53_BOUNCES));
-    if (!IF_Z) goto bounce;
-    lda8_v(0x80);
-    trb8(ea_dp(ACTOR_09));
+    a8_load(0x08);
+    wr8(dpa(KIND53_BOUNCES), 0x08);
+    do {
+        v = rd8(dpa(ACTOR_09)) & 0x40;
+        a8_load(v);
+        if (v) {
+            a8_load(0x30);
+            abi_SoundQueueAdd();
+        }
+        y8_load(0x4E);
+        abi_ActorSpeedYSet();
+        kind53_fly(0x83D626u);
+    } while (dec8_at(dpa(KIND53_BOUNCES)));
+    a8_load(0x80);
+    trb_at(dpa(ACTOR_09), 0x80);
     kind53_break();
 }
 
@@ -198,13 +206,13 @@ silent:
  */
 void abi_Kind53Thrown(void)
 {
-    ldy8_v(0x4B);
+    y8_load(0x4B);
     abi_ActorMotionPreset();
-flying:
-    actor_yield(0x83D69Au);
-    abi_AnimStep();
-    abi_ActorMove();
-    abi_ActorOutOfGround();
-    if (IF_Z) goto flying;
+    do {
+        actor_yield(0x83D69Au);
+        abi_AnimStep();
+        abi_ActorMove();
+        abi_ActorOutOfGround();
+    } while (cpu.p & P_Z);
     kind53_break();
 }

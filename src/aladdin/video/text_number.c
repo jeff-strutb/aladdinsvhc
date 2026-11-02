@@ -3,6 +3,8 @@
  * Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "hw.h"
@@ -25,32 +27,26 @@
  */
 void abi_TextNumberTwoDigits(void)
 {
-    xba();  /* 838BDE xba */
-    tya8();  /* 838BDF tya */
-    stx8(ea_abs(WRDIVL));  /* 838BE0 stx */
-    ldx8_v(0x0A);  /* 838BE3 ldx */
-    stx8(ea_abs(WRDIVB));  /* 838BE5 stx */
-    ;  /* 838BE8 nop */
-    ;  /* 838BE9 nop */
-    ;  /* 838BEA nop */
-    ;  /* 838BEB nop */
-    ;  /* 838BEC nop */
-    ;  /* 838BED nop */
-    ;  /* 838BEE nop */
-    ;  /* 838BEF nop */
-    op_rep(0x11);  /* 838BF0 rep */
-    tax16();  /* 838BF2 tax */
-    lda8(ea_abs(RDDIVL));  /* 838BF3 lda */
-    adc8_v(0x30);  /* 838BF6 adc */
-    sta8(ea_longx(TEXT_TILEMAP));  /* 838BF8 sta */
-    lda8(ea_abs(RDMPYL));  /* 838BFC lda */
-    clc();  /* 838BFF clc */
-    adc8_v(0x30);  /* 838C00 adc */
-    sta8(ea_longx(TEXT_TILEMAP + 2));  /* 838C02 sta */
-    lda8_v(0x28);  /* 838C06 lda */
-    sta8(ea_longx(TEXT_TILEMAP + 1));  /* 838C08 sta */
-    sta8(ea_longx(TEXT_TILEMAP + 3));  /* 838C0C sta */
-    op_sep(0x10);  /* 838C10 sep */
-    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));  /* 838C12 inc */
-    return;  /* 838C15 rts */
+    uint8_t number = (uint8_t)cpu.x, digit;
+
+    op_xba();
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | (uint8_t)cpu.y);   /* A = the offset */
+    nz8_of((uint8_t)cpu.y);
+    wr8(dba(WRDIVL & 0xFFFF), number);    /* the number by 10 */
+    x8_load(0x0A);
+    wr8(dba(WRDIVB & 0xFFFF), 0x0A);
+    op_rep(0x11);
+    cpu.x = cpu.a;
+    digit = op_adc8(rd8(dba(RDDIVL & 0xFFFF)), 0x30, &cpu.p);      /* tens */
+    wr8((TEXT_TILEMAP + cpu.x) & 0xFFFFFF, digit);
+    flag_set(P_C, 0);
+    digit = op_adc8(rd8(dba(RDMPYL & 0xFFFF)), 0x30, &cpu.p);      /* units */
+    wr8((TEXT_TILEMAP + 2 + cpu.x) & 0xFFFFFF, digit);
+    a8_load(0x28);
+    wr8((TEXT_TILEMAP + 1 + cpu.x) & 0xFFFFFF, 0x28);
+    wr8((TEXT_TILEMAP + 3 + cpu.x) & 0xFFFFFF, 0x28);
+    op_sep(0x10);
+    digit = (uint8_t)(rd8(dba(TEXT_TILEMAP_UPLOAD)) + 1);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), digit);
+    nz8_of(digit);
 }

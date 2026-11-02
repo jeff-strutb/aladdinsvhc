@@ -5,6 +5,8 @@
  * writes INIDISP's shadow to the register every frame.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ScreenBlank(void);
 #include "hw.h"
@@ -79,13 +81,13 @@ void abi_ScreenFullBright(void)
  */
 void abi_ScreenBlank(void)
 {
-    lda8(ea_abs(RDNMI));  /* 8196B1 lda */
-    if (!IF_N) goto L_8196B9;  /* 8196B4 bpl */
-    lda8(ea_abs(RDNMI));  /* 8196B6 lda */
-L_8196B9:
-    lda8(ea_abs(INIDISP_SHADOW));  /* 8196B9 lda */
-    ora8_v(0x80);  /* 8196BC ora */
-    sta8(ea_abs(INIDISP));  /* 8196BE sta */
-    sta8(ea_abs(INIDISP_SHADOW));  /* 8196C1 sta */
-    return;  /* 8196C4 rtl */
+    uint8_t v;
+
+    /* RDNMI read again when its flag was set: the read clears it */
+    if (rd8(dba(RDNMI & 0xFFFF)) & 0x80)
+        (void)rd8(dba(RDNMI & 0xFFFF));
+    v = (uint8_t)(rd8(dba(INIDISP_SHADOW)) | 0x80);
+    a8_load(v);
+    wr8(dba(INIDISP & 0xFFFF), v);
+    wr8(dba(INIDISP_SHADOW), v);
 }

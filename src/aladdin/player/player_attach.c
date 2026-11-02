@@ -4,6 +4,8 @@
  * offsets; or only the spot it would go to, kept.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_PlayerSpotAboveActor(void);
 void abi_PlayerSpotBelowActor(void);
@@ -15,6 +17,71 @@ void abi_PlayerToActorBelow(void);
 #include "wram_player.h"
 #include "wram_state.h"
 #include "wram_video.h"
+
+#define ATTACH_OFFSETS 0xFE44u  /* by number, the player's offset from the actor: x, y (bytes, in the bank DB names) */
+#define PLAYER_X_PIXELS (PLAYER + ACTOR_X + 1)
+#define PLAYER_Y_PIXELS (PLAYER + ACTOR_Y + 1)
+#define PLAYER_Y_SAVED 0x145Fu  /* with PLAYER_POS_SAVED: y */
+
+/* His x the actor's plus or less the offset, by his flip. */
+static void player_x_by_side(void)
+{
+    uint8_t flip = rd8(dba(PLAYER + ACTOR_FLIP)), off = rd8(dba(ATTACH_OFFSETS) + cpu.x), top;
+
+    a8_load(flip);
+    flag_set(P_C, !flip);
+    if (flip) {
+        wr8(dba(PLAYER_X_PIXELS), op_adc8(rd8(dpa(ACTOR_X + 1)), off, &cpu.p));
+        top = op_adc8(rd8(dpa(ACTOR_X + 2)), 0x00, &cpu.p);
+    } else {
+        wr8(dba(PLAYER_X_PIXELS), op_sbc8(rd8(dpa(ACTOR_X + 1)), off, &cpu.p));
+        top = op_sbc8(rd8(dpa(ACTOR_X + 2)), 0x00, &cpu.p);
+    }
+    wr8(dba(PLAYER_X_PIXELS + 1), top);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | top);
+}
+
+/* His y the actor's less (above) or plus (below) the offset, then his x. */
+static void player_to_actor(int below)
+{
+    uint8_t off, top;
+
+    cpu.x = (uint8_t)((uint8_t)cpu.a << 1);
+    off = rd8(dba(ATTACH_OFFSETS + 1) + cpu.x);
+    flag_set(P_C, !below);
+    if (below) {
+        wr8(dba(PLAYER_Y_PIXELS), op_adc8(rd8(dpa(ACTOR_Y + 1)), off, &cpu.p));
+        top = op_adc8(rd8(dpa(ACTOR_Y + 2)), 0x00, &cpu.p);
+    } else {
+        wr8(dba(PLAYER_Y_PIXELS), op_sbc8(rd8(dpa(ACTOR_Y + 1)), off, &cpu.p));
+        top = op_sbc8(rd8(dpa(ACTOR_Y + 2)), 0x00, &cpu.p);
+    }
+    wr8(dba(PLAYER_Y_PIXELS + 1), top);
+    player_x_by_side();
+}
+
+/* The spot he would be put at, kept (PLAYER_POS_SAVED), his place as it
+   was. */
+static void player_spot(void (*to)(void))
+{
+    op_rep(P_X);
+    cpu.x = rd16(dba(PLAYER_X_PIXELS));
+    phx16();
+    cpu.x = rd16(dba(PLAYER_Y_PIXELS));
+    phx16();
+    op_sep(P_X);
+    to();
+    op_rep(P_X);
+    cpu.x = rd16(dba(PLAYER_X_PIXELS));
+    wr16(dba(PLAYER_POS_SAVED), cpu.x);
+    cpu.x = rd16(dba(PLAYER_Y_PIXELS));
+    wr16(dba(PLAYER_Y_SAVED), cpu.x);
+    plx16();
+    wr16(dba(PLAYER_Y_PIXELS), cpu.x);
+    plx16();
+    wr16(dba(PLAYER_X_PIXELS), cpu.x);
+    op_sep(P_X);
+}
 
 /*
  * @routine 82:BB3A PlayerToActorAbove
@@ -31,34 +98,7 @@ void abi_PlayerToActorBelow(void);
  */
 void abi_PlayerToActorAbove(void)
 {
-    ACC8(asl);  /* 82BB3A asl */
-    tax8();  /* 82BB3B tax */
-    sec();  /* 82BB3C sec */
-    lda8(ea_dp(0x0F));  /* 82BB3D lda */
-    sbc8_v(rd8(ea_absx(0xFE45)));  /* 82BB3F sbc */
-    sta8(ea_abs(0x08EA));  /* 82BB42 sta */
-    lda8(ea_dp(0x10));  /* 82BB45 lda */
-    sbc8_v(0x00);  /* 82BB47 sbc */
-    sta8(ea_abs(0x08EB));  /* 82BB49 sta */
-    lda8(ea_abs(0x08F0));  /* 82BB4C lda */
-    if (IF_Z) goto L_82BB62;  /* 82BB4F beq */
-    clc();  /* 82BB51 clc */
-    lda8(ea_dp(0x0C));  /* 82BB52 lda */
-    adc8_v(rd8(ea_absx(0xFE44)));  /* 82BB54 adc */
-    sta8(ea_abs(0x08E7));  /* 82BB57 sta */
-    lda8(ea_dp(0x0D));  /* 82BB5A lda */
-    adc8_v(0x00);  /* 82BB5C adc */
-    sta8(ea_abs(0x08E8));  /* 82BB5E sta */
-    return;  /* 82BB61 rtl */
-L_82BB62:
-    sec();  /* 82BB62 sec */
-    lda8(ea_dp(0x0C));  /* 82BB63 lda */
-    sbc8_v(rd8(ea_absx(0xFE44)));  /* 82BB65 sbc */
-    sta8(ea_abs(0x08E7));  /* 82BB68 sta */
-    lda8(ea_dp(0x0D));  /* 82BB6B lda */
-    sbc8_v(0x00);  /* 82BB6D sbc */
-    sta8(ea_abs(0x08E8));  /* 82BB6F sta */
-    return;  /* 82BB72 rtl */
+    player_to_actor(0);
 }
 
 /*
@@ -74,36 +114,7 @@ L_82BB62:
  */
 void abi_PlayerToActorBelow(void)
 {
-    ACC8(asl);  /* 82BB26 asl */
-    tax8();  /* 82BB27 tax */
-    clc();  /* 82BB28 clc */
-    lda8(ea_dp(0x0F));  /* 82BB29 lda */
-    adc8_v(rd8(ea_absx(0xFE45)));  /* 82BB2B adc */
-    sta8(ea_abs(0x08EA));  /* 82BB2E sta */
-    lda8(ea_dp(0x10));  /* 82BB31 lda */
-    adc8_v(0x00);  /* 82BB33 adc */
-    sta8(ea_abs(0x08EB));  /* 82BB35 sta */
-    goto L_82BB4C;  /* 82BB38 bra */
-L_82BB4C:
-    lda8(ea_abs(0x08F0));  /* 82BB4C lda */
-    if (IF_Z) goto L_82BB62;  /* 82BB4F beq */
-    clc();  /* 82BB51 clc */
-    lda8(ea_dp(0x0C));  /* 82BB52 lda */
-    adc8_v(rd8(ea_absx(0xFE44)));  /* 82BB54 adc */
-    sta8(ea_abs(0x08E7));  /* 82BB57 sta */
-    lda8(ea_dp(0x0D));  /* 82BB5A lda */
-    adc8_v(0x00);  /* 82BB5C adc */
-    sta8(ea_abs(0x08E8));  /* 82BB5E sta */
-    return;  /* 82BB61 rtl */
-L_82BB62:
-    sec();  /* 82BB62 sec */
-    lda8(ea_dp(0x0C));  /* 82BB63 lda */
-    sbc8_v(rd8(ea_absx(0xFE44)));  /* 82BB65 sbc */
-    sta8(ea_abs(0x08E7));  /* 82BB68 sta */
-    lda8(ea_dp(0x0D));  /* 82BB6B lda */
-    sbc8_v(0x00);  /* 82BB6D sbc */
-    sta8(ea_abs(0x08E8));  /* 82BB6F sta */
-    return;  /* 82BB72 rtl */
+    player_to_actor(1);
 }
 
 /*
@@ -119,24 +130,7 @@ L_82BB62:
  */
 void abi_PlayerSpotAboveActor(void)
 {
-    op_rep(0x10);  /* 82BB73 rep */
-    ldx16(ea_abs(0x08E7));  /* 82BB75 ldx */
-    phx16();  /* 82BB78 phx */
-    ldx16(ea_abs(0x08EA));  /* 82BB79 ldx */
-    phx16();  /* 82BB7C phx */
-    op_sep(0x10);  /* 82BB7D sep */
-    abi_PlayerToActorAbove();  /* 82BB7F jsl */
-    op_rep(0x10);  /* 82BB83 rep */
-    ldx16(ea_abs(0x08E7));  /* 82BB85 ldx */
-    stx16(ea_abs(PLAYER_POS_SAVED));  /* 82BB88 stx */
-    ldx16(ea_abs(0x08EA));  /* 82BB8B ldx */
-    stx16(ea_abs(0x145F));  /* 82BB8E stx */
-    plx16();  /* 82BB91 plx */
-    stx16(ea_abs(0x08EA));  /* 82BB92 stx */
-    plx16();  /* 82BB95 plx */
-    stx16(ea_abs(0x08E7));  /* 82BB96 stx */
-    op_sep(0x10);  /* 82BB99 sep */
-    return;  /* 82BB9B rtl */
+    player_spot(abi_PlayerToActorAbove);
 }
 
 /*
@@ -151,26 +145,5 @@ void abi_PlayerSpotAboveActor(void)
  */
 void abi_PlayerSpotBelowActor(void)
 {
-    goto L_82BB9C;
-L_82BB83:
-    op_rep(0x10);  /* 82BB83 rep */
-    ldx16(ea_abs(0x08E7));  /* 82BB85 ldx */
-    stx16(ea_abs(PLAYER_POS_SAVED));  /* 82BB88 stx */
-    ldx16(ea_abs(0x08EA));  /* 82BB8B ldx */
-    stx16(ea_abs(0x145F));  /* 82BB8E stx */
-    plx16();  /* 82BB91 plx */
-    stx16(ea_abs(0x08EA));  /* 82BB92 stx */
-    plx16();  /* 82BB95 plx */
-    stx16(ea_abs(0x08E7));  /* 82BB96 stx */
-    op_sep(0x10);  /* 82BB99 sep */
-    return;  /* 82BB9B rtl */
-L_82BB9C:
-    op_rep(0x10);  /* 82BB9C rep */
-    ldx16(ea_abs(0x08E7));  /* 82BB9E ldx */
-    phx16();  /* 82BBA1 phx */
-    ldx16(ea_abs(0x08EA));  /* 82BBA2 ldx */
-    phx16();  /* 82BBA5 phx */
-    op_sep(0x10);  /* 82BBA6 sep */
-    abi_PlayerToActorBelow();  /* 82BBA8 jsl */
-    goto L_82BB83;  /* 82BBAC bra */
+    player_spot(abi_PlayerToActorBelow);
 }

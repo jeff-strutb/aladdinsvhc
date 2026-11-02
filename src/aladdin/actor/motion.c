@@ -9,7 +9,12 @@
  * A and the flags end as the last byte's ADC or SBC leaves them.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
+void actor_scale_and_move(uint8_t speed);
 #include "actor.h"
 #include "hw.h"
 #include "wram.h"
@@ -579,7 +584,7 @@ void abi_ActorSpeedAddVector(void)
  */
 void abi_ActorSpeedXSetAccel(void)
 {
-    sta8(ea_dp(ACTOR_ACCEL_X));  /* 81A411 sta */
+    wr8(dpa(ACTOR_ACCEL_X), (uint8_t)cpu.a);
     abi_ActorSpeedXSet();
 }
 
@@ -593,17 +598,11 @@ void abi_ActorSpeedXSetAccel(void)
  */
 void abi_ActorAccelerateXBack(void)
 {
-    sec();  /* 81A627 sec */
-    lda8(ea_dp(ACTOR_SPEED_X));  /* 81A628 lda */
-    sbc8_v(rd8(ea_dp(ACTOR_ACCEL_X)));  /* 81A62A sbc */
-    sta8(ea_dp(ACTOR_SPEED_X));  /* 81A62C sta */
-    lda8(ea_dp(ACTOR_SPEED_X + 1));  /* 81A62E lda */
-    sbc8_v(0x00);  /* 81A630 sbc */
-    sta8(ea_dp(ACTOR_SPEED_X + 1));  /* 81A632 sta */
-    lda8(ea_dp(ACTOR_SPEED_X + 2));  /* 81A634 lda */
-    sbc8_v(0x00);  /* 81A636 sbc */
-    sta8(ea_dp(ACTOR_SPEED_X + 2));  /* 81A638 sta */
-    return;  /* 81A63A rtl */
+    flag_set(P_C, 1);
+    wr8(dpa(ACTOR_SPEED_X), op_sbc8(rd8(dpa(ACTOR_SPEED_X)), rd8(dpa(ACTOR_ACCEL_X)), &cpu.p));
+    wr8(dpa(ACTOR_SPEED_X + 1), op_sbc8(rd8(dpa(ACTOR_SPEED_X + 1)), 0x00, &cpu.p));
+    a8_load(op_sbc8(rd8(dpa(ACTOR_SPEED_X + 2)), 0x00, &cpu.p));
+    wr8(dpa(ACTOR_SPEED_X + 2), (uint8_t)cpu.a);
 }
 
 /*
@@ -616,17 +615,24 @@ void abi_ActorAccelerateXBack(void)
  */
 void abi_ActorAccelerateYBack(void)
 {
-    sec();  /* 81A657 sec */
-    lda8(ea_dp(ACTOR_SPEED_Y));  /* 81A658 lda */
-    sbc8_v(rd8(ea_dp(ACTOR_ACCEL_Y)));  /* 81A65A sbc */
-    sta8(ea_dp(ACTOR_SPEED_Y));  /* 81A65C sta */
-    lda8(ea_dp(ACTOR_SPEED_Y + 1));  /* 81A65E lda */
-    sbc8_v(0x00);  /* 81A660 sbc */
-    sta8(ea_dp(ACTOR_SPEED_Y + 1));  /* 81A662 sta */
-    lda8(ea_dp(ACTOR_SPEED_Y + 2));  /* 81A664 lda */
-    sbc8_v(0x00);  /* 81A666 sbc */
-    sta8(ea_dp(ACTOR_SPEED_Y + 2));  /* 81A668 sta */
-    return;  /* 81A66A rtl */
+    flag_set(P_C, 1);
+    wr8(dpa(ACTOR_SPEED_Y), op_sbc8(rd8(dpa(ACTOR_SPEED_Y)), rd8(dpa(ACTOR_ACCEL_Y)), &cpu.p));
+    wr8(dpa(ACTOR_SPEED_Y + 1), op_sbc8(rd8(dpa(ACTOR_SPEED_Y + 1)), 0x00, &cpu.p));
+    a8_load(op_sbc8(rd8(dpa(ACTOR_SPEED_Y + 2)), 0x00, &cpu.p));
+    wr8(dpa(ACTOR_SPEED_Y + 2), (uint8_t)cpu.a);
+}
+
+/* The vector of set X at the actor's facing: its offset in the six
+   tables (A and X too). */
+static uint16_t vector_at(void)
+{
+    uint16_t at;
+
+    flag_set(P_C, 0);
+    at = op_adc16(dp16(ACTOR_FACING) & 0x00FF, rd16(dba(VECTOR_SETS) + cpu.x), &cpu.p);
+    cpu.a = at;
+    cpu.x = at;
+    return at;
 }
 
 /*
@@ -647,68 +653,19 @@ void abi_ActorAccelerateYBack(void)
  */
 void abi_ActorMoveByVectorTimes(void)
 {
-    pha8();  /* 81A74C pha */
-    op_rep(0x30);  /* 81A74D rep */
-    lda16(ea_dp(ACTOR_FACING));  /* 81A74F lda */
-    clc();  /* 81A751 clc */
-    and16_v(0x00FF);  /* 81A752 and */
-    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A755 adc */
-    tax16();  /* 81A758 tax */
-    op_sep(0x20);  /* 81A759 sep */
-    lda8(ea_longx(VECTOR_X_FRAC));  /* 81A75B lda */
-    sta8(ea_abs(SCRATCH));  /* 81A75F sta */
-    lda8(ea_longx(VECTOR_X_MID));  /* 81A762 lda */
-    sta8(ea_abs(SCRATCH + 1));  /* 81A766 sta */
-    lda8(ea_longx(VECTOR_X_HI));  /* 81A769 lda */
-    sta8(ea_abs(SCRATCH + 2));  /* 81A76D sta */
-    lda8(ea_longx(VECTOR_Y_FRAC));  /* 81A770 lda */
-    sta8(ea_abs(SCRATCH + 4));  /* 81A774 sta */
-    lda8(ea_longx(VECTOR_Y_MID));  /* 81A777 lda */
-    sta8(ea_abs(SCRATCH + 5));  /* 81A77B sta */
-    lda8(ea_longx(VECTOR_Y_HI));  /* 81A77E lda */
-    sta8(ea_abs(SCRATCH + 6));  /* 81A782 sta */
-    pla8();  /* 81A785 pla */
-    sta8(ea_abs(WRMPYA));  /* 81A786 sta */
-    lda8(ea_abs(SCRATCH));  /* 81A789 lda */
-    abi_MultiplyBy();  /* 81A78C jsr */
-    lda8(ea_abs(SCRATCH + 1));  /* 81A78F lda */
-    sty16(ea_abs(SCRATCH));  /* 81A792 sty */
-    abi_MultiplyBy();  /* 81A795 jsr */
-    tya8();  /* 81A798 tya */
-    clc();  /* 81A799 clc */
-    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A79A adc */
-    sta8(ea_abs(SCRATCH + 1));  /* 81A79D sta */
-    lda8(ea_abs(SCRATCH + 4));  /* 81A7A0 lda */
-    abi_MultiplyBy();  /* 81A7A3 jsr */
-    lda8(ea_abs(SCRATCH + 5));  /* 81A7A6 lda */
-    sty16(ea_abs(SCRATCH + 4));  /* 81A7A9 sty */
-    abi_MultiplyBy();  /* 81A7AC jsr */
-    tya8();  /* 81A7AF tya */
-    clc();  /* 81A7B0 clc */
-    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7B1 adc */
-    sta8(ea_abs(SCRATCH + 5));  /* 81A7B4 sta */
-    clc();  /* 81A7B7 clc */
-    lda8(ea_dp(ACTOR_X));  /* 81A7B8 lda */
-    adc8_v(rd8(ea_abs(SCRATCH)));  /* 81A7BA adc */
-    sta8(ea_dp(ACTOR_X));  /* 81A7BD sta */
-    lda8(ea_dp(ACTOR_X + 1));  /* 81A7BF lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 1)));  /* 81A7C1 adc */
-    sta8(ea_dp(ACTOR_X + 1));  /* 81A7C4 sta */
-    lda8(ea_dp(ACTOR_X + 2));  /* 81A7C6 lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 2)));  /* 81A7C8 adc */
-    sta8(ea_dp(ACTOR_X + 2));  /* 81A7CB sta */
-    clc();  /* 81A7CD clc */
-    lda8(ea_dp(ACTOR_Y));  /* 81A7CE lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 4)));  /* 81A7D0 adc */
-    sta8(ea_dp(ACTOR_Y));  /* 81A7D3 sta */
-    lda8(ea_dp(ACTOR_Y + 1));  /* 81A7D5 lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 5)));  /* 81A7D7 adc */
-    sta8(ea_dp(ACTOR_Y + 1));  /* 81A7DA sta */
-    lda8(ea_dp(ACTOR_Y + 2));  /* 81A7DC lda */
-    adc8_v(rd8(ea_abs(SCRATCH + 6)));  /* 81A7DE adc */
-    sta8(ea_dp(ACTOR_Y + 2));  /* 81A7E1 sta */
-    op_sep(0x30);  /* 81A7E3 sep */
-    return;  /* 81A7E5 rtl */
+    uint8_t times = (uint8_t)cpu.a;
+    uint16_t at;
+
+    op_rep(0x30);
+    at = vector_at();
+    op_sep(P_M);
+    wr8(dba(SCRATCH), rd8(VECTOR_X_FRAC + at));
+    wr8(dba(SCRATCH + 1), rd8(VECTOR_X_MID + at));
+    wr8(dba(SCRATCH + 2), rd8(VECTOR_X_HI + at));
+    wr8(dba(SCRATCH + 4), rd8(VECTOR_Y_FRAC + at));
+    wr8(dba(SCRATCH + 5), rd8(VECTOR_Y_MID + at));
+    wr8(dba(SCRATCH + 6), rd8(VECTOR_Y_HI + at));
+    actor_scale_and_move(times);
 }
 
 /*
@@ -725,27 +682,19 @@ void abi_ActorMoveByVectorTimes(void)
  */
 void abi_ActorSpeedSetVector(void)
 {
-    op_rep(0x30);  /* 81A91D rep */
-    clc();  /* 81A91F clc */
-    lda16(ea_dp(ACTOR_FACING));  /* 81A920 lda */
-    and16_v(0x00FF);  /* 81A922 and */
-    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A925 adc */
-    tax16();  /* 81A928 tax */
-    op_sep(0x20);  /* 81A929 sep */
-    lda8(ea_longx(VECTOR_X_FRAC));  /* 81A92B lda */
-    sta8(ea_dp(ACTOR_SPEED_X));  /* 81A92F sta */
-    lda8(ea_longx(VECTOR_X_MID));  /* 81A931 lda */
-    sta8(ea_dp(ACTOR_SPEED_X + 1));  /* 81A935 sta */
-    lda8(ea_longx(VECTOR_X_HI));  /* 81A937 lda */
-    sta8(ea_dp(ACTOR_SPEED_X + 2));  /* 81A93B sta */
-    lda8(ea_longx(VECTOR_Y_FRAC));  /* 81A93D lda */
-    sta8(ea_dp(ACTOR_SPEED_Y));  /* 81A941 sta */
-    lda8(ea_longx(VECTOR_Y_MID));  /* 81A943 lda */
-    sta8(ea_dp(ACTOR_SPEED_Y + 1));  /* 81A947 sta */
-    lda8(ea_longx(VECTOR_Y_HI));  /* 81A949 lda */
-    sta8(ea_dp(ACTOR_SPEED_Y + 2));  /* 81A94D sta */
-    op_sep(0x10);  /* 81A94F sep */
-    return;  /* 81A951 rtl */
+    uint16_t at;
+
+    op_rep(0x30);
+    at = vector_at();
+    op_sep(P_M);
+    wr8(dpa(ACTOR_SPEED_X), rd8(VECTOR_X_FRAC + at));
+    wr8(dpa(ACTOR_SPEED_X + 1), rd8(VECTOR_X_MID + at));
+    wr8(dpa(ACTOR_SPEED_X + 2), rd8(VECTOR_X_HI + at));
+    wr8(dpa(ACTOR_SPEED_Y), rd8(VECTOR_Y_FRAC + at));
+    wr8(dpa(ACTOR_SPEED_Y + 1), rd8(VECTOR_Y_MID + at));
+    a8_load(rd8(VECTOR_Y_HI + at));
+    wr8(dpa(ACTOR_SPEED_Y + 2), (uint8_t)cpu.a);
+    op_sep(P_X);
 }
 
 /*
@@ -761,25 +710,18 @@ void abi_ActorSpeedSetVector(void)
  */
 void abi_ActorMoveByVectorX(void)
 {
-    lda8(ea_dp(ACTOR_FACING));  /* 81A952 lda */
-    op_rep(0x30);  /* 81A954 rep */
-    clc();  /* 81A956 clc */
-    and16_v(0x00FF);  /* 81A957 and */
-    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A95A adc */
-    tax16();  /* 81A95D tax */
-    op_sep(0x20);  /* 81A95E sep */
-    clc();  /* 81A960 clc */
-    lda8(ea_longx(VECTOR_X_FRAC));  /* 81A961 lda */
-    adc8_v(rd8(ea_dp(ACTOR_X)));  /* 81A965 adc */
-    sta8(ea_dp(ACTOR_X));  /* 81A967 sta */
-    lda8(ea_longx(VECTOR_X_MID));  /* 81A969 lda */
-    adc8_v(rd8(ea_dp(ACTOR_X + 1)));  /* 81A96D adc */
-    sta8(ea_dp(ACTOR_X + 1));  /* 81A96F sta */
-    lda8(ea_longx(VECTOR_X_HI));  /* 81A971 lda */
-    adc8_v(rd8(ea_dp(ACTOR_X + 2)));  /* 81A975 adc */
-    sta8(ea_dp(ACTOR_X + 2));  /* 81A977 sta */
-    op_sep(0x10);  /* 81A979 sep */
-    return;  /* 81A97B rtl */
+    uint16_t at;
+
+    a8_load(rd8(dpa(ACTOR_FACING)));
+    op_rep(0x30);
+    at = vector_at();
+    op_sep(P_M);
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_X), op_adc8(rd8(VECTOR_X_FRAC + at), rd8(dpa(ACTOR_X)), &cpu.p));
+    wr8(dpa(ACTOR_X + 1), op_adc8(rd8(VECTOR_X_MID + at), rd8(dpa(ACTOR_X + 1)), &cpu.p));
+    a8_load(op_adc8(rd8(VECTOR_X_HI + at), rd8(dpa(ACTOR_X + 2)), &cpu.p));
+    wr8(dpa(ACTOR_X + 2), (uint8_t)cpu.a);
+    op_sep(P_X);
 }
 
 /*
@@ -795,25 +737,18 @@ void abi_ActorMoveByVectorX(void)
  */
 void abi_ActorMoveByVectorY(void)
 {
-    lda8(ea_dp(ACTOR_FACING));  /* 81A97C lda */
-    op_rep(0x30);  /* 81A97E rep */
-    clc();  /* 81A980 clc */
-    and16_v(0x00FF);  /* 81A981 and */
-    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A984 adc */
-    tax16();  /* 81A987 tax */
-    op_sep(0x20);  /* 81A988 sep */
-    clc();  /* 81A98A clc */
-    lda8(ea_longx(VECTOR_Y_FRAC));  /* 81A98B lda */
-    adc8_v(rd8(ea_dp(ACTOR_Y)));  /* 81A98F adc */
-    sta8(ea_dp(ACTOR_Y));  /* 81A991 sta */
-    lda8(ea_longx(VECTOR_Y_MID));  /* 81A993 lda */
-    adc8_v(rd8(ea_dp(ACTOR_Y + 1)));  /* 81A997 adc */
-    sta8(ea_dp(ACTOR_Y + 1));  /* 81A999 sta */
-    lda8(ea_longx(VECTOR_Y_HI));  /* 81A99B lda */
-    adc8_v(rd8(ea_dp(ACTOR_Y + 2)));  /* 81A99F adc */
-    sta8(ea_dp(ACTOR_Y + 2));  /* 81A9A1 sta */
-    op_sep(0x10);  /* 81A9A3 sep */
-    return;  /* 81A9A5 rtl */
+    uint16_t at;
+
+    a8_load(rd8(dpa(ACTOR_FACING)));
+    op_rep(0x30);
+    at = vector_at();
+    op_sep(P_M);
+    flag_set(P_C, 0);
+    wr8(dpa(ACTOR_Y), op_adc8(rd8(VECTOR_Y_FRAC + at), rd8(dpa(ACTOR_Y)), &cpu.p));
+    wr8(dpa(ACTOR_Y + 1), op_adc8(rd8(VECTOR_Y_MID + at), rd8(dpa(ACTOR_Y + 1)), &cpu.p));
+    a8_load(op_adc8(rd8(VECTOR_Y_HI + at), rd8(dpa(ACTOR_Y + 2)), &cpu.p));
+    wr8(dpa(ACTOR_Y + 2), (uint8_t)cpu.a);
+    op_sep(P_X);
 }
 
 /*
@@ -828,28 +763,36 @@ void abi_ActorMoveByVectorY(void)
  */
 void abi_ActorBobY(void)
 {
-    lda8(ea_dp(ACTOR_49));  /* 81A574 lda */
-    if (!IF_Z) goto L_81A58D;  /* 81A576 bne */
-    abi_ActorAccelerateY();  /* 81A578 jsl */
-    if (IF_N) goto L_81A5A0;  /* 81A57C bmi */
-    op_rep(0x20);  /* 81A57E rep */
-    lda16(ea_dp(ACTOR_SPEED_Y));  /* 81A580 lda */
-    cmp16_v(0x0081);  /* 81A582 cmp */
-    if (!IF_C) goto L_81A5A0;  /* 81A585 bcc */
-    op_sep(0x20);  /* 81A587 sep */
-    MEM8(inc, ea_dp(ACTOR_49));  /* 81A589 inc */
-    goto L_81A5A0;  /* 81A58B bra */
-L_81A58D:
-    abi_ActorAccelerateYBack();  /* 81A58D jsl */
-    if (!IF_N) goto L_81A5A0;  /* 81A591 bpl */
-    op_rep(0x20);  /* 81A593 rep */
-    lda16(ea_dp(ACTOR_SPEED_Y));  /* 81A595 lda */
-    cmp16_v(0xFF80);  /* 81A597 cmp */
-    if (IF_C) goto L_81A5A0;  /* 81A59A bcs */
-    op_sep(0x20);  /* 81A59C sep */
-    stz8(ea_dp(ACTOR_49));  /* 81A59E stz */
-L_81A5A0:
-    op_sep(0x20);  /* 81A5A0 sep */
-    abi_ActorMoveY();  /* 81A5A2 jsl */
-    return;  /* 81A5A6 rtl */
+    uint16_t speed;
+
+    a8_load(rd8(dpa(ACTOR_49)));
+    if (!(uint8_t)cpu.a) {
+        /* falling: turn back once faster than $81 */
+        abi_ActorAccelerateY();
+        if (!(cpu.p & P_N)) {
+            op_rep(P_M);
+            speed = dp16(ACTOR_SPEED_Y);
+            cpu.a = speed;
+            cmp16_of(speed, 0x0081);
+            if (speed >= 0x0081) {
+                op_sep(P_M);
+                inc8_at(dpa(ACTOR_49));
+            }
+        }
+    } else {
+        /* rising: turn back once faster than -$80 */
+        abi_ActorAccelerateYBack();
+        if (cpu.p & P_N) {
+            op_rep(P_M);
+            speed = dp16(ACTOR_SPEED_Y);
+            cpu.a = speed;
+            cmp16_of(speed, 0xFF80);
+            if (speed < 0xFF80) {
+                op_sep(P_M);
+                wr8(dpa(ACTOR_49), 0);
+            }
+        }
+    }
+    op_sep(P_M);
+    abi_ActorMoveY();
 }

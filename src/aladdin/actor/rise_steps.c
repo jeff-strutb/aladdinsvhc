@@ -4,6 +4,8 @@
  * waits). Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -43,44 +45,48 @@ void abi_SoundQueueAdd(void);
  */
 void abi_RiserActor(void)
 {
-    lda8_v(0x80);  /* 848E6A lda */
-    sta8(ea_dp(ACTOR_09));  /* 848E6C sta */
-L_848E6E:
-    op_rep(0x20);  /* 848E6E rep */
-    lda16_v(0x0100);  /* 848E70 lda */
-    sta16(ea_dp(ACTOR_Y + 1));  /* 848E73 sta */
-    sta16(ea_dp(ACTOR_40));  /* 848E75 sta */
-    op_sep(0x20);  /* 848E77 sep */
-    actor_yield(0x848E79u);  /* 848E79 brk */
-L_848E7B:
-    lda8(ea_abs(V_1B1A));  /* 848E7B lda */
-    if (IF_Z) goto L_848E6E;  /* 848E7E beq */
-    ldx8(ea_abs(V_1B1B));  /* 848E80 ldx */
-    stx8(ea_dp(ACTOR_42));  /* 848E83 stx */
-    ldy8(ea_absx(RISE_UP));  /* 848E85 ldy */
-    abi_ActorMotionPreset();  /* 848E88 jsl */
-L_848E8C:
-    actor_yield(0x848E8Cu);  /* 848E8C brk */
-    abi_ActorFlyAgainst();  /* 848E8E jsl */
-    abi_ActorYHistoryPush();  /* 848E92 jsr */
-    op_rep(0x20);  /* 848E95 rep */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 848E97 lda */
-    cmp16_v(rd16(ea_dp(ACTOR_40)));  /* 848E99 cmp */
-    op_sep(0x20);  /* 848E9B sep */
-    if (IF_C) goto L_848E8C;  /* 848E9D bcs */
-    ldx8(ea_dp(ACTOR_42));  /* 848E9F ldx */
-    ldy8(ea_absx(RISE_DOWN));  /* 848EA1 ldy */
-    abi_ActorMotionPreset();  /* 848EA4 jsl */
-L_848EA8:
-    actor_yield(0x848EA8u);  /* 848EA8 brk */
-    abi_ActorFly();  /* 848EAA jsl */
-    abi_ActorYHistoryPush();  /* 848EAE jsr */
-    op_rep(0x20);  /* 848EB1 rep */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 848EB3 lda */
-    cmp16_v(rd16(ea_dp(ACTOR_40)));  /* 848EB5 cmp */
-    op_sep(0x20);  /* 848EB7 sep */
-    if (!IF_C) goto L_848EA8;  /* 848EB9 bcc */
-    goto L_848E7B;  /* 848EBB bra */
+    uint16_t y;
+    uint8_t send;
+
+    a8_load(0x80);
+    wr8(dpa(ACTOR_09), 0x80);
+    for (;;) {
+        /* at rest at y 256 until it is sent */
+        dp16_set(ACTOR_Y + 1, 0x0100);
+        dp16_set(RISE_FLOOR, 0x0100);
+        a16_load(0x0100);
+        actor_yield(0x848E79u);
+        for (;;) {
+            send = rd8(dba(V_1B1A));
+            a8_load(send);
+            if (!send)
+                break;
+            /* up on its course's motion until it comes back to its floor */
+            x8_load(rd8(dba(V_1B1B)));
+            wr8(dpa(RISE_COURSE), (uint8_t)cpu.x);
+            y8_load(rd8(dba(RISE_UP) + cpu.x));
+            abi_ActorMotionPreset();
+            do {
+                actor_yield(0x848E8Cu);
+                abi_ActorFlyAgainst();
+                abi_ActorYHistoryPush();
+                y = dp16(ACTOR_Y + 1);
+                cpu.a = y;
+                cmp16_of(y, dp16(RISE_FLOOR));
+            } while (y >= dp16(RISE_FLOOR));
+            x8_load(rd8(dpa(RISE_COURSE)));
+            y8_load(rd8(dba(RISE_DOWN) + cpu.x));
+            abi_ActorMotionPreset();
+            do {
+                actor_yield(0x848EA8u);
+                abi_ActorFly();
+                abi_ActorYHistoryPush();
+                y = dp16(ACTOR_Y + 1);
+                cpu.a = y;
+                cmp16_of(y, dp16(RISE_FLOOR));
+            } while (y < dp16(RISE_FLOOR));
+        }
+    }
 }
 
 
@@ -101,47 +107,47 @@ L_848EA8:
  */
 void abi_SteppedShowActor(void)
 {
-    lda8_v(0x0E);  /* 849EF5 lda */
-    trb8(ea_dp(ACTOR_2C));  /* 849EF7 trb */
-    lda8(ea_dp(ACTOR_07));  /* 849EF9 lda */
-    bit8_i(0x10);  /* 849EFB bit */
-    if (IF_Z) goto L_849F02;  /* 849EFD beq */
-    goto L_849F32;  /* 849EFF jmp */
-L_849F02:
-    lda8_v(0x10);  /* 849F02 lda */
-    tsb8(ea_dp(ACTOR_09));  /* 849F04 tsb */
-    lda8_v(0x0C);  /* 849F06 lda */
-    tsb8(ea_dp(ACTOR_2C));  /* 849F08 tsb */
-    ldx8(ea_dp(ACTOR_07));  /* 849F0A ldx */
-    lda8(ea_absx(STEP_WAITS));  /* 849F0C lda */
-    sta8(ea_dp(ACTOR_40));  /* 849F0F sta */
-    actor_wait(0x849F11u);  /* 849F11 cop */
-    lda8(ea_dp(ACTOR_40));  /* 849F13 lda */
-    actor_wait(0x849F15u);  /* 849F15 cop */
-    lda8(ea_dp(ACTOR_08));  /* 849F17 lda */
-    ora8_v(0x03);  /* 849F19 ora */
-    sta8(ea_dp(ACTOR_08));  /* 849F1B sta */
-    lda8_v(0x80);  /* 849F1D lda */
-    tsb8(ea_dp(ACTOR_09));  /* 849F1F tsb */
-    lda8_v(0x44);  /* 849F21 lda */
-    abi_SoundQueueAdd();  /* 849F23 jsl */
-    lda8(ea_dp(ACTOR_07));  /* 849F27 lda */
-    ACC8(asl);  /* 849F29 asl */
-    abi_AnimStart();  /* 849F2A jsl */
-L_849F2E:
-    actor_wait(0x849F2Eu);  /* 849F2E cop */
-    goto L_849F2E;  /* 849F30 bra */
-L_849F32:
-    lda8_v(0x0E);  /* 849F32 lda */
-    tsb8(ea_dp(ACTOR_2C));  /* 849F34 tsb */
-    lda8(ea_dp(ACTOR_08));  /* 849F36 lda */
-    ora8_v(0x02);  /* 849F38 ora */
-    sta8(ea_dp(ACTOR_08));  /* 849F3A sta */
-    lda8_v(0xB0);  /* 849F3C lda */
-    tsb8(ea_dp(ACTOR_09));  /* 849F3E tsb */
-    lda8_v(0x01);  /* 849F40 lda */
-    abi_AnimStart();  /* 849F42 jsl */
-L_849F46:
-    actor_yield(0x849F46u);  /* 849F46 brk */
-    goto L_849F46;  /* 849F48 bra */
+    uint8_t variant, wait;
+
+    a8_load(0x0E);
+    trb_at(dpa(ACTOR_2C), 0x0E);
+    variant = rd8(dpa(ACTOR_07));
+    a8_load(variant);
+    flag_set(P_Z, !(variant & 0x10));
+    if (variant & 0x10) {                 /* shown at once, and stays */
+        a8_load(0x0E);
+        tsb_at(dpa(ACTOR_2C), 0x0E);
+        a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
+        wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+        a8_load(0xB0);
+        tsb_at(dpa(ACTOR_09), 0xB0);
+        a8_load(0x01);
+        abi_AnimStart();
+        for (;;)
+            actor_yield(0x849F46u);
+    }
+    /* shown after its two waits, with sound $44, and stays */
+    a8_load(0x10);
+    tsb_at(dpa(ACTOR_09), 0x10);
+    a8_load(0x0C);
+    tsb_at(dpa(ACTOR_2C), 0x0C);
+    x8_load(variant);
+    wait = rd8(dba(STEP_WAITS) + cpu.x);
+    a8_load(wait);
+    wr8(dpa(STEP_WAIT), wait);
+    actor_wait(0x849F11u);
+    a8_load(rd8(dpa(STEP_WAIT)));
+    actor_wait(0x849F15u);
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x03));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    a8_load(0x80);
+    tsb_at(dpa(ACTOR_09), 0x80);
+    a8_load(0x44);
+    abi_SoundQueueAdd();
+    variant = rd8(dpa(ACTOR_07));
+    a8_load((uint8_t)(variant << 1));
+    flag_set(P_C, variant & 0x80);
+    abi_AnimStart();
+    for (;;)
+        actor_wait(0x849F2Eu);
 }

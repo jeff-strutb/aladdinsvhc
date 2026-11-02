@@ -7,6 +7,8 @@
  * until its frames run out; a zero velocity word ends the path.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_KindAnimateFreeOff(void);
 void abi_KindAnimate9533(void);
@@ -24,6 +26,16 @@ void abi_ActorFreeOutOfRangeLong(void);
 #include "actor_anim.h"
 #include "wram.h"
 
+/* An actor on a path: words of steps, each taken for some frames */
+#define PATH_AT 0x42u              /* its place along it (word) */
+#define PATH_FRAMES_FIRST 0x45u    /* frames each step of a new run is taken for */
+#define PATH_FRAMES_EACH 0x46u     /* frames each step is taken for */
+#define PATH_FRAMES 0x47u          /* frames left of this step; 0: stopped */
+#define PATH_STEP 0x48u            /* the step added each frame (word) */
+#define PATH_NEXT 0x4Au            /* the next step in the path (word, the DB bank) */
+#define PATH_ON 0x4Cu              /* nonzero: it follows the path */
+#define PATH_STEPS 0x4Du           /* steps left of this run */
+
 /*
  * @routine 84:9387 KindAnimateFreeOff
  * WHAT IT DOES: One frame of a kind that only animates, freed once it is
@@ -34,9 +46,9 @@ void abi_ActorFreeOutOfRangeLong(void);
  */
 void abi_KindAnimateFreeOff(void)
 {
-    abi_AnimStep();  /* 849387 jsl */
-    ldx8_v(0x18);  /* 84938B ldx */
-    abi_ActorFreeOutOfRangeLong(); return;  /* 84938D jml */
+    abi_AnimStep();
+    x8_load(0x18);
+    abi_ActorFreeOutOfRangeLong();
 }
 
 /*
@@ -112,18 +124,16 @@ void abi_KindAnimateSend(void)
  */
 void abi_ActorPathStep(void)
 {
-    abi_ActorParityBitsSet();  /* 848CAF jsr */
-    op_rep(0x20);  /* 848CB2 rep */
-    clc();  /* 848CB4 clc */
-    lda16(ea_dp(0x48));  /* 848CB5 lda */
-    adc16_v(rd16(ea_dp(0x42)));  /* 848CB7 adc */
-    sta16(ea_dp(0x42));  /* 848CB9 sta */
-    op_sep(0x20);  /* 848CBB sep */
-    lda8(ea_dp(0x4C));  /* 848CBD lda */
-    if (IF_Z) goto L_848CC4;  /* 848CBF beq */
-    abi_ActorPathNext();  /* 848CC1 jsr */
-L_848CC4:
-    return;  /* 848CC4 rts */
+    uint8_t on;
+
+    abi_ActorParityBitsSet();
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(dp16(PATH_STEP), dp16(PATH_AT), &cpu.p);
+    dp16_set(PATH_AT, cpu.a);
+    on = rd8(dpa(PATH_ON));
+    a8_load(on);
+    if (on)
+        abi_ActorPathNext();
 }
 
 /*
@@ -139,41 +149,43 @@ L_848CC4:
  */
 void abi_ActorPathNext(void)
 {
-    lda8(ea_dp(0x47));  /* 848DFB lda */
-    if (IF_Z) goto L_848E32;  /* 848DFD beq */
-    MEM8(dec, ea_dp(0x47));  /* 848DFF dec */
-    if (!IF_Z) goto L_848E32;  /* 848E01 bne */
-    op_rep(0x10);  /* 848E03 rep */
-    ldy16(ea_dp(0x4A));  /* 848E05 ldy */
-    op_rep(0x20);  /* 848E07 rep */
-    lda16(ea_absy(0x0000));  /* 848E09 lda */
-    eor16_v(rd16(ea_dp(0x19)));  /* 848E0C eor */
-    clc();  /* 848E0E clc */
-    adc16_v(rd16(ea_dp(0x1C)));  /* 848E0F adc */
-    sta16(ea_dp(0x48));  /* 848E11 sta */
-    op_sep(0x20);  /* 848E13 sep */
-    lda8(ea_dp(0x46));  /* 848E15 lda */
-    sta8(ea_dp(0x47));  /* 848E17 sta */
-    iny16();  /* 848E19 iny */
-    iny16();  /* 848E1A iny */
-    MEM8(dec, ea_dp(0x4D));  /* 848E1B dec */
-    if (!IF_Z) goto L_848E2E;  /* 848E1D bne */
-    lda8(ea_dp(0x45));  /* 848E1F lda */
-    sta8(ea_dp(0x46));  /* 848E21 sta */
-    ldx16(ea_absy(0x0000));  /* 848E23 ldx */
-    if (IF_Z) goto L_848E33;  /* 848E26 beq */
-    lda8(ea_absy(SOUND_SEQ));  /* 848E28 lda */
-    sta8(ea_dp(0x4D));  /* 848E2B sta */
-    txy16();  /* 848E2D txy */
-L_848E2E:
-    sty16(ea_dp(0x4A));  /* 848E2E sty */
-    op_sep(0x30);  /* 848E30 sep */
-L_848E32:
-    return;  /* 848E32 rts */
-L_848E33:
-    stz8(ea_dp(0x47));  /* 848E33 stz */
-    lda8_v(0x01);  /* 848E35 lda */
-    sta8(ea_dp(0x18));  /* 848E37 sta */
-    op_sep(0x30);  /* 848E39 sep */
-    return;  /* 848E3B rts */
+    uint8_t frames = rd8(dpa(PATH_FRAMES));
+    uint16_t next;
+
+    a8_load(frames);
+    if (!frames || dec8_at(dpa(PATH_FRAMES)))
+        return;
+    /* this step done: the next one (turned by $19, plus $1C) */
+    op_rep(P_X);
+    cpu.y = dp16(PATH_NEXT);
+    nz16_of(cpu.y);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16((uint16_t)(rd16(dba(0) + cpu.y) ^ dp16(0x19)), dp16(0x1C), &cpu.p);
+    dp16_set(PATH_STEP, cpu.a);
+    frames = rd8(dpa(PATH_FRAMES_EACH));
+    a8_load(frames);
+    wr8(dpa(PATH_FRAMES), frames);
+    cpu.y = (uint16_t)(cpu.y + 2);
+    if (!dec8_at(dpa(PATH_STEPS))) {
+        /* this run done: the next run, or the path's end (0) */
+        frames = rd8(dpa(PATH_FRAMES_FIRST));
+        a8_load(frames);
+        wr8(dpa(PATH_FRAMES_EACH), frames);
+        next = rd16(dba(0) + cpu.y);
+        cpu.x = next;
+        nz16_of(next);
+        if (!next) {
+            wr8(dpa(PATH_FRAMES), 0);
+            a8_load(0x01);
+            wr8(dpa(ACTOR_18), 0x01);
+            op_sep(0x30);
+            return;
+        }
+        a8_load(rd8(dba(2) + cpu.y));
+        wr8(dpa(PATH_STEPS), (uint8_t)cpu.a);
+        cpu.y = cpu.x;
+        nz16_of(cpu.y);
+    }
+    dp16_set(PATH_NEXT, cpu.y);
+    op_sep(0x30);
 }

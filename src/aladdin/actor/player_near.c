@@ -5,6 +5,8 @@
  * Coordinates are the positions' whole pixels.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
@@ -123,6 +125,30 @@ void abi_ActorNearPlayerX(void)
     op_sep(P_M);
 }
 
+/* A half-size word to `at` and its double to `at` + 2 (the ASL's C). */
+static uint16_t half_and_whole(uint16_t half, uint16_t at)
+{
+    wr16(dba(at), half);
+    flag_set(P_C, half & 0x8000);
+    wr16(dba((uint16_t)(at + 2)), (uint16_t)(half << 1));
+    return (uint16_t)(half << 1);
+}
+
+/* Its distance from the point in one axis plus the half-size, against
+   the size: C clear when within. */
+static int near_within(uint16_t mine, uint16_t point, uint16_t half, uint16_t whole)
+{
+    uint16_t d;
+
+    flag_set(P_C, 1);
+    d = op_sbc16(mine, point, &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, half, &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, whole);
+    return d < whole;
+}
+
 /*
  * @routine 81:AD17 ActorNearPoint
  * WHAT IT DOES: Says whether the actor is inside a box round the point
@@ -139,29 +165,12 @@ void abi_ActorNearPlayerX(void)
  */
 void abi_ActorNearPoint(void)
 {
-    lda16(ea_absy(NEAR_BOX_TABLE));  /* 81AD17 lda */
-    sta16(ea_abs(SCRATCH));  /* 81AD1A sta */
-    ACC16(asl);  /* 81AD1D asl */
-    sta16(ea_abs(SCRATCH + 2));  /* 81AD1E sta */
-    lda16(ea_absy(NEAR_BOX_TABLE + 2));  /* 81AD21 lda */
-    sta16(ea_abs(SCRATCH + 4));  /* 81AD24 sta */
-    ACC16(asl);  /* 81AD27 asl */
-    sta16(ea_abs(SCRATCH + 6));  /* 81AD28 sta */
-    sec();  /* 81AD2B sec */
-    lda16(ea_dp(ACTOR_X + 1));  /* 81AD2C lda */
-    sbc16_v(rd16(ea_abs(NEAR_POINT_X)));  /* 81AD2E sbc */
-    clc();  /* 81AD31 clc */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 81AD32 adc */
-    cmp16_v(rd16(ea_abs(SCRATCH + 2)));  /* 81AD35 cmp */
-    if (IF_C) goto L_81AD47;  /* 81AD38 bcs */
-    sec();  /* 81AD3A sec */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 81AD3B lda */
-    sbc16_v(rd16(ea_abs(NEAR_POINT_Y)));  /* 81AD3D sbc */
-    clc();  /* 81AD40 clc */
-    adc16_v(rd16(ea_abs(SCRATCH + 4)));  /* 81AD41 adc */
-    cmp16_v(rd16(ea_abs(SCRATCH + 6)));  /* 81AD44 cmp */
-L_81AD47:
-    return;  /* 81AD47 rtl */
+    uint32_t box = dba(NEAR_BOX_TABLE) + cpu.y;
+
+    half_and_whole(rd16(box), SCRATCH);
+    half_and_whole(rd16(box + 2), SCRATCH + 4);
+    if (near_within(dp16(ACTOR_X + 1), rd16(dba(NEAR_POINT_X)), rd16(dba(SCRATCH)), rd16(dba(SCRATCH + 2))))
+        near_within(dp16(ACTOR_Y + 1), rd16(dba(NEAR_POINT_Y)), rd16(dba(SCRATCH + 4)), rd16(dba(SCRATCH + 6)));
 }
 
 /*
@@ -180,66 +189,53 @@ L_81AD47:
  */
 void abi_ActorAimAt(void)
 {
-    ldy16_v(0x0000);  /* 81AC68 ldy */
-    lda16(ea_abs(V_0012));  /* 81AC6B lda */
-    sec();  /* 81AC6E sec */
-    sbc16_v(rd16(ea_dp(0x0F)));  /* 81AC6F sbc */
-    if (IF_C) goto L_81AC7A;  /* 81AC71 bcs */
-    eor16_v(0xFFFF);  /* 81AC73 eor */
-    ACC16(inc);  /* 81AC76 inc */
-    ldy16_v(0x0004);  /* 81AC77 ldy */
-L_81AC7A:
-    sta16(ea_abs(SCRATCH));  /* 81AC7A sta */
-    lda16(ea_abs(0x0010));  /* 81AC7D lda */
-    sec();  /* 81AC80 sec */
-    sbc16_v(rd16(ea_dp(0x0C)));  /* 81AC81 sbc */
-    if (IF_C) goto L_81AC8B;  /* 81AC83 bcs */
-    eor16_v(0xFFFF);  /* 81AC85 eor */
-    ACC16(inc);  /* 81AC88 inc */
-    iny16();  /* 81AC89 iny */
-    iny16();  /* 81AC8A iny */
-L_81AC8B:
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81AC8B cmp */
-    if (IF_C) goto L_81AC98;  /* 81AC8E bcs */
-    iny16();  /* 81AC90 iny */
-    ldx16(ea_abs(SCRATCH));  /* 81AC91 ldx */
-    sta16(ea_abs(SCRATCH));  /* 81AC94 sta */
-    txa16();  /* 81AC97 txa */
-L_81AC98:
-    ldx16_v(0x0000);  /* 81AC98 ldx */
-    ACC16(lsr);  /* 81AC9B lsr */
-    ACC16(lsr);  /* 81AC9C lsr */
-    ACC16(lsr);  /* 81AC9D lsr */
-    sta16(ea_abs(0x000E));  /* 81AC9E sta */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACA1 cmp */
-    if (IF_C) goto L_81ACCB;  /* 81ACA4 bcs */
-    inx16();  /* 81ACA6 inx */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACA7 adc */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACAA adc */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACAD cmp */
-    if (IF_C) goto L_81ACCB;  /* 81ACB0 bcs */
-    inx16();  /* 81ACB2 inx */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACB3 adc */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACB6 adc */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACB9 cmp */
-    if (IF_C) goto L_81ACCB;  /* 81ACBC bcs */
-    inx16();  /* 81ACBE inx */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACBF adc */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81ACC2 adc */
-    cmp16_v(rd16(ea_abs(SCRATCH)));  /* 81ACC5 cmp */
-    if (IF_C) goto L_81ACCB;  /* 81ACC8 bcs */
-    inx16();  /* 81ACCA inx */
-L_81ACCB:
-    tya16();  /* 81ACCB tya */
-    ACC16(asl);  /* 81ACCC asl */
-    ACC16(asl);  /* 81ACCD asl */
-    ACC16(asl);  /* 81ACCE asl */
-    sta16(ea_abs(SCRATCH));  /* 81ACCF sta */
-    txa16();  /* 81ACD2 txa */
-    clc();  /* 81ACD3 clc */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 81ACD4 adc */
-    tax16();  /* 81ACD7 tax */
-    lda16(ea_absx(0xBC03));  /* 81ACD8 lda */
-    op_sep(0x30);  /* 81ACDB sep */
-    return;  /* 81ACDD rtl */
+    uint16_t dy, dx, large, small, eighth, a;
+
+    /* the distances to the point (Y: bit 2 above, bit 1 left, bit 0 when
+       the y distance is the greater) */
+    cpu.y = 0;
+    flag_set(P_C, 1);
+    dy = op_sbc16(rd16(dba(V_0012)), dp16(ACTOR_Y + 1), &cpu.p);
+    if (!(cpu.p & P_C)) {
+        dy = (uint16_t)((dy ^ 0xFFFF) + 1);
+        cpu.y = 4;
+    }
+    wr16(dba(SCRATCH), dy);
+    flag_set(P_C, 1);
+    dx = op_sbc16(rd16(dba(SCRATCH + 4)), dp16(ACTOR_X + 1), &cpu.p);
+    if (!(cpu.p & P_C)) {
+        dx = (uint16_t)((dx ^ 0xFFFF) + 1);
+        cpu.y = (uint16_t)(cpu.y + 2);
+    }
+    cmp16_of(dx, dy);
+    large = dx;
+    small = dy;
+    if (dx < dy) {
+        cpu.y = (uint16_t)(cpu.y + 1);
+        cpu.x = dy;
+        wr16(dba(SCRATCH), dx);
+        large = dy;
+        small = dx;
+    }
+    /* the step in the octant: the smaller against 1, 3, 5 and 7 eighths
+       of the larger */
+    cpu.x = 0;
+    flag_set(P_C, (large >> 2) & 1);
+    eighth = (uint16_t)(large >> 3);
+    wr16(dba(SCRATCH + 2), eighth);
+    a = eighth;
+    cmp16_of(a, small);
+    while (a < small) {
+        cpu.x = (uint16_t)(cpu.x + 1);
+        if (cpu.x == 4)
+            break;
+        a = op_adc16(a, eighth, &cpu.p);
+        a = op_adc16(a, eighth, &cpu.p);
+        cmp16_of(a, small);
+    }
+    wr16(dba(SCRATCH), (uint16_t)(cpu.y << 3));
+    flag_set(P_C, 0);
+    cpu.x = op_adc16(cpu.x, rd16(dba(SCRATCH)), &cpu.p);
+    a16_load(rd16(dba(0xBC03) + cpu.x));
+    op_sep(0x30);
 }

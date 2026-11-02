@@ -3,6 +3,8 @@
  * table. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
@@ -11,6 +13,9 @@
 #define REACH_TABLE 0xD9B0u
 #define PLAYER_X (PLAYER + ACTOR_X + 1)
 #define PLAYER_Y (PLAYER + ACTOR_Y + 1)
+
+#define REACH_HALF_X 0x002Cu  /* scratch words: the reach, and twice it */
+#define REACH_SPAN_X 0x002Eu
 
 /*
  * @routine 83:FCF5 PlayerInReach
@@ -28,32 +33,39 @@
  */
 void abi_PlayerInReach(void)
 {
-    op_rep(0x20);  /* 83FCF5 rep */
-    clc();  /* 83FCF7 clc */
-    lda16(ea_absx(0xD9B0));  /* 83FCF8 lda */
-    and16_v(0x00FF);  /* 83FCFB and */
-    if (IF_Z) goto L_83FD16;  /* 83FCFE beq */
-    sta16(ea_abs(0x002C));  /* 83FD00 sta */
-    ACC16(asl);  /* 83FD03 asl */
-    sta16(ea_abs(0x002E));  /* 83FD04 sta */
-    clc();  /* 83FD07 clc */
-    lda16(ea_dp(0x0C));  /* 83FD08 lda */
-    adc16_v(rd16(ea_abs(0x002C)));  /* 83FD0A adc */
-    sec();  /* 83FD0D sec */
-    sbc16_v(rd16(ea_abs(0x08E7)));  /* 83FD0E sbc */
-    cmp16_v(rd16(ea_abs(0x002E)));  /* 83FD11 cmp */
-    if (IF_C) goto L_83FD2B;  /* 83FD14 bcs */
-L_83FD16:
-    lda16(ea_absx(0xD9B1));  /* 83FD16 lda */
-    and16_v(0x00FF);  /* 83FD19 and */
-    if (IF_Z) goto L_83FD2B;  /* 83FD1C beq */
-    sta16(ea_abs(0x002C));  /* 83FD1E sta */
-    clc();  /* 83FD21 clc */
-    adc16_v(rd16(ea_dp(0x0F)));  /* 83FD22 adc */
-    sec();  /* 83FD24 sec */
-    sbc16_v(rd16(ea_abs(0x08EA)));  /* 83FD25 sbc */
-    cmp16_v(rd16(ea_abs(0x002C)));  /* 83FD28 cmp */
-L_83FD2B:
-    return;  /* 83FD2B rts */
+    uint32_t entry = dba(REACH_TABLE) + cpu.x;
+    uint16_t reach, span, d;
+
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    /* across: his x within the reach either side of its */
+    reach = rd16(entry) & 0x00FF;
+    a16_load(reach);
+    if (reach) {
+        wr16(dba(REACH_HALF_X), reach);
+        span = (uint16_t)(reach << 1);
+        flag_set(P_C, reach & 0x8000);
+        wr16(dba(REACH_SPAN_X), span);
+        flag_set(P_C, 0);
+        d = op_adc16(dp16(ACTOR_X + 1), rd16(dba(REACH_HALF_X)), &cpu.p);
+        flag_set(P_C, 1);
+        d = op_sbc16(d, rd16(dba(PLAYER_X)), &cpu.p);
+        cpu.a = d;
+        cmp16_of(d, rd16(dba(REACH_SPAN_X)));
+        if (d >= span)
+            return;
+    }
+    /* down: his y within the reach below its */
+    reach = rd16(entry + 1) & 0x00FF;
+    a16_load(reach);
+    if (!reach)
+        return;
+    wr16(dba(REACH_HALF_X), reach);
+    flag_set(P_C, 0);
+    d = op_adc16(reach, dp16(ACTOR_Y + 1), &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, rd16(dba(PLAYER_Y)), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, rd16(dba(REACH_HALF_X)));
 }
 

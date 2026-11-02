@@ -4,7 +4,11 @@
  * inside a zone placed beside it by its facing.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 #include "actor.h"
 #include "wram.h"
 
@@ -25,6 +29,24 @@
 
 void abi_PlayerEnter8CFacing(void);
 void abi_ActorZoneHasTestPoint(void);
+
+/* A word of the bank DB names. */
+static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
+
+/* `a` - `b` + `sum` against `twice`, unsigned: nonzero when below (the
+   original's SEC, SBC, CLC, ADC and CMP, their flags kept). */
+static int within(uint16_t a, uint16_t b, uint16_t sum, uint16_t twice)
+{
+    uint16_t d;
+
+    flag_set(P_C, 1);
+    d = op_sbc16(a, b, &cpu.p);
+    flag_set(P_C, 0);
+    d = op_adc16(d, sum, &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, twice);
+    return d < twice;
+}
 
 /*
  * @routine 83:8578 ActorTouchesSecondPool
@@ -47,76 +69,55 @@ void abi_ActorZoneHasTestPoint(void);
  */
 void abi_ActorTouchesSecondPool(void)
 {
-    lda8(ea_dp(ACTOR_08));
-    if (IF_N) goto none;
-    bit8_v(rd8(ea_dp(ACTOR_09)));
-    if (!IF_V) goto none;
+    uint16_t y, x, mine, sum;
+
+    a8_load(rd8(dpa(ACTOR_08)));
+    if ((uint8_t)cpu.a & 0x80)
+        goto none;
+    bit8_of((uint8_t)cpu.a, rd8(dpa(ACTOR_09)));
+    if (!(cpu.p & P_V))
+        goto none;
     op_rep(0x30);
-    ldx16_v(0x0004);
-    stx16(ea_abs(SECOND_POOL_LEFT));
-    ldy16_v(SECOND_POOL);
+    cpu.x = 0x0004;
+    wr16(dba((uint16_t)SECOND_POOL_LEFT), 0x0004);
+    y = SECOND_POOL;
     do {
-        lda16(ea_absy(ACTOR_STATE));
-        and16_v(0x00FF);
-        if (IF_Z) goto next;
-        lda16(ea_absy(ACTOR_08));
-        and16_v(0x4080);
-        cmp16_v(0x4000);
-        if (!IF_Z) goto next;
-        lda16(ea_absy(ACTOR_06));
-        and16_v(0x000F);
-        ACC16(asl);
-        ACC16(asl);
-        tax16();
-        phy16();
-        lda16(ea_dp(ACTOR_06));
-        and16_v(0x00FF);
-        ACC16(asl);
-        ACC16(asl);
-        tay16();
-        lda16(ea_absx(SECOND_POOL_BOXES));
-        clc();
-        adc16_v(rd16(ea_absy(HIT_BOXES)));
-        sta16(ea_abs(SCRATCH));
-        ACC16(asl);
-        sta16(ea_abs(SCRATCH + 2));
-        clc();
-        lda16(ea_absx(SECOND_POOL_BOXES + 2));
-        adc16_v(rd16(ea_absy(HIT_BOXES + 2)));
-        pha16();
-        sec();
-        sbc16_v(0x0004);
-        sta16(ea_abs(SCRATCH + 4));
-        pla16();
-        ACC16(asl);
-        sta16(ea_abs(SCRATCH + 6));
-        ply16();
-        sec();
-        lda16(ea_dp(ACTOR_X + 1));
-        sbc16_v(rd16(ea_absy(ACTOR_X + 1)));
-        clc();
-        adc16_v(rd16(ea_abs(SCRATCH)));
-        cmp16_v(rd16(ea_abs(SCRATCH + 2)));
-        if (IF_C) goto next;
-        sec();
-        lda16(ea_dp(ACTOR_Y + 1));
-        sbc16_v(rd16(ea_absy(ACTOR_Y + 1)));
-        clc();
-        adc16_v(rd16(ea_abs(SCRATCH + 4)));
-        cmp16_v(rd16(ea_abs(SCRATCH + 6)));
-        if (!IF_C) {
-            op_sep(0x20);
+        /* in use, can be hit, not out of play */
+        a16_load(db16((uint16_t)(ACTOR_STATE + y)) & 0x00FF);
+        if (!cpu.a)
+            goto next;
+        cpu.a = db16((uint16_t)(ACTOR_08 + y)) & 0x4080;
+        cmp16_of(cpu.a, 0x4000);
+        if (cpu.a != 0x4000)
+            goto next;
+        /* the sums of half-widths and half-heights (less 4), doubled */
+        x = (uint16_t)((db16((uint16_t)(ACTOR_06 + y)) & 0x000F) << 2);
+        cpu.x = x;
+        mine = (uint16_t)((dp16(ACTOR_06) & 0x00FF) << 2);
+        flag_set(P_C, 0);
+        sum = op_adc16(db16((uint16_t)(SECOND_POOL_BOXES + x)), db16((uint16_t)(HIT_BOXES + mine)), &cpu.p);
+        wr16(dba(SCRATCH), sum);
+        wr16(dba(SCRATCH + 2), (uint16_t)(sum << 1));
+        flag_set(P_C, 0);
+        sum = op_adc16(db16((uint16_t)(SECOND_POOL_BOXES + 2 + x)), db16((uint16_t)(HIT_BOXES + 2 + mine)), &cpu.p);
+        flag_set(P_C, 1);
+        wr16(dba(SCRATCH + 4), op_sbc16(sum, 0x0004, &cpu.p));
+        wr16(dba(SCRATCH + 6), (uint16_t)(sum << 1));
+        if (within(dp16(ACTOR_X + 1), db16((uint16_t)(ACTOR_X + 1 + y)), db16(SCRATCH), db16(SCRATCH + 2))
+            && within(dp16(ACTOR_Y + 1), db16((uint16_t)(ACTOR_Y + 1 + y)), db16(SCRATCH + 4), db16(SCRATCH + 6))) {
+            cpu.y = y;
+            op_sep(P_M);
             return;
         }
 next:
-        clc();
-        tya16();
-        adc16_v(0x0050);
-        tay16();
-        MEM16(dec, ea_abs(SECOND_POOL_LEFT));
-    } while (!IF_N);
+        flag_set(P_C, 0);
+        y = op_adc16(y, 0x0050, &cpu.p);
+        cpu.a = y;
+        cpu.y = y;
+        dec16_at(dba((uint16_t)SECOND_POOL_LEFT));
+    } while (!(cpu.p & P_N));
 none:
-    op_sep(0x21);       /* at $83:856D, before the entry */
+    op_sep(0x21);
 }
 
 /*
@@ -129,6 +130,14 @@ none:
 void abi_ActorTouchesSecondPoolLong(void)
 {
     abi_ActorTouchesSecondPool();
+}
+
+/* A zone's signed byte at `at` as a word. */
+static uint16_t zone_offset(uint16_t at)
+{
+    uint16_t v = db16(at) & 0x00FF;
+
+    return v & 0x0080 ? (uint16_t)(v | 0xFF00) : v;
 }
 
 /*
@@ -145,37 +154,21 @@ void abi_ActorTouchesSecondPoolLong(void)
  */
 void abi_ActorZonePlace(void)
 {
-    lda8(ea_dp(ACTOR_FLIP));
-    op_rep(0x20);
-    if (IF_Z) {
-        lda16(ea_absy(ZONES + 2));
-        and16_v(0x00FF);
-        bit16_i(0x0080);
-        if (!IF_Z)
-            ora16_v(0xFF00);
-        clc();
-        adc16_v(rd16(ea_dp(ACTOR_X + 1)));
-        sta16(ea_abs(SCRATCH));
+    uint16_t dx = zone_offset((uint16_t)(ZONES + 2 + cpu.y));
+
+    /* x ahead of the actor by its facing, y below */
+    op_rep(P_M);
+    if (!rd8(dpa(ACTOR_FLIP))) {
+        flag_set(P_C, 0);
+        wr16(dba(SCRATCH), op_adc16(dx, dp16(ACTOR_X + 1), &cpu.p));
     } else {
-        lda16(ea_absy(ZONES + 2));
-        and16_v(0x00FF);
-        bit16_i(0x0080);
-        if (!IF_Z)
-            ora16_v(0xFF00);
-        sta16(ea_abs(SCRATCH));
-        sec();
-        lda16(ea_dp(ACTOR_X + 1));
-        sbc16_v(rd16(ea_abs(SCRATCH)));
-        sta16(ea_abs(SCRATCH));
+        wr16(dba(SCRATCH), dx);
+        flag_set(P_C, 1);
+        wr16(dba(SCRATCH), op_sbc16(dp16(ACTOR_X + 1), dx, &cpu.p));
     }
-    lda16(ea_absy(ZONES + 3));
-    and16_v(0x00FF);
-    bit16_i(0x0080);
-    if (!IF_Z)
-        ora16_v(0xFF00);
-    clc();
-    adc16_v(rd16(ea_dp(ACTOR_Y + 1)));
-    sta16(ea_abs(SCRATCH + 2));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(zone_offset((uint16_t)(ZONES + 3 + cpu.y)), dp16(ACTOR_Y + 1), &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
 }
 
 /*
@@ -194,36 +187,20 @@ void abi_ActorZonePlace(void)
  */
 void abi_ActorZoneHasTestBox(void)
 {
+    uint16_t sum;
+
     abi_ActorZonePlace();
-    lda16(ea_absy(ZONES));
-    and16_v(0x00FF);
-    clc();
-    adc16_v(rd16(ea_abs(TEST_BOX_HALF_W)));
-    sta16(ea_abs(SCRATCH + 4));
-    ACC16(asl);
-    sta16(ea_abs(SCRATCH + 6));
-    lda16(ea_absy(ZONES + 1));
-    and16_v(0x00FF);
-    clc();
-    adc16_v(rd16(ea_abs(TEST_BOX_HALF_H)));
-    sta16(ea_abs(SCRATCH + 8));
-    ACC16(asl);
-    sta16(ea_abs(SCRATCH + 10));
-    sec();
-    lda16(ea_abs(SCRATCH));
-    sbc16_v(rd16(ea_abs(TEST_BOX_X)));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH + 4)));
-    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
-    if (!IF_C) {
-        sec();
-        lda16(ea_abs(SCRATCH + 2));
-        sbc16_v(rd16(ea_abs(TEST_BOX_Y)));
-        clc();
-        adc16_v(rd16(ea_abs(SCRATCH + 8)));
-        cmp16_v(rd16(ea_abs(SCRATCH + 10)));
-    }
-    op_sep(0x20);
+    flag_set(P_C, 0);
+    sum = op_adc16(db16((uint16_t)(ZONES + cpu.y)) & 0x00FF, db16((uint16_t)TEST_BOX_HALF_W), &cpu.p);
+    wr16(dba(SCRATCH + 4), sum);
+    wr16(dba(SCRATCH + 6), (uint16_t)(sum << 1));
+    flag_set(P_C, 0);
+    sum = op_adc16(db16((uint16_t)(ZONES + 1 + cpu.y)) & 0x00FF, db16((uint16_t)TEST_BOX_HALF_H), &cpu.p);
+    wr16(dba(SCRATCH + 8), sum);
+    wr16(dba(SCRATCH + 10), (uint16_t)(sum << 1));
+    if (within(db16(SCRATCH), db16((uint16_t)TEST_BOX_X), db16(SCRATCH + 4), db16(SCRATCH + 6)))
+        within(db16(SCRATCH + 2), db16((uint16_t)TEST_BOX_Y), db16(SCRATCH + 8), db16(SCRATCH + 10));
+    op_sep(P_M);
 }
 
 /*
@@ -237,10 +214,10 @@ void abi_ActorZoneHasTestBox(void)
 void abi_ActorZoneHurtsPlayer(void)
 {
     abi_ActorZoneHasTestBox();
-    if (IF_C)
+    if (cpu.p & P_C)
         return;
     abi_PlayerEnter8CFacing();
-    clc();
+    flag_set(P_C, 0);
 }
 
 /*
@@ -271,32 +248,34 @@ void abi_ActorZoneHasTestPointLong(void)
  */
 void abi_ActorZoneHasTestPoint(void)
 {
-    tya8();
-    clc();
-    adc8_v(ZONE_FIRST);
-    tay8();
+    uint16_t half, d;
+
+    flag_set(P_C, 0);
+    a8_load(op_adc8((uint8_t)cpu.y, ZONE_FIRST, &cpu.p));
+    cpu.y = (uint8_t)cpu.a;
     abi_ActorZonePlace();
-    lda16(ea_absy(ZONES));
-    and16_v(0x00FF);
-    sta16(ea_abs(SCRATCH + 4));
-    ACC16(asl);
-    sta16(ea_abs(SCRATCH + 6));
-    lda16(ea_absy(ZONES + 1));
-    and16_v(0x00FF);
-    sta16(ea_abs(SCRATCH + 10));
-    clc();
-    lda16(ea_abs(TEST_BOX_X));
-    adc16_v(rd16(ea_abs(SCRATCH + 4)));
-    sec();
-    sbc16_v(rd16(ea_abs(SCRATCH)));
-    if (!IF_C) goto out;
-    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
-    if (IF_C) goto out;
-    lda16(ea_abs(TEST_BOX_Y));
-    sec();
-    sbc16_v(rd16(ea_abs(SCRATCH + 2)));
-    if (!IF_C) goto out;
-    cmp16_v(rd16(ea_abs(SCRATCH + 10)));
+    /* the zone's half-width, width and height */
+    half = db16((uint16_t)(ZONES + cpu.y)) & 0x00FF;
+    wr16(dba(SCRATCH + 4), half);
+    wr16(dba(SCRATCH + 6), (uint16_t)(half << 1));
+    cpu.a = db16((uint16_t)(ZONES + 1 + cpu.y)) & 0x00FF;
+    wr16(dba(SCRATCH + 10), cpu.a);
+    /* the centre's x less the point's, plus the half-width, below the
+       width; its y less the point's below the height */
+    flag_set(P_C, 0);
+    d = op_adc16(db16((uint16_t)TEST_BOX_X), half, &cpu.p);
+    flag_set(P_C, 1);
+    cpu.a = d = op_sbc16(d, db16(SCRATCH), &cpu.p);
+    if (!(cpu.p & P_C))
+        goto out;
+    cmp16_of(d, db16(SCRATCH + 6));
+    if (cpu.p & P_C)
+        goto out;
+    flag_set(P_C, 1);
+    cpu.a = d = op_sbc16(db16((uint16_t)TEST_BOX_Y), db16(SCRATCH + 2), &cpu.p);
+    if (!(cpu.p & P_C))
+        goto out;
+    cmp16_of(d, db16(SCRATCH + 10));
     op_sep(0x30);
     return;
 out:

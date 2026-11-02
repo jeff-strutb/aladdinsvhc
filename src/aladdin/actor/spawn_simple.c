@@ -4,6 +4,8 @@
  * record put back free.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorSpawnShared(void);
 void abi_ActorSpawnFacingY(void);
@@ -27,14 +29,13 @@ void abi_ActorAlloc(void);
  */
 void abi_ActorSpawnShared(void)
 {
-    abi_ActorAlloc();  /* 81A9E9 jsl */
-    if (IF_N) goto L_81A9F9;  /* 81A9ED bmi */
-    abi_ActorSpawnTyped();  /* 81A9EF jsr */
-    abi_ActorTileSlotShare();  /* 81A9F2 jsr */
-    op_sep(0x30);  /* 81A9F5 sep */
-    lda8_v(0x00);  /* 81A9F7 lda */
-L_81A9F9:
-    return;  /* 81A9F9 rtl */
+    abi_ActorAlloc();
+    if (cpu.p & P_N)
+        return;
+    abi_ActorSpawnTyped();
+    abi_ActorTileSlotShare();
+    op_sep(0x30);
+    a8_load(0x00);
 }
 
 /*
@@ -50,22 +51,28 @@ L_81A9F9:
  */
 void abi_ActorSpawnFacingY(void)
 {
-    stx8(ea_abs(SCRATCH + 1));  /* 81AA57 stx */
-    sty8(ea_abs(SCRATCH + 2));  /* 81AA5A sty */
-    abi_ActorAlloc();  /* 81AA5D jsl */
-    if (IF_N) goto L_81AA80;  /* 81AA61 bmi */
-    sta8(ea_absx(ACTOR_06));  /* 81AA63 sta */
-    lda8_v(0x0C);  /* 81AA66 lda */
-    sta8(ea_absx(0x0000));  /* 81AA68 sta */
-    abi_ActorSpawnPlace();  /* 81AA6B jsl */
-    lda8(ea_abs(SCRATCH + 1));  /* 81AA6F lda */
-    sta8(ea_absx(0x0014));  /* 81AA72 sta */
-    sta8(ea_absx(0x0015));  /* 81AA75 sta */
-    lda8(ea_abs(SCRATCH + 2));  /* 81AA78 lda */
-    sta8(ea_absx(0x0007));  /* 81AA7B sta */
-    op_sep(0x22);  /* 81AA7E sep */
-L_81AA80:
-    return;  /* 81AA80 rtl */
+    uint32_t child;
+    uint8_t v;
+
+    wr8(dba(SCRATCH + 1), (uint8_t)cpu.x);
+    wr8(dba(SCRATCH + 2), (uint8_t)cpu.y);
+    abi_ActorAlloc();
+    if (cpu.p & P_N)
+        return;
+    child = dba(0) + cpu.x;
+    wr8(child + ACTOR_06, (uint8_t)cpu.a);
+    a8_load(0x0C);
+    wr8(child + ACTOR_STATE, 0x0C);
+    abi_ActorSpawnPlace();
+    child = dba(0) + cpu.x;
+    v = rd8(dba(SCRATCH + 1));
+    a8_load(v);
+    wr8(child + ACTOR_FACING, v);
+    wr8(child + ACTOR_FLIP, v);
+    v = rd8(dba(SCRATCH + 2));
+    a8_load(v);
+    wr8(child + ACTOR_07, v);
+    op_sep(0x22);
 }
 
 /*
@@ -78,23 +85,23 @@ L_81AA80:
  */
 void abi_ActorsFreeAll(void)
 {
-    op_rep(0x10);  /* 819D82 rep */
-    ldx16_v(0xFFFE);  /* 819D84 ldx */
-    stx16(ea_abs(ACTOR_FREE_TOP));  /* 819D87 stx */
-    ldy16_v(0x13CB);  /* 819D8A ldy */
-L_819D8D:
-    phy16();  /* 819D8D phy */
-    abi_ActorFreePlacedAtYLong();  /* 819D8E jsl */
-    op_rep(0x20);  /* 819D92 rep */
-    sec();  /* 819D94 sec */
-    pla16();  /* 819D95 pla */
-    sbc16_v(0x0050);  /* 819D96 sbc */
-    tay16();  /* 819D99 tay */
-    op_sep(0x20);  /* 819D9A sep */
-    cpy16_v(0x0B0B);  /* 819D9C cpy */
-    if (!IF_Z) goto L_819D8D;  /* 819D9F bne */
-    ldx16_v(0x0036);  /* 819DA1 ldx */
-    stx16(ea_abs(ACTOR_FREE_TOP));  /* 819DA4 stx */
-    op_sep(0x10);  /* 819DA7 sep */
-    return;  /* 819DA9 rtl */
+    op_rep(P_X);
+    cpu.x = 0xFFFE;                       /* the free list empty while they go */
+    wr16(dba(ACTOR_FREE_TOP), 0xFFFE);
+    cpu.y = 0x13CB;
+    do {                                  /* each record from the last down */
+        phy16();
+        abi_ActorFreePlacedAtYLong();
+        op_rep(P_M);
+        flag_set(P_C, 1);
+        pla16();
+        cpu.a = op_sbc16(cpu.a, 0x0050, &cpu.p);
+        cpu.y = cpu.a;
+        op_sep(P_M);
+        cmp16_of(cpu.y, 0x0B0B);
+    } while (cpu.y != 0x0B0B);
+    cpu.x = 0x0036;                       /* the 28 pool records free */
+    nz16_of(0x0036);
+    wr16(dba(ACTOR_FREE_TOP), 0x0036);
+    op_sep(P_X);
 }

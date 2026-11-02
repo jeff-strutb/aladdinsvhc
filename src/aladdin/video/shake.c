@@ -8,6 +8,8 @@
  * frame.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 
@@ -111,23 +113,27 @@ void abi_ShakeDown(void)
  */
 void abi_ShakeTask(void)
 {
-    lda8_v(0x00);  /* 81A1D5 lda */
-    xba();  /* 81A1D7 xba */
-    tya8();  /* 81A1D8 tya */
-    tcd();  /* 81A1D9 tcd */
-    ldx8(ea_dp(SHAKE_LAYER));  /* 81A1DA ldx */
-    lda8(ea_absx(SHAKE_TABLE));  /* 81A1DC lda */
-    sta8(ea_dp(SHAKE_LAYER));  /* 81A1DF sta */
-    lda8(ea_absx(SHAKE_TABLE + 1));  /* 81A1E1 lda */
-    sta8(ea_dp(SHAKE_SWAYS));  /* 81A1E4 sta */
-    lda8(ea_absx(SHAKE_TABLE + 2));  /* 81A1E6 lda */
-    sta8(ea_dp(SHAKE_FRAMES));  /* 81A1E9 sta */
-    lda8(ea_absx(SHAKE_TABLE + 3));  /* 81A1EB lda */
-    sta8(ea_dp(SHAKE_STEP));  /* 81A1EE sta */
-L_81A1F0:
-    push16(0xA1F2); abi_ShakeUp(); cpu.s = (uint16_t)(cpu.s + 2);  /* 81A1F0 jsr */
-    push16(0xA1F5); abi_ShakeDown(); cpu.s = (uint16_t)(cpu.s + 2);  /* 81A1F3 jsr */
-    MEM8(dec, ea_dp(SHAKE_SWAYS));  /* 81A1F6 dec */
-    if (!IF_Z) goto L_81A1F0;  /* 81A1F8 bne */
-    abi_TaskExit(); return;  /* 81A1FA jml */
+    uint32_t shake;
+    uint8_t sways, step;
+
+    /* D = the task's slot: its fields */
+    cpu.a = (uint8_t)cpu.y;
+    nz8_of((uint8_t)cpu.y);
+    cpu.d = cpu.a;
+    x8_load(rd8(dpa(SHAKE_LAYER)));
+    shake = dba(SHAKE_TABLE) + cpu.x;
+    wr8(dpa(SHAKE_LAYER), rd8(shake));
+    wr8(dpa(SHAKE_SWAYS), rd8(shake + 1));
+    wr8(dpa(SHAKE_FRAMES), rd8(shake + 2));
+    step = rd8(shake + 3);
+    wr8(dpa(SHAKE_STEP), step);
+    a8_load(step);
+    do {
+        call_frame(0xA1F2, abi_ShakeUp);
+        call_frame(0xA1F5, abi_ShakeDown);
+        sways = (uint8_t)(rd8(dpa(SHAKE_SWAYS)) - 1);
+        wr8(dpa(SHAKE_SWAYS), sways);
+        nz8_of(sways);
+    } while (sways);
+    abi_TaskExit();
 }

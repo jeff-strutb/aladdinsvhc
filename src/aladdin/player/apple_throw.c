@@ -4,6 +4,8 @@
  * cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -40,75 +42,81 @@ void abi_SoundQueueAdd(void);
  */
 void abi_PlayerAppleThrow(void)
 {
-    goto L_81CDE9;
-L_81CDE7:
-    clc();  /* 81CDE7 clc */
-    return;  /* 81CDE8 rts */
-L_81CDE9:
-    lda8(ea_abs(V_0389));  /* 81CDE9 lda */
-    if (IF_Z) goto L_81CDE7;  /* 81CDEC beq */
-    lda8(ea_abs(APPLES));  /* 81CDEE lda */
-    if (IF_Z) goto L_81CDE7;  /* 81CDF1 beq */
-    lda8(ea_abs(LEVEL));  /* 81CDF3 lda */
-    cmp8_v(0x25);  /* 81CDF6 cmp */
-    if (IF_Z) goto L_81CDE7;  /* 81CDF8 beq */
-    abi_ActorAllocBLong();  /* 81CDFA jsl */
-    if (IF_N) goto L_81CDE7;  /* 81CDFE bmi */
-    lda8_v(0x0C);  /* 81CE00 lda */
-    sta8(ea_absx(ACTOR_STATE));  /* 81CE02 sta */
-    lda8(ea_dp(ACTOR_FLIP));  /* 81CE05 lda */
-    sta8(ea_absx(ACTOR_FACING));  /* 81CE07 sta */
-    sta8(ea_absx(ACTOR_FLIP));  /* 81CE0A sta */
-    op_rep(0x20);  /* 81CE0D rep */
-    lda16(ea_abs(PLAYER_BOX_WANTED));  /* 81CE0F lda */
-    and16_v(0x0003);  /* 81CE12 and */
-    pha16();  /* 81CE15 pha */
-    ACC16(asl);  /* 81CE16 asl */
-    tay16();  /* 81CE17 tay */
-    lda16(ea_dp(ACTOR_FLIP));  /* 81CE18 lda */
-    and16_v(0x00FF);  /* 81CE1A and */
-    if (IF_Z) goto L_81CE2A;  /* 81CE1D beq */
-    lda16(ea_dp(ACTOR_X + 1));  /* 81CE1F lda */
-    clc();  /* 81CE21 clc */
-    adc16_v(rd16(ea_absy(THROW_X)));  /* 81CE22 adc */
-    sta16(ea_absx(ACTOR_X + 1));  /* 81CE25 sta */
-    goto L_81CE33;  /* 81CE28 bra */
-L_81CE2A:
-    lda16(ea_dp(ACTOR_X + 1));  /* 81CE2A lda */
-    sec();  /* 81CE2C sec */
-    sbc16_v(rd16(ea_absy(THROW_X)));  /* 81CE2D sbc */
-    sta16(ea_absx(ACTOR_X + 1));  /* 81CE30 sta */
-L_81CE33:
-    lda16(ea_dp(ACTOR_Y + 1));  /* 81CE33 lda */
-    sec();  /* 81CE35 sec */
-    sbc16_v(rd16(ea_absy(THROW_Y)));  /* 81CE36 sbc */
-    sta16(ea_absx(ACTOR_Y + 1));  /* 81CE39 sta */
-    op_sep(0x20);  /* 81CE3C sep */
-    ply16();  /* 81CE3E ply */
-    lda8_v(0x10);  /* 81CE3F lda */
-    sta8(ea_absx(ACTOR_06));  /* 81CE41 sta */
-    lda8(ea_absy(THROW_COURSE));  /* 81CE44 lda */
-    sta8(ea_absx(ACTOR_07));  /* 81CE47 sta */
-    op_sep(0x10);  /* 81CE4A sep */
-    lda8(ea_abs(APPLES));  /* 81CE4C lda */
-    pha8();  /* 81CE4F pha */
-    and8_v(0x0F);  /* 81CE50 and */
-    if (!IF_Z) goto L_81CE5A;  /* 81CE52 bne */
-    pla8();  /* 81CE54 pla */
-    sec();  /* 81CE55 sec */
-    sbc8_v(0x07);  /* 81CE56 sbc */
-    goto L_81CE5C;  /* 81CE58 bra */
-L_81CE5A:
-    pla8();  /* 81CE5A pla */
-    ACC8(dec);  /* 81CE5B dec */
-L_81CE5C:
-    sta8(ea_abs(APPLES));  /* 81CE5C sta */
-    lda8_v(0x03);  /* 81CE5F lda */
-    abi_SoundQueueAdd();  /* 81CE61 jsl */
-    lda8(ea_abs(V_141C));  /* 81CE65 lda */
-    if (!IF_Z) goto L_81CE6E;  /* 81CE68 bne */
-    abi_ActorStopX();  /* 81CE6A jsl */
-L_81CE6E:
-    sec();  /* 81CE6E sec */
-    return;  /* 81CE6F rts */
+    uint32_t apple;
+    uint16_t pose, x, y;
+    uint8_t v, facing, apples;
+
+    /* none when throwing is off, no apples are left, or in level $25 */
+    v = rd8(dba(V_0389));
+    a8_load(v);
+    if (!v)
+        goto none;
+    v = rd8(dba(APPLES));
+    a8_load(v);
+    if (!v)
+        goto none;
+    v = rd8(dba(LEVEL));
+    a8_load(v);
+    cmp8_of(v, 0x25);
+    if (v == 0x25)
+        goto none;
+    abi_ActorAllocBLong();
+    if (cpu.p & P_N)
+        goto none;
+    /* the apple starts at his hand for his pose, going his way */
+    apple = dba(0) + cpu.x;
+    a8_load(0x0C);
+    wr8(apple + ACTOR_STATE, 0x0C);
+    facing = rd8(dpa(ACTOR_FLIP));
+    a8_load(facing);
+    wr8(apple + ACTOR_FACING, facing);
+    wr8(apple + ACTOR_FLIP, facing);
+    op_rep(P_M);
+    pose = rd16(dba(PLAYER_BOX_WANTED)) & 0x0003;
+    cpu.a = pose;
+    pha16();
+    cpu.y = (uint16_t)(pose << 1);
+    if (dp16(ACTOR_FLIP) & 0x00FF) {
+        flag_set(P_C, 0);
+        x = op_adc16(dp16(ACTOR_X + 1), rd16(dba(THROW_X) + cpu.y), &cpu.p);
+    } else {
+        flag_set(P_C, 1);
+        x = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(THROW_X) + cpu.y), &cpu.p);
+    }
+    wr16(apple + ACTOR_X + 1, x);
+    flag_set(P_C, 1);
+    y = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(THROW_Y) + cpu.y), &cpu.p);
+    wr16(apple + ACTOR_Y + 1, y);
+    cpu.a = y;
+    op_sep(P_M);
+    ply16();
+    a8_load(0x10);
+    wr8(apple + ACTOR_06, 0x10);
+    v = rd8(dba(THROW_COURSE) + cpu.y);
+    a8_load(v);
+    wr8(apple + ACTOR_07, v);
+    op_sep(P_X);
+    /* one apple fewer (two decimal digits) */
+    apples = rd8(dba(APPLES));
+    a8_load(apples);
+    pha8();
+    nz8_of(apples & 0x0F);
+    pla8();
+    if (apples & 0x0F) {
+        a8_load((uint8_t)(apples - 1));
+    } else {
+        flag_set(P_C, 1);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | op_sbc8(apples, 0x07, &cpu.p));
+    }
+    wr8(dba(APPLES), (uint8_t)cpu.a);
+    a8_load(0x03);
+    abi_SoundQueueAdd();
+    v = rd8(dba(V_141C));
+    a8_load(v);
+    if (!v)
+        abi_ActorStopX();
+    flag_set(P_C, 1);
+    return;
+none:
+    flag_set(P_C, 0);
 }

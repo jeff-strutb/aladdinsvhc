@@ -4,7 +4,11 @@
  * map.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_BandsSpeedUpTask(void);
 void abi_GreyPastTask(void);
 void abi_RedOutTask(void);
@@ -14,6 +18,14 @@ void abi_TaskWait(void);
 void abi_TaskExit(void);
 #include "wram.h"
 #include "wram_video.h"
+
+/* The task's next frame (its JSL returning at `site`). */
+static void next_frame(uint32_t site, uint8_t frames)
+{
+    a8_load(frames);
+    jsl_frame(site);
+    abi_TaskWait();
+}
 
 /*
  * @routine 81:A0C3 BandsSpeedUpTask
@@ -27,58 +39,47 @@ void abi_TaskExit(void);
  */
 void abi_BandsSpeedUpTask(void)
 {
-    op_rep(0x20);  /* 81A0C3 rep */
-    lda16_v(0x000B);  /* 81A0C5 lda */
-    sta16(ea_abs(SCRATCH));  /* 81A0C8 sta */
-    ldx8_v(0x00);  /* 81A0CB ldx */
-    txy8();  /* 81A0CD txy */
-L_81A0CE:
-    lda16(ea_absy(0xC5D6));  /* 81A0CE lda */
-    sta16(ea_longx(BAND_SPEED));  /* 81A0D1 sta */
-    iny8();  /* 81A0D5 iny */
-    iny8();  /* 81A0D6 iny */
-    inx8();  /* 81A0D7 inx */
-    inx8();  /* 81A0D8 inx */
-    inx8();  /* 81A0D9 inx */
-    inx8();  /* 81A0DA inx */
-    MEM16(dec, ea_abs(SCRATCH));  /* 81A0DB dec */
-    if (!IF_Z) goto L_81A0CE;  /* 81A0DE bne */
-    op_sep(0x20);  /* 81A0E0 sep */
-    op_rep(0x10);  /* 81A0E2 rep */
-L_81A0E4:
-    lda8_v(0x01);  /* 81A0E4 lda */
-    jsl_frame(0x81A0E6u); abi_TaskWait();  /* 81A0E6 jsl */
-    ldx16(ea_abs(0x1773));  /* 81A0EA ldx */
-    cpx16_v(0x0680);  /* 81A0ED cpx */
-    if (!IF_C) goto L_81A0E4;  /* 81A0F0 bcc */
-    op_sep(0x10);  /* 81A0F2 sep */
-L_81A0F4:
-    op_rep(0x20);  /* 81A0F4 rep */
-    lda16_v(0x000B);  /* 81A0F6 lda */
-    sta16(ea_abs(SCRATCH));  /* 81A0F9 sta */
-    ldx8_v(0x00);  /* 81A0FC ldx */
-    txy8();  /* 81A0FE txy */
-L_81A0FF:
-    clc();  /* 81A0FF clc */
-    lda16(ea_longx(BAND_SPEED));  /* 81A100 lda */
-    adc16_v(rd16(ea_absy(0xC5C0)));  /* 81A104 adc */
-    cmp16_v(rd16(ea_absy(0xC5EC)));  /* 81A107 cmp */
-    if (!IF_C) goto L_81A10F;  /* 81A10A bcc */
-    lda16(ea_absy(0xC5EC));  /* 81A10C lda */
-L_81A10F:
-    sta16(ea_longx(BAND_SPEED));  /* 81A10F sta */
-    iny8();  /* 81A113 iny */
-    iny8();  /* 81A114 iny */
-    inx8();  /* 81A115 inx */
-    inx8();  /* 81A116 inx */
-    inx8();  /* 81A117 inx */
-    inx8();  /* 81A118 inx */
-    MEM16(dec, ea_abs(SCRATCH));  /* 81A119 dec */
-    if (!IF_Z) goto L_81A0FF;  /* 81A11C bne */
-    op_sep(0x20);  /* 81A11E sep */
-    lda8_v(0x01);  /* 81A120 lda */
-    jsl_frame(0x81A122u); abi_TaskWait();  /* 81A122 jsl */
-    goto L_81A0F4;  /* 81A126 bra */
+    uint8_t band, x, y;
+    uint16_t speed, most;
+
+    /* the 11 bands' starting speeds */
+    op_rep(P_M);
+    wr16(dba(SCRATCH), 0x000B);
+    for (band = 0, x = 0, y = 0; band < 11; band++, x += 4, y += 2) {
+        cpu.a = rd16(dba((uint16_t)(0xC5D6 + y)));
+        wr16(BAND_SPEED + x, cpu.a);
+        wr16(dba(SCRATCH), (uint16_t)(10 - band));
+    }
+    cpu.x = x;
+    cpu.y = y;
+    op_sep(P_M);
+    op_rep(P_X);
+    /* until the camera is far enough in */
+    do {
+        next_frame(0x81A0E6u, 0x01);
+        cpu.x = rd16(dba(0x1773));
+        cmp16_of(cpu.x, 0x0680);
+    } while (cpu.x < 0x0680);
+    op_sep(P_X);
+    /* then each frame each speed up by its step, to its most */
+    for (;;) {
+        op_rep(P_M);
+        for (band = 0, x = 0, y = 0; band < 11; band++, x += 4, y += 2) {
+            flag_set(P_C, 0);
+            speed = op_adc16(rd16(BAND_SPEED + x), rd16(dba((uint16_t)(0xC5C0 + y))), &cpu.p);
+            most = rd16(dba((uint16_t)(0xC5EC + y)));
+            cmp16_of(speed, most);
+            if (speed >= most)
+                speed = most;
+            cpu.a = speed;
+            wr16(BAND_SPEED + x, speed);
+            wr16(dba(SCRATCH), (uint16_t)(10 - band));
+        }
+        cpu.x = x;
+        cpu.y = y;
+        op_sep(P_M);
+        next_frame(0x81A122u, 0x01);
+    }
 }
 
 /*
@@ -94,26 +95,22 @@ L_81A10F:
  */
 void abi_GreyPastTask(void)
 {
-    op_rep(0x10);  /* 81A128 rep */
-L_81A12A:
-    lda8_v(0x01);  /* 81A12A lda */
-    jsl_frame(0x81A12Cu); abi_TaskWait();  /* 81A12C jsl */
-    ldx16(ea_abs(0x08E7));  /* 81A130 ldx */
-    cpx16_v(0x0E00);  /* 81A133 cpx */
-    if (!IF_C) goto L_81A12A;  /* 81A136 bcc */
-    lda8_v(0x82);  /* 81A138 lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 81A13A sta */
-    stz8(ea_abs(CGWSEL_SHADOW));  /* 81A13D stz */
-    lda8_v(0x80);  /* 81A140 lda */
-    sta8(ea_abs(WOBJSEL_SHADOW));  /* 81A142 sta */
-    lda8_v(0x04);  /* 81A145 lda */
-    sta8(ea_abs(COLDATA_RED));  /* 81A147 sta */
-    lda8_v(0x04);  /* 81A14A lda */
-    sta8(ea_abs(COLDATA_GREEN));  /* 81A14C sta */
-    lda8_v(0x04);  /* 81A14F lda */
-    sta8(ea_abs(COLDATA_BLUE));  /* 81A151 sta */
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));  /* 81A154 inc */
-    abi_TaskExit(); return;  /* 81A157 jml */
+    op_rep(P_X);
+    do {
+        next_frame(0x81A12Cu, 0x01);
+        cpu.x = rd16(dba(0x08E7));
+        cmp16_of(cpu.x, 0x0E00);
+    } while (cpu.x < 0x0E00);
+    /* colour math takes a grey of 4 off */
+    wr8(dba(CGADSUB_SHADOW), 0x82);
+    wr8(dba(CGWSEL_SHADOW), 0x00);
+    wr8(dba(WOBJSEL_SHADOW), 0x80);
+    wr8(dba(COLDATA_RED), 0x04);
+    wr8(dba(COLDATA_GREEN), 0x04);
+    a8_load(0x04);
+    wr8(dba(COLDATA_BLUE), 0x04);
+    inc8_at(dba(PALETTE_UPLOAD));
+    abi_TaskExit();
 }
 
 /*
@@ -131,30 +128,31 @@ L_81A12A:
  */
 void abi_RedOutTask(void)
 {
-    op_rep(0x10);  /* 81A15B rep */
-L_81A15D:
-    lda8_v(0x01);  /* 81A15D lda */
-    jsl_frame(0x81A15Fu); abi_TaskWait();  /* 81A15F jsl */
-    ldx16(ea_abs(0x1773));  /* 81A163 ldx */
-    cpx16_v(0x1A00);  /* 81A166 cpx */
-    if (!IF_C) goto L_81A15D;  /* 81A169 bcc */
-    lda8_v(0x01);  /* 81A16B lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 81A16D sta */
-    stz8(ea_abs(CGWSEL_SHADOW));  /* 81A170 stz */
-    stz8(ea_abs(0x0080));  /* 81A173 stz */
-    lda8_v(0x80);  /* 81A176 lda */
-    sta8(ea_abs(WOBJSEL_SHADOW));  /* 81A178 sta */
-    ldy16_v(0x0007);  /* 81A17B ldy */
-    ldx16_v(0x0008);  /* 81A17E ldx */
-L_81A181:
-    lda8_v(0x0F);  /* 81A181 lda */
-    jsl_frame(0x81A183u); abi_TaskWait();  /* 81A183 jsl */
-    abi_PaletteRedDown();  /* 81A187 jsr */
-    MEM8(inc, ea_abs(COLDATA_BLUE));  /* 81A18A inc */
-    dey16();  /* 81A18D dey */
-    if (!IF_Z) goto L_81A181;  /* 81A18E bne */
-    abi_PaletteRedDown();  /* 81A190 jsr */
-    abi_TaskExit(); return;  /* 81A193 jml */
+    op_rep(P_X);
+    do {
+        next_frame(0x81A15Fu, 0x01);
+        cpu.x = rd16(dba(0x1773));
+        cmp16_of(cpu.x, 0x1A00);
+    } while (cpu.x < 0x1A00);
+    /* colour math adds the fixed colour to BG1; 8 steps of red down, the
+       first 7 with blue up, 15 frames apart */
+    a8_load(0x01);
+    wr8(dba(CGADSUB_SHADOW), 0x01);
+    wr8(dba(CGWSEL_SHADOW), 0x00);
+    wr8(dba(0x0080), 0x00);
+    a8_load(0x80);
+    wr8(dba(WOBJSEL_SHADOW), 0x80);
+    cpu.y = 0x0007;
+    cpu.x = 0x0008;
+    do {
+        next_frame(0x81A183u, 0x0F);
+        abi_PaletteRedDown();
+        inc8_at(dba(COLDATA_BLUE));
+        cpu.y--;
+        nz16_of(cpu.y);
+    } while (cpu.y);
+    abi_PaletteRedDown();
+    abi_TaskExit();
 }
 
 /*
@@ -171,30 +169,24 @@ L_81A181:
  */
 void abi_PaletteRedDown(void)
 {
-    txa8();  /* 81A197 txa */
-    if (IF_Z) goto L_81A1BF;  /* 81A198 beq */
-    phx16();  /* 81A19A phx */
-    ldx16_v(0x001E);  /* 81A19B ldx */
-L_81A19E:
-    lda8(ea_longx(0x7EFD40u));  /* 81A19E lda */
-    pha8();  /* 81A1A2 pha */
-    and8_v(0xE0);  /* 81A1A3 and */
-    sta8(ea_abs(SCRATCH));  /* 81A1A5 sta */
-    pla8();  /* 81A1A8 pla */
-    and8_v(0x1F);  /* 81A1A9 and */
-    ACC8(dec);  /* 81A1AB dec */
-    if (!IF_N) goto L_81A1B0;  /* 81A1AC bpl */
-    lda8_v(0x00);  /* 81A1AE lda */
-L_81A1B0:
-    ora8_v(rd8(ea_abs(SCRATCH)));  /* 81A1B0 ora */
-    sta8(ea_longx(0x7EFD40u));  /* 81A1B3 sta */
-    dex16();  /* 81A1B7 dex */
-    dex16();  /* 81A1B8 dex */
-    if (!IF_N) goto L_81A19E;  /* 81A1B9 bpl */
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));  /* 81A1BB inc */
-    plx16();  /* 81A1BE plx */
-L_81A1BF:
-    return;  /* 81A1BF rts */
+    int16_t at;
+    uint8_t c, red;
+
+    a8_load((uint8_t)cpu.x);
+    if (!(uint8_t)cpu.x)
+        return;
+    /* each colour's red down one, not below 0 */
+    for (at = 0x1E; at >= 0; at -= 2) {
+        c = rd8(0x7EFD40u + at);
+        wr8(dba(SCRATCH), c & 0xE0);
+        red = c & 0x1F;
+        red = red ? (uint8_t)(red - 1) : 0;
+        c = (uint8_t)(red | rd8(dba(SCRATCH)));
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | c);
+        wr8(0x7EFD40u + at, c);
+    }
+    inc8_at(dba(PALETTE_UPLOAD));
+    nz16_of(cpu.x);
 }
 
 /*
@@ -214,50 +206,46 @@ L_81A1BF:
  */
 void abi_ClimbTopTask(void)
 {
-L_81A30D:
-    lda8_v(0x01);  /* 81A30D lda */
-    jsl_frame(0x81A30Fu); abi_TaskWait();  /* 81A30F jsl */
-    lda8(ea_abs(0x0360));  /* 81A313 lda */
-    if (!IF_Z) goto L_81A345;  /* 81A316 bne */
-    lda8(ea_abs(0x08E4));  /* 81A318 lda */
-    and8_v(0xCF);  /* 81A31B and */
-    sta8(ea_abs(0x08E4));  /* 81A31D sta */
-    lda8_v(0x00);  /* 81A320 lda */
-    ldx8(ea_abs(0x08EB));  /* 81A322 ldx */
-    if (!IF_Z) goto L_81A329;  /* 81A325 bne */
-    lda8_v(0x10);  /* 81A327 lda */
-L_81A329:
-    ora8_v(rd8(ea_abs(0x08E4)));  /* 81A329 ora */
-    sta8(ea_abs(0x08E4));  /* 81A32C sta */
-    lda8(ea_abs(0x1777));  /* 81A32F lda */
-    ora8_v(rd8(ea_abs(0x1778)));  /* 81A332 ora */
-    if (!IF_Z) goto L_81A30D;  /* 81A335 bne */
-    lda8(ea_abs(0x08E7));  /* 81A337 lda */
-    cmp8_v(0x80);  /* 81A33A cmp */
-    if (!IF_C) goto L_81A30D;  /* 81A33C bcc */
-    lda8(ea_abs(0x08EA));  /* 81A33E lda */
-    cmp8_v(0x78);  /* 81A341 cmp */
-    if (IF_C) goto L_81A30D;  /* 81A343 bcs */
-L_81A345:
-    stz8(ea_abs(0x1A07));  /* 81A345 stz */
-    lda8(ea_abs(LEVEL));  /* 81A348 lda */
-    cmp8_v(0x19);  /* 81A34B cmp */
-    if (IF_Z) goto L_81A363;  /* 81A34D beq */
-    lda8_v(0x17);  /* 81A34F lda */
-    sta8(ea_abs(0x0399));  /* 81A351 sta */
-    lda8_v(0x10);  /* 81A354 lda */
-    sta8(ea_abs(0x039A));  /* 81A356 sta */
-    lda8_v(0x03);  /* 81A359 lda */
-    sta8(ea_abs(CGWSEL_SHADOW));  /* 81A35B sta */
-    lda8_v(0x53);  /* 81A35E lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 81A360 sta */
-L_81A363:
-    lda8_v(0x01);  /* 81A363 lda */
-    jsl_frame(0x81A365u); abi_TaskWait();  /* 81A365 jsl */
-    lda8(ea_abs(0x1774));  /* 81A369 lda */
-    cmp8_v(0x01);  /* 81A36C cmp */
-    if (!IF_Z) goto L_81A363;  /* 81A36E bne */
-    lda8_v(0xFE);  /* 81A370 lda */
-    sta8(0x7FF043u);  /* 81A372 sta */
-    abi_TaskExit(); return;  /* 81A376 jml */
+    uint8_t v;
+
+    for (;;) {
+        next_frame(0x81A30Fu, 0x01);
+        if (rd8(dba(0x0360)))
+            break;
+        /* the player's sprites in front while its y is under 256 */
+        wr8(dba(0x08E4), rd8(dba(0x08E4)) & 0xCF);
+        x8_load(rd8(dba(0x08EB)));
+        v = (uint8_t)(((uint8_t)cpu.x ? 0x00 : 0x10) | rd8(dba(0x08E4)));
+        wr8(dba(0x08E4), v);
+        /* at the top: the camera's y 0, the player's x low byte $80 on and
+           its y low byte under $78 */
+        if (rd8(dba(0x1777)) | rd8(dba(0x1778)))
+            continue;
+        v = rd8(dba(0x08E7));
+        cmp8_of(v, 0x80);
+        if (v < 0x80)
+            continue;
+        v = rd8(dba(0x08EA));
+        cmp8_of(v, 0x78);
+        if (v < 0x78)
+            break;
+    }
+    wr8(dba(0x1A07), 0);
+    v = rd8(dba(LEVEL));
+    cmp8_of(v, 0x19);
+    if (v != 0x19) {
+        wr8(dba(0x0399), 0x17);
+        wr8(dba(0x039A), 0x10);
+        wr8(dba(CGWSEL_SHADOW), 0x03);
+        wr8(dba(CGADSUB_SHADOW), 0x53);
+    }
+    /* until the scroll x's high byte is 1; then the way right opened */
+    do {
+        next_frame(0x81A365u, 0x01);
+        v = rd8(dba(0x1774));
+        cmp8_of(v, 0x01);
+    } while (v != 0x01);
+    a8_load(0xFE);
+    wr8(0x7FF043u, 0xFE);
+    abi_TaskExit();
 }

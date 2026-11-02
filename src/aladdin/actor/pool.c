@@ -5,6 +5,8 @@
  * addresses (ACTOR_FREE_LIST, ACTOR_FREE_TOP the offset of its top word).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorFreeListSortHigh(void);
 void abi_ActorFreeListTake(void);
@@ -194,6 +196,35 @@ void abi_ActorRecordsInit(void)
     op_sep(P_M | P_X);
 }
 
+/* Passes of a bubble sort of the free list's top, from offset Y down:
+   each pass compares `pairs` neighbours (the count at `count`, a word,
+   counted down a pass at a time), swapping a pair whose upper entry is
+   lower (high_first: higher) than the one below it. */
+static void sort_passes(uint16_t count, int high_first)
+{
+    do {
+        phy8();
+        x8_load(rd8(dba(count)));
+        do {
+            uint32_t upper = dba((uint16_t)(ACTOR_FREE_LIST - 2)) + cpu.y;
+            uint32_t lower = dba(ACTOR_FREE_LIST) + cpu.y;
+            uint16_t a = rd16(high_first ? upper : lower), b = rd16(high_first ? lower : upper);
+
+            cpu.a = a;
+            cmp16_of(a, b);
+            if (high_first ? a >= b : a < b) {
+                pha16();
+                wr16(high_first ? upper : lower, b);
+                pla16();
+                wr16(high_first ? lower : upper, cpu.a);
+            }
+            cpu.y = (uint8_t)(cpu.y - 2);
+            x8_load((uint8_t)(cpu.x - 1));
+        } while (cpu.x);
+        ply8();
+    } while (dec16_at(dba(count)));
+}
+
 /*
  * @routine 81:ADFC ActorFreeListSortHigh
  * WHAT IT DOES: Orders the top of the free list so the highest record
@@ -211,41 +242,23 @@ void abi_ActorRecordsInit(void)
  */
 void abi_ActorFreeListSortHigh(void)
 {
-    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 81ADFC ldy */
-    if (IF_N) goto L_81AE34;  /* 81ADFF bmi */
-    sta8(ea_abs(SCRATCH));  /* 81AE01 sta */
-    stz8(ea_abs(0x000D));  /* 81AE04 stz */
-    tya8();  /* 81AE07 tya */
-    ACC8(lsr);  /* 81AE08 lsr */
-    cmp8_v(rd8(ea_abs(SCRATCH)));  /* 81AE09 cmp */
-    if (!IF_C) goto L_81AE35;  /* 81AE0C bcc */
-    op_rep(0x20);  /* 81AE0E rep */
-L_81AE10:
-    phy8();  /* 81AE10 phy */
-    ldx8(ea_abs(SCRATCH));  /* 81AE11 ldx */
-L_81AE14:
-    lda16(ea_absy(0x15A0));  /* 81AE14 lda */
-    cmp16_v(rd16(ea_absy(ACTOR_FREE_LIST)));  /* 81AE17 cmp */
-    if (!IF_C) goto L_81AE27;  /* 81AE1A bcc */
-    pha16();  /* 81AE1C pha */
-    lda16(ea_absy(ACTOR_FREE_LIST));  /* 81AE1D lda */
-    sta16(ea_absy(0x15A0));  /* 81AE20 sta */
-    pla16();  /* 81AE23 pla */
-    sta16(ea_absy(ACTOR_FREE_LIST));  /* 81AE24 sta */
-L_81AE27:
-    dey8();  /* 81AE27 dey */
-    dey8();  /* 81AE28 dey */
-    dex8();  /* 81AE29 dex */
-    if (!IF_Z) goto L_81AE14;  /* 81AE2A bne */
-    ply8();  /* 81AE2C ply */
-    MEM16(dec, ea_abs(SCRATCH));  /* 81AE2D dec */
-    if (!IF_Z) goto L_81AE10;  /* 81AE30 bne */
-    op_sep(0x20);  /* 81AE32 sep */
-L_81AE34:
-    return;  /* 81AE34 rtl */
-L_81AE35:
-    lda8_v(0xFF);  /* 81AE35 lda */
-    return;  /* 81AE37 rtl */
+    uint8_t top = rd8(dba(ACTOR_FREE_TOP)), passes = (uint8_t)cpu.a;
+
+    y8_load(top);
+    if (top & 0x80)
+        return;
+    wr8(dba(SCRATCH), passes);
+    wr8(dba(SCRATCH + 1), 0);
+    a8_load((uint8_t)(top >> 1));
+    flag_set(P_C, top & 1);
+    cmp8_of((uint8_t)(top >> 1), passes);
+    if ((uint8_t)(top >> 1) < passes) {   /* fewer free than the passes */
+        a8_load(0xFF);
+        return;
+    }
+    op_rep(P_M);
+    sort_passes(SCRATCH, 1);
+    op_sep(P_M);
 }
 
 /*
@@ -266,51 +279,33 @@ L_81AE35:
  */
 void abi_ActorFreeListTake(void)
 {
-    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 81AE38 ldy */
-    if (IF_N) goto L_81AE88;  /* 81AE3B bmi */
-    sta8(ea_abs(SCRATCH));  /* 81AE3D sta */
-    cpy8_v(rd8(ea_abs(SCRATCH)));  /* 81AE40 cpy */
-    if (!IF_C) goto L_81AE88;  /* 81AE43 bcc */
-    pha8();  /* 81AE45 pha */
-    ACC8(lsr);  /* 81AE46 lsr */
-    sta8(ea_abs(0x000E));  /* 81AE47 sta */
-    stz8(ea_abs(0x000F));  /* 81AE4A stz */
-    pla8();  /* 81AE4D pla */
-    ACC8(inc);  /* 81AE4E inc */
-    ACC8(inc);  /* 81AE4F inc */
-    sta8(ea_abs(SCRATCH));  /* 81AE50 sta */
-    sec();  /* 81AE53 sec */
-    tya8();  /* 81AE54 tya */
-    sbc8_v(rd8(ea_abs(SCRATCH)));  /* 81AE55 sbc */
-    sta8(ea_abs(ACTOR_FREE_TOP));  /* 81AE58 sta */
-    op_rep(0x20);  /* 81AE5B rep */
-L_81AE5D:
-    phy8();  /* 81AE5D phy */
-    ldx8(ea_abs(0x000E));  /* 81AE5E ldx */
-L_81AE61:
-    lda16(ea_absy(ACTOR_FREE_LIST));  /* 81AE61 lda */
-    cmp16_v(rd16(ea_absy(0x15A0)));  /* 81AE64 cmp */
-    if (IF_C) goto L_81AE74;  /* 81AE67 bcs */
-    pha16();  /* 81AE69 pha */
-    lda16(ea_absy(0x15A0));  /* 81AE6A lda */
-    sta16(ea_absy(ACTOR_FREE_LIST));  /* 81AE6D sta */
-    pla16();  /* 81AE70 pla */
-    sta16(ea_absy(0x15A0));  /* 81AE71 sta */
-L_81AE74:
-    dey8();  /* 81AE74 dey */
-    dey8();  /* 81AE75 dey */
-    dex8();  /* 81AE76 dex */
-    if (!IF_Z) goto L_81AE61;  /* 81AE77 bne */
-    ply8();  /* 81AE79 ply */
-    MEM16(dec, ea_abs(0x000E));  /* 81AE7A dec */
-    if (!IF_Z) goto L_81AE5D;  /* 81AE7D bne */
-    op_sep(0x20);  /* 81AE7F sep */
-    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 81AE81 ldy */
-    iny8();  /* 81AE84 iny */
-    iny8();  /* 81AE85 iny */
-    sec();  /* 81AE86 sec */
-    return;  /* 81AE87 rtl */
-L_81AE88:
-    clc();  /* 81AE88 clc */
-    return;  /* 81AE89 rtl */
+    uint8_t top = rd8(dba(ACTOR_FREE_TOP)), bytes = (uint8_t)cpu.a, taken;
+
+    y8_load(top);
+    if (top & 0x80)
+        goto none;
+    wr8(dba(SCRATCH), bytes);
+    cmp8_of(top, bytes);
+    if (top < bytes)
+        goto none;
+    /* the records taken off the top; the rest of the list sorted, lowest
+       addresses on top */
+    pha8();
+    wr8(dba(SCRATCH + 2), (uint8_t)(bytes >> 1));
+    wr8(dba(SCRATCH + 3), 0);
+    pla8();
+    taken = (uint8_t)(bytes + 2);
+    a8_load(taken);
+    wr8(dba(SCRATCH), taken);
+    flag_set(P_C, 1);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | op_sbc8(top, taken, &cpu.p));
+    wr8(dba(ACTOR_FREE_TOP), (uint8_t)cpu.a);
+    op_rep(P_M);
+    sort_passes(SCRATCH + 2, 0);
+    op_sep(P_M);
+    y8_load((uint8_t)(rd8(dba(ACTOR_FREE_TOP)) + 2));
+    flag_set(P_C, 1);
+    return;
+none:
+    flag_set(P_C, 0);
 }

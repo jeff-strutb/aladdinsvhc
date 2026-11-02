@@ -4,6 +4,8 @@
  * described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -30,33 +32,25 @@ void abi_AnimStart(void);
  */
 void abi_Kind7FDrift(void)
 {
-    lda8(ea_dp(ACTOR_08));  /* 84934B lda */
-    ora8_v(0x02);  /* 84934D ora */
-    ora8_v(rd8(ea_dp(ACTOR_07)));  /* 84934F ora */
-    sta8(ea_dp(ACTOR_08));  /* 849351 sta */
-    lda8(ea_dp(ACTOR_09));  /* 849353 lda */
-    ora8_v(0x90);  /* 849355 ora */
-    sta8(ea_dp(ACTOR_09));  /* 849357 sta */
-    op_rep(0x20);  /* 849359 rep */
-    lda16_v(0xD832);  /* 84935B lda */
-    sta16(ea_dp(KIND7F_16));  /* 84935E sta */
-    op_sep(0x20);  /* 849360 sep */
-    lda8(ea_dp(ACTOR_07));  /* 849362 lda */
-    abi_AnimStart();  /* 849364 jsl */
-    stz8(ea_dp(ACTOR_FACING));  /* 849368 stz */
-    stz8(ea_dp(ACTOR_FLIP));  /* 84936A stz */
-    lda8(ea_dp(ACTOR_07));  /* 84936C lda */
-    ACC8(asl);  /* 84936E asl */
-    ACC8(asl);  /* 84936F asl */
-    ACC8(asl);  /* 849370 asl */
-    ACC8(asl);  /* 849371 asl */
-    sta8(ea_dp(KIND7F_SLOWER));  /* 849372 sta */
-    lda8_v(0x70);  /* 849374 lda */
-    sec();  /* 849376 sec */
-    sbc8_v(rd8(ea_dp(KIND7F_SLOWER)));  /* 849377 sbc */
-    sta8(ea_dp(ACTOR_SPEED_X));  /* 849379 sta */
-L_84937B:
-    actor_yield(0x84937Bu);  /* 84937B brk */
-    abi_ActorMoveX();  /* 84937D jsl */
-    goto L_84937B;  /* 849381 bra */
+    uint8_t variant = rd8(dpa(ACTOR_07)), slower, speed;
+
+    wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x02 | variant));
+    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0x90));
+    dp16_set(KIND7F_16, 0xD832);
+    cpu.a = 0xD832;
+    a8_load(variant);
+    abi_AnimStart();
+    wr8(dpa(ACTOR_FACING), 0);
+    wr8(dpa(ACTOR_FLIP), 0);
+    /* right at $70 less 16 per variant (fraction pixels a frame), for good */
+    slower = (uint8_t)(variant << 4);
+    wr8(dpa(KIND7F_SLOWER), slower);
+    flag_set(P_C, 1);
+    speed = op_sbc8(0x70, slower, &cpu.p);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | speed);
+    wr8(dpa(ACTOR_SPEED_X), speed);
+    for (;;) {
+        actor_yield(0x84937Bu);
+        abi_ActorMoveX();
+    }
 }

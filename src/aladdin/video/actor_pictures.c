@@ -3,13 +3,22 @@
  * VRAM when its animation changes it.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorPictureSend(void);
 void abi_ActorPictureQueue(void);
+void abi_ActorPictureSendFromKind(void);
 #include "actor.h"
 #include "actor_anim.h"
 #include "wram.h"
 #include "wram_video.h"
+
+/* Per kind: where its graphics went in bank $7F (word) */
+#define KIND_GFX 0x7FE500u
+/* Not yet filed (no script sends a picture of more than one part this
+   way): ActorPictureSendFromKind's next part and on, at $81:959A. */
+#define FROM_KIND_NEXT_PART 0x81959Au
 
 /*
  * @routine 81:949E ActorPictureSend
@@ -21,14 +30,11 @@ void abi_ActorPictureQueue(void);
  */
 void abi_ActorPictureSend(void)
 {
-    goto L_81949E;
-L_819493:
-    return;  /* 819493 rtl */
-L_81949E:
-    lda8(ea_dp(0x09));  /* 81949E lda */
-    and8_v(0x40);  /* 8194A0 and */
-    if (IF_Z) goto L_819493;  /* 8194A2 beq */
-    abi_ActorPictureQueue(); return;
+    uint8_t own = rd8(dpa(ACTOR_09)) & 0x40;
+
+    a8_load(own);
+    if (own)
+        abi_ActorPictureQueue();
 }
 
 /*
@@ -46,78 +52,121 @@ L_81949E:
  */
 void abi_ActorPictureQueue(void)
 {
-    goto L_8194A4;
-L_819491:
-    op_sep(0x10);  /* 819491 sep */
-L_819493:
-    return;  /* 819493 rtl */
-L_8194A4:
-    lda8(ea_dp(0x27));  /* 8194A4 lda */
-    cmp8_v(rd8(ea_dp(0x28)));  /* 8194A6 cmp */
-    if (IF_Z) goto L_819493;  /* 8194A8 beq */
-    sta8(ea_dp(0x28));  /* 8194AA sta */
-    ACC8(asl);  /* 8194AC asl */
-    sta8(ea_abs(SCRATCH));  /* 8194AD sta */
-    stz8(ea_abs(0x000D));  /* 8194B0 stz */
-    lda8(ea_abs(VRAM_QUEUE_COUNT));  /* 8194B3 lda */
-    ACC8(asl);  /* 8194B6 asl */
-    ACC8(asl);  /* 8194B7 asl */
-    ACC8(asl);  /* 8194B8 asl */
-    tax8();  /* 8194B9 tax */
-    op_rep(0x30);  /* 8194BA rep */
-    lda16_v(0x0000);  /* 8194BC lda */
-    tay16();  /* 8194BF tay */
-    lda16(ea_dpiy(0x29));  /* 8194C0 lda */
-    clc();  /* 8194C2 clc */
-    adc16_v(rd16(ea_abs(SCRATCH)));  /* 8194C3 adc */
-    tay16();  /* 8194C6 tay */
-    lda16(ea_absy(0x0000));  /* 8194C7 lda */
-    tay16();  /* 8194CA tay */
-    lda16(ea_dp(0x2B));  /* 8194CB lda */
-    and16_v(0x01FF);  /* 8194CD and */
-    ACC16(asl);  /* 8194D0 asl */
-    ACC16(asl);  /* 8194D1 asl */
-    ACC16(asl);  /* 8194D2 asl */
-    ACC16(asl);  /* 8194D3 asl */
-    clc();  /* 8194D4 clc */
-    adc16_v(0x6000);  /* 8194D5 adc */
-    sta16(ea_absx(VRAM_QUEUE));  /* 8194D8 sta */
-L_8194DB:
-    phx16();  /* 8194DB phx */
-    lda16(ea_dp(0x06));  /* 8194DC lda */
-    and16_v(0x00FF);  /* 8194DE and */
-    ACC16(asl);  /* 8194E1 asl */
-    tax16();  /* 8194E2 tax */
-    plx16();  /* 8194E3 plx */
-    clc();  /* 8194E4 clc */
-    lda16(ea_absy(0x0000));  /* 8194E5 lda */
-    sta16(ea_absx(0x085C));  /* 8194E8 sta */
-    iny16();  /* 8194EB iny */
-    iny16();  /* 8194EC iny */
-    lda16(ea_absy(0x0000));  /* 8194ED lda */
-    sta16(ea_absx(0x085E));  /* 8194F0 sta */
-    iny16();  /* 8194F3 iny */
-    iny16();  /* 8194F4 iny */
-    op_sep(0x20);  /* 8194F5 sep */
-    lda8(ea_absy(0x0000));  /* 8194F7 lda */
-    sta8(ea_absx(0x0860));  /* 8194FA sta */
-    iny16();  /* 8194FD iny */
-    lda8_v(0x80);  /* 8194FE lda */
-    sta8(ea_absx(0x0861));  /* 819500 sta */
-    MEM8(inc, ea_abs(VRAM_QUEUE_COUNT));  /* 819503 inc */
-    lda8(ea_absy(0x0000));  /* 819506 lda */
-    cmp8_v(0xFF);  /* 819509 cmp */
-    if (IF_Z) goto L_819491;  /* 81950B beq */
-    op_rep(0x20);  /* 81950D rep */
-    clc();  /* 81950F clc */
-    txa16();  /* 819510 txa */
-    adc16_v(0x0008);  /* 819511 adc */
-    tax16();  /* 819514 tax */
-    clc();  /* 819515 clc */
-    lda16(ea_absy(0x0000));  /* 819516 lda */
-    adc16_v(rd16(ea_absx(OAM_NEXT)));  /* 819519 adc */
-    sta16(ea_absx(VRAM_QUEUE));  /* 81951C sta */
-    iny16();  /* 81951F iny */
-    iny16();  /* 819520 iny */
-    goto L_8194DB;  /* 819521 bra */
+    uint8_t picture = rd8(dpa(ACTOR_PICTURE)), last = rd8(dpa(ACTOR_REDRAW)), more;
+    uint16_t list, size;
+
+    a8_load(picture);
+    cmp8_of(picture, last);
+    if (picture == last)
+        return;
+    wr8(dpa(ACTOR_REDRAW), picture);
+    wr8(dba(SCRATCH), (uint8_t)(picture << 1));
+    wr8(dba(SCRATCH + 1), 0);
+    cpu.x = (uint8_t)(rd8(dba(VRAM_QUEUE_COUNT)) << 3);
+    op_rep(0x30);
+    /* the picture's parts from its list: the first to the slot's VRAM
+       address, each after it to the last one's address plus its step */
+    list = rd16(dba(rd16(dpa(0x29))));
+    cpu.y = rd16(dba((uint16_t)(list + rd16(dba(SCRATCH)))));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16((uint16_t)((dp16(ACTOR_LOOK) & 0x01FF) << 4), 0x6000, &cpu.p);
+    wr16(dba(VRAM_QUEUE) + cpu.x, cpu.a);
+    for (;;) {
+        phx16();
+        plx16();
+        flag_set(P_C, 0);
+        cpu.a = rd16(dba(0) + cpu.y);
+        wr16(dba(VRAM_QUEUE + 2) + cpu.x, cpu.a);
+        cpu.y = (uint16_t)(cpu.y + 2);
+        size = rd16(dba(0) + cpu.y);
+        wr16(dba(VRAM_QUEUE + 4) + cpu.x, size);
+        cpu.y = (uint16_t)(cpu.y + 2);
+        op_sep(P_M);
+        wr8(dba(VRAM_QUEUE + 6) + cpu.x, rd8(dba(0) + cpu.y));
+        cpu.y = (uint16_t)(cpu.y + 1);
+        wr8(dba(VRAM_QUEUE + 7) + cpu.x, 0x80);
+        inc8_at(dba(VRAM_QUEUE_COUNT));
+        more = rd8(dba(0) + cpu.y);
+        cpu.a = (uint16_t)((size & 0xFF00) | more);
+        cmp8_of(more, 0xFF);
+        if (more == 0xFF) {
+            op_sep(P_X);
+            return;
+        }
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.x = op_adc16(cpu.x, 0x0008, &cpu.p);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(rd16(dba(0) + cpu.y), rd16(dba(OAM_NEXT) + cpu.x), &cpu.p);
+        wr16(dba(VRAM_QUEUE) + cpu.x, cpu.a);
+        cpu.y = (uint16_t)(cpu.y + 2);
+    }
+}
+
+/*
+ * @routine 81:9527 ActorPictureSendFromKind
+ * WHAT IT DOES: As ActorPictureSend, for an actor whose graphics were
+ * unpacked to bank $7F for its kind: when it shows its own picture (bit 6
+ * of $09) and the picture has changed, queues the picture's graphics for
+ * VRAM, their source the part's offset from where its kind's graphics
+ * went (KIND_GFX).
+ * HOW: Bit 6 clear, or the picture the one last sent: nothing (the RTL
+ * at $81:9526, before its entry). Else the picture kept and, from the
+ * actor's picture list, its first part as a VRAM queue record: the slot's
+ * VRAM address from the sprite attributes, the source KIND_GFX by its
+ * kind plus the part's offset, then the part's bank and size, VMAIN $80;
+ * the queue counted up. The $FF that ends the list: M and X 8-bit and
+ * out (by $81:9523). A second part goes on at FROM_KIND_NEXT_PART, which
+ * no script reaches: its C is not written, and it runs as the original's
+ * (jump_routine).
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL. Exit:
+ * nothing to send: A low byte = 0 or the picture, Z set. Queued: M
+ * 8-bit, X 8-bit; N, Z from the last compare (Z set).
+ */
+void abi_ActorPictureSendFromKind(void)
+{
+    uint8_t own = rd8(dpa(ACTOR_09)) & 0x40;
+    uint8_t picture, last;
+    uint16_t q, list, part, vram, src, size;
+
+    a8_load(own);
+    if (!own)
+        return;
+    picture = rd8(dpa(ACTOR_PICTURE));
+    last = rd8(dpa(ACTOR_REDRAW));
+    a8_load(picture);
+    cmp8_of(picture, last);
+    if (picture == last)
+        return;
+    wr8(dpa(ACTOR_REDRAW), picture);
+    wr8(dba(SCRATCH), (uint8_t)(picture << 1));
+    wr8(dba(SCRATCH + 1), 0);
+    /* the queue's next record; the picture's first part from the list */
+    q = (uint8_t)(rd8(dba(VRAM_QUEUE_COUNT)) << 3);
+    op_rep(0x30);
+    list = rd16(dba(rd16(dpa(0x29))));
+    part = rd16(dba((uint16_t)(list + rd16(dba(SCRATCH)))));
+    vram = (uint16_t)(((dp16(ACTOR_LOOK) & 0x01FF) << 4) + 0x6000);
+    wr16(dba(VRAM_QUEUE + q), vram);
+    cpu.x = q;
+    phx16();
+    flag_set(P_C, 0);
+    src = op_adc16(rd16(KIND_GFX + ((dp16(ACTOR_06) & 0x00FF) << 1)), rd16(dba(part)), &cpu.p);
+    plx16();
+    wr16(dba(VRAM_QUEUE + 2 + q), src);
+    size = rd16(dba((uint16_t)(part + 2)));
+    wr16(dba(VRAM_QUEUE + 4 + q), size);
+    op_sep(0x20);
+    wr8(dba(VRAM_QUEUE + 6 + q), rd8(dba((uint16_t)(part + 4))));
+    wr8(dba(VRAM_QUEUE + 7 + q), 0x80);
+    wr8(dba(VRAM_QUEUE_COUNT), (uint8_t)(rd8(dba(VRAM_QUEUE_COUNT)) + 1));
+    uint8_t more = rd8(dba((uint16_t)(part + 5)));
+    cpu.a = (uint16_t)((size & 0xFF00) | more);
+    cpu.y = (uint16_t)(part + 5);
+    cmp8_of(more, 0xFF);
+    if (more == 0xFF) {
+        op_sep(0x30);
+        return;
+    }
+    jump_routine(FROM_KIND_NEXT_PART);
 }

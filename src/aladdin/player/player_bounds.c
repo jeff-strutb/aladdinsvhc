@@ -5,6 +5,8 @@
  * hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram_video.h"
 #include "actor.h"
@@ -35,21 +37,24 @@
  */
 void abi_PlayerFallenTest(void)
 {
-    sec();  /* 81E8EC sec */
-    lda8(ea_abs(PLAYER_Y_PIXELS + 1));  /* 81E8ED lda */
-    if (IF_N) goto L_81E908;  /* 81E8F0 bmi */
-    op_rep(0x20);  /* 81E8F2 rep */
-    lda16(ea_abs(SCROLL_LIMIT_Y));  /* 81E8F4 lda */
-    ldx8(ea_abs(CAMERA_STOPPED_Y));  /* 81E8F7 ldx */
-    if (IF_Z) goto L_81E8FF;  /* 81E8FA beq */
-    lda16(ea_abs(FIELD_SCROLL_Y));  /* 81E8FC lda */
-L_81E8FF:
-    clc();  /* 81E8FF clc */
-    adc16_v(0x00E6);  /* 81E900 adc */
-    cmp16_v(rd16(ea_abs(PLAYER_Y_PIXELS)));  /* 81E903 cmp */
-    op_sep(0x20);  /* 81E906 sep */
-L_81E908:
-    return;  /* 81E908 rts */
+    uint8_t high = rd8(dba(PLAYER_Y_PIXELS + 1)), stopped;
+
+    flag_set(P_C, 1);
+    a8_load(high);
+    if (high & 0x80)                      /* above the map: not fallen */
+        return;
+    /* below the screen's bottom ($E6 below the field's top, or the
+       scroll limit's when the camera keeps going) */
+    op_rep(P_M);
+    cpu.a = rd16(dba(SCROLL_LIMIT_Y));
+    stopped = rd8(dba(CAMERA_STOPPED_Y));
+    x8_load(stopped);
+    if (stopped)
+        a16_load(rd16(dba(FIELD_SCROLL_Y)));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(cpu.a, 0x00E6, &cpu.p);
+    cmp16_of(cpu.a, rd16(dba(PLAYER_Y_PIXELS)));
+    op_sep(P_M);
 }
 
 
@@ -65,23 +70,44 @@ L_81E908:
  */
 void abi_PlayerHurtCountdown(void)
 {
-    lda8(ea_abs(PLAYER_HURT_TIME));  /* 81E95C lda */
-    if (IF_Z) goto L_81E97C;  /* 81E95F beq */
-    MEM8(dec, ea_abs(PLAYER_HURT_TIME));  /* 81E961 dec */
-    if (!IF_Z) goto L_81E97C;  /* 81E964 bne */
-    lda8(ea_abs(0x08E3));  /* 81E966 lda */
-    and8_v(0xEF);  /* 81E969 and */
-    sta8(ea_abs(0x08E3));  /* 81E96B sta */
-    lda8(ea_dp(0x08));  /* 81E96E lda */
-    and8_v(0x7F);  /* 81E970 and */
-    sta8(ea_dp(0x08));  /* 81E972 sta */
-    lda8(ea_abs(V_0347));  /* 81E974 lda */
-    and8_v(0xFB);  /* 81E977 and */
-    sta8(ea_abs(V_0347));  /* 81E979 sta */
-L_81E97C:
-    return;  /* 81E97C rts */
+    uint8_t t = rd8(dba(PLAYER_HURT_TIME));
+
+    a8_load(t);
+    if (!t || dec8_at(dba(PLAYER_HURT_TIME)))
+        return;
+    /* the time runs out: he can be hit again */
+    a8_load((uint8_t)(rd8(dba(PLAYER + ACTOR_08)) & 0xEF));
+    wr8(dba(PLAYER + ACTOR_08), (uint8_t)cpu.a);
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) & 0x7F));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    a8_load((uint8_t)(rd8(dba(V_0347)) & 0xFB));
+    wr8(dba(V_0347), (uint8_t)cpu.a);
 }
 
+
+/* The actor's position word `field` kept between the screen's edges:
+   the scroll plus the limit pair at `limits` (the lower, then the upper). */
+static void keep_within(uint16_t scroll, uint16_t limits, uint16_t field)
+{
+    uint16_t edge;
+
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    edge = op_adc16(rd16(dba(scroll)), rd16(dba(limits)), &cpu.p);
+    cpu.a = edge;
+    cmp16_of(edge, dp16(field));
+    if (edge >= dp16(field)) {
+        dp16_set(field, edge);
+    } else {
+        flag_set(P_C, 0);
+        edge = op_adc16(rd16(dba(scroll)), rd16(dba(limits + 2)), &cpu.p);
+        cpu.a = edge;
+        cmp16_of(edge, dp16(field));
+        if (edge < dp16(field))
+            dp16_set(field, edge);
+    }
+    op_sep(P_M);
+}
 
 /*
  * @routine 81:E990 PlayerKeepOnScreenX
@@ -94,22 +120,7 @@ L_81E97C:
  */
 void abi_PlayerKeepOnScreenX(void)
 {
-    op_rep(0x20);  /* 81E990 rep */
-    clc();  /* 81E992 clc */
-    lda16(ea_abs(FIELD_SCROLL_X));  /* 81E993 lda */
-    adc16_v(rd16(ea_abs(SCREEN_X_LIMITS)));  /* 81E996 adc */
-    cmp16_v(rd16(ea_dp(0x0C)));  /* 81E999 cmp */
-    if (IF_C) goto L_81E9A8;  /* 81E99B bcs */
-    clc();  /* 81E99D clc */
-    lda16(ea_abs(FIELD_SCROLL_X));  /* 81E99E lda */
-    adc16_v(rd16(ea_abs(SCREEN_X_LIMITS + 2)));  /* 81E9A1 adc */
-    cmp16_v(rd16(ea_dp(0x0C)));  /* 81E9A4 cmp */
-    if (IF_C) goto L_81E9AA;  /* 81E9A6 bcs */
-L_81E9A8:
-    sta16(ea_dp(0x0C));  /* 81E9A8 sta */
-L_81E9AA:
-    op_sep(0x20);  /* 81E9AA sep */
-    return;  /* 81E9AC rts */
+    keep_within(FIELD_SCROLL_X, SCREEN_X_LIMITS, ACTOR_X + 1);
 }
 
 /*
@@ -124,22 +135,7 @@ L_81E9AA:
  */
 void abi_PlayerKeepOnScreen(void)
 {
-    abi_PlayerKeepOnScreenX();  /* 81E9AD jsr */
-    op_rep(0x20);  /* 81E9B0 rep */
-    clc();  /* 81E9B2 clc */
-    lda16(ea_abs(0x1777));  /* 81E9B3 lda */
-    adc16_v(rd16(ea_abs(0xC9C9)));  /* 81E9B6 adc */
-    cmp16_v(rd16(ea_dp(0x0F)));  /* 81E9B9 cmp */
-    if (IF_C) goto L_81E9C8;  /* 81E9BB bcs */
-    clc();  /* 81E9BD clc */
-    lda16(ea_abs(0x1777));  /* 81E9BE lda */
-    adc16_v(rd16(ea_abs(0xC9CB)));  /* 81E9C1 adc */
-    cmp16_v(rd16(ea_dp(0x0F)));  /* 81E9C4 cmp */
-    if (IF_C) goto L_81E9CA;  /* 81E9C6 bcs */
-L_81E9C8:
-    sta16(ea_dp(0x0F));  /* 81E9C8 sta */
-L_81E9CA:
-    op_sep(0x20);  /* 81E9CA sep */
-    return;  /* 81E9CC rts */
+    abi_PlayerKeepOnScreenX();
+    keep_within(FIELD_SCROLL_Y, SCREEN_Y_LIMITS, ACTOR_Y + 1);
 }
 

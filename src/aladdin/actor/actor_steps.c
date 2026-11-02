@@ -4,6 +4,8 @@
  * actors sets once, and a test picked by X.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "actor_anim.h"
@@ -37,19 +39,21 @@ void abi_ActorStepYBack(void);
  */
 void abi_ActorRiseAfterDelay(void)
 {
-    lda8(ea_dp(ACTOR_47));
-    ora8_v(rd8(ea_dp(ACTOR_48)));
-    if (IF_Z) goto rise;
-    op_rep(0x20);
-    MEM16(dec, ea_dp(ACTOR_47));
-    op_sep(0x20);
-    return;
-rise:
+    uint8_t delay = (uint8_t)(rd8(dpa(ACTOR_47)) | rd8(dpa(ACTOR_48))), speed;
+
+    a8_load(delay);
+    if (delay) {                          /* still waiting: the count down */
+        uint16_t n = (uint16_t)(dp16(ACTOR_47) - 1);
+        dp16_set(ACTOR_47, n);
+        nz16_of(n);
+        return;
+    }
     abi_ActorStepYBack();
-    lda8(ea_dp(ACTOR_SPEED_Y + 1));
-    cmp8_v(0x02);
-    if (IF_C) return;
-    abi_ActorAccelerateY();
+    speed = rd8(dpa(ACTOR_SPEED_Y + 1));
+    a8_load(speed);
+    cmp8_of(speed, 0x02);
+    if (speed < 0x02)                     /* speeding up to 2 pixels a frame */
+        abi_ActorAccelerateY();
 }
 
 /*
@@ -65,20 +69,18 @@ rise:
  */
 void abi_ActorYByFrame(void)
 {
-    ldy8(ea_dp(ACTOR_FRAME));
-    cpy8_v(rd8(ea_dp(ACTOR_49)));
-    if (IF_Z) goto keep;
-    tya8();
-    ACC8(asl);
-    tax8();
-    op_rep(0x20);
-    clc();
-    lda16(ea_dp(ACTOR_Y + 1));
-    adc16_v(rd16(ea_absx(FRAME_Y_STEPS)));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
-keep:
-    sty8(ea_dp(ACTOR_49));
+    uint8_t frame = rd8(dpa(ACTOR_FRAME)), was = rd8(dpa(ACTOR_49));
+
+    y8_load(frame);
+    cmp8_of(frame, was);
+    if (frame != was) {                   /* a new frame: its y step */
+        cpu.x = (uint8_t)(frame << 1);
+        a8_load((uint8_t)cpu.x);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(FRAME_Y_STEPS) + cpu.x), &cpu.p);
+        dp16_set(ACTOR_Y + 1, cpu.a);
+    }
+    wr8(dpa(ACTOR_49), frame);
 }
 
 

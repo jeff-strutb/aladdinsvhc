@@ -4,6 +4,8 @@
  * the view sideways.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -28,30 +30,30 @@ void abi_PlayerEnter8CFrom1Long(void);
  */
 void abi_ViewEdgeHurt(void)
 {
-    op_rep(0x20);
-    lda16(ea_abs(VIEW_X));
-    sec();
-    sbc16_v(0x0030);
-    if (IF_N)
+    uint16_t view = rd16(dba(VIEW_X)), x = dp16(ACTOR_X + 1);
+
+    op_rep(P_M);
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(view, 0x0030, &cpu.p);
+    if (cpu.a & 0x8000)                   /* the view near the map's left end */
         goto out;
-    sec();
-    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    if (!IF_C) {
-        lda16(ea_abs(VIEW_X));
-        clc();
-        adc16_v(0x0130);
-        sec();
-        sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
-        if (IF_C)
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(cpu.a, x, &cpu.p);
+    if (!(cpu.p & P_C)) {                 /* not more than 48 left of the view */
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(view, 0x0130, &cpu.p);
+        flag_set(P_C, 1);
+        cpu.a = op_sbc16(cpu.a, x, &cpu.p);
+        if (cpu.p & P_C)                  /* nor 48 past its right edge */
             goto out;
     }
-    op_sep(0x20);
-    lda8_v(EDGE_NONE);
-    sta8(ea_abs(VIEW_EDGE_RULE));
+    op_sep(P_M);
+    a8_load(EDGE_NONE);
+    wr8(dba(VIEW_EDGE_RULE), EDGE_NONE);
     abi_PlayerEnter8CFrom1Long();
     return;
 out:
-    op_sep(0x20);
+    op_sep(P_M);
 }
 
 /*

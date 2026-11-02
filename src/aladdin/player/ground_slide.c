@@ -4,6 +4,8 @@
  * (ground_push.c). Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -28,28 +30,24 @@ void abi_GroundBehindBit4(void);
  */
 void abi_PlayerGroundSlide(void)
 {
-    goto L_81CEF4;
-L_81CEF3:
-    return;  /* 81CEF3 rts */
-L_81CEF4:
-    stz8(ea_abs(GROUND_PUSHED));  /* 81CEF4 stz */
-    lda8_v(0x18);  /* 81CEF7 lda */
-    sta8(ea_dp(ACTOR_18));  /* 81CEF9 sta */
-    abi_GroundBehindBit4();  /* 81CEFB jsl */
-    if (IF_Z) goto L_81CEF3;  /* 81CEFF beq */
-    if (IF_C) goto L_81CF09;  /* 81CF01 bcs */
-    lda8_v(0x01);  /* 81CF03 lda */
-    sta8(ea_dp(ACTOR_FACING));  /* 81CF05 sta */
-    goto L_81CF0B;  /* 81CF07 bra */
-L_81CF09:
-    stz8(ea_dp(ACTOR_FACING));  /* 81CF09 stz */
-L_81CF0B:
-    lda8_v(0x01);  /* 81CF0B lda */
-    sta8(ea_abs(GROUND_PUSHED));  /* 81CF0D sta */
-    lda8_v(0x80);  /* 81CF10 lda */
-    sta8(ea_dp(ACTOR_SPEED_X));  /* 81CF12 sta */
-    stz8(ea_dp(ACTOR_SPEED_X + 1));  /* 81CF14 stz */
-    stz8(ea_dp(ACTOR_SPEED_X + 2));  /* 81CF16 stz */
-    abi_ActorStepX();  /* 81CF18 jsr */
-    return;  /* 81CF1B rts */
+    wr8(dba(GROUND_PUSHED), 0);
+    a8_load(0x18);
+    wr8(dpa(ACTOR_18), 0x18);
+    abi_GroundBehindBit4();
+    if (cpu.p & P_Z)
+        return;
+    /* pushing ground: he slides at half a pixel a frame, its way */
+    if (cpu.p & P_C) {
+        wr8(dpa(ACTOR_FACING), 0);
+    } else {
+        a8_load(0x01);
+        wr8(dpa(ACTOR_FACING), 0x01);
+    }
+    a8_load(0x01);
+    wr8(dba(GROUND_PUSHED), 0x01);
+    a8_load(0x80);
+    wr8(dpa(ACTOR_SPEED_X), 0x80);
+    wr8(dpa(ACTOR_SPEED_X + 1), 0);
+    wr8(dpa(ACTOR_SPEED_X + 2), 0);
+    abi_ActorStepX();
 }

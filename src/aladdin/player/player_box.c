@@ -4,6 +4,8 @@
  * cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram_player.h"
@@ -16,9 +18,13 @@ void abi_PlayerBoxSet(void);
 #define BOX_OFFSET_Y 0x00148Eu
 #define BOX_HALF_W 0x001488u
 #define BOX_HALF_H 0x00148Au
+#define TEST_BOX_X 0x001484u      /* the test box's centre (words: x, then y) */
+#define TEST_BOX_Y 0x001486u
 /* In bank $80: 10 bytes a box: x offset, y offset, half-width,
    half-height, and the word the player's $16 gets */
 #define PLAYER_BOXES 0xC7EBu
+
+#define BOX_TIMES_2 0x002Cu      /* scratch: the box times 2 */
 
 /*
  * @routine 81:E909 PlayerBoxUpdate
@@ -31,12 +37,12 @@ void abi_PlayerBoxSet(void);
  */
 void abi_PlayerBoxUpdate(void)
 {
-    lda8(ea_abs(PLAYER_BOX_WANTED));  /* 81E909 lda */
-    cmp8_v(rd8(ea_abs(PLAYER_BOX)));  /* 81E90C cmp */
-    if (IF_Z) goto L_81E950;  /* 81E90F beq */
-    abi_PlayerBoxSet(); return;
-L_81E950:
-    return;  /* 81E950 rts */
+    uint8_t want = rd8(dba(PLAYER_BOX_WANTED)), have = rd8(dba(PLAYER_BOX));
+
+    a8_load(want);
+    cmp8_of(want, have);
+    if (want != have)
+        abi_PlayerBoxSet();
 }
 
 
@@ -53,35 +59,45 @@ L_81E950:
  */
 void abi_PlayerBoxSet(void)
 {
-    sta8(ea_abs(PLAYER_BOX));  /* 81E911 sta */
-    ACC8(asl);  /* 81E914 asl */
-    sta8(ea_abs(0x002C));  /* 81E915 sta */
-    ACC8(asl);  /* 81E918 asl */
-    ACC8(asl);  /* 81E919 asl */
-    clc();  /* 81E91A clc */
-    adc8_v(rd8(ea_abs(0x002C)));  /* 81E91B adc */
-    tax8();  /* 81E91E tax */
-    op_rep(0x20);  /* 81E91F rep */
-    ldy8(ea_dp(0x15));  /* 81E921 ldy */
-    if (!IF_Z) goto L_81E92D;  /* 81E923 bne */
-    lda16(ea_absx(PLAYER_BOXES));  /* 81E925 lda */
-    sta16(ea_abs(BOX_OFFSET_X));  /* 81E928 sta */
-    goto L_81E937;  /* 81E92B bra */
-L_81E92D:
-    lda16(ea_absx(PLAYER_BOXES));  /* 81E92D lda */
-    eor16_v(0xFFFF);  /* 81E930 eor */
-    ACC16(inc);  /* 81E933 inc */
-    sta16(ea_abs(BOX_OFFSET_X));  /* 81E934 sta */
-L_81E937:
-    lda16(ea_absx(PLAYER_BOXES + 2));  /* 81E937 lda */
-    sta16(ea_abs(BOX_OFFSET_Y));  /* 81E93A sta */
-    lda16(ea_absx(PLAYER_BOXES + 4));  /* 81E93D lda */
-    sta16(ea_abs(BOX_HALF_W));  /* 81E940 sta */
-    lda16(ea_absx(PLAYER_BOXES + 6));  /* 81E943 lda */
-    sta16(ea_abs(BOX_HALF_H));  /* 81E946 sta */
-    lda16(ea_absx(PLAYER_BOXES + 8));  /* 81E949 lda */
-    sta16(ea_dp(0x16));  /* 81E94C sta */
-    op_sep(0x20);  /* 81E94E sep */
-    return;  /* 81E950 rts */
+    uint8_t box = (uint8_t)cpu.a, twice = (uint8_t)(box << 1);
+    uint32_t entry;
+    uint16_t offset, word;
+
+    wr8(dba(PLAYER_BOX), box);
+    wr8(dba(BOX_TIMES_2), twice);
+    flag_set(P_C, 0);
+    cpu.x = op_adc8((uint8_t)(twice << 2), rd8(dba(BOX_TIMES_2)), &cpu.p);   /* 10 bytes a box */
+    y8_load(rd8(dpa(ACTOR_FLIP)));
+    entry = dba(PLAYER_BOXES) + cpu.x;
+    offset = rd16(entry);
+    if (cpu.y)                            /* facing left: the x offset turned */
+        offset = (uint16_t)((offset ^ 0xFFFF) + 1);
+    wr16(dba(BOX_OFFSET_X), offset);
+    wr16(dba(BOX_OFFSET_Y), rd16(entry + 2));
+    wr16(dba(BOX_HALF_W), rd16(entry + 4));
+    wr16(dba(BOX_HALF_H), rd16(entry + 6));
+    word = rd16(entry + 8);
+    dp16_set(0x16, word);
+    a16_load(word);
 }
 
+/*
+ * @routine 81:E8D5 TestBoxPlace
+ * WHAT IT DOES: Puts the test box's centre at the actor's place plus the
+ * box offsets: where actors are tested against it.
+ * HOW: 16-bit adds: its x pixels plus BOX_OFFSET_X to TEST_BOX_X, its y
+ * pixels plus BOX_OFFSET_Y to TEST_BOX_Y; then M and X 8-bit.
+ * Entry: D = the actor (the player); DB a bank whose $0000-$1FFF is work
+ * RAM; reached after a call in the kind 0 wait work ($81:E864) and by its
+ * jump at $81:E861. Exit: M and X 8-bit; A = the centre's y; N, V, Z, C
+ * from its addition; RTL.
+ */
+void abi_TestBoxPlace(void)
+{
+    flag_set(P_C, 0);
+    wr16(dba(TEST_BOX_X), op_adc16(dp16(ACTOR_X + 1), rd16(dba(BOX_OFFSET_X)), &cpu.p));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(BOX_OFFSET_Y)), &cpu.p);
+    wr16(dba(TEST_BOX_Y), cpu.a);
+    op_sep(0x30);
+}

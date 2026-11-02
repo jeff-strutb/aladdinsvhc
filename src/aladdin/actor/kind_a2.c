@@ -4,6 +4,8 @@
  * Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -28,6 +30,56 @@ void abi_SoundQueueAdd(void);
 #define SENDER_HIT 0x47u  /* in the sender's record: nonzero once it is hit */
 #define KINDA2_HEADINGS 0xD501u  /* headings by facing (0 right, 3 left) plus $07, in the bank DB names */
 
+/* Its fall away: motion $6D, its priority cleared, until off the screen. */
+static void fall_away(void)
+{
+    uint8_t flags;
+
+    y8_load(0x6D);
+    abi_ActorMotionPreset();
+    abi_ActorPriorityClear();
+    do {
+        actor_yield(0x848317u);
+        abi_AnimStep();
+        abi_ActorFly();
+        flags = rd8(dpa(ACTOR_09));
+        a8_load(flags);
+        flag_set(P_Z, !(flags & 0x40));
+    } while (flags & 0x40);
+    abi_ActorEndPlaced();
+}
+
+/* A frame of its flight along its heading. */
+static void fly_heading(void)
+{
+    x8_load(0x22);
+    abi_ActorSpeedAddVector();
+    abi_ActorMoveRight();
+    abi_ActorMoveY();
+}
+
+/* Its sender (record X) within 16 of it across and 24 up or down. */
+static int at_sender(void)
+{
+    uint16_t d;
+
+    flag_set(P_C, 0);
+    d = op_adc16(rd16(dba(ACTOR_Y + 1) + cpu.x), 0x0010, &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, dp16(ACTOR_Y + 1), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x0030);
+    if (d >= 0x0030)
+        return 0;
+    flag_set(P_C, 0);
+    d = op_adc16(rd16(dba(ACTOR_X + 1) + cpu.x), 0x0010, &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, dp16(ACTOR_X + 1), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x0020);
+    return d < 0x0020;
+}
+
 /*
  * @routine 84:8249 KindA2Sent
  * @actor
@@ -50,94 +102,66 @@ void abi_SoundQueueAdd(void);
  */
 void abi_KindA2Sent(void)
 {
-    lda8(ea_dp(ACTOR_08));  /* 848249 lda */
-    ora8_v(0x02);  /* 84824B ora */
-    sta8(ea_dp(ACTOR_08));  /* 84824D sta */
-    lda8(ea_dp(ACTOR_09));  /* 84824F lda */
-    ora8_v(0x90);  /* 848251 ora */
-    sta8(ea_dp(ACTOR_09));  /* 848253 sta */
-    op_rep(0x20);  /* 848255 rep */
-    lda16_v(0x0600);  /* 848257 lda */
-    sta16(ea_dp(ACTOR_LOOK));  /* 84825A sta */
-    op_sep(0x20);  /* 84825C sep */
-    lda8_v(0x2F);  /* 84825E lda */
-    abi_SoundQueueAdd();  /* 848260 jsl */
-    lda8_v(0x1A);  /* 848264 lda */
-    abi_AnimStart();  /* 848266 jsl */
-    abi_ActorSpeedXClear();  /* 84826A jsl */
-    abi_ActorSpeedYClear();  /* 84826E jsl */
-    lda8(ea_dp(ACTOR_FACING));  /* 848272 lda */
-    if (IF_Z) goto L_848278;  /* 848274 beq */
-    lda8_v(0x03);  /* 848276 lda */
-L_848278:
-    clc();  /* 848278 clc */
-    adc8_v(rd8(ea_dp(ACTOR_07)));  /* 848279 adc */
-    tax8();  /* 84827B tax */
-    lda8(ea_absx(KINDA2_HEADINGS));  /* 84827C lda */
-    sta8(ea_dp(ACTOR_FACING));  /* 84827F sta */
-    lda8_v(0x20);  /* 848281 lda */
-    sta8(ea_dp(KINDA2_TIME));  /* 848283 sta */
-L_848285:
-    actor_yield(0x848285u);  /* 848285 brk */
-    ldx8_v(0x22);  /* 848287 ldx */
-    abi_ActorSpeedAddVector();  /* 848289 jsl */
-    abi_ActorMoveRight();  /* 84828D jsl */
-    abi_ActorMoveY();  /* 848291 jsl */
-    MEM8(dec, ea_dp(KINDA2_TIME));  /* 848295 dec */
-    if (!IF_Z) goto L_848285;  /* 848297 bne */
-    lda8(ea_dp(ACTOR_FACING));  /* 848299 lda */
-    eor8_v(0x08);  /* 84829B eor */
-    sta8(ea_dp(ACTOR_FACING));  /* 84829D sta */
-L_84829F:
-    op_sep(0x30);  /* 84829F sep */
-    actor_yield(0x8482A1u);  /* 8482A1 brk */
-    ldx8_v(0x22);  /* 8482A3 ldx */
-    abi_ActorSpeedAddVector();  /* 8482A5 jsl */
-    abi_ActorMoveRight();  /* 8482A9 jsl */
-    abi_ActorMoveY();  /* 8482AD jsl */
-    op_rep(0x10);  /* 8482B1 rep */
-    ldx16(ea_dp(KINDA2_SENDER));  /* 8482B3 ldx */
-    lda8(ea_absx(SENDER_HIT));  /* 8482B5 lda */
-    if (!IF_Z) goto L_8482E7;  /* 8482B8 bne */
-    op_rep(0x30);  /* 8482BA rep */
-    clc();  /* 8482BC clc */
-    lda16(ea_absx(ACTOR_Y + 1));  /* 8482BD lda */
-    adc16_v(0x0010);  /* 8482C0 adc */
-    sec();  /* 8482C3 sec */
-    sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));  /* 8482C4 sbc */
-    cmp16_v(0x0030);  /* 8482C6 cmp */
-    if (IF_C) goto L_84829F;  /* 8482C9 bcs */
-    clc();  /* 8482CB clc */
-    lda16(ea_absx(ACTOR_X + 1));  /* 8482CC lda */
-    adc16_v(0x0010);  /* 8482CF adc */
-    sec();  /* 8482D2 sec */
-    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));  /* 8482D3 sbc */
-    cmp16_v(0x0020);  /* 8482D5 cmp */
-    if (IF_C) goto L_84829F;  /* 8482D8 bcs */
-    lda16(ea_absx(SENDER_OUT));  /* 8482DA lda */
-    ACC16(dec);  /* 8482DD dec */
-    sta16(ea_absx(SENDER_OUT));  /* 8482DE sta */
-    op_sep(0x30);  /* 8482E1 sep */
-    abi_ActorEndPlaced(); return;  /* 8482E3 jml */
-L_8482E7:
-    op_sep(0x30);  /* 8482E7 sep */
-    lda8_v(0x1B);  /* 8482E9 lda */
-    abi_AnimStart();  /* 8482EB jsl */
-    lda8_v(0x80);  /* 8482EF lda */
-    trb8(ea_dp(ACTOR_09));  /* 8482F1 trb */
-    goto L_84830E;  /* 8482F3 bra */
-L_84830E:
-    ldy8_v(0x6D);  /* 84830E ldy */
-    abi_ActorMotionPreset();  /* 848310 jsl */
-    abi_ActorPriorityClear();  /* 848314 jsr */
-L_848317:
-    actor_yield(0x848317u);  /* 848317 brk */
-    abi_AnimStep();  /* 848319 jsl */
-    abi_ActorFly();  /* 84831D jsl */
-    lda8(ea_dp(ACTOR_09));  /* 848321 lda */
-    bit8_i(0x40);  /* 848323 bit */
-    if (!IF_Z) goto L_848317;  /* 848325 bne */
-    abi_ActorEndPlaced(); return;  /* 848327 jml */
+    uint8_t facing, heading;
+
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    a8_load((uint8_t)(rd8(dpa(ACTOR_09)) | 0x90));
+    wr8(dpa(ACTOR_09), (uint8_t)cpu.a);
+    dp16_set(ACTOR_LOOK, 0x0600);
+    cpu.a = 0x0600;
+    a8_load(0x2F);
+    abi_SoundQueueAdd();
+    a8_load(0x1A);
+    abi_AnimStart();
+    abi_ActorSpeedXClear();
+    abi_ActorSpeedYClear();
+    /* out along its heading for 32 frames */
+    facing = rd8(dpa(ACTOR_FACING));
+    a8_load(facing);
+    if (facing)
+        a8_load(0x03);
+    flag_set(P_C, 0);
+    heading = op_adc8((uint8_t)cpu.a, rd8(dpa(ACTOR_07)), &cpu.p);
+    cpu.x = heading;
+    a8_load(rd8(dba(KINDA2_HEADINGS) + heading));
+    wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+    a8_load(0x20);
+    wr8(dpa(KINDA2_TIME), 0x20);
+    do {
+        actor_yield(0x848285u);
+        fly_heading();
+    } while (dec8_at(dpa(KINDA2_TIME)));
+    /* then back, till it reaches its sender (one shot fewer out) or the
+       sender is hit (it falls away) */
+    a8_load((uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x08));
+    wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+    for (;;) {
+        op_sep(0x30);
+        actor_yield(0x8482A1u);
+        fly_heading();
+        op_rep(P_X);
+        cpu.x = dp16(KINDA2_SENDER);
+        nz16_of(cpu.x);
+        a8_load(rd8(dba(SENDER_HIT) + cpu.x));
+        if ((uint8_t)cpu.a) {
+            op_sep(0x30);
+            a8_load(0x1B);
+            abi_AnimStart();
+            a8_load(0x80);
+            trb_at(dpa(ACTOR_09), 0x80);
+            fall_away();
+            return;
+        }
+        op_rep(0x30);
+        if (at_sender()) {
+            a16_load((uint16_t)(rd16(dba(SENDER_OUT) + cpu.x) - 1));
+            wr16(dba(SENDER_OUT) + cpu.x, cpu.a);
+            op_sep(0x30);
+            abi_ActorEndPlaced();
+            return;
+        }
+    }
 }
 
 
@@ -156,25 +180,14 @@ L_848317:
  */
 void abi_KindA2Hit(void)
 {
-    lda8_v(0x12);  /* 8482F5 lda */
-    abi_SoundQueueAdd();  /* 8482F7 jsl */
-    lda8_v(0x1B);  /* 8482FB lda */
-    abi_AnimStart();  /* 8482FD jsl */
-    op_rep(0x10);  /* 848301 rep */
-    ldx16(ea_dp(KINDA2_SENDER));  /* 848303 ldx */
-    lda8(ea_absx(SENDER_OUT));  /* 848305 lda */
-    ACC8(dec);  /* 848308 dec */
-    sta8(ea_absx(SENDER_OUT));  /* 848309 sta */
-    op_sep(0x10);  /* 84830C sep */
-    ldy8_v(0x6D);  /* 84830E ldy */
-    abi_ActorMotionPreset();  /* 848310 jsl */
-    abi_ActorPriorityClear();  /* 848314 jsr */
-L_848317:
-    actor_yield(0x848317u);  /* 848317 brk */
-    abi_AnimStep();  /* 848319 jsl */
-    abi_ActorFly();  /* 84831D jsl */
-    lda8(ea_dp(ACTOR_09));  /* 848321 lda */
-    bit8_i(0x40);  /* 848323 bit */
-    if (!IF_Z) goto L_848317;  /* 848325 bne */
-    abi_ActorEndPlaced(); return;  /* 848327 jml */
+    a8_load(0x12);
+    abi_SoundQueueAdd();
+    a8_load(0x1B);
+    abi_AnimStart();
+    op_rep(P_X);
+    cpu.x = dp16(KINDA2_SENDER);           /* one shot fewer out */
+    a8_load((uint8_t)(rd8(dba(SENDER_OUT) + cpu.x) - 1));
+    wr8(dba(SENDER_OUT) + cpu.x, (uint8_t)cpu.a);
+    op_sep(P_X);
+    fall_away();
 }

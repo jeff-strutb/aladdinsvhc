@@ -10,7 +10,11 @@
  * runs on across banks: past $FFFF at $8000 of the next.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_UnpackSetBegin(void);
 void abi_UnpackBegin(void);
 void abi_UnpackGroup(void);
@@ -33,6 +37,29 @@ void abi_LevelGraphicsLoad(void);
 #define ANIM_GFX_AT 0x7FE500u  /* per animation set, where its graphics went in bank $7F (word) */
 #define UNPACK_SETS 0xF039u        /* bank $80: per set, 7 bytes: destination, source offset (words), bank, length (word) */
 
+/* A word of the data bank. */
+static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
+
+/* P as PLP leaves it (X and Y cut to a byte when it has X 8-bit). */
+static void p_restore(uint8_t p)
+{
+    cpu.p = 0;
+    op_sep(p);
+}
+
+/* A byte's length to 8-byte groups, rounded up (C clear, as the LSRs
+   leave it). */
+static uint16_t groups_of(uint16_t length)
+{
+    uint16_t g;
+
+    flag_set(P_C, 0);
+    g = (uint16_t)((op_adc16(length, 0x0007, &cpu.p) & 0xFFF8) >> 3);
+    cpu.a = g;
+    flag_set(P_C, 0);
+    return g;
+}
+
 /*
  * @routine 81:BB3D UnpackBegin
  * WHAT IT DOES: Starts an unpack into bank $7F: the source offset in Y
@@ -45,14 +72,10 @@ void abi_LevelGraphicsLoad(void);
  */
 void abi_UnpackBegin(void)
 {
-    tay16();  /* 81BB3D tay */
-    op_sep(0x20);  /* 81BB3E sep */
-    lda8_v(0x7F);  /* 81BB40 lda */
-    pha8();  /* 81BB42 pha */
-    plb();  /* 81BB43 plb */
-    lda8(ea_dp(UNPACK_GROUPS));  /* 81BB44 lda */
-    ora8_v(rd8(ea_dp(UNPACK_GROUPS + 1)));  /* 81BB46 ora */
-    return;  /* 81BB48 rts */
+    cpu.y = cpu.a;
+    op_sep(P_M);
+    cpu.db = 0x7F;
+    a8_load((uint8_t)(rd8(dpa(UNPACK_GROUPS)) | rd8(dpa(UNPACK_GROUPS + 1))));
 }
 
 /*
@@ -72,109 +95,80 @@ void abi_UnpackBegin(void)
  */
 void abi_LevelGraphicsLoad(void)
 {
-    lda8_v(0x80);  /* 81B92D lda */
-    sta8(ea_abs(VMAIN));  /* 81B92F sta */
-    php();  /* 81B932 php */
-    phd();  /* 81B933 phd */
-    op_rep(0x30);  /* 81B934 rep */
-    lda16_v(0x0000);  /* 81B936 lda */
-    tcd();  /* 81B939 tcd */
-    lda16(ea_abs(LEVEL));  /* 81B93A lda */
-    ACC16(asl);  /* 81B93D asl */
-    tay16();  /* 81B93E tay */
-    ldx16(ea_absy(LEVEL_GFX));  /* 81B93F ldx */
-    lda16(ea_absx(LEVEL_GFX));  /* 81B942 lda */
-    and16_v(0x00FF);  /* 81B945 and */
-    if (IF_Z) goto L_81B9F1;  /* 81B948 beq (81B92A jmp) */
-    sta16(ea_dp(LEVEL_GFX_LEFT));  /* 81B94A sta */
-L_81B94C:
-    lda16(ea_absx(LEVEL_GFX + 3));  /* 81B94C lda */
-    stz16(ea_dp(UNPACK_SOURCE));  /* 81B94F stz */
-    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81B951 sta */
-    lda16(ea_absx(LEVEL_GFX + 4));  /* 81B953 lda */
-    clc();  /* 81B956 clc */
-    adc16_v(0x0007);  /* 81B957 adc */
-    and16_v(0xFFF8);  /* 81B95A and */
-    ACC16(lsr);  /* 81B95D lsr */
-    ACC16(lsr);  /* 81B95E lsr */
-    ACC16(lsr);  /* 81B95F lsr */
-    sta16(ea_dp(UNPACK_GROUPS));  /* 81B960 sta */
-    lda16(ea_absx(LEVEL_GFX + 1));  /* 81B962 lda */
-    phx16();  /* 81B965 phx */
-    php();  /* 81B966 php */
-    phb();  /* 81B967 phb */
-    ldx16_v(0x0000);  /* 81B968 ldx */
-    abi_UnpackBegin();  /* 81B96B jsr */
-    if (IF_Z) goto L_81B975;  /* 81B96E beq */
-L_81B970:
-    abi_UnpackGroup();  /* 81B970 jsr */
-    if (!IF_Z) goto L_81B970;  /* 81B973 bne */
-L_81B975:
-    plb();  /* 81B975 plb */
-    plp();  /* 81B976 plp */
-    plx16();  /* 81B977 plx */
-    lda16(ea_absx(LEVEL_GFX + 6));  /* 81B978 lda */
-    sta16(ea_abs(VMADDL));  /* 81B97B sta */
-    lda16_v(0x1801);  /* 81B97E lda */
-    sta16(ea_abs(DMAP0));  /* 81B981 sta */
-    lda16_v(0x0000);  /* 81B984 lda */
-    sta16(ea_abs(A1T0L));  /* 81B987 sta */
-    lda16_v(0x007F);  /* 81B98A lda */
-    sta16(ea_abs(A1B0));  /* 81B98D sta */
-    lda16(ea_absx(LEVEL_GFX + 4));  /* 81B990 lda */
-    sta16(ea_abs(DAS0L));  /* 81B993 sta */
-    op_sep(0x20);  /* 81B996 sep */
-    lda8_v(0x01);  /* 81B998 lda */
-    sta8(ea_abs(MDMAEN));  /* 81B99A sta */
-    op_rep(0x20);  /* 81B99D rep */
-    clc();  /* 81B99F clc */
-    txa16();  /* 81B9A0 txa */
-    adc16_v(0x0007);  /* 81B9A1 adc */
-    tax16();  /* 81B9A4 tax */
-    MEM16(dec, ea_dp(LEVEL_GFX_LEFT));  /* 81B9A5 dec */
-    if (!IF_Z) goto L_81B94C;  /* 81B9A7 bne */
-    lda16_v(0x5800);  /* 81B9A9 lda */
-    sta16(ea_abs(UNPACK_NEXT));  /* 81B9AC sta */
-    lda16(ea_absx(LEVEL_GFX + 1));  /* 81B9AF lda */
-    and16_v(0x00FF);  /* 81B9B2 and */
-    if (IF_Z) goto L_81B9F1;  /* 81B9B5 beq */
-    and16_v(0x00FF);  /* 81B9B7 and */
-    sta16(ea_dp(LEVEL_GFX_LEFT));  /* 81B9BA sta */
-L_81B9BC:
-    lda16(ea_absx(LEVEL_GFX + 4));  /* 81B9BC lda */
-    stz16(ea_dp(UNPACK_SOURCE));  /* 81B9BF stz */
-    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81B9C1 sta */
-    lda16(ea_absx(LEVEL_GFX + 5));  /* 81B9C3 lda */
-    clc();  /* 81B9C6 clc */
-    adc16_v(0x0007);  /* 81B9C7 adc */
-    and16_v(0xFFF8);  /* 81B9CA and */
-    ACC16(lsr);  /* 81B9CD lsr */
-    ACC16(lsr);  /* 81B9CE lsr */
-    ACC16(lsr);  /* 81B9CF lsr */
-    sta16(ea_dp(UNPACK_GROUPS));  /* 81B9D0 sta */
-    phb();  /* 81B9D2 phb */
-    phx16();  /* 81B9D3 phx */
-    php();  /* 81B9D4 php */
-    lda16(ea_absx(LEVEL_GFX + 2));  /* 81B9D5 lda */
-    abi_UnpackBegin();  /* 81B9D8 jsr */
-    ldx16(ea_dp(UNPACK_NEXT));  /* 81B9DB ldx */
-L_81B9DD:
-    abi_UnpackGroup();  /* 81B9DD jsr */
-    if (!IF_Z) goto L_81B9DD;  /* 81B9E0 bne */
-    stx16(ea_dp(UNPACK_NEXT));  /* 81B9E2 stx */
-    plp();  /* 81B9E4 plp */
-    plx16();  /* 81B9E5 plx */
-    plb();  /* 81B9E6 plb */
-    clc();  /* 81B9E7 clc */
-    txa16();  /* 81B9E8 txa */
-    adc16_v(0x0005);  /* 81B9E9 adc */
-    tax16();  /* 81B9EC tax */
-    MEM16(dec, ea_dp(LEVEL_GFX_LEFT));  /* 81B9ED dec */
-    if (!IF_Z) goto L_81B9BC;  /* 81B9EF bne */
-L_81B9F1:
-    pld();  /* 81B9F1 pld */
-    plp();  /* 81B9F2 plp */
-    return;  /* 81B9F3 rtl */
+    uint8_t p, inner, db;
+    uint16_t d, x, n;
+
+    a8_load(0x80);
+    wr8(dba((uint16_t)VMAIN), 0x80);
+    p = cpu.p;
+    d = cpu.d;
+    op_rep(0x30);
+    cpu.d = 0;
+    /* the level's list */
+    cpu.y = (uint16_t)(db16(LEVEL) << 1);
+    x = db16((uint16_t)(LEVEL_GFX + cpu.y));
+    cpu.x = x;
+    a16_load(n = db16((uint16_t)(LEVEL_GFX + x)) & 0x00FF);
+    if (!n)
+        goto out;
+    dp16_set(LEVEL_GFX_LEFT, n);
+    /* the VRAM parts: each unpacked to $7F:0000 and copied by DMA */
+    do {
+        dp16_set(UNPACK_SOURCE, 0);
+        dp16_set(UNPACK_SOURCE + 2, db16((uint16_t)(LEVEL_GFX + 3 + x)));
+        dp16_set(UNPACK_GROUPS, groups_of(db16((uint16_t)(LEVEL_GFX + 4 + x))));
+        a16_load(db16((uint16_t)(LEVEL_GFX + 1 + x)));
+        inner = cpu.p;
+        db = cpu.db;
+        cpu.x = 0;
+        abi_UnpackBegin();
+        if (!(cpu.p & P_Z))
+            do
+                abi_UnpackGroup();
+            while (!(cpu.p & P_Z));
+        cpu.db = db;
+        p_restore(inner);
+        cpu.x = x;
+        wr16(dba((uint16_t)VMADDL), db16((uint16_t)(LEVEL_GFX + 6 + x)));
+        wr16(dba((uint16_t)DMAP0), 0x1801);
+        wr16(dba((uint16_t)A1T0L), 0x0000);
+        wr16(dba((uint16_t)A1B0), 0x007F);
+        cpu.a = db16((uint16_t)(LEVEL_GFX + 4 + x));
+        wr16(dba((uint16_t)DAS0L), cpu.a);
+        op_sep(P_M);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x01);
+        wr8(dba((uint16_t)MDMAEN), 0x01);
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.x = cpu.a = x = op_adc16(x, 0x0007, &cpu.p);
+    } while (dec16_at(dpa(LEVEL_GFX_LEFT)));
+    /* the kept parts: unpacked one after another from $7F:5800 */
+    wr16(dba(UNPACK_NEXT), 0x5800);
+    a16_load(n = db16((uint16_t)(LEVEL_GFX + 1 + x)) & 0x00FF);
+    if (!n)
+        goto out;
+    dp16_set(LEVEL_GFX_LEFT, n);
+    do {
+        dp16_set(UNPACK_SOURCE, 0);
+        dp16_set(UNPACK_SOURCE + 2, db16((uint16_t)(LEVEL_GFX + 4 + x)));
+        dp16_set(UNPACK_GROUPS, groups_of(db16((uint16_t)(LEVEL_GFX + 5 + x))));
+        db = cpu.db;
+        inner = cpu.p;
+        a16_load(db16((uint16_t)(LEVEL_GFX + 2 + x)));
+        abi_UnpackBegin();
+        cpu.x = dp16(UNPACK_NEXT);
+        do
+            abi_UnpackGroup();
+        while (!(cpu.p & P_Z));
+        dp16_set(UNPACK_NEXT, cpu.x);
+        p_restore(inner);
+        cpu.db = db;
+        flag_set(P_C, 0);
+        cpu.x = cpu.a = x = op_adc16(x, 0x0005, &cpu.p);
+    } while (dec16_at(dpa(LEVEL_GFX_LEFT)));
+out:
+    cpu.d = d;
+    p_restore(p);
 }
 
 /*
@@ -192,49 +186,36 @@ L_81B9F1:
  */
 void abi_AnimSetGraphicsUnpack(void)
 {
-    phx8();  /* 81BA9E phx */
-    phy8();  /* 81BA9F phy */
-    phd();  /* 81BAA0 phd */
-    pha8();  /* 81BAA1 pha */
-    phb();  /* 81BAA2 phb */
-    php();  /* 81BAA3 php */
-    op_rep(0x30);  /* 81BAA4 rep */
-    and16_v(0x00FF);  /* 81BAA6 and */
-    ACC16(asl);  /* 81BAA9 asl */
-    tax16();  /* 81BAAA tax */
-    lda16(UNPACK_NEXT);  /* 81BAAB lda */
-    sta16(ea_longx(ANIM_GFX_AT));  /* 81BAAF sta */
-    lda16(UNPACK_NEXT + 1);  /* 81BAB3 lda */
-    sta16(ea_longx(ANIM_GFX_AT + 1));  /* 81BAB7 sta */
-    lda16_v(0x0000);  /* 81BABB lda */
-    tcd();  /* 81BABE tcd */
-    lda16(ea_longx(ANIM_GFX_ENTRIES));  /* 81BABF lda */
-    tax16();  /* 81BAC3 tax */
-    lda16(ea_longx(ANIM_GFX_PARTS));  /* 81BAC4 lda */
-    if (IF_Z) goto L_81BAEA;  /* 81BAC8 beq */
-    and16_v(0x3FFF);  /* 81BACA and */
-    ACC16(lsr);  /* 81BACD lsr */
-    ACC16(lsr);  /* 81BACE lsr */
-    ACC16(lsr);  /* 81BACF lsr */
-    sta16(ea_dp(UNPACK_GROUPS));  /* 81BAD0 sta */
-    stz16(ea_dp(UNPACK_SOURCE));  /* 81BAD2 stz */
-    lda16(ea_longx(ANIM_GFX_PARTS + 4));  /* 81BAD4 lda */
-    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81BAD8 sta */
-    lda16(ea_longx(ANIM_GFX_PARTS + 2));  /* 81BADA lda */
-    abi_UnpackBegin();  /* 81BADE jsr */
-    ldx16(ea_dp(UNPACK_NEXT));  /* 81BAE1 ldx */
-L_81BAE3:
-    abi_UnpackGroup();  /* 81BAE3 jsr */
-    if (!IF_Z) goto L_81BAE3;  /* 81BAE6 bne */
-    stx16(ea_dp(UNPACK_NEXT));  /* 81BAE8 stx */
-L_81BAEA:
-    plp();  /* 81BAEA plp */
-    plb();  /* 81BAEB plb */
-    pla8();  /* 81BAEC pla */
-    pld();  /* 81BAED pld */
-    ply8();  /* 81BAEE ply */
-    plx8();  /* 81BAEF plx */
-    return;  /* 81BAF0 rts */
+    uint8_t x8 = (uint8_t)cpu.x, y8 = (uint8_t)cpu.y, a8 = (uint8_t)cpu.a, db = cpu.db, p = cpu.p;
+    uint16_t d = cpu.d, set, x, length;
+
+    op_rep(0x30);
+    /* where the set's graphics go: the next place */
+    set = (uint16_t)((cpu.a & 0x00FF) << 1);
+    wr16(ANIM_GFX_AT + set, rd16(UNPACK_NEXT));
+    wr16(ANIM_GFX_AT + 1 + set, rd16(UNPACK_NEXT + 1));
+    cpu.d = 0;
+    x = rd16(ANIM_GFX_ENTRIES + set);
+    cpu.x = x;
+    a16_load(length = rd16(ANIM_GFX_PARTS + x));
+    if (length) {
+        dp16_set(UNPACK_GROUPS, (uint16_t)((length & 0x3FFF) >> 3));
+        dp16_set(UNPACK_SOURCE, 0);
+        dp16_set(UNPACK_SOURCE + 2, rd16(ANIM_GFX_PARTS + 4 + x));
+        a16_load(rd16(ANIM_GFX_PARTS + 2 + x));
+        abi_UnpackBegin();
+        cpu.x = dp16(UNPACK_NEXT);
+        do
+            abi_UnpackGroup();
+        while (!(cpu.p & P_Z));
+        dp16_set(UNPACK_NEXT, cpu.x);
+    }
+    p_restore(p);
+    cpu.db = db;
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a8);
+    cpu.d = d;
+    cpu.y = y8;
+    x8_load(x8);
 }
 
 
@@ -252,36 +233,37 @@ L_81BAEA:
  */
 void abi_UnpackSetBegin(void)
 {
-    and16_v(0x00FF);  /* 81BB04 and */
-    sta16(ea_abs(SCRATCH));  /* 81BB07 sta */
-    op_sep(0x20);  /* 81BB0A sep */
-    lda8_v(0x80);  /* 81BB0C lda */
-    pha8();  /* 81BB0E pha */
-    plb();  /* 81BB0F plb */
-    op_rep(0x30);  /* 81BB10 rep */
-    lda16(ea_abs(SCRATCH));  /* 81BB12 lda */
-    ACC16(asl);  /* 81BB15 asl */
-    ACC16(asl);  /* 81BB16 asl */
-    ACC16(asl);  /* 81BB17 asl */
-    sec();  /* 81BB18 sec */
-    sbc16_v(rd16(ea_abs(SCRATCH)));  /* 81BB19 sbc */
-    tay16();  /* 81BB1C tay */
-    lda16_v(0x0000);  /* 81BB1D lda */
-    tcd();  /* 81BB20 tcd */
-    ldx16(ea_absy(UNPACK_SETS));  /* 81BB21 ldx */
-    stz16(ea_dp(UNPACK_SOURCE));  /* 81BB24 stz */
-    lda16(ea_absy(UNPACK_SETS + 4));  /* 81BB26 lda */
-    sta16(ea_dp(UNPACK_SOURCE + 2));  /* 81BB29 sta */
-    lda16(ea_absy(UNPACK_SETS + 5));  /* 81BB2B lda */
-    clc();  /* 81BB2E clc */
-    adc16_v(0x0007);  /* 81BB2F adc */
-    and16_v(0xFFF8);  /* 81BB32 and */
-    ACC16(lsr);  /* 81BB35 lsr */
-    ACC16(lsr);  /* 81BB36 lsr */
-    ACC16(lsr);  /* 81BB37 lsr */
-    sta16(ea_dp(UNPACK_GROUPS));  /* 81BB38 sta */
-    lda16(ea_absy(UNPACK_SETS + 2));  /* 81BB3A lda */
+    uint16_t set = cpu.a & 0x00FF, y;
+
+    wr16(dba(SCRATCH), set);
+    op_sep(P_M);
+    cpu.db = 0x80;
+    op_rep(0x30);
+    /* the set's 7-byte entry */
+    set = db16(SCRATCH);
+    flag_set(P_C, 1);
+    y = op_sbc16((uint16_t)(set << 3), set, &cpu.p);
+    cpu.y = y;
+    cpu.d = 0;
+    cpu.x = db16((uint16_t)(UNPACK_SETS + y));
+    dp16_set(UNPACK_SOURCE, 0);
+    dp16_set(UNPACK_SOURCE + 2, db16((uint16_t)(UNPACK_SETS + 4 + y)));
+    dp16_set(UNPACK_GROUPS, groups_of(db16((uint16_t)(UNPACK_SETS + 5 + y))));
+    a16_load(db16((uint16_t)(UNPACK_SETS + 2 + y)));
     abi_UnpackBegin();
+}
+
+/* The next source byte: past $FFFF the source goes on at $8000 of the
+   next bank. */
+static uint8_t source_byte(uint16_t *y)
+{
+    uint8_t v = rd8(dp_long_y(UNPACK_SOURCE, *y));
+
+    if (!++*y) {
+        *y = 0x8000;
+        inc8_at(dpa(UNPACK_SOURCE + 2));
+    }
+    return v;
 }
 
 /*
@@ -300,123 +282,28 @@ void abi_UnpackSetBegin(void)
  */
 void abi_UnpackGroup(void)
 {
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BB49 lda */
-    sta8(ea_dp(UNPACK_FLAGS));  /* 81BB4B sta */
-    iny16();  /* 81BB4D iny */
-    if (!IF_Z) goto L_81BB55;  /* 81BB4E bne */
-    ldy16_v(0x8000);  /* 81BB50 ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BB53 inc */
-L_81BB55:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BB55 lda */
-    sta8(ea_dp(UNPACK_FILL));  /* 81BB57 sta */
-    iny16();  /* 81BB59 iny */
-    if (!IF_Z) goto L_81BB61;  /* 81BB5A bne */
-    ldy16_v(0x8000);  /* 81BB5C ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BB5F inc */
-L_81BB61:
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BB61 asl */
-    if (IF_C) goto L_81BB69;  /* 81BB63 bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BB65 lda */
-    goto L_81BB73;  /* 81BB67 bra */
-L_81BB69:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BB69 lda */
-    iny16();  /* 81BB6B iny */
-    if (!IF_Z) goto L_81BB73;  /* 81BB6C bne */
-    ldy16_v(0x8000);  /* 81BB6E ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BB71 inc */
-L_81BB73:
-    sta8(ea_absx(0x0000));  /* 81BB73 sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BB76 asl */
-    if (IF_C) goto L_81BB7E;  /* 81BB78 bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BB7A lda */
-    goto L_81BB88;  /* 81BB7C bra */
-L_81BB7E:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BB7E lda */
-    iny16();  /* 81BB80 iny */
-    if (!IF_Z) goto L_81BB88;  /* 81BB81 bne */
-    ldy16_v(0x8000);  /* 81BB83 ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BB86 inc */
-L_81BB88:
-    sta8(ea_absx(0x0001));  /* 81BB88 sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BB8B asl */
-    if (IF_C) goto L_81BB93;  /* 81BB8D bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BB8F lda */
-    goto L_81BB9D;  /* 81BB91 bra */
-L_81BB93:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BB93 lda */
-    iny16();  /* 81BB95 iny */
-    if (!IF_Z) goto L_81BB9D;  /* 81BB96 bne */
-    ldy16_v(0x8000);  /* 81BB98 ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BB9B inc */
-L_81BB9D:
-    sta8(ea_absx(0x0002));  /* 81BB9D sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BBA0 asl */
-    if (IF_C) goto L_81BBA8;  /* 81BBA2 bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BBA4 lda */
-    goto L_81BBB2;  /* 81BBA6 bra */
-L_81BBA8:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BBA8 lda */
-    iny16();  /* 81BBAA iny */
-    if (!IF_Z) goto L_81BBB2;  /* 81BBAB bne */
-    ldy16_v(0x8000);  /* 81BBAD ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BBB0 inc */
-L_81BBB2:
-    sta8(ea_absx(0x0003));  /* 81BBB2 sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BBB5 asl */
-    if (IF_C) goto L_81BBBD;  /* 81BBB7 bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BBB9 lda */
-    goto L_81BBC7;  /* 81BBBB bra */
-L_81BBBD:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BBBD lda */
-    iny16();  /* 81BBBF iny */
-    if (!IF_Z) goto L_81BBC7;  /* 81BBC0 bne */
-    ldy16_v(0x8000);  /* 81BBC2 ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BBC5 inc */
-L_81BBC7:
-    sta8(ea_absx(0x0004));  /* 81BBC7 sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BBCA asl */
-    if (IF_C) goto L_81BBD2;  /* 81BBCC bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BBCE lda */
-    goto L_81BBDC;  /* 81BBD0 bra */
-L_81BBD2:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BBD2 lda */
-    iny16();  /* 81BBD4 iny */
-    if (!IF_Z) goto L_81BBDC;  /* 81BBD5 bne */
-    ldy16_v(0x8000);  /* 81BBD7 ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BBDA inc */
-L_81BBDC:
-    sta8(ea_absx(0x0005));  /* 81BBDC sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BBDF asl */
-    if (IF_C) goto L_81BBE7;  /* 81BBE1 bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BBE3 lda */
-    goto L_81BBF1;  /* 81BBE5 bra */
-L_81BBE7:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BBE7 lda */
-    iny16();  /* 81BBE9 iny */
-    if (!IF_Z) goto L_81BBF1;  /* 81BBEA bne */
-    ldy16_v(0x8000);  /* 81BBEC ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BBEF inc */
-L_81BBF1:
-    sta8(ea_absx(0x0006));  /* 81BBF1 sta */
-    MEM8(asl, ea_dp(UNPACK_FLAGS));  /* 81BBF4 asl */
-    if (IF_C) goto L_81BBFC;  /* 81BBF6 bcs */
-    lda8(ea_dp(UNPACK_FILL));  /* 81BBF8 lda */
-    goto L_81BC06;  /* 81BBFA bra */
-L_81BBFC:
-    lda8(ea_dpily(UNPACK_SOURCE));  /* 81BBFC lda */
-    iny16();  /* 81BBFE iny */
-    if (!IF_Z) goto L_81BC06;  /* 81BBFF bne */
-    ldy16_v(0x8000);  /* 81BC01 ldy */
-    MEM8(inc, ea_dp(UNPACK_SOURCE + 2));  /* 81BC04 inc */
-L_81BC06:
-    sta8(ea_absx(0x0007));  /* 81BC06 sta */
-    op_rep(0x20);  /* 81BC09 rep */
-    clc();  /* 81BC0B clc */
-    txa16();  /* 81BC0C txa */
-    adc16_v(0x0008);  /* 81BC0D adc */
-    tax16();  /* 81BC10 tax */
-    MEM16(dec, ea_dp(UNPACK_GROUPS));  /* 81BC11 dec */
-    op_sep(0x20);  /* 81BC13 sep */
-    return;  /* 81BC15 rts */
+    uint16_t y = cpu.y, x = cpu.x;
+    uint8_t flags, fill, v = 0;
+    int i;
+
+    /* a flag byte and a fill byte; then 8 bytes, each a source byte when
+       its flag (from the top) is set, else the fill */
+    flags = source_byte(&y);
+    fill = source_byte(&y);
+    wr8(dpa(UNPACK_FILL), fill);
+    for (i = 0; i < 8; i++) {
+        v = flags & 0x80 ? source_byte(&y) : fill;
+        flags <<= 1;
+        wr8(dba(0x0000) + (uint16_t)(x + i), v);
+    }
+    wr8(dpa(UNPACK_FLAGS), 0);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | v);
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(x, 0x0008, &cpu.p);
+    cpu.x = cpu.a;
+    cpu.y = y;
+    dec16_at(dpa(UNPACK_GROUPS));
+    op_sep(P_M);
 }
 

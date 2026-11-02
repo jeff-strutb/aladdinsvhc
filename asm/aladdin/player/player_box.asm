@@ -15,6 +15,8 @@ arch 65816
 !BOX_OFFSET_Y = $148E
 !BOX_HALF_W = $1488
 !BOX_HALF_H = $148A
+!TEST_BOX_X = $1484               ; the test box's centre (words: x, then y)
+!TEST_BOX_Y = $1486
 ; In bank $80: 10 bytes a box: x offset, y offset, half-width,
 ; half-height, and the word the player's $16 gets.
 !PLAYER_BOXES = $C7EB
@@ -76,3 +78,26 @@ PlayerBoxSet:
     sep.b #$20
 .done:
     rts
+
+; @routine 81:E8D5 TestBoxPlace
+; WHAT IT DOES: Puts the test box's centre at the actor's place plus the
+; box offsets: where actors are tested against it.
+; HOW: 16-bit adds: its x pixels plus BOX_OFFSET_X to TEST_BOX_X, its y
+; pixels plus BOX_OFFSET_Y to TEST_BOX_Y; then M and X 8-bit.
+; Entry: D = the actor (the player); DB a bank whose $0000-$1FFF is work
+; RAM; reached after a call in the kind 0 wait work ($81:E864) and by its
+; jump at $81:E861. Exit: M and X 8-bit; A = the centre's y; N, V, Z, C
+; from its addition; RTL.
+%at($81E8D5)
+TestBoxPlace:
+    rep.b #$20
+    clc
+    lda.b !actor_x+1
+    adc.w !BOX_OFFSET_X
+    sta.w !TEST_BOX_X
+    clc
+    lda.b !actor_y+1
+    adc.w !BOX_OFFSET_Y
+    sta.w !TEST_BOX_Y
+    sep.b #$30
+    rtl

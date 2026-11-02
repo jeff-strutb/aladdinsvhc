@@ -3,6 +3,7 @@
  * started in a record of the second pool at another record's place.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -11,21 +12,21 @@ void abi_ActorAllocBLong(void);
 /* Spawn11AtY's tail from the kind on, shared with Spawn13AtY: the new
    record (X) gets the kind in A, state $0C, $07 = 0, $08 = $80 and record
    Y's place; X and Y are pulled back. */
-static void hit_mark_start(void)
+static void hit_mark_start(uint8_t kind)
 {
-    sta8(ea_absx(ACTOR_06));
-    lda8_v(0x0C);
-    sta8(ea_absx(ACTOR_STATE));
-    stz8(ea_absx(ACTOR_07));
-    lda8_v(0x80);
-    sta8(ea_absx(ACTOR_08));
-    ply16();
-    op_rep(0x20);
-    lda16(ea_absy(ACTOR_X + 1));
-    sta16(ea_absx(ACTOR_X + 1));
-    lda16(ea_absy(ACTOR_Y + 1));
-    sta16(ea_absx(ACTOR_Y + 1));
-    op_sep(0x20);
+    uint32_t rec = dba(0) + cpu.x;
+    uint16_t y;
+
+    wr8(rec + ACTOR_06, kind);
+    wr8(rec + ACTOR_STATE, 0x0C);
+    wr8(rec + ACTOR_07, 0);
+    a8_load(0x80);
+    wr8(rec + ACTOR_08, 0x80);
+    ply16();                              /* the record it is put at */
+    wr16(rec + ACTOR_X + 1, rd16(dba(ACTOR_X + 1) + cpu.y));
+    y = rd16(dba(ACTOR_Y + 1) + cpu.y);
+    wr16(rec + ACTOR_Y + 1, y);
+    cpu.a = y;
     plx16();
 }
 
@@ -60,8 +61,7 @@ void abi_Spawn11AtY(void)
         hit_mark_none();
         return;
     }
-    lda8_v(0x11);
-    hit_mark_start();
+    hit_mark_start(0x11);
 }
 
 /*
@@ -83,6 +83,5 @@ void abi_Spawn13AtY(void)
         hit_mark_none();
         return;
     }
-    lda8_v(0x13);
-    hit_mark_start();
+    hit_mark_start(0x13);
 }

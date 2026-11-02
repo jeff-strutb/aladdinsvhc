@@ -3,6 +3,8 @@
  * their defaults before a screen is built.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ScrollStateClear(void);
 void abi_DisplayDefaults(void);
@@ -21,33 +23,17 @@ void abi_DisplayDefaults(void);
  */
 void abi_ScrollStateClear(void)
 {
-    op_rep(0x20);  /* 8196CB rep */
-    stz16(ea_abs(0x1772));  /* 8196CD stz */
-    stz16(ea_abs(0x1774));  /* 8196D0 stz */
-    stz16(ea_abs(0x1776));  /* 8196D3 stz */
-    stz16(ea_abs(0x1778));  /* 8196D6 stz */
-    stz16(ea_abs(0x18C8));  /* 8196D9 stz */
-    stz16(ea_abs(0x18CA));  /* 8196DC stz */
-    stz16(ea_abs(0x18CC));  /* 8196DF stz */
-    stz16(ea_abs(0x18CE));  /* 8196E2 stz */
-    stz16(ea_abs(0x1A1E));  /* 8196E5 stz */
-    stz16(ea_abs(BG2_X_SHIFT));  /* 8196E8 stz */
-    stz16(ea_abs(0x1A22));  /* 8196EB stz */
-    stz16(ea_abs(BG2_Y_SHIFT));  /* 8196EE stz */
-    stz16(ea_abs(0x19EC));  /* 8196F1 stz */
-    stz16(ea_abs(0x19EE));  /* 8196F4 stz */
-    stz16(ea_abs(0x19F0));  /* 8196F7 stz */
-    stz16(ea_abs(0x19F2));  /* 8196FA stz */
-    stz16(ea_abs(0x19F4));  /* 8196FD stz */
-    stz16(ea_abs(0x19F6));  /* 819700 stz */
-    stz16(ea_abs(0x19F8));  /* 819703 stz */
-    stz16(ea_abs(0x19FA));  /* 819706 stz */
-    stz16(ea_abs(0x19FC));  /* 819709 stz */
-    stz16(ea_abs(0x19FE));  /* 81970C stz */
-    stz16(ea_abs(0x1A00));  /* 81970F stz */
-    stz16(ea_abs(0x1A02));  /* 819712 stz */
-    op_sep(0x20);  /* 819715 sep */
-    return;  /* 819717 rtl */
+    /* the layers' scroll positions and their shifts, each a word */
+    static const uint16_t words[24] = {
+        0x1772, 0x1774, 0x1776, 0x1778, 0x18C8, 0x18CA, 0x18CC, 0x18CE,
+        0x1A1E, BG2_X_SHIFT, 0x1A22, BG2_Y_SHIFT,
+        0x19EC, 0x19EE, 0x19F0, 0x19F2, 0x19F4, 0x19F6, 0x19F8, 0x19FA,
+        0x19FC, 0x19FE, 0x1A00, 0x1A02,
+    };
+
+    for (int i = 0; i < 24; i++)
+        wr16(dba(words[i]), 0x0000);
+    op_sep(P_M);
 }
 
 /*
@@ -63,40 +49,18 @@ void abi_ScrollStateClear(void)
  */
 void abi_DisplayDefaults(void)
 {
-    lda8_v(0x03);  /* 819865 lda */
-    sta8(ea_abs(OBSEL));  /* 819867 sta */
-    lda8_v(0x30);  /* 81986A lda */
-    sta8(ea_abs(CGWSEL_SHADOW));  /* 81986C sta */
-    lda8_v(0x09);  /* 81986F lda */
-    sta8(ea_abs(0x039D));  /* 819871 sta */
-    lda8_v(0x49);  /* 819874 lda */
-    sta8(ea_abs(0x03A0));  /* 819876 sta */
-    lda8_v(0x41);  /* 819879 lda */
-    sta8(ea_abs(0x03A1));  /* 81987B sta */
-    lda8_v(0x5C);  /* 81987E lda */
-    sta8(ea_abs(0x03A2));  /* 819880 sta */
-    lda8_v(0x00);  /* 819883 lda */
-    sta8(ea_abs(0x03A4));  /* 819885 sta */
-    lda8_v(0x05);  /* 819888 lda */
-    sta8(ea_abs(0x03A5));  /* 81988A sta */
-    lda8_v(0xE0);  /* 81988D lda */
-    sta8(ea_abs(COLDATA));  /* 81988F sta */
-    stz8(ea_abs(COLDATA_RED));  /* 819892 stz */
-    stz8(ea_abs(COLDATA_GREEN));  /* 819895 stz */
-    stz8(ea_abs(COLDATA_BLUE));  /* 819898 stz */
-    stz8(ea_abs(0x038B));  /* 81989B stz */
-    stz8(ea_abs(0x038C));  /* 81989E stz */
-    stz8(ea_abs(0x03AA));  /* 8198A1 stz */
-    stz8(ea_abs(0x03AB));  /* 8198A4 stz */
-    stz8(ea_abs(WOBJSEL_SHADOW));  /* 8198A7 stz */
-    stz8(ea_abs(0x03AD));  /* 8198AA stz */
-    stz8(ea_abs(0x03B1));  /* 8198AD stz */
-    stz8(ea_abs(SETINI));  /* 8198B0 stz */
-    stz8(ea_abs(0x03B6));  /* 8198B3 stz */
-    stz8(ea_abs(HDMAEN));  /* 8198B6 stz */
-    stz8(ea_abs(M7SEL));  /* 8198B9 stz */
-    stz8(ea_abs(0x0829));  /* 8198BC stz */
-    lda8_v(0x01);  /* 8198BF lda */
-    sta8(ea_abs(NMITIMEN_SHADOW));  /* 8198C1 sta */
-    return;  /* 8198C4 rtl */
+    /* the display's settings and their shadows, in the original's order */
+    static const struct { uint16_t addr; uint8_t value; } settings[] = {
+        { (uint16_t)OBSEL, 0x03 }, { CGWSEL_SHADOW, 0x30 }, { 0x039D, 0x09 },
+        { 0x03A0, 0x49 }, { 0x03A1, 0x41 }, { 0x03A2, 0x5C }, { 0x03A4, 0x00 },
+        { 0x03A5, 0x05 }, { COLDATA, 0xE0 }, { COLDATA_RED, 0 },
+        { COLDATA_GREEN, 0 }, { COLDATA_BLUE, 0 }, { 0x038B, 0 }, { 0x038C, 0 },
+        { 0x03AA, 0 }, { 0x03AB, 0 }, { WOBJSEL_SHADOW, 0 }, { 0x03AD, 0 },
+        { 0x03B1, 0 }, { (uint16_t)SETINI, 0 }, { 0x03B6, 0 }, { (uint16_t)HDMAEN, 0 },
+        { (uint16_t)M7SEL, 0 }, { 0x0829, 0 }, { NMITIMEN_SHADOW, 0x01 },
+    };
+
+    for (unsigned i = 0; i < sizeof settings / sizeof settings[0]; i++)
+        wr8(dba(settings[i].addr), settings[i].value);
+    a8_load(0x01);
 }

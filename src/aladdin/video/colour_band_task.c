@@ -4,6 +4,8 @@
  * by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "hw.h"
@@ -15,6 +17,14 @@ void abi_TaskWait(void);
 #define BAND_TASK_STEP 0x06u  /* the task's own data (D = its slot): how much the lower bands are dimmed */
 #define BAND_TASK_BUFFER 0x07u  /* the buffer ColourBandsWrite writes next (0 or 1); with $08 the bands left (word) */
 #define COLOUR_BAND_HDMA_AT 0x0356u  /* the buffer the HDMA reads: its offset, then $0357 its page */
+
+/* The task waits `frames` frames, returning at `site`. */
+static void band_wait(uint8_t frames, uint32_t site)
+{
+    a8_load(frames);
+    jsl_frame(site);
+    abi_TaskWait();
+}
 
 /*
  * @routine 81:A00C ColourBandTask
@@ -34,59 +44,54 @@ void abi_TaskWait(void);
  */
 void abi_ColourBandTask(void)
 {
-    op_rep(0x20);  /* 81A00C rep */
-    clc();  /* 81A00E clc */
-    tya16();  /* 81A00F tya */
-    adc16_v(0x006F);  /* 81A010 adc */
-    tcd();  /* 81A013 tcd */
-    stz16(ea_dp(BAND_TASK_BUFFER));  /* 81A014 stz */
-    op_sep(0x20);  /* 81A016 sep */
-    lda8_v(0x0C);  /* 81A018 lda */
-    sta8(ea_abs(COLDATA_RED));  /* 81A01A sta */
-    lda8_v(0x00);  /* 81A01D lda */
-    sta8(ea_abs(DMAP7));  /* 81A01F sta */
-    lda8_v(0x32);  /* 81A022 lda */
-    sta8(ea_abs(BBAD7));  /* 81A024 sta */
-    lda8_v(0x7E);  /* 81A027 lda */
-    sta8(ea_abs(A1B7));  /* 81A029 sta */
-    stz8(ea_abs(DASB7));  /* 81A02C stz */
-    lda8_v(0xF5);  /* 81A02F lda */
-    sta8(ea_abs(COLOUR_BAND_HDMA_AT + 1));  /* 81A031 sta */
-    lda8_v(0x02);  /* 81A034 lda */
-    sta8(ea_abs(CGADSUB_SHADOW));  /* 81A036 sta */
-    stz8(ea_abs(CGWSEL_SHADOW));  /* 81A039 stz */
-    lda8_v(0x80);  /* 81A03C lda */
-    sta8(ea_abs(WOBJSEL_SHADOW));  /* 81A03E sta */
-    abi_ColourBandsWrite();  /* 81A041 jsr */
-    lda8(ea_abs(HDMAEN_SHADOW));  /* 81A044 lda */
-    ora8_v(0x80);  /* 81A047 ora */
-    sta8(ea_abs(HDMAEN_SHADOW));  /* 81A049 sta */
-    lda8_v(0x01);  /* 81A04C lda */
-    jsl_frame(0x81A04Eu); abi_TaskWait();  /* 81A04E jsl */
-L_81A052:
-    clc();  /* 81A052 clc */
-    lda8(ea_dp(BAND_TASK_STEP));  /* 81A053 lda */
-    adc8_v(0x01);  /* 81A055 adc */
-    sta8(ea_dp(BAND_TASK_STEP));  /* 81A057 sta */
-    abi_ColourBandsWrite();  /* 81A059 jsr */
-    lda8_v(0x04);  /* 81A05C lda */
-    jsl_frame(0x81A05Eu); abi_TaskWait();  /* 81A05E jsl */
-    lda8(ea_dp(BAND_TASK_STEP));  /* 81A062 lda */
-    cmp8_v(0x10);  /* 81A064 cmp */
-    if (!IF_Z) goto L_81A052;  /* 81A066 bne */
-    lda8_v(0x1F);  /* 81A068 lda */
-    jsl_frame(0x81A06Au); abi_TaskWait();  /* 81A06A jsl */
-L_81A06E:
-    sec();  /* 81A06E sec */
-    lda8(ea_dp(BAND_TASK_STEP));  /* 81A06F lda */
-    sbc8_v(0x01);  /* 81A071 sbc */
-    sta8(ea_dp(BAND_TASK_STEP));  /* 81A073 sta */
-    abi_ColourBandsWrite();  /* 81A075 jsr */
-    lda8_v(0x04);  /* 81A078 lda */
-    jsl_frame(0x81A07Au); abi_TaskWait();  /* 81A07A jsl */
-    lda8(ea_dp(BAND_TASK_STEP));  /* 81A07E lda */
-    if (!IF_Z) goto L_81A06E;  /* 81A080 bne */
-    lda8_v(0x1F);  /* 81A082 lda */
-    jsl_frame(0x81A084u); abi_TaskWait();  /* 81A084 jsl */
-    goto L_81A052;  /* 81A088 bra */
+    uint8_t step;
+
+    /* D = its slot's data */
+    op_rep(P_M);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16((uint16_t)cpu.y, 0x006F, &cpu.p);
+    cpu.d = cpu.a;
+    dp16_set(BAND_TASK_BUFFER, 0);
+    op_sep(P_M);
+    /* HDMA channel 7 to COLDATA from $7E:F5xx; colour math on */
+    wr8(dba((uint16_t)COLDATA_RED), 0x0C);
+    wr8(dba((uint16_t)DMAP7), 0x00);
+    wr8(dba((uint16_t)BBAD7), 0x32);
+    wr8(dba((uint16_t)A1B7), 0x7E);
+    wr8(dba((uint16_t)DASB7), 0x00);
+    wr8(dba(COLOUR_BAND_HDMA_AT + 1), 0xF5);
+    wr8(dba(CGADSUB_SHADOW), 0x02);
+    wr8(dba(CGWSEL_SHADOW), 0x00);
+    a8_load(0x80);
+    wr8(dba(WOBJSEL_SHADOW), 0x80);
+    abi_ColourBandsWrite();
+    a8_load((uint8_t)(rd8(dba(HDMAEN_SHADOW)) | 0x80));
+    wr8(dba(HDMAEN_SHADOW), (uint8_t)cpu.a);
+    band_wait(0x01, 0x81A04Eu);
+    for (;;) {
+        /* the lower bands dim a step every 4 frames to 16, then back */
+        do {
+            flag_set(P_C, 0);
+            step = op_adc8(rd8(dpa(BAND_TASK_STEP)), 0x01, &cpu.p);
+            cpu.a = (uint16_t)((cpu.a & 0xFF00) | step);
+            wr8(dpa(BAND_TASK_STEP), step);
+            abi_ColourBandsWrite();
+            band_wait(0x04, 0x81A05Eu);
+            step = rd8(dpa(BAND_TASK_STEP));
+            a8_load(step);
+            cmp8_of(step, 0x10);
+        } while (step != 0x10);
+        band_wait(0x1F, 0x81A06Au);
+        do {
+            flag_set(P_C, 1);
+            step = op_sbc8(rd8(dpa(BAND_TASK_STEP)), 0x01, &cpu.p);
+            cpu.a = (uint16_t)((cpu.a & 0xFF00) | step);
+            wr8(dpa(BAND_TASK_STEP), step);
+            abi_ColourBandsWrite();
+            band_wait(0x04, 0x81A07Au);
+            step = rd8(dpa(BAND_TASK_STEP));
+            a8_load(step);
+        } while (step);
+        band_wait(0x1F, 0x81A084u);
+    }
 }

@@ -3,6 +3,8 @@
  * spawn point and moved to the point it keeps at $48.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorSpawn(void);
 void abi_ActorSpawnPairA3(void);
@@ -12,6 +14,34 @@ void abi_ActorSpawnPairA3(void);
 #include "wram_player.h"
 #include "wram_state.h"
 #include "wram_video.h"
+
+#define PAIR_SPAWNING 0x43u  /* set while the pair is started */
+#define PAIR_AT_X 0x48u      /* where they start: x, then y pixels (words) */
+#define PAIR_AT_Y 0x4Au
+
+/* One kind $A3 at PAIR_AT_X, PAIR_AT_Y with $07 = `which`; 0 when none
+   was free. */
+static int pair_one(uint8_t which)
+{
+    uint32_t rec;
+    uint16_t y;
+
+    wr8(dpa(ACTOR_SPAWN_AT), 0);
+    a8_load(0xA3);
+    abi_ActorSpawn();
+    if (cpu.p & P_N)
+        return 0;
+    rec = dba(0) + cpu.x;
+    a8_load(which);
+    wr8(rec + ACTOR_07, which);
+    op_rep(P_M);
+    wr16(rec + ACTOR_X + 1, dp16(PAIR_AT_X));
+    y = dp16(PAIR_AT_Y);
+    wr16(rec + ACTOR_Y + 1, y);
+    a16_load(y);
+    op_sep(0x30);
+    return 1;
+}
 
 /*
  * @routine 84:8173 ActorSpawnPairA3
@@ -26,32 +56,8 @@ void abi_ActorSpawnPairA3(void);
  */
 void abi_ActorSpawnPairA3(void)
 {
-    MEM8(inc, ea_dp(0x43));  /* 848173 inc */
-    stz8(ea_dp(0x21));  /* 848175 stz */
-    lda8_v(0xA3);  /* 848177 lda */
-    abi_ActorSpawn();  /* 848179 jsl */
-    if (IF_N) goto L_8481AF;  /* 84817D bmi */
-    lda8_v(0x00);  /* 84817F lda */
-    sta8(ea_absx(0x0007));  /* 848181 sta */
-    op_rep(0x20);  /* 848184 rep */
-    lda16(ea_dp(0x48));  /* 848186 lda */
-    sta16(ea_absx(SCRATCH));  /* 848188 sta */
-    lda16(ea_dp(0x4A));  /* 84818B lda */
-    sta16(ea_absx(0x000F));  /* 84818D sta */
-    op_sep(0x30);  /* 848190 sep */
-    stz8(ea_dp(0x21));  /* 848192 stz */
-    lda8_v(0xA3);  /* 848194 lda */
-    abi_ActorSpawn();  /* 848196 jsl */
-    if (IF_N) goto L_8481AF;  /* 84819A bmi */
-    lda8_v(0x01);  /* 84819C lda */
-    sta8(ea_absx(0x0007));  /* 84819E sta */
-    op_rep(0x20);  /* 8481A1 rep */
-    lda16(ea_dp(0x48));  /* 8481A3 lda */
-    sta16(ea_absx(SCRATCH));  /* 8481A5 sta */
-    lda16(ea_dp(0x4A));  /* 8481A8 lda */
-    sta16(ea_absx(0x000F));  /* 8481AA sta */
-    op_sep(0x30);  /* 8481AD sep */
-L_8481AF:
-    stz8(ea_dp(0x43));  /* 8481AF stz */
-    return;  /* 8481B1 rts */
+    wr8(dpa(PAIR_SPAWNING), (uint8_t)(rd8(dpa(PAIR_SPAWNING)) + 1));
+    if (pair_one(0))
+        pair_one(1);
+    wr8(dpa(PAIR_SPAWNING), 0);
 }

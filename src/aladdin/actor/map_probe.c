@@ -4,6 +4,8 @@
  * ground between it and the player is clear to see along.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
@@ -12,7 +14,8 @@ void abi_ActorSideOfPlayer(void);
 
 /* The map test: the class of the level map's block at the point SCRATCH
    (x, word), SCRATCH + 2 (y, word); A = X = it, 8-bit registers. */
-#define MAP_BLOCK_AT 0x81B82Bu
+void abi_TileAtProbeLong(void);
+void abi_PlayerInFrontBox(void);
 /* Whether the player is within the actor's vertical reach (box X): C set
    when not. */
 #define PLAYER_IN_REACH_Y 0x81AEFDu
@@ -22,6 +25,19 @@ void abi_ActorSideOfPlayer(void);
 /* In bank $80 (DB): 5 pixels ahead, facing right then left (words). */
 #define AHEAD_5 0xD176u
 #define STEPS_LEFT ACTOR_STREAM   /* $4A: here, the 16-pixel steps left to test */
+
+/* The point (x from the table entry, y SCRATCH + 2 pixels below) to
+   scratch, then the tile there (TileAtProbeLong). */
+static void map_at(uint32_t ahead)
+{
+    op_rep(0x21);
+    cpu.a = op_adc16(rd16(ahead), dp16(ACTOR_X + 1), &cpu.p);
+    wr16(dba(SCRATCH), cpu.a);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(SCRATCH + 2)), &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
+    abi_TileAtProbeLong();
+}
 
 /*
  * @routine 83:9A15 ActorMapAtOffset
@@ -38,19 +54,12 @@ void abi_ActorSideOfPlayer(void);
  */
 void abi_ActorMapAtOffset(void)
 {
-    lda8(ea_dp(ACTOR_FACING));
-    ACC8(asl);
-    adc8_v(rd8(ea_abs(SCRATCH)));
-    tax8();
-    op_rep(0x21);
-    lda16(ea_absx(AHEAD_OFFSETS));
-    adc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    sta16(ea_abs(SCRATCH));
-    lda16(ea_dp(ACTOR_Y + 1));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH + 2)));
-    sta16(ea_abs(SCRATCH + 2));
-    call_routine(MAP_BLOCK_AT, 1);
+    uint8_t facing = rd8(dpa(ACTOR_FACING));
+
+    /* the entry for its facing (the ASL's carry goes into the add) */
+    flag_set(P_C, facing & 0x80);
+    cpu.x = op_adc8((uint8_t)(facing << 1), rd8(dba(SCRATCH)), &cpu.p);
+    map_at(dba(AHEAD_OFFSETS) + cpu.x);
 }
 
 /*
@@ -64,11 +73,11 @@ void abi_ActorMapAtOffset(void)
  */
 void abi_ActorMapAhead7Down28(void)
 {
-    lda8_v(0x1C);
-    sta8(ea_abs(SCRATCH + 2));
-    lda8_v(0x04);
-    sta8(ea_abs(SCRATCH));
-    stz8(ea_abs(SCRATCH + 3));
+    a8_load(0x1C);
+    wr8(dba(SCRATCH + 2), 0x1C);
+    a8_load(0x04);
+    wr8(dba(SCRATCH), 0x04);
+    wr8(dba(SCRATCH + 3), 0);
     abi_ActorMapAtOffset();
 }
 
@@ -84,21 +93,11 @@ void abi_ActorMapAhead7Down28(void)
  */
 void abi_ActorMapAhead5Down12(void)
 {
-    lda8_v(0x0C);
-    sta8(ea_abs(SCRATCH + 2));
-    stz8(ea_abs(SCRATCH + 3));
-    lda8(ea_dp(ACTOR_FACING));
-    ACC8(asl);
-    tax8();
-    op_rep(0x21);
-    lda16(ea_absx(AHEAD_5));
-    adc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    sta16(ea_abs(SCRATCH));
-    lda16(ea_dp(ACTOR_Y + 1));
-    clc();
-    adc16_v(rd16(ea_abs(SCRATCH + 2)));
-    sta16(ea_abs(SCRATCH + 2));
-    call_routine(MAP_BLOCK_AT, 1);
+    a8_load(0x0C);
+    wr8(dba(SCRATCH + 2), 0x0C);
+    wr8(dba(SCRATCH + 3), 0);
+    cpu.x = (uint8_t)(rd8(dpa(ACTOR_FACING)) << 1);
+    map_at(dba(AHEAD_5) + cpu.x);
 }
 
 
@@ -119,66 +118,66 @@ void abi_ActorMapAhead5Down12(void)
  */
 void abi_ActorSeesPlayer(void)
 {
-    ldx8_v(0x00);
-    call_routine(PLAYER_IN_REACH_Y, 1);
-    if (IF_C) goto not_seen;
-    lda8(ea_dp(ACTOR_07));
-    and8_v(0x10);
-    if (!IF_Z) goto seen;
-    op_rep(0x20);
-    ldx8_v(0x00);
-    lda16(ea_dp(ACTOR_X + 1));
-    sec();
-    sbc16_v(rd16(ea_abs(PLAYER + ACTOR_X + 1)));
-    if (!IF_N) goto distance;
-    eor16_v(0xFFFF);
-    ACC16(inc);
-    inx8();
-distance:
-    ACC16(lsr);
-    ACC16(lsr);
-    ACC16(lsr);
-    ACC16(lsr);
-    if (IF_Z) goto not_seen;
-    sta16(ea_dp(STEPS_LEFT));
-    lda16_v(0xFFF0);
-    cpx8_v(0x00);
-    if (IF_Z) goto step_set;
-    lda16_v(0x0010);
-step_set:
-    sta16(ea_dp(ACTOR_48));
-    stz16(ea_dp(ACTOR_4C));
-step:
-    op_rep(0x21);
-    lda16(ea_dp(ACTOR_4C));
-    adc16_v(rd16(ea_dp(ACTOR_48)));
-    sta16(ea_dp(ACTOR_4C));
-    lda16(ea_dp(ACTOR_X + 1));
-    clc();
-    adc16_v(rd16(ea_dp(ACTOR_4C)));
-    sta16(ea_abs(SCRATCH));
-    lda16(ea_dp(ACTOR_Y + 1));
-    sta16(ea_abs(SCRATCH + 2));
-    lda16(ea_dp(ACTOR_07));
-    and16_v(0x0008);
-    if (!IF_Z) goto test;
-    lda16(ea_dp(ACTOR_Y + 1));
-    clc();
-    adc16_v(0x000C);
-    sta16(ea_abs(SCRATCH + 2));
-test:
-    call_routine(MAP_BLOCK_AT, 1);
-    if (!IF_Z) goto not_seen;
-    MEM8(dec, ea_dp(STEPS_LEFT));
-    if (!IF_Z) goto step;
+    uint16_t d, steps;
+    uint8_t v;
+
+    x8_load(0x00);
+    abi_PlayerInFrontBox();
+    if (cpu.p & P_C)
+        goto not_seen;
+    v = rd8(dpa(ACTOR_07)) & 0x10;
+    a8_load(v);
+    if (v)                                /* seen through walls */
+        goto seen;
+    /* each 16 pixels between it and him (at its height, or 12 below)
+       must be an empty block */
+    op_rep(P_M);
+    x8_load(0x00);
+    flag_set(P_C, 1);
+    d = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
+    if (d & 0x8000) {
+        d = (uint16_t)((d ^ 0xFFFF) + 1);
+        x8_load(0x01);
+    }
+    flag_set(P_C, (d >> 3) & 1);
+    steps = (uint16_t)(d >> 4);
+    a16_load(steps);
+    if (!steps)
+        goto not_seen;
+    dp16_set(STEPS_LEFT, steps);
+    a16_load(0xFFF0);
+    cmp8_of((uint8_t)cpu.x, 0x00);
+    if (cpu.x)
+        a16_load(0x0010);
+    dp16_set(ACTOR_48, cpu.a);
+    dp16_set(ACTOR_4C, 0);
+    do {
+        op_rep(0x21);
+        cpu.a = op_adc16(dp16(ACTOR_4C), dp16(ACTOR_48), &cpu.p);
+        dp16_set(ACTOR_4C, cpu.a);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(dp16(ACTOR_X + 1), dp16(ACTOR_4C), &cpu.p);
+        wr16(dba(SCRATCH), cpu.a);
+        cpu.a = dp16(ACTOR_Y + 1);
+        wr16(dba(SCRATCH + 2), cpu.a);
+        a16_load(dp16(ACTOR_07) & 0x0008);
+        if (!cpu.a) {
+            flag_set(P_C, 0);
+            cpu.a = op_adc16(dp16(ACTOR_Y + 1), 0x000C, &cpu.p);
+            wr16(dba(SCRATCH + 2), cpu.a);
+        }
+        abi_TileAtProbeLong();
+        if (!(cpu.p & P_Z))
+            goto not_seen;
+    } while (dec8_at(dpa(STEPS_LEFT)));
 seen:
     abi_ActorSideOfPlayer();
-    sta8(ea_dp(ACTOR_FACING));
-    sta8(ea_dp(ACTOR_FLIP));
-    clc();
-    goto out;
+    wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+    wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
+    flag_set(P_C, 0);
+    op_sep(P_M);
+    return;
 not_seen:
-    sec();
-out:
-    op_sep(0x20);
+    flag_set(P_C, 1);
+    op_sep(P_M);
 }

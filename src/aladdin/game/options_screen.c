@@ -3,6 +3,7 @@
  * cursor beside the item.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "wram.h"
 #include "wram_state.h"
@@ -135,27 +136,26 @@ void abi_OptionSettingStep(void)
  */
 void abi_SoundTestShow(void)
 {
-    ldx8(ea_abs(SOUND_TEST));
-    inx8();
-    lda8_v(SOUND_TEST_AT >> 8);
-    ldy8_v(SOUND_TEST_AT & 0xFF);
-    xba();
-    tya8();
-    stx8(ea_abs(WRDIVL));
-    ldx8_v(10);
-    stx8(ea_abs(WRDIVB));
+    uint8_t number = (uint8_t)(rd8(dba(SOUND_TEST)) + 1), digit;
+
+    cpu.y = SOUND_TEST_AT & 0xFF;
+    cpu.a = SOUND_TEST_AT;
+    nz8_of(SOUND_TEST_AT & 0xFF);
+    wr8(dba(WRDIVL & 0xFFFF), number);    /* the number by 10 */
+    x8_load(10);
+    wr8(dba(WRDIVB & 0xFFFF), 10);
     op_rep(0x11);
-    tax16();
-    lda8(ea_abs(RDDIVL));
-    adc8_v(DIGIT_TILE);
-    sta8(ea_longx(TEXT_TILEMAP));
-    lda8(ea_abs(RDMPYL));
-    clc();
-    adc8_v(DIGIT_TILE);
-    sta8(ea_longx(TEXT_TILEMAP + 2));
-    lda8_v(DIGIT_BITS);
-    sta8(ea_longx(TEXT_TILEMAP + 1));
-    sta8(ea_longx(TEXT_TILEMAP + 3));
+    cpu.x = cpu.a;
+    digit = op_adc8(rd8(dba(RDDIVL & 0xFFFF)), DIGIT_TILE, &cpu.p);
+    wr8((TEXT_TILEMAP + cpu.x) & 0xFFFFFF, digit);
+    flag_set(P_C, 0);
+    digit = op_adc8(rd8(dba(RDMPYL & 0xFFFF)), DIGIT_TILE, &cpu.p);
+    wr8((TEXT_TILEMAP + 2 + cpu.x) & 0xFFFFFF, digit);
+    a8_load(DIGIT_BITS);
+    wr8((TEXT_TILEMAP + 1 + cpu.x) & 0xFFFFFF, DIGIT_BITS);
+    wr8((TEXT_TILEMAP + 3 + cpu.x) & 0xFFFFFF, DIGIT_BITS);
     op_sep(0x10);
-    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
+    digit = (uint8_t)(rd8(dba(TEXT_TILEMAP_UPLOAD)) + 1);
+    wr8(dba(TEXT_TILEMAP_UPLOAD), digit);
+    nz8_of(digit);
 }

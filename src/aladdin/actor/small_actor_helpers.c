@@ -6,6 +6,8 @@
  * and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -35,21 +37,22 @@ void abi_AnimStep(void);
  */
 void abi_Kind89PlayerPriority(void)
 {
-L_848F9C:
-    actor_yield(0x848F9Cu);  /* 848F9C brk */
-    ldx8_v(0x00);  /* 848F9E ldx */
-    op_rep(0x20);  /* 848FA0 rep */
-    lda16(ea_abs(PLAYER + ACTOR_X + 1));  /* 848FA2 lda */
-    cmp16_v(0x0934);  /* 848FA5 cmp */
-    op_sep(0x20);  /* 848FA8 sep */
-    if (!IF_C) goto L_848FAD;  /* 848FAA bcc */
-    inx8();  /* 848FAC inx */
-L_848FAD:
-    lda8(ea_abs(PLAYER_09));  /* 848FAD lda */
-    and8_v(0xCF);  /* 848FB0 and */
-    ora8_v(rd8(ea_absx(PRIORITY_BY_SIDE)));  /* 848FB2 ora */
-    sta8(ea_abs(PLAYER_09));  /* 848FB5 sta */
-    goto L_848F9C;  /* 848FB8 bra */
+    uint16_t px;
+    uint8_t bits;
+
+    for (;;) {
+        actor_yield(0x848F9Cu);
+        /* his priority bits by the side of x $0934 he is on */
+        x8_load(0x00);
+        px = rd16(dba(PLAYER + ACTOR_X + 1));
+        cpu.a = px;
+        cmp16_of(px, 0x0934);
+        if (px >= 0x0934)
+            x8_load(0x01);
+        bits = (uint8_t)((rd8(dba(PLAYER_09)) & 0xCF) | rd8(dba(PRIORITY_BY_SIDE) + cpu.x));
+        a8_load(bits);
+        wr8(dba(PLAYER_09), bits);
+    }
 }
 
 
@@ -66,19 +69,20 @@ L_848FAD:
  */
 void abi_SenderWait8E(void)
 {
-    abi_AnimStep();  /* 849B4D jsl */
-    abi_ActorPictureSend();  /* 849B51 jsl */
-    lda8(ea_abs(V_032D));  /* 849B55 lda */
-    and8_v(0x07);  /* 849B58 and */
-    if (!IF_Z) goto L_849B6A;  /* 849B5A bne */
-    lda8_v(0x80);  /* 849B5C lda */
-    sta8(ea_dp(ACTOR_SPAWN_AT));  /* 849B5E sta */
-    lda8_v(0x01);  /* 849B60 lda */
-    sta8(ea_dp(ACTOR_07));  /* 849B62 sta */
-    lda8_v(0x8E);  /* 849B64 lda */
-    abi_ActorCreateChild8();  /* 849B66 jsl */
-L_849B6A:
-    return;  /* 849B6A rtl */
+    uint8_t phase;
+
+    abi_AnimStep();
+    abi_ActorPictureSend();
+    phase = rd8(dba(V_032D)) & 0x07;
+    a8_load(phase);
+    if (phase)
+        return;
+    a8_load(0x80);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x80);
+    a8_load(0x01);
+    wr8(dpa(ACTOR_07), 0x01);
+    a8_load(0x8E);
+    abi_ActorCreateChild8();
 }
 
 
@@ -97,18 +101,21 @@ L_849B6A:
  */
 void abi_ChildStartListed(void)
 {
-    stx8(ea_dp(ACTOR_SPAWN_AT));  /* 83C4EC stx */
-    sty8(ea_dp(ACTOR_07));  /* 83C4EE sty */
-    lda8_v(0x3D);  /* 83C4F0 lda */
-    abi_ActorCreateChild();  /* 83C4F2 jsl */
-    txy16();  /* 83C4F6 txy */
-    op_rep(0x20);  /* 83C4F7 rep */
-    lda16(ea_dp(CHILD_COUNT));  /* 83C4F9 lda */
-    and16_v(0x00FF);  /* 83C4FB and */
-    ACC16(asl);  /* 83C4FE asl */
-    tax16();  /* 83C4FF tax */
-    sty16(ea_dpx(ACTOR_40));  /* 83C500 sty */
-    op_sep(0x30);  /* 83C502 sep */
-    MEM8(inc, ea_dp(CHILD_COUNT));  /* 83C504 inc */
-    return;  /* 83C506 rts */
+    uint16_t at;
+    uint8_t n;
+
+    wr8(dpa(ACTOR_SPAWN_AT), (uint8_t)cpu.x);
+    wr8(dpa(ACTOR_07), (uint8_t)cpu.y);
+    a8_load(0x3D);
+    abi_ActorCreateChild();
+    cpu.y = cpu.x;                        /* the child */
+    op_rep(P_M);
+    at = (uint16_t)((dp16(CHILD_COUNT) & 0x00FF) << 1);
+    cpu.a = cpu.x = at;
+    nz16_of(at);
+    wr16(dpa((uint16_t)(ACTOR_40 + at)), cpu.y);   /* kept in the list */
+    op_sep(0x30);
+    n = (uint8_t)(rd8(dpa(CHILD_COUNT)) + 1);
+    wr8(dpa(CHILD_COUNT), n);
+    nz8_of(n);
 }

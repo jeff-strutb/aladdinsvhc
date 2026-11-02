@@ -4,6 +4,8 @@
  * step. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram_video.h"
 #include "wram.h"
@@ -32,17 +34,14 @@
  */
 void abi_TileBlockBlank(void)
 {
-    sta16(ea_absx(TILE_BLOCKS));  /* 81F973 sta */
-    lda16_v(BLANK_TILE);  /* 81F976 lda */
-    sta16(ea_absx(0x1B46));  /* 81F979 sta */
-    sta16(ea_absx(0x1B48));  /* 81F97C sta */
-    sta16(ea_absx(0x1B4A));  /* 81F97F sta */
-    sta16(ea_absx(0x1B4C));  /* 81F982 sta */
-    txa16();  /* 81F985 txa */
-    clc();  /* 81F986 clc */
-    adc16_v(0x000A);  /* 81F987 adc */
-    tax16();  /* 81F98A tax */
-    return;  /* 81F98B rts */
+    uint32_t block = dba(TILE_BLOCKS) + cpu.x;
+
+    wr16(block, cpu.a);                   /* its VRAM address, then four blank tiles */
+    for (int i = 0; i < 4; i++)
+        wr16(block + 2 + 2 * i, BLANK_TILE);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(cpu.x, 0x000A, &cpu.p);
+    cpu.x = cpu.a;
 }
 
 
@@ -61,24 +60,25 @@ void abi_TileBlockBlank(void)
  */
 void abi_LevelEndColumnTile(void)
 {
-    MEM8(inc, ea_dp(END_STEPS_DONE));  /* 81F98C inc */
-    ldx8(ea_abs(SCRATCH));  /* 81F98E ldx */
-    lda8(ea_absx(END_COLUMN_ATTR));  /* 81F991 lda */
-    sta8(ea_abs(0x0011));  /* 81F994 sta */
-    stz8(ea_abs(0x0010));  /* 81F997 stz */
-    lda8(ea_abs(LEVEL_035C));  /* 81F99A lda */
-    ACC8(dec);  /* 81F99D dec */
-    ACC8(asl);  /* 81F99E asl */
-    ACC8(asl);  /* 81F99F asl */
-    adc8_v(rd8(ea_abs(SCRATCH)));  /* 81F9A0 adc */
-    tay8();  /* 81F9A3 tay */
-    ldx8(ea_absy(END_LEVEL_PICTURES));  /* 81F9A4 ldx */
-    lda8(ea_absx(END_PICTURE_TILE));  /* 81F9A7 lda */
-    op_rep(0x30);  /* 81F9AA rep */
-    and16_v(0x00FF);  /* 81F9AC and */
-    ACC16(asl);  /* 81F9AF asl */
-    ora16_v(rd16(ea_abs(0x0010)));  /* 81F9B0 ora */
-    return;  /* 81F9B3 rts */
+    uint8_t column, attr, level, at, picture;
+
+    inc8_at(dpa(END_STEPS_DONE));
+    column = rd8(dba(SCRATCH));
+    x8_load(column);
+    attr = rd8(dba(END_COLUMN_ATTR) + column);
+    a8_load(attr);
+    wr8(dba(SCRATCH + 5), attr);          /* the attribute word, high byte */
+    wr8(dba(SCRATCH + 4), 0);
+    /* the picture for this level's column: 4 a level, from level 1 */
+    level = (uint8_t)(rd8(dba(LEVEL_035C)) - 1);
+    flag_set(P_C, (level >> 6) & 1);     /* the second ASL's carry goes into the add */
+    at = op_adc8((uint8_t)(level << 2), column, &cpu.p);
+    cpu.y = at;
+    x8_load(rd8(dba(END_LEVEL_PICTURES) + at));
+    picture = rd8(dba(END_PICTURE_TILE) + cpu.x);
+    op_rep(0x30);
+    flag_set(P_C, 0);
+    a16_load((uint16_t)((picture << 1) | rd16(dba(SCRATCH + 4))));
 }
 
 
@@ -95,20 +95,17 @@ void abi_LevelEndColumnTile(void)
  */
 void abi_LevelEndColumnPlace(void)
 {
-    txa8();  /* 81F9B4 txa */
-    op_rep(0x20);  /* 81F9B5 rep */
-    and16_v(0x00FF);  /* 81F9B7 and */
-    ACC16(asl);  /* 81F9BA asl */
-    sta16(ea_abs(0x000E));  /* 81F9BB sta */
-    ACC16(asl);  /* 81F9BE asl */
-    adc16_v(rd16(ea_abs(0x000E)));  /* 81F9BF adc */
-    sta16(ea_abs(0x000E));  /* 81F9C2 sta */
-    lda16(ea_absy(END_STEP_VRAM));  /* 81F9C5 lda */
-    sec();  /* 81F9C8 sec */
-    sbc16_v(rd16(ea_abs(0x000E)));  /* 81F9C9 sbc */
-    sta16(ea_abs(0x000E));  /* 81F9CC sta */
-    op_sep(0x20);  /* 81F9CF sep */
-    return;  /* 81F9D1 rts */
+    uint16_t twice = (uint16_t)((uint8_t)cpu.x << 1), six;
+
+    op_rep(P_M);
+    wr16(dba(SCRATCH + 2), twice);
+    flag_set(P_C, 0);
+    six = op_adc16((uint16_t)(twice << 1), twice, &cpu.p);   /* 6 a column */
+    wr16(dba(SCRATCH + 2), six);
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(rd16(dba(END_STEP_VRAM) + cpu.y), six, &cpu.p);
+    wr16(dba(SCRATCH + 2), cpu.a);
+    op_sep(P_M);
 }
 
 /*
@@ -124,18 +121,17 @@ void abi_LevelEndColumnPlace(void)
  */
 void abi_LevelEndBlanks(void)
 {
-    op_rep(0x30);  /* 81F958 rep */
-    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81F95A ldx */
-    ldy16_v(0x001E);  /* 81F95D ldy */
-L_81F960:
-    lda16(ea_absy(0xFE02));  /* 81F960 lda */
-    abi_TileBlockBlank();  /* 81F963 jsr */
-    dey16();  /* 81F966 dey */
-    dey16();  /* 81F967 dey */
-    if (!IF_N) goto L_81F960;  /* 81F968 bpl */
-    stx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81F96A stx */
-    op_sep(0x30);  /* 81F96D sep */
-    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81F96F inc */
-    return;  /* 81F972 rts */
+    op_rep(0x30);
+    cpu.x = rd16(dba(TILE_BLOCKS_LENGTH));
+    cpu.y = 0x001E;
+    do {                                  /* the 16 blocks of the table */
+        a16_load(rd16(dba(END_BLANK_BLOCKS) + cpu.y));
+        abi_TileBlockBlank();
+        cpu.y = (uint16_t)(cpu.y - 2);
+        nz16_of(cpu.y);
+    } while (!(cpu.y & 0x8000));
+    wr16(dba(TILE_BLOCKS_LENGTH), cpu.x);
+    op_sep(0x30);
+    inc8_at(dba(TILE_BLOCKS_PENDING));
 }
 

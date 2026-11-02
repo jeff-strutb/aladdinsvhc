@@ -6,6 +6,8 @@
  * The task's parameter byte is the frames between steps.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 
@@ -85,6 +87,15 @@ void abi_ColourFadeStep(void)
 
 
 
+/* JSR ColourFadeStep from `site`: a call that can wait, its return
+   address pushed. */
+static void fade_step(uint16_t ret)
+{
+    push16(ret);
+    abi_ColourFadeStep();
+    cpu.s = (uint16_t)(cpu.s + 2);
+}
+
 /*
  * @routine 81:9F0E ColourFadeInTask
  * WHAT IT DOES: A task that fades the screen in from black by colour
@@ -99,19 +110,20 @@ void abi_ColourFadeStep(void)
  */
 void abi_ColourFadeInTask(void)
 {
-    abi_ColourFadeBegin();  /* 819F0E jsr */
-    ldx8_v(0x1F);  /* 819F11 ldx */
-    push16(0x9F15); abi_ColourFadeStep(); cpu.s = (uint16_t)(cpu.s + 2);  /* 819F13 jsr */
-    lda8_v(0x01);  /* 819F16 lda */
-    jsl_frame(0x819F18u); abi_TaskWait();  /* 819F18 jsl */
-    abi_ScreenFullBright();  /* 819F1C jsl */
-    ldx8_v(0x1F);  /* 819F20 ldx */
-L_819F22:
-    push16(0x9F24); abi_ColourFadeStep(); cpu.s = (uint16_t)(cpu.s + 2);  /* 819F22 jsr */
-    dex8();  /* 819F25 dex */
-    if (!IF_N) goto L_819F22;  /* 819F26 bpl */
-    stz8(ea_abs(WOBJSEL_SHADOW));  /* 819F5F stz (819F28 bra) */
-    abi_TaskExit(); return;  /* 819F62 jml */
+    abi_ColourFadeBegin();
+    x8_load(0x1F);
+    fade_step(0x9F15);
+    a8_load(0x01);
+    jsl_frame(0x819F18u);
+    abi_TaskWait();
+    abi_ScreenFullBright();
+    x8_load(0x1F);
+    do {
+        fade_step(0x9F24);
+        x8_load((uint8_t)(cpu.x - 1));
+    } while (!(cpu.x & 0x80));
+    wr8(dba(WOBJSEL_SHADOW), 0);
+    abi_TaskExit();
 }
 /*
  * @routine 81:9F52 ColourFadeOutTask
@@ -125,13 +137,13 @@ L_819F22:
  */
 void abi_ColourFadeOutTask(void)
 {
-    abi_ColourFadeBegin();  /* 819F52 jsr */
-    ldx8_v(0x00);  /* 819F55 ldx */
-L_819F57:
-    push16(0x9F59); abi_ColourFadeStep(); cpu.s = (uint16_t)(cpu.s + 2);  /* 819F57 jsr */
-    inx8();  /* 819F5A inx */
-    cpx8_v(0x20);  /* 819F5B cpx */
-    if (!IF_Z) goto L_819F57;  /* 819F5D bne */
-    stz8(ea_abs(WOBJSEL_SHADOW));  /* 819F5F stz */
-    abi_TaskExit(); return;  /* 819F62 jml */
+    abi_ColourFadeBegin();
+    x8_load(0x00);
+    do {
+        fade_step(0x9F59);
+        x8_load((uint8_t)(cpu.x + 1));
+        cmp8_of((uint8_t)cpu.x, 0x20);
+    } while (cpu.x != 0x20);
+    wr8(dba(WOBJSEL_SHADOW), 0);
+    abi_TaskExit();
 }

@@ -4,6 +4,8 @@
  * turns. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -25,13 +27,13 @@
  */
 void abi_BackdropDriftDown(void)
 {
-    sec();
-    lda16(ea_abs(BACK_Y_OFFSET));
-    sbc16_v(rd16(ea_dp(DRIFT_SPEED)));
-    sta16(ea_abs(BACK_Y_OFFSET));
-    lda16(ea_abs(BACK_Y_OFFSET + 2));
-    sbc16_v(0x0000);
-    sta16(ea_abs(BACK_Y_OFFSET + 2));
+    uint16_t low;
+
+    flag_set(P_C, 1);
+    low = op_sbc16(rd16(dba(BACK_Y_OFFSET)), dp16(DRIFT_SPEED), &cpu.p);
+    wr16(dba(BACK_Y_OFFSET), low);
+    cpu.a = op_sbc16(rd16(dba(BACK_Y_OFFSET + 2)), 0x0000, &cpu.p);
+    wr16(dba(BACK_Y_OFFSET + 2), cpu.a);
 }
 
 /*
@@ -45,11 +47,11 @@ void abi_BackdropDriftDown(void)
  */
 void abi_BackdropDriftUp(void)
 {
-    clc();
-    lda16(ea_abs(BACK_Y_OFFSET));
-    adc16_v(rd16(ea_dp(DRIFT_SPEED)));
-    sta16(ea_abs(BACK_Y_OFFSET));
-    lda16(ea_abs(BACK_Y_OFFSET + 2));
-    adc16_v(0x0000);
-    sta16(ea_abs(BACK_Y_OFFSET + 2));
+    uint16_t low;
+
+    flag_set(P_C, 0);
+    low = op_adc16(rd16(dba(BACK_Y_OFFSET)), dp16(DRIFT_SPEED), &cpu.p);
+    wr16(dba(BACK_Y_OFFSET), low);
+    cpu.a = op_adc16(rd16(dba(BACK_Y_OFFSET + 2)), 0x0000, &cpu.p);
+    wr16(dba(BACK_Y_OFFSET + 2), cpu.a);
 }

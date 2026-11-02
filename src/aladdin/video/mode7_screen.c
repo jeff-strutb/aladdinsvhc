@@ -8,7 +8,11 @@
  * cleared and written again (video/mode7.c).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_Mode7ScreenSetup(void);
 void abi_Mode7GraphicsConvert(void);
 void abi_Mode7TilesConvert(void);
@@ -40,63 +44,57 @@ void abi_Mode7MapClear(void);
  */
 void abi_Mode7ScreenSetup(void)
 {
-    sta8(ea_dp(0x30));  /* 81AF3B sta */
-    abi_SineTableBuild();  /* 81AF3D jsl */
-    sei();  /* 81AF41 sei */
-    lda8(ea_abs(NMITIMEN_SHADOW));  /* 81AF42 lda */
-    and8_v(0x7F);  /* 81AF45 and */
-    sta8(ea_abs(NMITIMEN));  /* 81AF47 sta */
-    lda8(ea_abs(INIDISP_SHADOW));  /* 81AF4A lda */
-    ora8_v(0x80);  /* 81AF4D ora */
-    sta8(ea_abs(INIDISP));  /* 81AF4F sta */
-    lda8_v(0x0C);  /* 81AF52 lda */
-    sta8(ea_dp(0x0F));  /* 81AF54 sta */
-    stz8(ea_dp(0x0E));  /* 81AF56 stz */
-    lda8_v(0x30);  /* 81AF58 lda */
-    sta8(ea_dp(0x0D));  /* 81AF5A sta */
-    stz8(ea_dp(0x0C));  /* 81AF5C stz */
-L_81AF5E:
-    abi_VramWordsToBuffer();  /* 81AF5E jsr */
-    abi_Mode7GraphicsConvert();  /* 81AF61 jsr */
-    sec();  /* 81AF64 sec */
-    lda8(ea_dp(0x0D));  /* 81AF65 lda */
-    sbc8_v(0x10);  /* 81AF67 sbc */
-    sta8(ea_dp(0x0D));  /* 81AF69 sta */
-    sec();  /* 81AF6B sec */
-    lda8(ea_dp(0x0F));  /* 81AF6C lda */
-    sbc8_v(0x04);  /* 81AF6E sbc */
-    sta8(ea_dp(0x0F));  /* 81AF70 sta */
-    if (IF_C) goto L_81AF5E;  /* 81AF72 bcs */
-    lda8_v(0x40);  /* 81AF74 lda */
-    sta8(ea_dp(0x0F));  /* 81AF76 sta */
-    stz8(ea_dp(0x0E));  /* 81AF78 stz */
-    abi_Mode7MapToBuffer();  /* 81AF7A jsr */
-    abi_Mode7MapClear();  /* 81AF7D jsr */
-    stz8(ea_dp(0x0D));  /* 81AF80 stz */
-    stz8(ea_dp(0x0C));  /* 81AF82 stz */
-    abi_Mode7MapFromBuffer();  /* 81AF84 jsr */
-    lda8_v(0x02);  /* 81AF87 lda */
-    sta8(ea_abs(0x0829));  /* 81AF89 sta */
-    lda8_v(0x07);  /* 81AF8C lda */
-    sta8(ea_abs(0x039D));  /* 81AF8E sta */
-    op_rep(0x20);  /* 81AF91 rep */
-    lda16_v(0x0080);  /* 81AF93 lda */
-    sta16(ea_abs(0x0395));  /* 81AF96 sta */
-    lda16_v(0x0040);  /* 81AF99 lda */
-    sta16(ea_abs(0x0397));  /* 81AF9C sta */
-    stz16(ea_abs(0x038D));  /* 81AF9F stz */
-    stz16(ea_abs(0x038F));  /* 81AFA2 stz */
-    stz16(ea_abs(0x0391));  /* 81AFA5 stz */
-    stz16(ea_abs(0x0393));  /* 81AFA8 stz */
-    op_sep(0x30);  /* 81AFAB sep */
-    lda8(ea_abs(INIDISP_SHADOW));  /* 81AFAD lda */
-    sta8(ea_abs(INIDISP));  /* 81AFB0 sta */
-    lda8_v(0x80);  /* 81AFB3 lda */
-    sta8(ea_abs(M7SEL));  /* 81AFB5 sta */
-    ora8_v(rd8(ea_abs(NMITIMEN_SHADOW)));  /* 81AFB8 ora */
-    sta8(ea_abs(NMITIMEN));  /* 81AFBB sta */
-    cli();  /* 81AFBE cli */
-    return;  /* 81AFBF rtl */
+    uint8_t v;
+
+    wr8(dpa(0x30), (uint8_t)cpu.a);
+    abi_SineTableBuild();
+    /* the screen off and no NMI while VRAM is written */
+    sei();
+    wr8(dba((uint16_t)NMITIMEN), rd8(dba(NMITIMEN_SHADOW)) & 0x7F);
+    wr8(dba((uint16_t)INIDISP), rd8(dba(INIDISP_SHADOW)) | 0x80);
+    /* the graphics: 4 blocks, VRAM $3000 down by $1000, source $0C00
+       down by $400 */
+    wr8(dpa(0x0F), 0x0C);
+    wr8(dpa(0x0E), 0x00);
+    a8_load(0x30);
+    wr8(dpa(0x0D), 0x30);
+    wr8(dpa(0x0C), 0x00);
+    do {
+        abi_VramWordsToBuffer();
+        abi_Mode7GraphicsConvert();
+        flag_set(P_C, 1);
+        wr8(dpa(0x0D), op_sbc8(rd8(dpa(0x0D)), 0x10, &cpu.p));
+        flag_set(P_C, 1);
+        v = op_sbc8(rd8(dpa(0x0F)), 0x04, &cpu.p);
+        a8_load(v);
+        wr8(dpa(0x0F), v);
+    } while (cpu.p & P_C);
+    /* the map */
+    a8_load(0x40);
+    wr8(dpa(0x0F), 0x40);
+    wr8(dpa(0x0E), 0x00);
+    abi_Mode7MapToBuffer();
+    abi_Mode7MapClear();
+    wr8(dpa(0x0D), 0x00);
+    wr8(dpa(0x0C), 0x00);
+    abi_Mode7MapFromBuffer();
+    /* mode 7, its centre (128, 64) and an empty matrix */
+    wr8(dba(0x0829), 0x02);
+    wr8(dba(0x039D), 0x07);
+    op_rep(P_M);
+    wr16(dba(0x0395), 0x0080);
+    cpu.a = 0x0040;
+    wr16(dba(0x0397), 0x0040);
+    wr16(dba(0x038D), 0);
+    wr16(dba(0x038F), 0);
+    wr16(dba(0x0391), 0);
+    wr16(dba(0x0393), 0);
+    op_sep(0x30);
+    wr8(dba((uint16_t)INIDISP), rd8(dba(INIDISP_SHADOW)));
+    wr8(dba((uint16_t)M7SEL), 0x80);
+    a8_load((uint8_t)(0x80 | rd8(dba(NMITIMEN_SHADOW))));
+    wr8(dba((uint16_t)NMITIMEN), (uint8_t)cpu.a);
+    cli();
 }
 
 /*
@@ -110,23 +108,22 @@ L_81AF5E:
  */
 void abi_Mode7GraphicsConvert(void)
 {
-    op_rep(0x30);  /* 81B059 rep */
-    abi_Mode7TilesConvert();  /* 81B05B jsr */
-    op_sep(0x20);  /* 81B05E sep */
-    lda8_v(0x80);  /* 81B060 lda */
-    sta8(ea_abs(VMAIN));  /* 81B062 sta */
-    ldx16(ea_dp(0x0C));  /* 81B065 ldx */
-    stx16(ea_abs(VMADDL));  /* 81B067 stx */
-    ldy16_v(0x1000);  /* 81B06A ldy */
-    ldx16_v(0x0000);  /* 81B06D ldx */
-L_81B070:
-    lda8(ea_longx(0x7F5800u));  /* 81B070 lda */
-    sta8(ea_abs(VMDATAH));  /* 81B074 sta */
-    inx16();  /* 81B077 inx */
-    dey16();  /* 81B078 dey */
-    if (!IF_Z) goto L_81B070;  /* 81B079 bne */
-    op_sep(0x10);  /* 81B07B sep */
-    return;  /* 81B07D rts */
+    uint16_t x;
+
+    op_rep(0x30);
+    abi_Mode7TilesConvert();
+    op_sep(P_M);
+    /* the $1000 pixels to VRAM's high bytes from the address at $0C */
+    wr8(dba((uint16_t)VMAIN), 0x80);
+    wr16(dba((uint16_t)VMADDL), dp16(0x0C));
+    for (x = 0; x < 0x1000; x++) {
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(0x7F5800u + x));
+        wr8(dba((uint16_t)VMDATAH), (uint8_t)cpu.a);
+    }
+    cpu.x = 0;
+    cpu.y = 0;
+    nz16_of(0);
+    op_sep(P_X);
 }
 
 /*
@@ -139,19 +136,18 @@ L_81B070:
  */
 void abi_Mode7TilesConvert(void)
 {
-    op_rep(0x30);  /* 81B07E rep */
-    lda16_v(0x0040);  /* 81B080 lda */
-    sta16(ea_dp(0x2C));  /* 81B083 sta */
-    op_sep(0x20);  /* 81B085 sep */
-    phb();  /* 81B087 phb */
-    lda8_v(0x7F);  /* 81B088 lda */
-    pha8();  /* 81B08A pha */
-    plb();  /* 81B08B plb */
-    ldx16_v(0x0000);  /* 81B08C ldx */
-    ldy16_v(0x0000);  /* 81B08F ldy */
-    abi_Mode7TileRowsConvert();  /* 81B092 jsr */
-    plb();  /* 81B095 plb */
-    return;  /* 81B096 rts */
+    uint8_t db = cpu.db;
+
+    op_rep(0x30);
+    dp16_set(0x2C, 0x0040);
+    op_sep(P_M);
+    cpu.db = 0x7F;
+    a8_load(0x7F);
+    cpu.x = 0;
+    cpu.y = 0;
+    abi_Mode7TileRowsConvert();
+    cpu.db = db;
+    nz8_of(db);
 }
 
 /*
@@ -169,65 +165,67 @@ void abi_Mode7TilesConvert(void)
  */
 void abi_Mode7TileRowsConvert(void)
 {
-L_81B097:
-    op_sep(0x20);  /* 81B097 sep */
-    phx16();  /* 81B099 phx */
-    stx16(ea_dp(0x32));  /* 81B09A stx */
-    lda8_v(0x00);  /* 81B09C lda */
-    xba();  /* 81B09E xba */
-    lda8(ea_dp(0x33));  /* 81B09F lda */
-    ACC8(lsr);  /* 81B0A1 lsr */
-    ACC8(lsr);  /* 81B0A2 lsr */
-    clc();  /* 81B0A3 clc */
-    adc8_v(rd8(ea_dp(0x0F)));  /* 81B0A4 adc */
-    ora8_v(rd8(ea_dp(0x30)));  /* 81B0A6 ora */
-    tax16();  /* 81B0A8 tax */
-    lda8(ea_longx(0x81B407u));  /* 81B0A9 lda */
-    sta8(ea_dp(0x32));  /* 81B0AD sta */
-    plx16();  /* 81B0AF plx */
-    lda8_v(0x08);  /* 81B0B0 lda */
-    sta8(ea_dp(0x2F));  /* 81B0B2 sta */
-L_81B0B4:
-    lda8_v(0x08);  /* 81B0B4 lda */
-    sta8(ea_dp(0x2E));  /* 81B0B6 sta */
-    lda8(ea_absy(0x5000));  /* 81B0B8 lda */
-    sta8(ea_dp(0x10));  /* 81B0BB sta */
-    lda8(ea_absy(0x5001));  /* 81B0BD lda */
-    sta8(ea_dp(0x11));  /* 81B0C0 sta */
-    lda8(ea_absy(0x5010));  /* 81B0C2 lda */
-    sta8(ea_dp(0x12));  /* 81B0C5 sta */
-    lda8(ea_absy(0x5011));  /* 81B0C7 lda */
-    sta8(ea_dp(0x13));  /* 81B0CA sta */
-L_81B0CC:
-    lda8_v(0x00);  /* 81B0CC lda */
-    MEM8(asl, ea_dp(0x13));  /* 81B0CE asl */
-    ACC8(rol);  /* 81B0D0 rol */
-    MEM8(asl, ea_dp(0x12));  /* 81B0D1 asl */
-    ACC8(rol);  /* 81B0D3 rol */
-    MEM8(asl, ea_dp(0x11));  /* 81B0D4 asl */
-    ACC8(rol);  /* 81B0D6 rol */
-    MEM8(asl, ea_dp(0x10));  /* 81B0D7 asl */
-    ACC8(rol);  /* 81B0D9 rol */
-    and8_v(0x0F);  /* 81B0DA and */
-    if (IF_Z) goto L_81B0E0;  /* 81B0DC beq */
-    ora8_v(rd8(ea_dp(0x32)));  /* 81B0DE ora */
-L_81B0E0:
-    sta8(ea_absx(0x5800));  /* 81B0E0 sta */
-    inx16();  /* 81B0E3 inx */
-    MEM8(dec, ea_dp(0x2E));  /* 81B0E4 dec */
-    if (!IF_Z) goto L_81B0CC;  /* 81B0E6 bne */
-    iny16();  /* 81B0E8 iny */
-    iny16();  /* 81B0E9 iny */
-    MEM8(dec, ea_dp(0x2F));  /* 81B0EA dec */
-    if (!IF_Z) goto L_81B0B4;  /* 81B0EC bne */
-    op_rep(0x20);  /* 81B0EE rep */
-    tya16();  /* 81B0F0 tya */
-    clc();  /* 81B0F1 clc */
-    adc16_v(0x0010);  /* 81B0F2 adc */
-    tay16();  /* 81B0F5 tay */
-    MEM16(dec, ea_dp(0x2C));  /* 81B0F6 dec */
-    if (!IF_Z) goto L_81B097;  /* 81B0F8 bne */
-    return;  /* 81B0FA rts */
+    uint16_t x = cpu.x, y = cpu.y;
+    uint8_t palette, row, col, p0, p1, p2, p3, px;
+
+    do {
+        /* the tile's palette, by its row in the source and the flag */
+        op_sep(P_M);
+        dp16_set(0x32, x);
+        palette = rd8(0x81B407u + (uint8_t)((((x >> 8) >> 2) + rd8(dpa(0x0F))) | rd8(dpa(0x30))));
+        wr8(dpa(0x32), palette);
+        /* each row's four bitplanes to 8 pixels, a byte each */
+        for (row = 0; row < 8; row++) {
+            p0 = rd8(dba(0x5000) + y);
+            p1 = rd8(dba(0x5001) + y);
+            p2 = rd8(dba(0x5010) + y);
+            p3 = rd8(dba(0x5011) + y);
+            for (col = 0; col < 8; col++) {
+                px = (uint8_t)((p3 >> 7) << 3 | (p2 >> 7) << 2 | (p1 >> 7) << 1 | p0 >> 7);
+                p0 <<= 1;
+                p1 <<= 1;
+                p2 <<= 1;
+                p3 <<= 1;
+                if (px)
+                    px |= palette;
+                wr8(dba(0x5800) + x, px);
+                x++;
+            }
+            y += 2;
+        }
+        wr8(dpa(0x10), 0);
+        wr8(dpa(0x11), 0);
+        wr8(dpa(0x12), 0);
+        wr8(dpa(0x13), 0);
+        wr8(dpa(0x2E), 0);
+        wr8(dpa(0x2F), 0);
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        y = op_adc16(y, 0x0010, &cpu.p);
+        cpu.a = y;
+    } while (dec16_at(dpa(0x2C)));
+    cpu.x = x;
+    cpu.y = y;
+}
+
+/* The queue's next record (X) and its first word, the VRAM address. */
+static uint16_t block_start(void)
+{
+    uint16_t x = rd16(dba((uint16_t)TILE_BLOCKS_LENGTH));
+
+    cpu.x = x;
+    wr16(dba((uint16_t)(TILE_BLOCKS + x)), cpu.a);
+    return x;
+}
+
+/* The record's length added, and the update asked for. */
+static void block_end(uint16_t x)
+{
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(x, 0x000A, &cpu.p);
+    wr16(dba((uint16_t)TILE_BLOCKS_LENGTH), cpu.a);
+    op_sep(0x30);
+    inc8_at(dba((uint16_t)TILE_BLOCKS_PENDING));
 }
 
 /*
@@ -245,23 +243,14 @@ L_81B0E0:
  */
 void abi_TileBlockQueueRun(void)
 {
-    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A23C ldx */
-    sta16(ea_absx(TILE_BLOCKS));  /* 81A23F sta */
-    tya16();  /* 81A242 tya */
-    sta16(ea_absx(TILE_BLOCKS + 2));  /* 81A243 sta */
-    ACC16(inc);  /* 81A246 inc */
-    sta16(ea_absx(TILE_BLOCKS + 4));  /* 81A247 sta */
-    ACC16(inc);  /* 81A24A inc */
-    sta16(ea_absx(TILE_BLOCKS + 6));  /* 81A24B sta */
-    ACC16(inc);  /* 81A24E inc */
-    sta16(ea_absx(TILE_BLOCKS + 8));  /* 81A24F sta */
-    txa16();  /* 81A252 txa */
-    clc();  /* 81A253 clc */
-    adc16_v(0x000A);  /* 81A254 adc */
-    sta16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A257 sta */
-    op_sep(0x30);  /* 81A25A sep */
-    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81A25C inc */
-    return;  /* 81A25F rtl */
+    uint16_t x = block_start(), t = cpu.y;
+
+    /* four tiles in a row */
+    wr16(dba((uint16_t)(TILE_BLOCKS + 2 + x)), t);
+    wr16(dba((uint16_t)(TILE_BLOCKS + 4 + x)), (uint16_t)(t + 1));
+    wr16(dba((uint16_t)(TILE_BLOCKS + 6 + x)), (uint16_t)(t + 2));
+    wr16(dba((uint16_t)(TILE_BLOCKS + 8 + x)), (uint16_t)(t + 3));
+    block_end(x);
 }
 
 /*
@@ -279,24 +268,16 @@ void abi_TileBlockQueueRun(void)
  */
 void abi_TileBlockQueueOne(void)
 {
-    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A260 ldx */
-    sta16(ea_absx(TILE_BLOCKS));  /* 81A263 sta */
-    tya16();  /* 81A266 tya */
-    sta16(ea_absx(TILE_BLOCKS + 2));  /* 81A267 sta */
-    ACC16(inc);  /* 81A26A inc */
-    sta16(ea_absx(TILE_BLOCKS + 4));  /* 81A26B sta */
-    clc();  /* 81A26E clc */
-    adc16_v(0x000F);  /* 81A26F adc */
-    sta16(ea_absx(TILE_BLOCKS + 6));  /* 81A272 sta */
-    ACC16(inc);  /* 81A275 inc */
-    sta16(ea_absx(TILE_BLOCKS + 8));  /* 81A276 sta */
-    txa16();  /* 81A279 txa */
-    clc();  /* 81A27A clc */
-    adc16_v(0x000A);  /* 81A27B adc */
-    sta16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A27E sta */
-    op_sep(0x30);  /* 81A281 sep */
-    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81A283 inc */
-    return;  /* 81A286 rtl */
+    uint16_t x = block_start(), t = cpu.y;
+
+    /* a 16x16 tile: two tiles, and the two $10 on */
+    wr16(dba((uint16_t)(TILE_BLOCKS + 2 + x)), t);
+    wr16(dba((uint16_t)(TILE_BLOCKS + 4 + x)), (uint16_t)(t + 1));
+    flag_set(P_C, 0);
+    t = op_adc16((uint16_t)(t + 1), 0x000F, &cpu.p);
+    wr16(dba((uint16_t)(TILE_BLOCKS + 6 + x)), t);
+    wr16(dba((uint16_t)(TILE_BLOCKS + 8 + x)), (uint16_t)(t + 1));
+    block_end(x);
 }
 
 /*
@@ -314,41 +295,35 @@ void abi_TileBlockQueueOne(void)
  */
 void abi_TileBlockQueue(void)
 {
-    ldx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A287 ldx */
-    sta16(ea_absx(TILE_BLOCKS));  /* 81A28A sta */
-    ACC16(inc);  /* 81A28D inc */
-    ACC16(inc);  /* 81A28E inc */
-    sta16(ea_absx(0x1B4E));  /* 81A28F sta */
-    clc();  /* 81A292 clc */
-    adc16_v(0x003E);  /* 81A293 adc */
-    sta16(ea_absx(0x1B58));  /* 81A296 sta */
-    ACC16(inc);  /* 81A299 inc */
-    ACC16(inc);  /* 81A29A inc */
-    sta16(ea_absx(0x1B62));  /* 81A29B sta */
-    tya16();  /* 81A29E tya */
-    ldy16_v(0x0004);  /* 81A29F ldy */
-    sty16(ea_abs(SCRATCH));  /* 81A2A2 sty */
-L_81A2A5:
-    sta16(ea_absx(0x1B46));  /* 81A2A5 sta */
-    ACC16(inc);  /* 81A2A8 inc */
-    sta16(ea_absx(0x1B48));  /* 81A2A9 sta */
-    clc();  /* 81A2AC clc */
-    adc16_v(0x000F);  /* 81A2AD adc */
-    sta16(ea_absx(0x1B4A));  /* 81A2B0 sta */
-    ACC16(inc);  /* 81A2B3 inc */
-    sta16(ea_absx(0x1B4C));  /* 81A2B4 sta */
-    sec();  /* 81A2B7 sec */
-    sbc16_v(0x000F);  /* 81A2B8 sbc */
-    tay16();  /* 81A2BB tay */
-    txa16();  /* 81A2BC txa */
-    clc();  /* 81A2BD clc */
-    adc16_v(0x000A);  /* 81A2BE adc */
-    tax16();  /* 81A2C1 tax */
-    tya16();  /* 81A2C2 tya */
-    MEM16(dec, ea_abs(SCRATCH));  /* 81A2C3 dec */
-    if (!IF_Z) goto L_81A2A5;  /* 81A2C6 bne */
-    stx16(ea_abs(TILE_BLOCKS_LENGTH));  /* 81A2C8 stx */
-    op_sep(0x30);  /* 81A2CB sep */
-    MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));  /* 81A2CD inc */
-    return;  /* 81A2D0 rtl */
+    uint16_t x = block_start(), a = cpu.a, t;
+
+    /* a 4x4 block of 16x16 tiles: the four rows' VRAM addresses $20
+       apart, each row's four tiles */
+    a = (uint16_t)(a + 2);
+    wr16(dba((uint16_t)(0x1B4E + x)), a);
+    flag_set(P_C, 0);
+    a = op_adc16(a, 0x003E, &cpu.p);
+    wr16(dba((uint16_t)(0x1B58 + x)), a);
+    wr16(dba((uint16_t)(0x1B62 + x)), (uint16_t)(a + 2));
+    t = cpu.y;
+    cpu.y = 0x0004;
+    wr16(dba(SCRATCH), 0x0004);
+    do {
+        wr16(dba((uint16_t)(0x1B46 + x)), t);
+        wr16(dba((uint16_t)(0x1B48 + x)), (uint16_t)(t + 1));
+        flag_set(P_C, 0);
+        a = op_adc16((uint16_t)(t + 1), 0x000F, &cpu.p);
+        wr16(dba((uint16_t)(0x1B4A + x)), a);
+        wr16(dba((uint16_t)(0x1B4C + x)), (uint16_t)(a + 1));
+        flag_set(P_C, 1);
+        t = op_sbc16((uint16_t)(a + 1), 0x000F, &cpu.p);
+        flag_set(P_C, 0);
+        x = op_adc16(x, 0x000A, &cpu.p);
+        cpu.a = t;
+        cpu.x = x;
+        cpu.y = t;
+    } while (dec16_at(dba(SCRATCH)));
+    wr16(dba((uint16_t)TILE_BLOCKS_LENGTH), x);
+    op_sep(0x30);
+    inc8_at(dba((uint16_t)TILE_BLOCKS_PENDING));
 }

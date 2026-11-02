@@ -3,6 +3,8 @@
  * the level that keeps them.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorPriorityClear(void);
 #include "actor.h"
@@ -24,11 +26,12 @@ void abi_ActorPriorityClear(void);
  */
 void abi_ActorPriorityClear(void)
 {
-    lda8(ea_abs(LEVEL));  /* 8481B2 lda */
-    cmp8_v(0x0E);  /* 8481B5 cmp */
-    if (IF_Z) goto L_8481BD;  /* 8481B7 beq */
-    lda8_v(0x30);  /* 8481B9 lda */
-    trb8(ea_dp(0x09));  /* 8481BB trb */
-L_8481BD:
-    return;  /* 8481BD rts */
+    uint8_t level = rd8(dba(LEVEL));
+
+    a8_load(level);
+    cmp8_of(level, 0x0E);
+    if (level == 0x0E)
+        return;
+    a8_load(0x30);
+    trb_at(dpa(ACTOR_09), 0x30);
 }

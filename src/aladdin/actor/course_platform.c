@@ -8,10 +8,13 @@
  * described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
 #include "wram_player.h"
+#include "wram_video.h"
 
 void abi_ActorCreateChild(void);
 void abi_ActorMoveScaled(void);
@@ -19,6 +22,11 @@ void abi_ActorSpawnFacingY(void);
 void abi_SoundQueueAdd(void);
 void abi_AnimStart(void);
 void abi_AnimStep(void);
+void abi_ActorFreeListSortHigh(void);
+void abi_PlatformOnCourseStart(void);
+void abi_PlatformCourseSlower(void);
+void abi_PlatformCourseFaster(void);
+void abi_PlatformSpawnOnCourse(void);
 
 /* The platform's own fields of its record */
 #define COURSE_STEPS 0x22u         /* steps left before the next waypoint is kept */
@@ -31,11 +39,28 @@ void abi_AnimStep(void);
 #define MOVED_Y 0x47u              /* y pixels moved in the frame (word) */
 #define RIDDEN 0x49u               /* nonzero: the player stands on it this frame */
 #define DIP 0x4Au                  /* how far it has sunk under the player: 24-bit, fraction first */
+#define BASE_Y 0x4Du               /* its y without the dip: 24-bit, fraction first */
+#define COURSE_AT 0x37u            /* the course maker's: offset of the waypoint the next platform starts at (word) */
+#define LAST_DIRECTION 0x1Cu       /* the direction it last took ($FF: none) */
+#define DIRECTION 0x40u            /* the direction it moves along the course: 0 or 1 */
+#define DIRECTION_FLIP 0x42u       /* nonzero: the wait routine flips DIRECTION */
+#define FIELD_21 0x21u             /* zeroed at its start; no code filed so far reads it */
 
 #define COURSE_STEPS_APART 0x26    /* steps from one waypoint to the next */
 /* The course's waypoints, 8 bytes each: x and y (24-bit, fraction first),
    the direction and the speed. */
 #define COURSE 0x7F5000u
+#define WAYPOINT_SIZE 8
+/* The waypoint the course is live around (the platforms are kept within
+   12 waypoints of it): the course maker keeps it at the screen's middle. */
+#define COURSE_LIVE 0x000400u
+/* The course starts at x $2A, y $1C0 and is worked out to x $1000. */
+#define COURSE_START_X 0x002A
+#define COURSE_START_Y 0x01C0
+#define COURSE_END_X_HIGH 0x10
+/* Not yet filed (no script reaches it): a platform's part of the course
+   in a turn stretch, at $83:CAA8. */
+#define PLATFORM_IN_TURN 0x83CAA8u
 
 /* In the bank DB names: the number of turn stretches, then 6 bytes each:
    the first x pixel and the x pixel past it (words) */
@@ -58,29 +83,27 @@ void abi_AnimStep(void);
  */
 void abi_PlatformCourseRecord(void)
 {
-    MEM8(dec, ea_dp(COURSE_STEPS));
-    if (!IF_Z)
+    uint16_t x;
+
+    if (dec8_at(dpa(COURSE_STEPS)))
         return;
-    lda8_v(COURSE_STEPS_APART);
-    sta8(ea_dp(COURSE_STEPS));
+    /* every COURSE_STEPS_APART steps, a waypoint: x, y, facing, speed */
+    a8_load(COURSE_STEPS_APART);
+    wr8(dpa(COURSE_STEPS), COURSE_STEPS_APART);
     op_rep(0x30);
-    ldx16(ea_dp(COURSE_END));
-    lda16(ea_dp(ACTOR_X));
-    sta16(ea_longx(COURSE));
-    lda16(ea_dp(ACTOR_X + 2));
-    sta16(ea_longx(COURSE + 2));
-    lda16(ea_dp(ACTOR_Y + 1));
-    sta16(ea_longx(COURSE + 4));
-    clc();
-    txa16();
-    adc16_v(8);
-    sta16(ea_dp(COURSE_END));
-    op_sep(0x20);
-    lda8(ea_dp(ACTOR_FACING));
-    sta8(ea_longx(COURSE + 6));
-    lda8(ea_dp(COURSE_SPEED));
-    sta8(ea_longx(COURSE + 7));
-    op_sep(0x10);
+    x = dp16(COURSE_END);
+    wr16(COURSE + x, dp16(ACTOR_X));
+    wr16(COURSE + 2 + x, dp16(ACTOR_X + 2));
+    wr16(COURSE + 4 + x, dp16(ACTOR_Y + 1));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(x, WAYPOINT_SIZE, &cpu.p);
+    dp16_set(COURSE_END, cpu.a);
+    op_sep(P_M);
+    wr8(COURSE + 6 + x, rd8(dpa(ACTOR_FACING)));
+    a8_load(rd8(dpa(COURSE_SPEED)));
+    wr8(COURSE + 7 + x, (uint8_t)cpu.a);
+    cpu.x = x;
+    op_sep(P_X);
 }
 
 /*
@@ -92,9 +115,9 @@ void abi_PlatformCourseRecord(void)
  */
 void abi_PlatformDipClear(void)
 {
-    stz8(ea_dp(DIP));
-    stz8(ea_dp(DIP + 1));
-    stz8(ea_dp(DIP + 2));
+    wr8(dpa(DIP), 0);
+    wr8(dpa(DIP + 1), 0);
+    wr8(dpa(DIP + 2), 0);
 }
 
 /*
@@ -112,27 +135,27 @@ void abi_PlatformDipClear(void)
  */
 void abi_PlatformTurnZoneTest(void)
 {
-    op_rep(0x20);
-    ldy8(ea_abs(TURN_ZONE_COUNT));
-    ldx8_v(0x00);
-    lda16(ea_dp(ACTOR_X + 1));
+    uint16_t at;
+    uint8_t x = 0;
+
+    /* each stretch: from its first x to its second, 6 bytes apart */
+    op_rep(P_M);
+    y8_load(rd8(dba(TURN_ZONE_COUNT)));
+    cpu.a = at = dp16(ACTOR_X + 1);
     do {
-        cmp16_v(rd16(ea_absx(TURN_ZONES)));
-        if (!IF_C)
+        cpu.x = x;
+        cmp16_of(at, rd16(dba((uint16_t)(TURN_ZONES + x))));
+        if (at < rd16(dba((uint16_t)(TURN_ZONES + x))))
             break;
-        cmp16_v(rd16(ea_absx(TURN_ZONES + 2)));
-        if (!IF_C) {
-            op_sep(0x20);
+        cmp16_of(at, rd16(dba((uint16_t)(TURN_ZONES + 2 + x))));
+        if (at < rd16(dba((uint16_t)(TURN_ZONES + 2 + x)))) {
+            op_sep(P_M);
             return;
         }
-        inx8();
-        inx8();
-        inx8();
-        inx8();
-        inx8();
-        inx8();
-        dey8();
-    } while (!IF_Z);
+        x = (uint8_t)(x + 6);
+        cpu.x = x;
+        y8_load((uint8_t)(cpu.y - 1));
+    } while ((uint8_t)cpu.y);
     op_sep(0x21);
 }
 
@@ -160,9 +183,9 @@ void abi_PlatformDipIdle(void)
  */
 void abi_PlatformDipWaitOff(void)
 {
-    lda8(ea_dp(RIDDEN));
-    if (IF_Z)
-        MEM8(inc, ea_dp(DIP_PHASE));
+    a8_load(rd8(dpa(RIDDEN)));
+    if (!(uint8_t)cpu.a)
+        inc8_at(dpa(DIP_PHASE));
 }
 
 /*
@@ -177,16 +200,11 @@ void abi_PlatformDipWaitOff(void)
  */
 void abi_PlatformDipStep(void)
 {
-    clc();
-    lda8(ea_absx(DIP_RATES));
-    adc8_v(rd8(ea_dp(DIP)));
-    sta8(ea_dp(DIP));
-    lda8(ea_absx(DIP_RATES + 1));
-    adc8_v(rd8(ea_dp(DIP + 1)));
-    sta8(ea_dp(DIP + 1));
-    lda8(ea_absx(DIP_RATES + 2));
-    adc8_v(rd8(ea_dp(DIP + 2)));
-    sta8(ea_dp(DIP + 2));
+    flag_set(P_C, 0);
+    wr8(dpa(DIP), op_adc8(rd8(dba((uint16_t)(DIP_RATES + cpu.x))), rd8(dpa(DIP)), &cpu.p));
+    wr8(dpa(DIP + 1), op_adc8(rd8(dba((uint16_t)(DIP_RATES + 1 + cpu.x))), rd8(dpa(DIP + 1)), &cpu.p));
+    a8_load(op_adc8(rd8(dba((uint16_t)(DIP_RATES + 2 + cpu.x))), rd8(dpa(DIP + 2)), &cpu.p));
+    wr8(dpa(DIP + 2), (uint8_t)cpu.a);
 }
 
 /*
@@ -199,12 +217,11 @@ void abi_PlatformDipStep(void)
  */
 void abi_PlatformPositionKeep(void)
 {
-    op_rep(0x20);
-    lda16(ea_dp(ACTOR_X + 1));
-    sta16(ea_dp(LAST_X));
-    lda16(ea_dp(ACTOR_Y + 1));
-    sta16(ea_dp(LAST_Y));
-    op_sep(0x20);
+    op_rep(P_M);
+    dp16_set(LAST_X, dp16(ACTOR_X + 1));
+    a16_load(dp16(ACTOR_Y + 1));
+    dp16_set(LAST_Y, cpu.a);
+    op_sep(P_M);
 }
 
 /*
@@ -217,16 +234,173 @@ void abi_PlatformPositionKeep(void)
  */
 void abi_PlatformMoveMeasure(void)
 {
-    op_rep(0x20);
-    sec();
-    lda16(ea_dp(ACTOR_X + 1));
-    sbc16_v(rd16(ea_dp(LAST_X)));
-    sta16(ea_dp(MOVED_X));
-    sec();
-    lda16(ea_dp(ACTOR_Y + 1));
-    sbc16_v(rd16(ea_dp(LAST_Y)));
-    sta16(ea_dp(MOVED_Y));
-    op_sep(0x20);
+    op_rep(P_M);
+    flag_set(P_C, 1);
+    dp16_set(MOVED_X, op_sbc16(dp16(ACTOR_X + 1), dp16(LAST_X), &cpu.p));
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(dp16(ACTOR_Y + 1), dp16(LAST_Y), &cpu.p);
+    dp16_set(MOVED_Y, cpu.a);
+    op_sep(P_M);
+}
+
+/*
+ * @routine 83:C96E PlatformCourseStart
+ * @actor
+ * WHAT IT DOES: Starts a platform of kind $47. The first one (ACTOR_07
+ * zero) is the course maker: it works the course out from x $2A, y $1C0
+ * to x $1000, starts four platforms along it, and from then on keeps the
+ * course's live waypoint (COURSE_LIVE) at the screen's middle as the
+ * play field scrolls. A platform it started (ACTOR_07 nonzero) goes on in
+ * PlatformOnCourseStart.
+ * HOW: The maker: speed $20, the waypoint step count 1, the course empty.
+ * It steps the course slowing (PlatformCourseSlower, facing 0) while out
+ * of a turn stretch and speeding (PlatformCourseFaster, facing 1) while
+ * in one, keeping a waypoint every 38 steps, until its x pixel's high
+ * byte is $10. Then the free list sorted for as many passes as half its
+ * top offset (ActorFreeListSortHigh), ACTOR_07 to 1 for its children,
+ * PlatformSpawnOnCourse four times from waypoint 6 ($30), COURSE_LIVE 18.
+ * Each frame after its yield: with the play field's x at or past its x
+ * before the move, COURSE_LIVE goes on one when the x plus $80 reaches
+ * the next waypoint's x; else back one when the x plus $80 is below the
+ * live waypoint's x.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; reached
+ * as the kind's start. Exit: the maker never leaves (it yields each
+ * frame); a platform it started: as PlatformOnCourseStart.
+ */
+void abi_PlatformCourseStart(void)
+{
+    uint8_t child = rd8(dpa(ACTOR_07));
+
+    a8_load(child);
+    if (child) {
+        abi_PlatformOnCourseStart();
+        return;
+    }
+    /* The course maker: from the start point, a waypoint every 38 steps,
+       slowing out of the turn stretches and speeding through them, to
+       x $1000. */
+    wr8(dpa(COURSE_SPEED), 0x20);
+    dp16_set(ACTOR_X + 1, COURSE_START_X);
+    dp16_set(ACTOR_Y + 1, COURSE_START_Y);
+    dp16_set(BASE_Y + 1, COURSE_START_Y);
+    dp16_set(COURSE_END, 0);
+    cpu.a = (uint16_t)((COURSE_START_Y & 0xFF00) | 0x01);
+    nz8_of(0x01);
+    wr8(dpa(COURSE_STEPS), 1);
+    for (;;) {
+        wr8(dpa(ACTOR_FACING), 0);
+        for (;;) {
+            uint8_t x_high = rd8(dpa(ACTOR_X + 2));
+            a8_load(x_high);
+            cmp8_of(x_high, COURSE_END_X_HIGH);
+            if (x_high == COURSE_END_X_HIGH)
+                goto worked_out;
+            abi_PlatformCourseRecord();
+            abi_PlatformCourseSlower();
+            if (!(cpu.p & P_C))
+                break;
+        }
+        uint8_t facing = (uint8_t)(rd8(dpa(ACTOR_FACING)) + 1);
+        wr8(dpa(ACTOR_FACING), facing);
+        nz8_of(facing);
+        do {
+            abi_PlatformCourseRecord();
+            abi_PlatformCourseFaster();
+        } while (!(cpu.p & P_C));
+    }
+worked_out:;
+    /* Four platforms started six waypoints apart from waypoint 6 */
+    uint8_t top = rd8(dba(ACTOR_FREE_TOP));
+    a8_load((uint8_t)(top >> 1));
+    flag_set(P_C, top & 1);
+    abi_ActorFreeListSortHigh();
+    wr8(dpa(ACTOR_07), (uint8_t)(rd8(dpa(ACTOR_07)) + 1));
+    a8_load(6 * WAYPOINT_SIZE);
+    dp16_set(COURSE_AT, 6 * WAYPOINT_SIZE);
+    for (int i = 0; i < 4; i++)
+        abi_PlatformSpawnOnCourse();
+    a8_load(18);
+    wr8(dba(COURSE_LIVE), 18);
+    /* Each frame the live waypoint follows the screen's middle: on one
+       when the play field scrolls right past the next waypoint, back one
+       when it scrolls left before the live one. */
+    for (;;) {
+        op_sep(0x30);
+        actor_yield(0x83C9CEu);
+        op_rep(0x30);
+        uint16_t scroll = rd16(dba(LAYER0 + LAYER_SCROLL_X));
+        uint16_t live = rd16(dba(COURSE_LIVE));
+        uint16_t at = (uint16_t)(live << 3);
+        int right = scroll >= rd16(dba(SCROLL_X_BEFORE));
+        uint16_t mid;
+
+        cpu.x = at;
+        flag_set(P_C, 0);
+        mid = op_adc16(scroll, 0x0080, &cpu.p);
+        cpu.a = mid;
+        if (right) {
+            uint16_t next_x = rd16(COURSE + WAYPOINT_SIZE + 1 + at);
+            cmp16_of(mid, next_x);
+            if (mid >= next_x) {
+                wr16(dba(COURSE_LIVE), ++live);
+                nz16_of(live);
+            }
+        } else {
+            uint16_t live_x = rd16(COURSE + 1 + at);
+            cmp16_of(mid, live_x);
+            if (mid < live_x) {
+                wr16(dba(COURSE_LIVE), --live);
+                nz16_of(live);
+            }
+        }
+    }
+}
+
+/*
+ * @routine 83:CA75 PlatformOnCourseStart
+ * @actor
+ * WHAT IT DOES: Starts a platform the course maker put on the course:
+ * nothing riding it, no dip, sprite bits $02 and $90, speed $20, its
+ * height without the dip its y; then each frame it steps along the
+ * course, slowing, until it reaches a turn stretch.
+ * HOW: FIELD_21, DIRECTION, DIRECTION_FLIP and RIDDEN zeroed; PlatformDipClear;
+ * LAST_DIRECTION $FF; ACTOR_08 2, ACTOR_09 $90; COURSE_SPEED $20; BASE_Y
+ * the 24-bit y; facing 0. Then yield, PlatformPositionKeep and
+ * PlatformCourseSlower each frame while C is set (out of a turn stretch).
+ * In one it goes on at $83:CAA8, which no script reaches yet: its C is
+ * not written, and it runs as the original's (jump_routine). (There it
+ * asks for a direction flip each time it enters or leaves a stretch,
+ * and PlatformCourseFollow can set its resume address there, $83:CAB0,
+ * for direction 1; no script does either.)
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; jumped
+ * to from PlatformCourseStart. Exit: never returns to its caller: it
+ * yields each frame.
+ */
+void abi_PlatformOnCourseStart(void)
+{
+    uint16_t y;
+
+    wr8(dpa(FIELD_21), 0);
+    wr8(dpa(DIRECTION), 0);
+    wr8(dpa(DIRECTION_FLIP), 0);
+    wr8(dpa(RIDDEN), 0);
+    abi_PlatformDipClear();
+    wr8(dpa(LAST_DIRECTION), 0xFF);
+    wr8(dpa(ACTOR_08), 0x02);
+    wr8(dpa(ACTOR_09), 0x90);
+    wr8(dpa(COURSE_SPEED), 0x20);
+    /* its height without the dip: its y, all 24 bits */
+    wr8(dpa(BASE_Y), rd8(dpa(ACTOR_Y)));
+    y = dp16(ACTOR_Y + 1);
+    dp16_set(BASE_Y + 1, y);
+    a16_load(y);
+    wr8(dpa(ACTOR_FACING), 0);
+    do {
+        actor_yield(0x83CA9Eu);
+        abi_PlatformPositionKeep();
+        abi_PlatformCourseSlower();
+    } while (cpu.p & P_C);
+    jump_routine(PLATFORM_IN_TURN);
 }
 
 /*
@@ -244,25 +418,25 @@ void abi_PlatformMoveMeasure(void)
  */
 void abi_PlatformSpawnOnCourse(void)
 {
-    lda8_v(0x47);  /* 83CA11 lda */
-    abi_ActorCreateChild();  /* 83CA13 jsl */
-    op_rep(0x20);  /* 83CA17 rep */
-    txy16();  /* 83CA19 txy */
-    ldx16(ea_dp(0x37));  /* 83CA1A ldx */
-    clc();  /* 83CA1C clc */
-    lda16(ea_longx(0x7F5000u));  /* 83CA1D lda */
-    sta16(ea_absy(0x000B));  /* 83CA21 sta */
-    lda16(ea_longx(0x7F5002u));  /* 83CA24 lda */
-    sta16(ea_absy(0x000D));  /* 83CA28 sta */
-    lda16(ea_longx(0x7F5004u));  /* 83CA2B lda */
-    sta16(ea_absy(0x000F));  /* 83CA2F sta */
-    txa16();  /* 83CA32 txa */
-    sta16(ea_absy(0x0037));  /* 83CA33 sta */
-    clc();  /* 83CA36 clc */
-    adc16_v(0x0030);  /* 83CA37 adc */
-    sta16(ea_dp(0x37));  /* 83CA3A sta */
-    op_sep(0x30);  /* 83CA3C sep */
-    return;  /* 83CA3E rts */
+    uint16_t child, at;
+
+    a8_load(0x47);
+    abi_ActorCreateChild();
+    /* the child at the waypoint the next platform starts at; the next one
+       6 waypoints on */
+    op_rep(P_M);
+    child = cpu.x;
+    cpu.y = child;
+    at = dp16(0x37);
+    cpu.x = at;
+    wr16(dba((uint16_t)(0x000B + child)), rd16(0x7F5000u + at));
+    wr16(dba((uint16_t)(0x000D + child)), rd16(0x7F5002u + at));
+    wr16(dba((uint16_t)(0x000F + child)), rd16(0x7F5004u + at));
+    wr16(dba((uint16_t)(0x0037 + child)), at);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(at, 0x0030, &cpu.p);
+    dp16_set(0x37, cpu.a);
+    op_sep(0x30);
 }
 
 
@@ -276,10 +450,10 @@ void abi_PlatformSpawnOnCourse(void)
  */
 void abi_PlatformDipStart(void)
 {
-    sta8(ea_dp(0x17));  /* 83CAC1 sta */
-    lda8_v(0x01);  /* 83CAC3 lda */
-    sta8(ea_dp(0x13));  /* 83CAC5 sta */
-    abi_PlatformDipClear(); return;
+    wr8(dpa(0x17), (uint8_t)cpu.a);
+    a8_load(0x01);
+    wr8(dpa(0x13), 0x01);
+    abi_PlatformDipClear();
 }
 
 
@@ -297,38 +471,27 @@ void abi_PlatformDipStart(void)
  */
 void abi_PlatformCourseStep(void)
 {
-    lda8(ea_dp(0x4D));  /* 83CB24 lda */
-    sta8(ea_dp(0x0E));  /* 83CB26 sta */
-    lda8(ea_dp(0x4E));  /* 83CB28 lda */
-    sta8(ea_dp(0x0F));  /* 83CB2A sta */
-    lda8(ea_dp(0x4F));  /* 83CB2C lda */
-    sta8(ea_dp(0x10));  /* 83CB2E sta */
-    lda8(ea_dp(0x14));  /* 83CB30 lda */
-    ACC8(asl);  /* 83CB32 asl */
-    ACC8(asl);  /* 83CB33 asl */
-    ACC8(asl);  /* 83CB34 asl */
-    tax8();  /* 83CB35 tax */
-    lda8(ea_absx(0xD304));  /* 83CB36 lda */
-    sta8(ea_abs(SCRATCH));  /* 83CB39 sta */
-    lda8(ea_absx(0xD305));  /* 83CB3C lda */
-    sta8(ea_abs(0x000D));  /* 83CB3F sta */
-    lda8(ea_absx(0xD306));  /* 83CB42 lda */
-    sta8(ea_abs(0x000E));  /* 83CB45 sta */
-    lda8(ea_absx(0xD307));  /* 83CB48 lda */
-    sta8(ea_abs(0x0010));  /* 83CB4B sta */
-    lda8(ea_absx(0xD308));  /* 83CB4E lda */
-    sta8(ea_abs(0x0011));  /* 83CB51 sta */
-    lda8(ea_absx(0xD309));  /* 83CB54 lda */
-    sta8(ea_abs(V_0012));  /* 83CB57 sta */
-    lda8(ea_dp(0x20));  /* 83CB5A lda */
-    abi_ActorMoveScaled();  /* 83CB5C jsl */
-    lda8(ea_dp(0x0E));  /* 83CB60 lda */
-    sta8(ea_dp(0x4D));  /* 83CB62 sta */
-    lda8(ea_dp(0x0F));  /* 83CB64 lda */
-    sta8(ea_dp(0x4E));  /* 83CB66 sta */
-    lda8(ea_dp(0x10));  /* 83CB68 lda */
-    sta8(ea_dp(0x4F));  /* 83CB6A sta */
-    return;  /* 83CB6C rts */
+    uint8_t x;
+
+    /* from its y without the dip, a step in its direction at its speed */
+    wr8(dpa(0x0E), rd8(dpa(0x4D)));
+    wr8(dpa(0x0F), rd8(dpa(0x4E)));
+    wr8(dpa(0x10), rd8(dpa(0x4F)));
+    x = (uint8_t)(rd8(dpa(0x14)) << 3);
+    flag_set(P_C, rd8(dpa(0x14)) & 0x20);
+    x8_load(x);
+    wr8(dba(SCRATCH), rd8(dba((uint16_t)(0xD304 + x))));
+    wr8(dba(0x000D), rd8(dba((uint16_t)(0xD305 + x))));
+    wr8(dba(0x000E), rd8(dba((uint16_t)(0xD306 + x))));
+    wr8(dba(0x0010), rd8(dba((uint16_t)(0xD307 + x))));
+    wr8(dba(0x0011), rd8(dba((uint16_t)(0xD308 + x))));
+    wr8(dba(V_0012), rd8(dba((uint16_t)(0xD309 + x))));
+    a8_load(rd8(dpa(0x20)));
+    abi_ActorMoveScaled();
+    wr8(dpa(0x4D), rd8(dpa(0x0E)));
+    wr8(dpa(0x4E), rd8(dpa(0x0F)));
+    a8_load(rd8(dpa(0x10)));
+    wr8(dpa(0x4F), (uint8_t)cpu.a);
 }
 
 
@@ -352,74 +515,64 @@ void abi_PlatformCourseStep(void)
  */
 void abi_PlatformCourseFollow(void)
 {
-    goto L_83CB93;
-L_83CB90:
-    op_sep(0x30);  /* 83CB90 sep */
-    return;  /* 83CB92 rts */
-L_83CB93:
-    op_rep(0x30);  /* 83CB93 rep */
-    ldx16(ea_dp(0x37));  /* 83CB95 ldx */
-    lda16(ea_dp(0x0C));  /* 83CB97 lda */
-    cmp16_v(rd16(ea_longx(0x7F5009u)));  /* 83CB99 cmp */
-    if (!IF_C) goto L_83CB90;  /* 83CB9D bcc */
-    clc();  /* 83CB9F clc */
-    txa16();  /* 83CBA0 txa */
-    adc16_v(0x0008);  /* 83CBA1 adc */
-    sta16(ea_dp(0x37));  /* 83CBA4 sta */
-    lda16(ea_abs(0x0400));  /* 83CBA6 lda */
-    ACC16(asl);  /* 83CBA9 asl */
-    ACC16(asl);  /* 83CBAA asl */
-    ACC16(asl);  /* 83CBAB asl */
-    tax16();  /* 83CBAC tax */
-    lda16(ea_dp(0x0C));  /* 83CBAD lda */
-    cmp16_v(rd16(ea_longx(0x7F4FA1u)));  /* 83CBAF cmp */
-    if (!IF_C) goto L_83CBBB;  /* 83CBB3 bcc */
-    cmp16_v(rd16(ea_longx(0x7F5061u)));  /* 83CBB5 cmp */
-    if (!IF_C) goto L_83CC15;  /* 83CBB9 bcc */
-L_83CBBB:
-    op_rep(0x30);  /* 83CBBB rep */
-    lda16_v(0x00C0);  /* 83CBBD lda */
-    ldy16(ea_dp(0x0C));  /* 83CBC0 ldy */
-    cpy16_v(rd16(ea_abs(0x1A44)));  /* 83CBC2 cpy */
-    if (!IF_C) goto L_83CBCA;  /* 83CBC5 bcc */
-    lda16_v(0xFF40);  /* 83CBC7 lda */
-L_83CBCA:
-    clc();  /* 83CBCA clc */
-    adc16_v(rd16(ea_dp(0x37)));  /* 83CBCB adc */
-    if (IF_N) goto L_83CC15;  /* 83CBCD bmi */
-    sta16(ea_dp(0x37));  /* 83CBCF sta */
-    tax16();  /* 83CBD1 tax */
-    lda16(ea_longx(0x7F5000u));  /* 83CBD2 lda */
-    sta16(ea_dp(0x0B));  /* 83CBD6 sta */
-    lda16(ea_longx(0x7F5002u));  /* 83CBD8 lda */
-    sta16(ea_dp(0x0D));  /* 83CBDC sta */
-    lda16(ea_longx(0x7F5004u));  /* 83CBDE lda */
-    sta16(ea_dp(0x0F));  /* 83CBE2 sta */
-    sta16(ea_dp(0x4E));  /* 83CBE4 sta */
-    op_sep(0x20);  /* 83CBE6 sep */
-    lda8(ea_dp(0x0E));  /* 83CBE8 lda */
-    sta8(ea_dp(0x4D));  /* 83CBEA sta */
-    lda8(ea_longx(0x7F5007u));  /* 83CBEC lda */
-    sta8(ea_dp(0x20));  /* 83CBF0 sta */
-    lda8(ea_longx(0x7F5006u));  /* 83CBF2 lda */
-    op_sep(0x10);  /* 83CBF6 sep */
-    sta8(ea_dp(0x40));  /* 83CBF8 sta */
-    sta8(ea_dp(0x14));  /* 83CBFA sta */
-    ACC8(asl);  /* 83CBFC asl */
-    tax8();  /* 83CBFD tax */
-    lda8(ea_absx(0xD312));  /* 83CBFE lda */
-    sta8(ea_dp(0x03));  /* 83CC01 sta */
-    lda8(ea_absx(0xD313));  /* 83CC03 lda */
-    sta8(ea_dp(0x04));  /* 83CC06 sta */
-    lda8_v(0xFF);  /* 83CC08 lda */
-    sta8(ea_dp(0x1C));  /* 83CC0A sta */
-    stz8(ea_dp(0x42));  /* 83CC0C stz */
-    stz8(ea_dp(0x13));  /* 83CC0E stz */
-    abi_PlatformDipClear();  /* 83CC10 jsr */
-    MEM8(inc, ea_dp(0x16));  /* 83CC13 inc */
-L_83CC15:
-    op_sep(0x30);  /* 83CC15 sep */
-    return;  /* 83CC17 rts */
+    uint16_t x, at, step;
+    uint8_t dir;
+
+    op_rep(0x30);
+    /* the camera past the next waypoint's x: on to it */
+    cpu.x = x = dp16(0x37);
+    cpu.a = at = dp16(0x0C);
+    cmp16_of(at, rd16(0x7F5009u + x));
+    if (at < rd16(0x7F5009u + x))
+        goto out;
+    flag_set(P_C, 0);
+    dp16_set(0x37, op_adc16(x, 0x0008, &cpu.p));
+    /* within this course's x range ($0400 picks it): nothing more */
+    cpu.x = x = (uint16_t)(rd16(dba(0x0400)) << 3);
+    flag_set(P_C, rd16(dba(0x0400)) & 0x2000);
+    cpu.a = at = dp16(0x0C);
+    cmp16_of(at, rd16(0x7F4FA1u + x));
+    if (at >= rd16(0x7F4FA1u + x)) {
+        cmp16_of(at, rd16(0x7F5061u + x));
+        if (at < rd16(0x7F5061u + x))
+            goto out;
+    }
+    /* the platform to the waypoint 24 behind or ahead of the camera */
+    step = 0x00C0;
+    cpu.y = at;
+    cmp16_of(at, rd16(dba(0x1A44)));
+    if (at >= rd16(dba(0x1A44)))
+        step = 0xFF40;
+    flag_set(P_C, 0);
+    cpu.a = at = op_adc16(step, dp16(0x37), &cpu.p);
+    if (at & 0x8000)
+        goto out;
+    dp16_set(0x37, at);
+    cpu.x = x = at;
+    dp16_set(0x0B, rd16(0x7F5000u + x));
+    dp16_set(0x0D, rd16(0x7F5002u + x));
+    cpu.a = rd16(0x7F5004u + x);
+    dp16_set(0x0F, cpu.a);
+    dp16_set(0x4E, cpu.a);
+    op_sep(P_M);
+    wr8(dpa(0x4D), rd8(dpa(0x0E)));
+    wr8(dpa(0x20), rd8(0x7F5007u + x));
+    dir = rd8(0x7F5006u + x);
+    op_sep(P_X);
+    wr8(dpa(0x40), dir);
+    wr8(dpa(0x14), dir);
+    flag_set(P_C, dir & 0x80);
+    x8_load((uint8_t)(dir << 1));
+    wr8(dpa(0x03), rd8(dba((uint16_t)(0xD312 + cpu.x))));
+    wr8(dpa(0x04), rd8(dba((uint16_t)(0xD313 + cpu.x))));
+    a8_load(0xFF);
+    wr8(dpa(0x1C), 0xFF);
+    wr8(dpa(0x42), 0);
+    wr8(dpa(0x13), 0);
+    abi_PlatformDipClear();
+    inc8_at(dpa(0x16));
+out:
+    op_sep(0x30);
 }
 
 
@@ -437,23 +590,25 @@ L_83CC15:
  */
 void abi_PlatformDipLand(void)
 {
-    lda8_v(0x4B);  /* 83CC42 lda */
-    ldx8_v(0x00);  /* 83CC44 ldx */
-    ldy8(ea_dp(0x40));  /* 83CC46 ldy */
-    abi_ActorSpawnFacingY();  /* 83CC48 jsl */
-    if (IF_N) goto L_83CC62;  /* 83CC4C bmi */
-    tdc();  /* 83CC4E tdc */
-    sta8(ea_absx(0x0037));  /* 83CC4F sta */
-    xba();  /* 83CC52 xba */
-    sta8(ea_absx(0x0038));  /* 83CC53 sta */
-    op_sep(0x10);  /* 83CC56 sep */
-    bit8_v(rd8(ea_dp(0x09)));  /* 83CC58 bit */
-    if (!IF_V) goto L_83CC62;  /* 83CC5A bvc */
-    lda8(ea_dp(0x17));  /* 83CC5C lda */
-    abi_SoundQueueAdd();  /* 83CC5E jsl */
-L_83CC62:
-    MEM8(inc, ea_dp(0x13));  /* 83CC62 inc */
-    return;  /* 83CC64 rts */
+    a8_load(0x4B);
+    x8_load(0x00);
+    y8_load(rd8(dpa(0x40)));
+    abi_ActorSpawnFacingY();
+    if (!(cpu.p & P_N)) {
+        /* the child's parent, and the sound when on screen */
+        a16_load(cpu.d);
+        wr8(dba((uint16_t)(0x0037 + cpu.x)), (uint8_t)cpu.d);
+        a8_load((uint8_t)(cpu.d >> 8));
+        cpu.a = (uint16_t)((cpu.d << 8) | (cpu.d >> 8));
+        wr8(dba((uint16_t)(0x0038 + cpu.x)), (uint8_t)cpu.a);
+        op_sep(P_X);
+        bit8_of((uint8_t)cpu.a, rd8(dpa(0x09)));
+        if (cpu.p & P_V) {
+            a8_load(rd8(dpa(0x17)));
+            abi_SoundQueueAdd();
+        }
+    }
+    inc8_at(dpa(0x13));
 }
 
 
@@ -469,17 +624,14 @@ L_83CC62:
  */
 void abi_PlatformDipSink(void)
 {
-    ldx8_v(0x00);  /* 83CC65 ldx */
-    abi_PlatformDipStep();  /* 83CC67 jsr */
-    op_rep(0x20);  /* 83CC6A rep */
-    clc();  /* 83CC6C clc */
-    lda16(ea_dp(0x4B));  /* 83CC6D lda */
-    cmp16_v(0x000B);  /* 83CC6F cmp */
-    if (!IF_C) goto L_83CC76;  /* 83CC72 bcc */
-    MEM16(inc, ea_dp(0x13));  /* 83CC74 inc */
-L_83CC76:
-    op_sep(0x20);  /* 83CC76 sep */
-    return;  /* 83CC78 rts */
+    x8_load(0x00);
+    abi_PlatformDipStep();
+    op_rep(P_M);
+    a16_load(dp16(0x4B));
+    cmp16_of(cpu.a, 0x000B);
+    if (cpu.a >= 0x000B)
+        inc16_at(dpa(0x13));
+    op_sep(P_M);
 }
 
 
@@ -495,17 +647,14 @@ L_83CC76:
  */
 void abi_PlatformDipRise(void)
 {
-    ldx8_v(0x03);  /* 83CC79 ldx */
-    abi_PlatformDipStep();  /* 83CC7B jsr */
-    op_rep(0x20);  /* 83CC7E rep */
-    clc();  /* 83CC80 clc */
-    lda16(ea_dp(0x4B));  /* 83CC81 lda */
-    cmp16_v(0x0003);  /* 83CC83 cmp */
-    if (IF_C) goto L_83CC8A;  /* 83CC86 bcs */
-    MEM16(inc, ea_dp(0x13));  /* 83CC88 inc */
-L_83CC8A:
-    op_sep(0x20);  /* 83CC8A sep */
-    return;  /* 83CC8C rts */
+    x8_load(0x03);
+    abi_PlatformDipStep();
+    op_rep(P_M);
+    a16_load(dp16(0x4B));
+    cmp16_of(cpu.a, 0x0003);
+    if (cpu.a < 0x0003)
+        inc16_at(dpa(0x13));
+    op_sep(P_M);
 }
 
 
@@ -521,17 +670,14 @@ L_83CC8A:
  */
 void abi_PlatformDipSinkAgain(void)
 {
-    ldx8_v(0x00);  /* 83CC94 ldx */
-    abi_PlatformDipStep();  /* 83CC96 jsr */
-    op_rep(0x20);  /* 83CC99 rep */
-    clc();  /* 83CC9B clc */
-    lda16(ea_dp(0x4B));  /* 83CC9C lda */
-    cmp16_v(0x000B);  /* 83CC9E cmp */
-    if (!IF_C) goto L_83CCA5;  /* 83CCA1 bcc */
-    MEM16(inc, ea_dp(0x13));  /* 83CCA3 inc */
-L_83CCA5:
-    op_sep(0x20);  /* 83CCA5 sep */
-    return;  /* 83CCA7 rts */
+    x8_load(0x00);
+    abi_PlatformDipStep();
+    op_rep(P_M);
+    a16_load(dp16(0x4B));
+    cmp16_of(cpu.a, 0x000B);
+    if (cpu.a >= 0x000B)
+        inc16_at(dpa(0x13));
+    op_sep(P_M);
 }
 
 
@@ -547,16 +693,16 @@ L_83CCA5:
  */
 void abi_PlatformDipRiseEnd(void)
 {
-    ldx8_v(0x03);  /* 83CCA8 ldx */
-    abi_PlatformDipStep();  /* 83CCAA jsr */
-    lda8(ea_dp(0x4C));  /* 83CCAD lda */
-    if (!IF_N) goto L_83CCB9;  /* 83CCAF bpl */
-    stz8(ea_dp(0x4A));  /* 83CCB1 stz */
-    stz8(ea_dp(0x4B));  /* 83CCB3 stz */
-    stz8(ea_dp(0x4C));  /* 83CCB5 stz */
-    stz8(ea_dp(0x13));  /* 83CCB7 stz */
-L_83CCB9:
-    return;  /* 83CCB9 rts */
+    x8_load(0x03);
+    abi_PlatformDipStep();
+    a8_load(rd8(dpa(0x4C)));
+    if ((uint8_t)cpu.a & 0x80) {
+        /* risen past level: done */
+        wr8(dpa(0x4A), 0);
+        wr8(dpa(0x4B), 0);
+        wr8(dpa(0x4C), 0);
+        wr8(dpa(0x13), 0);
+    }
 }
 
 /*
@@ -571,17 +717,18 @@ L_83CCB9:
  */
 void abi_PlatformCourseSlower(void)
 {
-    sec();  /* 83CAFC sec */
-    lda8(ea_dp(0x20));  /* 83CAFD lda */
-    sbc8_v(0x01);  /* 83CAFF sbc */
-    cmp8_v(0x20);  /* 83CB01 cmp */
-    if (IF_C) goto L_83CB07;  /* 83CB03 bcs */
-    lda8_v(0x20);  /* 83CB05 lda */
-L_83CB07:
-    sta8(ea_dp(0x20));  /* 83CB07 sta */
-    abi_PlatformCourseStep();  /* 83CB09 jsr */
-    abi_PlatformTurnZoneTest();  /* 83CB0C jsr */
-    return;  /* 83CB0F rts */
+    uint8_t speed;
+
+    /* down one, not below $20 */
+    flag_set(P_C, 1);
+    speed = op_sbc8(rd8(dpa(0x20)), 0x01, &cpu.p);
+    cmp8_of(speed, 0x20);
+    if (speed < 0x20)
+        speed = 0x20;
+    a8_load(speed);
+    wr8(dpa(0x20), speed);
+    abi_PlatformCourseStep();
+    abi_PlatformTurnZoneTest();
 }
 
 
@@ -597,17 +744,18 @@ L_83CB07:
  */
 void abi_PlatformCourseFaster(void)
 {
-    clc();  /* 83CB10 clc */
-    lda8(ea_dp(0x20));  /* 83CB11 lda */
-    adc8_v(0x01);  /* 83CB13 adc */
-    cmp8_v(0x80);  /* 83CB15 cmp */
-    if (!IF_C) goto L_83CB1B;  /* 83CB17 bcc */
-    lda8_v(0x80);  /* 83CB19 lda */
-L_83CB1B:
-    sta8(ea_dp(0x20));  /* 83CB1B sta */
-    abi_PlatformCourseStep();  /* 83CB1D jsr */
-    abi_PlatformTurnZoneTest();  /* 83CB20 jsr */
-    return;  /* 83CB23 rts */
+    uint8_t speed;
+
+    /* up one, not above $80 */
+    flag_set(P_C, 0);
+    speed = op_adc8(rd8(dpa(0x20)), 0x01, &cpu.p);
+    cmp8_of(speed, 0x80);
+    if (speed >= 0x80)
+        speed = 0x80;
+    a8_load(speed);
+    wr8(dpa(0x20), speed);
+    abi_PlatformCourseStep();
+    abi_PlatformTurnZoneTest();
 }
 
 
@@ -624,21 +772,18 @@ L_83CB1B:
  */
 void abi_PlatformDipUpdate(void)
 {
-    lda8(ea_dp(0x13));  /* 83CC19 lda */
-    ACC8(asl);  /* 83CC1B asl */
-    tax8();  /* 83CC1C tax */
-    call_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xCC34 + cpu.x)), 0);  /* 83CC1D jsr */
-    clc();  /* 83CC20 clc */
-    lda8(ea_dp(0x4D));  /* 83CC21 lda */
-    adc8_v(rd8(ea_dp(0x4A)));  /* 83CC23 adc */
-    sta8(ea_dp(0x0E));  /* 83CC25 sta */
-    lda8(ea_dp(0x4E));  /* 83CC27 lda */
-    adc8_v(rd8(ea_dp(0x4B)));  /* 83CC29 adc */
-    sta8(ea_dp(0x0F));  /* 83CC2B sta */
-    lda8(ea_dp(0x4F));  /* 83CC2D lda */
-    adc8_v(rd8(ea_dp(0x4C)));  /* 83CC2F adc */
-    sta8(ea_dp(0x10));  /* 83CC31 sta */
-    return;  /* 83CC33 rts */
+    uint8_t phase = rd8(dpa(0x13));
+
+    /* the dip phase's step; then its y = its base y plus the dip */
+    a8_load(phase);
+    flag_set(P_C, phase & 0x80);
+    x8_load((uint8_t)(phase << 1));
+    call_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xCC34 + cpu.x)), 0);
+    flag_set(P_C, 0);
+    wr8(dpa(0x0E), op_adc8(rd8(dpa(0x4D)), rd8(dpa(0x4A)), &cpu.p));
+    wr8(dpa(0x0F), op_adc8(rd8(dpa(0x4E)), rd8(dpa(0x4B)), &cpu.p));
+    a8_load(op_adc8(rd8(dpa(0x4F)), rd8(dpa(0x4C)), &cpu.p));
+    wr8(dpa(0x10), (uint8_t)cpu.a);
 }
 
 

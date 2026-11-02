@@ -4,6 +4,8 @@
  * cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -30,26 +32,25 @@ void abi_CircleWipeStep(void);
  */
 void abi_ActorCircleWipeStep(void)
 {
-    MEM8(inc, ea_dp(WIPE_RADIUS));  /* 83EAAF inc */
-    op_rep(0x30);  /* 83EAB1 rep */
-    sec();  /* 83EAB3 sec */
-    lda16(ea_dp(ACTOR_X + 1));  /* 83EAB4 lda */
-    sbc16_v(rd16(ea_abs(LAYER0_X)));  /* 83EAB6 sbc */
-    tax16();  /* 83EAB9 tax */
-    sec();  /* 83EABA sec */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 83EABB lda */
-    sbc16_v(rd16(ea_abs(LAYER0_Y)));  /* 83EABD sbc */
-    sec();  /* 83EAC0 sec */
-    sbc16_v(0x0008);  /* 83EAC1 sbc */
-    tay16();  /* 83EAC4 tay */
-    lda16(ea_dp(WIPE_RADIUS));  /* 83EAC5 lda */
-    abi_CircleWipeStep();  /* 83EAC7 jsl */
-    phb();  /* 83EACB phb */
-    ldx16_v(0x5000);  /* 83EACC ldx */
-    ldy16_v(0xF500);  /* 83EACF ldy */
-    lda16_v(0x01FF);  /* 83EAD2 lda */
-    mvn(0x7E, 0x7F);  /* 83EAD5 mvn */
-    plb();  /* 83EAD8 plb */
-    op_sep(0x30);  /* 83EAD9 sep */
-    return;  /* 83EADB rts */
+    uint16_t dy;
+
+    wr8(dpa(WIPE_RADIUS), (uint8_t)(rd8(dpa(WIPE_RADIUS)) + 1));
+    op_rep(0x30);
+    /* the actor's place on the screen, 8 pixels up */
+    flag_set(P_C, 1);
+    cpu.x = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(LAYER0_X)), &cpu.p);
+    flag_set(P_C, 1);
+    dy = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(LAYER0_Y)), &cpu.p);
+    flag_set(P_C, 1);
+    cpu.y = op_sbc16(dy, 0x0008, &cpu.p);
+    a16_load(dp16(WIPE_RADIUS));
+    abi_CircleWipeStep();
+    /* the window table it drew, $7F:5000, to $7E:F500 */
+    phb();
+    cpu.x = 0x5000;
+    cpu.y = 0xF500;
+    a16_load(0x01FF);
+    mvn(0x7E, 0x7F);
+    plb();
+    op_sep(0x30);
 }

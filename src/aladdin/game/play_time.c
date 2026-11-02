@@ -3,9 +3,15 @@
  * decimal digits.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_PlayTimeTick(void);
 #include "wram.h"
+
+#define PLAY_FRAMES 0x147Cu    /* frames of the second, 0-59 */
+#define V_147D 0x147Du         /* counted up each second, unbounded */
+#define PLAY_DIGITS 0x147Eu    /* the time digits from the seconds up, to the hours tens */
 
 /*
  * @routine 81:85CE PlayTimeTick
@@ -19,38 +25,29 @@ void abi_PlayTimeTick(void);
  */
 void abi_PlayTimeTick(void)
 {
-    MEM8(inc, ea_abs(0x147C));  /* 8185CE inc */
-    lda8(ea_abs(0x147C));  /* 8185D1 lda */
-    cmp8_v(0x3C);  /* 8185D4 cmp */
-    if (!IF_C) goto L_818622;  /* 8185D6 bcc */
-    stz8(ea_abs(0x147C));  /* 8185D8 stz */
-    MEM8(inc, ea_abs(0x147D));  /* 8185DB inc */
-    MEM8(inc, ea_abs(0x147E));  /* 8185DE inc */
-    lda8(ea_abs(0x147E));  /* 8185E1 lda */
-    cmp8_v(0x0A);  /* 8185E4 cmp */
-    if (!IF_C) goto L_818622;  /* 8185E6 bcc */
-    stz8(ea_abs(0x147E));  /* 8185E8 stz */
-    MEM8(inc, ea_abs(0x147F));  /* 8185EB inc */
-    lda8(ea_abs(0x147F));  /* 8185EE lda */
-    cmp8_v(0x06);  /* 8185F1 cmp */
-    if (!IF_C) goto L_818622;  /* 8185F3 bcc */
-    stz8(ea_abs(0x147F));  /* 8185F5 stz */
-    MEM8(inc, ea_abs(0x1480));  /* 8185F8 inc */
-    lda8(ea_abs(0x1480));  /* 8185FB lda */
-    cmp8_v(0x0A);  /* 8185FE cmp */
-    if (!IF_C) goto L_818622;  /* 818600 bcc */
-    stz8(ea_abs(0x1480));  /* 818602 stz */
-    MEM8(inc, ea_abs(0x1481));  /* 818605 inc */
-    lda8(ea_abs(0x1481));  /* 818608 lda */
-    cmp8_v(0x06);  /* 81860B cmp */
-    if (!IF_C) goto L_818622;  /* 81860D bcc */
-    stz8(ea_abs(0x1481));  /* 81860F stz */
-    MEM8(inc, ea_abs(0x1482));  /* 818612 inc */
-    lda8(ea_abs(0x1482));  /* 818615 lda */
-    cmp8_v(0x0A);  /* 818618 cmp */
-    if (!IF_C) goto L_818622;  /* 81861A bcc */
-    stz8(ea_abs(0x1482));  /* 81861C stz */
-    MEM8(inc, ea_abs(0x1483));  /* 81861F inc */
-L_818622:
-    return;  /* 818622 rts */
+    static const uint8_t limits[5] = { 10, 6, 10, 6, 10 };   /* s, 10 s, min, 10 min, h */
+    uint8_t n;
+
+    n = (uint8_t)(rd8(dba(PLAY_FRAMES)) + 1);
+    wr8(dba(PLAY_FRAMES), n);
+    a8_load(n);
+    cmp8_of(n, 60);
+    if (n < 60)
+        return;
+    wr8(dba(PLAY_FRAMES), 0);
+    wr8(dba(V_147D), (uint8_t)(rd8(dba(V_147D)) + 1));
+    for (int i = 0; i < 5; i++) {        /* each digit, carrying into the next */
+        uint16_t digit = (uint16_t)(PLAY_DIGITS + i);
+
+        n = (uint8_t)(rd8(dba(digit)) + 1);
+        wr8(dba(digit), n);
+        a8_load(n);
+        cmp8_of(n, limits[i]);
+        if (n < limits[i])
+            return;
+        wr8(dba(digit), 0);
+    }
+    n = (uint8_t)(rd8(dba(PLAY_DIGITS + 5)) + 1);
+    wr8(dba(PLAY_DIGITS + 5), n);
+    nz8_of(n);
 }

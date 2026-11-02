@@ -11,7 +11,11 @@
  * attributes of a slot already loaded).
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_PlacementsIndex(void);
 void abi_PlacementsStart(void);
 void abi_ShiftRight5(void);
@@ -37,6 +41,49 @@ void abi_ActorPlace(void);
 #include "wram.h"
 #include "wram_video.h"
 
+/* A word or byte of the data bank. */
+static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
+
+/* One axis: the camera at `camera` moved 32 or more from where the
+   placements were last brought in (`last`); `last` moves 32 that way, the
+   two bands (`near`, `far`) a band, and the band coming into view is
+   brought in by `bring`. */
+static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t far, void (*bring)(void))
+{
+    uint16_t d, x = 0;
+    uint8_t step, band;
+
+    op_rep(0x30);
+    cpu.x = 0;
+    dp16_set(0x2A, 0);
+    flag_set(P_C, 1);
+    d = op_sbc16(db16(camera), db16(last), &cpu.p);
+    if (d & 0x8000) {
+        inc16_at(dpa(0x2A));
+        x = 2;
+        cpu.x = x;
+        d = (uint16_t)((d ^ 0xFFFF) + 1);
+    }
+    cpu.a = d;
+    cmp16_of(d, 0x0020);
+    if (d < 0x0020)
+        return;
+    cpu.a = op_sbc16(db16(last), db16((uint16_t)(0xA794 + x)), &cpu.p);
+    wr16(dba(last), cpu.a);
+    op_sep(0x30);
+    y8_load(step = rd8(dba((uint16_t)(0xA798 + x))));
+    flag_set(P_C, 0);
+    wr8(dba(near), op_adc8(step, rd8(dba(near)), &cpu.p));
+    flag_set(P_C, 0);
+    band = op_adc8(step, rd8(dba(far)), &cpu.p);
+    wr8(dba(far), band);
+    x8_load(band);
+    a8_load(rd8(dpa(0x2A)));
+    if (!(uint8_t)cpu.a)
+        x8_load(rd8(dba(near)));
+    bring();
+}
+
 /*
  * @routine 82:A79C PlacementsScroll
  * WHAT IT DOES: Creates the placed actors the camera's move brings into
@@ -51,88 +98,59 @@ void abi_ActorPlace(void);
  */
 void abi_PlacementsScroll(void)
 {
-    op_sep(0x20);  /* 82A79C sep */
-    phb();  /* 82A79E phb */
-    lda8_v(0x82);  /* 82A79F lda */
-    pha8();  /* 82A7A1 pha */
-    plb();  /* 82A7A2 plb */
-    op_rep(0x30);  /* 82A7A3 rep */
-    ldx16_v(0x0000);  /* 82A7A5 ldx */
-    stz16(ea_dp(0x2A));  /* 82A7A8 stz */
-    lda16(ea_abs(0x1773));  /* 82A7AA lda */
-    sec();  /* 82A7AD sec */
-    sbc16_v(rd16(ea_abs(0x1BEF)));  /* 82A7AE sbc */
-    if (!IF_N) goto L_82A7BB;  /* 82A7B1 bpl */
-    MEM16(inc, ea_dp(0x2A));  /* 82A7B3 inc */
-    inx16();  /* 82A7B5 inx */
-    inx16();  /* 82A7B6 inx */
-    eor16_v(0xFFFF);  /* 82A7B7 eor */
-    ACC16(inc);  /* 82A7BA inc */
-L_82A7BB:
-    cmp16_v(0x0020);  /* 82A7BB cmp */
-    if (!IF_C) goto L_82A7EE;  /* 82A7BE bcc */
-    lda16(ea_abs(0x1BEF));  /* 82A7C0 lda */
-    sbc16_v(rd16(ea_absx(0xA794)));  /* 82A7C3 sbc */
-    sta16(ea_abs(0x1BEF));  /* 82A7C6 sta */
-    op_sep(0x30);  /* 82A7C9 sep */
-    lda8(ea_absx(0xA798));  /* 82A7CB lda */
-    tay8();  /* 82A7CE tay */
-    clc();  /* 82A7CF clc */
-    adc8_v(rd8(ea_abs(0x1BEB)));  /* 82A7D0 adc */
-    sta8(ea_abs(0x1BEB));  /* 82A7D3 sta */
-    tya8();  /* 82A7D6 tya */
-    clc();  /* 82A7D7 clc */
-    adc8_v(rd8(ea_abs(0x1BED)));  /* 82A7D8 adc */
-    sta8(ea_abs(0x1BED));  /* 82A7DB sta */
-    tax8();  /* 82A7DE tax */
-    lda8(ea_dp(0x2A));  /* 82A7DF lda */
-    if (IF_Z) goto L_82A7E8;  /* 82A7E1 beq */
-    abi_PlacementsDown();  /* 82A7E3 jsr */
-    goto L_82A7EE;  /* 82A7E6 bra */
-L_82A7E8:
-    ldx8(ea_abs(0x1BEB));  /* 82A7E8 ldx */
-    abi_PlacementsDown();  /* 82A7EB jsr */
-L_82A7EE:
-    op_rep(0x30);  /* 82A7EE rep */
-    ldx16_v(0x0000);  /* 82A7F0 ldx */
-    stz16(ea_dp(0x2A));  /* 82A7F3 stz */
-    lda16(ea_abs(0x1777));  /* 82A7F5 lda */
-    sec();  /* 82A7F8 sec */
-    sbc16_v(rd16(ea_abs(0x1BF1)));  /* 82A7F9 sbc */
-    if (!IF_N) goto L_82A806;  /* 82A7FC bpl */
-    MEM16(inc, ea_dp(0x2A));  /* 82A7FE inc */
-    inx16();  /* 82A800 inx */
-    inx16();  /* 82A801 inx */
-    eor16_v(0xFFFF);  /* 82A802 eor */
-    ACC16(inc);  /* 82A805 inc */
-L_82A806:
-    cmp16_v(0x0020);  /* 82A806 cmp */
-    if (!IF_C) goto L_82A839;  /* 82A809 bcc */
-    lda16(ea_abs(0x1BF1));  /* 82A80B lda */
-    sbc16_v(rd16(ea_absx(0xA794)));  /* 82A80E sbc */
-    sta16(ea_abs(0x1BF1));  /* 82A811 sta */
-    op_sep(0x30);  /* 82A814 sep */
-    lda8(ea_absx(0xA798));  /* 82A816 lda */
-    tay8();  /* 82A819 tay */
-    clc();  /* 82A81A clc */
-    adc8_v(rd8(ea_abs(0x1BE9)));  /* 82A81B adc */
-    sta8(ea_abs(0x1BE9));  /* 82A81E sta */
-    tya8();  /* 82A821 tya */
-    clc();  /* 82A822 clc */
-    adc8_v(rd8(ea_abs(0x1BE7)));  /* 82A823 adc */
-    sta8(ea_abs(0x1BE7));  /* 82A826 sta */
-    tax8();  /* 82A829 tax */
-    lda8(ea_dp(0x2A));  /* 82A82A lda */
-    if (IF_Z) goto L_82A833;  /* 82A82C beq */
-    abi_PlacementsAcross();  /* 82A82E jsr */
-    goto L_82A839;  /* 82A831 bra */
-L_82A833:
-    ldx8(ea_abs(0x1BE9));  /* 82A833 ldx */
-    abi_PlacementsAcross();  /* 82A836 jsr */
-L_82A839:
-    op_sep(0x30);  /* 82A839 sep */
-    plb();  /* 82A83B plb */
-    return;  /* 82A83C rtl */
+    uint8_t db = cpu.db;
+
+    op_sep(P_M);
+    cpu.db = 0x82;
+    a8_load(0x82);
+    scroll_axis(0x1773, 0x1BEF, 0x1BEB, 0x1BED, abi_PlacementsDown);
+    scroll_axis(0x1777, 0x1BF1, 0x1BE9, 0x1BE7, abi_PlacementsAcross);
+    op_sep(0x30);
+    cpu.db = db;
+    nz8_of(db);
+}
+
+/* A placement's offset in the list ($6D on, 6 bytes each) for entry
+   `n`. */
+static uint16_t entry_at(uint16_t n)
+{
+    flag_set(P_C, 0);
+    return op_adc16((uint16_t)(n * 6), dp16(0x6D), &cpu.p);
+}
+
+/* The placement at `at` (its kind at $8A7A) created and placed, unless
+   its flags ($7E:C600 by number) say it is gone or its position (at
+   `pos`) is more than $40 outside the view from `camera`. */
+static void bring_one(uint16_t at, uint16_t pos, uint16_t camera, int kind_byte)
+{
+    uint16_t d;
+
+    op_sep(0x30);
+    x8_load(rd8(dpa(0x12)));
+    a8_load(rd8(0x7EC600u + cpu.x) & 0x81);
+    if ((uint8_t)cpu.a)
+        return;
+    op_rep(0x31);
+    cpu.y = at;
+    d = op_adc16(db16((uint16_t)(pos + at)), 0x0040, &cpu.p);
+    flag_set(P_C, 1);
+    d = op_sbc16(d, db16(camera), &cpu.p);
+    cpu.a = d;
+    cmp16_of(d, 0x0180);
+    if (d >= 0x0180)
+        return;
+    if (kind_byte) {
+        op_sep(P_M);
+        a8_load(rd8(dba((uint16_t)(0x8A7A + at))));
+    } else {
+        a16_load(db16((uint16_t)(0x8A7A + at)));
+    }
+    op_sep(P_X);
+    abi_ActorCreate();
+    if (cpu.p & P_C)
+        return;
+    cpu.y = at;
+    abi_ActorPlace();
 }
 
 /*
@@ -147,53 +165,26 @@ L_82A839:
  */
 void abi_PlacementsAcross(void)
 {
-    goto L_82A83E;
-L_82A83D:
-    return;  /* 82A83D rts */
-L_82A83E:
-    lda8(ea_longx(0x7EC300u));  /* 82A83E lda */
-    if (IF_Z) goto L_82A83D;  /* 82A842 beq */
-    sta8(ea_dp(0x0C));  /* 82A844 sta */
-    lda8(ea_longx(0x7EC400u));  /* 82A846 lda */
-    sta8(ea_dp(0x0D));  /* 82A84A sta */
-L_82A84C:
-    op_rep(0x20);  /* 82A84C rep */
-    ldx8(ea_dp(0x0D));  /* 82A84E ldx */
-    lda16(ea_longx(0x7EC500u));  /* 82A850 lda */
-    and16_v(0x00FF);  /* 82A854 and */
-    sta16(ea_dp(0x12));  /* 82A857 sta */
-    ACC16(asl);  /* 82A859 asl */
-    adc16_v(rd16(ea_dp(0x12)));  /* 82A85A adc */
-    ACC16(asl);  /* 82A85C asl */
-    adc16_v(rd16(ea_dp(0x6D)));  /* 82A85D adc */
-    sta16(ea_dp(0x0E));  /* 82A85F sta */
-    MEM16(inc, ea_dp(0x12));  /* 82A861 inc */
-    op_sep(0x20);  /* 82A863 sep */
-    ldx8(ea_dp(0x12));  /* 82A865 ldx */
-    lda8(ea_longx(0x7EC600u));  /* 82A867 lda */
-    and8_v(0x81);  /* 82A86B and */
-    if (!IF_Z) goto L_82A892;  /* 82A86D bne */
-    op_rep(0x31);  /* 82A86F rep */
-    ldy16(ea_dp(0x0E));  /* 82A871 ldy */
-    lda16(ea_absy(0x8A7C));  /* 82A873 lda */
-    adc16_v(0x0040);  /* 82A876 adc */
-    sec();  /* 82A879 sec */
-    sbc16_v(rd16(ea_abs(0x1BEF)));  /* 82A87A sbc */
-    cmp16_v(0x0180);  /* 82A87D cmp */
-    if (IF_C) goto L_82A892;  /* 82A880 bcs */
-    lda16(ea_absy(0x8A7A));  /* 82A882 lda */
-    op_sep(0x10);  /* 82A885 sep */
-    abi_ActorCreate();  /* 82A887 jsl */
-    if (IF_C) goto L_82A892;  /* 82A88B bcs */
-    ldy16(ea_dp(0x0E));  /* 82A88D ldy */
-    abi_ActorPlace();  /* 82A88F jsr */
-L_82A892:
-    op_sep(0x30);  /* 82A892 sep */
-    MEM8(inc, ea_dp(0x0D));  /* 82A894 inc */
-    MEM8(dec, ea_dp(0x0C));  /* 82A896 dec */
-    if (!IF_Z) goto L_82A84C;  /* 82A898 bne */
-    op_sep(0x30);  /* 82A89A sep */
-    return;  /* 82A89C rts */
+    uint8_t n;
+
+    a8_load(n = rd8(0x7EC300u + cpu.x));
+    if (!n)
+        return;
+    wr8(dpa(0x0C), n);
+    wr8(dpa(0x0D), rd8(0x7EC400u + cpu.x));
+    do {
+        /* each of the band's placements, by the band's list of numbers */
+        op_rep(P_M);
+        x8_load(rd8(dpa(0x0D)));
+        dp16_set(0x12, rd16(0x7EC500u + cpu.x) & 0x00FF);
+        cpu.a = entry_at(dp16(0x12));
+        dp16_set(0x0E, cpu.a);
+        inc16_at(dpa(0x12));
+        op_sep(P_M);
+        bring_one(dp16(0x0E), 0x8A7C, 0x1BEF, 0);
+        op_sep(0x30);
+        inc8_at(dpa(0x0D));
+    } while (dec8_at(dpa(0x0C)));
 }
 
 /*
@@ -208,59 +199,28 @@ L_82A892:
  */
 void abi_PlacementsDown(void)
 {
-    goto L_82A89D;
-L_82A83D:
-    return;  /* 82A83D rts */
-L_82A89D:
-    lda8(ea_longx(0x7EC100u));  /* 82A89D lda */
-    if (IF_Z) goto L_82A83D;  /* 82A8A1 beq */
-    sta8(ea_dp(0x0C));  /* 82A8A3 sta */
-    stz8(ea_dp(0x0D));  /* 82A8A5 stz */
-    op_rep(0x20);  /* 82A8A7 rep */
-    lda16(ea_longx(0x7EC200u));  /* 82A8A9 lda */
-    and16_v(0x00FF);  /* 82A8AD and */
-    sta16(ea_dp(0x12));  /* 82A8B0 sta */
-    ACC16(asl);  /* 82A8B2 asl */
-    adc16_v(rd16(ea_dp(0x12)));  /* 82A8B3 adc */
-    ACC16(asl);  /* 82A8B5 asl */
-    adc16_v(rd16(ea_dp(0x6D)));  /* 82A8B6 adc */
-    sta16(ea_dp(0x10));  /* 82A8B8 sta */
-    MEM16(inc, ea_dp(0x12));  /* 82A8BA inc */
-L_82A8BC:
-    op_sep(0x30);  /* 82A8BC sep */
-    ldx8(ea_dp(0x12));  /* 82A8BE ldx */
-    lda8(ea_longx(0x7EC600u));  /* 82A8C0 lda */
-    and8_v(0x81);  /* 82A8C4 and */
-    if (!IF_Z) goto L_82A8EF;  /* 82A8C6 bne */
-    op_rep(0x31);  /* 82A8C8 rep */
-    ldy16(ea_dp(0x10));  /* 82A8CA ldy */
-    lda16(ea_absy(0x8A7E));  /* 82A8CC lda */
-    adc16_v(0x0040);  /* 82A8CF adc */
-    sec();  /* 82A8D2 sec */
-    sbc16_v(rd16(ea_abs(0x1BF1)));  /* 82A8D3 sbc */
-    cmp16_v(0x0180);  /* 82A8D6 cmp */
-    if (IF_C) goto L_82A8EF;  /* 82A8D9 bcs */
-    op_sep(0x20);  /* 82A8DB sep */
-    ldy16(ea_dp(0x10));  /* 82A8DD ldy */
-    lda8(ea_absy(0x8A7A));  /* 82A8DF lda */
-    op_sep(0x10);  /* 82A8E2 sep */
-    abi_ActorCreate();  /* 82A8E4 jsl */
-    if (IF_C) goto L_82A8EF;  /* 82A8E8 bcs */
-    ldy16(ea_dp(0x10));  /* 82A8EA ldy */
-    abi_ActorPlace();  /* 82A8EC jsr */
-L_82A8EF:
-    op_rep(0x21);  /* 82A8EF rep */
-    lda16(ea_dp(0x10));  /* 82A8F1 lda */
-    adc16_v(0x0006);  /* 82A8F3 adc */
-    sta16(ea_dp(0x10));  /* 82A8F6 sta */
-    MEM16(inc, ea_dp(0x12));  /* 82A8F8 inc */
-    MEM16(dec, ea_dp(0x0C));  /* 82A8FA dec */
-    if (IF_Z) goto L_82A903;  /* 82A8FC beq */
-    if (IF_N) goto L_82A903;  /* 82A8FE bmi */
-    goto L_82A8BC;  /* 82A900 jmp */
-L_82A903:
-    op_sep(0x30);  /* 82A903 sep */
-    return;  /* 82A905 rts */
+    uint8_t n;
+    uint16_t left;
+
+    a8_load(n = rd8(0x7EC100u + cpu.x));
+    if (!n)
+        return;
+    /* the band's placements, one after another from its first */
+    wr8(dpa(0x0C), n);
+    wr8(dpa(0x0D), 0);
+    op_rep(P_M);
+    dp16_set(0x12, rd16(0x7EC200u + cpu.x) & 0x00FF);
+    dp16_set(0x10, entry_at(dp16(0x12)));
+    inc16_at(dpa(0x12));
+    do {
+        bring_one(dp16(0x10), 0x8A7E, 0x1BF1, 1);
+        op_rep(0x21);
+        cpu.a = op_adc16(dp16(0x10), 0x0006, &cpu.p);
+        dp16_set(0x10, cpu.a);
+        inc16_at(dpa(0x12));
+        left = dec16_at(dpa(0x0C));
+    } while (left && !(left & 0x8000));
+    op_sep(0x30);
 }
 
 /*
@@ -273,13 +233,13 @@ L_82A903:
  */
 void abi_ActorCreate(void)
 {
-    ldy8(ea_abs(ACTOR_FREE_TOP));  /* 82AA2B ldy */
-    if (IF_N) goto L_82AA5C;  /* 82AA2E bmi */
-    abi_ActorCreateIn(); return;
-L_82AA5C:
-    op_sep(0x31);  /* 82AA5C sep */
-    lda8_v(0x01);  /* 82AA5E lda */
-    return;  /* 82AA60 rtl */
+    y8_load(rd8(dba((uint16_t)ACTOR_FREE_TOP)));
+    if (!((uint8_t)cpu.y & 0x80)) {
+        abi_ActorCreateIn();
+        return;
+    }
+    op_sep(0x31);
+    a8_load(0x01);
 }
 
 /*
@@ -294,26 +254,40 @@ L_82AA5C:
  */
 void abi_ActorCreateIn(void)
 {
-    if (cpu.p & P_M) { sta8(ea_abs(0x001C)); } else { sta16(ea_abs(0x001C)); }  /* 82AA30 sta */
-    if (cpu.p & P_M) { stz8(ea_abs(0x001D)); } else { stz16(ea_abs(0x001D)); }  /* 82AA33 stz */
-    op_rep(0x10);  /* 82AA36 rep */
-    ldx16(ea_absy(ACTOR_FREE_LIST));  /* 82AA38 ldx */
-    if (cpu.p & P_M) { sta8(ea_absx(ACTOR_06)); } else { sta16(ea_absx(ACTOR_06)); }  /* 82AA3B sta */
-    stx16(ea_abs(0x0020));  /* 82AA3E stx */
-    abi_ActorKindSetup();  /* 82AA41 jsr */
-    if (IF_C) goto L_82AA5C;  /* 82AA44 bcs */
-    MEM8(dec, ea_abs(ACTOR_FREE_TOP));  /* 82AA46 dec */
-    MEM8(dec, ea_abs(ACTOR_FREE_TOP));  /* 82AA49 dec */
-    ldx16(ea_abs(0x001C));  /* 82AA4C ldx */
-    lda8(ea_longx(KIND_COUNT));  /* 82AA4F lda */
-    ACC8(inc);  /* 82AA53 inc */
-    sta8(ea_longx(KIND_COUNT));  /* 82AA54 sta */
-    ldx16(ea_abs(0x0020));  /* 82AA58 ldx */
-    return;  /* 82AA5B rtl */
-L_82AA5C:
-    op_sep(0x31);  /* 82AA5C sep */
-    lda8_v(0x01);  /* 82AA5E lda */
-    return;  /* 82AA60 rtl */
+    uint16_t x;
+    uint8_t n;
+
+    /* the kind (a byte or word, as M is) and the free list's top record */
+    if (cpu.p & P_M) {
+        wr8(dba(0x001C), (uint8_t)cpu.a);
+        wr8(dba(0x001D), 0);
+    } else {
+        wr16(dba(0x001C), cpu.a);
+        wr16(dba(0x001D), 0);
+    }
+    op_rep(P_X);
+    x = db16((uint16_t)(ACTOR_FREE_LIST + cpu.y));
+    cpu.x = x;
+    nz16_of(x);
+    if (cpu.p & P_M)
+        wr8(dba((uint16_t)(ACTOR_06 + x)), (uint8_t)cpu.a);
+    else
+        wr16(dba((uint16_t)(ACTOR_06 + x)), cpu.a);
+    wr16(dba(0x0020), x);
+    abi_ActorKindSetup();
+    if (cpu.p & P_C) {
+        op_sep(0x31);
+        a8_load(0x01);
+        return;
+    }
+    /* taken from the free list; one more of the kind */
+    dec8_at(dba((uint16_t)ACTOR_FREE_TOP));
+    dec8_at(dba((uint16_t)ACTOR_FREE_TOP));
+    x = db16(0x001C);
+    a8_load(n = (uint8_t)(rd8(KIND_COUNT + x) + 1));
+    wr8(KIND_COUNT + x, n);
+    cpu.x = x = db16(0x0020);
+    nz16_of(x);
 }
 
 /*
@@ -326,22 +300,41 @@ L_82AA5C:
  */
 void abi_ActorKindSetup(void)
 {
-    op_sep(0x30);  /* 82AA61 sep */
-    tay8();  /* 82AA63 tay */
-    sta8(ea_abs(0x0022));  /* 82AA64 sta */
-    stz8(ea_abs(0x0023));  /* 82AA67 stz */
-    MEM8(asl, ea_abs(0x0022));  /* 82AA6A asl */
-    MEM8(rol, ea_abs(0x0023));  /* 82AA6D rol */
-    phb();  /* 82AA70 phb */
-    lda8_v(0x82);  /* 82AA71 lda */
-    pha8();  /* 82AA73 pha */
-    plb();  /* 82AA74 plb */
-    ldx8(ea_absy(0xB000));  /* 82AA75 ldx */
-    call_routine(0x820000u | rd16(0x820000u | (uint16_t)(0xAA81 + cpu.x)), 0);  /* 82AA78 jsr */
-    plb();  /* 82AA7B plb */
-    op_sep(0x20);  /* 82AA7C sep */
-    op_rep(0x10);  /* 82AA7E rep */
-    return;  /* 82AA80 rts */
+    uint8_t kind, db = cpu.db;
+
+    op_sep(0x30);
+    kind = (uint8_t)cpu.a;
+    y8_load(kind);
+    wr8(dba(0x0022), (uint8_t)(kind << 1));
+    wr8(dba(0x0023), kind >> 7);
+    nz8_of(kind >> 7);
+    flag_set(P_C, 0);
+    /* the kind's set-up routine, by its class at $82:B000 */
+    cpu.db = 0x82;
+    a8_load(0x82);
+    x8_load(rd8(dba((uint16_t)(0xB000 + kind))));
+    call_routine(0x820000u | rd16(0x820000u | (uint16_t)(0xAA81 + cpu.x)), 0);
+    cpu.db = db;
+    nz8_of(db);
+    op_sep(P_M);
+    op_rep(P_X);
+}
+
+/* A tile slot (or run of 2 or 3) by the kind's extra slots; C set when
+   none was free. */
+static void claim_by_size(void)
+{
+    cpu.x = db16(0x001C);
+    a8_load(rd8(CELL_EXTRA_SLOTS + cpu.x));
+    if (!(uint8_t)cpu.a) {
+        abi_TileSlotClaim();
+        return;
+    }
+    a8_load((uint8_t)(cpu.a - 1));
+    if (!(uint8_t)cpu.a)
+        abi_TileSlotsClaim2();
+    else
+        abi_TileSlotsClaim3();
 }
 
 /*
@@ -358,46 +351,32 @@ void abi_ActorKindSetup(void)
  */
 void abi_ActorKindTilesShared(void)
 {
-    op_rep(0x10);  /* 82AA89 rep */
-    ldy16(ea_abs(0x0020));  /* 82AA8B ldy */
-    ldx16(ea_abs(0x0022));  /* 82AA8E ldx */
-    lda8(ea_longx(0x7FE701u));  /* 82AA91 lda */
-    if (IF_N) goto L_82AABC;  /* 82AA95 bmi */
-    ldx16(ea_abs(0x001C));  /* 82AA97 ldx */
-    lda8(ea_longx(CELL_EXTRA_SLOTS));  /* 82AA9A lda */
-    if (IF_Z) goto L_82AAB1;  /* 82AA9E beq */
-    ACC8(dec);  /* 82AAA0 dec */
-    if (IF_Z) goto L_82AAAA;  /* 82AAA1 beq */
-    abi_TileSlotsClaim3();  /* 82AAA3 jsr */
-    if (IF_C) goto L_82AABB;  /* 82AAA6 bcs */
-    goto L_82AAB6;  /* 82AAA8 bra */
-L_82AAAA:
-    abi_TileSlotsClaim2();  /* 82AAAA jsr */
-    if (IF_C) goto L_82AABB;  /* 82AAAD bcs */
-    goto L_82AAB6;  /* 82AAAF bra */
-L_82AAB1:
-    abi_TileSlotClaim();  /* 82AAB1 jsr */
-    if (IF_C) goto L_82AABB;  /* 82AAB4 bcs */
-L_82AAB6:
-    abi_ActorKindTilesQueue();  /* 82AAB6 jsr */
-    clc();  /* 82AAB9 clc */
-    return;  /* 82AABA rts */
-L_82AABB:
-    return;  /* 82AABB rts */
-L_82AABC:
-    lda8(ea_longx(CELL_ATTRS));  /* 82AABC lda */
-    sta8(ea_absy(0x002B));  /* 82AAC0 sta */
-    lda8(ea_longx(0x7FE701u));  /* 82AAC3 lda */
-    sta8(ea_absy(0x002C));  /* 82AAC7 sta */
-    lda8_v(0x00);  /* 82AACA lda */
-    xba();  /* 82AACC xba */
-    ldx16(ea_abs(0x001C));  /* 82AACD ldx */
-    lda8(ea_longx(0x7FEB00u));  /* 82AAD0 lda */
-    sta8(ea_absy(0x0039));  /* 82AAD4 sta */
-    tax16();  /* 82AAD7 tax */
-    MEM8(inc, ea_absx(ACTOR_TILE_SLOT_USERS));  /* 82AAD8 inc */
-    clc();  /* 82AADB clc */
-    return;  /* 82AADC rts */
+    uint16_t rec, x;
+
+    op_rep(P_X);
+    cpu.y = rec = db16(0x0020);
+    cpu.x = x = db16(0x0022);
+    a8_load(rd8(0x7FE701u + x));
+    if (!((uint8_t)cpu.a & 0x80)) {
+        claim_by_size();
+        if (cpu.p & P_C)
+            return;
+        abi_ActorKindTilesQueue();
+        flag_set(P_C, 0);
+        return;
+    }
+    /* the kind's tiles already loaded: share its slot */
+    a8_load(rd8(CELL_ATTRS + x));
+    wr8(dba((uint16_t)(0x002B + rec)), (uint8_t)cpu.a);
+    a8_load(rd8(0x7FE701u + x));
+    wr8(dba((uint16_t)(0x002C + rec)), (uint8_t)cpu.a);
+    cpu.x = db16(0x001C);
+    a8_load(rd8(0x7FEB00u + cpu.x));
+    cpu.a &= 0x00FF;
+    wr8(dba((uint16_t)(0x0039 + rec)), (uint8_t)cpu.a);
+    cpu.x = cpu.a;
+    inc8_at(dba((uint16_t)(ACTOR_TILE_SLOT_USERS + cpu.x)));
+    flag_set(P_C, 0);
 }
 
 /*
@@ -412,51 +391,36 @@ L_82AABC:
  */
 void abi_ActorKindTilesQueue(void)
 {
-    goto L_82AAE7;
-L_82AAB9:
-    clc();  /* 82AAB9 clc */
-    return;  /* 82AABA rts */
-L_82AAE7:
-    op_rep(0x20);  /* 82AAE7 rep */
-    cpx16_v(0x0066);  /* 82AAE9 cpx */
-    if (IF_Z) goto L_82AB3B;  /* 82AAEC beq */
-    lda16(ea_abs(VRAM_QUEUE_COUNT));  /* 82AAEE lda */
-    and16_v(0x00FF);  /* 82AAF1 and */
-    ACC16(asl);  /* 82AAF4 asl */
-    ACC16(asl);  /* 82AAF5 asl */
-    ACC16(asl);  /* 82AAF6 asl */
-    tay16();  /* 82AAF7 tay */
-    lda16(ea_longx(CELL_ATTRS));  /* 82AAF8 lda */
-    and16_v(0x01FF);  /* 82AAFC and */
-    ACC16(asl);  /* 82AAFF asl */
-    ACC16(asl);  /* 82AB00 asl */
-    ACC16(asl);  /* 82AB01 asl */
-    ACC16(asl);  /* 82AB02 asl */
-    clc();  /* 82AB03 clc */
-    adc16_v(0x6000);  /* 82AB04 adc */
-    sta16(ea_absy(VRAM_QUEUE));  /* 82AB07 sta */
-    lda16(ea_longx(0x7FE500u));  /* 82AB0A lda */
-    sta16(ea_absy(0x085C));  /* 82AB0E sta */
-    lda16_v(0x007F);  /* 82AB11 lda */
-    sta16(ea_absy(0x085E));  /* 82AB14 sta */
-    lda16(ea_longx(0x82AC18u));  /* 82AB17 lda */
-    tax16();  /* 82AB1B tax */
-    lda16(ea_longx(0x82AC58u));  /* 82AB1C lda */
-    and16_v(0x3FFF);  /* 82AB20 and */
-    sta16(ea_absy(0x085F));  /* 82AB23 sta */
-    op_sep(0x20);  /* 82AB26 sep */
-    if (IF_Z) goto L_82AAB9;  /* 82AB28 beq */
-    lda8_v(0x80);  /* 82AB2A lda */
-    sta8(ea_absy(0x0861));  /* 82AB2C sta */
-    op_sep(0x10);  /* 82AB2F sep */
-    MEM8(inc, ea_abs(VRAM_QUEUE_COUNT));  /* 82AB31 inc */
-    MEM8(inc, ea_abs(0x0403));  /* 82AB34 inc */
-    abi_TileSlotFill();  /* 82AB37 jsr */
-    return;  /* 82AB3A rts */
-L_82AB3B:
-    op_sep(0x30);  /* 82AB3B sep */
-    abi_TileSlotFill();  /* 82AB37 jsr */
-    return;  /* 82AB3A rts */
+    uint16_t x = cpu.x, y, length;
+
+    op_rep(P_M);
+    cmp16_of(x, 0x0066);
+    if (x == 0x0066) {
+        op_sep(0x30);
+        abi_TileSlotFill();
+        return;
+    }
+    /* a VRAM queue entry: the slot's VRAM address, the graphics' place in
+       bank $7F and their length */
+    cpu.y = y = (uint16_t)((db16((uint16_t)VRAM_QUEUE_COUNT) & 0x00FF) << 3);
+    flag_set(P_C, 0);
+    wr16(dba((uint16_t)(VRAM_QUEUE + y)), op_adc16((uint16_t)((rd16(CELL_ATTRS + x) & 0x01FF) << 4), 0x6000, &cpu.p));
+    wr16(dba((uint16_t)(0x085C + y)), rd16(0x7FE500u + x));
+    wr16(dba((uint16_t)(0x085E + y)), 0x007F);
+    cpu.x = x = rd16(0x82AC18u + x);
+    a16_load(length = rd16(0x82AC58u + x) & 0x3FFF);
+    wr16(dba((uint16_t)(0x085F + y)), length);
+    op_sep(P_M);
+    if (!length) {
+        flag_set(P_C, 0);
+        return;
+    }
+    a8_load(0x80);
+    wr8(dba((uint16_t)(0x0861 + y)), 0x80);
+    op_sep(P_X);
+    inc8_at(dba((uint16_t)VRAM_QUEUE_COUNT));
+    inc8_at(dba(0x0403));
+    abi_TileSlotFill();
 }
 
 /*
@@ -470,32 +434,39 @@ L_82AB3B:
  */
 void abi_ActorKindTiles(void)
 {
-    op_rep(0x10);  /* 82AB3F rep */
-    ldy16(ea_abs(0x0020));  /* 82AB41 ldy */
-    ldx16(ea_abs(0x001C));  /* 82AB44 ldx */
-    lda8(ea_longx(CELL_EXTRA_SLOTS));  /* 82AB47 lda */
-    if (IF_Z) goto L_82AB64;  /* 82AB4B beq */
-    ACC8(dec);  /* 82AB4D dec */
-    if (IF_Z) goto L_82AB5A;  /* 82AB4E beq */
-    abi_TileSlotsClaim3();  /* 82AB50 jsr */
-    if (IF_C) goto L_82AB6E;  /* 82AB53 bcs */
-    abi_TileSlotFill();  /* 82AB55 jsr */
-    clc();  /* 82AB58 clc */
-    return;  /* 82AB59 rts */
-L_82AB5A:
-    abi_TileSlotsClaim2();  /* 82AB5A jsr */
-    if (IF_C) goto L_82AB6E;  /* 82AB5D bcs */
-    abi_TileSlotFill();  /* 82AB5F jsr */
-    clc();  /* 82AB62 clc */
-    return;  /* 82AB63 rts */
-L_82AB64:
-    abi_TileSlotClaim();  /* 82AB64 jsr */
-    if (IF_C) goto L_82AB6E;  /* 82AB67 bcs */
-    abi_TileSlotFill();  /* 82AB69 jsr */
-    clc();  /* 82AB6C clc */
-    return;  /* 82AB6D rts */
-L_82AB6E:
-    return;  /* 82AB6E rts */
+    op_rep(P_X);
+    cpu.y = db16(0x0020);
+    claim_by_size();
+    if (cpu.p & P_C)
+        return;
+    abi_TileSlotFill();
+    flag_set(P_C, 0);
+}
+
+/* The run of slots from X taken by the kind: the first's count, its cell;
+   the record's slot (X + 1), the kind's, and its attributes from the
+   slot's ($82:AC06). */
+static void claim_run(uint16_t x)
+{
+    uint16_t rec = cpu.y, attrs;
+    uint8_t slot;
+
+    inc8_at(dba((uint16_t)(0x15E9 + x)));
+    wr8(dba((uint16_t)(TILE_SLOT_CELL + x)), rd8(dba(0x001C)));
+    slot = (uint8_t)(x + 1);
+    a8_load(slot);
+    cpu.a = slot;
+    wr8(dba((uint16_t)(0x0039 + rec)), slot);
+    wr8(0x7FEB00u + db16(0x001C), slot);
+    op_rep(P_M);
+    cpu.a = (uint16_t)(slot << 1);
+    attrs = db16((uint16_t)(0xAC06 + cpu.a));
+    cpu.a = attrs;
+    wr16(dba((uint16_t)(0x002B + rec)), attrs);
+    cpu.x = db16(0x0022);
+    wr16(CELL_ATTRS + cpu.x, attrs);
+    op_sep(P_M);
+    flag_set(P_C, 0);
 }
 
 /*
@@ -509,46 +480,19 @@ L_82AB6E:
  */
 void abi_TileSlotsClaim2(void)
 {
-    goto L_82AC10;
-L_82ABDB:
-    lda8_v(0x00);  /* 82ABDB lda */
-    xba();  /* 82ABDD xba */
-    MEM8(inc, ea_absx(0x15E9));  /* 82ABDE inc */
-    lda8(ea_abs(0x001C));  /* 82ABE1 lda */
-    sta8(ea_absx(TILE_SLOT_CELL));  /* 82ABE4 sta */
-    inx16();  /* 82ABE7 inx */
-    txa8();  /* 82ABE8 txa */
-    sta8(ea_absy(0x0039));  /* 82ABE9 sta */
-    ldx16(ea_abs(0x001C));  /* 82ABEC ldx */
-    sta8(ea_longx(0x7FEB00u));  /* 82ABEF sta */
-    op_rep(0x20);  /* 82ABF3 rep */
-    ACC16(asl);  /* 82ABF5 asl */
-    tax16();  /* 82ABF6 tax */
-    lda16(ea_absx(0xAC06));  /* 82ABF7 lda */
-    sta16(ea_absy(0x002B));  /* 82ABFA sta */
-    ldx16(ea_abs(0x0022));  /* 82ABFD ldx */
-    sta16(ea_longx(CELL_ATTRS));  /* 82AC00 sta */
-    op_sep(0x20);  /* 82AC04 sep */
-    clc();  /* 82AC06 clc */
-    return;  /* 82AC07 rts */
-L_82AC10:
-    ldx16_v(0x0000);  /* 82AC10 ldx */
-    lda8(ea_absx(0x15E9));  /* 82AC13 lda */
-    ora8_v(rd8(ea_absx(0x15EA)));  /* 82AC16 ora */
-    if (IF_Z) goto L_82AC2F;  /* 82AC19 beq */
-    inx16();  /* 82AC1B inx */
-    lda8(ea_absx(0x15E9));  /* 82AC1C lda */
-    ora8_v(rd8(ea_absx(0x15EA)));  /* 82AC1F ora */
-    if (IF_Z) goto L_82AC2F;  /* 82AC22 beq */
-    inx16();  /* 82AC24 inx */
-    lda8(ea_absx(0x15E9));  /* 82AC25 lda */
-    ora8_v(rd8(ea_absx(0x15EA)));  /* 82AC28 ora */
-    if (IF_Z) goto L_82AC2F;  /* 82AC2B beq */
-    sec();  /* 82AC2D sec */
-    return;  /* 82AC2E rts */
-L_82AC2F:
-    MEM8(inc, ea_absx(0x15EA));  /* 82AC2F inc */
-    goto L_82ABDB;  /* 82AC32 bra */
+    uint16_t x;
+
+    /* two free slots side by side, from the first three */
+    for (x = 0; x < 3; x++) {
+        cpu.x = x;
+        a8_load(rd8(dba((uint16_t)(0x15E9 + x))) | rd8(dba((uint16_t)(0x15EA + x))));
+        if (!(uint8_t)cpu.a) {
+            inc8_at(dba((uint16_t)(0x15EA + x)));
+            claim_run(x);
+            return;
+        }
+    }
+    flag_set(P_C, 1);
 }
 
 /*
@@ -562,45 +506,20 @@ L_82AC2F:
  */
 void abi_TileSlotsClaim3(void)
 {
-    goto L_82AC34;
-L_82ABDB:
-    lda8_v(0x00);  /* 82ABDB lda */
-    xba();  /* 82ABDD xba */
-    MEM8(inc, ea_absx(0x15E9));  /* 82ABDE inc */
-    lda8(ea_abs(0x001C));  /* 82ABE1 lda */
-    sta8(ea_absx(TILE_SLOT_CELL));  /* 82ABE4 sta */
-    inx16();  /* 82ABE7 inx */
-    txa8();  /* 82ABE8 txa */
-    sta8(ea_absy(0x0039));  /* 82ABE9 sta */
-    ldx16(ea_abs(0x001C));  /* 82ABEC ldx */
-    sta8(ea_longx(0x7FEB00u));  /* 82ABEF sta */
-    op_rep(0x20);  /* 82ABF3 rep */
-    ACC16(asl);  /* 82ABF5 asl */
-    tax16();  /* 82ABF6 tax */
-    lda16(ea_absx(0xAC06));  /* 82ABF7 lda */
-    sta16(ea_absy(0x002B));  /* 82ABFA sta */
-    ldx16(ea_abs(0x0022));  /* 82ABFD ldx */
-    sta16(ea_longx(CELL_ATTRS));  /* 82AC00 sta */
-    op_sep(0x20);  /* 82AC04 sep */
-    clc();  /* 82AC06 clc */
-    return;  /* 82AC07 rts */
-L_82AC34:
-    ldx16_v(0x0000);  /* 82AC34 ldx */
-    lda8(ea_abs(0x15E9));  /* 82AC37 lda */
-    ora8_v(rd8(ea_abs(0x15EA)));  /* 82AC3A ora */
-    ora8_v(rd8(ea_abs(0x15EB)));  /* 82AC3D ora */
-    if (IF_Z) goto L_82AC50;  /* 82AC40 beq */
-    inx16();  /* 82AC42 inx */
-    lda8(ea_abs(0x15EA));  /* 82AC43 lda */
-    ora8_v(rd8(ea_abs(0x15EB)));  /* 82AC46 ora */
-    ora8_v(rd8(ea_abs(0x15EC)));  /* 82AC49 ora */
-    if (IF_Z) goto L_82AC50;  /* 82AC4C beq */
-    sec();  /* 82AC4E sec */
-    return;  /* 82AC4F rts */
-L_82AC50:
-    MEM8(inc, ea_absx(0x15EA));  /* 82AC50 inc */
-    MEM8(inc, ea_absx(0x15EB));  /* 82AC53 inc */
-    goto L_82ABDB;  /* 82AC56 bra */
+    uint16_t x;
+
+    /* three free slots in a row, from the first two */
+    for (x = 0; x < 2; x++) {
+        cpu.x = x;
+        a8_load(rd8(dba((uint16_t)(0x15E9 + x))) | rd8(dba((uint16_t)(0x15EA + x))) | rd8(dba((uint16_t)(0x15EB + x))));
+        if (!(uint8_t)cpu.a) {
+            inc8_at(dba((uint16_t)(0x15EA + x)));
+            inc8_at(dba((uint16_t)(0x15EB + x)));
+            claim_run(x);
+            return;
+        }
+    }
+    flag_set(P_C, 1);
 }
 
 /*
@@ -614,12 +533,11 @@ L_82AC50:
  */
 void abi_ActorCreateChild(void)
 {
-    abi_ActorCreate();  /* 81A9A6 jsl */
-    if (IF_C) goto L_81A9B0;  /* 81A9AA bcs */
-    abi_ActorSpawnInit();  /* 81A9AC jsr */
-    clc();  /* 81A9AF clc */
-L_81A9B0:
-    return;  /* 81A9B0 rtl */
+    abi_ActorCreate();
+    if (cpu.p & P_C)
+        return;
+    abi_ActorSpawnInit();
+    flag_set(P_C, 0);
 }
 
 /*
@@ -633,13 +551,20 @@ L_81A9B0:
  */
 void abi_ActorCreateChild8(void)
 {
-    abi_ActorCreate();  /* 81A9B1 jsl */
-    if (IF_C) goto L_81A9BE;  /* 81A9B5 bcs */
-    abi_ActorSpawnInit();  /* 81A9B7 jsr */
-    op_sep(0x30);  /* 81A9BA sep */
-    lda8_v(0x00);  /* 81A9BC lda */
-L_81A9BE:
-    return;  /* 81A9BE rtl */
+    abi_ActorCreate();
+    if (cpu.p & P_C)
+        return;
+    abi_ActorSpawnInit();
+    op_sep(0x30);
+    a8_load(0x00);
+}
+
+/* `v` shifted right 5 (ShiftRight5), into `at`. */
+static void band_of(uint16_t v, uint16_t at)
+{
+    cpu.a = v;
+    abi_ShiftRight5();
+    wr16(dba(at), cpu.a);
 }
 
 /*
@@ -657,56 +582,41 @@ L_81A9BE:
  */
 void abi_PlacementsStart(void)
 {
-    op_sep(0x30);  /* 82A72C sep */
-    phd();  /* 82A72E phd */
-    lda8_v(0x00);  /* 82A72F lda */
-    pha8();  /* 82A731 pha */
-    pha8();  /* 82A732 pha */
-    pld();  /* 82A733 pld */
-    phb();  /* 82A734 phb */
-    lda8_v(0x82);  /* 82A735 lda */
-    pha8();  /* 82A737 pha */
-    plb();  /* 82A738 plb */
-    abi_PlacementsIndex();  /* 82A739 jsr */
-    lda8_v(0xFF);  /* 82A73C lda */
-    sta8(0x7EC6FFu);  /* 82A73E sta */
-    op_rep(0x21);  /* 82A742 rep */
-    lda16(ea_abs(0x1777));  /* 82A744 lda */
-    pha16();  /* 82A747 pha */
-    sta16(ea_abs(0x1BF1));  /* 82A748 sta */
-    adc16_v(0x0120);  /* 82A74B adc */
-    abi_ShiftRight5();  /* 82A74E jsr */
-    sta16(ea_abs(0x1BE9));  /* 82A751 sta */
-    pla16();  /* 82A754 pla */
-    sec();  /* 82A755 sec */
-    sbc16_v(0x0040);  /* 82A756 sbc */
-    abi_ShiftRight5();  /* 82A759 jsr */
-    sta16(ea_abs(0x1BE7));  /* 82A75C sta */
-    lda16(ea_abs(0x1773));  /* 82A75F lda */
-    pha16();  /* 82A762 pha */
-    sta16(ea_abs(0x1BEF));  /* 82A763 sta */
-    clc();  /* 82A766 clc */
-    adc16_v(0x0120);  /* 82A767 adc */
-    abi_ShiftRight5();  /* 82A76A jsr */
-    sta16(ea_abs(0x1BEB));  /* 82A76D sta */
-    pla16();  /* 82A770 pla */
-    sec();  /* 82A771 sec */
-    sbc16_v(0x0040);  /* 82A772 sbc */
-    abi_ShiftRight5();  /* 82A775 jsr */
-    sta16(ea_abs(0x1BED));  /* 82A778 sta */
-    op_sep(0x30);  /* 82A77B sep */
-    tax8();  /* 82A77D tax */
-    ldy8_v(0x0C);  /* 82A77E ldy */
-L_82A780:
-    phx8();  /* 82A780 phx */
-    phy8();  /* 82A781 phy */
-    abi_PlacementsDown();  /* 82A782 jsr */
-    ply8();  /* 82A785 ply */
-    plx8();  /* 82A786 plx */
-    inx8();  /* 82A787 inx */
-    dey8();  /* 82A788 dey */
-    if (!IF_Z) goto L_82A780;  /* 82A789 bne */
-    plb();  /* 82A78B plb */
-    pld();  /* 82A78C pld */
-    return;  /* 82A78D rtl */
+    uint16_t d = cpu.d, at;
+    uint8_t db = cpu.db, x, n;
+
+    op_sep(0x30);
+    cpu.d = 0;
+    cpu.db = 0x82;
+    a8_load(0x82);
+    abi_PlacementsIndex();
+    a8_load(0xFF);
+    wr8(0x7EC6FFu, 0xFF);
+    /* the bands in view from the camera, from $40 before to $120 past */
+    op_rep(0x21);
+    at = db16(0x1777);
+    wr16(dba(0x1BF1), at);
+    band_of(op_adc16(at, 0x0120, &cpu.p), 0x1BE9);
+    flag_set(P_C, 1);
+    band_of(op_sbc16(at, 0x0040, &cpu.p), 0x1BE7);
+    at = db16(0x1773);
+    wr16(dba(0x1BEF), at);
+    flag_set(P_C, 0);
+    band_of(op_adc16(at, 0x0120, &cpu.p), 0x1BEB);
+    flag_set(P_C, 1);
+    band_of(op_sbc16(at, 0x0040, &cpu.p), 0x1BED);
+    op_sep(0x30);
+    /* 12 bands down from the first */
+    x = (uint8_t)cpu.a;
+    for (n = 0x0C; n; n--) {
+        cpu.x = x;
+        cpu.y = n;
+        abi_PlacementsDown();
+        x++;
+    }
+    cpu.x = x;
+    cpu.y = 0;
+    cpu.db = db;
+    cpu.d = d;
+    nz16_of(d);
 }

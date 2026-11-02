@@ -4,6 +4,8 @@
  * Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -19,6 +21,24 @@ void abi_ActorSpawnPlace(void);
 #define PAIR_SENDER 0x4Cu  /* word: the record of the actor that sent them, 0 here */
 #define PAIRS_LIVE 0x4Bu  /* actors it has sent that are live */
 #define PAIR_WAIT 0x40u  /* frames until it sends the next */
+
+/* The record ActorCreateIn last took, in X (16-bit). */
+static uint32_t pair_place(void)
+{
+    op_rep(P_X);
+    cpu.x = rd16(dba(NEW_RECORD));
+    return dba(0) + cpu.x;
+}
+
+/* The new one started (state $0C), facing as the sender. */
+static void pair_start(uint32_t rec)
+{
+    a8_load(0x0C);
+    wr8(rec + ACTOR_STATE, 0x0C);
+    a8_load(rd8(dpa(ACTOR_FACING)));
+    wr8(rec + ACTOR_FACING, (uint8_t)cpu.a);
+    wr8(rec + ACTOR_FLIP, (uint8_t)cpu.a);
+}
 
 /*
  * @routine 84:A056 CarrierPairSend
@@ -42,88 +62,76 @@ void abi_ActorSpawnPlace(void);
  */
 void abi_CarrierPairSend(void)
 {
-    op_rep(0x20);  /* 84A056 rep */
-    lda16(ea_dp(ACTOR_X + 1));  /* 84A058 lda */
-    pha16();  /* 84A05A pha */
-    lda16(ea_dp(ACTOR_Y + 1));  /* 84A05B lda */
-    pha16();  /* 84A05D pha */
-    lda16(ea_abs(RANGE_X));  /* 84A05E lda */
-    sta16(ea_dp(ACTOR_X + 1));  /* 84A061 sta */
-    sec();  /* 84A063 sec */
-    lda16(ea_abs(RANGE_Y));  /* 84A064 lda */
-    sbc16_v(0x0028);  /* 84A067 sbc */
-    sta16(ea_dp(ACTOR_Y + 1));  /* 84A06A sta */
-    op_sep(0x20);  /* 84A06C sep */
-    lda8_v(0x38);  /* 84A06E lda */
-    sta8(ea_dp(ACTOR_06));  /* 84A070 sta */
-    abi_ActorCreateIn();  /* 84A072 jsl */
-    MEM8(inc, ea_dp(ACTOR_STREAM));  /* 84A076 inc */
-    MEM8(inc, ea_dp(ACTOR_STREAM));  /* 84A078 inc */
-    op_rep(0x10);  /* 84A07A rep */
-    ldx16(ea_abs(NEW_RECORD));  /* 84A07C ldx */
-    stx16(ea_dp(PAIR_OTHER));  /* 84A07F stx */
-    lda8(ea_dp(ACTOR_07));  /* 84A081 lda */
-    ACC8(inc);  /* 84A083 inc */
-    sta8(ea_absx(ACTOR_07));  /* 84A084 sta */
-    lda8_v(0x44);  /* 84A087 lda */
-    sta8(ea_dp(ACTOR_SPAWN_AT));  /* 84A089 sta */
-    abi_ActorSpawnPlace();  /* 84A08B jsl */
-    lda8_v(0x0C);  /* 84A08F lda */
-    sta8(ea_absx(ACTOR_STATE));  /* 84A091 sta */
-    lda8(ea_dp(ACTOR_FACING));  /* 84A094 lda */
-    sta8(ea_absx(ACTOR_FACING));  /* 84A096 sta */
-    sta8(ea_absx(ACTOR_FLIP));  /* 84A099 sta */
-    stz8(ea_absx(ACTOR_45));  /* 84A09C stz */
-    stz8(ea_absx(ACTOR_46));  /* 84A09F stz */
-    op_rep(0x20);  /* 84A0A2 rep */
-    tdc();  /* 84A0A4 tdc */
-    sta16(ea_absx(ACTOR_4C));  /* 84A0A5 sta */
-    op_sep(0x20);  /* 84A0A8 sep */
-    MEM8(inc, ea_dp(ACTOR_41));  /* 84A0AA inc */
-    lda8_v(0x3C);  /* 84A0AC lda */
-    sta8(ea_dp(PAIR_WAIT));  /* 84A0AE sta */
-    op_sep(0x10);  /* 84A0B0 sep */
-    ldy8(ea_dp(ACTOR_STREAM));  /* 84A0B2 ldy */
-    lda8_v(0x53);  /* 84A0B4 lda */
-    sta8(ea_dp(ACTOR_06));  /* 84A0B6 sta */
-    abi_ActorCreateIn();  /* 84A0B8 jsl */
-    op_rep(0x10);  /* 84A0BC rep */
-    ldx16(ea_abs(NEW_RECORD));  /* 84A0BE ldx */
-    lda8_v(0x44);  /* 84A0C1 lda */
-    sta8(ea_dp(ACTOR_SPAWN_AT));  /* 84A0C3 sta */
-    abi_ActorSpawnPlace();  /* 84A0C5 jsl */
-    op_rep(0x21);  /* 84A0C9 rep */
-    lda16(ea_absx(ACTOR_X + 1));  /* 84A0CB lda */
-    adc16_v(0xFFFC);  /* 84A0CE adc */
-    sta16(ea_absx(ACTOR_X + 1));  /* 84A0D1 sta */
-    clc();  /* 84A0D4 clc */
-    lda16(ea_absx(ACTOR_Y + 1));  /* 84A0D5 lda */
-    adc16_v(0x000C);  /* 84A0D8 adc */
-    sta16(ea_absx(ACTOR_Y + 1));  /* 84A0DB sta */
-    op_sep(0x20);  /* 84A0DE sep */
-    lda8_v(0x0C);  /* 84A0E0 lda */
-    sta8(ea_absx(ACTOR_STATE));  /* 84A0E2 sta */
-    lda8(ea_dp(ACTOR_FACING));  /* 84A0E5 lda */
-    sta8(ea_absx(ACTOR_FACING));  /* 84A0E7 sta */
-    sta8(ea_absx(ACTOR_FLIP));  /* 84A0EA sta */
-    op_rep(0x20);  /* 84A0ED rep */
-    tdc();  /* 84A0EF tdc */
-    sta16(ea_absx(ACTOR_4C));  /* 84A0F0 sta */
-    lda16(ea_dp(PAIR_OTHER));  /* 84A0F3 lda */
-    sta16(ea_absx(PAIR_OTHER));  /* 84A0F5 sta */
-    txy16();  /* 84A0F8 txy */
-    tax16();  /* 84A0F9 tax */
-    tya16();  /* 84A0FA tya */
-    sta16(ea_absx(PAIR_OTHER));  /* 84A0FB sta */
-    pla16();  /* 84A0FE pla */
-    sta16(ea_dp(ACTOR_Y + 1));  /* 84A0FF sta */
-    pla16();  /* 84A101 pla */
-    sta16(ea_dp(ACTOR_X + 1));  /* 84A102 sta */
-    op_sep(0x30);  /* 84A104 sep */
-    MEM8(inc, ea_dp(PAIRS_LIVE));  /* 84A106 inc */
-    clc();  /* 84A108 clc */
-    lda8(ea_abs(ACTOR_FREE_TOP));  /* 84A109 lda */
-    adc8_v(0x04);  /* 84A10C adc */
-    sta8(ea_abs(ACTOR_FREE_TOP));  /* 84A10E sta */
-    return;  /* 84A111 rts */
+    uint32_t first, second;
+
+    /* both start at the range point, 40 up; this one's place kept */
+    op_rep(P_M);
+    a16_load(dp16(ACTOR_X + 1));
+    pha16();
+    a16_load(dp16(ACTOR_Y + 1));
+    pha16();
+    dp16_set(ACTOR_X + 1, rd16(dba(RANGE_X)));
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(rd16(dba(RANGE_Y)), 0x0028, &cpu.p);
+    dp16_set(ACTOR_Y + 1, cpu.a);
+    op_sep(P_M);
+    /* a kind $38 from its stream */
+    a8_load(0x38);
+    wr8(dpa(ACTOR_06), 0x38);
+    abi_ActorCreateIn();
+    inc8_at(dpa(ACTOR_STREAM));
+    inc8_at(dpa(ACTOR_STREAM));
+    first = pair_place();
+    dp16_set(PAIR_OTHER, cpu.x);
+    a8_load((uint8_t)(rd8(dpa(ACTOR_07)) + 1));
+    wr8(first + ACTOR_07, (uint8_t)cpu.a);
+    a8_load(0x44);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x44);
+    abi_ActorSpawnPlace();
+    first = dba(0) + cpu.x;
+    pair_start(first);
+    wr8(first + ACTOR_45, 0);
+    wr8(first + ACTOR_46, 0);
+    cpu.a = cpu.d;
+    wr16(first + ACTOR_4C, cpu.d);
+    inc8_at(dpa(ACTOR_41));
+    a8_load(0x3C);
+    wr8(dpa(PAIR_WAIT), 0x3C);
+    op_sep(P_X);
+    /* a kind $53, 4 left and 12 below it; each the other's pair */
+    y8_load(rd8(dpa(ACTOR_STREAM)));
+    a8_load(0x53);
+    wr8(dpa(ACTOR_06), 0x53);
+    abi_ActorCreateIn();
+    second = pair_place();
+    a8_load(0x44);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x44);
+    abi_ActorSpawnPlace();
+    second = dba(0) + cpu.x;
+    op_rep(0x21);
+    cpu.a = op_adc16(rd16(second + ACTOR_X + 1), 0xFFFC, &cpu.p);
+    wr16(second + ACTOR_X + 1, cpu.a);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(rd16(second + ACTOR_Y + 1), 0x000C, &cpu.p);
+    wr16(second + ACTOR_Y + 1, cpu.a);
+    op_sep(P_M);
+    pair_start(second);
+    cpu.a = cpu.d;
+    wr16(second + ACTOR_4C, cpu.d);
+    cpu.a = dp16(PAIR_OTHER);
+    wr16(second + PAIR_OTHER, cpu.a);
+    cpu.y = cpu.x;
+    cpu.x = cpu.a;
+    cpu.a = cpu.y;
+    wr16(dba(PAIR_OTHER) + cpu.x, cpu.a);
+    pla16();
+    dp16_set(ACTOR_Y + 1, cpu.a);
+    pla16();
+    dp16_set(ACTOR_X + 1, cpu.a);
+    op_sep(0x30);
+    inc8_at(dpa(PAIRS_LIVE));
+    /* the two records back on the free list's count */
+    flag_set(P_C, 0);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | op_adc8(rd8(dba(ACTOR_FREE_TOP)), 0x04, &cpu.p));
+    wr8(dba(ACTOR_FREE_TOP), (uint8_t)cpu.a);
 }

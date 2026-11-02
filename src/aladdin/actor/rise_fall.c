@@ -4,6 +4,8 @@
  * named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -24,11 +26,10 @@ void abi_ActorAnimChange(void);
  */
 void abi_ActorAnimRiseFall(void)
 {
-    ldx8(ea_dp(ACTOR_SPEED_Y + 2));
-    if (IF_N)
-        lda8_v(0x0C);
-    else
-        lda8_v(0x0E);
+    uint8_t top = rd8(dpa(ACTOR_SPEED_Y + 2));
+
+    x8_load(top);
+    a8_load((top & 0x80) ? 0x0C : 0x0E);  /* rising, falling */
     abi_ActorAnimChange();
 }
 
@@ -43,12 +44,12 @@ void abi_ActorAnimRiseFall(void)
  */
 void abi_ActorPlaceAtSpot(void)
 {
-    op_rep(0x20);
-    lda16(ea_absx(ACTOR_SPOTS));
-    sta16(ea_dp(ACTOR_X + 1));
-    lda16(ea_absx(ACTOR_SPOTS + 2));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
-    stz8(ea_dp(ACTOR_X));
-    stz8(ea_dp(ACTOR_Y));
+    uint32_t spot = dba(ACTOR_SPOTS) + cpu.x;
+    uint16_t y = rd16(spot + 2);
+
+    dp16_set(ACTOR_X + 1, rd16(spot));
+    dp16_set(ACTOR_Y + 1, y);
+    a16_load(y);
+    wr8(dpa(ACTOR_X), 0);
+    wr8(dpa(ACTOR_Y), 0);
 }

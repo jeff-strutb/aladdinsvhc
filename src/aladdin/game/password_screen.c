@@ -4,6 +4,8 @@
  * slot's.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_CopierCheck(void);
 void abi_DisplayDefaults(void);
@@ -33,6 +35,9 @@ void abi_TileBlockQueue(void);
 #include "wram_state.h"
 #include "wram_video.h"
 
+#define PICTURE_ROW_BITS 0xFE22u  /* by row, the tilemap bits (words, in the bank DB names) */
+#define PICTURE_TILES 0xFE2Eu     /* by column, the picture's first tile (words) */
+
 /*
  * @routine 84:AF52 PasswordPictureDraw
  * WHAT IT DOES: Shows picture $000F in password slot $000E: its tiles in
@@ -45,26 +50,21 @@ void abi_TileBlockQueue(void);
  */
 void abi_PasswordPictureDraw(void)
 {
-    lda8(ea_abs(0x000F));  /* 84AF52 lda */
-    ACC8(asl);  /* 84AF55 asl */
-    tay8();  /* 84AF56 tay */
-    lda8(ea_abs(0x000E));  /* 84AF57 lda */
-    ACC8(asl);  /* 84AF5A asl */
-    tax8();  /* 84AF5B tax */
-    op_rep(0x30);  /* 84AF5C rep */
-    lda16(ea_abs(0x000D));  /* 84AF5E lda */
-    and16_v(0xFF00);  /* 84AF61 and */
-    ACC16(asl);  /* 84AF64 asl */
-    ACC16(asl);  /* 84AF65 asl */
-    ora16_v(0x1000);  /* 84AF66 ora */
-    ora16_v(rd16(ea_absy(0xFE22)));  /* 84AF69 ora */
-    tay16();  /* 84AF6C tay */
-    lda16(ea_absx(0xFE2E));  /* 84AF6D lda */
-    abi_TileBlockQueue();  /* 84AF70 jsl */
-    lda8(ea_abs(0x000F));  /* 84AF74 lda */
-    ldx8(ea_abs(0x000E));  /* 84AF77 ldx */
-    abi_PaletteFromRom();  /* 84AF7A jsl */
-    return;  /* 84AF7E rts */
+    uint8_t row = rd8(dba(SCRATCH + 3)), col = rd8(dba(SCRATCH + 2));
+    uint16_t bits;
+
+    cpu.y = (uint8_t)(row << 1);
+    cpu.x = (uint8_t)(col << 1);
+    op_rep(0x30);
+    bits = (uint16_t)(rd16(dba(SCRATCH + 1)) & 0xFF00);   /* the column, as a high byte */
+    flag_set(P_C, (bits >> 14) & 1);
+    bits = (uint16_t)((bits << 2) | 0x1000 | rd16(dba(PICTURE_ROW_BITS) + cpu.y));
+    cpu.y = bits;
+    a16_load(rd16(dba(PICTURE_TILES) + cpu.x));
+    abi_TileBlockQueue();
+    a8_load(row);
+    x8_load(col);
+    abi_PaletteFromRom();
 }
 
 

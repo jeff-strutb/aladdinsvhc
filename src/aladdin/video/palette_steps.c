@@ -3,6 +3,8 @@
  * palettes, to white, or back to its kept colours.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorPaletteFromRom(void);
 void abi_PaletteFromRom(void);
@@ -14,6 +16,23 @@ void abi_PaletteOffset(void);
 
 /* Palettes in bank $84 for actors: 16 colours (32 bytes) each. */
 #define ACTOR_PALETTES 0xB000u
+
+/* 16 colours from `from` plus Y (in the data bank) to the long address
+   `to` plus X, stepping both. */
+static void copy_colours(uint16_t from, uint32_t to)
+{
+    a16_load(0x0010);
+    wr16(dba(SCRATCH), 0x0010);
+    do {
+        cpu.a = rd16(dba(from) + cpu.y);
+        wr16((to + cpu.x) & 0xFFFFFF, cpu.a);
+        cpu.x = (uint16_t)(cpu.x + 2);
+        cpu.y = (uint16_t)(cpu.y + 2);
+    } while (dec16_at(dba(SCRATCH)));
+    op_sep(0x30);
+    inc8_at(dba(PALETTE_UPLOAD));
+    plb();
+}
 
 /*
  * @routine 81:9903 ActorPaletteFromRom
@@ -28,46 +47,18 @@ void abi_PaletteOffset(void);
  */
 void abi_ActorPaletteFromRom(void)
 {
-    lda8(ea_dp(ACTOR_LOOK + 1));  /* 819903 lda */
-    ACC8(lsr);  /* 819905 lsr */
-    and8_v(0x07);  /* 819906 and */
-    tax8();  /* 819908 tax */
-    phb();  /* 819909 phb */
-    lda8_v(0x84);  /* 81990A lda */
-    pha8();  /* 81990C pha */
-    plb();  /* 81990D plb */
-    op_rep(0x30);  /* 81990E rep */
-    tya16();  /* 819910 tya */
-    and16_v(0x00FF);  /* 819911 and */
-    ACC16(asl);  /* 819914 asl */
-    ACC16(asl);  /* 819915 asl */
-    ACC16(asl);  /* 819916 asl */
-    ACC16(asl);  /* 819917 asl */
-    ACC16(asl);  /* 819918 asl */
-    tay16();  /* 819919 tay */
-    txa16();  /* 81991A txa */
-    and16_v(0x00FF);  /* 81991B and */
-    ACC16(asl);  /* 81991E asl */
-    ACC16(asl);  /* 81991F asl */
-    ACC16(asl);  /* 819920 asl */
-    ACC16(asl);  /* 819921 asl */
-    ACC16(asl);  /* 819922 asl */
-    tax16();  /* 819923 tax */
-    lda16_v(0x0010);  /* 819924 lda */
-    sta16(ea_abs(SCRATCH));  /* 819927 sta */
-L_81992A:
-    lda16(ea_absy(ACTOR_PALETTES));  /* 81992A lda */
-    sta16(ea_longx(PALETTE_BUFFER + 0x100));  /* 81992D sta */
-    inx16();  /* 819931 inx */
-    inx16();  /* 819932 inx */
-    iny16();  /* 819933 iny */
-    iny16();  /* 819934 iny */
-    MEM16(dec, ea_abs(SCRATCH));  /* 819935 dec */
-    if (!IF_Z) goto L_81992A;  /* 819938 bne */
-    op_sep(0x30);  /* 81993A sep */
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));  /* 81993C inc */
-    plb();  /* 81993F plb */
-    return;  /* 819940 rtl */
+    uint8_t palette = (uint8_t)((rd8(dpa(ACTOR_LOOK + 1)) >> 1) & 0x07);
+
+    cpu.x = palette;                      /* its palette (sprite palettes) */
+    phb();
+    a8_load(0x84);
+    pha8();
+    plb();
+    op_rep(0x30);
+    cpu.y = (uint16_t)((uint8_t)cpu.y << 5);
+    cpu.x = (uint16_t)(palette << 5);
+    flag_set(P_C, 0);                     /* the last ASL's: bit 11 of the byte, 0 */
+    copy_colours(ACTOR_PALETTES, PALETTE_BUFFER + 0x100);
 }
 
 /*
@@ -82,41 +73,17 @@ L_81992A:
  */
 void abi_PaletteFromRom(void)
 {
-    phb();  /* 819941 phb */
-    ldy8_v(0x87);  /* 819942 ldy */
-    phy8();  /* 819944 phy */
-    plb();  /* 819945 plb */
-    op_rep(0x30);  /* 819946 rep */
-    and16_v(0x00FF);  /* 819948 and */
-    ACC16(asl);  /* 81994B asl */
-    ACC16(asl);  /* 81994C asl */
-    ACC16(asl);  /* 81994D asl */
-    ACC16(asl);  /* 81994E asl */
-    ACC16(asl);  /* 81994F asl */
-    tay16();  /* 819950 tay */
-    txa16();  /* 819951 txa */
-    and16_v(0x00FF);  /* 819952 and */
-    ACC16(asl);  /* 819955 asl */
-    ACC16(asl);  /* 819956 asl */
-    ACC16(asl);  /* 819957 asl */
-    ACC16(asl);  /* 819958 asl */
-    ACC16(asl);  /* 819959 asl */
-    tax16();  /* 81995A tax */
-    lda16_v(0x0010);  /* 81995B lda */
-    sta16(ea_abs(SCRATCH));  /* 81995E sta */
-L_819961:
-    lda16(ea_absy(0xFF40));  /* 819961 lda */
-    sta16(ea_longx(0x7EFD80u));  /* 819964 sta */
-    inx16();  /* 819968 inx */
-    inx16();  /* 819969 inx */
-    iny16();  /* 81996A iny */
-    iny16();  /* 81996B iny */
-    MEM16(dec, ea_abs(SCRATCH));  /* 81996C dec */
-    if (!IF_Z) goto L_819961;  /* 81996F bne */
-    op_sep(0x30);  /* 819971 sep */
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));  /* 819973 inc */
-    plb();  /* 819976 plb */
-    return;  /* 819977 rtl */
+    uint8_t rom = (uint8_t)cpu.a;
+
+    phb();
+    y8_load(0x87);
+    phy8();
+    plb();
+    op_rep(0x30);
+    cpu.y = (uint16_t)(rom << 5);
+    cpu.x = (uint16_t)((uint8_t)cpu.x << 5);
+    flag_set(P_C, 0);
+    copy_colours(0xFF40, PALETTE_BUFFER + 0x80);
 }
 
 /*
@@ -130,19 +97,17 @@ L_819961:
  */
 void abi_PaletteWhite(void)
 {
-    op_rep(0x30);  /* 819CD7 rep */
-    abi_PaletteOffset();  /* 819CD9 jsr */
-    ldy16_v(0x000F);  /* 819CDC ldy */
-    lda16_v(0xFFFF);  /* 819CDF lda */
-L_819CE2:
-    sta16(ea_longx(PALETTE_BUFFER));  /* 819CE2 sta */
-    inx16();  /* 819CE6 inx */
-    inx16();  /* 819CE7 inx */
-    dey16();  /* 819CE8 dey */
-    if (!IF_N) goto L_819CE2;  /* 819CE9 bpl */
-    op_sep(0x30);  /* 819CEB sep */
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));  /* 819CED inc */
-    return;  /* 819CF0 rtl */
+    op_rep(0x30);
+    abi_PaletteOffset();
+    cpu.y = 0x000F;
+    cpu.a = 0xFFFF;
+    do {                                  /* its 16 colours white */
+        wr16((PALETTE_BUFFER + cpu.x) & 0xFFFFFF, 0xFFFF);
+        cpu.x = (uint16_t)(cpu.x + 2);
+        cpu.y = (uint16_t)(cpu.y - 1);
+    } while (!(cpu.y & 0x8000));
+    op_sep(0x30);
+    inc8_at(dba(PALETTE_UPLOAD));
 }
 
 /*
@@ -157,18 +122,15 @@ L_819CE2:
  */
 void abi_PaletteRestoreReversed(void)
 {
-    op_rep(0x30);  /* 819CF1 rep */
-    abi_PaletteOffset();  /* 819CF3 jsr */
-    ldy16_v(0x001E);  /* 819CF6 ldy */
-L_819CF9:
-    lda16(ea_absy(PALETTE_SAVED));  /* 819CF9 lda */
-    sta16(ea_longx(PALETTE_BUFFER));  /* 819CFC sta */
-    inx16();  /* 819D00 inx */
-    inx16();  /* 819D01 inx */
-    dey16();  /* 819D02 dey */
-    dey16();  /* 819D03 dey */
-    if (!IF_N) goto L_819CF9;  /* 819D04 bpl */
-    op_sep(0x30);  /* 819D06 sep */
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));  /* 819D08 inc */
-    return;  /* 819D0B rtl */
+    op_rep(0x30);
+    abi_PaletteOffset();
+    cpu.y = 0x001E;
+    do {                                  /* the saved colours, last first */
+        cpu.a = rd16(dba(PALETTE_SAVED) + cpu.y);
+        wr16((PALETTE_BUFFER + cpu.x) & 0xFFFFFF, cpu.a);
+        cpu.x = (uint16_t)(cpu.x + 2);
+        cpu.y = (uint16_t)(cpu.y - 2);
+    } while (!(cpu.y & 0x8000));
+    op_sep(0x30);
+    inc8_at(dba(PALETTE_UPLOAD));
 }

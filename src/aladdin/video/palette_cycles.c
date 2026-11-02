@@ -11,6 +11,8 @@
  * step (0 load, 1 restart, 2 frame, 3 wait); $0D the frames left.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 
@@ -41,9 +43,11 @@
  */
 void abi_PaletteCycleStart(void)
 {
-    stz8(ea_absx(PALETTE_CYCLES + PCYC_STEP));
-    sta8(ea_absx(PALETTE_CYCLES + PCYC_ID));
-    MEM8(inc, ea_absx(PALETTE_CYCLES + PCYC_ACTIVE));
+    uint32_t cycle = dba(PALETTE_CYCLES) + cpu.x;
+
+    wr8(cycle + PCYC_STEP, 0);
+    wr8(cycle + PCYC_ID, (uint8_t)cpu.a);
+    inc8_at(cycle + PCYC_ACTIVE);
 }
 
 /*
@@ -69,26 +73,26 @@ void abi_PaletteCycleStartLong(void)
 void abi_PaletteCyclesStep(void)
 {
     phd();
-    lda8_v(PALETTE_CYCLES >> 8);
-    xba();
-    lda8_v(PALETTE_CYCLES & 0xFF);
-    tcd();
-    do {
-        lda8(ea_dp(PCYC_ACTIVE));
-        if (!IF_Z) {
-            lda8(ea_dp(PCYC_STEP));
-            ACC8(asl);
-            tax8();
+    cpu.a = cpu.d = PALETTE_CYCLES;
+    nz16_of(PALETTE_CYCLES);
+    do {                                  /* each active cycle: its step's code */
+        uint8_t active = rd8(dpa(PCYC_ACTIVE)), step;
+
+        a8_load(active);
+        if (active) {
+            step = rd8(dpa(PCYC_STEP));
+            flag_set(P_C, step & 0x80);
+            a8_load((uint8_t)(step << 1));
+            cpu.x = (uint8_t)cpu.a;
             call_routine(0x810000u | rd16(0x810000u | (uint16_t)(PALETTE_CYCLE_STEPS + cpu.x)), 0);
         }
-        op_rep(0x20);
-        tdc();
-        clc();
-        adc16_v(PALETTE_CYCLE_SIZE);
-        tcd();
-        cmp16_v(PALETTE_CYCLES_END);
+        op_rep(P_M);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(cpu.d, PALETTE_CYCLE_SIZE, &cpu.p);
+        cpu.d = cpu.a;
+        cmp16_of(cpu.a, PALETTE_CYCLES_END);
         op_sep(0x30);
-    } while (!IF_Z);
+    } while (cpu.d != PALETTE_CYCLES_END);
     pld();
 }
 
@@ -104,18 +108,17 @@ void abi_PaletteCyclesStep(void)
  */
 void abi_PaletteCycleLoad(void)
 {
-    lda8(ea_dp(PCYC_ID));
-    ACC8(asl);
-    tax8();
+    uint16_t script;
+
+    cpu.x = (uint8_t)(rd8(dpa(PCYC_ID)) << 1);
     op_rep(0x30);
-    lda16(ea_longx(PALETTE_CYCLE_TABLE));
-    sta16(ea_dp(PCYC_START));
-    tax16();
-    lda16(ea_longx(PALETTE_CYCLE_TABLE));
-    sta16(ea_dp(PCYC_FRAMES));
-    lda16(ea_longx(PALETTE_CYCLE_TABLE + 2));
-    sta16(ea_dp(PCYC_AT));
-    MEM16(inc, ea_dp(PCYC_STEP));
+    script = rd16(PALETTE_CYCLE_TABLE + cpu.x);
+    dp16_set(PCYC_START, script);
+    cpu.x = script;
+    dp16_set(PCYC_FRAMES, rd16(PALETTE_CYCLE_TABLE + script));   /* frames, colours */
+    cpu.a = rd16(PALETTE_CYCLE_TABLE + 2 + script);              /* the palette offset */
+    dp16_set(PCYC_AT, cpu.a);
+    inc16_at(dpa(PCYC_STEP));
 }
 
 /*
@@ -134,32 +137,32 @@ void abi_PaletteCycleLoad(void)
  */
 void abi_PaletteCycleFrame(void)
 {
-    op_rep(0x10);
-    lda8(ea_dp(PCYC_COLOURS));
-    sta8(ea_abs(SCRATCH));
-    stz8(ea_abs(SCRATCH + 1));
-    ldx16(ea_dp(PCYC_NEXT));
-    lda8(ea_longx(PALETTE_CYCLE_DATA));
-    sta8(ea_dp(PCYC_WAIT));
-    inx16();
-    op_rep(0x20);
-    ldy16(ea_dp(PCYC_AT));
+    uint8_t colours = rd8(dpa(PCYC_COLOURS));
+
+    op_rep(P_X);
+    a8_load(colours);
+    wr8(dba(SCRATCH), colours);
+    wr8(dba(SCRATCH + 1), 0);
+    /* the frame: its wait, then its colours into the palette buffer */
+    cpu.x = dp16(PCYC_NEXT);
+    a8_load(rd8(PALETTE_CYCLE_DATA + cpu.x));
+    wr8(dpa(PCYC_WAIT), (uint8_t)cpu.a);
+    cpu.x = (uint16_t)(cpu.x + 1);
+    op_rep(P_M);
+    cpu.y = dp16(PCYC_AT);
     do {
-        lda16(ea_longx(PALETTE_CYCLE_DATA));
+        cpu.a = rd16(PALETTE_CYCLE_DATA + cpu.x);
         phx16();
-        tyx16();
-        sta16(ea_longx(PALETTE_BUFFER));
+        cpu.x = cpu.y;
+        wr16((PALETTE_BUFFER + cpu.x) & 0xFFFFFF, cpu.a);
         plx16();
-        inx16();
-        inx16();
-        iny16();
-        iny16();
-        MEM16(dec, ea_abs(SCRATCH));
-    } while (!IF_Z);
-    stx16(ea_dp(PCYC_NEXT));
-    op_sep(0x20);
-    MEM8(inc, ea_dp(PCYC_STEP));
-    MEM8(inc, ea_abs(PALETTE_UPLOAD));
+        cpu.x = (uint16_t)(cpu.x + 2);
+        cpu.y = (uint16_t)(cpu.y + 2);
+    } while (dec16_at(dba(SCRATCH)));
+    dp16_set(PCYC_NEXT, cpu.x);
+    op_sep(P_M);
+    inc8_at(dpa(PCYC_STEP));
+    inc8_at(dba(PALETTE_UPLOAD));
 }
 
 /*
@@ -173,14 +176,13 @@ void abi_PaletteCycleFrame(void)
  */
 void abi_PaletteCycleRestart(void)
 {
-    op_rep(0x10);
-    lda8(ea_dp(PCYC_FRAMES));
-    sta8(ea_dp(PCYC_LEFT));
-    lda8(ea_dp(PCYC_START));
-    sta8(ea_dp(PCYC_NEXT));
-    lda8(ea_dp(PCYC_START + 1));
-    sta8(ea_dp(PCYC_NEXT + 1));
-    MEM8(inc, ea_dp(PCYC_STEP));
+    op_rep(P_X);
+    a8_load(rd8(dpa(PCYC_FRAMES)));
+    wr8(dpa(PCYC_LEFT), (uint8_t)cpu.a);
+    wr8(dpa(PCYC_NEXT), rd8(dpa(PCYC_START)));
+    a8_load(rd8(dpa(PCYC_START + 1)));
+    wr8(dpa(PCYC_NEXT + 1), (uint8_t)cpu.a);
+    inc8_at(dpa(PCYC_STEP));
     abi_PaletteCycleFrame();
 }
 
@@ -196,12 +198,11 @@ void abi_PaletteCycleRestart(void)
  */
 void abi_PaletteCycleWait(void)
 {
-    MEM8(dec, ea_dp(PCYC_WAIT));
-    if (!IF_Z)
+    if (dec8_at(dpa(PCYC_WAIT)))
         return;
-    lda8_v(0x02);
-    MEM8(dec, ea_dp(PCYC_LEFT));
-    if (IF_Z)
-        ACC8(dec);
-    sta8(ea_dp(PCYC_STEP));
+    /* the next frame (step 2), or after the last a restart (step 1) */
+    a8_load(0x02);
+    if (!dec8_at(dpa(PCYC_LEFT)))
+        a8_load(0x01);
+    wr8(dpa(PCYC_STEP), (uint8_t)cpu.a);
 }

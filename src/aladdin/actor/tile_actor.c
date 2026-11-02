@@ -4,6 +4,8 @@
  * and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -13,6 +15,26 @@ void abi_TileChangeAdd(void);
    entry: the tile, and the tile 16 pixels below (0: none) */
 #define TILE_ACTOR_TILES 0xD633u
 #define EMPTY_TILE 0x7F80u          /* the tile put while $19 is 0 */
+
+#define TILE_SHOWN 0x19u           /* word: 0, the empty tile is put */
+#define TILE_PLACE_X 0x42u         /* where its tiles go (words) */
+#define TILE_PLACE_Y 0x44u
+#define TILE_SET 0x47u             /* its set in TILE_ACTOR_TILES */
+#define TILE_SIDE 0x4Au            /* picks its tile, with TILE_SHOWN's low byte and its flip */
+
+/* The tile (or the empty one while TILE_SHOWN is 0) to TileChangeAdd, at
+   x X and y Y. */
+static void tile_put(uint16_t tile)
+{
+    uint16_t shown = dp16(TILE_SHOWN);
+
+    cpu.x = shown;
+    nz16_of(shown);
+    if (shown)
+        cpu.a = tile;
+    else
+        a16_load(EMPTY_TILE);
+}
 
 /*
  * @routine 83:E7F0 TileActorDraw
@@ -30,44 +52,37 @@ void abi_TileChangeAdd(void);
  */
 void abi_TileActorDraw(void)
 {
-    ldx8(ea_dp(0x47));  /* 83E7F0 ldx */
-    lda8(ea_dp(0x4A));  /* 83E7F2 lda */
-    eor8_v(rd8(ea_dp(0x19)));  /* 83E7F4 eor */
-    ACC8(asl);  /* 83E7F6 asl */
-    ora8_v(rd8(ea_dp(0x15)));  /* 83E7F7 ora */
-    ACC8(asl);  /* 83E7F9 asl */
-    ACC8(asl);  /* 83E7FA asl */
-    clc();  /* 83E7FB clc */
-    adc8_v(rd8(ea_absx(TILE_ACTOR_TILES)));  /* 83E7FC adc */
-    op_rep(0x30);  /* 83E7FF rep */
-    and16_v(0x00FF);  /* 83E801 and */
-    tax16();  /* 83E804 tax */
-    phx16();  /* 83E805 phx */
-    lda16(ea_absx(TILE_ACTOR_TILES));  /* 83E806 lda */
-    ldx16(ea_dp(0x19));  /* 83E809 ldx */
-    if (!IF_Z) goto L_83E810;  /* 83E80B bne */
-    lda16_v(EMPTY_TILE);  /* 83E80D lda */
-L_83E810:
-    ldx16(ea_dp(0x42));  /* 83E810 ldx */
-    ldy16(ea_dp(0x44));  /* 83E812 ldy */
-    abi_TileChangeAdd();  /* 83E814 jsl */
-    plx16();  /* 83E818 plx */
-    lda16(ea_absx(TILE_ACTOR_TILES + 2));  /* 83E819 lda */
-    if (IF_Z) goto L_83E834;  /* 83E81C beq */
-    ldx16(ea_dp(0x19));  /* 83E81E ldx */
-    if (!IF_Z) goto L_83E825;  /* 83E820 bne */
-    lda16_v(EMPTY_TILE);  /* 83E822 lda */
-L_83E825:
-    pha16();  /* 83E825 pha */
-    ldx16(ea_dp(0x42));  /* 83E826 ldx */
-    clc();  /* 83E828 clc */
-    lda16(ea_dp(0x44));  /* 83E829 lda */
-    adc16_v(0x0010);  /* 83E82B adc */
-    tay16();  /* 83E82E tay */
-    pla16();  /* 83E82F pla */
-    abi_TileChangeAdd();  /* 83E830 jsl */
-L_83E834:
-    op_sep(0x30);  /* 83E834 sep */
-    return;  /* 83E836 rts */
+    uint8_t pick;
+    uint16_t at, tile;
+
+    x8_load(rd8(dpa(TILE_SET)));
+    pick = (uint8_t)(rd8(dpa(TILE_SIDE)) ^ rd8(dpa(TILE_SHOWN)));
+    pick = (uint8_t)((uint8_t)((uint8_t)(pick << 1) | rd8(dpa(ACTOR_FLIP))) << 2);
+    flag_set(P_C, 0);
+    at = op_adc8(pick, rd8(dba(TILE_ACTOR_TILES) + cpu.x), &cpu.p);
+    op_rep(0x30);
+    cpu.a = cpu.x = at;
+    nz16_of(at);
+    phx16();
+    /* its top tile at the place, its bottom tile 16 below when it has one */
+    tile_put(rd16(dba(TILE_ACTOR_TILES) + at));
+    cpu.x = dp16(TILE_PLACE_X);
+    cpu.y = dp16(TILE_PLACE_Y);
+    nz16_of(cpu.y);
+    abi_TileChangeAdd();
+    plx16();
+    tile = rd16(dba(TILE_ACTOR_TILES + 2) + cpu.x);
+    a16_load(tile);
+    if (tile) {
+        tile_put(tile);
+        pha16();
+        cpu.x = dp16(TILE_PLACE_X);
+        flag_set(P_C, 0);
+        cpu.y = op_adc16(dp16(TILE_PLACE_Y), 0x0010, &cpu.p);
+        cpu.a = cpu.y;
+        pla16();
+        abi_TileChangeAdd();
+    }
+    op_sep(0x30);
 }
 

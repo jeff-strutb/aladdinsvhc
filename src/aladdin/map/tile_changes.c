@@ -3,7 +3,11 @@
  * (a door opening, a block broken), in the map and on screen.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
+#include "cpu_ops.h"
+#include "native.h"
 void abi_TileChangeAdd(void);
 void abi_TileChangesApply(void);
 void abi_TilemapWordLong(void);
@@ -16,6 +20,9 @@ void abi_MapQuarterAt(void);
 #include "wram_video.h"
 
 #define LEVEL_TILES 0x7F0000u      /* the screens' tiles, a word each */
+
+/* A word of the data bank. */
+static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
 
 /*
  * @routine 81:9A64 TileChangeQueueQuarter
@@ -31,20 +38,19 @@ void abi_MapQuarterAt(void);
  */
 void abi_TileChangeQueueQuarter(void)
 {
-    clc();  /* 819A64 clc */
-    lda16(ea_dp(0x32));  /* 819A65 lda */
-    adc16_v(rd16(ea_absy(0xBA46)));  /* 819A67 adc */
-    sta16(ea_absx(0x0619));  /* 819A6A sta */
-    lda16(ea_absy(0xBA48));  /* 819A6D lda */
-    tay16();  /* 819A70 tay */
-    lda16(ea_dpily(0x34));  /* 819A71 lda */
-    sta16(ea_absx(0x061B));  /* 819A73 sta */
-    MEM16(inc, ea_abs(0x0617));  /* 819A76 inc */
-    inx16();  /* 819A79 inx */
-    inx16();  /* 819A7A inx */
-    inx16();  /* 819A7B inx */
-    inx16();  /* 819A7C inx */
-    return;  /* 819A7D rts */
+    uint16_t x = cpu.x, y = cpu.y;
+
+    /* the quarter's VRAM address and its tilemap word */
+    flag_set(P_C, 0);
+    wr16(dba(0x0619) + x, op_adc16(dp16(0x32), rd16(dba(0xBA46) + y), &cpu.p));
+    y = rd16(dba(0xBA48) + y);
+    cpu.a = rd16(dp_long_y(0x34, y));
+    wr16(dba(0x061B) + x, cpu.a);
+    inc16_at(dba(0x0617));
+    x += 4;
+    nz16_of(x);
+    cpu.x = x;
+    cpu.y = y;
 }
 
 /*
@@ -61,42 +67,58 @@ void abi_TileChangeQueueQuarter(void)
  */
 void abi_MapTileAddress(void)
 {
-    txa16();  /* 819C50 txa */
-    and16_v(0xFFF0);  /* 819C51 and */
-    sta16(ea_dp(0x0C));  /* 819C54 sta */
-    pha16();  /* 819C56 pha */
-    tya16();  /* 819C57 tya */
-    and16_v(0xFFF0);  /* 819C58 and */
-    sta16(ea_dp(0x0E));  /* 819C5B sta */
-    pla16();  /* 819C5D pla */
-    xba();  /* 819C5E xba */
-    ACC16(asl);  /* 819C5F asl */
-    and16_v(0x003E);  /* 819C60 and */
-    sta16(ea_dp(0x10));  /* 819C63 sta */
-    tya16();  /* 819C65 tya */
-    ACC16(lsr);  /* 819C66 lsr */
-    ACC16(lsr);  /* 819C67 lsr */
-    and16_v(0x03C0);  /* 819C68 and */
-    ora16_v(rd16(ea_dp(0x10)));  /* 819C6B ora */
-    tax16();  /* 819C6D tax */
-    lda16(ea_longx(0x7FF042u));  /* 819C6E lda */
-    sta16(ea_dp(0x14));  /* 819C72 sta */
-    pha16();  /* 819C74 pha */
-    lda16(ea_dp(0x0C));  /* 819C75 lda */
-    ACC16(lsr);  /* 819C77 lsr */
-    ACC16(lsr);  /* 819C78 lsr */
-    ACC16(lsr);  /* 819C79 lsr */
-    and16_v(0x001E);  /* 819C7A and */
-    sta16(ea_dp(0x10));  /* 819C7D sta */
-    lda16(ea_dp(0x0E));  /* 819C7F lda */
-    ACC16(asl);  /* 819C81 asl */
-    and16_v(0x01E0);  /* 819C82 and */
-    ora16_v(rd16(ea_dp(0x10)));  /* 819C85 ora */
-    clc();  /* 819C87 clc */
-    adc16_v(rd16(ea_dp(0x14)));  /* 819C88 adc */
-    tax16();  /* 819C8A tax */
-    ply16();  /* 819C8B ply */
-    return;  /* 819C8C rts */
+    uint16_t x = cpu.x & 0xFFF0, y = cpu.y & 0xFFF0, at, screen;
+
+    /* the point to 16 pixels; its screen, 32 across in the screen map;
+       its tile there, 16 across */
+    dp16_set(0x0C, x);
+    dp16_set(0x0E, y);
+    dp16_set(0x10, (uint16_t)(((x >> 8) << 1) & 0x003E));
+    at = (uint16_t)(((cpu.y >> 2) & 0x03C0) | dp16(0x10));
+    screen = rd16(0x7FF042u + at);
+    dp16_set(0x14, screen);
+    dp16_set(0x10, (uint16_t)((x >> 3) & 0x001E));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16((uint16_t)(((y << 1) & 0x01E0) | dp16(0x10)), screen, &cpu.p);
+    cpu.x = cpu.a;
+    cpu.y = screen;
+    nz16_of(screen);
+}
+
+/* The view's span on one axis from the camera at `camera` ($28 its start
+   less 8): its size (in `size`), half of it (`half`) and its middle
+   (`mid`). */
+static void view_span(uint16_t camera, uint16_t extent, uint16_t size, uint16_t half, uint16_t mid)
+{
+    uint16_t at = db16(camera), v;
+
+    flag_set(P_C, 0);
+    dp16_set(0x28, op_adc16(at, 0xFFF8, &cpu.p));
+    flag_set(P_C, 0);
+    v = op_adc16(at, extent, &cpu.p);
+    flag_set(P_C, 1);
+    v = op_sbc16(v, dp16(0x28), &cpu.p);
+    dp16_set(size, v);
+    flag_set(P_C, v & 1);
+    v >>= 1;
+    dp16_set(half, v);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(v, dp16(0x28), &cpu.p);
+    dp16_set(mid, cpu.a);
+}
+
+/* `at` less `mid` plus `half` below `size`: inside the view. */
+static int in_view(uint16_t at, uint16_t mid, uint16_t half, uint16_t size)
+{
+    uint16_t v;
+
+    flag_set(P_C, 1);
+    v = op_sbc16(at, dp16(mid), &cpu.p);
+    flag_set(P_C, 0);
+    v = op_adc16(v, dp16(half), &cpu.p);
+    cpu.a = v;
+    cmp16_of(v, dp16(size));
+    return v < dp16(size);
 }
 
 /*
@@ -116,114 +138,61 @@ void abi_MapTileAddress(void)
  */
 void abi_TileChangesApply(void)
 {
-    goto L_81999A;
-L_819999:
-    return;  /* 819999 rtl */
-L_81999A:
-    lda8(ea_abs(0x0719));  /* 81999A lda */
-    if (IF_Z) goto L_819999;  /* 81999D beq */
-    op_rep(0x30);  /* 81999F rep */
-    phd();  /* 8199A1 phd */
-    lda16_v(0x0000);  /* 8199A2 lda */
-    tcd();  /* 8199A5 tcd */
-    clc();  /* 8199A6 clc */
-    lda16(ea_abs(0x176C));  /* 8199A7 lda */
-    pha16();  /* 8199AA pha */
-    adc16_v(0xFFF8);  /* 8199AB adc */
-    sta16(ea_dp(0x28));  /* 8199AE sta */
-    pla16();  /* 8199B0 pla */
-    clc();  /* 8199B1 clc */
-    adc16_v(0x0118);  /* 8199B2 adc */
-    sec();  /* 8199B5 sec */
-    sbc16_v(rd16(ea_dp(0x28)));  /* 8199B6 sbc */
-    sta16(ea_dp(0x1C));  /* 8199B8 sta */
-    ACC16(lsr);  /* 8199BA lsr */
-    sta16(ea_dp(0x1E));  /* 8199BB sta */
-    clc();  /* 8199BD clc */
-    adc16_v(rd16(ea_dp(0x28)));  /* 8199BE adc */
-    sta16(ea_dp(0x20));  /* 8199C0 sta */
-    clc();  /* 8199C2 clc */
-    lda16(ea_abs(0x176E));  /* 8199C3 lda */
-    pha16();  /* 8199C6 pha */
-    adc16_v(0xFFF8);  /* 8199C7 adc */
-    sta16(ea_dp(0x28));  /* 8199CA sta */
-    pla16();  /* 8199CC pla */
-    clc();  /* 8199CD clc */
-    adc16_v(0x00F0);  /* 8199CE adc */
-    sec();  /* 8199D1 sec */
-    sbc16_v(rd16(ea_dp(0x28)));  /* 8199D2 sbc */
-    sta16(ea_dp(0x22));  /* 8199D4 sta */
-    ACC16(lsr);  /* 8199D6 lsr */
-    sta16(ea_dp(0x24));  /* 8199D7 sta */
-    clc();  /* 8199D9 clc */
-    adc16_v(rd16(ea_dp(0x28)));  /* 8199DA adc */
-    sta16(ea_dp(0x26));  /* 8199DC sta */
-    stz16(ea_dp(0x30));  /* 8199DE stz */
-    stz16(ea_abs(0x0617));  /* 8199E0 stz */
-    ldy16_v(0x0000);  /* 8199E3 ldy */
-L_8199E6:
-    phy16();  /* 8199E6 phy */
-    lda16(ea_absy(0x071D));  /* 8199E7 lda */
-    sta16(ea_dp(0x2C));  /* 8199EA sta */
-    lda16(ea_absy(0x071F));  /* 8199EC lda */
-    sta16(ea_dp(0x2E));  /* 8199EF sta */
-    lda16(ea_absy(0x0721));  /* 8199F1 lda */
-    sta16(ea_dp(0x34));  /* 8199F4 sta */
-    lda16(ea_dp(0x2C));  /* 8199F6 lda */
-    pha16();  /* 8199F8 pha */
-    ldy16(ea_dp(0x2E));  /* 8199F9 ldy */
-    phy16();  /* 8199FB phy */
-    abi_TilemapWordLong();  /* 8199FC jsl */
-    sta16(ea_dp(0x32));  /* 819A00 sta */
-    ply16();  /* 819A02 ply */
-    plx16();  /* 819A03 plx */
-    abi_MapTileAddress();  /* 819A04 jsr */
-    lda16(ea_dp(0x34));  /* 819A07 lda */
-    sta16(ea_longx(0x7F0000u));  /* 819A09 sta */
-    clc();  /* 819A0D clc */
-    adc16_v(rd16(ea_dp(0x5A)));  /* 819A0E adc */
-    sta16(ea_dp(0x34));  /* 819A10 sta */
-    lda16(ea_dp(0x5C));  /* 819A12 lda */
-    sta16(ea_dp(0x36));  /* 819A14 sta */
-    sec();  /* 819A16 sec */
-    lda16(ea_dp(0x2C));  /* 819A17 lda */
-    sbc16_v(rd16(ea_dp(0x20)));  /* 819A19 sbc */
-    clc();  /* 819A1B clc */
-    adc16_v(rd16(ea_dp(0x1E)));  /* 819A1C adc */
-    cmp16_v(rd16(ea_dp(0x1C)));  /* 819A1E cmp */
-    if (IF_C) goto L_819A4A;  /* 819A20 bcs */
-    sec();  /* 819A22 sec */
-    lda16(ea_dp(0x2E));  /* 819A23 lda */
-    sbc16_v(rd16(ea_dp(0x26)));  /* 819A25 sbc */
-    clc();  /* 819A27 clc */
-    adc16_v(rd16(ea_dp(0x24)));  /* 819A28 adc */
-    cmp16_v(rd16(ea_dp(0x22)));  /* 819A2A cmp */
-    if (IF_C) goto L_819A4A;  /* 819A2C bcs */
-    ldx16(ea_dp(0x30));  /* 819A2E ldx */
-    ldy16_v(0x0018);  /* 819A30 ldy */
-    abi_TileChangeQueueQuarter();  /* 819A33 jsr */
-    ldy16_v(0x0010);  /* 819A36 ldy */
-    abi_TileChangeQueueQuarter();  /* 819A39 jsr */
-    ldy16_v(0x0008);  /* 819A3C ldy */
-    abi_TileChangeQueueQuarter();  /* 819A3F jsr */
-    ldy16_v(0x0000);  /* 819A42 ldy */
-    abi_TileChangeQueueQuarter();  /* 819A45 jsr */
-    stx16(ea_dp(0x30));  /* 819A48 stx */
-L_819A4A:
-    pla16();  /* 819A4A pla */
-    clc();  /* 819A4B clc */
-    adc16_v(0x0008);  /* 819A4C adc */
-    tay16();  /* 819A4F tay */
-    MEM16(dec, ea_abs(0x0719));  /* 819A50 dec */
-    if (!IF_Z) goto L_8199E6;  /* 819A53 bne */
-    stz16(ea_abs(0x071B));  /* 819A55 stz */
-    op_sep(0x30);  /* 819A58 sep */
-    lda8(ea_abs(0x0617));  /* 819A5A lda */
-    if (IF_Z) goto L_819A62;  /* 819A5D beq */
-    MEM8(inc, ea_abs(0x0616));  /* 819A5F inc */
-L_819A62:
-    pld();  /* 819A62 pld */
-    return;  /* 819A63 rtl */
+    uint16_t d = cpu.d, y;
+
+    a8_load(rd8(dba(0x0719)));
+    if (!(uint8_t)cpu.a)
+        return;
+    op_rep(0x30);
+    cpu.d = 0;
+    view_span(0x176C, 0x0118, 0x1C, 0x1E, 0x20);
+    view_span(0x176E, 0x00F0, 0x22, 0x24, 0x26);
+    dp16_set(0x30, 0);
+    wr16(dba(0x0617), 0);
+    y = 0;
+    do {
+        /* each change: its tile into the level's map, and its four
+           quarters queued for VRAM when it is in view */
+        dp16_set(0x2C, db16((uint16_t)(0x071D + y)));
+        dp16_set(0x2E, db16((uint16_t)(0x071F + y)));
+        dp16_set(0x34, db16((uint16_t)(0x0721 + y)));
+        cpu.a = dp16(0x2C);
+        cpu.y = dp16(0x2E);
+        abi_TilemapWordLong();
+        dp16_set(0x32, cpu.a);
+        cpu.y = dp16(0x2E);
+        cpu.x = dp16(0x2C);
+        abi_MapTileAddress();
+        cpu.a = dp16(0x34);
+        wr16(0x7F0000u + cpu.x, cpu.a);
+        flag_set(P_C, 0);
+        dp16_set(0x34, op_adc16(cpu.a, dp16(0x5A), &cpu.p));
+        cpu.a = dp16(0x5C);
+        dp16_set(0x36, cpu.a);
+        if (in_view(dp16(0x2C), 0x20, 0x1E, 0x1C) && in_view(dp16(0x2E), 0x26, 0x24, 0x22)) {
+            cpu.x = dp16(0x30);
+            cpu.y = 0x0018;
+            abi_TileChangeQueueQuarter();
+            cpu.y = 0x0010;
+            abi_TileChangeQueueQuarter();
+            cpu.y = 0x0008;
+            abi_TileChangeQueueQuarter();
+            cpu.y = 0x0000;
+            abi_TileChangeQueueQuarter();
+            dp16_set(0x30, cpu.x);
+        }
+        flag_set(P_C, 0);
+        y = op_adc16(y, 0x0008, &cpu.p);
+        cpu.a = y;
+        cpu.y = y;
+    } while (dec16_at(dba(0x0719)));
+    wr16(dba(0x071B), 0);
+    op_sep(0x30);
+    a8_load(rd8(dba(0x0617)));
+    if ((uint8_t)cpu.a)
+        inc8_at(dba(0x0616));
+    cpu.d = d;
+    nz16_of(d);
 }
 
 /*
@@ -239,21 +208,17 @@ L_819A62:
  */
 void abi_TileChangeAdd(void)
 {
-    phx16();  /* 819978 phx */
-    ldx16(ea_abs(0x071B));  /* 819979 ldx */
-    sta16(ea_absx(0x0721));  /* 81997C sta */
-    tya16();  /* 81997F tya */
-    ora16_v(0x0008);  /* 819980 ora */
-    sta16(ea_absx(0x071F));  /* 819983 sta */
-    pla16();  /* 819986 pla */
-    ora16_v(0x0008);  /* 819987 ora */
-    sta16(ea_absx(0x071D));  /* 81998A sta */
-    clc();  /* 81998D clc */
-    txa16();  /* 81998E txa */
-    adc16_v(0x0008);  /* 81998F adc */
-    sta16(ea_abs(0x071B));  /* 819992 sta */
-    MEM16(inc, ea_abs(0x0719));  /* 819995 inc */
-    return;  /* 819998 rtl */
+    uint16_t x = db16(0x071B);
+
+    /* a record: the tile, the point's y and x (+8, to the middle) */
+    wr16(dba((uint16_t)(0x0721 + x)), cpu.a);
+    wr16(dba((uint16_t)(0x071F + x)), (uint16_t)(cpu.y | 0x0008));
+    wr16(dba((uint16_t)(0x071D + x)), (uint16_t)(cpu.x | 0x0008));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(x, 0x0008, &cpu.p);
+    wr16(dba(0x071B), cpu.a);
+    cpu.x = x;
+    inc16_at(dba(0x0719));
 }
 
 /*
@@ -268,13 +233,14 @@ void abi_TileChangeAdd(void)
  */
 void abi_MapTileAt(void)
 {
-    phd();  /* 819A84 phd */
-    lda16_v(0x0000);  /* 819A85 lda */
-    tcd();  /* 819A88 tcd */
-    abi_MapTileAddress();  /* 819A89 jsr */
-    lda16(ea_longx(LEVEL_TILES));  /* 819A8C lda */
-    pld();  /* 819A90 pld */
-    return;  /* 819A91 rtl */
+    uint16_t d = cpu.d;
+
+    cpu.a = 0;
+    cpu.d = 0;
+    abi_MapTileAddress();
+    cpu.a = rd16(LEVEL_TILES + cpu.x);
+    cpu.d = d;
+    nz16_of(d);
 }
 
 /*
@@ -290,15 +256,15 @@ void abi_MapTileAt(void)
  */
 void abi_MapTileSet(void)
 {
-    phd();  /* 819B6D phd */
-    pha16();  /* 819B6E pha */
-    lda16_v(0x0000);  /* 819B6F lda */
-    tcd();  /* 819B72 tcd */
-    abi_MapTileAddress();  /* 819B73 jsr */
-    pla16();  /* 819B76 pla */
-    sta16(ea_longx(LEVEL_TILES));  /* 819B77 sta */
-    pld();  /* 819B7B pld */
-    return;  /* 819B7C rtl */
+    uint16_t d = cpu.d, tile = cpu.a;
+
+    cpu.a = 0;
+    cpu.d = 0;
+    abi_MapTileAddress();
+    cpu.a = tile;
+    wr16(LEVEL_TILES + cpu.x, tile);
+    cpu.d = d;
+    nz16_of(d);
 }
 
 /*
@@ -318,32 +284,24 @@ void abi_MapTileSet(void)
  */
 void abi_MapQuarterAt(void)
 {
-    op_rep(0x30);  /* 819B7D rep */
-    phd();  /* 819B7F phd */
-    lda16_v(0x0000);  /* 819B80 lda */
-    tcd();  /* 819B83 tcd */
-    ldx16(ea_dp(0x0C));  /* 819B84 ldx */
-    ldy16(ea_dp(0x0E));  /* 819B86 ldy */
-    phy16();  /* 819B88 phy */
-    phx16();  /* 819B89 phx */
-    abi_MapTileAddress();  /* 819B8A jsr */
-    pla16();  /* 819B8D pla */
-    sta16(ea_dp(0x0C));  /* 819B8E sta */
-    and16_v(0x0008);  /* 819B90 and */
-    ACC16(lsr);  /* 819B93 lsr */
-    ACC16(lsr);  /* 819B94 lsr */
-    sta16(ea_dp(0x12));  /* 819B95 sta */
-    pla16();  /* 819B97 pla */
-    sta16(ea_dp(0x0E));  /* 819B98 sta */
-    and16_v(0x0008);  /* 819B9A and */
-    ACC16(lsr);  /* 819B9D lsr */
-    tsb16(ea_dp(0x12));  /* 819B9E tsb */
-    clc();  /* 819BA0 clc */
-    lda16(ea_longx(LEVEL_TILES));  /* 819BA1 lda */
-    adc16_v(rd16(ea_dp(0x12)));  /* 819BA5 adc */
-    tay16();  /* 819BA7 tay */
-    lda16(ea_dpily(0x5A));  /* 819BA8 lda */
-    op_sep(0x30);  /* 819BAA sep */
-    pld();  /* 819BAC pld */
-    return;  /* 819BAD rtl */
+    uint16_t d = cpu.d, x, y, quarter;
+
+    op_rep(0x30);
+    cpu.d = 0;
+    x = dp16(0x0C);
+    y = dp16(0x0E);
+    cpu.x = x;
+    cpu.y = y;
+    abi_MapTileAddress();
+    /* the quarter of the tile the point is in: 2 for right, 4 for down */
+    dp16_set(0x0C, x);
+    dp16_set(0x0E, y);
+    quarter = (uint16_t)(((x & 0x0008) >> 2) | ((y & 0x0008) >> 1));
+    dp16_set(0x12, quarter);
+    flag_set(P_C, 0);
+    cpu.y = op_adc16(rd16(LEVEL_TILES + cpu.x), quarter, &cpu.p);
+    cpu.a = rd16(dp_long_y(0x5A, cpu.y));
+    op_sep(0x30);
+    cpu.d = d;
+    nz16_of(d);
 }

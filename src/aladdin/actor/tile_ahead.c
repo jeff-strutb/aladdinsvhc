@@ -3,6 +3,8 @@
  * and an actor's end from code in another bank.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 
@@ -30,13 +32,16 @@ void abi_ActorFreePlacedAtY(void);
  */
 void abi_ActorTileAheadIs70(void)
 {
-    stz8(ea_abs(SCRATCH));
-    lda8_v(TILE_BELOW);
-    sta8(ea_abs(SCRATCH + 2));
-    stz8(ea_abs(SCRATCH + 3));
+    uint8_t class;
+
+    wr8(dba(SCRATCH), 0);
+    a8_load(TILE_BELOW);
+    wr8(dba(SCRATCH + 2), TILE_BELOW);
+    wr8(dba(SCRATCH + 3), 0);
     call_routine(TILE_AHEAD, 0);
-    and8_v(CLASS_70);
-    cmp8_v(CLASS_70);
+    class = (uint8_t)cpu.a & CLASS_70;
+    a8_load(class);
+    cmp8_of(class, CLASS_70);
 }
 
 /*

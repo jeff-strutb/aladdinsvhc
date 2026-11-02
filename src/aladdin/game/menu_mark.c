@@ -4,6 +4,8 @@
  * by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 
@@ -22,18 +24,14 @@ void abi_SoundQueueAdd(void);
  */
 void abi_MenuMarkErase(void)
 {
-    php();  /* 81EF15 php */
-    op_rep(0x20);  /* 81EF16 rep */
-    lda16_v(0x0020);  /* 81EF18 lda */
-    sta16(ea_longx(0x7ED802u));  /* 81EF1B sta */
-    sta16(ea_longx(0x7ED840u));  /* 81EF1F sta */
-    sta16(ea_longx(0x7ED842u));  /* 81EF23 sta */
-    sta16(ea_longx(0x7ED844u));  /* 81EF27 sta */
-    sta16(ea_longx(0x7ED880u));  /* 81EF2B sta */
-    sta16(ea_longx(0x7ED882u));  /* 81EF2F sta */
-    sta16(ea_longx(0x7ED884u));  /* 81EF33 sta */
-    plp();  /* 81EF37 plp */
-    return;  /* 81EF38 rtl */
+    static const uint16_t cells[7] = { 2, 64, 66, 68, 128, 130, 132 };
+
+    php();
+    op_rep(P_M);
+    a16_load(0x0020);
+    for (int i = 0; i < 7; i++)
+        wr16((TEXT_TILEMAP + cells[i] + cpu.x) & 0xFFFFFF, 0x0020);
+    plp();
 }
 
 

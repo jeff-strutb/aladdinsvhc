@@ -3,6 +3,8 @@
  * Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
@@ -28,30 +30,26 @@ void abi_AnimStart(void);
  */
 void abi_Kind5EBrief(void)
 {
-    op_rep(0x20);  /* 83E42A rep */
-    lda16_v(0x0600);  /* 83E42C lda */
-    sta16(ea_dp(ACTOR_LOOK));  /* 83E42F sta */
-    op_sep(0x20);  /* 83E431 sep */
-    lda8_v(0x03);  /* 83E433 lda */
-    tsb8(ea_dp(ACTOR_08));  /* 83E435 tsb */
-    lda8_v(0x90);  /* 83E437 lda */
-    tsb8(ea_dp(ACTOR_09));  /* 83E439 tsb */
-    ldx8_v(0x0C);  /* 83E43B ldx */
-    ldy8_v(0x23);  /* 83E43D ldy */
-    lda8(ea_dp(ACTOR_07));  /* 83E43F lda */
-    and8_v(0x04);  /* 83E441 and */
-    if (IF_Z) goto L_83E449;  /* 83E443 beq */
-    ldx8_v(0x0C);  /* 83E445 ldx */
-    ldy8_v(0x23);  /* 83E447 ldy */
-L_83E449:
-    txa8();  /* 83E449 txa */
-    sty8(ea_dp(KIND5E_LEFT));  /* 83E44A sty */
-    abi_AnimStart();  /* 83E44C jsl */
-L_83E450:
-    actor_yield(0x83E450u);  /* 83E450 brk */
-    MEM8(dec, ea_dp(KIND5E_LEFT));  /* 83E452 dec */
-    if (!IF_Z) goto L_83E450;  /* 83E454 bne */
-    goto L_83E461;  /* 83E456 bra */
-L_83E461:
-    abi_ActorEndPlaced(); return;  /* 83E461 jml */
+    uint8_t left;
+
+    dp16_set(ACTOR_LOOK, 0x0600);
+    cpu.a = 0x0600;
+    a8_load(0x03);
+    tsb_at(dpa(ACTOR_08), 0x03);
+    a8_load(0x90);
+    tsb_at(dpa(ACTOR_09), 0x90);
+    /* animation $0C for $23 frames (both of its $07 variants alike) */
+    x8_load(0x0C);
+    y8_load(0x23);
+    a8_load(rd8(dpa(ACTOR_07)) & 0x04);
+    a8_load(0x0C);
+    wr8(dpa(KIND5E_LEFT), 0x23);
+    abi_AnimStart();
+    do {
+        actor_yield(0x83E450u);
+        left = (uint8_t)(rd8(dpa(KIND5E_LEFT)) - 1);
+        wr8(dpa(KIND5E_LEFT), left);
+        nz8_of(left);
+    } while (left);
+    abi_ActorEndPlaced();
 }

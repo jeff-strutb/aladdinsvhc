@@ -11,6 +11,7 @@ incsrc "../include/wram_video.inc"
 arch 65816
 
 !ACTOR_PICTUREs_at = $29        ; the actor's picture list (direct-page pointer, word)
+!KIND_GFX = $7FE500             ; per kind: where its graphics went in bank $7F (word)
 
 ; @routine 81:949E ActorPictureSend
 ; WHAT IT DOES: When the actor shows its own picture (bit 6 of $09) and
@@ -119,6 +120,89 @@ ActorPictureQueue:
     iny
     iny
     bra .l94DB
+; ActorPictureSendFromKind's way out after queuing, and with nothing to
+; send.
+ActorPictureFromKindDone:
     sep.b #$30
     rtl
+ActorPictureFromKindNone:
     rtl
+
+; @routine 81:9527 ActorPictureSendFromKind
+; WHAT IT DOES: As ActorPictureSend, for an actor whose graphics were
+; unpacked to bank $7F for its kind: when it shows its own picture (bit 6
+; of $09) and the picture has changed, queues the picture's graphics for
+; VRAM, their source the part's offset from where its kind's graphics
+; went (KIND_GFX).
+; HOW: Bit 6 clear, or the picture the one last sent: nothing (the RTL
+; before its entry). Else the picture kept and, from the actor's picture
+; list, its first part as a VRAM queue record: the slot's VRAM address
+; from the sprite attributes, the source KIND_GFX by its kind plus the
+; part's offset, then the part's bank and size, VMAIN $80; the queue
+; counted up. The $FF that ends the list: M and X 8-bit and out. A second
+; part goes on at $81:959A, which no script reaches: those bytes are
+; left in the intake.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL. Exit:
+; nothing to send: A low byte = 0 or the picture, Z set. Queued: M
+; 8-bit, X 8-bit; N, Z from the last compare (Z set).
+%at($819527)
+ActorPictureSendFromKind:
+    lda.b !actor_09
+    and.b #$40
+    beq ActorPictureFromKindNone
+    lda.b !ACTOR_PICTURE
+    cmp.b !ACTOR_REDRAW
+    beq ActorPictureFromKindNone
+    sta.b !ACTOR_REDRAW
+    asl a
+    sta.w !scratch
+    stz.w !scratch+1
+    lda.w !vram_queue_count
+    asl a
+    asl a
+    asl a
+    tax
+    rep.b #$30
+    lda.w #$0000
+    tay
+    lda.b (!ACTOR_PICTUREs_at),y
+    clc
+    adc.w !scratch
+    tay
+    lda.w 0,y
+    tay
+    lda.b !actor_look
+    and.w #$01FF
+    asl a
+    asl a
+    asl a
+    asl a
+    clc
+    adc.w #$6000
+    sta.w !vram_queue,x
+    phx
+    lda.b !actor_06
+    and.w #$00FF
+    asl a
+    tax
+    lda.l !KIND_GFX,x
+    plx
+    clc
+    adc.w 0,y
+    sta.w !vram_queue+2,x
+    iny
+    iny
+    lda.w 0,y
+    sta.w !vram_queue+4,x
+    iny
+    iny
+    sep.b #$20
+    lda.w 0,y
+    sta.w !vram_queue+6,x
+    iny
+    lda.b #$80
+    sta.w !vram_queue+7,x
+    inc.w !vram_queue_count
+    lda.w 0,y
+    cmp.b #$FF
+    beq ActorPictureFromKindDone

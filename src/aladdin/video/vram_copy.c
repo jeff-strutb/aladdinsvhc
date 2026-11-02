@@ -3,6 +3,8 @@
  * entry of a table of copies.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "hw.h"
 #include "wram.h"
@@ -15,26 +17,24 @@
 
 /* From LDA #0; TCD: D 0, the entry at X to the direct page's long pointer
    at $0C, VMADD, then the words through VMDATA; PLP; RTL. */
+/* The copy at entry X: with D = 0, its source (long) to scratch, its VRAM
+   address to VMADDL, then its count of words through VMDATAL; P pulled. */
 static void copy_entry(void)
 {
-    lda16_v(0x0000);
-    tcd();
-    lda16(ea_absx(VRAM_COPIES));
-    sta16(ea_abs(SCRATCH));
-    lda16(ea_absx(VRAM_COPIES + 2));
-    sta16(ea_abs(SCRATCH + 2));
-    lda16(ea_absx(VRAM_COPIES + 3));
-    sta16(ea_abs(VMADDL));
-    lda16(ea_absx(VRAM_COPIES + 5));
-    tax16();
-    ldy16_v(0x0000);
+    uint32_t entry = dba(VRAM_COPIES) + cpu.x;
+
+    cpu.a = cpu.d = 0;
+    wr16(dba(SCRATCH), rd16(entry));
+    wr16(dba(SCRATCH + 2), rd16(entry + 2));
+    wr16(dba((uint16_t)VMADDL), rd16(entry + 3));
+    cpu.x = rd16(entry + 5);
+    cpu.y = 0;
     do {
-        lda16(ea_dpily(0x0C));
-        sta16(ea_abs(VMDATAL));
-        iny16();
-        iny16();
-        dex16();
-    } while (!IF_Z);
+        cpu.a = rd16((rd24(dpa(SCRATCH)) + cpu.y) & 0xFFFFFF);
+        wr16(dba((uint16_t)VMDATAL), cpu.a);
+        cpu.y = (uint16_t)(cpu.y + 2);
+        cpu.x = (uint16_t)(cpu.x - 1);
+    } while (cpu.x);
     plp();
 }
 
@@ -53,8 +53,8 @@ static void copy_entry(void)
 void abi_VramCopy(void)
 {
     php();
-    lda8_v(0x80);
-    sta8(ea_abs(VMAIN));
+    a8_load(0x80);
+    wr8(dba((uint16_t)VMAIN), 0x80);
     op_rep(0x30);
     copy_entry();
 }
@@ -68,12 +68,11 @@ void abi_VramCopy(void)
 void abi_VramCopy2(void)
 {
     php();
-    lda8_v(0x80);
-    sta8(ea_abs(VMAIN));
+    a8_load(0x80);
+    wr8(dba((uint16_t)VMAIN), 0x80);
     op_rep(0x30);
-    txa16();
-    clc();
-    adc16_v(VRAM_COPIES_2);
-    tax16();
+    flag_set(P_C, 0);
+    cpu.x = op_adc16(cpu.x, VRAM_COPIES_2, &cpu.p);   /* the second table's entry */
+    cpu.a = cpu.x;
     copy_entry();
 }

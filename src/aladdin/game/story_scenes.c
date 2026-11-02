@@ -5,6 +5,8 @@
  * sound command for its end.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 void abi_ActorSpawnAtLong(void);
@@ -29,6 +31,10 @@ static void task_create(uint32_t site)
     cpu.unwound = 0;
 }
 
+#define STORY_ACTORS 0xDB5Du  /* 6 bytes each: kind (0: the player), $07, x, y (in the bank DB names) */
+#define PLACE_X 0x002Cu       /* where ActorSpawnAt places the actor: x, then y (words) */
+#define PLACE_Y 0x002Eu
+
 /*
  * @routine 80:B0AE StoryScene2Start
  * WHAT IT DOES: Sets up the story's second scene: sound command $F6 with
@@ -41,10 +47,10 @@ static void task_create(uint32_t site)
  */
 void abi_StoryScene2Start(void)
 {
-    lda8_v(0x02);
-    sta8(ea_abs(SCENE_END_SOUND));
-    lda8_v(0x40);
-    sta8(ea_abs(SCENE_END_WAIT));
+    a8_load(0x02);
+    wr8(dba(SCENE_END_SOUND), 0x02);
+    a8_load(0x40);
+    wr8(dba(SCENE_END_WAIT), 0x40);
     task_create(0x80B0B8u);
 }
 
@@ -85,7 +91,7 @@ void abi_StoryFadeOutStart(void)
  */
 void abi_StoryWait64Frames(void)
 {
-    lda8_v(0x40);
+    a8_load(0x40);
     jsl_frame(0x80B191u);
     abi_TaskWait();
 }
@@ -103,31 +109,34 @@ void abi_StoryWait64Frames(void)
  */
 void abi_StoryActorPlace(void)
 {
-    op_rep(0x20);  /* 80B196 rep */
-    lda16(ea_absx(0xDB5F));  /* 80B198 lda */
-    sta16(ea_abs(0x002C));  /* 80B19B sta */
-    lda16(ea_absx(0xDB61));  /* 80B19E lda */
-    sta16(ea_abs(0x002E));  /* 80B1A1 sta */
-    op_sep(0x20);  /* 80B1A4 sep */
-    lda8(ea_absx(0xDB5D));  /* 80B1A6 lda */
-    if (IF_Z) goto L_80B1B6;  /* 80B1A9 beq */
-    xba();  /* 80B1AB xba */
-    lda8(ea_absx(0xDB5E));  /* 80B1AC lda */
-    abi_ActorSpawnAtLong();  /* 80B1AF jsl */
-L_80B1B3:
-    op_sep(0x30);  /* 80B1B3 sep */
-    return;  /* 80B1B5 rts */
-L_80B1B6:
-    stz8(ea_abs(0x08E1));  /* 80B1B6 stz */
-    lda8(ea_absx(0xDB5E));  /* 80B1B9 lda */
-    sta8(ea_abs(0x08E2));  /* 80B1BC sta */
-    ldx8(ea_abs(0x002C));  /* 80B1BF ldx */
-    stx8(ea_abs(0x08E7));  /* 80B1C2 stx */
-    stz8(ea_abs(0x08E6));  /* 80B1C5 stz */
-    ldx8(ea_abs(0x002E));  /* 80B1C8 ldx */
-    stx8(ea_abs(0x08EA));  /* 80B1CB stx */
-    stz8(ea_abs(0x08E9));  /* 80B1CE stz */
-    lda8_v(0x0C);  /* 80B1D1 lda */
-    sta8(ea_abs(PLAYER));  /* 80B1D3 sta */
-    goto L_80B1B3;  /* 80B1D6 bra */
+    uint32_t entry = dba(STORY_ACTORS) + cpu.x;
+    uint16_t y = rd16(entry + 4);
+    uint8_t kind, b07;
+
+    wr16(dba(PLACE_X), rd16(entry + 2));
+    wr16(dba(PLACE_Y), y);
+    cpu.a = y;
+    kind = rd8(entry);
+    a8_load(kind);
+    if (kind) {
+        op_xba();
+        a8_load(rd8(entry + 1));
+        abi_ActorSpawnAtLong();
+        op_sep(0x30);
+        return;
+    }
+    /* kind 0: the player, set there to start */
+    wr8(dba(PLAYER + ACTOR_06), 0);
+    b07 = rd8(entry + 1);
+    a8_load(b07);
+    wr8(dba(PLAYER + ACTOR_07), b07);
+    x8_load(rd8(dba(PLACE_X)));
+    wr8(dba(PLAYER + ACTOR_X + 1), (uint8_t)cpu.x);
+    wr8(dba(PLAYER + ACTOR_X), 0);
+    x8_load(rd8(dba(PLACE_Y)));
+    wr8(dba(PLAYER + ACTOR_Y + 1), (uint8_t)cpu.x);
+    wr8(dba(PLAYER + ACTOR_Y), 0);
+    a8_load(0x0C);
+    wr8(dba(PLAYER + ACTOR_STATE), 0x0C);
+    op_sep(0x30);
 }

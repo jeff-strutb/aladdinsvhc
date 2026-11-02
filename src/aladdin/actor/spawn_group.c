@@ -3,6 +3,8 @@
  * five, a pair, a copy of themselves, a child of a set kind.
  */
 #include "machine.h"
+#include "native.h"
+#include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -10,6 +12,8 @@ void abi_ActorSpawnSameLook(void);
 
 /* Spawns a child of kind A at the actor's spawn point when a record is
    free: A = 0 (Z set) when it did, C set and A nonzero when none was. */
+void abi_ActorCreateChild8(void);
+
 #define SPAWN_KIND 0x81A9B1u
 /* In bank $80 (DB): five x and y offsets (words, 4 bytes an entry) the
    ring's children are spawned at, each from the one before. */
@@ -38,49 +42,45 @@ void abi_ActorSpawnSameLook(void);
  */
 void abi_ActorSpawnRing(void)
 {
-    lda8_v(0x05);
-    sta8(ea_dp(ACTOR_40));
-    ldx8_v(0x00);
-    op_rep(0x20);
-    lda16(ea_dp(ACTOR_X + 1));
+    a8_load(0x05);
+    wr8(dpa(ACTOR_40), 0x05);
+    x8_load(0x00);
+    op_rep(P_M);
+    a16_load(dp16(ACTOR_X + 1));           /* its place and $07 kept */
     pha16();
-    lda16(ea_dp(ACTOR_Y + 1));
+    a16_load(dp16(ACTOR_Y + 1));
     pha16();
-    lda16(ea_dp(ACTOR_07));
+    a16_load(dp16(ACTOR_07));
     pha16();
-next:
-    op_rep(0x21);
-    lda16(ea_absx(RING_OFFSETS));
-    adc16_v(rd16(ea_dp(ACTOR_X + 1)));
-    sta16(ea_dp(ACTOR_X + 1));
-    clc();
-    lda16(ea_absx(RING_OFFSETS + 2));
-    adc16_v(rd16(ea_dp(ACTOR_Y + 1)));
-    sta16(ea_dp(ACTOR_Y + 1));
-    op_sep(0x20);
-    stx8(ea_dp(ACTOR_43));
-    lda8_v(0x01);
-    sta8(ea_dp(ACTOR_07));
-    stz8(ea_dp(ACTOR_SPAWN_AT));
-    lda8_v(RING_KIND);
-    call_routine(SPAWN_KIND, 1);
-    if (!IF_Z) goto done;
-    ldx8(ea_dp(ACTOR_43));
-    inx8();
-    inx8();
-    inx8();
-    inx8();
-    MEM8(dec, ea_dp(ACTOR_40));
-    if (!IF_Z) goto next;
-done:
-    op_rep(0x20);
+    for (;;) {
+        /* the next point of the ring, from the last, and a kind $34 there */
+        op_rep(0x21);
+        cpu.a = op_adc16(rd16(dba(RING_OFFSETS) + cpu.x), dp16(ACTOR_X + 1), &cpu.p);
+        dp16_set(ACTOR_X + 1, cpu.a);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(rd16(dba(RING_OFFSETS + 2) + cpu.x), dp16(ACTOR_Y + 1), &cpu.p);
+        dp16_set(ACTOR_Y + 1, cpu.a);
+        op_sep(P_M);
+        wr8(dpa(ACTOR_43), (uint8_t)cpu.x);
+        a8_load(0x01);
+        wr8(dpa(ACTOR_07), 0x01);
+        wr8(dpa(ACTOR_SPAWN_AT), 0);
+        a8_load(RING_KIND);
+        abi_ActorCreateChild8();
+        if (!(cpu.p & P_Z))
+            break;
+        x8_load((uint8_t)(rd8(dpa(ACTOR_43)) + 4));
+        if (!dec8_at(dpa(ACTOR_40)))
+            break;
+    }
+    op_rep(P_M);
     pla16();
-    sta16(ea_dp(ACTOR_07));
+    dp16_set(ACTOR_07, cpu.a);
     pla16();
-    sta16(ea_dp(ACTOR_Y + 1));
+    dp16_set(ACTOR_Y + 1, cpu.a);
     pla16();
-    sta16(ea_dp(ACTOR_X + 1));
-    op_sep(0x20);
+    dp16_set(ACTOR_X + 1, cpu.a);
+    op_sep(P_M);
 }
 /*
  * @routine 83:D332 ActorSpawnPair
@@ -96,23 +96,25 @@ done:
  */
 void abi_ActorSpawnPair(void)
 {
-    MEM8(inc, ea_dp(ACTOR_07));
-    MEM8(inc, ea_dp(ACTOR_07));
-    lda8_v(0x46);
-    sta8(ea_dp(ACTOR_SPAWN_AT));
-    lda8(ea_dp(ACTOR_06));
+    uint8_t v;
+
+    inc8_at(dpa(ACTOR_07));
+    inc8_at(dpa(ACTOR_07));
+    a8_load(0x46);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x46);
+    a8_load(rd8(dpa(ACTOR_06)));
     abi_ActorSpawnSameLook();
-    if (IF_N) goto done;
-    lda8_v(0x04);
-    tsb8(ea_dp(ACTOR_07));
-    lda8_v(0x48);
-    sta8(ea_dp(ACTOR_SPAWN_AT));
-    lda8(ea_dp(ACTOR_06));
-    abi_ActorSpawnSameLook();
-done:
-    lda8(ea_dp(ACTOR_07));
-    and8_v(0x01);
-    sta8(ea_dp(ACTOR_07));
+    if (!(cpu.p & P_N)) {                 /* the second, with bit 2 of $07 */
+        a8_load(0x04);
+        tsb_at(dpa(ACTOR_07), 0x04);
+        a8_load(0x48);
+        wr8(dpa(ACTOR_SPAWN_AT), 0x48);
+        a8_load(rd8(dpa(ACTOR_06)));
+        abi_ActorSpawnSameLook();
+    }
+    v = rd8(dpa(ACTOR_07)) & 0x01;
+    a8_load(v);
+    wr8(dpa(ACTOR_07), v);
 }
 /*
  * @routine 83:D7C9 ActorSpawn5E
@@ -124,10 +126,10 @@ done:
  */
 void abi_ActorSpawn5E(void)
 {
-    lda8_v(0x4E);
-    sta8(ea_dp(ACTOR_SPAWN_AT));
-    lda8_v(0x5E);
-    call_routine(SPAWN_KIND, 1);
+    a8_load(0x4E);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x4E);
+    a8_load(0x5E);
+    abi_ActorCreateChild8();
 }
 /*
  * @routine 83:D7D4 ActorSpawnCopy
@@ -140,12 +142,12 @@ void abi_ActorSpawn5E(void)
  */
 void abi_ActorSpawnCopy(void)
 {
-    lda8_v(0x08);
-    tsb8(ea_dp(ACTOR_07));
-    lda8_v(0x00);
-    sta8(ea_dp(ACTOR_SPAWN_AT));
-    lda8(ea_dp(ACTOR_06));
+    a8_load(0x08);
+    tsb_at(dpa(ACTOR_07), 0x08);          /* the copy's $07 has bit 3 */
+    a8_load(0x00);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x00);
+    a8_load(rd8(dpa(ACTOR_06)));
     abi_ActorSpawnSameLook();
-    lda8_v(0x08);
-    trb8(ea_dp(ACTOR_07));
+    a8_load(0x08);
+    trb_at(dpa(ACTOR_07), 0x08);
 }
