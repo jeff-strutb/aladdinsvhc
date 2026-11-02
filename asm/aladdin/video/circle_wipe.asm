@@ -22,7 +22,7 @@ arch 65816
 !row_down_x = $0016             ; scanline centre + x ($FF off screen), then its offset
 !row_up_y = $0018               ; scanline centre - y, then its offset
 !row_down_y = $001A             ; scanline centre + y, then its offset
-!window_edges = $7F5000         ; window edges per scanline: left, right
+!circle_window_edges = $7F5000         ; window edges per scanline: left, right
 
 ; @routine 81:B264 CircleWipeStep
 ; WHAT IT DOES: Draws the wipe's circle of radius A round the point X, Y
@@ -63,7 +63,7 @@ CircleWipeStep:
     ldx.w #$0000
     lda.w #$00FF
 .clear:
-    sta.l !window_edges,x
+    sta.l !circle_window_edges,x
     inx
     inx
     cpx.w #$0200
@@ -178,14 +178,14 @@ CircleWipePlot:
     asl.w !row_down_y
     ldx.w !row_up_x
     lda.w !span_y
-    sta.l !window_edges,x
+    sta.l !circle_window_edges,x
     ldx.w !row_down_x
     lda.w !span_y
-    sta.l !window_edges,x
+    sta.l !circle_window_edges,x
     ldx.w !row_up_y
     lda.w !span_x
-    sta.l !window_edges,x
+    sta.l !circle_window_edges,x
     ldx.w !row_down_y
     lda.w !span_x
-    sta.l !window_edges,x
+    sta.l !circle_window_edges,x
     rts
