@@ -52,7 +52,7 @@ ActorTurnsShotBack:
     lda.w !actor_facing,y
     eor.b #$01
     sta.w !actor_facing,y
-    lda.b #!TURNED_BACK_AT&$FF
+    lda.b #!TURNED_BACK_AT&255
     sta.w !actor_03,y
     lda.b #!TURNED_BACK_AT>>8
     sta.w !actor_04,y
