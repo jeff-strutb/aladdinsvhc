@@ -14,6 +14,7 @@ void abi_ActorSpawnPlace(void);
 void abi_ActorFreePlacedAtYLong(void);
 void abi_ActorAlloc(void);
 #include "actor.h"
+#include "wram.h"
 
 /*
  * @routine 81:A9E9 ActorSpawnShared
