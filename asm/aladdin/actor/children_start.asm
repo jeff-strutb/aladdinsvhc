@@ -29,24 +29,24 @@ ActorStartChild1E:
 ; $1E, their $07 5 and 4), the free list's top two records first put in
 ; address order (the lower on top).
 ; HOW: The top entry of the free list compared with the one under it
-; (16-bit); not below, the two swapped. Then the child start at 83:C4EC
+; (16-bit); not below, the two swapped. Then ChildStartListed
 ; twice, X = $1C, Y = 5 and X = $1E, Y = 4.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
-; through the actor's table at 83:C324. Exit: M 8-bit, X 8-bit; as the
-; child start left it.
+; through the actor's table at 83:C324. Exit: M 8-bit, X 8-bit; as
+; ChildStartListed left it.
 %at($83C33A)
 ActorStartTwoChildren:
     rep.b #$20
     ldx.w !actor_free_top
     lda.w !actor_free_list,x
     cmp.w !actor_free_list-2,x
-    bcc .lC352
+    bcc .start
     pha
     lda.w !actor_free_list-2,x
     sta.w !actor_free_list,x
     pla
     sta.w !actor_free_list-2,x
-.lC352:
+.start:
     sep.b #$20
     ldx.b #$1C
     ldy.b #$05

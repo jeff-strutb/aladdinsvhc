@@ -86,3 +86,41 @@ void abi_ActorStartChild1E(void)
     y8_load(0x04);
     abi_ChildStartListed();
 }
+
+/*
+ * @routine 83:C33A ActorStartTwoChildren
+ * WHAT IT DOES: Starts the actor's two children (at spawn points $1C and
+ * $1E, their $07 5 and 4), the free list's top two records first put in
+ * address order (the lower on top).
+ * HOW: The top entry of the free list compared with the one under it
+ * (16-bit); not below, the two swapped. Then ChildStartListed
+ * twice, X = $1C, Y = 5 and X = $1E, Y = 4.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * through the actor's table at 83:C324. Exit: M 8-bit, X 8-bit; as
+ * ChildStartListed left it.
+ */
+void abi_ActorStartTwoChildren(void)
+{
+    uint16_t top, under;
+
+    op_rep(P_M);
+    cpu.x = rd8(dba((uint16_t)ACTOR_FREE_TOP));
+    top = rd16(dba((uint16_t)ACTOR_FREE_LIST) + cpu.x);
+    under = rd16(dba((uint16_t)(ACTOR_FREE_LIST - 2)) + cpu.x);
+    a16_load(top);
+    cmp16_of(top, under);
+    if (top >= under) {                   /* the lower address on top */
+        pha16();
+        a16_load(under);
+        wr16(dba((uint16_t)ACTOR_FREE_LIST) + cpu.x, under);
+        pla16();
+        wr16(dba((uint16_t)(ACTOR_FREE_LIST - 2)) + cpu.x, (uint16_t)cpu.a);
+    }
+    op_sep(P_M);
+    cpu.x = 0x1C;
+    y8_load(0x05);
+    abi_ChildStartListed();
+    cpu.x = 0x1E;
+    y8_load(0x04);
+    abi_ChildStartListed();
+}
