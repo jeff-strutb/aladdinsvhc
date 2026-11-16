@@ -26,6 +26,19 @@ arch 65816
 ; Random lists: per list, a mask, then its entries.
 !random_lists = $81DCE7
 
+; @routine 81:9726 TextLayoutShowThird
+; WHAT IT DOES: Draws text layout A (or blanks it, bit 7 set) and has the
+; NMI upload the third part of the text buffer at the next frame.
+; HOW: TextLayoutDraw, then the third of TEXT_PARTS_PENDING counted up
+; (DB as at entry).
+; Entry: M 8-bit, X 8-bit; A low byte = the layout; called by JSL. Exit:
+; as TextLayoutDraw leaves it, but N and Z from the part's count.
+%at($819726)
+TextLayoutShowThird:
+    jsr.w TextLayoutDraw
+    inc.w !text_parts_pending+2
+    rtl
+
 ; @routine 81:972D TextLayoutShow
 ; WHAT IT DOES: Draws text layout A (or blanks it, bit 7 set) and has the
 ; NMI copy the text layer to VRAM at the next frame.

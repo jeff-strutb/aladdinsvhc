@@ -11,6 +11,19 @@ arch 65816
 !v_035a = $035A
 !v_036c = $036C
 
+; @routine 83:C32A ActorStartChild1E
+; WHAT IT DOES: Starts the actor's one child (set 0 of its table at
+; 83:C324): at spawn point $1E, its $07 = 4.
+; HOW: ChildStartListed with X = $1E, Y = 4.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; through the actor's table at 83:C324 (83:C317). Exit: as ChildStartListed.
+%at($83C32A)
+ActorStartChild1E:
+    ldx.b #$1E
+    ldy.b #$04
+    jsr.w ChildStartListed
+    rts
+
 ; @routine 83:C33A ActorStartTwoChildren
 ; WHAT IT DOES: Starts the actor's two children (at spawn points $1C and
 ; $1E, their $07 5 and 4), the free list's top two records first put in

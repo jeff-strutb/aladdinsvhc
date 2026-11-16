@@ -301,3 +301,31 @@ ActorFlyAgainstNoRise:
     stz.b !actor_speed_y+2
 .done:
     rts
+
+; @routine 83:C569 Kind40Wait
+; WHAT IT DOES: What an actor of kind $40 runs each frame it waits: its
+; animation, then its end when it is out of range by box $18.
+; HOW: AnimStep; X = $18, then into ActorEndOutOfRange (a copy of
+; ActorWaitAnimRange18).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; through the actor loop's wait table (83:94D0). Exit: as
+; ActorEndOutOfRange: in range it returns; out of range the actor ends.
+%at($83C569)
+Kind40Wait:
+    jsl.l AnimStep
+    ldx.b #$18
+    jmp.w ActorEndOutOfRange
+
+; @routine 83:C966 Kind62Wait
+; WHAT IT DOES: What an actor of kind $62 runs each frame it waits: the
+; test whether it stops Aladdin's shot, then its end when it is out of
+; range by box 0.
+; HOW: ActorStopsShot; X = 0, then into ActorEndOutOfRange.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; through the actor loop's wait table (83:94D0). Exit: as
+; ActorEndOutOfRange: in range it returns; out of range the actor ends.
+%at($83C966)
+Kind62Wait:
+    jsr.w ActorStopsShot
+    ldx.b #$00
+    jmp.w ActorEndOutOfRange

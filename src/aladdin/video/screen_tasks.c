@@ -110,6 +110,21 @@ void abi_RandomFromList(void)
 }
 
 /*
+ * @routine 81:9726 TextLayoutShowThird
+ * WHAT IT DOES: Draws text layout A (or blanks it, bit 7 set) and has the
+ * NMI upload the third part of the text buffer at the next frame.
+ * HOW: TextLayoutDraw, then the third of TEXT_PARTS_PENDING counted up
+ * (DB as at entry).
+ * Entry: M 8-bit, X 8-bit; A low byte = the layout; called by JSL. Exit:
+ * as TextLayoutDraw leaves it, but N and Z from the part's count.
+ */
+void abi_TextLayoutShowThird(void)
+{
+    abi_TextLayoutDraw();
+    inc8_at(dba((uint16_t)(TEXT_PARTS_PENDING + 2)));
+}
+
+/*
  * @routine 81:972D TextLayoutShow
  * WHAT IT DOES: Draws text layout A (or blanks it, bit 7 set) and has the
  * NMI copy the text layer to VRAM at the next frame.

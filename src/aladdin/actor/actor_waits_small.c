@@ -352,3 +352,37 @@ void abi_ActorFlyAgainstNoRise(void)
     wr8(dpa(ACTOR_SPEED_Y + 1), 0);
     wr8(dpa(ACTOR_SPEED_Y + 2), 0);
 }
+
+/*
+ * @routine 83:C569 Kind40Wait
+ * WHAT IT DOES: What an actor of kind $40 runs each frame it waits: its
+ * animation, then its end when it is out of range by box $18.
+ * HOW: AnimStep; X = $18, then into ActorEndOutOfRange (a copy of
+ * ActorWaitAnimRange18).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor loop's wait table (83:94D0). Exit: as
+ * ActorEndOutOfRange: in range it returns; out of range the actor ends.
+ */
+void abi_Kind40Wait(void)
+{
+    abi_AnimStep();
+    x8_load(0x18);
+    abi_ActorEndOutOfRange();
+}
+
+/*
+ * @routine 83:C966 Kind62Wait
+ * WHAT IT DOES: What an actor of kind $62 runs each frame it waits: the
+ * test whether it stops Aladdin's shot, then its end when it is out of
+ * range by box 0.
+ * HOW: ActorStopsShot; X = 0, then into ActorEndOutOfRange.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor loop's wait table (83:94D0). Exit: as
+ * ActorEndOutOfRange: in range it returns; out of range the actor ends.
+ */
+void abi_Kind62Wait(void)
+{
+    abi_ActorStopsShot();
+    x8_load(0x00);
+    abi_ActorEndOutOfRange();
+}

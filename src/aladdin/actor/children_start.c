@@ -9,6 +9,7 @@
 #include "actor.h"
 
 void abi_ActorCreateChild8(void);
+void abi_ChildStartListed(void);
 void abi_ActorDownedByShot(void);
 void abi_ActorEndOutOfRange(void);
 void abi_ActorFreePlaced(void);
@@ -71,3 +72,17 @@ void abi_ActorVariantChildStep(void)
     nz8_of(n);
 }
 
+/*
+ * @routine 83:C32A ActorStartChild1E
+ * WHAT IT DOES: Starts the actor's one child (set 0 of its table at
+ * 83:C324): at spawn point $1E, its $07 = 4.
+ * HOW: ChildStartListed with X = $1E, Y = 4.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor's table at 83:C324 (83:C317). Exit: as ChildStartListed.
+ */
+void abi_ActorStartChild1E(void)
+{
+    cpu.x = 0x1E;
+    y8_load(0x04);
+    abi_ChildStartListed();
+}
