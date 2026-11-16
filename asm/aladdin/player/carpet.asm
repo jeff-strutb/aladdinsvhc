@@ -44,20 +44,28 @@ arch 65816
 CarpetCruiseSet:
     lda.b !actor_06
     dec a
-    bne .lE511
+    bne CarpetCruiseSetAlt
     stz.b !actor_speed_x
     lda.b #$03
     sta.b !actor_speed_x+1
     stz.b !actor_speed_x+2
     rts
-.lE511:
+
+; @routine 81:E511 CarpetCruiseSetAlt
+; WHAT IT DOES: Sets the carpet's speed across to the other ride's cruise,
+; $0180 (1.5 pixels a frame).
+; HOW: ACTOR_SPEED_X (24-bit) = $000180.
+; Entry: M 8-bit; D = the carpet rider's record; called by JSR (81:E485,
+; as the ride starts) and the end of CarpetCruiseSet. Exit: M 8-bit; A
+; low = 1; N, Z from it.
+%at($81E511)
+CarpetCruiseSetAlt:
     lda.b #$80
     sta.b !actor_speed_x
     lda.b #$01
     sta.b !actor_speed_x+1
     stz.b !actor_speed_x+2
     rts
-
 
 ; @routine 81:E555 CarpetLevelOut
 ; WHAT IT DOES: Levels the carpet off when it is tilted: out of a dive

@@ -329,3 +329,29 @@ Kind62Wait:
     jsr.w ActorStopsShot
     ldx.b #$00
     jmp.w ActorEndOutOfRange
+
+; @routine 83:C5D5 Kind7BWait
+; WHAT IT DOES: What an actor of kind $7B runs each frame it waits: its
+; animation, then its end when it is out of range by box $60.
+; HOW: AnimStep; X = $60, then into ActorEndOutOfRange.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; through the actor loop's wait table (83:94D0). Exit: as
+; ActorEndOutOfRange: in range it returns; out of range the actor ends.
+%at($83C5D5)
+Kind7BWait:
+    jsl.l AnimStep
+    ldx.b #$60
+    jmp.w ActorEndOutOfRange
+
+; @routine 83:FA45 Kind8AWait
+; WHAT IT DOES: What an actor of kind $8A runs each frame it waits: its
+; animation, then its end when it is out of range by box 0.
+; HOW: AnimStep; X = 0, then into ActorEndOutOfRange.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+; through the actor loop's wait table (83:94D0). Exit: as
+; ActorEndOutOfRange: in range it returns; out of range the actor ends.
+%at($83FA45)
+Kind8AWait:
+    jsl.l AnimStep
+    ldx.b #$00
+    jmp.w ActorEndOutOfRange

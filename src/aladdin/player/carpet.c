@@ -62,6 +62,22 @@ static void move_start(uint8_t move)
 }
 
 /*
+ * @routine 81:E511 CarpetCruiseSetAlt
+ * WHAT IT DOES: Sets the carpet's speed across to the other ride's cruise,
+ * $0180 (1.5 pixels a frame).
+ * HOW: ACTOR_SPEED_X (24-bit) = $000180.
+ * Entry: M 8-bit; D = the carpet rider's record; called by JSR (81:E485,
+ * as the ride starts) and the end of CarpetCruiseSet. Exit: M 8-bit; A
+ * low = 1; N, Z from it.
+ */
+void abi_CarpetCruiseSetAlt(void)
+{
+    dp16_set(ACTOR_SPEED_X, 0x0180);
+    wr8(dpa(ACTOR_SPEED_X + 2), 0);
+    a8_load(0x01);
+}
+
+/*
  * @routine 81:E555 CarpetLevelOut
  * WHAT IT DOES: Levels the carpet off when it is tilted: out of a dive
  * (move 4) or out of a climb (move 2).

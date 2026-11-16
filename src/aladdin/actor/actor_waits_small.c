@@ -386,3 +386,35 @@ void abi_Kind62Wait(void)
     x8_load(0x00);
     abi_ActorEndOutOfRange();
 }
+
+/*
+ * @routine 83:C5D5 Kind7BWait
+ * WHAT IT DOES: What an actor of kind $7B runs each frame it waits: its
+ * animation, then its end when it is out of range by box $60.
+ * HOW: AnimStep; X = $60, then into ActorEndOutOfRange.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor loop's wait table (83:94D0). Exit: as
+ * ActorEndOutOfRange: in range it returns; out of range the actor ends.
+ */
+void abi_Kind7BWait(void)
+{
+    abi_AnimStep();
+    x8_load(0x60);
+    abi_ActorEndOutOfRange();
+}
+
+/*
+ * @routine 83:FA45 Kind8AWait
+ * WHAT IT DOES: What an actor of kind $8A runs each frame it waits: its
+ * animation, then its end when it is out of range by box 0.
+ * HOW: AnimStep; X = 0, then into ActorEndOutOfRange.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; called by JSR
+ * through the actor loop's wait table (83:94D0). Exit: as
+ * ActorEndOutOfRange: in range it returns; out of range the actor ends.
+ */
+void abi_Kind8AWait(void)
+{
+    abi_AnimStep();
+    x8_load(0x00);
+    abi_ActorEndOutOfRange();
+}

@@ -199,6 +199,22 @@ PaletteSequenceTask:
     bpl .set
     jml.l TaskExit
 
+; @routine 81:9DF9 PaletteColourStep
+; WHAT IT DOES: Steps all three channels of colour A by the fade's step
+; ($0608), each held to 0-31.
+; HOW: A to PALETTE_COLOUR, then PaletteChannelStep three times (red,
+; green, blue; each turns the colour by one channel).
+; Entry: M 16-bit; A = the colour; DB a bank whose $0000-$1FFF is work
+; RAM; called by JSR (81:9DE7). Exit: as PaletteChannelStep leaves it:
+; PALETTE_COLOUR and A = the stepped colour.
+%at($819DF9)
+PaletteColourStep:
+    sta.w !fade_colour
+    jsr.w PaletteChannelStep
+    jsr.w PaletteChannelStep
+    jsr.w PaletteChannelStep
+    rts
+
 ; @routine 81:9E06 PaletteChannelStep
 ; WHAT IT DOES: Steps one colour channel of the colour at $060A by the
 ; fade's step ($0608), clamped to 0-31, and turns the colour so the next
