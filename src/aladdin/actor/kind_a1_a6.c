@@ -26,61 +26,6 @@ void abi_SoundQueueAdd(void);
 #define ACTOR_END_PLACED 0x8396CAu  /* ActorEndPlaced, entered at the actor loop's level */
 
 /*
- * @routine 84:A9C7 KindA1Touch
- * WHAT IT DOES: What actors of kind $A1 do each frame they wait: animate;
- * once it can no longer be hit it ends; else Aladdin touching it is hurt,
- * or coming down on it is stood on it, which counts a hit, plays sound $0F
- * and sends it to state $8C; not stood on, a shot can down it. With
- * KIND_A1_SAFE set it goes to state $8C at once.
- * HOW: AnimStep; BIT ACTOR_09: bit 6 clear, its JSL's and the loop's JSR
- * return addresses dropped (five pulls) and on into ActorEndPlaced at the
- * loop's level. KIND_A1_SAFE zero: ActorBouncesOrHurtsPlayerLong, A - 1
- * nonzero: ActorDownedByShotLong and back; zero: KIND_A1_HITS up and
- * SoundQueueAdd $0F. Then bit 7 of ACTOR_09 cleared (ASL, LSR) and state
- * $8C.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
- * work RAM; called by JSL from the kind's stub ($83:940D) through the
- * actor loop's wait table at $83:904F. Exit: ended: never returns. Shot
- * test: as ActorDownedByShotLong. Else M and X 8-bit; A low = $8C, N set,
- * Z clear, C clear.
- */
-void abi_KindA1Touch(void)
-{
-    uint8_t flags, safe, got = 0;
-
-    abi_AnimStep();
-    flags = rd8(dpa(ACTOR_09));
-    bit8_of((uint8_t)cpu.a, flags);
-    if (!(flags & 0x40)) {
-        /* it can no longer be hit: out of its call and the loop's, ended */
-        for (int i = 0; i < 5; i++)
-            got = op_pull8();
-        a8_load(got);
-        actor_leave(ACTOR_END_PLACED);
-    }
-    safe = rd8(dba(KIND_A1_SAFE));
-    a8_load(safe);
-    if (!safe) {
-        abi_ActorBouncesOrHurtsPlayerLong();
-        got = (uint8_t)(cpu.a - 1);
-        a8_load(got);
-        if (got) {
-            abi_ActorDownedByShotLong();
-            return;
-        }
-        (void)inc8_at(dpa(KIND_A1_HITS));
-        a8_load(0x0F);
-        abi_SoundQueueAdd();
-    }
-    /* to state $8C: bit 7 of $09 cleared, so this work stops */
-    flags = (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F);
-    wr8(dpa(ACTOR_09), flags);
-    flag_set(P_C, 0);
-    a8_load(0x8C);
-    wr8(dpa(ACTOR_STATE), 0x8C);
-}
-
-/*
  * @routine 84:A9FC KindA1Hit
  * @actor
  * WHAT IT DOES: Actor kind $A1 in state $4C (hit): it flies off (motion
