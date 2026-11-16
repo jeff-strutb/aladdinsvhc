@@ -15,30 +15,18 @@ incsrc "../include/rom.inc"
 
 arch 65816
 
-; Places not yet named keep their address as their name.
-!dp_0b = $0B  ; direct page
-!dp_0d = $0D  ; direct page
-!dp_0f = $0F  ; direct page
-!dp_41 = $41  ; direct page
-!dp_42 = $42  ; direct page
-!t_c29a = $C29A  ; data bank
-!t_d7c4 = $D7C4  ; data bank
-!v_0007 = $0007
-!v_000b = $000B
-!v_002c = $002C
-!v_0037 = $0037
-!v_0042 = $0042
-!v_004c = $004C
-!v_004d = $004D
-!v_08e7 = $08E7
-!v_08ea = $08EA
-!v_08f0 = $08F0
-!v_141b = $141B
-!v_145a = $145A
-!v_1b16 = $1B16
-!v_1b19 = $1B19
-!v_1b2b = $1B2B
-!v_7edfc0 = $7EDFC0
+!SPAWN_A2_ADD = $002C           ; ActorSpawnA2's A, added to the child's $07 (scratch, data bank)
+!FOLLOW_HEAD = $1B16            ; the record that heads the followers' list (word)
+!FOLLOW_STEP = $1B19            ; added to each follower's $41 for its step
+!FALL_OFF = $1B2B               ; nonzero: the player's fall check is off
+!PLAYER_STATE_8C_COUNT = $141B  ; counted up on entering state $8C
+!NO_BOUNCE = $145A              ; negative: no bounce
+!FLOOR_LINE = $7EDFC0           ; the floor's height by x: 32 words, 9-bit signed, one per 8 pixels from x $200
+!FLOOR_CLEARANCE = $D7C4        ; taken from the floor's y when an actor is put on it (word, data bank)
+!HIT_BOXES = $C29A              ; the hit boxes: 4 bytes each, the half-width first (data bank)
+!player_y = !player+!actor_y+1  ; the player's y, whole pixels (word)
+!player_x = !player+!actor_x+1  ; the player's x, whole pixels (word)
+!player_flip = !player+!actor_flip ; the player's flip: nonzero when he faces right
 
 ; @routine 84:8145 ActorSpawnA2
 ; WHAT IT DOES: Starts a child with hit box $A2 at the spawner's spawn
@@ -53,7 +41,7 @@ arch 65816
 ; the child's low byte; else as ActorSpawn.
 %at($848145)
 ActorSpawnA2:
-    sta.w !v_002c
+    sta.w !SPAWN_A2_ADD
     lda.b #$82
     sta.b !actor_spawn_at
     lda.b #$A2
@@ -64,16 +52,16 @@ ActorSpawnA2:
     sbc.b #$03
     bcc .l8161
     clc
-    adc.w !v_002c
+    adc.w !SPAWN_A2_ADD
     bra .l8163
 .l8161:
     lda.b !actor_44
 .l8163:
-    sta.w !v_0007,x
+    sta.w !actor_07,x
     tdc
-    sta.w !v_004c,x
+    sta.w !actor_4c,x
     xba
-    sta.w !v_004d,x
+    sta.w !actor_4d,x
     inc.b !actor_42
     sep.b #$10
 .l8172:
@@ -98,9 +86,9 @@ ActorAnimFreeFar:
     bcc .l8348
     rep.b #$10
     ldx.b !actor_4c
-    lda.w !v_0042,x
+    lda.w !actor_42,x
     dec a
-    sta.w !v_0042,x
+    sta.w !actor_42,x
     sep.b #$10
 .l8348:
     rtl
@@ -121,24 +109,24 @@ ActorAnimFreeFar:
 ActorsFollowSteps:
     phd
     rep.b #$30
-    ldx.w !v_1b16
+    ldx.w !FOLLOW_HEAD
 .l8D0A:
-    lda.w !v_0037,x
+    lda.w !actor_next,x
     beq .l8D3D
     tcd
-    lda.w !v_000b,x
-    sta.b !dp_0b
+    lda.w !actor_x,x
+    sta.b !actor_x
     lda.w !scratch+1,x
-    sta.b !dp_0d
+    sta.b !actor_x+2
     lda.w !scratch+3,x
-    sta.b !dp_0f
-    lda.b !dp_42
+    sta.b !actor_y+1
+    lda.b !actor_42
     and.w #$01FF
     tay
     sep.b #$20
     clc
-    lda.b !dp_41
-    adc.w !v_1b19
+    lda.b !actor_41
+    adc.w !FOLLOW_STEP
     beq .l8D31
     bpl .l8D33
 .l8D31:
@@ -161,9 +149,10 @@ ActorsFollowSteps:
 ; HOW: The floor: the word for the actor's x from the table at $7E:DFC0
 ; ((x - $200) / 4, in words), sign-extended from 9 bits, negated, plus
 ; $B0. The actor's y + A: negative, C clear; below the floor, y = the
-; floor less the actor's offset at $D7C4 (by Y), C set; else C clear.
-; Entry: M 16-bit, X 8-bit; A = the offset; Y = the offset table's index;
-; D = the actor; called by JSR. Exit: M 16-bit; C as above.
+; floor less the word at $D7C4 (Y is 0), C set; else C clear.
+; Entry: M 16-bit, X 8-bit; A = the offset; D = the actor; DB a bank
+; whose $0000-$1FFF is work RAM; called by JSR. Exit: M 16-bit, X 8-bit;
+; Y = 0; C as above.
 %at($848F3C)
 ActorClampAboveFloor:
     sta.w !scratch
@@ -176,7 +165,7 @@ ActorClampAboveFloor:
     and.w #$003E
     tax
     clc
-    lda.l !v_7edfc0,x
+    lda.l !FLOOR_LINE,x
     and.w #$01FF
     cmp.w #$0100
     bcc .l8F5D
@@ -194,7 +183,7 @@ ActorClampAboveFloor:
     cmp.w !scratch+2
     bcc .l8F80
     lda.w !scratch+2
-    sbc.w !t_d7c4,y
+    sbc.w !FLOOR_CLEARANCE,y
     sta.b !actor_y+1
     sec
     rts
@@ -213,10 +202,10 @@ ActorClampAboveFloor:
 ; Exit: M 8-bit; as PlayerEnter8CFacingLong when it ran.
 %at($848F81)
 PlayerFallCheck:
-    lda.w !v_1b2b
+    lda.w !FALL_OFF
     bne .l8F98
     rep.b #$20
-    lda.w !v_08ea
+    lda.w !player_y
     bmi .l8F99
     cmp.w #$00B8
     sep.b #$20
@@ -243,9 +232,9 @@ PlayerFallCheck:
 ; by the test).
 %at($8288CF)
 ActorGrabTest:
-    lda.w !v_145a
+    lda.w !NO_BOUNCE
     bmi .l8935
-    lda.w !v_141b
+    lda.w !PLAYER_STATE_8C_COUNT
     bne .l8935
     lda.w !v_141c
     beq .l8935
@@ -253,7 +242,7 @@ ActorGrabTest:
     bcs .l8934
     rep.b #$30
     lda.b !actor_y+1
-    cmp.w !v_08ea
+    cmp.w !player_y
     bcs .l8931
     lda.b !actor_06
     and.w #$00FF
@@ -262,29 +251,29 @@ ActorGrabTest:
     tay
     lda.b !actor_x+1
     sec
-    sbc.w !v_08e7
+    sbc.w !player_x
     bcs .l8916
-    lda.w !v_08f0
+    lda.w !player_flip
     and.w #$00FF
     beq .l8931
-    lda.w !t_c29a,y
+    lda.w !HIT_BOXES,y
     sec
     sbc.w #$000F
     clc
     adc.b !actor_x+1
-    cmp.w !v_08e7
+    cmp.w !player_x
     bcs .l8931
     bra .l892D
 .l8916:
-    lda.w !v_08f0
+    lda.w !player_flip
     and.w #$00FF
     bne .l8931
     lda.b !actor_x+1
     sec
-    sbc.w !t_c29a,y
+    sbc.w !HIT_BOXES,y
     clc
     adc.w #$000F
-    cmp.w !v_08e7
+    cmp.w !player_x
     bcc .l8931
 .l892D:
     sep.b #$30

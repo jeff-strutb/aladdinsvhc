@@ -5,7 +5,8 @@
  * test.
  */
 #include "machine.h"
-#include "ops65.h"
+#include "native.h"
+#include "cpu_ops.h"
 void abi_ActorAnimFreeFar(void);
 void abi_ActorClampAboveFloor(void);
 void abi_ActorFreeOutOfRangeLong(void);
@@ -26,8 +27,299 @@ void abi_PlayerFallCheck(void);
 #include "wram_state.h"
 #include "wram_video.h"
 
+#define SPAWN_A2_ADD 0x002Cu        /* ActorSpawnA2's A, added to the child's $07 (scratch, data bank) */
+#define FOLLOW_HEAD 0x1B16u         /* the record that heads the followers' list (word) */
+#define FOLLOW_STEP 0x1B19u         /* added to each follower's $41 for its step */
+#define FALL_OFF 0x1B2Bu            /* nonzero: the player's fall check is off */
+#define PLAYER_STATE_8C_COUNT 0x141Bu /* counted up on entering state $8C */
+#define NO_BOUNCE 0x145Au           /* negative: no bounce */
+#define FLOOR_LINE 0x7EDFC0u        /* the floor's height by x: 32 words, 9-bit signed, one per 8 pixels from x $200 */
+#define FLOOR_AT 0x000Eu            /* the floor's y found here (scratch word, data bank) */
+#define FLOOR_CLEARANCE 0xD7C4u     /* taken from the floor's y when an actor is put on it (word, data bank) */
+#define HIT_BOXES 0xC29Au           /* the hit boxes: 4 bytes each, the half-width first (data bank) */
+#define PLAYER_X_AT (PLAYER + ACTOR_X + 1)  /* the player's x, whole pixels (word) */
+#define PLAYER_Y_AT (PLAYER + ACTOR_Y + 1)  /* the player's y, whole pixels (word) */
+#define PLAYER_FLIP_AT (PLAYER + ACTOR_FLIP) /* nonzero when he faces right */
+#define ACTOR_43 0x43u
 
+/*
+ * @routine 84:8145 ActorSpawnA2
+ * WHAT IT DOES: Starts a child with hit box $A2 at the spawner's spawn
+ * point $82, telling it its parent and a $07, and counts it in the
+ * spawner's $42.
+ * HOW: A kept at $002C; ActorSpawn; none free: back. The child's $07 =
+ * the spawner's $07 less 3 plus A when that $07 is 3 or more, else the
+ * spawner's $44; the child's $4C word = the spawner's record (D); the
+ * spawner's $42 up.
+ * Entry: M 8-bit, X 8-bit; A = the byte for the child's $07 sum; D = the
+ * spawner; DB = $81; called by JSR. Exit: M 8-bit, X 8-bit; spawned: X =
+ * the child's low byte; else as ActorSpawn.
+ */
+void abi_ActorSpawnA2(void)
+{
+    uint16_t child;
+    uint8_t v;
 
+    wr8(dba(SPAWN_A2_ADD), (uint8_t)cpu.a);
+    a8_load(0x82);
+    wr8(dpa(ACTOR_SPAWN_AT), 0x82);
+    a8_load(0xA2);
+    abi_ActorSpawn();
+    if (cpu.p & P_N)
+        return;                                  /* none free */
+    child = cpu.x;
+    flag_set(P_C, 1);
+    v = op_sbc8(rd8(dpa(ACTOR_07)), 3, &cpu.p);
+    if (cpu.p & P_C) {
+        flag_set(P_C, 0);
+        v = op_adc8(v, rd8(dba(SPAWN_A2_ADD)), &cpu.p);
+    } else {
+        v = rd8(dpa(ACTOR_44));
+    }
+    wr8(dba((uint16_t)(child + ACTOR_07)), v);
+    /* the child's $4C word: its parent, the spawner */
+    wr8(dba((uint16_t)(child + ACTOR_4C)), (uint8_t)cpu.d);
+    wr8(dba((uint16_t)(child + ACTOR_4D)), (uint8_t)(cpu.d >> 8));
+    cpu.a = (uint16_t)(cpu.d << 8 | cpu.d >> 8);
+    (void)inc8_at(dpa(ACTOR_42));
+    op_sep(P_X);
+}
 
+/*
+ * @routine 84:832B ActorAnimFreeFar
+ * WHAT IT DOES: Plays the actor's animation, lets it hurt or be stomped
+ * by the player, and ends it when out of range by box $58, then counting
+ * it off its parent's $42.
+ * HOW: AnimStep, ActorStompOrHurtLong, ActorFreeOutOfRangeLong with X =
+ * $58; ended (C set): the parent's record (the actor's $4C word) has its
+ * $42 stepped down.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSL. Exit:
+ * M 8-bit, X 8-bit.
+ */
+void abi_ActorAnimFreeFar(void)
+{
+    abi_AnimStep();
+    abi_ActorStompOrHurtLong();
+    x8_load(0x58);
+    abi_ActorFreeOutOfRangeLong();
+    if (cpu.p & P_C) {
+        /* ended: one fewer counted in its parent's $42 */
+        uint16_t parent = dp16(ACTOR_4C);
+        uint8_t n = (uint8_t)(rd8(dba((uint16_t)(parent + ACTOR_42))) - 1);
 
+        cpu.x = parent;
+        a8_load(n);
+        wr8(dba((uint16_t)(parent + ACTOR_42)), n);
+        op_sep(P_X);
+    }
+}
 
+/*
+ * @routine 84:8D04 ActorsFollowSteps
+ * WHAT IT DOES: Moves each actor of the list from the head at $1B16 to
+ * where the one before it is, then on along its own direction by the step
+ * $41 + $1B19 (at least 1).
+ * HOW: With 16-bit registers, from the head: each next record (the word
+ * at $37 of the one before, 0 ends) becomes D; its x and y (the bytes at
+ * $0B-$10) copied from the record before; its direction ($42 and $1FF) in
+ * Y and the step in A (0 or negative taken as 1); ActorMoveAlong. D kept
+ * on the stack.
+ * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: M 8-bit, X
+ * 8-bit; D as at entry.
+ */
+void abi_ActorsFollowSteps(void)
+{
+    uint16_t before = rd16(dba(FOLLOW_HEAD)), rec, dir;
+    uint8_t step;
+
+    op_push8((uint8_t)(cpu.d >> 8));
+    op_push8((uint8_t)cpu.d);
+    op_rep(0x30);
+    cpu.x = before;
+    for (;;) {
+        rec = rd16(dba((uint16_t)(before + ACTOR_NEXT)));
+        a16_load(rec);
+        if (!rec)
+            break;
+        /* this one goes where the one before it is, then steps on */
+        cpu.d = rec;
+        dp16_set(ACTOR_X, rd16(dba((uint16_t)(before + ACTOR_X))));
+        dp16_set(ACTOR_X + 2, rd16(dba((uint16_t)(before + ACTOR_X + 2))));
+        dp16_set(ACTOR_Y + 1, rd16(dba((uint16_t)(before + ACTOR_Y + 1))));
+        dir = (uint16_t)(dp16(ACTOR_42) & 0x01FF);
+        cpu.a = dir;
+        cpu.y = dir;
+        op_sep(0x20);
+        flag_set(P_C, 0);
+        step = op_adc8(rd8(dpa(ACTOR_41)), rd8(dba(FOLLOW_STEP)), &cpu.p);
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | step);
+        if (!step || (step & 0x80))
+            a8_load(0x01);
+        abi_ActorMoveAlong();
+        op_rep(0x30);
+        before = cpu.d;
+        a16_load(before);
+        cpu.x = before;
+    }
+    op_sep(0x30);
+    {
+        uint8_t lo = op_pull8();                 /* PLD: low byte first */
+        uint8_t hi = op_pull8();
+
+        cpu.d = (uint16_t)(lo | hi << 8);
+    }
+    nz16_of(cpu.d);
+}
+
+/*
+ * @routine 84:8F3C ActorClampAboveFloor
+ * WHAT IT DOES: Keeps the actor's y plus offset A above the floor line at
+ * its x: C set (and y moved up to the floor) when it reached it.
+ * HOW: The floor: the word for the actor's x from the table at $7E:DFC0
+ * ((x - $200) / 4, in words), sign-extended from 9 bits, negated, plus
+ * $B0. The actor's y + A: negative, C clear; below the floor, y = the
+ * floor less the word at $D7C4 (Y is 0), C set; else C clear.
+ * Entry: M 16-bit, X 8-bit; A = the offset; D = the actor; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSR. Exit: M 16-bit, X 8-bit;
+ * Y = 0; C as above.
+ */
+void abi_ActorClampAboveFloor(void)
+{
+    uint16_t off = cpu.a, raw, floor, at;
+    uint8_t col;
+
+    wr16(dba(SCRATCH), off);
+    cpu.y = 0;
+    col = (uint8_t)(((uint16_t)(dp16(ACTOR_X + 1) - 0x0200) >> 2) & 0x3E);
+    cpu.x = col;
+    raw = (uint16_t)(rd16(FLOOR_LINE + col) & 0x01FF);
+    if (raw >= 0x0100)
+        raw |= 0xFF00;
+    floor = (uint16_t)(0xB0 - raw);
+    wr16(dba(FLOOR_AT), floor);
+    flag_set(P_C, 0);
+    at = op_adc16(dp16(ACTOR_Y + 1), off, &cpu.p);
+    cpu.a = at;
+    if (at & 0x8000) {
+        flag_set(P_C, 0);
+        return;
+    }
+    cmp16_of(at, floor);
+    if (at < floor)
+        return;
+    /* on the floor: put there, less its clearance */
+    cpu.a = op_sbc16(floor, rd16(dba(FLOOR_CLEARANCE)), &cpu.p);
+    dp16_set(ACTOR_Y + 1, cpu.a);
+    flag_set(P_C, 1);
+}
+
+/*
+ * @routine 84:8F81 PlayerFallCheck
+ * WHAT IT DOES: When $1B2B is clear and the player is at or below y $B8,
+ * puts him into state $8C facing as he is (the fall).
+ * HOW: $1B2B nonzero: nothing; the player's y negative: nothing; at or
+ * past $B8: PlayerEnter8CFacingLong.
+ * Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; called by JSR.
+ * Exit: M 8-bit; as PlayerEnter8CFacingLong when it ran.
+ */
+void abi_PlayerFallCheck(void)
+{
+    uint8_t off = rd8(dba(FALL_OFF));
+    uint16_t y;
+
+    a8_load(off);
+    if (off)
+        return;
+    op_rep(0x20);
+    y = rd16(dba(PLAYER_Y_AT));
+    a16_load(y);
+    if (y & 0x8000) {
+        op_sep(0x20);
+        return;
+    }
+    cmp16_of(y, 0x00B8);
+    op_sep(0x20);
+    if (y >= 0x00B8)
+        abi_PlayerEnter8CFacingLong();
+}
+
+/*
+ * @routine 82:88CF ActorGrabTest
+ * WHAT IT DOES: Tells whether the actor can grab the player: C clear when
+ * he may be grabbed, touches it, is below it and is within its reach on
+ * the side he faces.
+ * HOW: $145A negative, $141B nonzero or $141C zero: C set.
+ * ActorHitsTestBoxIfActiveLong: no touch, C set. The actor's y at or
+ * below the player's: C set. Left of him: he must face right and its x +
+ * its hit box's width - 15 reach his x; right of him: he must face left
+ * and its x - width + 15 reach it; else C set.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80, the hit boxes' bank;
+ * called by JSL. Exit: M 8-bit, X 8-bit (C clear, or C set at $82:8931 or
+ * by the test).
+ */
+void abi_ActorGrabTest(void)
+{
+    uint16_t ax, px, reach, faces;
+    uint8_t v;
+
+    v = rd8(dba(NO_BOUNCE));
+    a8_load(v);
+    if (v & 0x80)
+        goto no;
+    v = rd8(dba(PLAYER_STATE_8C_COUNT));
+    a8_load(v);
+    if (v)
+        goto no;
+    v = rd8(dba(V_141C & 0xFFFF));
+    a8_load(v);
+    if (!v)
+        goto no;
+    abi_ActorHitsTestBoxIfActiveLong();
+    if (cpu.p & P_C)
+        return;                                  /* no touch */
+    op_rep(0x30);
+    a16_load(dp16(ACTOR_Y + 1));
+    cmp16_of(cpu.a, rd16(dba(PLAYER_Y_AT)));
+    if (cpu.p & P_C)
+        goto out;                                /* not above him */
+    cpu.a = (uint16_t)((dp16(ACTOR_06) & 0x00FF) << 2);
+    cpu.y = cpu.a;
+    ax = dp16(ACTOR_X + 1);
+    px = rd16(dba(PLAYER_X_AT));
+    flag_set(P_C, 1);
+    cpu.a = op_sbc16(ax, px, &cpu.p);
+    faces = (uint16_t)(rd16(dba(PLAYER_FLIP_AT)) & 0x00FF);
+    if (!(cpu.p & P_C)) {
+        /* it is left of him: he must face right, its reach past his x */
+        a16_load(faces);
+        if (!faces)
+            goto out;
+        flag_set(P_C, 1);
+        reach = op_sbc16(rd16(dba((uint16_t)(HIT_BOXES + cpu.y))), 0x000F, &cpu.p);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(reach, ax, &cpu.p);
+        cmp16_of(cpu.a, px);
+        if (cpu.p & P_C)
+            goto out;
+    } else {
+        /* right of him: he must face left, its reach up to his x */
+        a16_load(faces);
+        if (faces)
+            goto out;
+        flag_set(P_C, 1);
+        reach = op_sbc16(ax, rd16(dba((uint16_t)(HIT_BOXES + cpu.y))), &cpu.p);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(reach, 0x000F, &cpu.p);
+        cmp16_of(cpu.a, px);
+        if (!(cpu.p & P_C))
+            goto out;
+    }
+    op_sep(0x30);
+    flag_set(P_C, 0);
+    return;
+out:
+    op_sep(0x31);
+    return;
+no:
+    flag_set(P_C, 1);
+}
