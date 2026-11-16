@@ -23,7 +23,7 @@ arch 65816
 ; @routine 81:EDA2 TitleMenuCursorLong
 ; WHAT IT DOES: TitleMenuCursor for a caller in another bank.
 ; HOW: JSR to it, then RTL.
-; Entry and exit: as TitleMenuCursor; called by JSL.
+; Entry: as TitleMenuCursor; called by JSL. Exit: as TitleMenuCursor.
 %at($81EDA2)
 TitleMenuCursorLong:
     jsr.w TitleMenuCursor

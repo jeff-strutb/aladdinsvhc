@@ -15,7 +15,7 @@ void abi_TextNumberTwoDigits(void);
  * @routine 83:8BDA TextNumberTwoDigitsLong
  * WHAT IT DOES: TextNumberTwoDigits for a caller in another bank.
  * HOW: JSR to it, then RTL.
- * Entry and exit: as TextNumberTwoDigits; called by JSL.
+ * Entry: as TextNumberTwoDigits; called by JSL. Exit: as TextNumberTwoDigits.
  */
 void abi_TextNumberTwoDigitsLong(void)
 {

@@ -59,7 +59,7 @@ static uint8_t menu_line(uint8_t choice)
  * @routine 81:EDA2 TitleMenuCursorLong
  * WHAT IT DOES: TitleMenuCursor for a caller in another bank.
  * HOW: JSR to it, then RTL.
- * Entry and exit: as TitleMenuCursor; called by JSL.
+ * Entry: as TitleMenuCursor; called by JSL. Exit: as TitleMenuCursor.
  */
 void abi_TitleMenuCursorLong(void)
 {
