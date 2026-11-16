@@ -14,14 +14,13 @@ incsrc "../include/rom.inc"
 
 arch 65816
 
-; Places not yet named keep their address as their name.
-!t_d054 = $D054  ; data bank
-!v_002c = $002C
-!v_08e7 = $08E7
-!v_08ea = $08EA
-!v_08f4 = $08F4
-!v_146b = $146B
-!v_146e = $146E
+!PROBES = $002C                 ; probes left (word, data bank)
+!JUMP_MOTIONS = $D054           ; the motion for a jump up, by the probes left (data bank)
+!GUARD_CODE_SET = $146B         ; which code it was last sent to: 1 stop, 2 run, $40 give up
+!GUARD_PACE_ONCE = $146E        ; nonzero: one close step keeps pace instead of slowing
+!player_x = !player+!actor_x+1  ; the player's x, whole pixels (word)
+!player_y = !player+!actor_y+1  ; the player's y, whole pixels (word)
+!player_speed = !player+!actor_speed_x ; the player's horizontal speed (word)
 
 ; @routine A5:F284 ActorLedgeAbove
 ; WHAT IT DOES: Looks for the top of the ground at a point offset from the
@@ -42,7 +41,7 @@ ActorLedgeAbove:
     adc.b !actor_y+1
     sta.w !scratch+2
     txa
-    sta.w !v_002c
+    sta.w !PROBES
     tya
     ldy.b !actor_facing
     beq .lF299
@@ -59,7 +58,7 @@ ActorLedgeAbove:
     and.b #$07
     bne .lF2BF
     rep.b #$20
-    dec.w !v_002c
+    dec.w !PROBES
     beq .lF2DF
     clc
     lda.w !scratch+2
@@ -77,7 +76,7 @@ ActorLedgeAbove:
     lda.w !v_0012
     and.b #$07
     beq .lF2E1
-    dec.w !v_002c
+    dec.w !PROBES
     bne .lF2BF
     rep.b #$20
 .lF2DF:
@@ -110,7 +109,7 @@ ActorLedgeAbove:
 %at($A5F19D)
 GuardLedgeJump:
     clc
-    lda.w !v_08ea
+    lda.w !player_y
     adc.w #$0010
     sec
     sbc.b !actor_y+1
@@ -142,7 +141,7 @@ GuardLedgeJump:
     jsr.w ActorProbeUpTowardPlayer
     bcs .lF240
     ldx.b #$02
-    cpx.w !v_002c
+    cpx.w !PROBES
     bcc .lF1E7
     bit.w #$0008
     beq .lF240
@@ -151,14 +150,14 @@ GuardLedgeJump:
     sta.b !actor_03
     pla
     lda.b !actor_x+1
-    cmp.w !v_08e7
+    cmp.w !player_x
     sep.b #$20
     lda.b #$00
     rol a
     sta.b !actor_facing
     sta.b !actor_flip
-    ldx.w !v_002c
-    ldy.w !t_d054,x
+    ldx.w !PROBES
+    ldy.w !JUMP_MOTIONS,x
     jsl.l ActorMotionPreset
     lda.w !v_0012
     and.b #$08
@@ -216,7 +215,7 @@ GuardLedgeJump:
 GuardChase:
     jsr.w GuardLedgeJump
     sec
-    lda.w !v_08e7
+    lda.w !player_x
     sbc.b !actor_x+1
     clc
     adc.w #$0030
@@ -233,7 +232,7 @@ GuardChase:
     ldx.b !actor_49
     bne .lF127
     ldx.b #$40
-    stx.w !v_146b
+    stx.w !GUARD_CODE_SET
     lda.w #$E794
     sta.b !actor_03
     rts
@@ -248,16 +247,16 @@ GuardChase:
 .lF134:
     sta.b !actor_speed_x
     ldx.b #$02
-    cpx.w !v_146b
+    cpx.w !GUARD_CODE_SET
     beq .lF145
-    stx.w !v_146b
+    stx.w !GUARD_CODE_SET
     lda.w #$E5E8
     sta.b !actor_03
 .lF145:
     ldx.b #$00
     stx.b !actor_speed_x+2
     lda.b !actor_x+1
-    cmp.w !v_08e7
+    cmp.w !player_x
     sep.b #$20
     lda.b #$00
     rol a
@@ -266,10 +265,10 @@ GuardChase:
     rts
 .lF158:
     lda.w #$00C0
-    cmp.w !v_08f4
+    cmp.w !player_speed
     bcs .lF134
     lda.b !actor_speed_x
-    cmp.w !v_08f4
+    cmp.w !player_speed
     bcc .lF12E
     sec
     sbc.w #$0008
@@ -277,10 +276,10 @@ GuardChase:
     lda.w #$0000
     bra .lF134
 .lF172:
-    ldx.w !v_146e
+    ldx.w !GUARD_PACE_ONCE
     beq .lF17E
     ldx.b #$00
-    stx.w !v_146e
+    stx.w !GUARD_PACE_ONCE
     bra .lF158
 .lF17E:
     lda.b !actor_speed_x
@@ -292,9 +291,9 @@ GuardChase:
     bra .lF134
 .lF18D:
     ldx.b #$01
-    cpx.w !v_146b
+    cpx.w !GUARD_CODE_SET
     beq .lF19C
-    stx.w !v_146b
+    stx.w !GUARD_CODE_SET
     lda.w #$E5B6
     sta.b !actor_03
 .lF19C:

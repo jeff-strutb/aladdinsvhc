@@ -15,11 +15,7 @@ arch 65816
 
 !actor_anim = $2D               ; direct page (the actor): its animation
 
-; Places not yet named keep their address as their name.
-!v_0019 = $0019
-!v_001d = $001D
-!v_002c = $002C
-!v_002d = $002D
+!SPEED_OFF = $002C              ; its speed less $1C0 (word, data bank)
 
 ; @routine A5:E9D2 ActorAnimByTile
 ; WHAT IT DOES: Picks the actor's animation: $16 on a tile with behaviour
@@ -41,14 +37,14 @@ ActorAnimByTile:
     beq .lEA0D
     sec
     sbc.w #$01C0
-    sta.w !v_002c
+    sta.w !SPEED_OFF
     clc
     adc.w #$0010
     cmp.w #$0020
     bcc .lE9FC
     sep.b #$20
     lda.b #$01
-    ldx.w !v_002d
+    ldx.w !SPEED_OFF+1
     bmi ActorAnimChange
     lda.b #$02
     bra ActorAnimChange
