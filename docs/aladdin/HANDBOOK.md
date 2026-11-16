@@ -83,6 +83,13 @@ per finding, each linked to the dated note that measured it.
   opens at the same instruction; the original side once returned there
   without opening it, and the two sides then paired different calls (A7
   off by the scheduler's scan count, cov_actor_fall_top, 2026-11-02).
+- A wait routine that ends its actor by dropping more than its own
+  return (KindA1Touch drops its JSL's and the stub's JSR's) jumps out
+  with S above its exit level, which no oracle rule ends: its C is held
+  until one does. An actor whose resume address another routine rewrites
+  (the guard's $03, by GuardChase) resumes where no piece opens: those
+  states wait on the oracles too
+  ([decomp/log/actors-82-84-a5-2026-11-16](decomp/log/actors-82-84-a5-2026-11-16.md)).
 - Bottom up is not optional: C that reaches code with no C fails the whole
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.
