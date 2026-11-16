@@ -10,6 +10,15 @@ arch 65816
 !BG2_FOLLOWS_PLAY_X = $80
 !BG2_FOLLOWS_BACK_Y = $40
 
+; @routine 81:8564 BgFollowLayersLong
+; WHAT IT DOES: BgFollowLayers for a caller in another bank.
+; HOW: JSR to it, then RTL.
+; Entry: as BgFollowLayers; called by JSL. Exit: as BgFollowLayers.
+%at($818564)
+BgFollowLayersLong:
+    jsr.w BgFollowLayers
+    rtl
+
 ; @routine 81:8568 BgFollowLayers
 ; WHAT IT DOES: Takes this frame's BG1 and BG2 positions from the scroll
 ; layers, as the level sets them to follow.

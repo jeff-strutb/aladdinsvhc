@@ -245,3 +245,63 @@ ActorKindA1Wait:
 ActorKindA2Wait:
     jsl.l !kind_a2_wait_work
     rts
+
+; @routine 83:9292 ActorKind7CWait
+; WHAT IT DOES: The routine actors of kind $7C run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: MoverEndSound.
+; HOW: JSL MoverEndSound ($84:90A2), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as MoverEndSound leaves them.
+%at($839292)
+ActorKind7CWait:
+    jsl.l MoverEndSound
+    rts
+
+; @routine 83:92DC ActorKind83Wait
+; WHAT IT DOES: The routine actors of kind $83 run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: ActorWaitGrabsPlayer.
+; HOW: JSL ActorWaitGrabsPlayer ($84:95D4), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as ActorWaitGrabsPlayer leaves them.
+%at($8392DC)
+ActorKind83Wait:
+    jsl.l ActorWaitGrabsPlayer
+    rts
+
+; @routine 83:9348 ActorKind8DWait
+; WHAT IT DOES: The routine actors of kind $8D run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: SenderWait8E.
+; HOW: JSL SenderWait8E ($84:9B4D), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as SenderWait8E leaves them.
+%at($839348)
+ActorKind8DWait:
+    jsl.l SenderWait8E
+    rts
+
+; @routine 83:9359 ActorKind8FWait
+; WHAT IT DOES: The routine actors of kind $8F run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: KindAnimateSendFAAE.
+; HOW: JSL KindAnimateSendFAAE ($83:FAAE), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as KindAnimateSendFAAE leaves them.
+%at($839359)
+ActorKind8FWait:
+    jsl.l KindAnimateSendFAAE
+    rts
+
+; @routine 83:93E9 ActorKind9BWait
+; WHAT IT DOES: The routine actors of kind $9B run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: ActorBobAnimate.
+; HOW: JSL ActorBobAnimate ($84:A7A1), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as ActorBobAnimate leaves them.
+%at($8393E9)
+ActorKind9BWait:
+    jsl.l ActorBobAnimate
+    rts

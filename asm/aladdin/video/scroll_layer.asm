@@ -366,6 +366,15 @@ EdgeMapPlace:
     plp
     rts
 
+; @routine 81:C1F6 LayersScrollLong
+; WHAT IT DOES: LayersScroll for a caller in another bank.
+; HOW: JSR to it, then RTL.
+; Entry: as LayersScroll; called by JSL. Exit: as LayersScroll.
+%at($81C1F6)
+LayersScrollLong:
+    jsr.w LayersScroll
+    rtl
+
 ; @routine 81:C1FA LayersScroll
 ; WHAT IT DOES: Once a frame, keeps both scroll layers' tilemaps ahead of
 ; their scroll: queues the columns and rows coming into view, then draws

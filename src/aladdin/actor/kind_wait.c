@@ -9,6 +9,11 @@
 #include "ops65.h"
 
 void abi_LongReturn(void);
+void abi_MoverEndSound(void);
+void abi_ActorWaitGrabsPlayer(void);
+void abi_SenderWait8E(void);
+void abi_KindAnimateSendFAAE(void);
+void abi_ActorBobAnimate(void);
 
 /* The kinds' work, named by the first kind that uses it */
 #define KIND_00_WAIT_WORK 0x81E864u
@@ -147,3 +152,73 @@ void abi_ActorKind82Wait(void)
 
 
 
+
+/*
+ * @routine 83:9292 ActorKind7CWait
+ * WHAT IT DOES: The routine actors of kind $7C run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: MoverEndSound.
+ * HOW: JSL MoverEndSound ($84:90A2), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as MoverEndSound leaves them.
+ */
+void abi_ActorKind7CWait(void)
+{
+    abi_MoverEndSound();
+}
+
+/*
+ * @routine 83:92DC ActorKind83Wait
+ * WHAT IT DOES: The routine actors of kind $83 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: ActorWaitGrabsPlayer.
+ * HOW: JSL ActorWaitGrabsPlayer ($84:95D4), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as ActorWaitGrabsPlayer leaves them.
+ */
+void abi_ActorKind83Wait(void)
+{
+    abi_ActorWaitGrabsPlayer();
+}
+
+/*
+ * @routine 83:9348 ActorKind8DWait
+ * WHAT IT DOES: The routine actors of kind $8D run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: SenderWait8E.
+ * HOW: JSL SenderWait8E ($84:9B4D), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as SenderWait8E leaves them.
+ */
+void abi_ActorKind8DWait(void)
+{
+    abi_SenderWait8E();
+}
+
+/*
+ * @routine 83:9359 ActorKind8FWait
+ * WHAT IT DOES: The routine actors of kind $8F run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: KindAnimateSendFAAE.
+ * HOW: JSL KindAnimateSendFAAE ($83:FAAE), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as KindAnimateSendFAAE leaves them.
+ */
+void abi_ActorKind8FWait(void)
+{
+    abi_KindAnimateSendFAAE();
+}
+
+/*
+ * @routine 83:93E9 ActorKind9BWait
+ * WHAT IT DOES: The routine actors of kind $9B run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: ActorBobAnimate.
+ * HOW: JSL ActorBobAnimate ($84:A7A1), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as ActorBobAnimate leaves them.
+ */
+void abi_ActorKind9BWait(void)
+{
+    abi_ActorBobAnimate();
+}

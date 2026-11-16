@@ -14,6 +14,7 @@
 #include "wram.h"
 #include "hw.h"
 #include "wram_video.h"
+void abi_LayersScroll(void);
 
 /* The step, in pixels, the drawn position makes for a column or row
    queued: +8 (right or down), -8 (left or up) */
@@ -1062,6 +1063,17 @@ static void draw_queued(uint32_t queue, uint32_t head, uint32_t tail, uint16_t s
             step();
         }
     }
+}
+
+/*
+ * @routine 81:C1F6 LayersScrollLong
+ * WHAT IT DOES: LayersScroll for a caller in another bank.
+ * HOW: JSR to it, then RTL.
+ * Entry: as LayersScroll; called by JSL. Exit: as LayersScroll.
+ */
+void abi_LayersScrollLong(void)
+{
+    abi_LayersScroll();
 }
 
 /*

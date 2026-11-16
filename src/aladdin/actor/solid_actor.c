@@ -8,6 +8,7 @@
 #include "ops65.h"
 #include "actor.h"
 #include "wram.h"
+void abi_ActorSolidForPlayer(void);
 
 #define SOLID_BOXES 0xBD66u         /* by Y: half-width, half-height (words, the DB bank) */
 #define PLAYER_X_PIXELS (PLAYER + ACTOR_X + 1)
@@ -33,6 +34,17 @@ static int inside(uint16_t mine, uint16_t his, uint16_t half, uint16_t whole, in
     cpu.a = d;
     cmp16_of(d, whole);
     return d < whole;
+}
+
+/*
+ * @routine 83:8657 ActorSolidForPlayerLong
+ * WHAT IT DOES: ActorSolidForPlayer for a caller in another bank.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorSolidForPlayer; called by JSL. Exit: as ActorSolidForPlayer.
+ */
+void abi_ActorSolidForPlayerLong(void)
+{
+    abi_ActorSolidForPlayer();
 }
 
 /*

@@ -17,6 +17,15 @@ arch 65816
 !V_141C = $141C                 ; zero: he does not bump his head
 !HEALTH = $0367                 ; the player's health
 
+; @routine 83:8657 ActorSolidForPlayerLong
+; WHAT IT DOES: ActorSolidForPlayer for a caller in another bank.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorSolidForPlayer; called by JSL. Exit: as ActorSolidForPlayer.
+%at($838657)
+ActorSolidForPlayerLong:
+    jsr.w ActorSolidForPlayer
+    rtl
+
 ; ActorSolidForPlayer's "nothing": C set, V clear. It sits before the
 ; routine's entry.
 %at($83865B)

@@ -395,4 +395,14 @@ void abi_ActorWaitTest42Anim(void)
     abi_ActorEndOutOfRange();
 }
 
-
+/*
+ * @routine 83:ECCF ActorWaitAnimC
+ * WHAT IT DOES: Each frame it waits, its animation plays on (kind $6B).
+ * HOW: AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSR from the actor
+ * loop. Exit: as AnimStep.
+ */
+void abi_ActorWaitAnimC(void)
+{
+    abi_AnimStep();
+}

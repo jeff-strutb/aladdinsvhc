@@ -5,6 +5,7 @@
 #include "cpu_ops.h"
 #include "wram.h"
 #include "wram_video.h"
+void abi_BgFollowLayers(void);
 
 static uint32_t abs_db(uint16_t addr)
 {
@@ -21,6 +22,17 @@ static void copy16(uint16_t from, uint16_t to)
     cpu.a = rd16(abs_db(from));
     cpu.p = nz16(cpu.p, cpu.a);
     wr16(abs_db(to), cpu.a);
+}
+
+/*
+ * @routine 81:8564 BgFollowLayersLong
+ * WHAT IT DOES: BgFollowLayers for a caller in another bank.
+ * HOW: JSR to it, then RTL.
+ * Entry: as BgFollowLayers; called by JSL. Exit: as BgFollowLayers.
+ */
+void abi_BgFollowLayersLong(void)
+{
+    abi_BgFollowLayers();
 }
 
 /*

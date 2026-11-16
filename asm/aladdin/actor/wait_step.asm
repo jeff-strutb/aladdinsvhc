@@ -298,3 +298,13 @@ ActorWaitAnimRange18:
     jsl.l !SUB_81949E
     ldx.b #$18
     jmp.w ActorEndOutOfRange
+
+; @routine 83:ECCF ActorWaitAnimC
+; WHAT IT DOES: Each frame it waits, its animation plays on (kind $6B).
+; HOW: AnimStep.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSR from the actor
+; loop. Exit: as AnimStep.
+%at($83ECCF)
+ActorWaitAnimC:
+    jsl.l AnimStep
+    rts
