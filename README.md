@@ -20,16 +20,16 @@ _Snapshot 2026-11-16._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░   35.3%   25,619 / 72,522 B of the game's code
+    ██████████████████░░░░░░░░░░░░░░░░░░░░░░   45.7%   33,111 / 72,522 B of the game's code
 M2  Byte exact (T4)
-    ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░   35.0%   25,408 / 72,522 B of the game's code
+    ██████████████████░░░░░░░░░░░░░░░░░░░░░░   45.1%   32,737 / 72,522 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 72,522 B: 64,077 B the scripts have run and 8,445 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 590 routines behaviour exact, 586 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 72,522 B: 64,077 B the scripts have run and 8,445 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 788 routines behaviour exact, 783 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `███████░░░░░░░░░░░░░` 33.3%: 23,338/70,179 B | `███████░░░░░░░░░░░░░` 33.0%: 23,127/70,179 B |
+| **S-CPU (65816)** | `█████████░░░░░░░░░░░` 43.9%: 30,830/70,179 B | `█████████░░░░░░░░░░░` 43.4%: 30,456/70,179 B |
 | **SPC700 (sound)** | `███████████████████░` 97.4%: 2,281/2,343 B | `███████████████████░` 97.4%: 2,281/2,343 B |
 <!-- PROGRESS:END -->
 
@@ -42,12 +42,12 @@ have run and the 8,445 B the routine census (`tools/aladdin/census.py`) finds
 by following the code statically (calls, jumps, tables, handler pointers,
 task entries, orphans) where no script has gone. The numerator is the code
 bytes inside routines whose C is certified behaviour exact (T3) or whose
-assembly is also byte exact (T4), for M1, and T4 only for M2. 245 routine(s)
+assembly is also byte exact (T4), for M1, and T4 only for M2. 80 routine(s)
 are in the tree but not yet certified (T2).
 
 **Why not routines.** A routine count keeps growing as the work goes on:
 every entry point filed in C or reached by a new script splits code already
-counted into more routines (the census now counts about 1,443, 1,146 of them
+counted into more routines (the census now counts about 1,410, 1,146 of them
 named), while the bytes stay put: tracing a new script moves bytes from
 "found" to "run" and barely changes the total. Of the
 ROM's 1,310,720 B, the scripts have run 61,734 B as code and read 875,485 B as data;
