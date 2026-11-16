@@ -13,6 +13,7 @@ void abi_TextLayoutShow(void);
 
 void abi_KeptOptionsSeal(void);
 void abi_SoundQueueAdd(void);
+void abi_OptionStereoShow(void);
 
 #define SOUND_OUTPUT (KEPT_OPTIONS + 1) /* the second kept option: bit 7 set, stereo */
 #define TEXT_STEREO 0x68           /* the string "STEREO" */
@@ -65,9 +66,49 @@ void abi_OptionCursorClear(void)
     nz8_of(up);
 }
 
+/*
+ * @routine 83:8BA8 OptionStereoToggle
+ * WHAT IT DOES: The sound output item's step (left or right): switches
+ * between stereo and monaural, seals the kept options and shows it.
+ * HOW: Bit 7 of the second kept option flipped, KeptOptionsSeal, then on
+ * into OptionStereoShow.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR. Exit: as OptionStereoShow.
+ */
 
+void abi_OptionStereoToggle(void)
+{
+    uint8_t out = (uint8_t)(rd8(dba(SOUND_OUTPUT)) ^ 0x80);
 
+    a8_load(out);
+    wr8(dba(SOUND_OUTPUT), out);
+    abi_KeptOptionsSeal();
+    abi_OptionStereoShow();
+}
 
+/*
+ * @routine 83:8BB4 OptionStereoShow
+ * WHAT IT DOES: Shows the sound output on the options screen, STEREO or
+ * MONAURAL by bit 7 of the second kept option, and sends the sound driver
+ * the matching command.
+ * HOW: Text string $68 (STEREO) or $66 (MONAURAL) by TextLayoutShow; then sound command $F7 (stereo) or $F8 (monaural) to
+ * SoundQueueAdd.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR (and on from OptionStereoToggle).
+ * Exit: as SoundQueueAdd leaves them (the command is not 0, so Z clear on
+ * entry to it); Y = the second kept option; V as TextLayoutShow leaves
+ * it.
+ */
 
+void abi_OptionStereoShow(void)
+{
+    uint8_t out = rd8(dba(SOUND_OUTPUT));
 
-
+    cpu.y = out;
+    a8_load((out & 0x80) ? TEXT_STEREO : TEXT_MONAURAL);
+    abi_TextLayoutShow();
+    out = rd8(dba(SOUND_OUTPUT));
+    cpu.y = out;
+    a8_load((out & 0x80) ? SOUND_CMD_STEREO : SOUND_CMD_STEREO + 1);
+    abi_SoundQueueAdd();
+}

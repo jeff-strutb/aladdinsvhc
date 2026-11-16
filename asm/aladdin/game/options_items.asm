@@ -35,8 +35,7 @@ OptionStereoToggle:
 ; WHAT IT DOES: Shows the sound output on the options screen, STEREO or
 ; MONAURAL by bit 7 of the second kept option, and sends the sound driver
 ; the matching command.
-; HOW: Text string $68 (STEREO) or $66 (MONAURAL) through the text routine
-; at $81:972D; then sound command $F7 (stereo) or $F8 (monaural) to
+; HOW: Text string $68 (STEREO) or $66 (MONAURAL) by TextLayoutShow; then sound command $F7 (stereo) or $F8 (monaural) to
 ; SoundQueueAdd.
 ; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM.
 ; Exit: as the C states.
