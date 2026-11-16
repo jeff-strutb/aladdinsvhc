@@ -14,6 +14,7 @@ void abi_LevelSongPlay(void);
 void abi_RestartPointCheck(void);
 void abi_PaletteLoad(void);
 void abi_SongPlay(void);
+void abi_SoundQueueF0(void);
 #include "wram.h"
 #include "wram_video.h"
 #include "wram_player.h"
@@ -24,6 +25,7 @@ static uint32_t abs_db(uint16_t addr)
 }
 
 /* Per level: two bytes for LEVEL_035C (bank $81, word per level). */
+#define LEVEL_SONGS 0xB8EFu           /* by level: its song, or bit 7: none ($80 bank) */
 #define LEVEL_035C_TABLE 0xB933u
 /* Per level, the offset of its trigger-spot list from LEVEL_SPOT_TABLE;
    the list is a count, then 6-byte spots. */
@@ -194,6 +196,28 @@ void abi_LevelCompanionStart(void)
     abi_PaletteLoad();
 }
 
+
+/*
+ * @routine 81:86DE LevelSongPlay
+ * WHAT IT DOES: Plays the level's song, or, when its entry has none,
+ * sends sound command $F0 instead.
+ * HOW: The level's byte in LEVEL_SONGS: bit 7 clear, SongPlay with it;
+ * set, SoundQueueF0.
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: X = the level;
+ * as SongPlay or SoundQueueF0 leaves it.
+ */
+void abi_LevelSongPlay(void)
+{
+    uint8_t level = rd8(dba((uint16_t)LEVEL)), song;
+
+    cpu.x = level;
+    song = rd8(dba(LEVEL_SONGS) + level);
+    a8_load(song);
+    if (song & 0x80)
+        abi_SoundQueueF0();
+    else
+        abi_SongPlay();
+}
 
 /*
  * @routine 81:86F0 RestartPointCheck

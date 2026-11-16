@@ -22,7 +22,7 @@ arch 65816
 !level_starts = $ED9D
 !level_camera = $EF15
 !level_companion = $B7BB
-!level_songs = $B8EF
+!level_songs = $B8EF            ; by level: its song, or bit 7: none ($80 bank)
 !level_restart_x = $F015
 !level_restart = $0360           ; the restart point the level starts at (0 or 1)
 !restart_held = $1423            ; nonzero: no restart point is set
@@ -32,7 +32,6 @@ arch 65816
 !V_1A40 = $1A40
 !V_1A42 = $1A42
 !companion = $097B               ; the companion actor's record
-!sound_command_f0 = $81F9F0      ; sends sound command $F0 (not yet filed)
 !PLAYER_FACING_LEFT = $0101      ; the player's facing and flip, left
 ; The exit: per level, nonzero when the camera passing the spot ends it
 ; (and the exit walk is the companion's); per sequence, the next one.
@@ -178,12 +177,13 @@ LevelCompanionStart:
     rts
 
 ; @routine 81:86DE LevelSongPlay
-; WHAT IT DOES: Plays the level's song, or sends its sound command when
-; the level's entry is one.
-; HOW: The level's byte in the table at $80:B8EF: below $80, SongPlay;
-; else $81:F9F0 (command $F0).
-; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: as SongPlay
-; or $81:F9F0.
+; WHAT IT DOES: Plays the level's song, or, when its entry has none,
+; sends sound command $F0 instead.
+; HOW: The level's byte in LEVEL_SONGS: bit 7 clear, SongPlay with it;
+; set, SoundQueueF0.
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: X = the level;
+; as SongPlay or SoundQueueF0 leaves it.
+;
 %at($8186DE)
 LevelSongPlay:
     ldx.w !level
@@ -192,7 +192,7 @@ LevelSongPlay:
     jsl.l SongPlay
     rts
 .command:
-    jsl.l !sound_command_f0
+    jsl.l SoundQueueF0
     rts
 
 ; @routine 81:86F0 RestartPointCheck

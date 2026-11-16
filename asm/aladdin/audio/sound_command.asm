@@ -103,8 +103,10 @@ SoundQueueAdd:
     sep.b #$10
     rtl
 
-!SOUND_SPECIAL = $03F8          ; the last $F2 or $F6 command queued
+!SOUND_SPECIAL = $03F8          ; the last special command ($F0, $F2, $F5, $F6) queued
+!SOUND_CMD_F0 = $F0
 !SOUND_CMD_F2 = $F2
+!SOUND_CMD_F5 = $F5
 !SOUND_CMD_F6 = $F6
 
 ; @routine 81:F9D2 SoundQueueF6With1
@@ -121,6 +123,34 @@ SoundQueueF6With1:
     sta.w !SOUND_SPECIAL
     jsl.l SoundQueueAdd
     xba
+    bra SoundQueueAdd
+
+; @routine 81:F9E3 SoundQueueF5WithA
+; WHAT IT DOES: Queues sound command $F5 with its parameter A, keeping
+; $F5 as the last special command.
+; HOW: The parameter waits in A's high byte; SoundQueueAdd for each.
+; Entry: M 8-bit, X 8-bit; A = the parameter; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSL. Exit: as SoundQueueAdd for the
+; parameter; A high = $F5.
+%at($81F9E3)
+SoundQueueF5WithA:
+    xba
+    lda.b #!SOUND_CMD_F5
+    sta.w !SOUND_SPECIAL
+    jsl.l SoundQueueAdd
+    xba
+    bra SoundQueueAdd
+
+; @routine 81:F9F0 SoundQueueF0
+; WHAT IT DOES: Queues sound command $F0, keeping it as the last special
+; command.
+; HOW: Then on into SoundQueueAdd.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSL. Exit: as SoundQueueAdd.
+%at($81F9F0)
+SoundQueueF0:
+    lda.b #!SOUND_CMD_F0
+    sta.w !SOUND_SPECIAL
     bra SoundQueueAdd
 
 ; @routine 81:F9F7 SoundQueueF2
