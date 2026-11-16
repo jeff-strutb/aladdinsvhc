@@ -26,6 +26,19 @@ arch 65816
 ; Random lists: per list, a mask, then its entries.
 !random_lists = $81DCE7
 
+; @routine 81:972D TextLayoutShow
+; WHAT IT DOES: Draws text layout A (or blanks it, bit 7 set) and has the
+; NMI copy the text layer to VRAM at the next frame.
+; HOW: TextLayoutDraw, then text_tilemap_upload counted up (DB as at
+; entry).
+; Entry: M 8-bit, X 8-bit; A low byte = the layout; called by JSL. Exit:
+; as TextLayoutDraw leaves it, but N and Z from the upload count.
+%at($81972D)
+TextLayoutShow:
+    jsr.w TextLayoutDraw
+    inc.w !text_tilemap_upload
+    rtl
+
 ; @routine 81:9734 TextLayoutDraw
 ; WHAT IT DOES: Draws text layout A (low 7 bits) into the text layer's
 ; tilemap, or blanks the places it covers (bit 7 set).

@@ -9,12 +9,12 @@
 #include "ops65.h"
 #include "wram.h"
 #include "wram_state.h"
+void abi_TextLayoutShow(void);
 
 void abi_KeptOptionsSeal(void);
 void abi_SoundQueueAdd(void);
 
 #define SOUND_OUTPUT (KEPT_OPTIONS + 1) /* the second kept option: bit 7 set, stereo */
-#define TEXT_SHOW 0x81972Du        /* shows text string A of the table at $82:B575 */
 #define TEXT_STEREO 0x68           /* the string "STEREO" */
 #define TEXT_MONAURAL 0x66         /* the string "MONAURAL" */
 #define SOUND_CMD_STEREO 0xF7      /* the sound command for stereo; the next, monaural */

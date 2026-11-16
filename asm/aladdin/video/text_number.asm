@@ -9,6 +9,15 @@ incsrc "../include/hw.inc"
 arch 65816
 
 
+; @routine 83:8BDA TextNumberTwoDigitsLong
+; WHAT IT DOES: TextNumberTwoDigits for a caller in another bank.
+; HOW: JSR to it, then RTL.
+; Entry and exit: as TextNumberTwoDigits; called by JSL.
+%at($838BDA)
+TextNumberTwoDigitsLong:
+    jsr.w TextNumberTwoDigits
+    rtl
+
 ; @routine 83:8BDE TextNumberTwoDigits
 ; WHAT IT DOES: Writes the number X (0-99) as two digits into the text
 ; layer's tilemap at the offset A (high byte) and Y (low byte), with

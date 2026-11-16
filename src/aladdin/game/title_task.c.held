@@ -256,13 +256,13 @@ L_809F2B:
     jsl_frame(0x809F39u); abi_TaskCreate(); cpu.unwound = 0;  /* 809F39 jsl */
     call_routine(0x81EE04u, 1);  /* 809F42 jsl */
     lda8_v(0xA6);  /* 809F46 lda */
-    call_routine(0x81972Du, 1);  /* 809F48 jsl */
+    abi_TextLayoutShow();  /* 809F48 jsl */
     lda8_v(0x0E);  /* 809F4C lda */
-    call_routine(0x81972Du, 1);  /* 809F4E jsl */
+    abi_TextLayoutShow();  /* 809F4E jsl */
     lda8_v(0x10);  /* 809F52 lda */
-    call_routine(0x81972Du, 1);  /* 809F54 jsl */
+    abi_TextLayoutShow();  /* 809F54 jsl */
     lda8_v(0x12);  /* 809F58 lda */
-    call_routine(0x81972Du, 1);  /* 809F5A jsl */
+    abi_TextLayoutShow();  /* 809F5A jsl */
     stz8(ea_abs(0x0847));  /* 809F5E stz */
     stz8(ea_abs(0x0848));  /* 809F61 stz */
     stz8(ea_abs(0x0849));  /* 809F64 stz */
@@ -305,7 +305,7 @@ L_809FB9:
     abi_LevelSelect();  /* 809FC8 jsr */
     if (!IF_C) goto L_809FD1;  /* 809FCB bcc */
 L_809FCD:
-    call_routine(0x81EDA2u, 1);  /* 809FCD jsl */
+    abi_TitleMenuCursorLong();  /* 809FCD jsl */
 L_809FD1:
     op_rep(0x20);  /* 809FD1 rep */
     MEM16(dec, ea_abs(V_0343));  /* 809FD3 dec */

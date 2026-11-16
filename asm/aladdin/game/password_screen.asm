@@ -52,7 +52,6 @@ PasswordPictureDraw:
 !routine_81825b = $81825B  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
 !routine_8196b1 = $8196B1  ; not yet filed
-!routine_81972d = $81972D  ; not yet filed
 !routine_81f10d = $81F10D  ; not yet filed
 !t_fdd1 = $FDD1  ; data bank
 !t_fe36 = $FE36  ; data bank
@@ -320,11 +319,11 @@ PasswordScreen:
 .lAEB1:
     inc.b !v_00ac
     lda.b #$64
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     bra .lAEC1
 .lAEBB:
     lda.b #$62
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
 .lAEC1:
     lda.b #$80
     sta.b !v_00ad

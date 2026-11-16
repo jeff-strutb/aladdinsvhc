@@ -10,7 +10,6 @@ incsrc "../include/wram_state.inc"
 arch 65816
 
 !SOUND_OUTPUT = !kept_options+1 ; the second kept option: bit 7 set, stereo
-!TEXT_SHOW = $81972D            ; shows text string A of the table at $82:B575
 !TEXT_STEREO = $68              ; the string "STEREO"
 !TEXT_MONAURAL = $66            ; the string "MONAURAL"
 !SOUND_CMD_STEREO = $F7         ; the sound command for stereo; the next, monaural
@@ -47,7 +46,7 @@ OptionStereoShow:
     bmi .stereo
     lda.b #!TEXT_MONAURAL
 .stereo:
-    jsl.l !TEXT_SHOW
+    jsl.l TextLayoutShow
     lda.b #!SOUND_CMD_STEREO
     ldy.w !SOUND_OUTPUT
     bmi .queue

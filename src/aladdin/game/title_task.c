@@ -38,6 +38,8 @@ void abi_TextLayerClear(void);
 void abi_TitleStartTask(void);
 void abi_TitleTask(void);
 void abi_VramCopy(void);
+void abi_TextLayoutShow(void);
+void abi_TitleMenuCursorLong(void);
 #include "actor.h"
 #include "hw.h"
 #include "wram.h"

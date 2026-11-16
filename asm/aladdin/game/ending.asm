@@ -21,15 +21,11 @@ arch 65816
 !dp_0a = $0A  ; direct page
 !routine_8181a3 = $8181A3  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
-!routine_81972d = $81972D  ; not yet filed
-!routine_819e8e = $819E8E  ; not yet filed
-!routine_819eb9 = $819EB9  ; not yet filed
 !routine_82b458 = $82B458  ; not yet filed
 !routine_82b4af = $82B4AF  ; not yet filed
 !routine_82b4d5 = $82B4D5  ; not yet filed
 !routine_82b501 = $82B501  ; not yet filed
 !routine_82b538 = $82B538  ; not yet filed
-!routine_838bda = $838BDA  ; not yet filed
 !t_e0ae = $E0AE  ; data bank
 !t_e433 = $E433  ; data bank
 !v_0000 = $0000
@@ -191,30 +187,30 @@ TextPageExtra:
     ldx.w !v_0376
     lda.b #$05
     ldy.b #$22
-    jsl.l !routine_838bda
+    jsl.l TextNumberTwoDigitsLong
     lda.b #$6C
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     lda.b #$6E
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     rts
 .lB1F8:
     ldx.w !v_0376
     lda.b #$05
     ldy.b #$30
-    jsl.l !routine_838bda
+    jsl.l TextNumberTwoDigitsLong
     lda.b #$76
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     lda.b #$78
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     lda.w !v_0376
     cmp.b #$46
     beq .lB21D
     lda.b #$7A
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     rts
 .lB21D:
     lda.b #$7C
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     rts
 
 
@@ -414,7 +410,7 @@ EndingStagesTask:
     sta.w !v_0347
     jsl.l TaskCreate
     db 1*24, 4                ; slot 1, parameter 4
-    dl !routine_819e8e
+    dl BrightnessUpTask
     lda.w !v_0082
     beq .lB34A
     jmp.w .lB435
@@ -441,7 +437,7 @@ EndingStagesTask:
     sta.w !v_0077
     jsl.l TaskCreate
     db 1*24, 4                ; slot 1, parameter 4
-    dl !routine_819eb9
+    dl BrightnessDownTask
 .lB385:
     lda.b #$01
     jsl.l TaskWait

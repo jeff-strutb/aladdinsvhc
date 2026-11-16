@@ -28,6 +28,7 @@ void abi_VramCopy2(void);
 void abi_PaletteFromRom(void);
 void abi_PasswordPictureDraw(void);
 void abi_TileBlockQueue(void);
+void abi_TextLayoutShow(void);
 #include "actor.h"
 #include "hw.h"
 #include "wram.h"

@@ -34,7 +34,7 @@ void abi_OptionStereoShow(void)
     ldy8(ea_abs(SOUND_OUTPUT));
     if (!IF_N)
         lda8_v(TEXT_MONAURAL);
-    call_routine(TEXT_SHOW, 1);
+    abi_TextLayoutShow();
     lda8_v(SOUND_CMD_STEREO);
     ldy8(ea_abs(SOUND_OUTPUT));
     if (!IF_N)

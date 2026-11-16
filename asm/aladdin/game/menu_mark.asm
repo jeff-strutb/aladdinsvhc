@@ -1,5 +1,6 @@
 ; menu_mark.asm: the selection mark of a menu drawn in the text layer: taken
-; away from the choice left; and the title menu's cursor moved. Drafted
+; away from the choice left; and the title menu's cursor moved and its
+; chosen line blinked. Drafted
 ; by cdraft.py; named and described by hand.
 ; C: src/aladdin/game/menu_mark.c.
 
@@ -9,69 +10,119 @@ incsrc "../include/wram.inc"
 arch 65816
 
 !MENU_CHOICE = $0849            ; the title menu's choice (0-2)
-!MENU_CHOICE_OLD = $084A        ; the choice before the last move
-!v_0847 = $0847
-!v_0848 = $0848
-!MENU_PICTURES = $CE25          ; in bank $81: a byte per choice for the call at $81:972D
-; Not yet filed: the mark's move ($81:EE04), the menu's step ($81:EE55)
-; and the call at $81:972D.
-!MENU_MARK_MOVE = $81EE04
-!MENU_STEP = $81EE55
-!MENU_PICTURE_SHOW = $81972D
+!MENU_CHOICE_WAS = $084A        ; the choice before the last move
+!MENU_BLINK_HIDDEN = $0847      ; nonzero: the chosen line is blanked
+!MENU_BLINK_FRAMES = $0848      ; frames the line has been shown, or frames left blanked
+!MENU_LINES = $CE25             ; by choice: its text layout (the DB bank, $81)
+!MENU_BLINK_SHOWN = $20         ; frames a line is shown before it blinks off
+!PAD_UP = $08                   ; in the pad's high byte
+!PAD_DOWN = $04
+!TITLE_IDLE_LEAST = $04EC       ; frames the title waits idle, at least, after a move
+!SOUND_MENU_MOVE = $0C
+
+; @routine 81:EDA2 TitleMenuCursorLong
+; WHAT IT DOES: TitleMenuCursor for a caller in another bank.
+; HOW: JSR to it, then RTL.
+; Entry and exit: as TitleMenuCursor; called by JSL.
+%at($81EDA2)
+TitleMenuCursorLong:
+    jsr.w TitleMenuCursor
+    rtl
 
 ; @routine 81:EDA6 TitleMenuCursor
 ; WHAT IT DOES: Moves the title screen menu's cursor on Up or Down
-; (wrapping round the three choices), with its mark, picture and sound;
-; anything else, the menu's other step.
-; HOW: Pad 1's newly pressed high byte: Up, the choice ($0849) down by 1
-; (wrapping to 2); Down, up by 1 (wrapping to 0); neither, the step at
-; 81:EE55 only. Moved: the mark moved (81:EE04), the step at 81:EE55, the
-; call at 81:972D with the old choice's byte from $CE25, $0847-$0848
-; cleared, the old choice kept ($084A), $0343 raised to at least $04EC,
-; sound $0C.
+; (wrapping round the three choices), with its mark, line and sound;
+; otherwise blinks the chosen line.
+; HOW: Pad 1's newly pressed high byte: neither Up nor Down, TitleMenuBlink
+; only. Up, MENU_CHOICE down by 1 (0 wraps to 2); Down, up by 1 (3 wraps
+; to 0). Then MenuMarkMove, TitleMenuBlink, the old choice's line drawn
+; again (TextLayoutShow; it may have been blinked off), the blink
+; restarted, MENU_CHOICE_WAS = the choice, v_0343 (the title's idle
+; countdown) raised to at least TITLE_IDLE_LEAST, and sound
+; SOUND_MENU_MOVE.
 ; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR (81:EDA2). Exit: M
-; 8-bit; as SoundQueueAdd, or as the step at 81:EE55.
+; 8-bit, X 8-bit; as TitleMenuBlink leaves it, or as SoundQueueAdd (A's
+; high byte $04).
 %at($81EDA6)
 TitleMenuCursor:
     lda.w !joy_pressed+1
-    bit.b #$08
-    bne .lEDC4
-    bit.b #$04
-    bne .lEDB5
-    jsr.w !MENU_STEP
+    bit.b #!PAD_UP
+    bne .up
+    bit.b #!PAD_DOWN
+    bne .down
+    jsr.w TitleMenuBlink
     rts
-.lEDB5:
+.down:
     inc.w !MENU_CHOICE
     lda.w !MENU_CHOICE
     cmp.b #$03
-    bne .lEDD1
+    bne .moved
     stz.w !MENU_CHOICE
-    bra .lEDD1
-.lEDC4:
+    bra .moved
+.up:
     dec.w !MENU_CHOICE
     lda.w !MENU_CHOICE
-    bpl .lEDD1
+    bpl .moved
     lda.b #$02
     sta.w !MENU_CHOICE
-.lEDD1:
-    jsl.l !MENU_MARK_MOVE
-    jsr.w !MENU_STEP
-    ldy.w !MENU_CHOICE_OLD
-    lda.w !MENU_PICTURES,y
-    jsl.l !MENU_PICTURE_SHOW
-    stz.w !v_0847
-    stz.w !v_0848
+.moved:
+    jsl.l MenuMarkMove
+    jsr.w TitleMenuBlink
+    ldy.w !MENU_CHOICE_WAS
+    lda.w !MENU_LINES,y
+    jsl.l TextLayoutShow
+    stz.w !MENU_BLINK_HIDDEN
+    stz.w !MENU_BLINK_FRAMES
     lda.w !MENU_CHOICE
-    sta.w !MENU_CHOICE_OLD
+    sta.w !MENU_CHOICE_WAS
     rep.b #$20
-    lda.w #$04EC
+    lda.w #!TITLE_IDLE_LEAST
     cmp.w !v_0343
-    bcc .lEDFB
+    bcc .idle_kept
     sta.w !v_0343
-.lEDFB:
+.idle_kept:
     sep.b #$20
-    lda.b #$0C
+    lda.b #!SOUND_MENU_MOVE
     jsl.l SoundQueueAdd
+    rts
+
+; @routine 81:EE55 TitleMenuBlink
+; WHAT IT DOES: Blinks the title menu's chosen line: shown for
+; MENU_BLINK_SHOWN frames, then blanked until its count runs out.
+; HOW: Shown (MENU_BLINK_HIDDEN zero): MENU_BLINK_FRAMES counted up; at
+; MENU_BLINK_SHOWN, MENU_BLINK_HIDDEN set and the line of MENU_CHOICE
+; blanked (its layout with bit 7, TextLayoutShow). Blanked:
+; MENU_BLINK_FRAMES counted down; at 0, MENU_BLINK_HIDDEN cleared and the
+; line of MENU_CHOICE_WAS drawn.
+; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: M 8-bit, X
+; 8-bit; a line drawn or blanked: as TextLayoutShow leaves it, Y = the
+; choice. Else Y = MENU_BLINK_HIDDEN; shown: A = the count, N, Z and C as
+; its compare with MENU_BLINK_SHOWN; blanked: A = the count before, N
+; and Z from the count after.
+%at($81EE55)
+TitleMenuBlink:
+    lda.w !MENU_BLINK_FRAMES
+    ldy.w !MENU_BLINK_HIDDEN
+    beq .shown
+    dec.w !MENU_BLINK_FRAMES
+    bne .done
+    stz.w !MENU_BLINK_HIDDEN
+    ldy.w !MENU_CHOICE_WAS
+    lda.w !MENU_LINES,y
+    jsl.l TextLayoutShow
+    bra .done
+.shown:
+    inc a
+    sta.w !MENU_BLINK_FRAMES
+    cmp.b #!MENU_BLINK_SHOWN
+    bne .done
+    inc.w !MENU_BLINK_HIDDEN
+    ldy.w !MENU_CHOICE
+    lda.w !MENU_LINES,y
+    ora.b #$80
+    jsl.l TextLayoutShow
+    bra .done
+.done:
     rts
 
 ; @routine 81:EF15 MenuMarkErase

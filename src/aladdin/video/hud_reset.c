@@ -4,6 +4,7 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_TextLayoutShow(void);
 
 void abi_HudHealthMarkShow(void);
 
@@ -15,7 +16,6 @@ void abi_HudHealthMarkShow(void);
 #define HUD_036D 0x036Du            /* a value as shown (its value at $036E) */
 
 /* Not yet filed */
-#define TEXT_DRAW 0x81972Du         /* text A drawn in the text layer, its upload asked for */
 #define HUD_DIGIT_REFRESH 0x81F47Fu /* the digit at $0363 drawn when it differs from $0364 */
 #define HUD_REFRESH 0x81F456u       /* each value drawn that differs from the one shown */
 

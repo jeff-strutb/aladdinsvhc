@@ -14,112 +14,127 @@ incsrc "../include/rom.inc"
 
 arch 65816
 
-; Places not yet named keep their address as their name.
-!routine_81972d = $81972D  ; not yet filed
-!t_ce2e = $CE2E  ; data bank
-!v_035d = $035D
-!v_037c = $037C
-!v_7edc1a = $7EDC1A
-!v_7edc1c = $7EDC1C
-!v_7edc1e = $7EDC1E
-!v_7edc20 = $7EDC20
-!v_7edc22 = $7EDC22
+; LEVEL_035C's two bytes as the level select shows them: the part (1-7 on
+; screen) and the stage in it.
+!LEVEL_PART = !level_035c
+!LEVEL_STAGE = !level_035c+1
+!PART_LAST = 6                  ; the last part (its text a message)
+!PART_STAGES_LAST = $CE2E       ; by part: its last stage (the DB bank, $80)
+!PAD_HELD_LR = $30              ; L or R, in the pad's low byte
+!PAD_UP = $08                   ; in the pad's high byte
+!PAD_DOWN = $04
+!PAD_LEFT = $02
+!PAD_RIGHT = $01
+; The level's number in the text layer: row 16, from column 13: a space,
+; the part, '.', the stage, a space (tile words, attribute $20).
+!LEVEL_NUMBER_AT = !text_tilemap+1050
+!TILE_DIGIT_1 = $2031           ; '1': the part and stage shown from 1
+!TILE_DOT = $202E
+!TILE_SPACE = $2020
+!LEVEL_TEXT_LAST_PART = $5E     ; text layouts: the last part's title
+!LEVEL_TEXT_5_4 = $60           ; part 5 stage 3's (shown "6.4") title
 
 ; @routine 80:A0B1 LevelNumberText
-; WHAT IT DOES: Writes the level's part and stage into the text layer (or
-; a fixed message for part 6, and for part 5 stage 3), and has the NMI
-; upload it.
-; HOW: Part 6: message $5E; part 5 stage 3: message $60 (by $81:972D).
-; Else the two digits ($2031 + each) at $7E:DC1C and $7E:DC20, a '.'
-; between, spaces round; text_tilemap_upload up.
-; Entry: M 8-bit; DB = $80; called by JSR. Exit: M 8-bit.
+; WHAT IT DOES: Writes the level's part and stage into the text layer as
+; "P.S" (or a title in place of it for the last part, and for part 5
+; stage 3), and has the NMI upload it.
+; HOW: LEVEL_PART = PART_LAST: layout LEVEL_TEXT_LAST_PART; part and stage
+; $05, $03: layout LEVEL_TEXT_5_4 (by TextLayoutShow). Else each one's low
+; four bits + TILE_DIGIT_1 at LEVEL_NUMBER_AT + 2 and + 6, TILE_DOT
+; between, TILE_SPACE either side; TEXT_TILEMAP_UPLOAD up.
+; Entry: M 8-bit; DB = $80; called by JSR. Exit: M 8-bit; a layout: as
+; TextLayoutShow leaves it; else A = TILE_SPACE, N and Z from the upload
+; count, C and V clear.
 %at($80A0B1)
 LevelNumberText:
-    lda.w !level_035c
-    cmp.b #$06
-    beq .lA0FB
+    lda.w !LEVEL_PART
+    cmp.b #!PART_LAST
+    beq .last_part
     rep.b #$20
-    lda.w !level_035c
+    lda.w !LEVEL_PART
     cmp.w #$0305
-    beq .lA0F2
+    beq .part_5_3
     and.w #$000F
     clc
-    adc.w #$2031
-    sta.l !v_7edc1c
-    lda.w !v_035d
+    adc.w #!TILE_DIGIT_1
+    sta.l !LEVEL_NUMBER_AT+2
+    lda.w !LEVEL_STAGE
     and.w #$000F
-    adc.w #$2031
-    sta.l !v_7edc20
-    lda.w #$202E
-    sta.l !v_7edc1e
-    lda.w #$2020
-    sta.l !v_7edc1a
-    sta.l !v_7edc22
+    adc.w #!TILE_DIGIT_1
+    sta.l !LEVEL_NUMBER_AT+6
+    lda.w #!TILE_DOT
+    sta.l !LEVEL_NUMBER_AT+4
+    lda.w #!TILE_SPACE
+    sta.l !LEVEL_NUMBER_AT
+    sta.l !LEVEL_NUMBER_AT+8
     sep.b #$20
     inc.w !text_tilemap_upload
     rts
-.lA0F2:
+.part_5_3:
     sep.b #$20
-    lda.b #$60
-    jsl.l !routine_81972d
+    lda.b #!LEVEL_TEXT_5_4
+    jsl.l TextLayoutShow
     rts
-.lA0FB:
-    lda.b #$5E
-    jsl.l !routine_81972d
+.last_part:
+    lda.b #!LEVEL_TEXT_LAST_PART
+    jsl.l TextLayoutShow
     rts
 
 
 ; @routine 80:A05C LevelSelect
-; WHAT IT DOES: With L and R held, steps the level part (UP, DOWN) or its
-; stage (RIGHT, LEFT) within its limits and shows the new level: C clear;
-; C set when L and R are not held.
-; HOW: Pad 1 held L and R ($0377 bits 4 and 5) and a direction newly
-; pressed: UP: part up to 6, stage 0; DOWN: part down to 0, stage 0;
-; RIGHT: stage up to the part's last ($80:CE2E); LEFT: stage down to 0;
-; LevelNumberText after a stage change.
-; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: C as above.
+; WHAT IT DOES: With L or R held, steps the level's part (Up, Down) or its
+; stage (Right, Left) within their limits and shows the new level: C
+; clear. C set when neither L nor R is held or no direction is newly
+; pressed.
+; HOW: Up: the part up by 1 unless PART_LAST, stage 0; Down: the part down
+; by 1 unless 0, stage 0 (both may apply). Right: the stage up by 1
+; unless the part's last (PART_STAGES_LAST); else Left: down by 1 unless
+; 0. A step refused ends there; else LevelNumberText.
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: M 8-bit, X
+; 8-bit; C as above; a step refused: X = the part or stage, N and Z as its
+; test; else as LevelNumberText leaves them.
 %at($80A05C)
 LevelSelect:
     lda.w !joy_held
-    and.b #$30
-    beq .lA0AF
-    lda.w !v_037c
+    and.b #!PAD_HELD_LR
+    beq .no_select
+    lda.w !joy_pressed+1
     and.b #$0F
-    beq .lA0AF
-    bit.b #$08
-    beq .lA07B
-    ldx.w !level_035c
-    cpx.b #$06
-    beq .lA0AD
-    inc.w !level_035c
-    stz.w !v_035d
-.lA07B:
-    bit.b #$04
-    beq .lA08A
-    ldx.w !level_035c
-    beq .lA0AD
-    dec.w !level_035c
-    stz.w !v_035d
-.lA08A:
-    bit.b #$01
-    beq .lA09E
-    ldx.w !level_035c
-    lda.w !v_035d
-    cmp.w !t_ce2e,x
-    beq .lA0AD
-    inc.w !v_035d
-    bra .lA0AA
-.lA09E:
-    bit.b #$02
-    beq .lA0AA
-    ldx.w !v_035d
-    beq .lA0AD
-    dec.w !v_035d
-.lA0AA:
+    beq .no_select
+    bit.b #!PAD_UP
+    beq .not_up
+    ldx.w !LEVEL_PART
+    cpx.b #!PART_LAST
+    beq .refused
+    inc.w !LEVEL_PART
+    stz.w !LEVEL_STAGE
+.not_up:
+    bit.b #!PAD_DOWN
+    beq .not_down
+    ldx.w !LEVEL_PART
+    beq .refused
+    dec.w !LEVEL_PART
+    stz.w !LEVEL_STAGE
+.not_down:
+    bit.b #!PAD_RIGHT
+    beq .not_right
+    ldx.w !LEVEL_PART
+    lda.w !LEVEL_STAGE
+    cmp.w !PART_STAGES_LAST,x
+    beq .refused
+    inc.w !LEVEL_STAGE
+    bra .show
+.not_right:
+    bit.b #!PAD_LEFT
+    beq .show
+    ldx.w !LEVEL_STAGE
+    beq .refused
+    dec.w !LEVEL_STAGE
+.show:
     jsr.w LevelNumberText
-.lA0AD:
+.refused:
     clc
     rts
-.lA0AF:
+.no_select:
     sec
     rts

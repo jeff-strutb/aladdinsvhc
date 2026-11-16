@@ -11,7 +11,7 @@
 void abi_HudRedrawAll(void)
 {
     lda8_v(0x00);
-    call_routine(TEXT_DRAW, 1);
+    abi_TextLayoutShow();
     lda8(ea_abs(HEALTH_MARKS));
     do {
         pha8();

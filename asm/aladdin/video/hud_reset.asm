@@ -14,7 +14,6 @@ arch 65816
 !HUD_036D = $036D               ; a value as shown (its value at $036E)
 
 ; Not yet filed
-!TEXT_DRAW = $81972D            ; text A drawn in the text layer, its upload asked for
 !HUD_DIGIT_REFRESH = $81F47F    ; the digit at $0363 drawn when it differs from $0364
 ; HudRedrawAll goes on into the refresh at $81:F456 (each value drawn that
 ; differs from the one shown), the code right after it.
@@ -30,7 +29,7 @@ arch 65816
 %at($81F433)
 HudRedrawAll:
     lda.b #$00
-    jsl.l !TEXT_DRAW
+    jsl.l TextLayoutShow
     lda.w !HEALTH_MARKS
 .mark:
     pha

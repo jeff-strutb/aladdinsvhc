@@ -20,12 +20,7 @@ arch 65816
 !routine_81825b = $81825B  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
 !routine_8196b1 = $8196B1  ; not yet filed
-!routine_81972d = $81972D  ; not yet filed
 !routine_819dcd = $819DCD  ; not yet filed
-!routine_819e8e = $819E8E  ; not yet filed
-!routine_819eb9 = $819EB9  ; not yet filed
-!routine_81eda2 = $81EDA2  ; not yet filed
-!routine_81ee04 = $81EE04  ; not yet filed
 !routine_838979 = $838979  ; not yet filed
 !v_0000 = $0000
 !v_002b = $002B
@@ -157,7 +152,7 @@ TitleTask_l9C9D:
     jsl.l TaskWait
     jsl.l TaskCreate
     db 1*24, 4                ; slot 1, parameter 4
-    dl !routine_819e8e
+    dl BrightnessUpTask
     lda.b #$5C
     sta.w !v_03a0
     lda.b #$55
@@ -314,7 +309,7 @@ TitleTask_l9C9D:
 .l9EC8:
     jsl.l TaskCreate
     db 1*24, 4                ; slot 1, parameter 4
-    dl !routine_819eb9
+    dl BrightnessDownTask
 .l9ED1:
     lda.b #$01
     jsl.l TaskWait
@@ -330,7 +325,7 @@ TitleTask_l9C9D:
     dl WindowEffectTask
     jsl.l TaskCreate
     db 1*24, 4                ; slot 1, parameter 4
-    dl !routine_819e8e
+    dl BrightnessUpTask
     jsl.l ActorsFreeAll
     lda.b #$13
     jsl.l SongPlay
@@ -357,15 +352,15 @@ TitleTask_l9C9D:
     jsl.l TaskCreate
     db 4*24, 8                ; slot 4, parameter 8
     dl WindowEffectTask
-    jsl.l !routine_81ee04
+    jsl.l MenuMarkMove
     lda.b #$A6
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     lda.b #$0E
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     lda.b #$10
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     lda.b #$12
-    jsl.l !routine_81972d
+    jsl.l TextLayoutShow
     stz.w !v_0847
     stz.w !v_0848
     stz.w !v_0849
@@ -408,7 +403,7 @@ TitleTask_l9C9D:
     jsr.w LevelSelect
     bcc .l9FD1
 .l9FCD:
-    jsl.l !routine_81eda2
+    jsl.l TitleMenuCursorLong
 .l9FD1:
     rep.b #$20
     dec.w !v_0343
@@ -434,7 +429,7 @@ TitleTask_l9C9D:
     jsl.l TaskWait
     jsl.l TaskCreate
     db 1*24, 4                ; slot 1, parameter 4
-    dl !routine_819eb9
+    dl BrightnessDownTask
     jsl.l SoundQueueF6With1
 .lA017:
     lda.b #$01

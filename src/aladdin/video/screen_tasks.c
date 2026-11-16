@@ -7,6 +7,7 @@
 #include "cpu_ops.h"
 #include "ops65.h"
 void abi_TextLayoutDraw(void);
+void abi_TextLayoutShow(void);
 void abi_BrightnessUpTask(void);
 void abi_BrightnessDownTask(void);
 void abi_TextLayerCopyWords(void);
@@ -106,6 +107,21 @@ void abi_RandomFromList(void)
     a16_load(rd16(dba(0xDCE8) + cpu.y));
     op_sep(0x30);
     y8_load((uint8_t)cpu.a);
+}
+
+/*
+ * @routine 81:972D TextLayoutShow
+ * WHAT IT DOES: Draws text layout A (or blanks it, bit 7 set) and has the
+ * NMI copy the text layer to VRAM at the next frame.
+ * HOW: TextLayoutDraw, then TEXT_TILEMAP_UPLOAD counted up (DB as at
+ * entry).
+ * Entry: M 8-bit, X 8-bit; A low byte = the layout; called by JSL. Exit:
+ * as TextLayoutDraw leaves it, but N and Z from the upload count.
+ */
+void abi_TextLayoutShow(void)
+{
+    abi_TextLayoutDraw();
+    inc8_at(dba((uint16_t)TEXT_TILEMAP_UPLOAD));
 }
 
 /*

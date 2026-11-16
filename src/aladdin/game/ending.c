@@ -26,6 +26,8 @@ void abi_TextBandsReveal(void);
 void abi_TextLayerClear(void);
 void abi_TextPageDraw(void);
 void abi_TextPageExtra(void);
+void abi_TextLayoutShow(void);
+void abi_TextNumberTwoDigitsLong(void);
 #include "actor.h"
 #include "hw.h"
 #include "wram.h"

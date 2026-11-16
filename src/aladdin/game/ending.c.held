@@ -142,30 +142,30 @@ L_82B1E0:
     ldx8(ea_abs(0x0376));  /* 82B1E0 ldx */
     lda8_v(0x05);  /* 82B1E3 lda */
     ldy8_v(0x22);  /* 82B1E5 ldy */
-    call_routine(0x838BDAu, 1);  /* 82B1E7 jsl */
+    abi_TextNumberTwoDigitsLong();  /* 82B1E7 jsl */
     lda8_v(0x6C);  /* 82B1EB lda */
-    call_routine(0x81972Du, 1);  /* 82B1ED jsl */
+    abi_TextLayoutShow();  /* 82B1ED jsl */
     lda8_v(0x6E);  /* 82B1F1 lda */
-    call_routine(0x81972Du, 1);  /* 82B1F3 jsl */
+    abi_TextLayoutShow();  /* 82B1F3 jsl */
     return;  /* 82B1F7 rts */
 L_82B1F8:
     ldx8(ea_abs(0x0376));  /* 82B1F8 ldx */
     lda8_v(0x05);  /* 82B1FB lda */
     ldy8_v(0x30);  /* 82B1FD ldy */
-    call_routine(0x838BDAu, 1);  /* 82B1FF jsl */
+    abi_TextNumberTwoDigitsLong();  /* 82B1FF jsl */
     lda8_v(0x76);  /* 82B203 lda */
-    call_routine(0x81972Du, 1);  /* 82B205 jsl */
+    abi_TextLayoutShow();  /* 82B205 jsl */
     lda8_v(0x78);  /* 82B209 lda */
-    call_routine(0x81972Du, 1);  /* 82B20B jsl */
+    abi_TextLayoutShow();  /* 82B20B jsl */
     lda8(ea_abs(0x0376));  /* 82B20F lda */
     cmp8_v(0x46);  /* 82B212 cmp */
     if (IF_Z) goto L_82B21D;  /* 82B214 beq */
     lda8_v(0x7A);  /* 82B216 lda */
-    call_routine(0x81972Du, 1);  /* 82B218 jsl */
+    abi_TextLayoutShow();  /* 82B218 jsl */
     return;  /* 82B21C rts */
 L_82B21D:
     lda8_v(0x7C);  /* 82B21D lda */
-    call_routine(0x81972Du, 1);  /* 82B21F jsl */
+    abi_TextLayoutShow();  /* 82B21F jsl */
     return;  /* 82B223 rts */
 }
 /*
