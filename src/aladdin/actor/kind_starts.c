@@ -28,6 +28,21 @@ void abi_KindA2Sent(void);
 void abi_KindA2Hit(void);
 void abi_KindA3Shot(void);
 void abi_KindA6Stay(void);
+void abi_ActorWaitGrabsPlayer(void);
+void abi_Kind21Start(void);
+void abi_Kind24Start(void);
+void abi_Kind49Carry(void);
+void abi_Kind63ShotHit(void);
+void abi_Kind63Start(void);
+void abi_Kind81Scene(void);
+void abi_Kind8DCircle(void);
+void abi_Kind91FreeOff(void);
+void abi_Kind93AnimateSend(void);
+void abi_Kind9BStory(void);
+void abi_Kind9CStart(void);
+void abi_KindAnimate9628(void);
+void abi_LandingPad(void);
+void abi_LongReturn(void);
 
 /*
  * @routine 83:920E Kind10Start
@@ -307,4 +322,316 @@ void abi_KindA3Start(void)
 void abi_KindA6Start(void)
 {
     abi_KindA6Stay();
+}
+
+/*
+ * @routine 83:9226 Kind21Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $21 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind21Start.
+ * HOW: JML to Kind21Start ($A5:F309).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind21Start.
+ */
+void abi_Kind21Enter(void)
+{
+    abi_Kind21Start();
+}
+
+/*
+ * @routine 83:9233 Kind24Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $24 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind24Start.
+ * HOW: JML to Kind24Start ($84:8000).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind24Start.
+ */
+void abi_Kind24Enter(void)
+{
+    abi_Kind24Start();
+}
+
+/*
+ * @routine 83:923C Kind49Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $49 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind49Carry.
+ * HOW: JML to Kind49Carry ($84:804D).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind49Carry.
+ */
+void abi_Kind49Enter(void)
+{
+    abi_Kind49Carry();
+}
+
+/*
+ * @routine 83:9249 Kind63Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $63 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind63Start.
+ * HOW: JML to Kind63Start ($84:8080).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind63Start.
+ */
+void abi_Kind63Enter(void)
+{
+    abi_Kind63Start();
+}
+
+/*
+ * @routine 83:9256 Kind63Third
+ * @actor
+ * WHAT IT DOES: Where actors of kind $63 go on from the actor loop in
+ * a state with bits 7 and 6 set (the table at $83:90A1): Kind63ShotHit.
+ * HOW: JML to Kind63ShotHit ($84:81CD).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind63ShotHit.
+ */
+void abi_Kind63Third(void)
+{
+    abi_Kind63ShotHit();
+}
+
+/*
+ * @routine 83:928A Kind76Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $76 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): BackdropMover.
+ * HOW: JML to BackdropMover ($84:9044).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as BackdropMover.
+ */
+void abi_Kind76Second(void)
+{
+    abi_BackdropMover();
+}
+
+/*
+ * @routine 83:9297 Kind7CSecond
+ * @actor
+ * WHAT IT DOES: Where actors of kind $7C go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): Kind7DKeepSpot.
+ * HOW: JML to Kind7DKeepSpot ($84:90CE).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind7DKeepSpot.
+ */
+void abi_Kind7CSecond(void)
+{
+    abi_Kind7DKeepSpot();
+}
+
+/*
+ * @routine 83:92B1 Kind7ESecond
+ * @actor
+ * WHAT IT DOES: Where actors of kind $7E go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): Kind7FDrift.
+ * HOW: JML to Kind7FDrift ($84:934B).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind7FDrift.
+ */
+void abi_Kind7ESecond(void)
+{
+    abi_Kind7FDrift();
+}
+
+/*
+ * @routine 83:92C2 Kind81Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $81 go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind81Scene.
+ * HOW: JML to Kind81Scene ($84:9391).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind81Scene.
+ */
+void abi_Kind81Enter(void)
+{
+    abi_Kind81Scene();
+}
+
+/*
+ * @routine 83:92CB Kind81Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $81 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind82Show.
+ * HOW: JML to Kind82Show ($84:951D).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind82Show.
+ */
+void abi_Kind81Second(void)
+{
+    abi_Kind82Show();
+}
+
+/*
+ * @routine 83:92E1 Kind83Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $83 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): ActorWaitGrabsPlayer.
+ * HOW: JML to ActorWaitGrabsPlayer ($84:95D4).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: as ActorWaitGrabsPlayer leaves them: its RTL here pulls
+ * three bytes of the actor loop's own frame (its saved D, then its return).
+ */
+void abi_Kind83Second(void)
+{
+    abi_ActorWaitGrabsPlayer();
+}
+
+/*
+ * @routine 83:92FB Kind85Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $85 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): KindAnimate9628.
+ * HOW: JML to KindAnimate9628 ($84:9628).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: as KindAnimate9628 leaves them: its RTL here pulls
+ * three bytes of the actor loop's own frame (its saved D, then its return).
+ */
+void abi_Kind85Second(void)
+{
+    abi_KindAnimate9628();
+}
+
+/*
+ * @routine 83:9315 Kind87Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $87 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): LandingPad.
+ * HOW: JML to LandingPad ($83:F9BA).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as LandingPad.
+ */
+void abi_Kind87Second(void)
+{
+    abi_LandingPad();
+}
+
+/*
+ * @routine 83:9322 Kind88Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $88 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind89PlayerPriority.
+ * HOW: JML to Kind89PlayerPriority ($84:8F9C).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind89PlayerPriority.
+ */
+void abi_Kind88Second(void)
+{
+    abi_Kind89PlayerPriority();
+}
+
+/*
+ * @routine 83:9344 Kind8DEnter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $8D go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind8DCircle.
+ * HOW: JML to Kind8DCircle ($84:99ED).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind8DCircle.
+ */
+void abi_Kind8DEnter(void)
+{
+    abi_Kind8DCircle();
+}
+
+/*
+ * @routine 83:936B Kind90Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $90 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): LongReturn.
+ * HOW: JML to LongReturn ($A5:F533).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: as LongReturn leaves them: its RTL here pulls
+ * three bytes of the actor loop's own frame (its saved D, then its return).
+ */
+void abi_Kind90Second(void)
+{
+    abi_LongReturn();
+}
+
+/*
+ * @routine 83:9378 Kind91Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $91 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind91FreeOff.
+ * HOW: JML to Kind91FreeOff ($A5:F603).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: as Kind91FreeOff leaves them: its RTL here pulls
+ * three bytes of the actor loop's own frame (its saved D, then its return).
+ */
+void abi_Kind91Second(void)
+{
+    abi_Kind91FreeOff();
+}
+
+/*
+ * @routine 83:9385 Kind92Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $92 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind91FreeOff.
+ * HOW: JML to Kind91FreeOff ($A5:F603).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: as Kind91FreeOff leaves them: its RTL here pulls
+ * three bytes of the actor loop's own frame (its saved D, then its return).
+ */
+void abi_Kind92Second(void)
+{
+    abi_Kind91FreeOff();
+}
+
+/*
+ * @routine 83:9392 Kind93Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $93 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind93AnimateSend.
+ * HOW: JML to Kind93AnimateSend ($A5:F434).
+ * No script runs it (no script reaches this entry of the table).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: as Kind93AnimateSend leaves them: its RTL here pulls
+ * three bytes of the actor loop's own frame (its saved D, then its return).
+ */
+void abi_Kind93Second(void)
+{
+    abi_Kind93AnimateSend();
+}
+
+/*
+ * @routine 83:93E5 Kind9BEnter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $9B go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind9BStory.
+ * HOW: JML to Kind9BStory ($84:A509).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind9BStory.
+ */
+void abi_Kind9BEnter(void)
+{
+    abi_Kind9BStory();
+}
+
+/*
+ * @routine 83:93EE Kind9CEnter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $9C go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind9CStart.
+ * HOW: JML to Kind9CStart ($84:A7E5).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind9CStart.
+ */
+void abi_Kind9CEnter(void)
+{
+    abi_Kind9CStart();
 }

@@ -14,6 +14,17 @@ void abi_ActorWaitGrabsPlayer(void);
 void abi_SenderWait8E(void);
 void abi_KindAnimateSendFAAE(void);
 void abi_ActorBobAnimate(void);
+void abi_ActorAnimFreeFar(void);
+void abi_Kind21AnimateSend(void);
+void abi_Kind24Animate(void);
+void abi_Kind63Work(void);
+void abi_Kind73Work(void);
+void abi_Kind88Work(void);
+void abi_Kind91FreeOff(void);
+void abi_Kind93AnimateSend(void);
+void abi_Kind9CAnimate(void);
+void abi_KindA0AnimateFreeOff(void);
+void abi_KindA3Animate(void);
 
 /* The kinds' work, named by the first kind that uses it */
 #define KIND_00_WAIT_WORK 0x81E864u
@@ -221,4 +232,173 @@ void abi_ActorKind8FWait(void)
 void abi_ActorKind9BWait(void)
 {
     abi_ActorBobAnimate();
+}
+
+/*
+ * @routine 83:9237 ActorKind24Wait
+ * WHAT IT DOES: The routine actors of kind $24 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind24Animate.
+ * HOW: JSL Kind24Animate ($84:8048), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind24Animate leaves them.
+ */
+void abi_ActorKind24Wait(void)
+{
+    abi_Kind24Animate();
+}
+
+/*
+ * @routine 83:9373 ActorKind91Wait
+ * WHAT IT DOES: The routine actors of kind $91 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind91FreeOff.
+ * HOW: JSL Kind91FreeOff ($A5:F603), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind91FreeOff leaves them.
+ */
+void abi_ActorKind91Wait(void)
+{
+    abi_Kind91FreeOff();
+}
+
+/*
+ * @routine 83:9380 ActorKind92Wait
+ * WHAT IT DOES: The routine actors of kind $92 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind91FreeOff.
+ * HOW: JSL Kind91FreeOff ($A5:F603), then RTS.
+ * No script runs it (no script has a waiting actor of this kind).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind91FreeOff leaves them.
+ */
+void abi_ActorKind92Wait(void)
+{
+    abi_Kind91FreeOff();
+}
+
+/*
+ * @routine 83:938D ActorKind93Wait
+ * WHAT IT DOES: The routine actors of kind $93 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind93AnimateSend.
+ * HOW: JSL Kind93AnimateSend ($A5:F434), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind93AnimateSend leaves them.
+ */
+void abi_ActorKind93Wait(void)
+{
+    abi_Kind93AnimateSend();
+}
+
+/*
+ * @routine 83:93F2 ActorKind9CWait
+ * WHAT IT DOES: The routine actors of kind $9C run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind9CAnimate.
+ * HOW: JSL Kind9CAnimate ($84:A81B), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind9CAnimate leaves them.
+ */
+void abi_ActorKind9CWait(void)
+{
+    abi_Kind9CAnimate();
+}
+
+/*
+ * @routine 83:9404 ActorKindA0Wait
+ * WHAT IT DOES: The routine actors of kind $A0 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: KindA0AnimateFreeOff.
+ * HOW: JSL KindA0AnimateFreeOff ($84:A975), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as KindA0AnimateFreeOff leaves them.
+ */
+void abi_ActorKindA0Wait(void)
+{
+    abi_KindA0AnimateFreeOff();
+}
+
+/*
+ * @routine 83:9427 ActorKindA3Wait
+ * WHAT IT DOES: The routine actors of kind $A3 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: KindA3Animate.
+ * HOW: JSL KindA3Animate ($84:8399), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as KindA3Animate leaves them.
+ */
+void abi_ActorKindA3Wait(void)
+{
+    abi_KindA3Animate();
+}
+
+/*
+ * @routine 83:922A ActorKind21Wait
+ * WHAT IT DOES: The routine actors of kind $21 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind21AnimateSend.
+ * HOW: JSL Kind21AnimateSend ($A5:F3E3), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind21AnimateSend leaves them.
+ */
+void abi_ActorKind21Wait(void)
+{
+    abi_Kind21AnimateSend();
+}
+
+/*
+ * @routine 83:924D ActorKind63Wait
+ * WHAT IT DOES: The routine actors of kind $63 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind63Work.
+ * HOW: JSL Kind63Work ($84:81FC), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind63Work leaves them.
+ */
+void abi_ActorKind63Wait(void)
+{
+    abi_Kind63Work();
+}
+
+/*
+ * @routine 83:925E ActorKind73Wait
+ * WHAT IT DOES: The routine actors of kind $73 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind73Work.
+ * HOW: JSL Kind73Work ($84:86F4), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind73Work leaves them.
+ */
+void abi_ActorKind73Wait(void)
+{
+    abi_Kind73Work();
+}
+
+/*
+ * @routine 83:931D ActorKind88Wait
+ * WHAT IT DOES: The routine actors of kind $88 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind88Work.
+ * HOW: JSL Kind88Work ($84:8EF0), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind88Work leaves them.
+ */
+void abi_ActorKind88Wait(void)
+{
+    abi_Kind88Work();
+}
+
+/*
+ * @routine 83:941A ActorKindA2Wait
+ * WHAT IT DOES: The routine actors of kind $A2 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: ActorAnimFreeFar.
+ * HOW: JSL ActorAnimFreeFar ($84:832B), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as ActorAnimFreeFar leaves them.
+ */
+void abi_ActorKindA2Wait(void)
+{
+    abi_ActorAnimFreeFar();
 }
