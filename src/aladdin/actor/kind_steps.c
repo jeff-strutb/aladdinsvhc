@@ -16,6 +16,13 @@ void abi_KindAnimate9628(void);
 void abi_KindAnimate9EF0(void);
 void abi_KindAnimate9F4A(void);
 void abi_KindAnimateSend(void);
+void abi_Kind24Animate(void);
+void abi_KindA3Animate(void);
+void abi_Kind9CAnimate(void);
+void abi_KindA0AnimateFreeOff(void);
+void abi_Kind91FreeOff(void);
+void abi_Kind21AnimateSend(void);
+void abi_Kind93AnimateSend(void);
 void abi_ActorPathStep(void);
 void abi_ActorPathNext(void);
 void abi_AnimStep(void);
@@ -110,6 +117,106 @@ void abi_KindAnimateSend(void)
     abi_AnimStep();  /* 84903B jsl */
     abi_ActorPictureSend();  /* 84903F jsl */
     return;  /* 849043 rtl */
+}
+
+/*
+ * @routine 84:8048 Kind24Animate
+ * WHAT IT DOES: What actors of kind $24 do each frame they wait: animate.
+ * HOW: AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:9237) through the actor loop's wait table at $83:8F4F. Exit:
+ * as AnimStep.
+ */
+void abi_Kind24Animate(void)
+{
+    abi_AnimStep();
+}
+
+/*
+ * @routine 84:8399 KindA3Animate
+ * WHAT IT DOES: What actors of kind $A3 do each frame they wait: animate.
+ * HOW: AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:9427) through the actor loop's wait table at $83:904F. Exit:
+ * as AnimStep.
+ */
+void abi_KindA3Animate(void)
+{
+    abi_AnimStep();
+}
+
+/*
+ * @routine 84:A81B Kind9CAnimate
+ * WHAT IT DOES: What actors of kind $9C do each frame they wait: animate.
+ * HOW: AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:93F2) through the actor loop's wait table at $83:904F. Exit:
+ * as AnimStep.
+ */
+void abi_Kind9CAnimate(void)
+{
+    abi_AnimStep();
+}
+
+/*
+ * @routine 84:A975 KindA0AnimateFreeOff
+ * WHAT IT DOES: What actors of kind $A0 do each frame they wait: animate,
+ * and end once out of range.
+ * HOW: AnimStep, then ActorFreeOutOfRangeLong with range 0.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:9404) through the actor loop's wait table at $83:904F. Exit:
+ * as ActorFreeOutOfRangeLong.
+ */
+void abi_KindA0AnimateFreeOff(void)
+{
+    abi_AnimStep();
+    x8_load(0x00);
+    abi_ActorFreeOutOfRangeLong();
+}
+
+/*
+ * @routine A5:F603 Kind91FreeOff
+ * WHAT IT DOES: What actors of kind $91 do each frame they wait: end once
+ * out of range.
+ * HOW: ActorFreeOutOfRangeLong with range 0.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:9373) through the actor loop's wait table at $83:904F. Exit:
+ * as ActorFreeOutOfRangeLong.
+ */
+void abi_Kind91FreeOff(void)
+{
+    x8_load(0x00);
+    abi_ActorFreeOutOfRangeLong();
+}
+
+/*
+ * @routine A5:F3E3 Kind21AnimateSend
+ * WHAT IT DOES: What actors of kind $21 do each frame they
+ * wait: animate their own picture.
+ * HOW: AnimStep, then ActorPictureSend.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:922A) through the actor loop's wait table at $83:8F4F. Exit:
+ * as ActorPictureSend.
+ */
+void abi_Kind21AnimateSend(void)
+{
+    abi_AnimStep();
+    abi_ActorPictureSend();
+}
+
+/*
+ * @routine A5:F434 Kind93AnimateSend
+ * WHAT IT DOES: What actors of kind $93 (Kind93WalkIn) do each frame they
+ * wait: animate their own picture.
+ * HOW: AnimStep, then ActorPictureSend.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+ * stub ($83:938D) through the actor loop's wait table at $83:904F. Exit:
+ * as ActorPictureSend.
+ */
+void abi_Kind93AnimateSend(void)
+{
+    abi_AnimStep();
+    abi_ActorPictureSend();
 }
 
 /*

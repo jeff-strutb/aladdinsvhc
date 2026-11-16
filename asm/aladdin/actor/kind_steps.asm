@@ -78,6 +78,90 @@ KindAnimateSend:
     jsl.l ActorPictureSend
     rtl
 
+; @routine 84:8048 Kind24Animate
+; WHAT IT DOES: What actors of kind $24 do each frame they wait: animate.
+; HOW: AnimStep.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:9237) through the actor loop's wait table at $83:8F4F. Exit:
+; as AnimStep.
+%at($848048)
+Kind24Animate:
+    jsl.l AnimStep
+    rtl
+
+; @routine 84:8399 KindA3Animate
+; WHAT IT DOES: What actors of kind $A3 do each frame they wait: animate.
+; HOW: AnimStep.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:9427) through the actor loop's wait table at $83:904F. Exit:
+; as AnimStep.
+%at($848399)
+KindA3Animate:
+    jsl.l AnimStep
+    rtl
+
+; @routine 84:A81B Kind9CAnimate
+; WHAT IT DOES: What actors of kind $9C do each frame they wait: animate.
+; HOW: AnimStep.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:93F2) through the actor loop's wait table at $83:904F. Exit:
+; as AnimStep.
+%at($84A81B)
+Kind9CAnimate:
+    jsl.l AnimStep
+    rtl
+
+; @routine 84:A975 KindA0AnimateFreeOff
+; WHAT IT DOES: What actors of kind $A0 do each frame they wait: animate,
+; and end once out of range.
+; HOW: AnimStep, then ActorFreeOutOfRangeLong with range 0.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:9404) through the actor loop's wait table at $83:904F. Exit:
+; as ActorFreeOutOfRangeLong.
+%at($84A975)
+KindA0AnimateFreeOff:
+    jsl.l AnimStep
+    ldx.b #$00
+    jml.l ActorFreeOutOfRangeLong
+
+; @routine A5:F603 Kind91FreeOff
+; WHAT IT DOES: What actors of kind $91 do each frame they wait: end once
+; out of range.
+; HOW: ActorFreeOutOfRangeLong with range 0.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:9373) through the actor loop's wait table at $83:904F. Exit:
+; as ActorFreeOutOfRangeLong.
+%at($A5F603)
+Kind91FreeOff:
+    ldx.b #$00
+    jml.l ActorFreeOutOfRangeLong
+
+; @routine A5:F3E3 Kind21AnimateSend
+; WHAT IT DOES: What actors of kind $21 do each frame they wait: animate
+; their own picture.
+; HOW: AnimStep, then ActorPictureSend.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:922A) through the actor loop's wait table at $83:8F4F. Exit:
+; as ActorPictureSend.
+%at($A5F3E3)
+Kind21AnimateSend:
+    jsl.l AnimStep
+    jsl.l ActorPictureSend
+    rtl
+
+; @routine A5:F434 Kind93AnimateSend
+; WHAT IT DOES: What actors of kind $93 (Kind93WalkIn) do each frame they
+; wait: animate their own picture.
+; HOW: AnimStep, then ActorPictureSend.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSL from the kind's
+; stub ($83:938D) through the actor loop's wait table at $83:904F. Exit:
+; as ActorPictureSend.
+%at($A5F434)
+Kind93AnimateSend:
+    jsl.l AnimStep
+    jsl.l ActorPictureSend
+    rtl
+
 ; @routine 84:8CAF ActorPathStep
 ; WHAT IT DOES: One step of the actor along its path: its position moves
 ; by the segment's velocity, and the path goes on when the step's frames
