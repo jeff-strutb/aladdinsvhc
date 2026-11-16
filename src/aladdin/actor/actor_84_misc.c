@@ -20,6 +20,9 @@ void abi_ActorsFollowSteps(void);
 void abi_AnimStep(void);
 void abi_PlayerEnter8CFacingLong(void);
 void abi_PlayerFallCheck(void);
+void abi_ActorListStart(void);
+void abi_ActorPriorityByHeight(void);
+void abi_PlayerClampAboveFloor(void);
 #include "actor.h"
 #include "hw.h"
 #include "wram.h"
@@ -41,6 +44,9 @@ void abi_PlayerFallCheck(void);
 #define PLAYER_Y_AT (PLAYER + ACTOR_Y + 1)  /* the player's y, whole pixels (word) */
 #define PLAYER_FLIP_AT (PLAYER + ACTOR_FLIP) /* nonzero when he faces right */
 #define ACTOR_43 0x43u
+#define PLAYER_FLOOR_HITS 0x1428u   /* counted up (word) each frame the floor line holds the player up */
+#define FOLLOW_LIST 0x89ADu         /* the list ActorListStartAD starts (pair X, Y) */
+#define FOLLOW_WHEN 0x40u           /* ActorsFollowIf8: the followers move while this is 8 */
 
 /*
  * @routine 84:8145 ActorSpawnA2
@@ -322,4 +328,147 @@ out:
     return;
 no:
     flag_set(P_C, 1);
+}
+
+/*
+ * @routine 84:8992 ActorYieldForever
+ * @actor
+ * WHAT IT DOES: An actor that has nothing more to do: it yields every
+ * frame for good.
+ * HOW: BRK, BRA back.
+ * Entry: D = the actor's record; reached by jumps from actor code in this
+ * bank. Exit: never returns.
+ */
+void abi_ActorYieldForever(void)
+{
+    for (;;)
+        actor_yield(0x848992u);
+}
+
+/*
+ * @routine 84:8996 ActorListStartAD
+ * WHAT IT DOES: Starts every actor in this actor's list with the pair
+ * $AD, $89 and values stepping by 8.
+ * HOW: ActorListStart with X = $AD, Y = $89, A = 8.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSR. Exit: as
+ * ActorListStart.
+ */
+void abi_ActorListStartAD(void)
+{
+    x8_load((uint8_t)FOLLOW_LIST);
+    y8_load((uint8_t)(FOLLOW_LIST >> 8));
+    a8_load(0x08);
+    abi_ActorListStart();
+}
+
+/*
+ * @routine 84:8CC5 ActorsFollowIf8
+ * WHAT IT DOES: While the actor's $40 is 8, moves its followers on and
+ * sets its sprite priority by its height.
+ * HOW: FOLLOW_WHEN against 8: equal, ActorsFollowSteps and
+ * ActorPriorityByHeight.
+ * Entry: M 8-bit, X 8-bit; D = the actor; called by JSR. Exit: M and X
+ * 8-bit; as ActorPriorityByHeight when it ran, else the compare's flags.
+ */
+void abi_ActorsFollowIf8(void)
+{
+    uint8_t when = rd8(dpa(FOLLOW_WHEN));
+
+    a8_load(when);
+    cmp8_of(when, 0x08);
+    if (when == 0x08) {
+        abi_ActorsFollowSteps();
+        abi_ActorPriorityByHeight();
+    }
+}
+
+/*
+ * @routine 84:8EF0 Kind88Work
+ * WHAT IT DOES: What actors of kind $88 do each frame they wait: keep
+ * Aladdin above the floor line, and put him into his fall below it.
+ * HOW: PlayerClampAboveFloor, PlayerFallCheck.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSL from the kind's stub ($83:931D) through the actor loop's
+ * wait table at $83:904F. Exit: as PlayerFallCheck.
+ */
+void abi_Kind88Work(void)
+{
+    abi_PlayerClampAboveFloor();
+    abi_PlayerFallCheck();
+}
+
+/*
+ * @routine 84:8EF7 PlayerClampAboveFloor
+ * WHAT IT DOES: Keeps Aladdin above the floor line once he is at x $200
+ * or more, by an offset of 30 pixels (24 with no state $8C counted and
+ * $141C set); not while he rises, except with no state $8C counted and
+ * $141C clear.
+ * HOW: D = his record. His x's high byte below 2: nothing. With
+ * PLAYER_STATE_8C_COUNT set: rising (the high byte of his vertical speed
+ * negative), nothing, else $1E. With it zero: $141C zero, $1E; else
+ * rising, nothing, else $18. ActorClampAboveFloor; C set:
+ * PLAYER_FLOOR_HITS up.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR. Exit: M and X 8-bit; D as at entry, N and Z from it.
+ */
+void abi_PlayerClampAboveFloor(void)
+{
+    uint8_t v;
+    uint16_t off = 0x001E;
+
+    op_rep(0x20);
+    op_push8((uint8_t)(cpu.d >> 8));
+    op_push8((uint8_t)cpu.d);
+    a16_load((uint16_t)PLAYER);
+    cpu.d = (uint16_t)PLAYER;
+    v = rd8(dba((uint16_t)(PLAYER + ACTOR_X + 2)));
+    x8_load(v);
+    cmp8_of(v, 0x02);
+    if (v < 0x02)
+        goto out;
+    v = rd8(dba(PLAYER_STATE_8C_COUNT));
+    x8_load(v);
+    if (v) {
+        x8_load(rd8(dba((uint16_t)(PLAYER + ACTOR_SPEED_Y + 2))));
+        if (cpu.x & 0x80)
+            goto out;                            /* rising */
+    } else {
+        v = rd8(dba(V_141C & 0xFFFF));
+        x8_load(v);
+        if (v) {
+            x8_load(rd8(dba((uint16_t)(PLAYER + ACTOR_SPEED_Y + 2))));
+            if (cpu.x & 0x80)
+                goto out;                        /* rising */
+            off = 0x0018;
+        }
+    }
+    a16_load(off);
+    abi_ActorClampAboveFloor();
+    if (cpu.p & P_C)
+        (void)inc16_at(dba(PLAYER_FLOOR_HITS));
+out:
+    op_sep(0x30);
+    {
+        uint8_t lo = op_pull8();                 /* PLD: low byte first */
+        uint8_t hi = op_pull8();
+
+        cpu.d = (uint16_t)(lo | hi << 8);
+    }
+    nz16_of(cpu.d);
+}
+
+/*
+ * @routine 84:8F2F ActorClampAboveFloor12
+ * WHAT IT DOES: Keeps the actor's y plus 12 above the floor line.
+ * HOW: ActorClampAboveFloor with A = $000C (16-bit), Y = 2.
+ * Entry: X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work
+ * RAM; called by JSR. Exit: M and X 8-bit; C as ActorClampAboveFloor.
+ */
+void abi_ActorClampAboveFloor12(void)
+{
+    op_rep(0x20);
+    y8_load(0x02);
+    a16_load(0x000C);
+    abi_ActorClampAboveFloor();
+    op_sep(0x30);
 }

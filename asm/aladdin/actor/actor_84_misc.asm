@@ -27,6 +27,9 @@ arch 65816
 !player_y = !player+!actor_y+1  ; the player's y, whole pixels (word)
 !player_x = !player+!actor_x+1  ; the player's x, whole pixels (word)
 !player_flip = !player+!actor_flip ; the player's flip: nonzero when he faces right
+!PLAYER_FLOOR_HITS = $1428      ; counted up (word) each frame the floor line holds the player up
+!FOLLOW_LIST = $89AD            ; the list ActorListStartAD starts (pair X, Y)
+!FOLLOW_WHEN = $40              ; ActorsFollowIf8: the followers move while this is 8
 
 ; @routine 84:8145 ActorSpawnA2
 ; WHAT IT DOES: Starts a child with hit box $A2 at the spawner's spawn
@@ -287,3 +290,117 @@ ActorGrabTest:
 .l8935:
     sec
     rtl
+
+; @routine 84:8992 ActorYieldForever
+; @actor
+; WHAT IT DOES: An actor that has nothing more to do: it yields every
+; frame for good.
+; HOW: BRK, BRA back.
+; Entry: D = the actor's record; reached by jumps from actor code in this
+; bank. Exit: never returns.
+%at($848992)
+ActorYieldForever:
+    brk.b #$00
+    bra ActorYieldForever
+
+; @routine 84:8996 ActorListStartAD
+; WHAT IT DOES: Starts every actor in this actor's list with the pair
+; $AD, $89 and values stepping by 8.
+; HOW: ActorListStart with X = $AD, Y = $89, A = 8.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSR. Exit: as
+; ActorListStart.
+%at($848996)
+ActorListStartAD:
+    ldx.b #!FOLLOW_LIST&255
+    ldy.b #!FOLLOW_LIST>>8
+    lda.b #$08
+    jsr.w ActorListStart
+    rts
+
+; @routine 84:8CC5 ActorsFollowIf8
+; WHAT IT DOES: While the actor's $40 is 8, moves its followers on and
+; sets its sprite priority by its height.
+; HOW: FOLLOW_WHEN against 8: equal, ActorsFollowSteps and
+; ActorPriorityByHeight.
+; Entry: M 8-bit, X 8-bit; D = the actor; called by JSR. Exit: M and X
+; 8-bit; as ActorPriorityByHeight when it ran, else the compare's flags.
+%at($848CC5)
+ActorsFollowIf8:
+    lda.b !FOLLOW_WHEN
+    cmp.b #$08
+    bne .done
+    jsr.w ActorsFollowSteps
+    jsr.w ActorPriorityByHeight
+.done:
+    rts
+
+; @routine 84:8EF0 Kind88Work
+; WHAT IT DOES: What actors of kind $88 do each frame they wait: keep
+; Aladdin above the floor line, and put him into his fall below it.
+; HOW: PlayerClampAboveFloor, PlayerFallCheck.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSL from the kind's stub ($83:931D) through the actor loop's
+; wait table at $83:904F. Exit: as PlayerFallCheck.
+%at($848EF0)
+Kind88Work:
+    jsr.w PlayerClampAboveFloor
+    jsr.w PlayerFallCheck
+    rtl
+
+; @routine 84:8EF7 PlayerClampAboveFloor
+; WHAT IT DOES: Keeps Aladdin above the floor line once he is at x $200
+; or more, by an offset of 30 pixels (24 with no state $8C counted and
+; $141C set); not while he rises, except with no state $8C counted and
+; $141C clear.
+; HOW: D = his record. His x's high byte below 2: nothing. With
+; PLAYER_STATE_8C_COUNT set: rising (the high byte of his vertical speed
+; negative), nothing, else $1E. With it zero: $141C zero, $1E; else
+; rising, nothing, else $18. ActorClampAboveFloor; C set:
+; PLAYER_FLOOR_HITS up.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR. Exit: M and X 8-bit; D as at entry, N and Z from it.
+%at($848EF7)
+PlayerClampAboveFloor:
+    rep.b #$20
+    phd
+    lda.w #!player
+    tcd
+    ldx.w !player+!actor_x+2
+    cpx.b #$02
+    bcc .out
+    ldx.w !PLAYER_STATE_8C_COUNT
+    beq .none_counted
+    ldx.w !player+!actor_speed_y+2
+    bmi .out
+    bra .far
+.none_counted:
+    ldx.w !v_141c
+    beq .far
+    ldx.w !player+!actor_speed_y+2
+    bmi .out
+    lda.w #$0018
+    bra .clamp
+.far:
+    lda.w #$001E
+.clamp:
+    jsr.w ActorClampAboveFloor
+    bcc .out
+    inc.w !PLAYER_FLOOR_HITS
+.out:
+    sep.b #$30
+    pld
+    rts
+
+; @routine 84:8F2F ActorClampAboveFloor12
+; WHAT IT DOES: Keeps the actor's y plus 12 above the floor line.
+; HOW: ActorClampAboveFloor with A = $000C (16-bit), Y = 2.
+; Entry: X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work
+; RAM; called by JSR. Exit: M and X 8-bit; C as ActorClampAboveFloor.
+%at($848F2F)
+ActorClampAboveFloor12:
+    rep.b #$20
+    ldy.b #$02
+    lda.w #$000C
+    jsr.w ActorClampAboveFloor
+    sep.b #$30
+    rts
