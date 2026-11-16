@@ -92,6 +92,21 @@
 #define BAND_SPEED 0x7EF900u
 #define BAND_HDMA 0x7EF400u
 
+/* Backdrop bands by the play field's scroll (video/parallax.c BandTable):
+   each band's scroll X (words, top band first), and the table's build
+   state; the drift, 24 bits from its fraction byte, the top bands carry
+   on their own; which of the two tables was written last (0 or 2) */
+#define SBAND_SCROLLS 0x7EF600u
+#define SBAND_LINES_LEFT 0x7EF620u   /* the screen's lines not yet given a band (word) */
+#define SBAND_LINES 0x7EF622u        /* this band's lines (word) */
+#define SBAND_LINE 0x7EF624u         /* the level's line at the screen's next line (word) */
+#define SBAND_SET 0x7EF626u          /* the band set, times 2 (word) */
+#define SBAND_COUNT 0x7EF628u        /* bands left to look at (word) */
+#define SBAND_EDGE 0x7EF62Au         /* this band's index in the edges' table (word) */
+#define SBAND_AT 0x7EF62Cu           /* this band's index in SBAND_SCROLLS (word) */
+#define BAND_DRIFT 0x001A2Fu
+#define SBAND_BUFFER 0x0003FCu
+
 /* While the layers' tilemaps fill as a level starts (video/scroll_layer.c) */
 #define FILL_LAYERS_LEFT 0x001A90u  /* layers left to fill */
 #define FILL_COLUMNS_LEFT 0x001A91u /* columns left to draw in this one */

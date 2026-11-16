@@ -93,6 +93,21 @@ includeonce
 !band_speed = $7EF900
 !band_hdma = $7EF400
 
+; Backdrop bands by the play field's scroll (video/parallax.asm BandTable):
+; each band's scroll X (words, top band first), and the table's build
+; state; the drift, 24 bits from its fraction byte, the top bands carry
+; on their own; which of the two tables was written last (0 or 2)
+!sband_scrolls = $7EF600
+!sband_lines_left = $7EF620       ; the screen's lines not yet given a band (word)
+!sband_lines = $7EF622            ; this band's lines (word)
+!sband_line = $7EF624             ; the level's line at the screen's next line (word)
+!sband_set = $7EF626              ; the band set, times 2 (word)
+!sband_count = $7EF628            ; bands left to look at (word)
+!sband_edge = $7EF62A             ; this band's index in the edges' table (word)
+!sband_at = $7EF62C               ; this band's index in !sband_scrolls (word)
+!band_drift = $1A2F
+!sband_buffer = $03FC
+
 ; While the layers' tilemaps fill as a level starts (video/scroll_layer.asm).
 !fill_layers_left = $1A90       ; layers left to fill
 !fill_columns_left = $1A91      ; columns left to draw in this one
