@@ -11,7 +11,6 @@ arch 65816
 !CUE_B7 = $00B7                 ; then shows its second pose once this is 0
 !V_0399 = $0399                 ; set to $10 as kind $24 shows its second pose
 !CUE_CF = $00CF                 ; kind $9C starts its task once this is 0
-!KIND24_TASK = $80B263          ; the task kind $24 starts: slot 3, parameter 1
 !KIND9C_TASK = $81F344          ; the task kind $9C starts: slot 4, parameter 5
 
 ; @routine 84:8000 Kind24Start
@@ -21,7 +20,7 @@ arch 65816
 ; shows its second pose with sound $1C, and stays.
 ; HOW: actor_08 bit 1 and actor_09 bits $B0 set; facing and flip 0;
 ; AnimStart 0. Each frame (BRK first) until CUE_D7 is $18 or more;
-; TaskCreate (slot 3, parameter 1, KIND24_TASK); each frame until CUE_B7
+; TaskCreate (slot 3, parameter 1, IrisCloseTask); each frame until CUE_B7
 ; is 0; V_0399 = $10, AnimStart 1, SoundQueueAdd $1C; then BRK for good.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
 ; $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $24
@@ -46,7 +45,7 @@ Kind24Start:
     bcc .cue
     jsl.l TaskCreate
     db 3*24, 1                  ; slot 3, parameter 1
-    dl !KIND24_TASK
+    dl IrisCloseTask
 .second:
     brk.b #$00
     lda.w !CUE_B7

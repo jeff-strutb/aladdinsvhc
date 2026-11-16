@@ -35,7 +35,7 @@ static void task_create(uint32_t site)
  * shows its second pose with sound $1C, and stays.
  * HOW: actor_08 bit 1 and actor_09 bits $B0 set; facing and flip 0;
  * AnimStart 0. Each frame (BRK first) until CUE_D7 is $18 or more;
- * TaskCreate (slot 3, parameter 1, KIND24_TASK); each frame until CUE_B7
+ * TaskCreate (slot 3, parameter 1, IrisCloseTask); each frame until CUE_B7
  * is 0; V_0399 = $10, AnimStart 1, SoundQueueAdd $1C; then BRK for good.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
  * $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $24
