@@ -32,7 +32,8 @@ import concurrent.futures, csv, datetime, functools, glob, hashlib, json, os, su
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 B = os.path.join(ROOT, 'build', 'aladdin')
 SNESBOX = os.path.join(B, 'box', 'snesbox')
-LIB = os.path.join(B, 'hybrid', 'libaladdin.dylib')
+LIBNAME = 'libaladdin.dylib' if sys.platform == 'darwin' else 'libaladdin.so'
+LIB = os.path.join(B, 'hybrid', LIBNAME)
 SCRIPTS = os.path.join(ROOT, 'tools', 'aladdin', 'scripts')
 # The C judged (ALADDIN_GATE_TREE, default the decomp's) and where its records
 # and work go (ALADDIN_GATE_OUT, a directory under build/aladdin: another
@@ -187,7 +188,7 @@ def script_stale(name, rev, prev):
     return 'C changed for %s' % ' '.join(sorted(hit)[:4]) if hit else ''
 
 
-GATE_LIB = os.path.join(WORKD, 'libaladdin.dylib') if OUTD else os.path.join(B, 'hybrid', 'gate', 'libaladdin.dylib')
+GATE_LIB = os.path.join(WORKD, LIBNAME) if OUTD else os.path.join(B, 'hybrid', 'gate', LIBNAME)
 
 
 @functools.lru_cache(maxsize=None)

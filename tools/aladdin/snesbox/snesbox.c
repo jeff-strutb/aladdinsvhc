@@ -720,7 +720,11 @@ static void script(const char *path) {
 }
 
 int main(int argc, char **argv) {
+#ifdef __APPLE__
     const char *rom = NULL, *scr = NULL, *corepath = "tools/toolchains/bsnes/bsnes_libretro.dylib";
+#else
+    const char *rom = NULL, *scr = NULL, *corepath = "tools/toolchains/bsnes/bsnes_libretro.so";
+#endif
     int trace = 0;
     const char *checklib = NULL, *only = NULL, *locklib = NULL;
     for (int i = 1; i < argc; i++) {

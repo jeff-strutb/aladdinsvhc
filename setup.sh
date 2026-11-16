@@ -12,6 +12,8 @@ top="$(cd "$(dirname "$0")" && pwd)"
 tc="$top/tools/toolchains"
 mkdir -p "$tc/src"
 jobs="$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
+# The core is a shared library: .dylib on macOS, .so elsewhere.
+case "$(uname)" in Darwin) so=dylib ;; *) so=so ;; esac
 
 ASAR_URL=https://github.com/RPGHacker/asar
 ASAR_PIN=6a6dbdaed8cb773e583052ce4f66375bd896c3a1      # v1.91
@@ -45,11 +47,25 @@ fetch() { # name url pin
 
 build_asar() {
     fetch asar "$ASAR_URL" "$ASAR_PIN"
-    cmake -S "$tc/src/asar/src/asar" -B "$top/build/toolchains/asar" -DCMAKE_BUILD_TYPE=Release \
-        -DASAR_GEN_LIB=OFF -DASAR_GEN_DLL=OFF >/dev/null
-    cmake --build "$top/build/toolchains/asar" -j "$jobs" >/dev/null 2>&1
     mkdir -p "$tc/asar"
-    cp "$(find "$top/build/toolchains/asar" -type f -name asar -perm -u+x | head -1)" "$tc/asar/asar"
+    if command -v cmake >/dev/null 2>&1; then
+        cmake -S "$tc/src/asar/src/asar" -B "$top/build/toolchains/asar" -DCMAKE_BUILD_TYPE=Release \
+            -DASAR_GEN_LIB=OFF -DASAR_GEN_DLL=OFF >/dev/null
+        cmake --build "$top/build/toolchains/asar" -j "$jobs" >/dev/null 2>&1
+        cp "$(find "$top/build/toolchains/asar" -type f -name asar -perm -u+x | head -1)" "$tc/asar/asar"
+    else
+        # No cmake on the host: the standalone target's sources and definitions
+        # from asar's CMakeLists (UNIX: "linux", stricmp=strcasecmp; its own directory
+        # on the include path), compiled directly.
+        a="$tc/src/asar/src/asar"
+        c++ -O2 -std=c++11 -Dlinux -Dstricmp=strcasecmp -I "$a" -w -o "$tc/asar/asar.new" \
+            "$a/interface-cli.cpp" "$a/addr2line.cpp" "$a/arch-65816.cpp" "$a/arch-spc700.cpp" \
+            "$a/arch-superfx.cpp" "$a/assembleblock.cpp" "$a/crc32.cpp" "$a/libcon.cpp" \
+            "$a/libsmw.cpp" "$a/libstr.cpp" "$a/macro.cpp" "$a/main.cpp" "$a/asar_math.cpp" \
+            "$a/virtualfile.cpp" "$a/warnings.cpp" "$a/errors.cpp" "$a/platform/file-helpers.cpp" \
+            "$a/platform/linux/file-helpers-linux.cpp"
+        mv "$tc/asar/asar.new" "$tc/asar/asar"
+    fi
     "$tc/asar/asar" --version | head -1
 }
 
@@ -58,8 +74,8 @@ build_bsnes() {
     make -C "$tc/src/bsnes/bsnes" target=libretro binary=library -j "$jobs" >/dev/null 2>&1
     mkdir -p "$tc/bsnes"
     # Built into a new file and moved in: never overwrite a core a run is using.
-    cp "$tc/src/bsnes/bsnes/out/bsnes_libretro.dylib" "$tc/bsnes/bsnes_libretro.dylib.new"
-    mv "$tc/bsnes/bsnes_libretro.dylib.new" "$tc/bsnes/bsnes_libretro.dylib"
+    cp "$tc/src/bsnes/bsnes/out/bsnes_libretro.$so" "$tc/bsnes/bsnes_libretro.$so.new"
+    mv "$tc/bsnes/bsnes_libretro.$so.new" "$tc/bsnes/bsnes_libretro.$so"
     make -C "$top/tools/aladdin/snesbox" >/dev/null
     echo "bsnes core + box built"
 }

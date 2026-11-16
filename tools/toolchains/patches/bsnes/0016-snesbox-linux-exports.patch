@@ -1,0 +1,10 @@
+diff --git a/bsnes/target-libretro/link.T b/bsnes/target-libretro/link.T
+index 9e82b5d..a4d6ecc 100644
+--- a/bsnes/target-libretro/link.T
++++ b/bsnes/target-libretro/link.T
+@@ -1,4 +1,4 @@
+ {
+-   global: retro_*;
++   global: retro_*; snesbox_*; co_*;
+    local: *;
+ };

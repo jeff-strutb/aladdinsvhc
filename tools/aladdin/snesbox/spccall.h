@@ -2,6 +2,7 @@
    check.c drives it. */
 #ifndef SNESBOX_SPCCALL_H
 #define SNESBOX_SPCCALL_H
+#include <stdint.h>
 #include <stdio.h>
 
 /* Load the SPC700 routines the library has C for (those named by `only`,

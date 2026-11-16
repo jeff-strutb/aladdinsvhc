@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """hybrid.py: build the C decomp as a library the verification harness loads.
 
-    hybrid.py           compile src/aladdin into build/aladdin/hybrid/libaladdin.dylib
+    hybrid.py           compile src/aladdin into build/aladdin/hybrid/libaladdin.dylib (.so off macOS)
 
 Every `@routine BB:AAAA Name` tag in the C names a routine and its address;
 each must have an abi_Name wrapper (the entry contract in code). The build
@@ -13,7 +13,9 @@ import csv, glob, os, re, shutil, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'src', 'aladdin')
 OUT = os.path.join(ROOT, 'build', 'aladdin', 'hybrid')
-LIB = os.path.join(OUT, 'libaladdin.dylib')
+# A shared library: .dylib on macOS, .so elsewhere.
+LIBEXT = 'dylib' if sys.platform == 'darwin' else 'so'
+LIB = os.path.join(OUT, 'libaladdin.' + LIBEXT)
 
 
 def export_head():
@@ -218,8 +220,11 @@ def main(src=None, lib=None):
                     | ({0xFFC0} if any('spc_boot_rom()' in open(f).read() for f in files) else set()))
         t.write('const uint16_t game_spc_jump_entries[] = {%s0};\nconst int game_spc_jump_entry_count = %d;\n'
                 % (''.join('0x%04X, ' % a for a in sj), len(sj)))
-    cmd = ['cc', '-O2', '-g', '-Wall', '-Wextra', '-std=c99', '-shared', '-fPIC', '-undefined', 'dynamic_lookup',
+    cmd = ['cc', '-O2', '-g', '-Wall', '-Wextra', '-std=c99', '-shared', '-fPIC',
            '-I', os.path.join(SRC, 'include'), '-o', LIB, table] + files
+    if sys.platform == 'darwin':
+        # The box resolves the library's calls into it at load; ELF allows that by default.
+        cmd[7:7] = ['-undefined', 'dynamic_lookup']
     p = subprocess.run(cmd, capture_output=True, text=True)
     sys.stdout.write(p.stdout + p.stderr)
     if p.returncode or not os.path.exists(LIB):
