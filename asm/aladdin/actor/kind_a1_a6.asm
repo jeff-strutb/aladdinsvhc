@@ -12,6 +12,57 @@ arch 65816
 
 !RANGE_Y = $1A46  ; the y of the point actors are kept in range of (word)
 
+!KIND_A1_HITS = $41             ; counted up each time Aladdin comes down on it
+!KIND_A1_SAFE = $1B2B           ; nonzero: it goes straight to state $8C, untested
+
+; @routine 84:A9C7 KindA1Touch
+; WHAT IT DOES: What actors of kind $A1 do each frame they wait: animate;
+; once it can no longer be hit it ends; else Aladdin touching it is hurt,
+; or coming down on it is stood on it, which counts a hit, plays sound $0F
+; and sends it to state $8C; not stood on, a shot can down it. With
+; KIND_A1_SAFE set it goes to state $8C at once.
+; HOW: AnimStep; BIT actor_09: bit 6 clear, its JSL's and the loop's JSR
+; return addresses dropped (five pulls) and on into ActorEndPlaced at the
+; loop's level. KIND_A1_SAFE zero: ActorBouncesOrHurtsPlayerLong, A - 1
+; nonzero: ActorDownedByShotLong and back; zero: KIND_A1_HITS up and
+; SoundQueueAdd $0F. Then bit 7 of actor_09 cleared (ASL, LSR) and state
+; $8C.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSL from the kind's stub ($83:940D) through the
+; actor loop's wait table at $83:904F. Exit: ended: never returns. Shot
+; test: as ActorDownedByShotLong. Else M and X 8-bit; A low = $8C, N set,
+; Z clear, C clear.
+%at($84A9C7)
+KindA1Touch:
+    jsl.l AnimStep
+    bit.b !actor_09
+    bvs .live
+    pla
+    pla
+    pla
+    pla
+    pla
+    jml.l ActorEndPlaced
+.live:
+    lda.w !KIND_A1_SAFE
+    bne .to8c
+    jsl.l ActorBouncesOrHurtsPlayerLong
+    dec a
+    bne .shot
+    inc.b !KIND_A1_HITS
+    lda.b #$0F
+    jsl.l SoundQueueAdd
+    bra .to8c
+.shot:
+    jsl.l ActorDownedByShotLong
+    rtl
+.to8c:
+    asl.b !actor_09
+    lsr.b !actor_09
+    lda.b #$8C
+    sta.b !actor_state
+    rtl
+
 ; @routine 84:A9FC KindA1Hit
 ; @actor
 ; WHAT IT DOES: Actor kind $A1 in state $4C (hit): it flies off (motion
