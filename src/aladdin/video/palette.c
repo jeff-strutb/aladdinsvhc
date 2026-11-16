@@ -10,6 +10,7 @@
 #include "cpu_ops.h"
 #include "ops65.h"
 void abi_PaletteChannelStep(void);
+void abi_PaletteColourStep(void);
 #include "wram.h"
 #include "wram_video.h"
 
@@ -195,6 +196,41 @@ void abi_LevelPalettesLoad(void)
         cpu.y = y;
         cpu.p = nz8(cpu.p, y);
     }
+}
+
+/*
+ * @routine 81:9DCD PaletteFadeStep
+ * WHAT IT DOES: One step of a fade: every kept colour from PALETTE_SAVED_AT
+ * for Y palettes, each channel moved by A (signed), into the palette
+ * buffer, and has it uploaded.
+ * HOW: A sign-extended to PALETTE_STEP; Y * 16 colours, from
+ * PALETTE_SAVED_AT's offset in PALETTE_SAVED: PaletteColourStep, the result
+ * to PALETTE_BUFFER at the same offset; PALETTE_UPLOAD counted up.
+ * Entry: M 8-bit, X 8-bit; A = the step (signed); Y = the palettes; DB a
+ * bank whose $0000-$1FFF is work RAM; called by JSL. Exit: M and X 8-bit;
+ * X, Y as the loop left them (low bytes; Y 0); N, Z from the upload count.
+ */
+void abi_PaletteFadeStep(void)
+{
+    uint8_t step = (uint8_t)cpu.a;
+
+    wr8(dba((uint16_t)(PALETTE_STEP + 1)), 0);
+    wr8(dba(PALETTE_STEP), step);
+    cpu.x = step;
+    if (step & 0x80)
+        wr8(dba((uint16_t)(PALETTE_STEP + 1)), 0xFF);
+    op_rep(0x30);
+    cpu.y = (uint16_t)(cpu.y << 4);       /* 16 colours a palette */
+    cpu.x = rd16(dba((uint16_t)PALETTE_SAVED_AT));
+    do {
+        cpu.a = rd16((dba((uint16_t)PALETTE_SAVED) + cpu.x) & 0xFFFFFF);
+        abi_PaletteColourStep();
+        wr16((PALETTE_BUFFER + cpu.x) & 0xFFFFFF, cpu.a);
+        cpu.x = (uint16_t)(cpu.x + 2);
+        cpu.y = (uint16_t)(cpu.y - 1);
+    } while (cpu.y);
+    op_sep(0x30);
+    inc8_at(dba((uint16_t)PALETTE_UPLOAD));
 }
 
 /*

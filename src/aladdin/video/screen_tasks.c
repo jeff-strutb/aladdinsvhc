@@ -24,6 +24,14 @@ void abi_ColourFadeBegin(void);
 void abi_RandomNext(void);
 #include "wram.h"
 #include "wram_video.h"
+#include "wram_state.h"
+
+#define TEXT_BLINKS 0xA5u             /* TextBlinkTask: blinks left (its direct page) */
+#define TEXT_BLINK_LAYOUT 0x14        /* its line, and on level TEXT_BLINK_LEVEL_ALT the other */
+#define TEXT_BLINK_LAYOUT_ALT 0x70
+#define TEXT_BLINK_LEVEL_ALT 0x11
+#define V_03FA 0x03FAu                /* counted up as a level is set up; cleared after the blink with health left */
+void abi_TextLayoutShowThird(void);
 
 /*
  * @routine 81:9774 TextLayerCopyWords
@@ -203,6 +211,47 @@ static void steps_halved(void)
     if (!(uint8_t)cpu.a)
         a8_load(0x01);
     wr8(dba(TASK_PARAM) + cpu.y, (uint8_t)cpu.a);
+}
+
+/*
+ * @routine 81:9E3B TextBlinkTask
+ * WHAT IT DOES: A task that blinks a line of text in the text buffer's third
+ * part three times (layout $14; $70 on level $11), then ends; with health
+ * left it also clears V_03FA.
+ * HOW: Three times: the layout drawn (TextLayoutShowThird), $1E frames
+ * (TaskWait), blanked (bit 7), $1E frames; the count in the task's
+ * direct page at TEXT_BLINKS. Then TaskExit.
+ * Entry: the task's start: M 8-bit, X 8-bit; D = the task's direct page;
+ * DB a bank whose $0000-$1FFF is work RAM. Exit: none: the task ends.
+ */
+void abi_TextBlinkTask(void)
+{
+    uint8_t layout = TEXT_BLINK_LAYOUT;
+
+    wr8(dpa(TEXT_BLINKS), 3);
+    if (rd8(dba((uint16_t)LEVEL)) == TEXT_BLINK_LEVEL_ALT)
+        layout = TEXT_BLINK_LAYOUT_ALT;
+    cpu.x = layout;
+    do {
+        a8_load((uint8_t)cpu.x);
+        phx8();
+        abi_TextLayoutShowThird();
+        plx8();
+        a8_load(0x1E);
+        jsl_frame(0x819E53u);
+        abi_TaskWait();
+        a8_load((uint8_t)(cpu.x | 0x80));
+        phx8();
+        abi_TextLayoutShowThird();
+        plx8();
+        a8_load(0x1E);
+        jsl_frame(0x819E62u);
+        abi_TaskWait();
+    } while (dec8_at(dpa(TEXT_BLINKS)));
+    a8_load(rd8(dba((uint16_t)HEALTH)));
+    if ((uint8_t)cpu.a)
+        wr8(dba(V_03FA), 0);
+    abi_TaskExit();
 }
 
 /*

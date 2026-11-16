@@ -199,6 +199,44 @@ PaletteSequenceTask:
     bpl .set
     jml.l TaskExit
 
+; @routine 81:9DCD PaletteFadeStep
+; WHAT IT DOES: One step of a fade: every kept colour from PALETTE_SAVED_AT
+; for Y palettes, each channel moved by A (signed), into the palette
+; buffer, and has it uploaded.
+; HOW: A sign-extended to PALETTE_STEP; Y * 16 colours, from
+; PALETTE_SAVED_AT's offset in PALETTE_SAVED: PaletteColourStep, the result
+; to PALETTE_BUFFER at the same offset; PALETTE_UPLOAD counted up.
+; Entry: M 8-bit, X 8-bit; A = the step (signed); Y = the palettes; DB a
+; bank whose $0000-$1FFF is work RAM; called by JSL. Exit: M and X 8-bit;
+; X, Y as the loop left them (low bytes; Y 0); N, Z from the upload count.
+%at($819DCD)
+PaletteFadeStep:
+    stz.w !fade_step+1
+    sta.w !fade_step
+    tax
+    bpl .up
+    dec.w !fade_step+1
+.up:
+    rep.b #$30
+    tya
+    asl a
+    asl a
+    asl a
+    asl a
+    tay
+    ldx.w !palette_saved_at
+.colour:
+    lda.w !palette_saved,x
+    jsr.w PaletteColourStep
+    sta.l !palette_buffer,x
+    inx
+    inx
+    dey
+    bne .colour
+    sep.b #$30
+    inc.w !palette_upload
+    rtl
+
 ; @routine 81:9DF9 PaletteColourStep
 ; WHAT IT DOES: Steps all three channels of colour A by the fade's step
 ; ($0608), each held to 0-31.

@@ -5,8 +5,15 @@
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
+incsrc "../include/wram_state.inc"
 
 arch 65816
+
+!TEXT_BLINKS = $A5             ; TextBlinkTask: blinks left (its direct page)
+!TEXT_BLINK_LAYOUT = $14       ; its line, and on level TEXT_BLINK_LEVEL_ALT the other
+!TEXT_BLINK_LAYOUT_ALT = $70
+!TEXT_BLINK_LEVEL_ALT = $11
+!V_03FA = $03FA                ; counted up as a level is set up; cleared after the blink with health left
 
 ; The palette sequence: per step (5 down to 0), the set to load and the
 ; frames to hold it.
@@ -157,6 +164,46 @@ TextLayerBlankWords:
 
 
 
+
+; @routine 81:9E3B TextBlinkTask
+; WHAT IT DOES: A task that blinks a line of text in the text buffer's third
+; part three times (layout $14; $70 on level $11), then ends; with health
+; left it also clears V_03FA.
+; HOW: Three times: the layout drawn (TextLayoutShowThird), $1E frames
+; (TaskWait), blanked (bit 7), $1E frames; the count in the task's
+; direct page at TEXT_BLINKS. Then TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; D = the task's direct page;
+; DB a bank whose $0000-$1FFF is work RAM. Exit: none: the task ends.
+%at($819E3B)
+TextBlinkTask:
+    lda.b #$03
+    sta.b !TEXT_BLINKS
+    ldx.b #!TEXT_BLINK_LAYOUT
+    lda.w !level
+    cmp.b #!TEXT_BLINK_LEVEL_ALT
+    bne .blink
+    ldx.b #!TEXT_BLINK_LAYOUT_ALT
+.blink:
+    txa
+    phx
+    jsl.l TextLayoutShowThird
+    plx
+    lda.b #$1E
+    jsl.l TaskWait
+    txa
+    ora.b #$80
+    phx
+    jsl.l TextLayoutShowThird
+    plx
+    lda.b #$1E
+    jsl.l TaskWait
+    dec.b !TEXT_BLINKS
+    bne .blink
+    lda.w !health
+    beq .end
+    stz.w !V_03FA
+.end:
+    jmp.w TaskExit
 
 ; @routine 81:9E8E BrightnessUpTask
 ; WHAT IT DOES: A task that raises the screen's brightness a step at a
