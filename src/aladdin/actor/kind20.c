@@ -437,9 +437,11 @@ void abi_Kind20Spotted(void)
     lda8_v(0x80);
     sta8(ea_dp(COUNT));
     stz8(ea_dp(SPED_UP));
+    /* on into Kind20Charge past its BRK and move; its JMP back to
+       Kind20Charge hands the actor on there (an actor's entry) */
     on = charge_frame();
     if (on > 0)
-        jump_routine(0x839900u);
+        actor_leave(0x839900u);
     else if (on == 0)
         jump_routine(0x839956u);
 }
@@ -494,5 +496,5 @@ void abi_Kind20Halt(void)
     abi_ActorSpeedXSet1();
     abi_ActorXTo40();
     abi_Actor44Set40And80();
-    jump_routine(0x839832u);
+    actor_leave(0x839832u);
 }
