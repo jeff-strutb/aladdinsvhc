@@ -108,13 +108,14 @@ static void tail(void)
    the scroll Y moves by how far, at most 6 down and 6 up. */
 static void follow_down(uint16_t w)
 {
-    uint16_t d;
+    uint16_t d, py;
 
     op_lda16(SCROLL_Y_HELD);
     if (cpu.a != 0)
         return;
     flag_set(P_C, 1);
-    d = op_sbc16(rd16(PLAYER_Y_AT), rd16(TARGET_Y), &cpu.p);
+    py = rd16(PLAYER_Y_AT);
+    d = op_sbc16(py, rd16(TARGET_Y), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_Y_BIAS + w))), &cpu.p);
     cpu.a = d;
@@ -143,13 +144,14 @@ static void follow_down(uint16_t w)
    right, 3 left; CAMERA_PUSH 1 for a move right, 2 for one left. */
 static void follow_across(uint16_t w)
 {
-    uint16_t d;
+    uint16_t d, px;
 
     op_lda16(SCROLL_X_HELD);
     if (cpu.a != 0)
         return;
     flag_set(P_C, 1);
-    d = op_sbc16(rd16(PLAYER_X_AT), rd16(TARGET_X), &cpu.p);
+    px = rd16(PLAYER_X_AT);
+    d = op_sbc16(px, rd16(TARGET_X), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_X_BIAS + w))), &cpu.p);
     cpu.a = d;
@@ -181,7 +183,7 @@ static void follow_across(uint16_t w)
    negative: it stays where it is. */
 static void follow(void)
 {
-    uint16_t w;
+    uint16_t w, sx, sy;
 
     op_rep(0x20);
     op_lda16(SCROLL_X);
@@ -201,10 +203,12 @@ static void follow(void)
     op_rep(0x30);
     w = cpu.x;
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(SCROLL_X), rd16(CAMERA_AIM_X), &cpu.p);
+    sx = rd16(SCROLL_X);
+    cpu.a = op_adc16(sx, rd16(CAMERA_AIM_X), &cpu.p);
     wr16(TARGET_X, cpu.a);
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(SCROLL_Y), rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_POINT_Y + w))), &cpu.p);
+    sy = rd16(SCROLL_Y);
+    cpu.a = op_adc16(sy, rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_POINT_Y + w))), &cpu.p);
     wr16(TARGET_Y, cpu.a);
     follow_across(w);
     follow_down(w);
@@ -215,14 +219,23 @@ static void follow(void)
    (0 or 4); up and down, the camera follows as handler 0's with window 0. */
 static void run_at(uint8_t s)
 {
+    uint16_t v;
+
     x8_load(s);
     op_rep(0x30);
-    scroll_x_add(rd16(dba((uint16_t)(SCROLL_SPEEDS + s))), rd16(dba((uint16_t)(SCROLL_SPEEDS + 2 + s))));
+    flag_set(P_C, 0);
+    v = rd16(SCROLL_X - 1);
+    cpu.a = op_adc16(v, rd16(dba((uint16_t)(SCROLL_SPEEDS + s))), &cpu.p);
+    wr16(SCROLL_X - 1, cpu.a);
+    v = rd16(SCROLL_X + 1);
+    cpu.a = op_adc16(v, rd16(dba((uint16_t)(SCROLL_SPEEDS + 2 + s))), &cpu.p);
+    wr16(SCROLL_X + 1, cpu.a);
     wr16(CAMERA_PUSH, 0);
     cpu.x = 0;
     nz16_of(0);
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(SCROLL_Y), rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_POINT_Y))), &cpu.p);
+    v = rd16(SCROLL_Y);
+    cpu.a = op_adc16(v, rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_POINT_Y))), &cpu.p);
     wr16(TARGET_Y, cpu.a);
     follow_down(0);
     tail();

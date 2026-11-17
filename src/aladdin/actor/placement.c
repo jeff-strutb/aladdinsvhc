@@ -50,14 +50,15 @@ static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
    brought in by `bring`. */
 static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t far, void (*bring)(void))
 {
-    uint16_t d, x = 0;
+    uint16_t d, v, x = 0;
     uint8_t step, band;
 
     op_rep(0x30);
     cpu.x = 0;
     dp16_set(0x2A, 0);
     flag_set(P_C, 1);
-    d = op_sbc16(db16(camera), db16(last), &cpu.p);
+    v = db16(camera);
+    d = op_sbc16(v, db16(last), &cpu.p);
     if (d & 0x8000) {
         inc16_at(dpa(0x2A));
         x = 2;
@@ -68,7 +69,8 @@ static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t 
     cmp16_of(d, 0x0020);
     if (d < 0x0020)
         return;
-    cpu.a = op_sbc16(db16(last), db16((uint16_t)(0xA794 + x)), &cpu.p);
+    v = db16(last);
+    cpu.a = op_sbc16(v, db16((uint16_t)(0xA794 + x)), &cpu.p);
     wr16(dba(last), cpu.a);
     op_sep(0x30);
     y8_load(step = rd8(dba((uint16_t)(0xA798 + x))));
@@ -485,7 +487,10 @@ void abi_TileSlotsClaim2(void)
     /* two free slots side by side, from the first three */
     for (x = 0; x < 3; x++) {
         cpu.x = x;
-        a8_load(rd8(dba((uint16_t)(0x15E9 + x))) | rd8(dba((uint16_t)(0x15EA + x))));
+        uint8_t v = rd8(dba((uint16_t)(0x15E9 + x)));
+
+        v |= rd8(dba((uint16_t)(0x15EA + x)));
+        a8_load(v);
         if (!(uint8_t)cpu.a) {
             inc8_at(dba((uint16_t)(0x15EA + x)));
             claim_run(x);
@@ -511,7 +516,11 @@ void abi_TileSlotsClaim3(void)
     /* three free slots in a row, from the first two */
     for (x = 0; x < 2; x++) {
         cpu.x = x;
-        a8_load(rd8(dba((uint16_t)(0x15E9 + x))) | rd8(dba((uint16_t)(0x15EA + x))) | rd8(dba((uint16_t)(0x15EB + x))));
+        uint8_t v = rd8(dba((uint16_t)(0x15E9 + x)));
+
+        v |= rd8(dba((uint16_t)(0x15EA + x)));
+        v |= rd8(dba((uint16_t)(0x15EB + x)));
+        a8_load(v);
         if (!(uint8_t)cpu.a) {
             inc8_at(dba((uint16_t)(0x15EA + x)));
             inc8_at(dba((uint16_t)(0x15EB + x)));
