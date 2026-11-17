@@ -62,6 +62,8 @@ void abi_ActorMapAtOffset(void)
     map_at(dba(AHEAD_OFFSETS) + cpu.x);
 }
 
+static void ahead7(uint8_t down);
+
 /*
  * @routine 83:9A01 ActorMapAhead7Down28
  * WHAT IT DOES: Gives the class of the map's block 7 pixels ahead of the
@@ -74,7 +76,27 @@ void abi_ActorMapAtOffset(void)
 void abi_ActorMapAhead7Down28(void)
 {
     a8_load(0x1C);
-    wr8(dba(SCRATCH + 2), 0x1C);
+    ahead7(0x1C);
+}
+
+/*
+ * @routine 83:9A11 ActorMapAhead7Down36
+ * WHAT IT DOES: Gives the class of the map's block 7 pixels ahead of the
+ * actor and 36 below it (kind $20's probe on a ledge; no script runs it).
+ * HOW: A = $24, then as ActorMapAhead7Down28 past its load.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80. Exit: as
+ * ActorMapAtOffset.
+ */
+void abi_ActorMapAhead7Down36(void)
+{
+    a8_load(0x24);
+    ahead7(0x24);
+}
+
+/* ActorMapAhead7Down28 from 83:9A03: SCRATCH + 2 = down (A), entry 4. */
+static void ahead7(uint8_t down)
+{
+    wr8(dba(SCRATCH + 2), down);
     a8_load(0x04);
     wr8(dba(SCRATCH), 0x04);
     wr8(dba(SCRATCH + 3), 0);

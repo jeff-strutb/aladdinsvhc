@@ -31,11 +31,22 @@ arch 65816
 %at($839A01)
 ActorMapAhead7Down28:
     lda.b #$1C
+.down:
     sta.w !scratch+2
     lda.b #$04
     sta.w !scratch
     stz.w !scratch+3
     jmp.w ActorMapAtOffset
+
+; @routine 83:9A11 ActorMapAhead7Down36
+; WHAT IT DOES: Gives the class of the map's block 7 pixels ahead of the
+; actor and 36 below it (kind $20's probe on a ledge; no script runs it).
+; HOW: A = $24, then as ActorMapAhead7Down28 past its load.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80. Exit: as
+; ActorMapAtOffset.
+ActorMapAhead7Down36:
+    lda.b #$24
+    bra ActorMapAhead7Down28_down
 
 ; @routine 83:9A15 ActorMapAtOffset
 ; WHAT IT DOES: Gives the class of the level map's block at a point ahead
