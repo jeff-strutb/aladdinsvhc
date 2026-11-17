@@ -1,0 +1,12 @@
+# Actor kind $40, the spring (Kind40Start, $83:C507), touched while Aladdin
+# has no health: it turns itself to state $8C ($83:C539), which no play
+# has. The spring is met only in the ending's play-back of cov_ending_gems
+# (record $0BAB, frames 10950 to 11700); that script to frame 10950, the
+# health ($0367) poked to 0, and on to the spring's end.
+load build/aladdin/states/stage_a0_s0.state
+poke $000376 32
+wait 10500
+poke $00033F 0A
+wait 450
+poke 000367 00
+wait 750
