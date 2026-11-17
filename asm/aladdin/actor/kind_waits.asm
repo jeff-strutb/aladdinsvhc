@@ -12,8 +12,6 @@ arch 65816
 
 ; Not yet filed: a test of a shot reaching the actor (83:81CF), and a
 ; step of kind $6E's actor (83:F908).
-!SHOT_TEST_81CF = $8381CF
-!STEP_F908 = $83F908
 ; In bank $80: the animation frames on which kind $52 hurts, and the
 ; zone (box) for each.
 !KIND52_HURT_FRAMES = $D382
@@ -25,13 +23,29 @@ arch 65816
 !TEST_BOX_HALF_H = $148A
 !ACTOR_27 = $27                 ; the actor's animation frame
 !ACTOR_43 = $43
+!KIND2D_STOPPED = $4F           ; kind $2D: nonzero once an actor has stopped it
+!HIT_BOXES_F908 = $C29A         ; the hit boxes: 4 bytes each, the half-width first (data bank)
+!POOL_SCAN_END = $141C          ; where ActorStopsTouchingKind2D's walk stops: one past $141B
 !ACTOR_4E = $4E                 ; kind $53: the record it watches (word)
 !ACTOR_4C = $4C                 ; kinds $68 and $6E: their x pixels kept (word)
 !KIND68_ON = $16                ; nonzero: the player rides it this frame
 !KIND68_WAS_ON = $17            ; the same, the frame before
 !KIND68_PLAYER_X = $1D          ; the player's x pixels kept (word)
 !KIND68_PAUSE = $20             ; frames left before it carries again
-!KIND68_ON_TEST = $83E90D       ; not yet filed: C clear when the player is on it
+!KIND68_VARIANT = $47           ; which of its shapes (0: flat)
+!KIND68_SPOTS = $D61F           ; in bank $80, by variant, flip: its spot's x and y offsets (words; 4 bytes)
+!KIND68_BOXES = $D5FF           ; in bank $80, by variant, flip: x and y offsets, half-width, half-height (words; 8 bytes)
+!KIND68_DIRS = $D62F            ; in bank $80, by variant times 2 plus flip: the player's direction word on it
+!KIND68_SPOT_X = $002C          ; scratch: its spot's x (word)
+!KIND68_SPOT_Y = $002E          ; scratch: its spot's y (word)
+!KIND68_FEET_Y = $001C          ; scratch: the player's feet, his y plus $25 or $20 (word)
+!KIND68_TOP_Y = $001E           ; scratch: its top under him (word)
+!RANGE_Y_83 = $1A46             ; the point actors are kept in range of (y)
+!v_1427_83 = $1427
+!v_141c_83 = $141C
+!v_141b_83 = $141B
+!v_1434_83 = $1434
+!v_1428_83 = $1428
 !v_1b14 = $1B14
 !RANGE_X_83 = $1A44             ; the point actors are kept in range of (x)
 !KIND6E_TEST_OFFSET = $D6AB     ; in bank $80: per variant, its x offset for the touch test
@@ -159,7 +173,7 @@ Kind46Wait:
 ; shot; stomped or hurting as touched; on animation frames 0-3 and 10 it
 ; hurts the player when its zone meets the test box; ended when out of
 ; range.
-; HOW: AnimStep; $48 set: the shot test at 83:81CF. ActorStompOrHurt. Its
+; HOW: AnimStep; $48 set: ActorEndsShot. ActorStompOrHurt. Its
 ; frame ($27) looked up among five; found: ActorZoneHasTestBox with that
 ; frame's zone, met: PlayerEnter8CFacing. Then ActorEndOutOfRange with box
 ; 0.
@@ -171,7 +185,7 @@ Kind52Wait:
     jsl.l AnimStep
     lda.b !actor_48
     beq .lD523
-    jsr.w !SHOT_TEST_81CF
+    jsr.w ActorEndsShot
 .lD523:
     jsr.w ActorStompOrHurt
     ldx.b #$04
@@ -278,17 +292,17 @@ Kind67Wait:
     rts
 
 ; @routine 83:E8A9 Kind68Wait
-; WHAT IT DOES: Kind $68's wait: carries the player along across while it
-; rides (unless that puts the player into firm ground), with a pause of 8
-; frames after the player leaves; it ends itself while the scroll Y limit
-; is below 256.
+; WHAT IT DOES: Kind $68's wait: carries the player along across while he
+; rides it (unless that puts him into firm ground), with a pause of 8
+; frames after he leaves; it ends itself while the scroll Y limit is
+; below 256.
 ; HOW: Its $16 cleared and the player's x pixels kept at $1D; $20 counting
-; down: one less. Else the test at 83:E90D; on it: $16 = 1, the player's x
+; down: one less. Else Kind68PlayerOn; on it: $16 = 1, the player's x
 ; moved by its move across ($000C less $4C), put back when
 ; PlayerOnFirmGroundProbe8, Probe4 or PlayerOnFirmGround says firm. The
 ; scroll Y limit's high byte 0: its return dropped and into
-; ActorEndOutOfRange past its range test. Then left this frame ($16 clear
-; after set): $20 = 8; $17 = $16.
+; ActorEndPlaced. Then left this frame ($16 clear after set): $20 = 8;
+; $17 = $16.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
 ; from the actor loop (83:94D0) each frame the actor waits, by its kind.
 ; Exit: M 8-bit; X = its $16; or does not return when it ends.
@@ -304,7 +318,7 @@ Kind68Wait:
     dec.b !KIND68_PAUSE
     bra .lE8F2
 .lE8BD:
-    jsr.w !KIND68_ON_TEST
+    jsr.w Kind68PlayerOn
     bcs .lE8F2
     lda.b #$01
     sta.b !KIND68_ON
@@ -342,6 +356,147 @@ Kind68Wait:
     sta.b !KIND68_PAUSE
 .lE908:
     stx.b !KIND68_WAS_ON
+    rts
+Kind68PlayerOnOut:
+    sec
+    rts
+
+; @routine 83:E90D Kind68PlayerOn
+; WHAT IT DOES: Tells whether the player is on kind $68 (C clear) and then
+; stands him on it: his feet on its top, his direction from its own.
+; HOW: Out (C set, by the SEC RTS just before it) when its y is $C0 or
+; more from RANGE_Y, $1427 is set, or V_141C is set while he moves up. By
+; its variant ($47) and flip: its spot (KIND68_SPOTS added to its $4C and
+; its y, kept at SPOT_X and SPOT_Y) and its box (KIND68_BOXES: offsets,
+; half-width, half-height). Out when his x is not within the half-width
+; of the box's x, or his y plus $25 ($20 when hurt with $141B set, or
+; not hurt and moving up) not within the half-height of the box's y.
+; Its top: SPOT_Y plus 8 (variant 0) or less half the distance across
+; from SPOT_X to him; out unless his feet are at most 24 above it and not
+; below. Then his y = the top less 32, V_1434 from KIND68_DIRS, V_1428
+; up, C clear. No script runs the $20 nor the variant other than 0.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80, the tables'
+; bank; called by JSR. Exit: M 8-bit, X 8-bit. On: C clear; A = V_1428's
+; bank; called by JSR. Exit: M 8-bit, X 8-bit. On: C clear; A = the
+; direction word (16 bits); N and Z from V_1428's INC. Out: C set.
+; Scratch $000C-$0017, $001C-$001F and $002C-$002F as its tests left
+; them.
+Kind68PlayerOn:
+    rep.b #$20
+    sec
+    lda.b !actor_y+1
+    sbc.w !RANGE_Y_83
+    clc
+    adc.w #$00C0
+    cmp.w #$0180
+    sep.b #$20
+    bcs Kind68PlayerOnOut
+    lda.w !v_1427_83
+    bne Kind68PlayerOnOut
+    lda.w !v_141c_83
+    beq .side
+    lda.w !player+!actor_speed_y+2
+    bmi Kind68PlayerOnOut
+.side:
+    lda.b !KIND68_VARIANT
+    asl a
+    ora.b !actor_flip
+    asl a
+    asl a
+    tax
+    asl a
+    tay
+    rep.b #$20
+    clc
+    lda.b !ACTOR_4C
+    adc.w !KIND68_SPOTS,x
+    sta.w !KIND68_SPOT_X
+    clc
+    adc.w !KIND68_BOXES,y
+    sta.w !scratch
+    clc
+    lda.b !actor_y+1
+    adc.w !KIND68_SPOTS+2,x
+    sta.w !KIND68_SPOT_Y
+    clc
+    adc.w !KIND68_BOXES+2,y
+    sta.w !scratch+2
+    lda.w !KIND68_BOXES+4,y
+    sta.w !scratch+4
+    asl a
+    sta.w !scratch+6
+    lda.w !KIND68_BOXES+6,y
+    sta.w !scratch+8
+    asl a
+    sta.w !scratch+10
+    sec
+    lda.w !player+!actor_x+1
+    sbc.w !scratch
+    clc
+    adc.w !scratch+4
+    cmp.w !scratch+6
+    bcs .out
+    lda.w #$0025
+    ldx.w !v_0367
+    bne .hurt
+    ldx.w !player+!actor_speed_y+2
+    bmi .near
+    bra .feet
+.hurt:
+    ldx.w !v_141b_83
+    beq .feet
+.near:
+    lda.w #$0020
+.feet:
+    clc
+    adc.w !player+!actor_y+1
+    sta.w !KIND68_FEET_Y
+    sec
+    sbc.w !scratch+2
+    clc
+    adc.w !scratch+8
+    cmp.w !scratch+10
+    bcs .out
+    ldx.b !KIND68_VARIANT
+    bne .slope
+    lda.w #$0008
+    bra .top
+.slope:
+    sec
+    lda.w !KIND68_SPOT_X
+    sbc.w !player+!actor_x+1
+    bpl .half
+    eor.w #$FFFF
+    inc a
+.half:
+    lsr a
+    eor.w #$FFFF
+    inc a
+.top:
+    clc
+    adc.w !KIND68_SPOT_Y
+    sta.w !KIND68_TOP_Y
+    sec
+    sbc.w !KIND68_FEET_Y
+    bcs .out
+    cmp.w #$FFE8
+    bcc .out
+    sec
+    lda.w !KIND68_TOP_Y
+    sbc.w #$0020
+    sta.w !player+!actor_y+1
+    lda.b !KIND68_VARIANT
+    asl a
+    ora.b !actor_flip
+    tax
+    lda.w !KIND68_DIRS,x
+    sta.w !v_1434_83
+    inc.w !v_1428_83
+    sep.b #$20
+    clc
+    rts
+.out:
+    sep.b #$21
     rts
 
 ; @routine 83:EF92 Kind6DWait
@@ -459,14 +614,98 @@ Kind6EWait:
     sep.b #$20
     rts
 
+; @routine 83:F908 ActorStopsTouchingKind2D
+; WHAT IT DOES: Stops every actor of kind $2D that touches the actor and
+; is not stopped yet: it is marked ($4F = 1), its per-frame routine
+; turned off, and it goes into state $8C.
+; HOW: X walks the records from ACTOR_POOL, $50 apart, while below
+; POOL_SCAN_END (so the 80 bytes at $141B, past the pool's 28, are taken
+; as a record too). A record in use, kind $2D, its $4F zero: its box's
+; half-width plus 4 (HIT_BOXES by its kind) in scratch, twice it at
+; scratch + 2; its x pixels plus that less the actor's below twice it
+; (unsigned), and the same with the half-height and the y pixels: $4F =
+; 1, bit 7 of $09 cleared, bit 7 of $08 set, state $8C. No script runs
+; the test past the kind (no kind $2D in the pool).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80, the hit
+; boxes' bank; called by JSR. Exit: M 8-bit, X 8-bit; X = $6B (the
+; walk's end, $146B, low byte), A = $146B (16 bits); C set, N and Z
+; clear. Scratch $000C-$000F as the last test left it.
+%at($83F908)
+ActorStopsTouchingKind2D:
+    rep.b #$10
+    ldx.w #!actor_pool
+.next:
+    lda.w !actor_state,x
+    beq .on
+    lda.w !actor_06,x
+    cmp.b #$2D
+    bne .on
+    lda.w !KIND2D_STOPPED,x
+    bne .on
+    rep.b #$20
+    lda.w !actor_06,x
+    and.w #$00FF
+    asl a
+    asl a
+    tay
+    lda.w !HIT_BOXES_F908,y
+    clc
+    adc.w #$0004
+    sta.w !scratch
+    asl a
+    sta.w !scratch+2
+    lda.w !actor_x+1,x
+    clc
+    adc.w !scratch
+    sec
+    sbc.b !actor_x+1
+    cmp.w !scratch+2
+    bcs .on
+    lda.w !HIT_BOXES_F908+2,y
+    clc
+    adc.w #$0004
+    sta.w !scratch
+    asl a
+    sta.w !scratch+2
+    lda.w !actor_y+1,x
+    clc
+    adc.w !scratch
+    sec
+    sbc.b !actor_y+1
+    cmp.w !scratch+2
+    bcs .on
+    sep.b #$20
+    lda.b #$01
+    sta.w !KIND2D_STOPPED,x
+    asl.w !actor_09,x
+    lsr.w !actor_09,x
+    lda.w !actor_08,x
+    ora.b #$80
+    sta.w !actor_08,x
+    lda.b #$8C
+    sta.w !actor_state,x
+.on:
+    rep.b #$21
+    txa
+    adc.w #$0050
+    tax
+    cpx.w #!POOL_SCAN_END
+    sep.b #$20
+    bcs .done
+    jmp.w .next
+.done:
+    sep.b #$10
+    rts
+
 ; @routine 83:F991 KindWaitF991
 ; WHAT IT DOES: The per-frame routine of the kind whose stub at 83:930C
 ; starts at 83:F77F: animates; variant 0 sets its $42 when it stops a shot
 ; (until its $43 is set); other variants with $44 set hurt the player on
-; touch and take the step at 83:F908; freed when out of range.
+; touch and stop the kind $2D actors that touch them; freed when out of
+; range.
 ; HOW: AnimStep; $07 zero: $43 clear, ActorStopsShotLong, stopped: $42 =
-; 1. $07 nonzero: $44 set, ActorHurtsPlayerOnTouchLong and the step at
-; 83:F908. Then ActorFreeOutOfRangeLong with box 0 (by JML).
+; 1. $07 nonzero: $44 set, ActorHurtsPlayerOnTouchLong and
+; ActorStopsTouchingKind2D. Then ActorFreeOutOfRangeLong with box 0 (by JML).
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSL
 ; from the kind's stub (83:9310). Exit: as ActorFreeOutOfRangeLong.
 %at($83F991)
@@ -485,7 +724,7 @@ KindWaitF991:
     lda.b !actor_44
     beq .lF9B4
     jsl.l ActorHurtsPlayerOnTouchLong
-    jsr.w !STEP_F908
+    jsr.w ActorStopsTouchingKind2D
 .lF9B4:
     ldx.b #$00
     jml.l ActorFreeOutOfRangeLong

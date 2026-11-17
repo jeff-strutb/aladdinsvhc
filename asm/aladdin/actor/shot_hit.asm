@@ -10,6 +10,7 @@ arch 65816
 
 !ACTOR_11 = $11                 ; a shot's: negative, it does not hit
 !TURNED_BACK_AT = $EB7C         ; where a turned-back shot's code resumes (its own bank)
+!SHOT_ENDS_AT = $EB76           ; where a shot's code resumes to end itself (its own bank)
 
 !PLAYER_2F = !player+$2F        ; $0B or more: the side a harmless shot turns the actor to flips
 
@@ -230,3 +231,38 @@ ActorTakesShot:
 Spawn13AtYLong:
     jsr.w Spawn13AtY
     rtl
+
+; @routine 83:81CB ActorEndsShotLong
+; WHAT IT DOES: ActorEndsShot for callers in other banks.
+; HOW: JSR to it, then RTL. No script runs it.
+; Entry: as ActorEndsShot; called by JSL. Exit: as ActorEndsShot.
+%at($8381CB)
+ActorEndsShotLong:
+    jsr.w ActorEndsShot
+    rtl
+
+; @routine 83:81CF ActorEndsShot
+; WHAT IT DOES: When a shot reaches the actor, the shot ends: a small
+; actor (kind $13) marks the hit and the shot's code goes on where it
+; ends itself.
+; HOW: ActorTouchesSecondPool; on a touch Spawn13AtY at the shot, then
+; the shot's resume address ($03-$04) = SHOT_ENDS_AT, in its own bank
+; (SEP, then on into the actor loop's end of it). No script runs the
+; touch.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit.
+; Touched: C as Spawn13AtY leaves it; A low = $EB, N set, Z clear; Y =
+; the shot's record (low byte). No touch: C set; as
+; ActorTouchesSecondPool leaves the rest.
+%at($8381CF)
+ActorEndsShot:
+    jsr.w ActorTouchesSecondPool
+    bcs .out
+    jsr.w Spawn13AtY
+    lda.b #!SHOT_ENDS_AT&255
+    sta.w !actor_03,y
+    lda.b #!SHOT_ENDS_AT>>8
+    sta.w !actor_04,y
+.out:
+    sep.b #$30
+    rts

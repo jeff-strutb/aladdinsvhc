@@ -16,9 +16,11 @@ void abi_ActorTouchesSecondPool(void);
 void abi_ActorStopsShot(void);
 void abi_Spawn11AtY(void);
 void abi_Spawn13AtY(void);
+void abi_ActorEndsShot(void);
 
 #define ACTOR_11 0x11u              /* a shot's: negative, it does not hit */
 #define TURNED_BACK_AT 0xEB7Cu      /* where a turned-back shot's code resumes (its own bank) */
+#define SHOT_ENDS_AT 0xEB76u        /* where a shot's code resumes to end itself (its own bank) */
 
 #define PLAYER_2F (PLAYER + 0x2Fu)  /* $0B or more: the side a harmless shot turns the actor to flips */
 
@@ -274,4 +276,46 @@ void abi_ActorStopsShot(void)
 void abi_ActorDownedByShotLong(void)
 {
     abi_ActorDownedByShot();
+}
+
+/*
+ * @routine 83:81CB ActorEndsShotLong
+ * WHAT IT DOES: ActorEndsShot for callers in other banks.
+ * HOW: JSR to it, then RTL. No script runs it.
+ * Entry: as ActorEndsShot; called by JSL. Exit: as ActorEndsShot.
+ */
+void abi_ActorEndsShotLong(void)
+{
+    abi_ActorEndsShot();
+}
+
+/*
+ * @routine 83:81CF ActorEndsShot
+ * WHAT IT DOES: When a shot reaches the actor, the shot ends: a small
+ * actor (kind $13) marks the hit and the shot's code goes on where it
+ * ends itself.
+ * HOW: ActorTouchesSecondPool; on a touch Spawn13AtY at the shot, then
+ * the shot's resume address ($03-$04) = SHOT_ENDS_AT, in its own bank
+ * (SEP, then on into the actor loop's end of it). No script runs the
+ * touch.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit.
+ * Touched: C as Spawn13AtY leaves it; A low = $EB, N set, Z clear; Y =
+ * the shot's record (low byte). No touch: C set; as
+ * ActorTouchesSecondPool leaves the rest.
+ */
+void abi_ActorEndsShot(void)
+{
+    abi_ActorTouchesSecondPool();
+    if (!(cpu.p & P_C)) {
+        uint32_t shot;
+
+        abi_Spawn13AtY();
+        shot = dba(0) + cpu.y;
+        a8_load((uint8_t)SHOT_ENDS_AT);
+        wr8(shot + ACTOR_03, (uint8_t)cpu.a);
+        a8_load((uint8_t)(SHOT_ENDS_AT >> 8));
+        wr8(shot + ACTOR_04, (uint8_t)cpu.a);
+    }
+    op_sep(0x30);
 }
