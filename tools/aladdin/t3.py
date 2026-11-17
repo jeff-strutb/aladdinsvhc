@@ -6,8 +6,17 @@
     t3.py --image               gate A7: every routine's C replaces it at once, in
                                  lockstep with the original, every script, every frame
     t3.py --qualify ADDR...     every gate for each routine, and the tier it reaches
+    t3.py --qualify --run ADDR...
+                                 certify these routines alone: A5 on their calls only,
+                                 A7 on only the scripts that reach them (each run
+                                 again unless its result holds), their ledger rows
+                                 only; then --qualify
     --full                      with --live or --image: run everything; by default
                                  only what changed since its last result runs
+
+A routine passes A7 when every script that reaches it (its trace entered
+the routine, the script has no trace, or it has a noreturn unit call of it)
+is IDENTICAL in lockstep on committed source with the C's last change.
 
 Gates for T3: 0 (the C says what it does, how, its entry and exit, and has
 no unfinished markers), C (every byte of the routine executed by the
@@ -141,48 +150,80 @@ def one(script, only):
 
 
 # Incremental gates. A script's lockstep result depends only on the C of the
-# routines it reaches (every other routine's C is never called), the shared
-# headers, the harness and the core patches, and the script itself; a
-# routine's per-call result only on its own C and those shared paths. So a
-# gate run reruns a script, or a routine, only when one of those changed
-# since the revision its last passing result was measured on, and carries
-# the other results forward to the new revision. --full reruns everything.
-SHARED = (TREE + '/include/', 'tools/aladdin/snesbox/', 'tools/toolchains/patches/',
-          'tools/aladdin/hybrid.py')
+# routines it reaches (every other routine's C is never called), the harness
+# and the core patches, and the script itself; a routine's per-call result
+# only on its C and the harness. So a gate run reruns a script, or a
+# routine, only when one of those changed since the revision its last result
+# was measured on, and carries the other results forward to the new
+# revision. A C file changed, held or released (.c.held) changes the
+# routines tagged in it at either revision; a shared header changed changes
+# the routines whose compiled code differs (objdiff.py), or everything when
+# the checker's own compiled code does. --full reruns everything.
+HARNESS = ('tools/aladdin/snesbox/', 'tools/toolchains/patches/', 'tools/aladdin/hybrid.py')
+# The revision the gates measure (hybrid.export_head exports the same one).
+REV = os.environ.get('ALADDIN_GATE_REV', 'HEAD')
 
 
 @functools.lru_cache(maxsize=None)
 def changed_since(rev):
-    """Paths changed from committed source `rev` to HEAD; None when unknown."""
+    """Paths changed from committed source `rev` to REV; None when unknown."""
     if not rev or rev.endswith('+dirty'):
         return None
-    r = git('diff', '--name-only', rev, 'HEAD')
+    r = git('diff', '--name-only', rev, REV)
     return None if r.returncode else frozenset(l for l in r.stdout.splitlines() if l)
-
-
-def shared_changed(paths):
-    return any(p.startswith(SHARED) or (p.startswith(TREE + '/') and not p.endswith('.c'))
-               for p in paths)
 
 
 @functools.lru_cache(maxsize=None)
 def tags_in(rev, path):
-    """Routine addresses tagged in the C file `path` at `rev` (HEAD: the work tree)."""
-    if rev == 'HEAD':
-        full = os.path.join(ROOT, path)
-        text = open(full).read() if os.path.exists(full) else ''
-    else:
-        r = git('show', '%s:%s' % (rev, path))
-        text = r.stdout if r.returncode == 0 else ''
+    """Routine addresses tagged in the file `path` at committed revision `rev`."""
+    r = git('show', '%s:%s' % (rev, path))
+    text = r.stdout if r.returncode == 0 else ''
     return frozenset('%02X%s' % (int(m.group(1), 16), m.group(2).upper()) for m in TAG.finditer(text))
 
 
-def changed_routines(rev, paths):
-    """Every routine whose C was added, changed or removed between `rev` and HEAD."""
-    out = set()
+@functools.lru_cache(maxsize=None)
+def affected_since(rev):
+    """(routines whose results may differ between `rev` and REV, everything?)."""
+    paths = changed_since(rev)
+    if paths is None:
+        return frozenset(), True
+    out, headers = set(), False
     for p in paths:
-        if p.startswith(TREE + '/') and p.endswith('.c'):
-            out |= tags_in(rev, p) | tags_in('HEAD', p)
+        if p.startswith(HARNESS):
+            return frozenset(), True
+        if not p.startswith(TREE + '/'):
+            continue
+        if p.endswith(('.c', '.c.held')):
+            out |= tags_in(rev, p) | tags_in(REV, p)
+        elif p.endswith('.h'):
+            headers = True
+        else:
+            return frozenset(), True
+    if headers:
+        sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
+        import objdiff
+        got, everything = objdiff.affected(rev, REV)
+        if everything:
+            return frozenset(), True
+        out |= got
+    return frozenset(out), False
+
+
+def stale(rev, addr):
+    """True when a result for routine `addr` measured on `rev` may not hold for REV."""
+    got, everything = affected_since(rev)
+    return everything or addr in got
+
+
+@functools.lru_cache(maxsize=None)
+def c_routines():
+    """Address -> name of every routine with C (held C excluded) at REV."""
+    out = {}
+    for p in git('ls-tree', '-r', '--name-only', REV, '--', TREE).stdout.split():
+        if p.endswith('.c'):
+            r = git('show', '%s:%s' % (REV, p))
+            for m in TAG.finditer(r.stdout):
+                out['%02X%s' % (int(m.group(1), 16), m.group(2).upper())] = m.group(3)
     return out
 
 
@@ -227,13 +268,14 @@ def script_stale(name, rev, prev):
     paths = changed_since(prev['source'])
     if paths is None:
         return 'no committed revision to compare'
-    if shared_changed(paths):
+    got, everything = affected_since(prev['source'])
+    if everything:
         return 'shared code changed'
     if 'tools/aladdin/scripts/%s.box' % name in paths:
         return 'script changed'
     if name not in reached():
         return 'no trace'
-    hit = reached()[name] & changed_routines(prev['source'], paths)
+    hit = reached()[name] & got
     return 'C changed for %s' % ' '.join(sorted(hit)[:4]) if hit else ''
 
 
@@ -251,33 +293,29 @@ def build_gate_lib():
     return rev
 
 
-def stale_routines(rev):
-    """Routines whose per-call result must be measured again for HEAD."""
-    have = {}
-    for dp, dn, fn in os.walk(os.path.join(ROOT, TREE)):
-        for f in fn:
-            if f.endswith('.c'):
-                for a in tags_in('HEAD', os.path.relpath(os.path.join(dp, f), ROOT)):
-                    have[a] = os.path.relpath(os.path.join(dp, f), ROOT)
-    old = {r['routine']: r for r in csv.DictReader(open(LIVE))} if os.path.exists(LIVE) else {}
-    out = []
-    for a, path in sorted(have.items()):
-        prev = old.get(a)
-        paths = changed_since(prev['source']) if prev else None
-        if paths is None or shared_changed(paths) or path in paths:
-            out.append(a)
-    return out
-
-
 def _cache_path(name):
     return os.path.join(WORKD, 'check', name, 'rows.json')
 
 
 def _load_cache(name):
+    """A script's kept per-routine results: {addr: [name, calls, match, diff,
+    inconclusive, skipped, rev, script sha]}, each with the revision it was
+    measured on (or carried to) and the script it was measured with."""
     try:
-        return json.load(open(_cache_path(name)))
+        c = json.load(open(_cache_path(name)))
     except (OSError, ValueError):
-        return None
+        return {}
+    if c.get('v') == 2:
+        return c['rows']
+    # The first form kept one revision and script for all of a script's rows.
+    return {a: r[:6] + [c.get('rev'), c.get('script')] for a, r in c.get('rows', {}).items()}
+
+
+def _save_cache(name, rows):
+    os.makedirs(os.path.dirname(_cache_path(name)), exist_ok=True)
+    tmp = _cache_path(name) + '.tmp'
+    json.dump({'v': 2, 'rows': rows}, open(tmp, 'w'))
+    os.replace(tmp, _cache_path(name))
 
 
 def _script_sha(script):
@@ -285,101 +323,100 @@ def _script_sha(script):
 
 
 def live(only, full=False):
-    """A5. Each script's per-routine results are kept with the revision and
-    the script they were measured on (build/aladdin/check/NAME/rows.json);
-    a run measures again only what can have changed: a new or changed script,
-    or shared code changed since, runs every routine; otherwise a script runs
-    only the routines whose C changed (and that it reaches). The verdicts are
-    then summed over every script's kept results."""
+    """A5. Each script's per-routine results are kept, each with the
+    revision and the script it was measured on
+    (build/aladdin/check/NAME/rows.json). A result is measured again when
+    it may not hold for REV: its script changed, or its routine's C, or the
+    harness (affected_since); the others are carried to REV. A routine the
+    script reaches with no kept result is measured too. With routines named
+    (`only`), just theirs are measured and just their rows of the ledger
+    rewritten; every other routine's row is left as it was. The verdicts are
+    summed over every script's kept results."""
     global LIB
     rev = build_gate_lib()
     LIB = GATE_LIB
     scripts = sorted(glob.glob(os.path.join(SCRIPTS, '*.box')))
-    have = set()
-    for dp, dn, fn in os.walk(os.path.join(ROOT, TREE)):
-        for f in fn:
-            if f.endswith('.c'):
-                have |= tags_in('HEAD', os.path.relpath(os.path.join(dp, f), ROOT))
-    stale = set(only) if only else set() if full else set(stale_routines(rev))
+    have = c_routines()
+    targets = (set(only) & set(have)) if only else set(have)
     rch = reached()
-    jobs = []
+    jobs, kept = [], {}
     for sc in scripts:
         name = os.path.splitext(os.path.basename(sc))[0]
-        c = _load_cache(name)
-        why = ''
-        if full or not c:
-            why = 'all'
-        elif c.get('script') != _script_sha(sc):
-            why = 'all'
-        else:
-            paths = changed_since(c.get('rev'))
-            if paths is None or shared_changed(paths):
-                why = 'all'
-        if why == 'all' and only:
-            why = ''  # explicit routines: measure just those
-        if why == 'all':
-            jobs.append((sc, None))
-            continue
-        want = stale & (rch.get(name, have) | {a for a in stale if c and a not in c.get('rows', {})})
-        if not want and only:
-            want = stale & rch.get(name, have)
+        sha = _script_sha(sc)
+        rows = _load_cache(name)
+        reach = set(rch.get(name, have)) | {a for a, r in rows.items() if r[1]}
+        want = set()
+        for a in targets & reach:
+            r = rows.get(a)
+            if full or not r or r[7] != sha or stale(r[6], a):
+                want.add(a)
+        # Results that need no new measurement hold for REV: carry them. A
+        # routine the script's trace (of this script: build.py retraces a
+        # changed one) never entered has no call in it, whatever its C.
+        for a, r in rows.items():
+            if a in want or r[6] == rev and r[7] == sha:
+                continue
+            if a not in reach and not r[1]:
+                r[6], r[7] = rev, sha
+            elif r[7] == sha and not stale(r[6], a):
+                r[6] = rev
+        kept[name] = (sc, sha, rows)
         if want:
-            jobs.append((sc, sorted(want)))
-    print('%d script run(s): %d whole, %d for changed routines' % (
+            jobs.append((sc, None if not only and want >= (reach & set(have)) else sorted(want)))
+    print('%d script run(s): %d whole, %d for named or changed routines' % (
         len(jobs), sum(1 for _, w in jobs if w is None), sum(1 for _, w in jobs if w is not None)))
     with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
         results = list(ex.map(lambda j: (j,) + one(j[0], j[1]), jobs))
     stuck = 0
-    for (sc, want), name, rows, notes in results:
-        if rows is None:
+    for (sc, want), name, got, notes in results:
+        if got is None:
             stuck += 1
             print(notes[0])
             continue
-        c = _load_cache(name) if want is not None else None
-        kept = dict(c['rows']) if c else {}
-        for addr, rname, calls, match, diff, inc, skipped, _ in rows:
-            kept[addr] = [rname, int(calls), int(match), int(diff), int(inc), int(skipped)]
-        os.makedirs(os.path.dirname(_cache_path(name)), exist_ok=True)
-        json.dump({'rev': rev, 'script': _script_sha(sc), 'rows': kept}, open(_cache_path(name), 'w'))
+        rows = kept[name][2]
+        for addr, rname, calls, match, diff, inc, skipped, _ in got:
+            rows[addr] = [rname, int(calls), int(match), int(diff), int(inc), int(skipped), rev, kept[name][1]]
         for n in notes[:20]:
             print(n)
-    # Results that were not measured again hold for HEAD: carry them.
+    for name, (sc, sha, rows) in kept.items():
+        _save_cache(name, rows)
     agg = {}
-    for sc in scripts:
-        name = os.path.splitext(os.path.basename(sc))[0]
-        c = _load_cache(name)
-        if not c:
-            continue
-        if c['rev'] != rev:
-            c['rev'] = rev
-            json.dump(c, open(_cache_path(name), 'w'))
-        for addr, (rname, calls, match, diff, inc, skipped) in c['rows'].items():
+    for name, (sc, sha, rows) in kept.items():
+        for addr, (rname, calls, match, diff, inc, skipped, rrev, rsha) in rows.items():
             if addr not in have:
                 continue
-            a = agg.setdefault(addr, {'name': rname, 'calls': 0, 'diff': 0, 'inc': 0, 'scripts': 0})
+            a = agg.setdefault(addr, {'name': rname, 'calls': 0, 'diff': 0, 'inc': 0, 'scripts': 0, 'revs': set()})
             a['calls'] += calls; a['diff'] += diff; a['inc'] += inc
             a['scripts'] += calls > 0
+            # A result not measured for REV (its script stopped, or a
+            # changed script's other routines when only some were named)
+            # leaves the routine's row on the revision it holds for.
+            a['revs'].add(rrev if rsha == sha else None)
     stamp = datetime.date.today().isoformat()
     old = {r['routine']: r for r in csv.DictReader(open(LIVE))} if os.path.exists(LIVE) else {}
-    out, failed = {}, 0
-    for addr in sorted(agg):
+    out = {a: r for a, r in old.items() if a in have and a not in targets}
+    failed = 0
+    for addr in sorted(targets & set(agg)):
         a = agg[addr]
         v = 'DIVERGENT' if a['diff'] else 'UNCOVERED' if a['calls'] == 0 else 'UNVERIFIED' if a['inc'] else 'IDENTICAL'
         failed += v != 'IDENTICAL'
+        src = rev if a['revs'] == {rev} else 'not measured' if None in a['revs'] else \
+            sorted(a['revs'] - {rev})[0]
         prev = old.get(addr)
         same = prev and prev['verdict'] == v and int(prev['calls']) == a['calls'] and int(prev['diff']) == a['diff']
-        if not same or addr in stale:
+        if not same or only:
             print('%s %-28s calls %d in %d/%d scripts, diff %d, inconclusive %d: %s' % (
                 addr, a['name'], a['calls'], a['scripts'], len(scripts), a['diff'], a['inc'], v))
         out[addr] = {'routine': addr, 'name': a['name'], 'verdict': v, 'calls': a['calls'], 'scripts': a['scripts'],
                      'diff': a['diff'], 'inconclusive': a['inc'], 'date': stamp if not same else prev['date'],
-                     'source': rev}
+                     'source': src}
     os.makedirs(os.path.dirname(LIVE), exist_ok=True)
-    with open(LIVE, 'w', newline='') as f:
+    with open(LIVE + '.tmp', 'w', newline='') as f:
         wr = csv.DictWriter(f, ['routine', 'name', 'verdict', 'calls', 'scripts', 'diff', 'inconclusive', 'date', 'source'])
         wr.writeheader()
         for k in sorted(out):
             wr.writerow(out[k])
+    os.replace(LIVE + '.tmp', LIVE)
     print('%d routines: %s' % (len(out), ', '.join('%d %s' % (n, v) for v, n in sorted(
         {v: sum(1 for r in out.values() if r['verdict'] == v) for v in set(r['verdict'] for r in out.values())}.items()))))
     return 1 if failed or stuck else 0
@@ -475,7 +512,26 @@ def image_one(script):
     return name, lines
 
 
-def image(full=False):
+def reaching(addrs):
+    """The scripts whose results judge routines `addrs` in A7: every script
+    whose trace entered one of them, every script with no trace (it may),
+    and every script with a noreturn unit call of one."""
+    want, out = set(addrs), set()
+    for s in glob.glob(os.path.join(SCRIPTS, '*.box')):
+        name = os.path.splitext(os.path.basename(s))[0]
+        if name not in reached() or reached()[name] & want:
+            out.add(name)
+    for a in want:
+        cpath, ctext, cm = find_tagged(os.path.join(ROOT, TREE), ('.c',), int(a, 16))
+        sm = re.search(r'@spc\s+([0-9A-Fa-f]{4})', header_of(ctext, cm, False)) if cm else None
+        out |= set(noreturn_scripts(int(a, 16), int(sm.group(1), 16) if sm else None))
+    return out
+
+
+def image(full=False, routines=None):
+    """A7. With routines named, only the scripts reaching them (reaching())
+    are judged, and only their rows of the ledger written; each runs again
+    unless its result holds for REV (script_stale), when it is carried."""
     global LIB
     rev = build_gate_lib()
     LIB = GATE_LIB
@@ -483,8 +539,15 @@ def image(full=False):
     old = {r['script']: r for r in csv.DictReader(open(IMAGE))} if os.path.exists(IMAGE) else {}
     stamp, verdicts = datetime.date.today().isoformat(), []
     rows, run_these = [], []
+    judged = reaching(routines) if routines else None
+    if judged is not None:
+        print('%d script(s) reach %s' % (len(judged), ' '.join(sorted(routines))))
     for s in scripts:
         name = os.path.splitext(os.path.basename(s))[0]
+        if judged is not None and name not in judged:
+            if name in old:
+                rows.append(old[name])
+            continue
         why = 'full run' if full else script_stale(name, rev, old.get(name))
         if why:
             run_these.append(s)
@@ -522,12 +585,13 @@ def image(full=False):
         print('%-22s %s' % (name, last))
         rows.append({'script': name, 'verdict': v, 'detail': last, 'date': stamp, 'source': rev})
     os.makedirs(os.path.dirname(IMAGE), exist_ok=True)
-    with open(IMAGE, 'w', newline='') as f:
+    with open(IMAGE + '.tmp', 'w', newline='') as f:
         wr = csv.DictWriter(f, ['script', 'verdict', 'detail', 'date', 'source'])
         wr.writeheader()
         wr.writerows(sorted(rows, key=lambda r: r['script']))
+    os.replace(IMAGE + '.tmp', IMAGE)
     ok = all(v in ('IDENTICAL', 'UNCOVERED') for v in verdicts) and 'IDENTICAL' in verdicts
-    print('whole image: %s' % ('IDENTICAL' if ok else 'DIVERGENT'))
+    print('%s: %s' % ('whole image' if judged is None else 'scripts reaching them', 'IDENTICAL' if ok else 'DIVERGENT'))
     return 0 if ok else 1
 
 
@@ -714,10 +778,19 @@ def assess(addrs, image_ok=None):
                 g5 = True
                 why5 = 'never returns; its noreturn unit calls IDENTICAL in A7 (%s)' % ', '.join(scripts)
         gates.append(('A5 live', g5, why5 + ('; the C has uncommitted changes' if dirty(cpath) else '')))
-        vs = [r['verdict'] for r in image_rows]
-        g7 = bool(image_rows) and all(v in ('IDENTICAL', 'UNCOVERED') for v in vs) and 'IDENTICAL' in vs \
-            and all(contains(r['source'], cpath) for r in image_rows) and not dirty(cpath)
-        gates.append(('A7 image', g7, '%d scripts, %s' % (len(vs), image_rows[0]['source'] if image_rows else 'never run')))
+        # A7: every script that reaches the routine runs IDENTICAL in
+        # lockstep, measured on committed source with the C's last change.
+        rows = {r['script']: r for r in image_rows}
+        judged = sorted(reaching([key]))
+        miss = [n for n in judged if n not in rows or rows[n]['verdict'] != 'IDENTICAL'
+                or not contains(rows[n]['source'], cpath)]
+        g7 = bool(judged) and not miss and not dirty(cpath)
+        why7 = 'no script reaches it' if not judged else '%d of %d scripts reaching it IDENTICAL on its C' % (
+            len(judged) - len(miss), len(judged))
+        if miss:
+            n = miss[0]
+            why7 += '; %s: %s' % (n, '%s on %s' % (rows[n]['verdict'], rows[n]['source']) if n in rows else 'never run')
+        gates.append(('A7 image', g7, why7))
         t3 = all(g for _, g, _ in gates)
         t4 = False
         if apath:
@@ -778,6 +851,14 @@ def main(argv):
         return live([a.upper().replace(':', '').replace('$', '') for a in argv[1:]], full)
     if argv[:1] == ['--image']:
         return image(full)
+    if argv[:2] == ['--qualify', '--run'] and argv[2:]:
+        # Per-routine certification: A5 on just these routines' calls, A7 on
+        # just the scripts reaching them, their ledger rows only; then grade.
+        addrs = ['%06X' % int(x.replace(':', '').replace('$', ''), 16) for x in argv[2:]]
+        gate_lock()
+        live(addrs)
+        image(routines=addrs)
+        return qualify(addrs)
     if argv[:1] == ['--qualify'] and argv[1:]:
         return qualify([x.replace(':', '').replace('$', '') for x in argv[1:]])
     print(__doc__)

@@ -141,8 +141,9 @@ def main(argv):
     if os.path.exists(OUT):
         os.remove(OUT)
     stage_baserom()
-    if not os.path.exists(SNESBOX):
-        run(['make', '-C', os.path.join(ROOT, 'tools', 'aladdin', 'snesbox')])
+    # make rebuilds the checker when any of its sources (check.c among them)
+    # or the headers it includes is newer than it, and does nothing otherwise.
+    run(['make', '-C', os.path.join(ROOT, 'tools', 'aladdin', 'snesbox')])
     make_states()
     scripts = sorted(glob.glob(os.path.join(SCRIPTS, '*.box')))
     with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
