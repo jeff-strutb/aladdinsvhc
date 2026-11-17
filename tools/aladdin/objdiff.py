@@ -44,9 +44,26 @@ def _compile(job):
     return out if p.returncode == 0 else None
 
 
+def compile_dir(cdir, out, boxdir=None):
+    """Compile every .c under the C tree `cdir` into out/c (and the checker's
+    sources in boxdir into out/box). A file that fails to compile has no object."""
+    inc = os.path.join(cdir, 'include')
+    jobs = []
+    for f in sorted(glob.glob(os.path.join(cdir, '**', '*.c'), recursive=True)):
+        o = os.path.join(out, 'c', os.path.relpath(f, cdir) + '.o')
+        os.makedirs(os.path.dirname(o), exist_ok=True)
+        jobs.append((['cc'] + CFLAGS + ['-I', inc, '-c', f], o))
+    for f in sorted(glob.glob(os.path.join(boxdir, '*.c'))) if boxdir else []:
+        o = os.path.join(out, 'box', os.path.basename(f) + '.o')
+        os.makedirs(os.path.dirname(o), exist_ok=True)
+        jobs.append((['cc'] + BOXFLAGS + ['-I', CORE_INC, '-I', inc, '-c', f], o))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
+        list(ex.map(_compile, jobs))
+
+
 def build(rev):
     """Compile the C tree and the checker at `rev` into WORK/<rev>, once.
-    Returns that directory; a file that fails to compile has no object."""
+    Returns that directory (the source is in its src/)."""
     rev = full_rev(rev)
     d = os.path.join(WORK, rev)
     if os.path.exists(os.path.join(d, 'done')):
@@ -56,20 +73,84 @@ def build(rev):
     os.makedirs(src)
     arc = subprocess.run(['git', 'archive', rev, TREE, BOX], capture_output=True, cwd=ROOT).stdout
     subprocess.run(['tar', '-x', '-C', src], input=arc, check=True)
-    inc = os.path.join(src, TREE, 'include')
-    jobs = []
-    for f in sorted(glob.glob(os.path.join(src, TREE, '**', '*.c'), recursive=True)):
-        o = os.path.join(d, 'c', os.path.relpath(f, os.path.join(src, TREE)) + '.o')
-        os.makedirs(os.path.dirname(o), exist_ok=True)
-        jobs.append((['cc'] + CFLAGS + ['-I', inc, '-c', f], o))
-    for f in sorted(glob.glob(os.path.join(src, BOX, '*.c'))):
-        o = os.path.join(d, 'box', os.path.basename(f) + '.o')
-        os.makedirs(os.path.dirname(o), exist_ok=True)
-        jobs.append((['cc'] + BOXFLAGS + ['-I', CORE_INC, '-I', inc, '-c', f], o))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
-        list(ex.map(_compile, jobs))
+    compile_dir(os.path.join(src, TREE), d, os.path.join(src, BOX))
     open(os.path.join(d, 'done'), 'w').close()
     return d
+
+
+# Held C (src/aladdin/held.txt): routines whose C failed a gate, listed by
+# address, one per line ("BB:AAAA Name  # why"). Their C still compiles, but
+# the hybrid leaves them out of its routine table, so the original code runs
+# in their place; and with them every routine whose C calls a held one's C
+# (directly or through other functions), since that C would run the held C.
+HELD = 'held.txt'
+
+
+def held_list(cdir):
+    """Addresses (BBAAAA) listed in cdir/held.txt."""
+    path = os.path.join(cdir, HELD)
+    out = set()
+    if os.path.exists(path):
+        for l in open(path):
+            w = l.split('#')[0].split()
+            if w:
+                out.add(w[0].replace(':', '').replace('$', '').upper().zfill(6))
+    return out
+
+
+def tag_names(cdir):
+    """Routine name -> address for the tags in the .c files under cdir."""
+    out = {}
+    for f in glob.glob(os.path.join(cdir, '**', '*.c'), recursive=True):
+        for m in TAG.finditer(open(f).read()):
+            out[m.group(3)] = '%02X%s' % (int(m.group(1), 16), m.group(2).upper())
+    return out
+
+
+def dropped_from(cdir, objdir):
+    """Names of the routines the hybrid leaves out: the held ones and every
+    routine whose abi_ entry reaches a held one's through its references.
+    objdir holds cdir's objects (compile_dir)."""
+    held = held_list(cdir)
+    names = tag_names(cdir)
+    want = {n for n, a in names.items() if a in held}
+    if not want:
+        return set()
+    g, _ = graph(objdir, 'c')
+    seeds = {k for k in g if k[1] in {'.text.abi_' + n for n in want}}
+    back = {}
+    for k, (h, refs) in g.items():
+        for r in refs:
+            back.setdefault(r, set()).add(k)
+    seen, todo = set(seeds), list(seeds)
+    while todo:
+        for k in back.get(todo.pop(), ()):
+            if k not in seen:
+                seen.add(k); todo.append(k)
+    return want | {s[len('.text.abi_'):] for o, s in seen if s.startswith('.text.abi_')}
+
+
+def dropped(cdir, objdir=None):
+    """dropped_from for a C tree, compiling it into objdir (a fresh folder
+    under WORK when not given) only when something is held."""
+    if not held_list(cdir):
+        return set()
+    if objdir is None:
+        objdir = os.path.join(WORK, 'tree-%d' % os.getpid())
+    shutil.rmtree(objdir, ignore_errors=True)
+    compile_dir(cdir, objdir)
+    try:
+        return dropped_from(cdir, objdir)
+    finally:
+        shutil.rmtree(objdir, ignore_errors=True)
+
+
+def dropped_at(rev):
+    """Addresses the hybrid leaves out at committed revision `rev`."""
+    d = build(rev)
+    cdir = os.path.join(d, 'src', TREE)
+    names = tag_names(cdir)
+    return {names[n] for n in dropped_from(cdir, d) if n in names}
 
 
 def read_elf(path):

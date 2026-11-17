@@ -56,6 +56,13 @@ def main(src=None, lib=None):
     files = sorted(glob.glob(os.path.join(SRC, '**', '*.c'), recursive=True))
     rows, bad, spc, uses, actors = [], [], {}, {}, []
     loops, pushed = [], {}
+    # Held C (held.txt beside the C, objdiff.py): compiled, but left out of
+    # the table with every routine whose C calls it, so the original runs.
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
+    import objdiff
+    drop = objdiff.dropped(SRC, os.path.join(os.path.dirname(LIB), 'held-objs'))
+    if drop:
+        print('hybrid: %d routine(s) held or calling held C: %s' % (len(drop), ' '.join(sorted(drop))))
     for f in files:
         text = open(f).read()
         for m in TAG.finditer(text):
@@ -63,6 +70,8 @@ def main(src=None, lib=None):
             name = m.group(3)
             if not re.search(r'\bvoid\s+abi_%s\s*\(\s*void\s*\)' % name, text):
                 bad.append('%s: @routine %s has no abi_%s' % (os.path.relpath(f, ROOT), name, name))
+            if name in drop:
+                continue
             rows.append((addr, name))
             # @spc AAAA: SPC700 code (the tag is the ROM address of its first
             # byte; it runs at APU RAM AAAA).

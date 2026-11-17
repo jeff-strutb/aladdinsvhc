@@ -195,6 +195,9 @@ def affected_since(rev):
             continue
         if p.endswith(('.c', '.c.held')):
             out |= tags_in(rev, p) | tags_in(REV, p)
+        elif p == TREE + '/held.txt':
+            # A hold or release: the routines left out at one revision only.
+            out |= dropped_at(rev) ^ dropped_at(REV)
         elif p.endswith('.h'):
             headers = True
         else:
@@ -216,14 +219,28 @@ def stale(rev, addr):
 
 
 @functools.lru_cache(maxsize=None)
+def dropped_at(rev):
+    """Routines the hybrid leaves out at `rev` (held.txt and their C callers; objdiff.py)."""
+    r = git('show', '%s:%s/held.txt' % (rev, TREE)).stdout
+    if not any(l.split('#')[0].strip() for l in r.splitlines()):
+        return frozenset()
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
+    import objdiff
+    return frozenset(objdiff.dropped_at(rev))
+
+
+@functools.lru_cache(maxsize=None)
 def c_routines():
-    """Address -> name of every routine with C (held C excluded) at REV."""
+    """Address -> name of every routine with C in the hybrid at REV (.c.held
+    files and held.txt's routines, with their C callers, excluded)."""
     out = {}
     for p in git('ls-tree', '-r', '--name-only', REV, '--', TREE).stdout.split():
         if p.endswith('.c'):
             r = git('show', '%s:%s' % (REV, p))
             for m in TAG.finditer(r.stdout):
                 out['%02X%s' % (int(m.group(1), 16), m.group(2).upper())] = m.group(3)
+    for a in dropped_at(REV):
+        out.pop(a, None)
     return out
 
 
@@ -528,10 +545,11 @@ def reaching(addrs):
     return out
 
 
-def image(full=False, routines=None):
+def image(full=False, routines=None, names=None):
     """A7. With routines named, only the scripts reaching them (reaching())
     are judged, and only their rows of the ledger written; each runs again
-    unless its result holds for REV (script_stale), when it is carried."""
+    unless its result holds for REV (script_stale), when it is carried.
+    With script names given, just those are judged (with full, run)."""
     global LIB
     rev = build_gate_lib()
     LIB = GATE_LIB
@@ -539,8 +557,8 @@ def image(full=False, routines=None):
     old = {r['script']: r for r in csv.DictReader(open(IMAGE))} if os.path.exists(IMAGE) else {}
     stamp, verdicts = datetime.date.today().isoformat(), []
     rows, run_these = [], []
-    judged = reaching(routines) if routines else None
-    if judged is not None:
+    judged = reaching(routines) if routines else set(names) if names else None
+    if routines:
         print('%d script(s) reach %s' % (len(judged), ' '.join(sorted(routines))))
     for s in scripts:
         name = os.path.splitext(os.path.basename(s))[0]
@@ -739,6 +757,12 @@ def assess(addrs, image_ok=None):
             continue
         gates = []
         name = cm.group(3)
+        if key in dropped_at(REV):
+            # Held: the hybrid runs the original in its place, so no gate judges its C.
+            sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
+            import objdiff
+            own = key in objdiff.held_list(os.path.join(ROOT, TREE))
+            gates.append(('held', False, 'listed in %s/held.txt' % TREE if own else 'its C calls held C'))
         h = header_of(ctext, cm, False)
         g0 = all(k in h for k in ('WHAT IT DOES:', 'HOW:', 'Entry:', 'Exit:')) and not MARKERS.search(ctext)
         gates.append(('0 complete', g0, os.path.relpath(cpath, ROOT)))
@@ -818,7 +842,11 @@ def assess(addrs, image_ok=None):
 
 def qualify(addrs):
     worst = 0
-    for key, name, tier, gates in assess(addrs):
+    # ALADDIN_IMAGE_OK=0/1: the image gate's result, taken by the caller
+    # under the build lock right after the build (build.py deletes the ROM
+    # first, so image.py run beside a build can find none).
+    ok = os.environ.get('ALADDIN_IMAGE_OK')
+    for key, name, tier, gates in assess(addrs, None if ok is None else ok == '1'):
         print('%s %s: %s' % (key, name, tier if tier in ('T3', 'T4') else 'below T3 (%s)' % tier))
         for g, ok, why in gates:
             print('  %-12s %s  %s' % (g, 'pass' if ok else 'FAIL', why))
@@ -851,6 +879,39 @@ def main(argv):
         return live([a.upper().replace(':', '').replace('$', '') for a in argv[1:]], full)
     if argv[:1] == ['--image']:
         return image(full)
+    if argv[:1] == ['--affected'] and len(argv) == 2:
+        # The routines whose results may differ from revision argv[1] to REV
+        # (ALL: everything), and the scripts added or changed since.
+        # A script added or changed reaches routines whose results it adds
+        # to: they are qualified again too (run after build.py traced it).
+        got, everything = affected_since(argv[1])
+        paths = changed_since(argv[1]) or set()
+        new = sorted(os.path.splitext(os.path.basename(p))[0] for p in paths
+                     if p.startswith('tools/aladdin/scripts/') and p.endswith('.box'))
+        have = c_routines()
+        out = set(have) if everything else set(got)
+        for s in new:
+            out |= set(reached().get(s, have)) & set(have)
+        print('routines', ' '.join(sorted(out)))
+        print('scripts', ' '.join(new))
+        return 0
+    if argv[:1] == ['--failures'] and argv[1:]:
+        # After --qualify --run ADDR...: routines whose A5 diverged, and each
+        # script reaching them that is red in A7, with the routines it reaches.
+        addrs = set(argv[1:])
+        live_rows = {r['routine']: r for r in csv.DictReader(open(LIVE))} if os.path.exists(LIVE) else {}
+        print('a5', ' '.join(sorted(a for a in addrs if a in live_rows and (
+            live_rows[a]['verdict'] == 'DIVERGENT' or int(live_rows[a]['diff'])))))
+        img = {r['script']: r for r in csv.DictReader(open(IMAGE))} if os.path.exists(IMAGE) else {}
+        for s in sorted(reaching(addrs)):
+            r = img.get(s)
+            if r and r['verdict'] not in ('IDENTICAL', 'UNCOVERED'):
+                print('red', s, ' '.join(sorted(addrs & set(reached().get(s, addrs)))))
+        return 0
+    if argv[:1] == ['--lockstep'] and argv[1:]:
+        # A7 on just these scripts, all run (the runner's bisection, under its own ALADDIN_GATE_OUT).
+        gate_lock()
+        return image(True, names=argv[1:])
     if argv[:2] == ['--qualify', '--run'] and argv[2:]:
         # Per-routine certification: A5 on just these routines' calls, A7 on
         # just the scripts reaching them, their ledger rows only; then grade.
