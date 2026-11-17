@@ -19,15 +19,11 @@ arch 65816
 !SUB_83865E = $83865E
 !SUB_83848D = $83848D
 !SUB_83FBDA = $83FBDA
-!SUB_83FB89 = $83FB89
 !SUB_82BB26 = $82BB26
 !V_1428 = $1428
 !V_141C = $141C
 !V_032D = $032D
-; The tail that ends an actor once it is left behind: when the word at
-; $1773 less 31 is not negative and not below its x pixel (else back with
-; M 8-bit). Not yet filed.
-!END_IF_LEFT_BEHIND = $839738
+!V_1773 = $1773                 ; the camera's x: an actor this far behind it (less 32) ends
 ; In bank $80 (DB): sound commands by the actor's x pixel, low 4 bits.
 !STEP_SOUNDS = $D3FC
 !FLOOR_Y = $B0                  ; the lowest the player is held at
@@ -123,7 +119,7 @@ ActorWaitAnimEnd10:
     lda.w !level_035c
     cmp.b #$06
     bne .range
-    jmp.w !END_IF_LEFT_BEHIND
+    jmp.w ActorEndIfLeftBehind
 .range:
     ldx.b #$10
     jmp.w ActorEndOutOfRange
@@ -215,17 +211,19 @@ ActorWaitHurtOnTouch:
     bne .tail
     jsr.w ActorHurtsPlayerOnTouch
 .tail:
-    jmp.w !END_IF_LEFT_BEHIND
+    jmp.w ActorEndIfLeftBehind
 
 ; @routine 83:DFCD ActorWaitStepSounds
 ; WHAT IT DOES: Each frame it waits: its animation on. With bit 7 of $07
 ; set: while $42 is set, every 8th count of $032D a sound by its x (the
 ; table at $80:D3FC); it hurts the player on touch. Bit 7 clear: the
-; calls at $83:FBDA and $83:FB89 (X = 2, $4C = $3C). It is ended once left
+; calls at $83:FBDA and ActorTestCarries (X = 2, $4C = $3C). It is ended
+; once left
 ; behind.
-; HOW: AnimStep, the cases, then on into the tail at $83:9738.
+; HOW: AnimStep, the cases, then on into ActorEndIfLeftBehind.
 ; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR from
-; the actor loop. Exit: as the C states.
+; the actor loop. Exit: kept: M 8-bit; A = the word at $1773 less 31; N,
+; Z and C from its test. Ended: the loop goes on at $83:94BF, no return.
 %at($83DFCD)
 ActorWaitStepSounds:
     jsl.l AnimStep
@@ -249,9 +247,9 @@ ActorWaitStepSounds:
     ldy.b #$3C
     sty.b !actor_4c
     ldx.b #$02
-    jsr.w !SUB_83FB89
+    jsr.w ActorTestCarries
 .tail:
-    jmp.w !END_IF_LEFT_BEHIND
+    jmp.w ActorEndIfLeftBehind
 
 ; @routine 83:E458 ActorWaitAnimRange10
 ; WHAT IT DOES: Each frame it waits: its animation on, and it ends once
@@ -307,4 +305,28 @@ ActorWaitAnimRange18:
 %at($83ECCF)
 ActorWaitAnimC:
     jsl.l AnimStep
+    rts
+
+; @routine 83:9738 ActorEndIfLeftBehind
+; WHAT IT DOES: The tail some actors' per-frame routines jump into: the
+; actor ends once the camera has left it behind, else back to the
+; routine's caller.
+; HOW: The word at $1773 less 32 (SBC #$1F with C clear); not negative
+; and at or past its x pixels: SEP #$30, its caller's return address
+; dropped (PLA PLA, the code at $83:96C6), ActorFreePlaced, and on to the
+; actor loop's next record ($83:94BF). Else SEP #$20, RTS.
+; Entry: M 8-bit; D = the actor; DB = $80; reached by JMP from the
+; per-frame routine the actor loop called by JSR. Exit: kept: M 8-bit; A
+; = the word at $1773 less 32; N, Z and C from its test. Ended: the loop
+; goes on at $83:94BF, no return.
+%at($839738)
+ActorEndIfLeftBehind:
+    rep.b #$21
+    lda.w !V_1773
+    sbc.w #$001F
+    bmi .kept
+    cmp.b !actor_x+1
+    bcs ActorEndOutOfRange_end
+.kept:
+    sep.b #$20
     rts

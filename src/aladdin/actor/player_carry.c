@@ -18,12 +18,19 @@
 #define V_143E 0x00143Eu            /* moved with the player's y (word) */
 #define TARGET_X 0x1Au              /* where some actors move to: x pixels (word) */
 #define TARGET_Y 0x1Eu              /* and y pixels (word) */
+#define LIFT_STEP 0x44u             /* the lifting actor's step: 0 waiting, negative counting, positive lifting */
+#define V_1427 0x001427u            /* nonzero: the player is kept on the lifting actor */
+#define LIFT_RESUME 0xD99Bu         /* the player's code resumed while it is lifted */
 
 void abi_ActorMoveByVector(void);
 void abi_ActorMoveByVectorX(void);
 void abi_ActorMoveByVectorY(void);
 void abi_PlayerSpotAboveActor(void);
 void abi_PlayerToActorAbove(void);
+void abi_ActorGrabTest(void);
+void abi_ActorTestByX(void);
+void abi_AnimStep(void);
+void abi_ActorTestCarries(void);
 
 /* How far the actor moved in one axis since it was kept (its pixels
    less KEPT), added to the player's and to a second word. */
@@ -158,3 +165,84 @@ void abi_ActorCarryPlayerLong(void)
 }
 
 
+
+/*
+ * @routine 83:FB57 ActorLiftPlayerStep
+ * WHAT IT DOES: A step of an actor that lifts the player (from 83:C245):
+ * at $44 = 0, when ActorGrabTest finds the player, the player is
+ * placed on it and $44 counts on; negative $44 counts on; positive, the
+ * player is kept on it while $1427 is set, else $44 becomes $F0.
+ * HOW: $44 zero: ActorGrabTest; C clear: the player's $03-$04 =
+ * $D99B, PlayerSpotAboveActor with X, $44 up. Negative: $44 up. Positive:
+ * $1427 set, PlayerToActorAbove with X; else $44 = $F0.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+ * JSR. Exit: M 8-bit, X 8-bit; as the call made.
+ */
+void abi_ActorLiftPlayerStep(void)
+{
+    lda8(ea_dp(LIFT_STEP));  /* 83FB57 lda */
+    if (IF_Z) goto L_83FB67;  /* 83FB59 beq */
+    if (IF_N) goto L_83FB7C;  /* 83FB5B bmi */
+    lda8(ea_abs(V_1427));  /* 83FB5D lda */
+    if (!IF_Z) goto L_83FB7F;  /* 83FB60 bne */
+    lda8_v(0xF0);  /* 83FB62 lda */
+    sta8(ea_dp(LIFT_STEP));  /* 83FB64 sta */
+L_83FB66:
+    return;  /* 83FB66 rts */
+L_83FB67:
+    abi_ActorGrabTest();  /* 83FB67 jsl */
+    if (IF_C) goto L_83FB66;  /* 83FB6B bcs */
+    op_rep(0x20);  /* 83FB6D rep */
+    lda16_v(LIFT_RESUME);  /* 83FB6F lda */
+    sta16(ea_abs(PLAYER + ACTOR_03));  /* 83FB72 sta */
+    op_sep(0x20);  /* 83FB75 sep */
+    txa8();  /* 83FB77 txa */
+    abi_PlayerSpotAboveActor();  /* 83FB78 jsl */
+L_83FB7C:
+    MEM8(inc, ea_dp(LIFT_STEP));  /* 83FB7C inc */
+    return;  /* 83FB7E rts */
+L_83FB7F:
+    txa8();  /* 83FB7F txa */
+    abi_PlayerToActorAbove();  /* 83FB80 jsl */
+    return;  /* 83FB84 rts */
+}
+
+/*
+ * @routine 83:FB85 ActorTestCarriesLong
+ * WHAT IT DOES: ActorTestCarries for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorTestCarries; called by JSL. Exit: as ActorTestCarries.
+ */
+void abi_ActorTestCarriesLong(void)
+{
+    abi_ActorTestCarries();
+}
+
+/*
+ * @routine 83:FB89 ActorTestCarries
+ * WHAT IT DOES: Tells, by the test X picks, whether the player rides the
+ * actor this frame (CARRIES), keeps its position for carrying him, and
+ * plays its animation on.
+ * HOW: CARRIES = 0; ActorTestByX with Y = its $4C (the test's box); C
+ * clear: CARRIES up to 1. KEPT_X and KEPT_Y = its x and y pixels; then
+ * AnimStep.
+ * Entry: M 8-bit, X 8-bit; X = the test (0 ActorTestSolid, 2
+ * ActorTestLand); D = the actor; DB = $80; called by JSR. Exit: as
+ * AnimStep.
+ */
+void abi_ActorTestCarries(void)
+{
+    stz8(ea_dp(CARRIES));  /* 83FB89 stz */
+    ldy8(ea_dp(ACTOR_4C));  /* 83FB8B ldy */
+    abi_ActorTestByX();  /* 83FB8D jsl */
+    if (IF_C) goto L_83FB95;  /* 83FB91 bcs */
+    MEM8(inc, ea_dp(CARRIES));  /* 83FB93 inc */
+L_83FB95:
+    op_rep(0x20);  /* 83FB95 rep */
+    lda16(ea_dp(ACTOR_X + 1));  /* 83FB97 lda */
+    sta16(ea_dp(KEPT_X));  /* 83FB99 sta */
+    lda16(ea_dp(ACTOR_Y + 1));  /* 83FB9B lda */
+    sta16(ea_dp(KEPT_Y));  /* 83FB9D sta */
+    op_sep(0x20);  /* 83FB9F sep */
+    abi_AnimStep();  /* 83FBA1 jsl */
+}

@@ -1,16 +1,3 @@
-/* heldc: keep (its jump table reaches $83:FBAD/FBB1, which have no C) */
-/*
- * @routine 83:FBA6 ActorTestByX
- * WHAT IT DOES: Runs the actor test X picks, from the table at $83:FBA9,
- * for callers in any bank.
- * HOW: JMP (table,X); the tests end in RTL.
- * Entry: M 8-bit, X 8-bit; X = the test's offset (0 or 2); called by JSL.
- * Exit: as the test leaves them.
- */
-void abi_ActorTestByX(void)
-{
-    jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(TESTS_BY_X + cpu.x)));
-}
 /* heldc: keep (its jump table reaches $83:CF31, which has no C) */
 /*
  * @routine 83:CF10 ActorFlagOnce

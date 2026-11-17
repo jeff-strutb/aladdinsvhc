@@ -106,9 +106,28 @@ ActorYByFrame:
 ; @routine 83:FBA6 ActorTestByX
 ; WHAT IT DOES: Runs the actor test X picks, from the table at $83:FBA9,
 ; for callers in any bank.
-; HOW: JMP (table,X); the tests end in RTL.
+; HOW: JMP (table,X): ActorTestSolid (X = 0) or ActorTestLand (X = 2);
+; the tests end in RTL.
 ; Entry: M 8-bit, X 8-bit; X = the test's offset (0 or 2); called by JSL.
-; Exit: as the C states.
+; Exit: as the test leaves them.
 %at($83FBA6)
 ActorTestByX:
     jmp.w (!TESTS_BY_X,x)
+
+; @routine 83:FBAD ActorTestSolid
+; WHAT IT DOES: ActorTestByX's test 0: the actor is solid for the player.
+; HOW: JML to ActorSolidForPlayerLong ($83:8657). No script runs it.
+; Entry: as ActorSolidForPlayer; reached by ActorTestByX's jump. Exit:
+; as ActorSolidForPlayerLong, which returns to ActorTestByX's caller.
+%at($83FBAD)
+ActorTestSolid:
+    jml.l ActorSolidForPlayerLong
+
+; @routine 83:FBB1 ActorTestLand
+; WHAT IT DOES: ActorTestByX's test 2: the player lands on the actor.
+; HOW: JML to PlayerLandOnActor ($82:89E3).
+; Entry: as PlayerLandOnActor; reached by ActorTestByX's jump. Exit: as
+; PlayerLandOnActor, which returns to ActorTestByX's caller.
+%at($83FBB1)
+ActorTestLand:
+    jml.l PlayerLandOnActor

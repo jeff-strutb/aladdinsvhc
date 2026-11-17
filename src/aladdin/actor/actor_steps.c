@@ -12,6 +12,8 @@
 
 void abi_ActorAccelerateY(void);
 void abi_ActorStepYBack(void);
+void abi_ActorSolidForPlayerLong(void);
+void abi_PlayerLandOnActor(void);
 
 /* In bank $80 (DB): the y change for each frame of the animation
    (words), by ACTOR_FRAME. */
@@ -85,3 +87,41 @@ void abi_ActorYByFrame(void)
 
 
 
+
+/*
+ * @routine 83:FBA6 ActorTestByX
+ * WHAT IT DOES: Runs the actor test X picks, from the table at $83:FBA9,
+ * for callers in any bank.
+ * HOW: JMP (table,X): ActorTestSolid (X = 0) or ActorTestLand (X = 2);
+ * the tests end in RTL.
+ * Entry: M 8-bit, X 8-bit; X = the test's offset (0 or 2); called by JSL.
+ * Exit: as the test leaves them.
+ */
+void abi_ActorTestByX(void)
+{
+    jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(TESTS_BY_X + cpu.x)));
+}
+
+/*
+ * @routine 83:FBAD ActorTestSolid
+ * WHAT IT DOES: ActorTestByX's test 0: the actor is solid for the player.
+ * HOW: JML to ActorSolidForPlayerLong ($83:8657). No script runs it.
+ * Entry: as ActorSolidForPlayer; reached by ActorTestByX's jump. Exit:
+ * as ActorSolidForPlayerLong, which returns to ActorTestByX's caller.
+ */
+void abi_ActorTestSolid(void)
+{
+    abi_ActorSolidForPlayerLong();
+}
+
+/*
+ * @routine 83:FBB1 ActorTestLand
+ * WHAT IT DOES: ActorTestByX's test 2: the player lands on the actor.
+ * HOW: JML to PlayerLandOnActor ($82:89E3).
+ * Entry: as PlayerLandOnActor; reached by ActorTestByX's jump. Exit: as
+ * PlayerLandOnActor, which returns to ActorTestByX's caller.
+ */
+void abi_ActorTestLand(void)
+{
+    abi_PlayerLandOnActor();
+}

@@ -19,7 +19,6 @@ arch 65816
 !v_1427 = $1427                 ; nonzero: the player is kept on the lifting actor
 !LIFT_RESUME = $D99B            ; the player's code resumed while it is lifted
 ; Not yet filed: the test of the player against the lifting actor.
-!LIFT_TEST = $8288CF
 
 ; @routine 83:C1EC ActorStepCarry
 ; WHAT IT DOES: Moves the actor a step along its facing (vector set $0E)
@@ -67,10 +66,10 @@ ActorStepToTargetCarry:
 
 ; @routine 83:FB57 ActorLiftPlayerStep
 ; WHAT IT DOES: A step of an actor that lifts the player (from 83:C245):
-; at $44 = 0, when the test at 82:88CF finds the player, the player is
+; at $44 = 0, when ActorGrabTest finds the player, the player is
 ; placed on it and $44 counts on; negative $44 counts on; positive, the
 ; player is kept on it while $1427 is set, else $44 becomes $F0.
-; HOW: $44 zero: the test at 82:88CF; C clear: the player's $03-$04 =
+; HOW: $44 zero: ActorGrabTest; C clear: the player's $03-$04 =
 ; $D99B, PlayerSpotAboveActor with X, $44 up. Negative: $44 up. Positive:
 ; $1427 set, PlayerToActorAbove with X; else $44 = $F0.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
@@ -87,7 +86,7 @@ ActorLiftPlayerStep:
 .lFB66:
     rts
 .lFB67:
-    jsl.l !LIFT_TEST
+    jsl.l ActorGrabTest
     bcs .lFB66
     rep.b #$20
     lda.w #!LIFT_RESUME
@@ -168,4 +167,39 @@ ActorFacePlayer:
     rol a
     sta.b !actor_facing
     sep.b #$10
+    rts
+
+; @routine 83:FB85 ActorTestCarriesLong
+; WHAT IT DOES: ActorTestCarries for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorTestCarries; called by JSL. Exit: as ActorTestCarries.
+%at($83FB85)
+ActorTestCarriesLong:
+    jsr.w ActorTestCarries
+    rtl
+
+; @routine 83:FB89 ActorTestCarries
+; WHAT IT DOES: Tells, by the test X picks, whether the player rides the
+; actor this frame (CARRIES), keeps its position for carrying him, and
+; plays its animation on.
+; HOW: CARRIES = 0; ActorTestByX with Y = its $4C (the test's box); C
+; clear: CARRIES up to 1. KEPT_X and KEPT_Y = its x and y pixels; then
+; AnimStep.
+; Entry: M 8-bit, X 8-bit; X = the test (0 ActorTestSolid, 2
+; ActorTestLand); D = the actor; DB = $80; called by JSR. Exit: as
+; AnimStep.
+ActorTestCarries:
+    stz.b !CARRIES
+    ldy.b !actor_4c
+    jsl.l ActorTestByX
+    bcs .keep
+    inc.b !CARRIES
+.keep:
+    rep.b #$20
+    lda.b !actor_x+1
+    sta.b !KEPT_X
+    lda.b !actor_y+1
+    sta.b !KEPT_Y
+    sep.b #$20
+    jsl.l AnimStep
     rts
