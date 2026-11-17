@@ -1,0 +1,8 @@
+# Actor kind $85's start ($84:9602) with $07 bit 4 clear ($84:9614: sound
+# $36 first), which no script meets. Power-on left alone (as attract.box);
+# at frame 3600 the kind $85 actor at $0C9B ($07 = $11) is put back in its
+# start state ($0C) with $07 = 1.
+wait 3600
+poke $000C9B 0C
+poke $000CA2 01
+wait 60
