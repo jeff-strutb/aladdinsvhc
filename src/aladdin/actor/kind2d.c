@@ -389,6 +389,7 @@ void abi_Kind2DThrown(void)
 
 /*
  * @routine 83:AA5A Kind2DHit
+ * @actor
  * WHAT IT DOES: Kind $2D when hit (its state with bit 7 set): a thrown
  * copy is knocked away at once; a thrower, the first time, is knocked
  * away with sound $0F, or, while it faces left (bit 7 of its facing),
