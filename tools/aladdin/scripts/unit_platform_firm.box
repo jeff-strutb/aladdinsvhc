@@ -1,0 +1,25 @@
+# PlatformRiderCheck ($83:CCF1): the kind $47 platform carrying Aladdin
+# onto firm ground, which puts his x back ($83:CD31), never met in play.
+# The play of rand_stage_a1_s1 (seed 7) to frame 300, Aladdin riding the
+# platform at record $12DB (its last x, y $01F2, $01C2; his $0201, $01A5).
+# A call of the check with both moved by the same amount so that he still
+# stands on it, his x, y $036D, $0138 and its last x, y ($12F4, $12F8)
+# $035E, $0155: his probe 8 to the left ($0368, $0128, within the view
+# from camera y $0115) is in a firm tile (behaviour $02, flat, not soft)
+# of the row at y $0120. V_141C 0.
+load build/aladdin/states/stage_a1_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 33
+set 0008E7 6D,03
+set 0008EA 38,01
+set 0012F4 5E,03
+set 0012F8 55,01
+set 00141C 00
+call 83CCF1 d=12DB db=80 p=30
+wait 2
