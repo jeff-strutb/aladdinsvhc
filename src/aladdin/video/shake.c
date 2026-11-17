@@ -39,7 +39,7 @@ static uint32_t dp(uint8_t off)
    frame, else takes it away; `site` is the JSL to TaskWait. */
 static void sway(int down, uint32_t site)
 {
-    uint8_t a;
+    uint8_t a, v;
 
     cpu.x = rd8(dp(SHAKE_LAYER));
     cpu.y = rd8(dp(SHAKE_FRAMES));
@@ -48,12 +48,14 @@ static void sway(int down, uint32_t site)
 
         if (down) {
             cpu.p &= (uint8_t)~P_C;
-            a = op_adc8(rd8(abs_db(at)), rd8(dp(SHAKE_STEP)), &cpu.p);
+            v = rd8(abs_db(at));
+            a = op_adc8(v, rd8(dp(SHAKE_STEP)), &cpu.p);
             wr8(abs_db(at), a);
             a = op_adc8(rd8(abs_db((uint16_t)(at + 1))), 0, &cpu.p);
         } else {
             cpu.p |= P_C;
-            a = op_sbc8(rd8(abs_db(at)), rd8(dp(SHAKE_STEP)), &cpu.p);
+            v = rd8(abs_db(at));
+            a = op_sbc8(v, rd8(dp(SHAKE_STEP)), &cpu.p);
             wr8(abs_db(at), a);
             a = op_sbc8(rd8(abs_db((uint16_t)(at + 1))), 0, &cpu.p);
         }

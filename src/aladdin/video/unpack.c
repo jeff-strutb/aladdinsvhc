@@ -72,10 +72,13 @@ static uint16_t groups_of(uint16_t length)
  */
 void abi_UnpackBegin(void)
 {
+    uint8_t lo;
+
     cpu.y = cpu.a;
     op_sep(P_M);
     cpu.db = 0x7F;
-    a8_load((uint8_t)(rd8(dpa(UNPACK_GROUPS)) | rd8(dpa(UNPACK_GROUPS + 1))));
+    lo = rd8(dpa(UNPACK_GROUPS));
+    a8_load((uint8_t)(lo | rd8(dpa(UNPACK_GROUPS + 1))));
 }
 
 /*

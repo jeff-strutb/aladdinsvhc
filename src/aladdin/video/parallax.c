@@ -240,7 +240,7 @@ static void scrolls_halving(void)
    next three; then the scroll X halved, and three quarters of it. */
 static void scrolls_drifting(void)
 {
-    uint16_t sx = rd16(LAYER0 + LAYER_SCROLL_X), d, v;
+    uint16_t sx = rd16(LAYER0 + LAYER_SCROLL_X), d, v, drift;
 
     drift_on();
     flag_set(P_C, 1);
@@ -249,7 +249,8 @@ static void scrolls_drifting(void)
         d = 0;
     wr16(SCRATCH, d);
     flag_set(P_C, 1);
-    wr16(BAND_DRIFT + 1, op_sbc16(rd16(BAND_DRIFT + 1), rd16(SCRATCH), &cpu.p));
+    drift = rd16(BAND_DRIFT + 1);
+    wr16(BAND_DRIFT + 1, op_sbc16(drift, rd16(SCRATCH), &cpu.p));
     flag_set(P_C, 0);
     v = op_adc16(rd16(BAND_DRIFT + 1), sx, &cpu.p);
     wr16(dba((uint16_t)SBAND_SCROLLS), v);
@@ -303,7 +304,7 @@ void abi_BandScrolls(void)
 static void band_table(uint16_t set)
 {
     uint8_t db = cpu.db;
-    uint16_t sy, at, base, idx, k, left, n;
+    uint16_t sy, at, base, idx, k, left, n, line;
 
     wr16(SBAND_SET, set);
     cpu.db = 0x7E;
@@ -327,12 +328,14 @@ static void band_table(uint16_t set)
     for (;;) {
         idx = rd16(dba((uint16_t)SBAND_EDGE));
         cpu.x = idx;
-        if (rd16(dba((uint16_t)SBAND_LINE)) >= rd16(SBAND_EDGES + idx)
-                && rd16(dba((uint16_t)SBAND_LINE)) < rd16(SBAND_EDGES + 2 + idx)) {
+        line = rd16(dba((uint16_t)SBAND_LINE));
+        if (line >= rd16(SBAND_EDGES + idx)
+                && line < rd16(SBAND_EDGES + 2 + idx)) {
             /* the band the line is in: its lines to the next edge, at most
                the lines left (one if none: no script meets that) */
             flag_set(P_C, 1);
-            n = op_sbc16(rd16(SBAND_EDGES + 2 + idx), rd16(dba((uint16_t)SBAND_LINE)), &cpu.p);
+            n = rd16(SBAND_EDGES + 2 + idx);
+            n = op_sbc16(n, rd16(dba((uint16_t)SBAND_LINE)), &cpu.p);
             if (n == 0)
                 n = 1;
             if (n >= rd16(dba((uint16_t)SBAND_LINES_LEFT)))
@@ -357,7 +360,8 @@ static void band_table(uint16_t set)
             cpu.x = idx;
             wr16(dba((uint16_t)SBAND_LINE), rd16(SBAND_EDGES + 2 + idx));
             flag_set(P_C, 0);
-            left = op_sbc16(rd16(dba((uint16_t)SBAND_LINES_LEFT)), rd16(dba((uint16_t)SBAND_LINES)), &cpu.p);
+            left = rd16(dba((uint16_t)SBAND_LINES_LEFT));
+            left = op_sbc16(left, rd16(dba((uint16_t)SBAND_LINES)), &cpu.p);
             if (!(cpu.p & P_C))
                 break;              /* the screen is full */
             wr16(dba((uint16_t)SBAND_LINES_LEFT), (uint16_t)(left + 1));

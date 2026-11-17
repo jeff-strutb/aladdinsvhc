@@ -21,7 +21,7 @@ static uint32_t abs_db(uint16_t addr)
  */
 void abi_RandomNext(void)
 {
-    uint8_t lo = rd8(abs_db(RANDOM)), hi, t, c;
+    uint8_t lo = rd8(abs_db(RANDOM)), hi, t, c, u;
 
     op_push8(lo);                             /* PHA */
     wr8(abs_db(SCRATCH + 0x0E), lo);
@@ -33,9 +33,11 @@ void abi_RandomNext(void)
     t = rd8_rmw(abs_db(SCRATCH + 0x0F));        /* ROL */
     wr8(abs_db(SCRATCH + 0x0F), (uint8_t)(t << 1 | c));
     cpu.p &= (uint8_t)~P_C;
-    t = op_adc8(rd8(abs_db(SCRATCH + 0x0E)), rd8(abs_db(RANDOM)), &cpu.p);
+    u = rd8(abs_db(SCRATCH + 0x0E));
+    t = op_adc8(u, rd8(abs_db(RANDOM)), &cpu.p);
     wr8(abs_db(RANDOM), t);
-    t = op_adc8(rd8(abs_db(RANDOM + 1)), rd8(abs_db(SCRATCH + 0x0F)), &cpu.p);
+    u = rd8(abs_db(RANDOM + 1));
+    t = op_adc8(u, rd8(abs_db(SCRATCH + 0x0F)), &cpu.p);
     wr8(abs_db(RANDOM + 1), t);
     lo = op_pull8();                          /* PLA */
     cpu.p &= (uint8_t)~P_C;

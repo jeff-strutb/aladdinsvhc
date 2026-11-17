@@ -232,7 +232,7 @@ static void pieces(int mirrored)
 void abi_OamDrawActor(void)
 {
     uint8_t f;
-    uint16_t at, n, left;
+    uint16_t at, n, left, pos;
 
     f = rd8(dp(ACTOR_08));
     a8_load(f);
@@ -273,9 +273,11 @@ void abi_OamDrawActor(void)
     wr16(abs_db(OAM_FREE & 0xFFFF), op_adc16((uint16_t)~n, left, &cpu.p));
     cpu.y++;
     flag_set(P_C, 1);
-    wr16(abs_db(SCREEN_X), op_sbc16(rd16(dp(ACTOR_X + 1)), rd16(abs_db(SPRITE_ORIGIN_X)), &cpu.p));
+    pos = rd16(dp(ACTOR_X + 1));
+    wr16(abs_db(SCREEN_X), op_sbc16(pos, rd16(abs_db(SPRITE_ORIGIN_X)), &cpu.p));
     flag_set(P_C, 1);
-    wr16(abs_db(SCREEN_Y), op_sbc16(rd16(dp(ACTOR_Y + 1)), rd16(abs_db(SPRITE_ORIGIN_Y)), &cpu.p));
+    pos = rd16(dp(ACTOR_Y + 1));
+    wr16(abs_db(SCREEN_Y), op_sbc16(pos, rd16(abs_db(SPRITE_ORIGIN_Y)), &cpu.p));
     wr16(abs_db(TILE_BASE), rd16(dp(ACTOR_LOOK)) & 0x01FF);
     wr16(abs_db(FLIP_BITS), (rd16(dp(ACTOR_08)) ^ 0x3000) & 0x3000);
     flag_set(P_C, rd16(dp(ACTOR_FLIP)) & 1);
@@ -337,17 +339,19 @@ void abi_OamDrawActors(void)
 {
     static const uint16_t list_at[LIST_COUNT] = { 0x00, 0x40, 0x80, 0xC0 };
     uint8_t db = cpu.db;
-    uint16_t d = cpu.d, s, i, n;
+    uint16_t d = cpu.d, s, i, n, scroll;
 
     op_sep(P_M);
     s = rd8(abs_db(SPRITE_SHIFT_AT));
     x8_load((uint8_t)s);
     op_rep(P_M | P_X);
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(abs_db(LAYER0 + LAYER_SCROLL_X)), rd16(abs_db((uint16_t)(SPRITE_SHIFT_X + s))), &cpu.p);
+    scroll = rd16(abs_db(LAYER0 + LAYER_SCROLL_X));
+    cpu.a = op_adc16(scroll, rd16(abs_db((uint16_t)(SPRITE_SHIFT_X + s))), &cpu.p);
     wr16(abs_db(SPRITE_ORIGIN_X), cpu.a);
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(abs_db(LAYER0 + LAYER_SCROLL_Y)), rd16(abs_db((uint16_t)(SPRITE_SHIFT_Y + s))), &cpu.p);
+    scroll = rd16(abs_db(LAYER0 + LAYER_SCROLL_Y));
+    cpu.a = op_adc16(scroll, rd16(abs_db((uint16_t)(SPRITE_SHIFT_Y + s))), &cpu.p);
     wr16(abs_db(SPRITE_ORIGIN_Y), cpu.a);
     op_sep(P_M);
     cpu.x = rd16(abs_db(OAM_NEXT & 0xFFFF));

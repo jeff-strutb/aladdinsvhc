@@ -128,12 +128,13 @@ void abi_CameraStopAcross(void)
  */
 void abi_CameraStopUpDown(void)
 {
-    uint16_t v;
+    uint16_t v, before;
 
     cpu.y = rd16(SCROLL_Y);
     cpu.p = nz16(cpu.p, cpu.y);
-    cpu.p = (uint8_t)((nz16(cpu.p, (uint16_t)(cpu.y - rd16(SCROLL_Y_BEFORE))) & ~P_C) |
-                      (cpu.y >= rd16(SCROLL_Y_BEFORE) ? P_C : 0));
+    before = rd16(SCROLL_Y_BEFORE);
+    cpu.p = (uint8_t)((nz16(cpu.p, (uint16_t)(cpu.y - before)) & ~P_C) |
+                      (cpu.y >= before ? P_C : 0));
     if (!(cpu.p & P_C)) {
         op_lda16(SCROLL_X);
         if (!empty_at(cpu.a)) {

@@ -99,7 +99,8 @@ void abi_HdmaChannelFree(void)
     uint8_t used, top;
 
     x8_load(0x07);
-    used = (uint8_t)((rd8(dba(HDMAEN_SHADOW)) | rd8(dba(HDMA_RESERVED))) & 0xF0);
+    used = rd8(dba(HDMAEN_SHADOW));
+    used = (uint8_t)((used | rd8(dba(HDMA_RESERVED))) & 0xF0);
     a8_load(used);
     cmp8_of(used, 0xF0);
     if (used != 0xF0) {
@@ -139,7 +140,7 @@ void abi_HdmaChannelFree(void)
  */
 void abi_HdmaStart(void)
 {
-    uint8_t ch, regs, slot, reg_set;
+    uint8_t ch, regs, slot, reg_set, v;
     uint16_t at, to;
 
     wr8(dba(HDMA_VALUE_ADD), 0);
@@ -188,9 +189,11 @@ void abi_HdmaStart(void)
         if (!count)
             break;
         flag_set(P_C, 0);
-        a8_load((uint8_t)op_adc8(rd8(dba((uint16_t)(TABLE_SETS + 1 + at))), rd8(dba(HDMA_VALUE_ADD)), &cpu.p));
+        v = rd8(dba((uint16_t)(TABLE_SETS + 1 + at)));
+        a8_load((uint8_t)op_adc8(v, rd8(dba(HDMA_VALUE_ADD)), &cpu.p));
         wr8(0x7E0000u + (uint16_t)(to + 1), (uint8_t)cpu.a);
-        a8_load((uint8_t)op_adc8(rd8(dba((uint16_t)(TABLE_SETS + 2 + at))), rd8(dba(HDMA_VALUE_ADD + 1)), &cpu.p));
+        v = rd8(dba((uint16_t)(TABLE_SETS + 2 + at)));
+        a8_load((uint8_t)op_adc8(v, rd8(dba(HDMA_VALUE_ADD + 1)), &cpu.p));
         wr8(0x7E0000u + (uint16_t)(to + 2), (uint8_t)cpu.a);
     }
     op_sep(0x10);
@@ -381,7 +384,7 @@ void abi_HdmaEffect3(void)
 void abi_WindowWavesLoop(void)
 {
     uint16_t x;
-    uint8_t v;
+    uint8_t v, sine;
 
     phb();
     cpu.a = 0x01FF;
@@ -413,10 +416,12 @@ void abi_WindowWavesLoop(void)
         nz8_of(cpu.db);
         for (;;) {
             flag_set(P_C, 0);
-            a8_load((uint8_t)op_adc8(rd8(dba((uint16_t)(WAVE_SINES + cpu.y))), rd8(0x820000u + (uint16_t)(WINDOW_SHAPE + x)), &cpu.p));
+            sine = rd8(dba((uint16_t)(WAVE_SINES + cpu.y)));
+            a8_load((uint8_t)op_adc8(sine, rd8(0x820000u + (uint16_t)(WINDOW_SHAPE + x)), &cpu.p));
             wr8(dba((uint16_t)(WAVES_TABLE + x)), (uint8_t)cpu.a);
             flag_set(P_C, 0);
-            a8_load((uint8_t)op_adc8(rd8(dba((uint16_t)(WAVE_SINES + cpu.y))), rd8(0x820000u + (uint16_t)(WINDOW_SHAPE + 1 + x)), &cpu.p));
+            sine = rd8(dba((uint16_t)(WAVE_SINES + cpu.y)));
+            a8_load((uint8_t)op_adc8(sine, rd8(0x820000u + (uint16_t)(WINDOW_SHAPE + 1 + x)), &cpu.p));
             wr8(dba((uint16_t)(WAVES_TABLE + 1 + x)), (uint8_t)cpu.a);
             cmp16_of(x, 0x0060);
             if (x >= 0x0060) {
@@ -1111,12 +1116,14 @@ void abi_WindowBoxAt(void)
     uint16_t at, v;
 
     flag_set(P_C, 1);
-    at = op_sbc16(rd16(dba(SCRATCH)), rd16(dba(0x1773)), &cpu.p);
+    at = rd16(dba(SCRATCH));
+    at = op_sbc16(at, rd16(dba(0x1773)), &cpu.p);
     cpu.a = at;
     if (!on_screen(at, 0x002C, 0x0100, 0x0080))
         goto off;
     flag_set(P_C, 1);
-    at = op_sbc16(rd16(dba(0x000E)), rd16(dba(0x1777)), &cpu.p);
+    at = rd16(dba(0x000E));
+    at = op_sbc16(at, rd16(dba(0x1777)), &cpu.p);
     cpu.a = at;
     if (!on_screen(at, 0x002E, 0x00E0, 0x0060))
         goto off;

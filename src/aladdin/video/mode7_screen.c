@@ -166,13 +166,14 @@ void abi_Mode7TilesConvert(void)
 void abi_Mode7TileRowsConvert(void)
 {
     uint16_t x = cpu.x, y = cpu.y;
-    uint8_t palette, row, col, p0, p1, p2, p3, px;
+    uint8_t palette, row, col, p0, p1, p2, p3, px, at;
 
     do {
         /* the tile's palette, by its row in the source and the flag */
         op_sep(P_M);
         dp16_set(0x32, x);
-        palette = rd8(0x81B407u + (uint8_t)((((x >> 8) >> 2) + rd8(dpa(0x0F))) | rd8(dpa(0x30))));
+        at = (uint8_t)(((x >> 8) >> 2) + rd8(dpa(0x0F)));
+        palette = rd8(0x81B407u + (uint8_t)(at | rd8(dpa(0x30))));
         wr8(dpa(0x32), palette);
         /* each row's four bitplanes to 8 pixels, a byte each */
         for (row = 0; row < 8; row++) {

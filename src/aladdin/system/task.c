@@ -228,7 +228,7 @@ void abi_TaskCreate(void)
 void abi_TaskExec(void)
 {
     uint16_t s0 = cpu.s, top, v;
-    uint8_t slot;
+    uint8_t slot, lo;
 
     op_sep(P_M | P_X);
     cpu.a = cpu.s;                              /* TSC, TCD */
@@ -248,7 +248,8 @@ void abi_TaskExec(void)
     cpu.y = 3;
     cpu.a = rd16(dp_long_y(1, 3));
     wr16(abs_db((uint16_t)(top + 3)), cpu.a);
-    cpu.a = (uint16_t)(rd8((uint16_t)(s0 - 1)) | rd8(s0) << 8); /* PLA */
+    lo = rd8((uint16_t)(s0 - 1));
+    cpu.a = (uint16_t)(lo | rd8(s0) << 8); /* PLA */
     cpu.s = s0;
     cpu.p = nz16(cpu.p, cpu.a);
     wr16(abs_db((uint16_t)(top + 1)), cpu.a);

@@ -34,7 +34,8 @@ static void demo_input(void)
     pla8();
     a8_load((uint8_t)((uint8_t)cpu.a ^ 0xFF));
     wr8(dba(JOY_PRESSED + 1), (uint8_t)cpu.a);
-    held = (uint8_t)((rd8(dba(JOY_HELD + 1)) & 0x10) | rd8(dba(DEMO_BUTTONS)));
+    held = rd8(dba(JOY_HELD + 1));
+    held = (uint8_t)((held & 0x10) | rd8(dba(DEMO_BUTTONS)));
     a8_load(held);
     wr8(dba(JOY_HELD + 1), held);
     a8_load((uint8_t)(held & rd8(dba(JOY_PRESSED + 1))));

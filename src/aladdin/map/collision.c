@@ -66,9 +66,12 @@ static uint16_t probe(uint16_t y)
    it, X 16-bit. */
 static void probe_y(void)
 {
+    uint16_t off;
+
     cpu.y = (uint8_t)(cpu.y + 2);
     cpu.p &= (uint8_t)~P_C;
-    cpu.a = op_adc16(probe(cpu.y), rd16(dp(ACTOR_Y + 1)), &cpu.p);
+    off = probe(cpu.y);
+    cpu.a = op_adc16(off, rd16(dp(ACTOR_Y + 1)), &cpu.p);
     wr16(abs_db(POINT_Y), cpu.a);
     op_rep(P_X);
 }
@@ -104,11 +107,14 @@ void abi_ProbeAtActor(void)
  */
 void abi_ProbeLeft(void)
 {
+    uint16_t ax;
+
     op_rep(P_M);
     op_sep(P_X);
     cpu.y = rd8(dp(ACTOR_PROBE_AT));
     cpu.p |= P_C;
-    cpu.a = op_sbc16(rd16(dp(ACTOR_X + 1)), probe(cpu.y), &cpu.p);
+    ax = rd16(dp(ACTOR_X + 1));
+    cpu.a = op_sbc16(ax, probe(cpu.y), &cpu.p);
     wr16(abs_db(POINT_X), cpu.a);
     probe_y();
 }
@@ -124,11 +130,14 @@ void abi_ProbeLeft(void)
  */
 void abi_ProbeRight(void)
 {
+    uint16_t off;
+
     op_rep(P_M);
     op_sep(P_X);
     cpu.y = rd8(dp(ACTOR_PROBE_AT));
     cpu.p &= (uint8_t)~P_C;
-    cpu.a = op_adc16(probe(cpu.y), rd16(dp(ACTOR_X + 1)), &cpu.p);
+    off = probe(cpu.y);
+    cpu.a = op_adc16(off, rd16(dp(ACTOR_X + 1)), &cpu.p);
     wr16(abs_db(POINT_X), cpu.a);
     probe_y();
 }
@@ -880,7 +889,8 @@ static uint16_t onto_surface(void)
     uint16_t v;
 
     cpu.p |= P_C;
-    v = op_sbc16(rd16(abs_db(SURFACE_Y)), rd16(abs_db(POINT_Y)), &cpu.p);
+    v = rd16(abs_db(SURFACE_Y));
+    v = op_sbc16(v, rd16(abs_db(POINT_Y)), &cpu.p);
     cpu.p &= (uint8_t)~P_C;
     return op_adc16(v, rd16(dp(ACTOR_Y + 1)), &cpu.p);
 }
@@ -979,7 +989,8 @@ void abi_ActorOutOfGround(void)
     if (!(cpu.p & P_Z) && !(cpu.p & P_N)) {
         op_rep(P_M | P_X);
         cpu.p |= P_C;
-        cpu.a = op_sbc16(rd16(abs_db(SURFACE_Y)), rd16(abs_db(POINT_Y)), &cpu.p);
+        cpu.a = rd16(abs_db(SURFACE_Y));
+        cpu.a = op_sbc16(cpu.a, rd16(abs_db(POINT_Y)), &cpu.p);
         if (!(cpu.p & P_C)) {
             cpu.a = op_adc16(cpu.a, rd16(dp(ACTOR_Y + 1)), &cpu.p);
             wr16(abs_db(Y_SAVED), cpu.a);

@@ -53,7 +53,7 @@ void abi_ActorPictureSend(void)
 void abi_ActorPictureQueue(void)
 {
     uint8_t picture = rd8(dpa(ACTOR_PICTURE)), last = rd8(dpa(ACTOR_REDRAW)), more;
-    uint16_t list, size;
+    uint16_t list, size, step;
 
     a8_load(picture);
     cmp8_of(picture, last);
@@ -97,7 +97,8 @@ void abi_ActorPictureQueue(void)
         flag_set(P_C, 0);
         cpu.x = op_adc16(cpu.x, 0x0008, &cpu.p);
         flag_set(P_C, 0);
-        cpu.a = op_adc16(rd16(dba(0) + cpu.y), rd16(dba(OAM_NEXT) + cpu.x), &cpu.p);
+        step = rd16(dba(0) + cpu.y);
+        cpu.a = op_adc16(step, rd16(dba(OAM_NEXT) + cpu.x), &cpu.p);
         wr16(dba(VRAM_QUEUE) + cpu.x, cpu.a);
         cpu.y = (uint16_t)(cpu.y + 2);
     }
@@ -151,7 +152,8 @@ void abi_ActorPictureSendFromKind(void)
     cpu.x = q;
     phx16();
     flag_set(P_C, 0);
-    src = op_adc16(rd16(KIND_GFX + ((dp16(ACTOR_06) & 0x00FF) << 1)), rd16(dba(part)), &cpu.p);
+    src = rd16(KIND_GFX + ((dp16(ACTOR_06) & 0x00FF) << 1));
+    src = op_adc16(src, rd16(dba(part)), &cpu.p);
     plx16();
     wr16(dba(VRAM_QUEUE + 2 + q), src);
     size = rd16(dba((uint16_t)(part + 2)));

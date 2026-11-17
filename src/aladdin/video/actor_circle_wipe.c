@@ -32,15 +32,17 @@ void abi_CircleWipeStep(void);
  */
 void abi_ActorCircleWipeStep(void)
 {
-    uint16_t dy;
+    uint16_t dy, pos;
 
     wr8(dpa(WIPE_RADIUS), (uint8_t)(rd8(dpa(WIPE_RADIUS)) + 1));
     op_rep(0x30);
     /* the actor's place on the screen, 8 pixels up */
     flag_set(P_C, 1);
-    cpu.x = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(LAYER0_X)), &cpu.p);
+    pos = dp16(ACTOR_X + 1);
+    cpu.x = op_sbc16(pos, rd16(dba(LAYER0_X)), &cpu.p);
     flag_set(P_C, 1);
-    dy = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(LAYER0_Y)), &cpu.p);
+    pos = dp16(ACTOR_Y + 1);
+    dy = op_sbc16(pos, rd16(dba(LAYER0_Y)), &cpu.p);
     flag_set(P_C, 1);
     cpu.y = op_sbc16(dy, 0x0008, &cpu.p);
     a16_load(dp16(WIPE_RADIUS));

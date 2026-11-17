@@ -38,11 +38,12 @@ static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
  */
 void abi_TileChangeQueueQuarter(void)
 {
-    uint16_t x = cpu.x, y = cpu.y;
+    uint16_t x = cpu.x, y = cpu.y, vram;
 
     /* the quarter's VRAM address and its tilemap word */
     flag_set(P_C, 0);
-    wr16(dba(0x0619) + x, op_adc16(dp16(0x32), rd16(dba(0xBA46) + y), &cpu.p));
+    vram = dp16(0x32);
+    wr16(dba(0x0619) + x, op_adc16(vram, rd16(dba(0xBA46) + y), &cpu.p));
     y = rd16(dba(0xBA48) + y);
     cpu.a = rd16(dp_long_y(0x34, y));
     wr16(dba(0x061B) + x, cpu.a);
