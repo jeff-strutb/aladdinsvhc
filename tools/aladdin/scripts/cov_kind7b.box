@@ -1,0 +1,32 @@
+# Actor kind $7B (Kind7BStart, $83:C572), the thing Aladdin lands on: no
+# play goes past its first wait. Level $0A at the climb's foot, Aladdin
+# dropped at x $004C; once the camera has followed him down the kind $7B
+# at x $004C, y $00D8 (record $0B5B) is live, and at frame 120 he is put
+# at y $00A8 above it:
+# 1. he lands on it: its pose, his code on at $DA14, the sound ($83:C596
+#    on);
+# 2. the same with no health ($0367 = 0): it sets its own state $8C; its
+#    next wait marks it waiting again, so the record's state is then poked
+#    to $8C, and the actor loop's second entry for kind $7B, the JML at
+#    $83:C5D1, ends it.
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 4C,00
+poke 0008EA B0,00
+wait 90
+poke 0008EA A8,00
+wait 80
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 4C,00
+poke 0008EA B0,00
+wait 90
+poke 0008EA A8,00
+poke 000367 00
+wait 20
+poke 000B5B 8C
+wait 2
