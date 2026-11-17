@@ -14,6 +14,11 @@ asm/aladdin/<area>/), never in a file named for an address range. The
 only address-named files allowed are the raw intake under asm/aladdin/raw/,
 which the audit ratchets down to nothing.
 
+The C must also make its memory accesses in an order C fixes: no two
+operands of one operator or call may each touch the machine (seqcheck.py),
+since the compiler may then make them in either order and the checks
+compare the order with the original's.
+
 The hook judges only staged files that the commit adds or modifies, so a
 backlog never blocks an unrelated commit.
 """
@@ -79,6 +84,16 @@ def main():
             for need in ('WHAT IT DOES:', 'HOW:'):
                 if need not in block:
                     bad.append('%s:%d: @routine %s has no %s' % (rel, i + 1, where, need))
+    c_texts = {rel: git('show', ':' + rel).decode('utf-8', 'replace') for rel in staged
+               if rel.startswith('src/aladdin/') and rel.endswith(('.c', '.h'))}
+    if c_texts:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import seqcheck
+        try:
+            for f in seqcheck.check_texts(c_texts, ROOT):
+                bad.append(seqcheck.fmt(f) + '; read one into a local first, in the original\'s order')
+        except SyntaxError as e:
+            bad.append('seqcheck cannot parse: %s (extend tools/aladdin/seqcheck.py for it)' % e)
     for b in bad:
         print(b)
     if bad:
