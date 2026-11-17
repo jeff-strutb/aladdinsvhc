@@ -488,3 +488,58 @@ Kind9CEnter:
 %at($839281)
 Kind76Enter:
     jml.l Kind76Start
+
+; @routine 83:91F4 Kind00Start
+; @actor
+; WHAT IT DOES: Where actors of kinds $00-$03 and $07 (the player) go on from the actor loop
+; in its start state (the table at $83:8CAB): PlayerStart.
+; HOW: JML to PlayerStart ($81:CB3B).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as PlayerStart.
+%at($8391F4)
+Kind00Start:
+    jml.l PlayerStart
+
+; @routine 83:91FD Kind00Second
+; @actor
+; WHAT IT DOES: Where actors of kinds $00, $02, $03 and $07 (the player) go on from the actor loop
+; in a state with bit 7 set (the table at $83:8DFD): PlayerKnockback.
+; HOW: JML to PlayerKnockback ($81:DADD).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as PlayerKnockback.
+%at($8391FD)
+Kind00Second:
+    jml.l PlayerKnockback
+
+; @routine 83:9201 Kind01Second
+; @actor
+; WHAT IT DOES: Where actors of kind $01 (the player) go on from the actor loop
+; in a state with bit 7 set (the table at $83:8DFD): PlayerCarpetCrash.
+; HOW: JML to PlayerCarpetCrash ($81:E7E9).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as PlayerCarpetCrash.
+%at($839201)
+Kind01Second:
+    jml.l PlayerCarpetCrash
+
+; @routine 83:92D8 Kind83Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $83 go on from the actor loop
+; in its start state (the table at $83:8DAB): Kind83Start.
+; HOW: JML to Kind83Start ($84:9538).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind83Start.
+%at($8392D8)
+Kind83Enter:
+    jml.l Kind83Start
+
+; @routine 83:93A3 Kind95Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $95 go on from the actor loop
+; in its start state (the table at $83:8DAB): Kind95Start.
+; HOW: JML to Kind95Start ($84:9BE3).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind95Start.
+%at($8393A3)
+Kind95Enter:
+    jml.l Kind95Start

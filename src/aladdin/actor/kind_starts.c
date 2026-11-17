@@ -44,6 +44,11 @@ void abi_KindAnimate9628(void);
 void abi_LandingPad(void);
 void abi_LongReturn(void);
 void abi_Kind76Start(void);
+void abi_PlayerStart(void);
+void abi_PlayerKnockback(void);
+void abi_PlayerCarpetCrash(void);
+void abi_Kind83Start(void);
+void abi_Kind95Start(void);
 
 /*
  * @routine 83:920E Kind10Start
@@ -649,4 +654,74 @@ void abi_Kind9CEnter(void)
 void abi_Kind76Enter(void)
 {
     abi_Kind76Start();
+}
+
+/*
+ * @routine 83:91F4 Kind00Start
+ * @actor
+ * WHAT IT DOES: Where actors of kinds $00-$03 and $07 (the player) go on from the actor loop
+ * in its start state (the table at $83:8CAB): PlayerStart.
+ * HOW: JML to PlayerStart ($81:CB3B).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as PlayerStart.
+ */
+void abi_Kind00Start(void)
+{
+    abi_PlayerStart();
+}
+
+/*
+ * @routine 83:91FD Kind00Second
+ * @actor
+ * WHAT IT DOES: Where actors of kinds $00, $02, $03 and $07 (the player) go on from the actor loop
+ * in a state with bit 7 set (the table at $83:8DFD): PlayerKnockback.
+ * HOW: JML to PlayerKnockback ($81:DADD).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as PlayerKnockback.
+ */
+void abi_Kind00Second(void)
+{
+    abi_PlayerKnockback();
+}
+
+/*
+ * @routine 83:9201 Kind01Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $01 (the player) go on from the actor loop
+ * in a state with bit 7 set (the table at $83:8DFD): PlayerCarpetCrash.
+ * HOW: JML to PlayerCarpetCrash ($81:E7E9).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as PlayerCarpetCrash.
+ */
+void abi_Kind01Second(void)
+{
+    abi_PlayerCarpetCrash();
+}
+
+/*
+ * @routine 83:92D8 Kind83Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $83 go on from the actor loop
+ * in its start state (the table at $83:8DAB): Kind83Start.
+ * HOW: JML to Kind83Start ($84:9538).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind83Start.
+ */
+void abi_Kind83Enter(void)
+{
+    abi_Kind83Start();
+}
+
+/*
+ * @routine 83:93A3 Kind95Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $95 go on from the actor loop
+ * in its start state (the table at $83:8DAB): Kind95Start.
+ * HOW: JML to Kind95Start ($84:9BE3).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind95Start.
+ */
+void abi_Kind95Enter(void)
+{
+    abi_Kind95Start();
 }
