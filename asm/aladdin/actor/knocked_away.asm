@@ -86,9 +86,28 @@ ActorKnockedAwayResumed:
     jsl.l ActorPictureSend
     ply
     jsl.l ActorMotionPreset
+.five:
     lda.b #$05
     cop.b #$00
     bra ActorKnockedAway_fly
+
+; @routine 83:959F ActorKnockedAwayResumedB
+; WHAT IT DOES: ActorKnockedAwayResumed's second copy, for kind $2D's
+; thrown copy: the same pose, preset, five frames' wait and flight (no
+; script runs it).
+; HOW: Y kept on the stack; ANIM_AT = X; AnimResume, ActorPictureSend;
+; ActorMotionPreset Y; then into ActorKnockedAwayResumed at its wait.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; A = the
+; animation, X its frame, Y the preset; reached by a kind's jump.
+; Exit: never returns.
+ActorKnockedAwayResumedB:
+    phy
+    stx.b !KA_ANIM_AT
+    jsl.l AnimResume
+    jsl.l ActorPictureSend
+    ply
+    jsl.l ActorMotionPreset
+    bra ActorKnockedAwayResumed_five
 
 ; @routine 83:9C19 Kind20Hit
 ; WHAT IT DOES: Actor kind $20's guard struck: from in front (its facing

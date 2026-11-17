@@ -159,3 +159,27 @@ void abi_Kind20Hit(void)
     ldy8_v(0x4C);
     jump_routine(0x839589u);
 }
+
+/*
+ * @routine 83:959F ActorKnockedAwayResumedB
+ * WHAT IT DOES: ActorKnockedAwayResumed's second copy, for kind $2D's
+ * thrown copy: the same pose, preset, five frames' wait and flight (no
+ * script runs it).
+ * HOW: Y kept on the stack; ANIM_AT = X; AnimResume, ActorPictureSend;
+ * ActorMotionPreset Y; then into ActorKnockedAwayResumed at its wait.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; A = the
+ * animation, X its frame, Y the preset; reached by a kind's jump.
+ * Exit: never returns.
+ */
+void abi_ActorKnockedAwayResumedB(void)
+{
+    phy8();
+    stx8(ea_dp(ANIM_AT));
+    abi_AnimResume();
+    abi_ActorPictureSend();
+    ply8();
+    abi_ActorMotionPreset();
+    lda8_v(0x05);
+    actor_wait(0x83959Bu);
+    fly_off();
+}
