@@ -1,0 +1,34 @@
+# The three backdrop stages of level $10 (act 5, stage 2): PlayField3Stages
+# ($81:C9F2, parallax kind $10). The level's own runs never reach the
+# stage's end at x $0F10, so: Aladdin placed at x $0F20 with the camera
+# short of $0F80 (stage 0 asks PlayerOnFirmGround, $81:CA11); then with the
+# camera past $0F80 (the stage ends at once, $81:CA1B), the backdrop's y
+# eased back to 0 from below (it is -$29 there) and, poked to $34, from
+# above (every clamp of $81:CA22-$CA49); in stage 2 the camera's x is put
+# past $1000 (its half-speed x, $81:CA5E), inside the level's limit $10A0.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 20,0F
+poke 001773 C0,0E
+wait 30
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 20,0F
+poke 001773 90,0F
+wait 40
+poke 0008E7 F0,10
+wait 120
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 20,0F
+poke 001773 90,0F
+wait 5
+poke 0018CD 34,00
+wait 30
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 20,0F
+poke 001773 90,0F
+wait 20
+poke 001773 40,10
+wait 10
