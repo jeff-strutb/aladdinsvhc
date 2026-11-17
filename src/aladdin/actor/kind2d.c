@@ -383,7 +383,9 @@ void abi_Kind2DThrown(void)
         y8_load((uint8_t)cpu.a);
         abi_ActorZoneHurtsPlayer();
         x8_load(0x00);
-        abi_ActorEndOutOfRange();
+        /* the JSR's return address on the stack, which ActorEndOutOfRange
+           pulls when it ends the actor */
+        call_frame(0xA9F4, abi_ActorEndOutOfRange);
     }
 }
 

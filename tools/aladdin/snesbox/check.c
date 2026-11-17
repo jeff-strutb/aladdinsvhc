@@ -59,11 +59,39 @@ static int is_jump_op(uint8_t op);
 static uint8_t longret_bits[1 << 21];   /* routines that return by RTL */
 static uint8_t jumprt_bits[1 << 21];    /* routines entered only by jumps */
 static int jump_entered(uint32_t pc, uint8_t via) { return is_jump_op(via) && (jumprt_bits[pc >> 3] >> (pc & 7) & 1); }
+/* The actor loop's own code (@actorloop): a record or watch of it ends
+   where it hands control to an actor, by RTI or JMP (table,X), at the
+   loop's level: its exit level less its RTL's three bytes and its PHD's
+   two (docs/aladdin/ACTORS.md). */
+static uint8_t loop_bits[1 << 21];
+static int is_actor_loop(uint32_t pc) { return loop_bits[pc >> 3] >> (pc & 7) & 1; }
+#define ACTOR_LOOP_DEPTH 5
+static int loop_hands_off(uint32_t entry, uint8_t via, uint16_t s, uint16_t exit_s)
+{
+    return is_actor_loop(entry) && (via == 0x40 || via == 0x7C) && s == (uint16_t)(exit_s - ACTOR_LOOP_DEPTH);
+}
+/* The actor loop's call, entered at entry with exit level exit_s, is back
+   at the loop's own level: a routine it called ended its actor there. */
+static int loop_left(uint32_t entry, uint16_t s, uint16_t exit_s)
+{
+    return is_actor_loop(entry) && s == (uint16_t)(exit_s - ACTOR_LOOP_DEPTH);
+}
+/* @pushed N: a routine entered by a jump with N bytes pushed above its
+   caller's return address (the actor loop's PHD at its re-entries). */
+static uint32_t pushed_at[64];
+static uint8_t pushed_n[64];
+static int npushed;
+static int pushed_of(uint32_t pc)
+{
+    for (int i = 0; i < npushed; i++) if (pushed_at[i] == pc) return pushed_n[i];
+    return 0;
+}
 /* A routine entered by a jump (a tail jump, or code reached only by
    jumps): its caller's return address is on the stack already, long when
    the routine returns by RTL. */
 static int jump_return(uint32_t pc, uint16_t sp, const uint8_t *w, uint32_t *ret, uint16_t *exit_s)
 {
+    sp = (uint16_t)(sp + pushed_of(pc));
     uint16_t word = (uint16_t)(w[(uint16_t)(sp + 1)] | w[(uint16_t)(sp + 2)] << 8);
     if (longret_bits[pc >> 3] >> (pc & 7) & 1) {
         *ret = (uint32_t)w[(uint16_t)(sp + 3)] << 16 | (uint16_t)(word + 1);
@@ -606,12 +634,33 @@ static void on_insn(uint32_t pc)
             if (!have) { core_regs(&r); have = 1; }
             if (r.s == ws[i]->irq_s) ws[i]->in_irq = 0;
         }
+    /* The actor loop hands control to an actor (its RTI, or JMP
+       (table,X) by kind) at the loop's level: the loop's watch is judged up
+       to here, as a C that stopped in actor_hand_off; the actor's piece
+       opens below, at this same instruction. */
+    if (depth && (prev_op == 0x40 || prev_op == 0x7C)) {
+        Watch *t = ws[depth - 1];
+        if (!t->in_irq && !t->actor) {
+            if (!have) { core_regs(&r); have = 1; }
+            if (loop_hands_off(routines[t->idx].addr, prev_op, r.s, t->exit_s)) {
+                finish_piece(t, 2);
+                a5_drop(t);
+                depth--;
+            }
+        }
+    }
     /* A routine the actor's code called ends the actor: it pulled its own
        return address and jumps into the actor loop at its exit level (the
-       actor's). Judged up to here, as a C that left there (actor_leave). */
+       actor's). Judged up to here, as a C that left there (actor_leave).
+       It may pull more than its own (KindA1Touch drops its JSL's and the
+       loop's JSR's, five bytes): every call whose exit level S has reached
+       or passed is left, and the actor loop's own call is left where S is
+       back at the loop's level, as at its hand-off. */
     if (depth && (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op(prev_op)))) {
         if (!have) { core_regs(&r); have = 1; }
-        while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq && r.s == ws[depth - 1]->exit_s) {
+        while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq
+               && (r.s >= ws[depth - 1]->exit_s
+                   || (is_jump_op(prev_op) && loop_left(routines[ws[depth - 1]->idx].addr, r.s, ws[depth - 1]->exit_s)))) {
             finish_piece(ws[depth - 1], 2);
             a5_drop(ws[depth - 1]);
             depth--;
@@ -625,6 +674,17 @@ static void on_insn(uint32_t pc)
         /* the actor's own piece: the outermost actor watch (its code may
            jump on to more actor code, ActorEnd) */
         for (int i = 0; i < depth; i++) if (ws[i]->actor) { b = i; break; }
+        /* No piece watched: a routine that pulled its own return address
+           and yields by BRK or COP at its exit level (PlayerCrouch) ends at
+           the yield, as its C stops in actor_yield or actor_wait. */
+        if (b < 0 && ((pc == ACTOR_BRK_AT && prev_op == 0x00) || (pc == ACTOR_COP_AT && prev_op == 0x02))) {
+            if (!have) { core_regs(&r); have = 1; }
+            while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq && (uint16_t)(r.s + 4) >= ws[depth - 1]->exit_s) {
+                finish_piece(ws[depth - 1], 2);
+                a5_drop(ws[depth - 1]);
+                depth--;
+            }
+        }
         if (b >= 0) {
             if (!have) { core_regs(&r); have = 1; }
             int yield = ((pc == ACTOR_BRK_AT && prev_op == 0x00) || (pc == ACTOR_COP_AT && prev_op == 0x02))
@@ -891,6 +951,14 @@ static int load_routines(void *core, const char *lib, const char *only)
     const int *actn = dlsym(h, "game_actor_entry_count");
     if (act && actn)
         for (int i = 0; i < *actn; i++) actor_bits[act[i] >> 3] |= (uint8_t)(1 << (act[i] & 7));
+    const uint32_t *lp = dlsym(h, "game_actor_loops");
+    const int *lpn = dlsym(h, "game_actor_loop_count");
+    if (lp && lpn)
+        for (int i = 0; i < *lpn; i++) loop_bits[lp[i] >> 3] |= (uint8_t)(1 << (lp[i] & 7));
+    const uint32_t *pu = dlsym(h, "game_pushed");
+    const int *pun = dlsym(h, "game_pushed_count");
+    if (pu && pun)
+        for (int i = 0; i < *pun && npushed < 64; i++) { pushed_at[npushed] = pu[2 * i]; pushed_n[npushed++] = (uint8_t)pu[2 * i + 1]; }
     const int *count = dlsym(h, "game_routine_count");
     uint8_t *(*mem)(const char *, size_t *) = dlsym(core, "snesbox_memory");
     *(void **)&co_active_p = dlsym(core, "co_active");
@@ -1224,6 +1292,17 @@ static void ls_insn(uint32_t pc)
             m.irq_resumed = 1;
         }
         struct SnesboxRegs r; core_regs(&r);
+        /* The actor loop's record ends where it hands control to an actor
+           (its RTI, or JMP (table,X)) at the loop's level; the actor's
+           piece opens at this same instruction, as on the hybrid side. */
+        if (!m.actor && loop_hands_off(m_pc, m.irq_resumed ? m.pre_irq_op : *core_opcode, r.s, m.exit_s)) {
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "OHANDOFF frame %ld call %llu to %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
+            goto not_active;
+        }
         /* An actor's piece ends at its yield (just after its BRK), parked
            under its record for its next turn, or where it leaves its code
            for the actor loop at its own level (it ended). Levels may be
@@ -1247,13 +1326,19 @@ static void ls_insn(uint32_t pc)
                 STORE(sh->calls[m.call % CALLRING].done, 1);
                 m.active = 0;
                 m.irq_resumed = 0;
+                /* Left into the loop's code that has C (a re-entry): its
+                   record opens at this same jump. */
+                if (leave && is_actor_loop(pc)) goto not_active;
                 return;
             }
         } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op(*core_opcode)))
-                   && r.s == m.exit_s) {
+                   && (r.s >= m.exit_s || (is_jump_op(*core_opcode) && loop_left(m_pc, r.s, m.exit_s)))) {
             /* A routine the actor's code called that ends the actor: it
                pulled its own return address (S back at the actor's level,
-               its exit level) and jumps into the actor loop. */
+               its exit level, or past it when it drops its callers' too)
+               and jumps into the actor loop; or the actor loop's own call,
+               when a wait routine it called does so (S at the loop's
+               level). */
             if (calls_from >= 0 && cur_frame >= calls_from)
                 fprintf(stderr, "OALEAVE frame %ld call %llu D=%04X S=%04X\n", cur_frame, (unsigned long long)m.call, r.d, r.s);
             STORE(sh->calls[m.call % CALLRING].done, 1);
@@ -1261,7 +1346,21 @@ static void ls_insn(uint32_t pc)
             m.irq_resumed = 0;
             /* Into more actor code (ActorEndPlaced): its piece opens at
                this same jump, as on the hybrid side. */
-            if (is_actor_entry(pc)) goto not_active;
+            if (is_actor_entry(pc) || is_actor_loop(pc)) goto not_active;
+            return;
+        } else if (((pc == ACTOR_BRK_AT && *core_opcode == 0x00) || (pc == ACTOR_COP_AT && *core_opcode == 0x02))
+                   && (uint16_t)(r.s + 4) >= m.exit_s) {
+            /* A routine an actor's code called that pulled its own return
+               address and yields by BRK or COP at its exit level
+               (PlayerCrouch) while no piece of the actor is open (it began
+               before the run, from a loaded state): the call ends at the
+               yield, as its C stops in actor_yield. What follows runs as
+               original code on both sides. */
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "OAYIELD frame %ld call %llu D=%04X S=%04X (past exit)\n", cur_frame, (unsigned long long)m.call, r.d, r.s);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
             return;
         }
         /* The call's task waits: the call ends here, at the scheduler, and
@@ -2440,6 +2539,7 @@ typedef struct Ctx {
     struct Ctx *next;
 } Ctx;
 static Ctx *ctx_cur, *ctx_free;
+static uint8_t hand_via;   /* set by actor_hand_off: the opcode the loop handed control by */
 static Ctx *parked[TASK_SLOTS];
 static Ctx *aparked[ACTOR_PARKS];   /* actors' code waiting for their next turn */
 static long yields, resumes;
@@ -2661,7 +2761,15 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
                 out.pc, out.s, cpu.unwound ? " unwound" : "");
     calls_swapped++;
-    if (c->status == 3 && c->actor) {
+    if (c->status == 3 && hand_via) {
+        /* The actor loop handed control to an actor (actor_hand_off): its
+           call ended at the RTI or JMP (table,X); the actor's code goes on
+           from there, entered by that instruction. */
+        yields++;
+        ctx_abandon(c);
+        *core_opcode = hand_via;
+        hand_via = 0;
+    } else if (c->status == 3 && c->actor) {
         /* An actor yielded (at the BRK's code: parked by its record until
            the loop resumes it) or left for the actor loop (ended). */
         uint16_t rs = 0;
@@ -2681,7 +2789,13 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
            more of its code (a jump to an actor entry): nothing resumes it */
         yields++;
         ctx_abandon(c);
-        if (is_actor_entry(out.pc)) *core_opcode = 0x4C;   /* entered by its jump */
+        if (is_actor_entry(out.pc) || is_actor_loop(out.pc)) *core_opcode = 0x4C;   /* entered by its jump */
+    } else if (c->status == 3 && (out.pc == ACTOR_BRK_AT || out.pc == ACTOR_COP_AT)) {
+        /* a routine an actor's code called yielded past its exit level
+           (no piece of its actor open: the original side ends the call at
+           the same yield): nothing resumes it as C */
+        yields++;
+        ctx_abandon(c);
     } else if (c->status == 3) {
         uint8_t slot = wram[TASK_CURRENT];
         uint16_t rs = 0;
@@ -2757,10 +2871,31 @@ void actor_wait(uint32_t cop_at)
     actor_stop(cop_at, ACTOR_COP_AT);
 }
 
+/* machine.h: the actor loop hands control to an actor at pc (via the RTI's
+   or JMP (table,X)'s opcode): the loop's call ends there. */
+void actor_hand_off(uint32_t pc, uint8_t via)
+{
+    cpu.pc = pc;
+    if (machine_live) hand_via = via;
+    task_yield();
+    for (;;) {}   /* never resumed */
+}
+
 /* machine.h: an actor's code leaves for the actor loop at loop_at: the
    piece ends there and nothing resumes it. */
 void actor_leave(uint32_t loop_at)
 {
+    /* Running as an actor's piece, a routine its code called that drops
+       its return and jumps on to more of the actor's code (an @actor
+       entry: ActorFallTileTest to ActorEndPlaced) goes on in the same
+       piece, as the original's jump does: that entry's C runs on here.
+       A routine swapped in on its own (its actor's piece running as
+       original code) still ends at the jump, where the original side
+       ends its call. */
+    if (is_actor_entry(loop_at) && (machine_live ? ctx_cur && ctx_cur->actor : cur && cur->actor)) {
+        cpu.pc = loop_at;
+        jump_routine(loop_at);
+    }
     cpu.pc = loop_at;
     task_yield();
     for (;;) {}   /* never resumed */

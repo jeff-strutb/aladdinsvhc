@@ -11,6 +11,7 @@
 void abi_LongReturn(void);
 void abi_Kind94Wait(void);
 void abi_KindWaitF991(void);
+void abi_KindA1Touch(void);
 void abi_Kind49Wait(void);
 void abi_MoverEndSound(void);
 void abi_ActorWaitGrabsPlayer(void);
@@ -43,7 +44,6 @@ void abi_ChainPieceWork(void);
 #define KIND_85_WAIT_WORK 0x849628u
 #define KIND_95_WAIT_WORK 0x849EF0u
 #define KIND_96_WAIT_WORK 0x849F4Au
-#define KIND_A1_WAIT_WORK 0x84A9C7u
 #define KIND_08_WAIT_WORK 0xA5F020u
 #define KIND_21_WAIT_WORK 0xA5F3E3u
 
@@ -490,4 +490,23 @@ void abi_ActorKind87Wait(void)
 void abi_ActorKind94Wait(void)
 {
     abi_Kind94Wait();
+}
+
+/*
+ * @routine 83:940D ActorKindA1Wait
+ * WHAT IT DOES: The routine actors of kind $A1 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: the work at
+ * $84:A9C7.
+ * HOW: JSL KindA1Touch, then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as KindA1Touch leaves them (it may end the actor: never returns).
+ */
+void abi_ActorKindA1Wait(void)
+{
+    /* the JSL's return address, as KindA1Touch finds it: it drops it (and
+       the loop's) when it ends the actor */
+    jsl_frame(0x83940Du);
+    abi_KindA1Touch();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }

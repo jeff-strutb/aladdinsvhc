@@ -1565,3 +1565,29 @@ void abi_PlayerKnockback(void)
     else
         task_exec(0x81DC76u);
 }
+
+/*
+ * @routine 81:D361 PlayerCrouch
+ * WHAT IT DOES: When down is held, Aladdin crouches: he slides to a stop
+ * crouched, may throw (move $15, 24 frames), jump, or fall, and stands
+ * again when down is let go. Ground that hurts knocks him back.
+ * HOW: PAD1_DIRS bit 2 clear: back. Else its return address dropped (PLA
+ * PLA): PLAYER_BOX_WANTED 1, PlayerMoveStart 1, ACTOR_09 bit 0 set,
+ * ACTOR_ACCEL_X $28, facing from ACTOR_FLIP. Each frame (BRK first):
+ * ActorSnapToGround; ground_hurts: PlayerEnter8CLong, on at
+ * PlayerKnockback. PlayerFlipByPad; speed 0: ACTOR_ACCEL_X 0; else
+ * ActorDecelerateX and PlayerCrouchStep. PlayerAppleThrow's throw: move
+ * $15, COP $18, move 1. PlayerCrouchJump, PlayerNoGroundFall. Down still
+ * held: again; else facing from ACTOR_FLIP and on at PlayerStand.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by
+ * JSR from the player's states at their level (81:CD0D, 81:CDCC,
+ * 81:D341). Exit: down not held: A low = PAD1_DIRS, Z clear of bit 2.
+ * Else never returns.
+ */
+void abi_PlayerCrouch(void)
+{
+    uint32_t at = crouch();
+
+    if (at)
+        actor_leave(at);
+}

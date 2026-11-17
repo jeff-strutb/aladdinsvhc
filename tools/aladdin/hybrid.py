@@ -42,6 +42,8 @@ ALIAS = re.compile(r'@alias\s+([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4})')
 SPC = re.compile(r'@spc\s+([0-9A-Fa-f]{4})\b')
 USES = re.compile(r'@spcuses\s+([0-9A-Fa-f,\s-]+)')
 ACTOR = re.compile(r'@actor\b')
+ACTORLOOP = re.compile(r'@actorloop\b')
+PUSHED = re.compile(r'@pushed\s+(\d+)')
 
 
 def main(src=None, lib=None):
@@ -53,6 +55,7 @@ def main(src=None, lib=None):
         os.remove(LIB)
     files = sorted(glob.glob(os.path.join(SRC, '**', '*.c'), recursive=True))
     rows, bad, spc, uses, actors = [], [], {}, {}, []
+    loops, pushed = [], {}
     for f in files:
         text = open(f).read()
         for m in TAG.finditer(text):
@@ -80,6 +83,17 @@ def main(src=None, lib=None):
             # entered by the actor loop's jump and left at its yields (BRK).
             if ACTOR.search(head):
                 actors.append(addr)
+            # @actorloop: the actor loop's own code (docs/aladdin/ACTORS.md):
+            # its C ends where it hands control to an actor (RTI or JMP
+            # (table,X)) at the loop's level, which the checks end it at too.
+            if ACTORLOOP.search(head):
+                loops.append(addr)
+            # @pushed N: entered by a jump with N bytes the code before it
+            # pushed above its caller's return address (the actor loop's PHD,
+            # at the loop's re-entries).
+            pu = PUSHED.search(head)
+            if pu:
+                pushed[addr] = int(pu.group(1))
             for al in ALIAS.finditer(head):
                 rows.append((int(al.group(1), 16) << 16 | int(al.group(2), 16), name))
     if bad:
@@ -220,6 +234,10 @@ def main(src=None, lib=None):
         # Actors' code, entered by a jump from the actor loop (@actor).
         t.write('const uint32_t game_actor_entries[] = {%s0};\nconst int game_actor_entry_count = %d;\n'
                 % (''.join('0x%06X, ' % a for a in sorted(actors)), len(actors)))
+        t.write('const uint32_t game_actor_loops[] = {%s0};\nconst int game_actor_loop_count = %d;\n'
+                % (''.join('0x%06X, ' % a for a in sorted(loops)), len(loops)))
+        t.write('const uint32_t game_pushed[] = {%s0};\nconst int game_pushed_count = %d;\n'
+                % (''.join('0x%06X, %d, ' % (a, n) for a, n in sorted(pushed.items())), len(pushed)))
         # SPC700 code the C ends at (spc_restart, spc_boot_rom at $FFC0):
         # the checks end a call there.
         sj = sorted({int(m, 16) for f in files for m in re.findall(r'spc_restart\(0x([0-9A-Fa-f]{4})', open(f).read())}

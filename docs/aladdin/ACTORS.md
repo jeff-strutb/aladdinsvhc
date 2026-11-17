@@ -62,3 +62,33 @@ reaches the loop at its exit level. On rand_level1_1, ActorEndOutOfRange's
 214 calls are identical on A5 and the lockstep run identical; one pull
 left out, the free left out, or the other loop entry each fail both
 (2026-11-01).
+
+## Past its exit level
+
+A call may pull more than its own return address before it jumps into
+the loop: KindA1Touch ($84:A9C7), reached by JSL from its wait stub
+($83:940D), which the loop reached by JSR, pulls both (five bytes) and
+jumps to ActorEndPlaced at the loop's level. Both oracles end every call
+whose exit level S has reached or passed there, and the actor loop's own
+call where S is back at the loop's level (as at its hand-off). The C does
+the same pulls and ends in actor_leave.
+
+A call that pulls its own return address and then yields by BRK or COP
+at its exit level (PlayerCrouch, $81:D361) ends at the yield when no piece
+of its actor is open (the piece began before the run, from a loaded state,
+and runs as original code), as its C stops in actor_yield: A5 ends its
+watch there, A7 its record, and the hybrid drops its C (nothing resumes
+it as C; what follows runs as original code on both sides). Where its
+actor's piece is open it ends with the piece, as before.
+
+A C caller of a routine that drops its return address must have pushed
+that address as the original's JSR or JSL does: call_routine pushes none.
+ActorKindA1Wait ($83:940D) makes its JSL's frame with jsl_frame before
+KindA1Touch's C, and pulls it when KindA1Touch returns.
+
+A routine the actor's code called that drops its return and jumps to an
+@actor entry inside the piece (ActorFallTileTest, $83:C903, to
+ActorEndPlaced) goes on in the same piece, as the original's jump does: its
+C's actor_leave runs that entry's C on when it runs as an actor's piece.
+Swapped in on its own (the piece running as original code), its call ends
+at the jump, where the original side ends it, and a piece opens there.

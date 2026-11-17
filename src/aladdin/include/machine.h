@@ -131,6 +131,12 @@ void actor_wait(uint32_t cop_at);
    (the actor's record freed or left to the loop): the call ends there,
    with `cpu` as the original's registers at that jump. Never returns. */
 void actor_leave(uint32_t loop_at);
+/* The actor loop's code hands control to an actor at pc, where the
+   original has RTI (via $40, the RTI's pulls already made into cpu) or JMP
+   (table,X) (via $7C): the loop's call ends there, with cpu as the
+   original's registers at that instruction; the actor's own code (its C or
+   the original) goes on from it. Never returns. */
+void actor_hand_off(uint32_t pc, uint8_t via);
 
 /* The return address a JSL at `site` pushes, on the stack at S (bank 0),
    S moving down past it: for C that calls the C of a routine that can wait
