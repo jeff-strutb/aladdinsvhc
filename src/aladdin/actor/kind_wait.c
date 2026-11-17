@@ -9,6 +9,8 @@
 #include "ops65.h"
 
 void abi_LongReturn(void);
+void abi_Kind94Wait(void);
+void abi_KindWaitF991(void);
 void abi_Kind49Wait(void);
 void abi_MoverEndSound(void);
 void abi_ActorWaitGrabsPlayer(void);
@@ -460,4 +462,32 @@ void abi_ActorKind49Wait(void)
 void abi_ActorKind00Wait(void)
 {
     call_routine(KIND_00_WAIT_WORK, 1);
+}
+
+/*
+ * @routine 83:9310 ActorKind87Wait
+ * WHAT IT DOES: The routine actors of kind $87 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: KindWaitF991.
+ * HOW: JSL KindWaitF991 ($83:F991), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as KindWaitF991 leaves them.
+ */
+void abi_ActorKind87Wait(void)
+{
+    abi_KindWaitF991();
+}
+
+/*
+ * @routine 83:939A ActorKind94Wait
+ * WHAT IT DOES: The routine actors of kind $94 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind94Wait.
+ * HOW: JSL Kind94Wait ($83:FB15), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind94Wait leaves them.
+ */
+void abi_ActorKind94Wait(void)
+{
+    abi_Kind94Wait();
 }
