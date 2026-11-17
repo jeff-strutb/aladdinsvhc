@@ -212,29 +212,72 @@ static uint32_t task_resume_of(uint8_t slot, uint16_t *resume_s)
     return (uint32_t)wram[(uint16_t)(at + 3)] << 16 | (uint16_t)(lo + 1);
 }
 
-/* ---- small address -> byte map, cleared per call ---- */
+/* ---- address -> byte map, cleared per call ---- */
 
-#define MAPN (1 << 16)
-typedef struct { uint32_t key[MAPN]; uint8_t val[MAPN]; uint32_t gen[MAPN]; uint32_t g; int n; uint32_t order[MAPN]; } Map;
+/* It grows as a call touches more addresses (it is allocated at its first
+   entry and doubled when half full), so every address of the work RAM and
+   the cartridge RAM a call touches is held: a call that touches most of
+   work RAM (LevelRamSetup clears it) is judged in full. Only work RAM and
+   cartridge RAM addresses are put in a map. */
+#define MAP_CAP0 (1u << 16)
+#define MAP_CAP_MAX (1u << 20)   /* past twice every work RAM and cartridge RAM address */
+typedef struct { uint32_t *key; uint8_t *val; uint32_t *gen; uint32_t *order; uint32_t cap, g; int n; } Map;
 
 static void map_clear(Map *m) { m->g++; m->n = 0; }
 static int map_find(Map *m, uint32_t k)
 {
-    uint32_t h = (k * 2654435761u) & (MAPN - 1);
+    if (!m->cap) return -1;
+    uint32_t h = (k * 2654435761u) & (m->cap - 1);
     while (m->gen[h] == m->g) {
         if (m->key[h] == k) return (int)h;
-        h = (h + 1) & (MAPN - 1);
+        h = (h + 1) & (m->cap - 1);
     }
     return -1 - (int)h;
 }
 static int map_get(Map *m, uint32_t k, uint8_t *v) { int i = map_find(m, k); if (i < 0) return 0; *v = m->val[i]; return 1; }
-static void map_put(Map *m, uint32_t k, uint8_t v, int keep)
+static void map_alloc(Map *m, uint32_t cap)
 {
+    m->key = malloc((size_t)cap * sizeof *m->key);
+    m->val = malloc((size_t)cap);
+    m->gen = calloc(cap, sizeof *m->gen);
+    m->order = malloc((size_t)cap * sizeof *m->order);
+    if (!m->key || !m->val || !m->gen || !m->order) abort();
+    m->cap = cap;
+    if (!m->g) m->g = 1;
+}
+static void map_free(Map *m)
+{
+    free(m->key); free(m->val); free(m->gen); free(m->order);
+    memset(m, 0, sizeof *m);
+}
+/* Twice the room: the entries put again in the order they were first put. */
+static void map_grow(Map *m)
+{
+    Map o = *m;
+    map_alloc(m, o.cap * 2);
+    m->g = o.g;
+    m->n = 0;
+    for (int j = 0; j < o.n; j++) {
+        uint32_t s = o.order[j];
+        int i = -1 - map_find(m, o.key[s]);
+        m->gen[i] = m->g; m->key[i] = o.key[s]; m->val[i] = o.val[s]; m->order[m->n++] = (uint32_t)i;
+    }
+    free(o.key); free(o.val); free(o.gen); free(o.order);
+}
+/* 0 when it could not hold one more address (past MAP_CAP_MAX / 2). */
+static int map_put(Map *m, uint32_t k, uint8_t v, int keep)
+{
+    if (!m->cap) map_alloc(m, MAP_CAP0);
     int i = map_find(m, k);
-    if (i >= 0) { if (!keep) m->val[i] = v; return; }
-    if (m->n >= MAPN / 2) return;  /* a call this large is reported as overflowed */
+    if (i >= 0) { if (!keep) m->val[i] = v; return 1; }
+    if ((uint32_t)m->n >= m->cap / 2) {
+        if (m->cap >= MAP_CAP_MAX) return 0;
+        map_grow(m);
+        i = map_find(m, k);
+    }
     i = -1 - i;
     m->gen[i] = m->g; m->key[i] = k; m->val[i] = v; m->order[m->n++] = (uint32_t)i;
+    return 1;
 }
 
 typedef struct { uint32_t addr; uint8_t v; } Io;
@@ -276,12 +319,26 @@ typedef struct {
     uint16_t live_s;         /* stack above this is live (scratch below it) */
 } Watch;
 
+/* A watch given up: its maps' room, then itself. */
+static void watch_free(Watch *w)
+{
+    map_free(&w->undo); map_free(&w->orig); map_free(&w->cw);
+    free(w);
+}
+
 #define DEPTH 12
 static Watch *ws[DEPTH];
 /* A waiting task's open watches, bottom first, until it resumes. */
 static struct { int n; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5park[TASK_SLOTS];
 /* A yielded actor's watches, by its record, until the actor loop resumes it. */
 static struct { int n; uint16_t d; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5apark[ACTOR_PARKS];
+/* The watches of the actor loop's callers, from where it handed control to
+   an actor (or a wait routine it called ended its actor) until its RTL is
+   back at the call's return address (actor_loop_call); a5_loop_s: S at the
+   entry of the loop's call now running (its JSL's return above it), 0
+   when none was seen. */
+static struct { int n; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5lpark;
+static uint16_t a5_loop_s;
 static int depth;
 static Watch *cur;  /* the watch whose C is running */
 
@@ -347,7 +404,9 @@ void wr8(uint32_t addr, uint8_t value)
         return;
     }
     if (seq_on && n >> 24 == R_WRAM) io_add(&cur->cseq, (n & 0xFFFFFF) | 1u << 24, 0);
-    if (n >> 24 == R_WRAM || n >> 24 == R_GSURAM) map_put(&cur->cw, n, value, 0);
+    if (n >> 24 == R_WRAM || n >> 24 == R_GSURAM) {
+        if (!map_put(&cur->cw, n, value, 0)) cur->overflow = 1;
+    }
     /* A write to the open bus (no RAM there on this board, as the
        development recorder's at $70:0000) goes nowhere: compared with the
        original's, in its order, as a register write. */
@@ -478,12 +537,31 @@ static void *(*co_active_p)(void);
 static void *(*co_create_p)(unsigned int, void (*)(void));
 static void (*co_switch_p)(void *);
 static void (*co_delete_p)(void *);
+/* C calling the actor loop (actor_loop_call), by the coroutine it runs
+   on: where the call goes on once the loop's RTL is back at its return
+   address (resume, with S resume_s), after the loop handed control to an
+   actor or a wait routine ended its actor (the C then waits in
+   actor_hand_off or actor_leave). */
+#define LOOP_CALLS 64
+static struct { void *co; jmp_buf *back; uint32_t resume; uint16_t resume_s; } loop_calls[LOOP_CALLS];
+static int loop_call_of(void *co)
+{
+    for (int i = 0; i < LOOP_CALLS; i++) if (loop_calls[i].co == co && loop_calls[i].back) return i;
+    return -1;
+}
+/* A coroutine starting a call afresh holds no loop call (one it held ended
+   when its C was abandoned or stopped). */
+static void loop_calls_clear(void *co)
+{
+    for (int i = 0; i < LOOP_CALLS; i++) if (loop_calls[i].co == co) { loop_calls[i].co = NULL; loop_calls[i].back = NULL; }
+}
 static Watch *a5_w;
 static void *a5_t0;
 static void a5_main(void)
 {
     for (;;) {
         Watch *w = a5_w;
+        loop_calls_clear(co_active_p());
         if (setjmp(w->abort) == 0) routines[w->idx].abi();
         w->c_state = 1;
         co_switch_p(a5_t0);
@@ -640,20 +718,26 @@ static void on_insn(uint32_t pc)
             if (!have) { core_regs(&r); have = 1; }
             if (r.s == ws[i]->irq_s) ws[i]->in_irq = 0;
         }
+    if (prev_op == 0x22 && is_actor_loop(pc)) {
+        if (!have) { core_regs(&r); have = 1; }
+        a5_loop_s = r.s;
+    }
     /* The actor loop hands control to an actor (its RTI, or JMP
        (table,X) by kind) at the loop's level: the loop's watch is judged up
        to here, as a C that stopped in actor_hand_off; the actor's piece
-       opens below, at this same instruction. */
-    if (depth && (prev_op == 0x40 || prev_op == 0x7C)) {
+       opens below, at this same instruction. Every watch of the loop's own
+       code open at that level ends here: a re-entry's code runs on into
+       another entry's (ActorLoopBack's into ActorLoopNext's, which opens a
+       watch of its own above it), and the C of each stops at this
+       hand-off. */
+    while (depth && (prev_op == 0x40 || prev_op == 0x7C)) {
         Watch *t = ws[depth - 1];
-        if (!t->in_irq && !t->actor) {
-            if (!have) { core_regs(&r); have = 1; }
-            if (loop_hands_off(routines[t->idx].addr, prev_op, r.s, t->exit_s)) {
-                finish_piece(t, 2);
-                a5_drop(t);
-                depth--;
-            }
-        }
+        if (t->in_irq || t->actor) break;
+        if (!have) { core_regs(&r); have = 1; }
+        if (!loop_hands_off(routines[t->idx].addr, prev_op, r.s, t->exit_s)) break;
+        finish_piece(t, 2);
+        a5_drop(t);
+        depth--;
     }
     /* A routine the actor's code called ends the actor: it pulled its own
        return address and jumps into the actor loop at its exit level (the
@@ -670,6 +754,40 @@ static void on_insn(uint32_t pc)
             finish_piece(ws[depth - 1], 2);
             a5_drop(ws[depth - 1]);
             depth--;
+        }
+    }
+    /* The actor loop, called by JSL, hands control to an actor at its own
+       level, or a wait routine it called ends its actor by jumping back
+       into it there: its callers' watches (those whose exit level is above
+       the loop's return) are judged up to here, as a C that waits in
+       actor_loop_call, and parked until the loop's RTL is back at its
+       return address. */
+    if (depth && a5_loop_s && (prev_op == 0x40 || prev_op == 0x7C
+                               || ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && is_jump_op(prev_op)))) {
+        if (!have) { core_regs(&r); have = 1; }
+        uint16_t back_s = (uint16_t)(a5_loop_s + 3);
+        int k = 0;
+        if (r.s == (uint16_t)(a5_loop_s - 2))
+            while (k < depth && !ws[k]->actor && !ws[k]->in_irq && ws[k]->exit_s > back_s) k++;
+        if (k) {
+            for (int i = 0; i < a5lpark.n; i++) {
+                a5_drop(a5lpark.w[i]);
+                if (a5lpark.w[i]->co) co_delete_p(a5lpark.w[i]->co);
+                watch_free(a5lpark.w[i]);
+            }
+            a5lpark.n = 0;
+            /* (watches above them, none expected here, stay open, moved
+               down the stack) */
+            Watch *rest[DEPTH];
+            int n = 0;
+            for (int i = k - 1; i >= 0; i--) finish_piece(ws[i], 2);
+            for (int i = 0; i < k; i++) { a5lpark.w[a5lpark.n++] = ws[i]; ws[i] = NULL; }
+            for (int i = k; i < depth; i++) { rest[n++] = ws[i]; ws[i] = NULL; }
+            for (int i = 0; i < n; i++) ws[i] = rest[i];
+            depth = n;
+            a5lpark.resume = (uint32_t)wram[(uint16_t)(a5_loop_s + 3)] << 16
+                             | (uint16_t)((wram[(uint16_t)(a5_loop_s + 1)] | wram[(uint16_t)(a5_loop_s + 2)] << 8) + 1);
+            a5lpark.resume_s = back_s;
         }
     }
     /* An actor yields (just after its BRK) or leaves its code for the
@@ -705,7 +823,7 @@ static void on_insn(uint32_t pc)
                         for (int i = 0; i < a5apark[k].n; i++) {
                             a5_drop(a5apark[k].w[i]);
                             if (a5apark[k].w[i]->co) co_delete_p(a5apark[k].w[i]->co);
-                            free(a5apark[k].w[i]);
+                            watch_free(a5apark[k].w[i]);
                         }
                         a5apark[k].n = 0;
                     }
@@ -728,8 +846,8 @@ static void on_insn(uint32_t pc)
             if (!a5apark[k].n || a5apark[k].d != r.d || pc != a5apark[k].resume || r.s != a5apark[k].resume_s) continue;
             for (int i = 0; i < a5apark[k].n; i++) {
                 Watch *w = a5apark[k].w[i];
-                if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); free(w); continue; }
-                if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); free(ws[depth]); }
+                if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); watch_free(w); continue; }
+                if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); watch_free(ws[depth]); }
                 ws[depth++] = w;
                 w->entry = r;
                 w->live_s = r.s;
@@ -761,7 +879,7 @@ static void on_insn(uint32_t pc)
                 for (int i = 0; i < a5park[t].n; i++) {
                     a5_drop(a5park[t].w[i]);
                     if (a5park[t].w[i]->co) co_delete_p(a5park[t].w[i]->co);
-                    free(a5park[t].w[i]);
+                    watch_free(a5park[t].w[i]);
                 }
                 a5park[t].n = 0;
                 for (int i = 0; i < depth; i++) { a5park[t].w[a5park[t].n++] = ws[i]; ws[i] = NULL; }
@@ -782,8 +900,8 @@ static void on_insn(uint32_t pc)
             if (r.s == a5park[t].resume_s) {
                 for (int i = 0; i < a5park[t].n; i++) {
                     Watch *w = a5park[t].w[i];
-                    if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); free(w); continue; }
-                    if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); free(ws[depth]); }
+                    if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); watch_free(w); continue; }
+                    if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); watch_free(ws[depth]); }
                     ws[depth++] = w;
                     w->entry = r;
                     w->live_s = r.s;
@@ -822,6 +940,30 @@ static void on_insn(uint32_t pc)
         if ((pc == t->ret_pc && r.s == t->exit_s)
             || ((r.s > t->exit_s || (r.s == t->exit_s && !t->actor)) && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
         else break;
+    }
+    /* The actor loop's RTL is back at the return address of a call whose
+       callers' watches are parked (after the watch of the loop's code that
+       returned has ended, above): they open again, each for its next piece,
+       from here, as a C that goes on from actor_loop_call. */
+    if (a5lpark.n && prev_op == 0x6B && pc == a5lpark.resume) {
+        if (!have) { core_regs(&r); have = 1; }
+        if (r.s == a5lpark.resume_s) {
+            for (int i = 0; i < a5lpark.n; i++) {
+                Watch *w = a5lpark.w[i];
+                if (depth == DEPTH) { a5_drop(w); if (w->co) co_delete_p(w->co); watch_free(w); continue; }
+                if (ws[depth]) { if (ws[depth]->co) co_delete_p(ws[depth]->co); watch_free(ws[depth]); }
+                ws[depth++] = w;
+                w->entry = r;
+                w->live_s = r.s;
+                w->resumed = 1;
+                w->in_irq = w->interrupted = w->dma = w->gsu = w->needs_asm = w->overflow = 0;
+                w->stack_reset = 0;
+                map_clear(&w->undo); map_clear(&w->orig);
+                w->oread.n = w->owrite.n = w->oseq.n = 0;
+            }
+            a5lpark.n = 0;
+            a5_loop_s = 0;
+        }
     }
     if (!(watched[pc >> 3] >> (pc & 7) & 1)) return;
     int idx = -1;
@@ -874,10 +1016,10 @@ static void on_write(uint32_t addr, uint8_t data, int kind)
     uint8_t *p = ram ? phys(n) : NULL;
     for (int i = 0; i < depth; i++) {
         Watch *w = ws[i];
-        if (p) { map_put(&w->undo, n, *p, 1); if (w->undo.n >= MAPN / 2) w->overflow = 1; }
+        if (p && !map_put(&w->undo, n, *p, 1)) w->overflow = 1;
         if (kind == 2) { w->dma = 1; continue; }
         if (w->in_irq) continue;
-        if (ram) { map_put(&w->orig, n, data, 0); if (w->orig.n >= MAPN / 2) w->overflow = 1; }
+        if (ram && !map_put(&w->orig, n, data, 0)) w->overflow = 1;
         if (seq_on && n >> 24 == R_WRAM) io_add(&w->oseq, (n & 0xFFFFFF) | 1u << 24, 0);
         else if (n >> 24 == R_IO) {
             io_add(&w->owrite, addr & 0xFFFF, data);
@@ -1261,6 +1403,21 @@ static struct {
    under its record (D) until the actor loop resumes it, as a record of
    its own, there. */
 static struct { int valid; uint16_t d, resume_s, entry_s; uint32_t resume, pc; } aopark[ACTOR_PARKS];
+/* Original side: a record whose routine called the actor loop (the loop's
+   entry open as a level inside it, not the loop's own record) ends where
+   the loop hands control to an actor at the loop's level, or where a wait
+   routine the loop called ends its actor by jumping back into the loop at
+   that level; it is parked until the loop's RTL lands at that call's return
+   address with S back at its level, and goes on there as a record of its
+   own (the hybrid's C waits in actor_loop_call the same way). */
+static struct {
+    int valid, noreturn, depth, exit_calls;
+    uint32_t resume, ret_pc, pc;
+    uint16_t resume_s, exit_s, entry_s;
+    uint16_t open[64];
+    uint32_t open_pc[64];
+} lopark;
+
 static int aopark_find(uint16_t d)
 {
     for (int i = 0; i < ACTOR_PARKS; i++) if (aopark[i].valid && aopark[i].d == d) return i;
@@ -1282,6 +1439,25 @@ static void ls_op(uint8_t op, uint32_t addr);
    write has not landed yet. */
 static uint16_t insn_s;
 static void o_open(uint32_t pc, struct SnesboxRegs *rp);
+
+/* A parked caller of the actor loop goes on (lopark): the loop's RTL is
+   back at its return address with its S. Taken where the loop's own record
+   ended at that RTL (by the opcode before an interrupt taken just after it,
+   whose RTI lands there too), or with no record open. */
+static void lopark_resume(uint32_t pc, struct SnesboxRegs *r)
+{
+    uint32_t keep = ls_noreturn_pc;
+    lopark.valid = 0;
+    o_open(pc, r);
+    ls_noreturn_pc = keep;
+    m.ret_pc = lopark.ret_pc; m.exit_s = lopark.exit_s; m.entry_s = lopark.entry_s;
+    m_pc = lopark.pc; m.noreturn = lopark.noreturn; m.depth = lopark.depth;
+    m.exit_calls = lopark.exit_calls;
+    memcpy(m.open, lopark.open, sizeof m.open);
+    memcpy(m.open_pc, lopark.open_pc, sizeof m.open_pc);
+    if (calls_from >= 0 && cur_frame >= calls_from)
+        fprintf(stderr, "OLOOPBACK frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r->s);
+}
 
 static void ls_insn(uint32_t pc)
 {
@@ -1309,6 +1485,31 @@ static void ls_insn(uint32_t pc)
             m.active = 0;
             m.irq_resumed = 0;
             goto not_active;
+        }
+        if (!m.actor && !is_actor_loop(m_pc)) {
+            uint8_t via = m.irq_resumed ? m.pre_irq_op : *core_opcode;
+            int lv = -1;
+            if (via == 0x40 || via == 0x7C || ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && is_jump_op(via)))
+                for (int i = 0; i < m.depth; i++)
+                    if (is_actor_loop(m.open_pc[i]) && r.s == (uint16_t)(m.open[i] - 2)) { lv = i; break; }
+            if (lv >= 0) {
+                uint16_t at = m.open[lv];   /* the loop's entry S: its JSL's return above */
+                if (calls_from >= 0 && cur_frame >= calls_from)
+                    fprintf(stderr, "OLOOPWAIT frame %ld call %llu to %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+                lopark.valid = 1;
+                lopark.resume = (uint32_t)wram[(uint16_t)(at + 3)] << 16
+                                | (uint16_t)((wram[(uint16_t)(at + 1)] | wram[(uint16_t)(at + 2)] << 8) + 1);
+                lopark.resume_s = (uint16_t)(at + 3);
+                lopark.ret_pc = m.ret_pc; lopark.exit_s = m.exit_s; lopark.entry_s = m.entry_s;
+                lopark.pc = m_pc; lopark.noreturn = m.noreturn; lopark.depth = lv;
+                lopark.exit_calls = m.exit_calls;
+                memcpy(lopark.open, m.open, sizeof m.open);
+                memcpy(lopark.open_pc, m.open_pc, sizeof m.open_pc);
+                STORE(sh->calls[m.call % CALLRING].done, 1);
+                m.active = 0;
+                m.irq_resumed = 0;
+                goto not_active;
+            }
         }
         /* An actor's piece ends at its yield (just after its BRK), parked
            under its record for its next turn, or where it leaves its code
@@ -1435,6 +1636,9 @@ static void ls_insn(uint32_t pc)
             STORE(sh->calls[m.call % CALLRING].done, 1);
             m.active = 0;
             m.irq_resumed = 0;
+            /* the actor loop's re-entry returning by its RTL to a parked
+               caller: that caller's record goes on from here */
+            if (lopark.valid && prev == 0x6B && pc == lopark.resume && r.s == lopark.resume_s) lopark_resume(pc, &r);
             return;
         }
     not_end:
@@ -1498,6 +1702,10 @@ static void ls_insn(uint32_t pc)
         return;
     }
 not_active:
+    if (lopark.valid && *core_opcode == 0x6B && pc == lopark.resume) {
+        struct SnesboxRegs r; core_regs(&r);
+        if (r.s == lopark.resume_s) { lopark_resume(pc, &r); return; }
+    }
     if (*core_opcode == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS
         && opark[wram[TASK_CURRENT] / 0x18].valid && pc == opark[wram[TASK_CURRENT] / 0x18].resume) {
         struct SnesboxRegs r; core_regs(&r);
@@ -2549,6 +2757,7 @@ static Ctx *ctx_cur, *ctx_free;
 static uint8_t hand_via;   /* set by actor_hand_off: the opcode the loop handed control by */
 static Ctx *parked[TASK_SLOTS];
 static Ctx *aparked[ACTOR_PARKS];   /* actors' code waiting for their next turn */
+static Ctx *lparked;                 /* C waiting in its call of the actor loop (actor_loop_call) */
 static long yields, resumes;
 
 static void ctx_main(void)
@@ -2556,6 +2765,7 @@ static void ctx_main(void)
     for (;;) {
         Ctx *c = ctx_cur;
         ls_escape = &c->escape;
+        loop_calls_clear(c->co);
         if (setjmp(c->escape) == 0) {
             ls_escape_set = 1;
             routines[c->idx].abi();
@@ -2672,6 +2882,31 @@ static int ls_exec(uint32_t pc)
             }
         }
     }
+    /* C that called the actor loop goes on where the loop's RTL lands at
+       its return address, with S back at the caller's level. */
+    if (lparked && *core_opcode == 0x6B && pc == lparked->resume) {
+        core_regs(&r);
+        if (r.s == lparked->resume_s) {
+            Ctx *c = lparked;
+            lparked = NULL;
+            resumes++;
+            ls_cur_name = c->name;
+            ls_entry_pc = c->entry_pc;
+            ls_unit_noreturn = c->unit_noreturn;
+            ls_take_record(c->name);
+            cpu.a = r.a; cpu.x = r.x; cpu.y = r.y; cpu.s = r.s; cpu.d = r.d; cpu.db = r.db; cpu.p = r.p; cpu.e = r.e; cpu.pc = r.pc;
+            cpu.unwound = 0;
+            ls_exit_s = c->exit_s;
+            ls_ret = c->ret;
+            cyc_n = 0; cyc_over = 0; cyc_last = -1; cyc_said = 0;
+            ls_left_at = -1;
+            machine_live = 1;
+            ls_escape = &c->escape;
+            ls_escape_set = 1;
+            ctx_run(c);
+            return ls_finish(c, r, c->exit_s, c->ret, c->entry_s);
+        }
+    }
     /* A parked actor goes on where the actor loop's RTI resumes it. */
     if (*core_opcode == 0x40) {
         core_regs(&r);
@@ -2762,13 +2997,30 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
        the JSR or JSL that entered it: an entry right after the call (a
        routine's inner entry, 7E:E4E4 after JSR ColourBlendBy) must not be
        taken as entered by that JSR. */
+    /* (a routine entered with bytes pushed above its caller's return,
+       @pushed, returns past them: its RTL is still an RTL) */
     if (!cpu.unwound || cpu.s == exit_s)
-        *core_opcode = (uint8_t)(exit_s - entry_s == 3 ? 0x6B : 0x60);
+        *core_opcode = (uint8_t)(exit_s - entry_s - pushed_of(c->entry_pc) == 3 ? 0x6B : 0x60);
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
                 out.pc, out.s, cpu.unwound ? " unwound" : "");
     calls_swapped++;
-    if (c->status == 3 && hand_via) {
+    int lc = c->status == 3 ? loop_call_of(c->co) : -1;
+    if (lc >= 0) {
+        /* Its C called the actor loop, which handed control to an actor
+           (or a wait routine it called ended its actor, jumping back into
+           the loop): the call waits there, parked until the loop's RTL is
+           back at the call's return address (ls_exec). The actor's code
+           or the loop's re-entry goes on from this same instruction. */
+        yields++;
+        if (lparked) ctx_abandon(lparked);
+        c->resume = loop_calls[lc].resume;
+        c->resume_s = loop_calls[lc].resume_s;
+        lparked = c;
+        if (hand_via) *core_opcode = hand_via;
+        else if (is_actor_entry(out.pc) || is_actor_loop(out.pc)) *core_opcode = 0x4C;
+        hand_via = 0;
+    } else if (c->status == 3 && hand_via) {
         /* The actor loop handed control to an actor (actor_hand_off): its
            call ended at the RTI or JMP (table,X); the actor's code goes on
            from there, entered by that instruction. */
@@ -2884,14 +3136,50 @@ void actor_wait(uint32_t cop_at)
     actor_stop(cop_at, ACTOR_COP_AT);
 }
 
+static void loop_call_back(void);
 /* machine.h: the actor loop hands control to an actor at pc (via the RTI's
-   or JMP (table,X)'s opcode): the loop's call ends there. */
+   or JMP (table,X)'s opcode): the loop's call ends there (C's call of the
+   loop waits there: actor_loop_call). */
 void actor_hand_off(uint32_t pc, uint8_t via)
 {
     cpu.pc = pc;
     if (machine_live) hand_via = via;
     task_yield();
+    loop_call_back();
     for (;;) {}   /* never resumed */
+}
+
+/* Resumed inside C's call to the actor loop (actor_loop_call): the loop's
+   RTL is back at its return address; that call returns. */
+static void loop_call_back(void)
+{
+    int i = loop_call_of(co_active_p());
+    if (i >= 0) longjmp(*loop_calls[i].back, 1);
+}
+
+/* machine.h: C's JSL at site into the actor loop's C. */
+void actor_loop_call(uint32_t site, void (*loop)(void))
+{
+    uint32_t back = (site & 0xFF0000) | (uint16_t)(site + 3);
+    void *co = co_active_p();
+    jmp_buf jb;
+    int i = loop_call_of(co);
+    if (i < 0) for (i = 0; i < LOOP_CALLS && loop_calls[i].back; i++) {}
+    if (i >= LOOP_CALLS) { fprintf(stderr, "actor_loop_call: more than %d C calls of the actor loop waiting\n", LOOP_CALLS); _exit(8); }
+    loop_calls[i].co = co;
+    loop_calls[i].resume = (site & 0xFF0000) | (uint16_t)(site + 4);
+    loop_calls[i].resume_s = cpu.s;
+    wr8(cpu.s, (uint8_t)(back >> 16)); cpu.s--;
+    wr8(cpu.s, (uint8_t)(back >> 8)); cpu.s--;
+    wr8(cpu.s, (uint8_t)back); cpu.s--;
+    if (setjmp(jb) == 0) {
+        loop_calls[i].back = &jb;
+        loop();
+        cpu.s = (uint16_t)(cpu.s + 3);   /* its RTL */
+    }
+    /* else: resumed where the loop's RTL landed, cpu from the machine */
+    loop_calls[i].co = NULL;
+    loop_calls[i].back = NULL;
 }
 
 /* machine.h: an actor's code leaves for the actor loop at loop_at: the
@@ -2911,6 +3199,7 @@ void actor_leave(uint32_t loop_at)
     }
     cpu.pc = loop_at;
     task_yield();
+    loop_call_back();
     for (;;) {}   /* never resumed */
 }
 

@@ -93,6 +93,40 @@ C's actor_leave runs that entry's C on when it runs as an actor's piece.
 Swapped in on its own (the piece running as original code), its call ends
 at the jump, where the original side ends it, and a piece opens there.
 
+## C that calls the actor loop
+
+FrameStep ($81:8311) calls PlayerLoop and ActorLoop by JSL. The loop's C
+ends where it hands control to an actor, so C that calls it cannot simply
+go on: it calls the loop through `actor_loop_call(site, loop)`, which
+pushes the JSL's return address and runs the loop's C. When the loop hands
+control to an actor (or a wait routine it called ends its actor by jumping
+back into the loop at the loop's level), the calling C waits there, as a
+task's C waits in task_yield. It goes on from that call when the loop's
+RTL lands at the JSL's return address with S back at the caller's level,
+with the machine's registers there. A loop that hands control to no actor
+returns as its RTL would. Callers above FrameStep push their own return
+addresses (call_frame, jsl_frame), as for any call that can wait.
+
+The oracles cut the caller where the C waits:
+
+- **A7, original side.** A record whose routine has the loop's entry open
+  inside it ends at the hand-off (the loop's RTI or JMP (table,X) at the
+  loop's level, its entry S less the PHD's 2) or at that jump back into
+  the loop; it is parked with the loop call's return address and level.
+  When the loop's RTL lands there, the record goes on as one of its own.
+  Meanwhile the actors' pieces and the loop's re-entries have records of
+  their own, as when the loop is called from original code.
+- **A7, hybrid side.** The C's coroutine is parked at the same place and
+  goes on at the same RTL; the next record opens at the same instruction
+  on both sides. A C re-entry entered with bytes pushed above its caller's
+  return (@pushed) that returns by RTL counts as an RTL there.
+- **A5.** At the same places, the watches of the loop's callers (their
+  exit level above the loop's return) are judged up to there, the C
+  stopped in actor_hand_off or actor_leave, and parked; when the loop's
+  RTL lands at its return address with that S (after the watch of the
+  loop's code that returned has ended), they open again for their next
+  piece.
+
 ## Entered by the loop's RTI at another entry
 
 An actor's code may rewrite its record's resume address to another of its

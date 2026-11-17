@@ -137,6 +137,15 @@ void actor_leave(uint32_t loop_at);
    original's registers at that instruction; the actor's own code (its C or
    the original) goes on from it. Never returns. */
 void actor_hand_off(uint32_t pc, uint8_t via);
+/* A JSL at `site` into the actor loop's C `loop` (PlayerLoop, ActorLoop),
+   from C: the JSL's return address is pushed as the JSL pushes it. When
+   the loop hands control to an actor (or a wait routine it called ends
+   its actor by jumping back into the loop), the calling C waits there,
+   and goes on from this call when the loop's RTL lands at the JSL's
+   return address with S back at the caller's level, `cpu` then holding
+   the machine's registers there. A loop that hands control to no actor
+   returns here as its RTL would, the return address pulled. */
+void actor_loop_call(uint32_t site, void (*loop)(void));
 
 /* The return address a JSL at `site` pushes, on the stack at S (bank 0),
    S moving down past it: for C that calls the C of a routine that can wait
