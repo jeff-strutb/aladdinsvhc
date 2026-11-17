@@ -27,7 +27,7 @@ parallel and merges the results per routine:
 Verdicts are written to config/aladdin/t3_live.csv with the date and the
 source revision they were measured on. Only IDENTICAL passes.
 """
-import concurrent.futures, csv, datetime, functools, glob, hashlib, json, os, subprocess, sys
+import atexit, concurrent.futures, csv, datetime, functools, glob, hashlib, json, os, signal, subprocess, sys, threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 B = os.path.join(ROOT, 'build', 'aladdin')
@@ -60,8 +60,57 @@ STUCK = 420
 A5_STUCK = 1200
 
 
+# Each snesbox runs as the leader of its own process group: the lockstep
+# forks its second side, which a timeout must stop too (killing only the
+# process started left the other side running on, with the gate's cores).
+# A gate stopped from outside stops the groups it started.
+_groups, _groups_lock = set(), threading.Lock()
+
+
+def _kill_group(pgid):
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _kill_all_groups(*sig):
+    with _groups_lock:
+        for g in list(_groups):
+            _kill_group(g)
+    if sig:
+        # stopped from outside: at once, so no worker thread starts another run
+        os._exit(128 + sig[0])
+
+
+atexit.register(_kill_all_groups)
+if threading.current_thread() is threading.main_thread():
+    signal.signal(signal.SIGTERM, _kill_all_groups)
+
+
+def run_group(cmd, timeout):
+    """subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT,
+    timeout=timeout), with cmd and everything it forks in a process group
+    of its own that is killed whole when the run ends or times out."""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=ROOT,
+                         start_new_session=True)
+    with _groups_lock:
+        _groups.add(p.pid)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _kill_group(p.pid)
+        p.communicate()
+        raise
+    finally:
+        _kill_group(p.pid)
+        with _groups_lock:
+            _groups.discard(p.pid)
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
 def run(cmd, timeout=STUCK):
-    p = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, timeout=timeout)  # stuck: fails
+    p = run_group(cmd, timeout)  # stuck: fails
     if p.returncode:
         sys.stderr.write(p.stdout + p.stderr)
         raise SystemExit('failed: %s' % ' '.join(cmd))
@@ -410,8 +459,8 @@ def image_one(script):
     # One still running after STUCK seconds is stuck (a side waiting on the
     # other), and fails.
     try:
-        p = subprocess.run([SNESBOX, '--rom', os.path.join(B, 'baserom.sfc'), '--script', script, '--out', d, '--lockstep', LIB],
-                           capture_output=True, text=True, cwd=ROOT, timeout=STUCK)
+        p = run_group([SNESBOX, '--rom', os.path.join(B, 'baserom.sfc'), '--script', script, '--out', d, '--lockstep', LIB],
+                      STUCK)
     except subprocess.TimeoutExpired:
         return name, ['stopped (no result after %ds): FAILED' % STUCK]
     lines = open(rep).read().splitlines() if os.path.exists(rep) else []
