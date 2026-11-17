@@ -1,0 +1,19 @@
+# Actor kind $A0, the ledge that gives way ($84:A8E0): Aladdin dropped on
+# it ($84:A90C on: 32 frames, then it falls, $84:A922). Level $0A as in
+# cov_climb_top.box, with Aladdin then placed at x $01F0, y $0080, above
+# the ledge at x $01F0, y $0090 ($100B). He leaves it as it falls, so
+# carrying him down ($84:A942-A94D, A956-A966) is not met here.
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 90,00
+poke 0008EA 70,00
+wait 30
+poke 001773 00,01
+poke 0019E5 00,01
+poke 0008E7 80,01
+wait 30
+poke 0008E7 F0,01
+poke 0008EA 80,00
+wait 150
