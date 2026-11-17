@@ -51,6 +51,7 @@ void abi_PlayerCarpet(void);
 void abi_PlayerCarpetSteer(void);
 void abi_PlayerCarpetWallHurt(void);
 void abi_PlayerCarpetCrash(void);
+static int wall_hurt(void);
 
 #define PAD1_DIRS 0x0380u           /* pad 1's high byte: its low 4 bits Up Down Left Right */
 #define TILE_BITS 0x0012u           /* the last probed tile's behaviour (bit 5: it hurts) */
@@ -274,8 +275,16 @@ void abi_PlayerCarpet(void)
         if (first_ride()) {
             v = ldd(ACTOR_X + 2);
             cmp8_of(v, 0x1E);
-            if (v < 0x1E)
-                call_frame(0xE4AF, abi_PlayerCarpetWallHurt);
+            if (v < 0x1E) {
+                /* the JSR's return address pushed; a hurt drops it and the
+                   ride goes on at the crash, in this same actor code */
+                push16(0xE4AF);
+                if (wall_hurt()) {
+                    abi_PlayerCarpetCrash();
+                    return;
+                }
+                cpu.s = (uint16_t)(cpu.s + 2);
+            }
         }
         v = (uint8_t)(ld(PAD1_DIRS) & 0x0F);
         a8_load(v);
@@ -347,6 +356,29 @@ void abi_PlayerCarpetSteer(void)
     abi_PlayerCarpet();
 }
 
+/* PlayerCarpetWallHurt's work: 1 when it hurt (its return address
+   pulled, the crash next), else 0. */
+static int wall_hurt(void)
+{
+    uint8_t v;
+
+    abi_ActorOutOfWalls();
+    v = ldd(ACTOR_08);
+    if (v & 0x80)
+        return 0;
+    flag_set(P_Z, !(v & 0x10));
+    if (v & 0x10)
+        return 0;
+    v = ld(TILE_BITS);
+    flag_set(P_Z, !(v & 0x20));
+    if (!(v & 0x20))
+        return 0;
+    abi_PlayerEnter8CLong();
+    pla8();                               /* its own return dropped */
+    pla8();
+    return 1;
+}
+
 /*
  * @routine 81:E713 PlayerCarpetWallHurt
  * WHAT IT DOES: The carpet out of a wall in front; when the ground last
@@ -360,23 +392,8 @@ void abi_PlayerCarpetSteer(void)
  */
 void abi_PlayerCarpetWallHurt(void)
 {
-    uint8_t v;
-
-    abi_ActorOutOfWalls();
-    v = ldd(ACTOR_08);
-    if (v & 0x80)
-        return;
-    flag_set(P_Z, !(v & 0x10));
-    if (v & 0x10)
-        return;
-    v = ld(TILE_BITS);
-    flag_set(P_Z, !(v & 0x20));
-    if (!(v & 0x20))
-        return;
-    abi_PlayerEnter8CLong();
-    pla8();                               /* its own return dropped */
-    pla8();
-    actor_leave(0x81E7E9u);               /* PlayerCarpetCrash */
+    if (wall_hurt())
+        actor_leave(0x81E7E9u);           /* PlayerCarpetCrash */
 }
 
 /*

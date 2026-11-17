@@ -43,6 +43,31 @@ static int ground_hurts(void)
 
 
 
+/* Each test's work below, apart from its abi_ entry: 0 when it returns,
+   else PLAYER_CODE, where the player's code goes on, with the return
+   addresses it drops already pulled. The player's states (player_states.c)
+   call these and go on at PlayerKnockback in their own C, as the original
+   goes on there by the jump within the same actor code; only the test's
+   own call (abi_) ends at the jump. */
+uint32_t ground_snap_hurt(void)
+{
+    uint8_t on = rd8(dba((uint16_t)V_1428));
+
+    a8_load(on);
+    if (on) {
+        a8_load(0x01);
+        wr8(dba(V_0013), 0x01);
+        return 0;
+    }
+    abi_ActorSnapToGround();
+    if (!ground_hurts())
+        return 0;
+    abi_PlayerEnter8CLong();
+    pla8();                               /* its own return dropped */
+    pla8();
+    return PLAYER_CODE;
+}
+
 /*
  * @routine 81:DCBC PlayerGroundSnapHurt
  * WHAT IT DOES: Stands Aladdin on the ground just under him, and when that
@@ -59,21 +84,19 @@ static int ground_hurts(void)
  */
 void abi_PlayerGroundSnapHurt(void)
 {
-    uint8_t on = rd8(dba((uint16_t)V_1428));
+    if (ground_snap_hurt())
+        actor_leave(PLAYER_CODE);
+}
 
-    a8_load(on);
-    if (on) {
-        a8_load(0x01);
-        wr8(dba(V_0013), 0x01);
-        return;
-    }
-    abi_ActorSnapToGround();
+uint32_t out_of_walls_hurt(void)
+{
+    abi_ActorOutOfWalls();
     if (!ground_hurts())
-        return;
+        return 0;
     abi_PlayerEnter8CLong();
     pla8();                               /* its own return dropped */
     pla8();
-    actor_leave(PLAYER_CODE);
+    return PLAYER_CODE;
 }
 
 /*
@@ -91,13 +114,20 @@ void abi_PlayerGroundSnapHurt(void)
  */
 void abi_PlayerOutOfWallsHurt(void)
 {
-    abi_ActorOutOfWalls();
+    if (out_of_walls_hurt())
+        actor_leave(PLAYER_CODE);
+}
+
+uint32_t ground_hurt_test(void)
+{
     if (!ground_hurts())
-        return;
+        return 0;
     abi_PlayerEnter8CLong();
-    pla8();                               /* its own return dropped */
+    pla8();                               /* its own return and its caller's dropped */
     pla8();
-    actor_leave(PLAYER_CODE);
+    pla8();
+    pla8();
+    return PLAYER_CODE;
 }
 
 /*
@@ -114,14 +144,48 @@ void abi_PlayerOutOfWallsHurt(void)
  */
 void abi_PlayerGroundHurtTest(void)
 {
-    if (!ground_hurts())
-        return;
-    abi_PlayerEnter8CLong();
-    pla8();                               /* its own return and its caller's dropped */
-    pla8();
-    pla8();
-    pla8();
-    actor_leave(PLAYER_CODE);
+    if (ground_hurt_test())
+        actor_leave(PLAYER_CODE);
+}
+
+uint32_t land_or_hurt(void)
+{
+    uint8_t v;
+
+    a8_load(0x1C);
+    wr8(dpa(ACTOR_PROBE_AT), 0x1C);
+    abi_GroundInFrontLong();
+    if (cpu.p & P_C) {
+        v = rd8(dba(TILE_BEHAVIOUR));
+        a8_load(v);
+        flag_set(P_Z, !(v & TILE_THROUGH));
+        if (v & TILE_THROUGH) {
+            a8_load(0x00);
+            return 0;
+        }
+    }
+    abi_ActorSettleOnFloor();
+    if (cpu.p & P_Z)
+        return 0;
+    v = rd8(dpa(ACTOR_08));
+    a8_load(v);
+    if (v & 0x80)
+        return 0;
+    v = rd8(dba(TILE_BEHAVIOUR));
+    a8_load(v);
+    flag_set(P_Z, !(v & TILE_HURTS));
+    if (v & TILE_HURTS) {
+        abi_PlayerEnter8CLong();
+        pla8();                           /* its own return and its caller's dropped */
+        pla8();
+        pla8();
+        pla8();
+        return PLAYER_CODE;
+    }
+    wr8(dpa(ACTOR_SPEED_Y), 0);
+    wr8(dpa(ACTOR_SPEED_Y + 1), 0);
+    a8_load(0x01);
+    return 0;
 }
 
 /*
@@ -144,42 +208,18 @@ void abi_PlayerGroundHurtTest(void)
  */
 void abi_PlayerLandOrHurt(void)
 {
-    uint8_t v;
-
-    a8_load(0x1C);
-    wr8(dpa(ACTOR_PROBE_AT), 0x1C);
-    abi_GroundInFrontLong();
-    if (cpu.p & P_C) {
-        v = rd8(dba(TILE_BEHAVIOUR));
-        a8_load(v);
-        flag_set(P_Z, !(v & TILE_THROUGH));
-        if (v & TILE_THROUGH) {
-            a8_load(0x00);
-            return;
-        }
-    }
-    abi_ActorSettleOnFloor();
-    if (cpu.p & P_Z)
-        return;
-    v = rd8(dpa(ACTOR_08));
-    a8_load(v);
-    if (v & 0x80)
-        return;
-    v = rd8(dba(TILE_BEHAVIOUR));
-    a8_load(v);
-    flag_set(P_Z, !(v & TILE_HURTS));
-    if (v & TILE_HURTS) {
-        abi_PlayerEnter8CLong();
-        pla8();                           /* its own return and its caller's dropped */
-        pla8();
-        pla8();
-        pla8();
+    if (land_or_hurt())
         actor_leave(PLAYER_CODE);
-        return;
-    }
-    wr8(dpa(ACTOR_SPEED_Y), 0);
-    wr8(dpa(ACTOR_SPEED_Y + 1), 0);
-    a8_load(0x01);
+}
+
+uint32_t ground_hurt_jump(void)
+{
+    if (!ground_hurts())
+        return 0;
+    abi_PlayerEnter8CLong();
+    pla8();                               /* its own return dropped */
+    pla8();
+    return PLAYER_CODE;
 }
 
 /*
@@ -195,10 +235,6 @@ void abi_PlayerLandOrHurt(void)
  */
 void abi_PlayerGroundHurtJump(void)
 {
-    if (!ground_hurts())
-        return;
-    abi_PlayerEnter8CLong();
-    pla8();                               /* its own return dropped */
-    pla8();
-    actor_leave(PLAYER_CODE);
+    if (ground_hurt_jump())
+        actor_leave(PLAYER_CODE);
 }

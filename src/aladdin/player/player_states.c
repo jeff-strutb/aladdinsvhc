@@ -70,6 +70,13 @@ void abi_PlayerGroundHurtTest(void);
 void abi_PlayerGroundHurtJump(void);
 void abi_PlayerLandOrHurt(void);
 
+/* hurt_ground.c's tests' work (0: returned; else where his code goes on) */
+uint32_t ground_snap_hurt(void);
+uint32_t out_of_walls_hurt(void);
+uint32_t ground_hurt_test(void);
+uint32_t ground_hurt_jump(void);
+uint32_t land_or_hurt(void);
+
 void abi_PlayerStand(void);
 void abi_PlayerThrowStanding(void);
 void abi_PlayerWalk(void);
@@ -265,16 +272,59 @@ static void task_exec(uint32_t site)
     abi_TaskExec();
 }
 
+/* A JSR to a test that can drop its return address and go on at another
+   state: the return address pushed as the JSR pushes it (`ret`, the JSR's
+   last byte); 0 when the test returned (the address pulled again), else
+   where his code goes on, the addresses it dropped already pulled. The
+   caller goes on there in its own C (go_on): in the original that is a jump
+   within the same actor code, so the actor's piece goes on; only the
+   test's own call ends at the jump. */
+static uint32_t jsr_test(uint16_t ret, uint32_t (*test)(void))
+{
+    uint32_t at;
+
+    push16(ret);
+    at = test();
+    if (!at)
+        cpu.s = (uint16_t)(cpu.s + 2);
+    return at;
+}
+
+/* On at the state at `at`, as the jump there. */
+static void go_on(uint32_t at)
+{
+    switch (at) {
+    case 0x81CCB6u: abi_PlayerStand(); return;
+    case 0x81CDD2u: abi_PlayerFall(); return;
+    case 0x81CFE0u: abi_PlayerJump(); return;
+    case 0x81D0E9u: abi_PlayerLand(); return;
+    case 0x81D470u: abi_PlayerLedgeGrab(); return;
+    case 0x81D86Au: abi_PlayerHover(); return;
+    case 0x81DADDu: abi_PlayerKnockback(); return;
+    default: jump_routine(at); return;
+    }
+}
+
+static uint32_t no_ground_fall(void);
+static uint32_t crouch(void);
+static uint32_t crouch_step(void);
+static uint32_t crouch_jump(void);
+static uint32_t air_step(void);
+
 /* Standing, from its top (`throwing` 0) or from the throw (1). */
 static void standing(int throwing)
 {
     uint8_t f;
+    uint32_t at;
 
     for (;;) {
         if (!throwing) {
             actor_yield(0x81CCCEu);
             abi_ActorDecelerateX();
-            call_frame(0xCCD6, abi_PlayerGroundSnapHurt);
+            if ((at = jsr_test(0xCCD6, ground_snap_hurt))) {
+                go_on(at);
+                return;
+            }
             abi_PlayerAppleThrow();
             throwing = (cpu.p & P_C) != 0;
         }
@@ -293,8 +343,14 @@ static void standing(int throwing)
         }
         if (pushing_ground())
             abi_PlayerGroundSlide();
-        call_frame(0xCD0F, abi_PlayerCrouch);
-        call_frame(0xCD12, abi_PlayerNoGroundFall);
+        if ((at = jsr_test(0xCD0F, crouch))) {
+            go_on(at);
+            return;
+        }
+        if ((at = jsr_test(0xCD12, no_ground_fall))) {
+            go_on(at);
+            return;
+        }
         abi_PlayerFlipByPad();
         if (ld(STAND_HELD))
             continue;
@@ -329,24 +385,219 @@ static void standing(int throwing)
     }
 }
 
+/*
+ * @routine 81:CCB6 PlayerStand
+ * @actor
+ * WHAT IT DOES: Aladdin standing: each frame he slows to a stop on the
+ * ground, may throw, jump, slide, crouch or fall off; when the pad points
+ * one way he turns to it (4 frames) and walks.
+ * HOW: PlayerFlagsClear, ACTOR_09 bit 0 cleared, PlayerMoveStart 0,
+ * PLAYER_BOX_WANTED and PLAYER_DASH 0, ActorSnapToGround. Each frame (BRK
+ * first): ActorDecelerateX, PlayerGroundSnapHurt, PlayerAppleThrow; a
+ * throw (C set): on as PlayerThrowStanding. JUMP_PRESSED: on to
+ * PlayerJump with his speed (X, A). On pushing ground, PlayerGroundSlide;
+ * PlayerCrouch and PlayerNoGroundFall (each can go on elsewhere),
+ * PlayerFlipByPad. STAND_HELD set, or PadFacing negative: the next frame.
+ * Facing other than ACTOR_FLIP: PlayerMoveStart 5 and 4 frames (BRK
+ * first, JUMP_PRESSED jumps). Then PLAYER_DASH: DASH_HELD set, speed
+ * entry 0 (ActorSpeedXSet) and PLAYER_DASH 1; else ActorStopX and speed
+ * fraction $80; on at PlayerWalk.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from the player's other states. Exit: never returns.
+ */
+void abi_PlayerStand(void)
+{
+    abi_PlayerFlagsClear();
+    and_d(ACTOR_09, 0xFE);
+    move_start(0x00);
+    wr8(dba(PLAYER_BOX_WANTED), 0);
+    wr8(dba(PLAYER_DASH), 0);
+    abi_ActorSnapToGround();
+    standing(0);
+}
 
+/*
+ * @routine 81:CCDC PlayerThrowStanding
+ * @actor
+ * WHAT IT DOES: Aladdin throws standing: the throw's pose ($14) for 20
+ * frames, then he stands on as PlayerStand does after its throw test.
+ * HOW: PlayerMoveStart $14, FRAMES_4A $14 frames (BRK each), PlayerMoveStart
+ * 0; then PlayerStand's frame from its jump test on.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from PlayerWalk (81:CDC9), and from PlayerStand's own throw
+ * test. Exit: never returns.
+ */
+void abi_PlayerThrowStanding(void)
+{
+    standing(1);
+}
 
+/*
+ * @routine 81:CD5E PlayerWalk
+ * @actor
+ * WHAT IT DOES: Aladdin walking and running: each frame his speed follows
+ * the pad, he moves across and stays on the ground; he falls when there
+ * is none, jumps, skids when the pad turns, throws, or crouches.
+ * HOW: V_1427, V_141C, V_1A08 and PLAYER_BOX_WANTED 0; facing from
+ * ACTOR_FLIP; X = 0, PlayerMoveStart 2. Each frame (BRK first): on
+ * pushing ground PlayerGroundPush; PlayerRunMove, ActorStepX,
+ * PlayerOutOfWallsHurt, PlayerGroundSnapHurt; GROUND_UNDER 0: on at
+ * PlayerFall. PlayerAirSteer; PLAYER_DASH from DASH_HELD; JUMP_PRESSED:
+ * PlayerJump at his speed. PadFacing other than his facing: SKID_STARTED
+ * 0, on at PlayerSkid. PlayerAppleThrow C set: PlayerThrowStanding.
+ * PlayerCrouch, and the next frame.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from PlayerStand, PlayerSkid and PlayerLand. Exit: never
+ * returns.
+ */
+void abi_PlayerWalk(void)
+{
+    uint8_t f;
+    uint32_t at;
 
+    wr8(dba(V_1427), 0);
+    wr8(dba(V_141C), 0);
+    wr8(dba(V_1A08), 0);
+    put(PLAYER_BOX_WANTED, 0x00);
+    f = ldd(ACTOR_FLIP);
+    wr8(dpa(ACTOR_FACING), f);
+    x8_load(0x00);
+    move_start(0x02);
+    for (;;) {
+        actor_yield(0x81CD77u);
+        if (pushing_ground())
+            abi_PlayerGroundPush();
+        abi_PlayerRunMove();
+        abi_ActorStepX();
+        if ((at = jsr_test(0xCD92, out_of_walls_hurt))) {
+            go_on(at);
+            return;
+        }
+        if ((at = jsr_test(0xCD95, ground_snap_hurt))) {
+            go_on(at);
+            return;
+        }
+        if (!ld(GROUND_UNDER)) {
+            abi_PlayerFall();
+            return;
+        }
+        abi_PlayerAirSteer();
+        wr8(dba(PLAYER_DASH), 0);
+        if (ld(DASH_HELD))
+            put(PLAYER_DASH, 0x01);
+        if (jump_pressed()) {
+            jump_at_speed();
+            return;
+        }
+        abi_PadFacing();
+        f = rd8(dpa(ACTOR_FACING));
+        cmp8_of((uint8_t)cpu.a, f);
+        if ((uint8_t)cpu.a != f) {
+            wr8(dba(SKID_STARTED), 0);
+            abi_PlayerSkid();
+            return;
+        }
+        abi_PlayerAppleThrow();
+        if (cpu.p & P_C) {
+            abi_PlayerThrowStanding();
+            return;
+        }
+        if ((at = jsr_test(0xCDCE, crouch))) {
+            go_on(at);
+            return;
+        }
+    }
+}
 
+/*
+ * @routine 81:CDD2 PlayerFall
+ * @actor
+ * WHAT IT DOES: Aladdin starts to fall: the fall's speeds and pose, and
+ * on into the air.
+ * HOW: Y = 2, ActorMotionPresetY; PlayerMoveStart $0E; FRAMES_40 (the
+ * pose step) 3; PlayerTopSpeedHold; on at PlayerAirStart.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from the player's states and the tests that find no ground.
+ * Exit: never returns.
+ */
+void abi_PlayerFall(void)
+{
+    y8_load(0x02);
+    abi_ActorMotionPresetY();
+    move_start(0x0E);
+    putd(FRAMES_40, 0x03);
+    abi_PlayerTopSpeedHold();
+    abi_PlayerAirStart();
+}
 
+/*
+ * @routine 81:CFE0 PlayerJump
+ * @actor
+ * WHAT IT DOES: Aladdin jumps: his top speed in the air is the speed he
+ * had, the jump's rise is by how fast he ran, with the jump's sound; on
+ * into the air.
+ * HOW: PLAYER_LANDED 0; X to PLAYER_TOP_SPEED, A to V_141E;
+ * PlayerFlipByPad; Y from JUMP_ROWS by the speed's pixels' low two bits,
+ * ActorMotionPresetY; FRAMES_40 (the pose step) 0; SoundQueueAdd 1;
+ * NO_LANDING 4; on at PlayerAirStart.
+ * Entry: M 8-bit, X 8-bit; X = the speed's fraction, A = its pixels; D =
+ * the player's record; DB = $80; reached by a jump from the player's
+ * states. Exit: never returns.
+ */
+void abi_PlayerJump(void)
+{
+    uint8_t i;
 
-/* Where a frame in the air goes on. */
-enum air_next { AIR_NEXT_FRAME, AIR_GROUND_TEST, AIR_LAND, AIR_LEDGE, AIR_HOVER };
+    wr8(dba(PLAYER_LANDED), 0);
+    wr8(dba(PLAYER_TOP_SPEED), (uint8_t)cpu.x);
+    wr8(dba(V_141E), (uint8_t)cpu.a);
+    abi_PlayerFlipByPad();
+    i = (uint8_t)(ldd(ACTOR_SPEED_X + 1) & 0x03);
+    a8_load(i);
+    x8_load(i);
+    y8_load(rd8(dba(JUMP_ROWS + i)));
+    abi_ActorMotionPresetY();
+    wr8(dpa(FRAMES_40), 0);
+    sound(0x01);
+    put(NO_LANDING, 0x04);
+    abi_PlayerAirStart();
+}
+
+/*
+ * @routine 81:D005 PlayerAirStart
+ * @actor
+ * WHAT IT DOES: Aladdin leaves the ground: his speeds held to the air's,
+ * and on into the air.
+ * HOW: GROUND_PUSHED and V_1427 0; PlayerTopSpeedCap, PlayerRunRatesSet;
+ * on at PlayerAirTimed.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from PlayerFall, PlayerKnockback and PlayerHover, and from
+ * PlayerJump's end. Exit: never returns.
+ */
+void abi_PlayerAirStart(void)
+{
+    wr8(dba(GROUND_PUSHED), 0);
+    wr8(dba(V_1427), 0);
+    abi_PlayerTopSpeedCap();
+    abi_PlayerRunRatesSet();
+    abi_PlayerAirTimed();
+}
+
+/* Where a frame in the air goes on: the next frame, the ground test
+   (81:D0E0), or another state's address. */
+#define AIR_NEXT_FRAME 0u
+#define AIR_GROUND_TEST 1u
 
 /* One frame in the air, from after its BRK. */
-static enum air_next air_frame(void)
+static uint32_t air_frame(void)
 {
     uint8_t v;
+    uint32_t at;
 
     v = ldd(ACTOR_SPEED_Y + 2);
     if (!(v & 0x80) && ld(V_1428)) {
         wr8(dba(TILE_BITS), 0);
-        return AIR_LAND;
+        return 0x81D0E9u;               /* PlayerLand */
     }
     v = ld(AIR_FRAMES);
     if (!(v & 0x80))
@@ -372,10 +623,11 @@ static enum air_next air_frame(void)
         if (ld(HOVER_HELD)) {
             v = ldd(ACTOR_SPEED_Y + 2);
             if (!(v & 0x80))
-                return AIR_HOVER;
+                return 0x81D86Au;       /* PlayerHover */
         }
     }
-    call_frame(0xD084, abi_PlayerAirStep);
+    if ((at = jsr_test(0xD084, air_step)))
+        return at;
     abi_PlayerFlipByPad();
     /* gravity: light while rising with the jump held */
     putd(ACTOR_ACCEL_Y, 0x38);
@@ -400,12 +652,12 @@ static enum air_next air_frame(void)
         }
     }
     if (ld(V_1428))
-        return AIR_LAND;
+        return 0x81D0E9u;               /* PlayerLand */
     v = (uint8_t)(ld(PAD1_DIRS) & PAD_DOWN);
     a8_load(v);
     if (!v && !ld(NO_LANDING)) {
         abi_GroundBehindBit3();
-        return (cpu.p & P_Z) ? AIR_GROUND_TEST : AIR_LEDGE;
+        return (cpu.p & P_Z) ? AIR_GROUND_TEST : 0x81D470u;    /* or PlayerLedgeGrab */
     }
     if (ld(NO_LANDING))
         (void)dec8_at(dba(NO_LANDING));
@@ -415,37 +667,307 @@ static enum air_next air_frame(void)
 /* The air's frames: the BRK first (from_brk) or the frame's test first. */
 static void in_air(int from_brk)
 {
+    uint32_t at;
+
     for (;;) {
         if (from_brk)
             actor_yield(0x81D02Cu);
         from_brk = 1;
-        switch (air_frame()) {
-        case AIR_NEXT_FRAME:
+        at = air_frame();
+        if (at == AIR_NEXT_FRAME)
             continue;
-        case AIR_GROUND_TEST:
+        if (at == AIR_GROUND_TEST) {
             /* 81:D0E0: in the ground he lands, else the next frame */
             abi_ActorOutOfGround();
             if (cpu.p & P_Z)
                 continue;
             abi_PlayerLand();
             return;
-        case AIR_LAND:
-            abi_PlayerLand();
-            return;
-        case AIR_LEDGE:
-            abi_PlayerLedgeGrab();
-            return;
-        case AIR_HOVER:
-            abi_PlayerHover();
-            return;
         }
+        go_on(at);
+        return;
     }
 }
 
+/*
+ * @routine 81:D011 PlayerAirTimed
+ * @actor
+ * WHAT IT DOES: Aladdin in the air from the ground: the air's settings,
+ * and his first frame in the air now.
+ * HOW: V_1A08 $0A, PLAYER_BOX_WANTED 3, V_141C up, AIR_FRAMES 0, ACTOR_09
+ * bit 0 cleared, PlayerGroundYSave; then PlayerAir's frame with no BRK
+ * first.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached
+ * from PlayerAirStart's end, and by a jump from the hang's climb
+ * (81:D5DE). Exit: never returns.
+ */
+void abi_PlayerAirTimed(void)
+{
+    put(V_1A08, 0x0A);
+    put(PLAYER_BOX_WANTED, 0x03);
+    (void)inc8_at(dba(V_141C));
+    wr8(dba(AIR_FRAMES), 0);
+    and_d(ACTOR_09, 0xFE);
+    abi_PlayerGroundYSave();
+    in_air(0);
+}
 
+/*
+ * @routine 81:D02C PlayerAir
+ * @actor
+ * WHAT IT DOES: Aladdin in the air, a frame at a time: his jump's pose,
+ * a throw, his fall and its gravity (lighter while the jump is held
+ * rising), and a ledge to catch, until he lands.
+ * HOW: Each frame (BRK first). Falling with V_1428 set: TILE_BITS 0, on
+ * at PlayerLand. AIR_FRAMES up while under $80 (0 with JUMP_PRESSED).
+ * AIR_THROW counting down: at 0 FRAMES_40 (the pose step) 8 and
+ * PlayerJumpPoseStep; else PlayerAppleThrow: a throw starts move $16 and
+ * AIR_THROW $15, else PlayerJumpPoseStep. With HOVER_ON (no script runs
+ * it): HOVER_HELD while falling, on at PlayerHover. PlayerAirStep,
+ * PlayerFlipByPad; ACTOR_ACCEL_Y $38, or $80 rising with the jump not
+ * held and not PLAYER_LANDED; PlayerRunSpeed. Rising: the next frame.
+ * Level 5: GroundBehindBit4 at probe $18 sets V_1A10 and V_1A12 to 1.
+ * V_1428: PlayerLand. Not down on the pad and NO_LANDING 0:
+ * GroundBehindBit3 nonzero catches a ledge (PlayerLedgeGrab); else
+ * NO_LANDING down. Then the ground test of PlayerAirLand.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from PlayerAirLand, the hang's climb and PlayerAirTimed's own
+ * frames. Exit: never returns.
+ */
+void abi_PlayerAir(void)
+{
+    in_air(1);
+}
 
+/*
+ * @routine 81:D0E0 PlayerAirLand
+ * @actor
+ * WHAT IT DOES: Aladdin in the air: when he is in the ground he lands,
+ * else his next frame in the air.
+ * HOW: ActorOutOfGround; Z clear: on at PlayerLand; else at PlayerAir.
+ * Entry: M 8-bit, X 8-bit (M 16-bit from PlayerLedgeGrab's paths no
+ * script runs); D = the player's record; DB = $80; reached at the end of
+ * PlayerAir's frame and by a jump from PlayerLedgeGrab. Exit: never
+ * returns.
+ */
+void abi_PlayerAirLand(void)
+{
+    abi_ActorOutOfGround();
+    if (!(cpu.p & P_Z)) {
+        abi_PlayerLand();
+        return;
+    }
+    in_air(1);
+}
 
+/*
+ * @routine 81:D0E9 PlayerLand
+ * @actor
+ * WHAT IT DOES: Aladdin lands: on ground that hurts him he is knocked
+ * back; else the landing's sound, and after a fall of more than 128
+ * pixels a hard landing (18 frames) and he stands; else he walks on at
+ * his speed (a run's at least $0180, a dash's $0200) or stands.
+ * HOW: ActorSnapToGround; NO_LANDING, AIR_THROW, V_141C and PLAYER_LANDED
+ * 0. ground_hurts: PlayerEnter8CLong, on at PlayerKnockback. SoundQueueAdd
+ * $10. (16-bit) PLAYER_GROUND_Y + $80 below his y: PlayerMoveStart $0F,
+ * FRAMES_47 $12 frames (BRK each), ActorSpeedXClear, PlayerStand. Else
+ * PadFacing negative: ActorSpeedXClear, PlayerStand. DASH_HELD: speed
+ * $0200; else his speed held to $0180 at most; on at PlayerWalk.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from the air's states. Exit: never returns.
+ */
+void abi_PlayerLand(void)
+{
+    uint16_t v;
 
+    abi_ActorSnapToGround();
+    wr8(dba(NO_LANDING), 0);
+    wr8(dba(AIR_THROW), 0);
+    wr8(dba(V_141C), 0);
+    wr8(dba(PLAYER_LANDED), 0);
+    if (ground_hurts()) {
+        abi_PlayerEnter8CLong();
+        abi_PlayerKnockback();
+        return;
+    }
+    sound(0x10);
+    op_rep(P_M);
+    a16_load(rd16(dba(PLAYER_GROUND_Y)));
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(cpu.a, 0x0080, &cpu.p);
+    v = cpu.a;
+    cmp16_of(v, dp16(ACTOR_Y + 1));
+    if (v < dp16(ACTOR_Y + 1)) {
+        op_sep(P_M);
+        move_start(0x0F);
+        putd(FRAMES_47, 0x12);
+        do
+            actor_yield(0x81D157u);
+        while (dec8_at(dpa(FRAMES_47)));
+    } else {
+        op_sep(P_M);
+        abi_PadFacing();
+        if (!(cpu.p & P_N)) {
+            if (ld(DASH_HELD)) {
+                op_rep(P_M);
+                a16_load(0x0200);
+                dp16_set(ACTOR_SPEED_X, 0x0200);
+            } else {
+                op_rep(P_M);
+                a16_load(0x0180);
+                cmp16_of(0x0180, dp16(ACTOR_SPEED_X));
+                if (0x0180 < dp16(ACTOR_SPEED_X))
+                    dp16_set(ACTOR_SPEED_X, 0x0180);
+            }
+            op_sep(P_M);
+            abi_PlayerWalk();
+            return;
+        }
+    }
+    abi_ActorSpeedXClear();
+    abi_PlayerStand();
+}
+
+/*
+ * @routine 81:D27F PlayerSkid
+ * @actor
+ * WHAT IT DOES: Aladdin skids as the pad turns him while he runs: the
+ * skid's sound and pose (a fast run's own, from $0180), slowing until he
+ * stops and stands, walks on the new way, falls, jumps or throws.
+ * HOW: ACTOR_ACCEL_X $10. Each turn: PlayerFlipByPad; the pad pointing
+ * the other way (its facing XOR his, less 1, zero): PlayerSpawnEvery8,
+ * and once (SKID_STARTED) SoundQueueAdd $0A, ACTOR_ACCEL_X $10,
+ * PlayerMoveStart $12 (from speed $0180: SoundQueueAdd 4 and $13; from
+ * there also ACTOR_09 bit 0 and PLAYER_BOX_WANTED cleared). No direction:
+ * ACTOR_ACCEL_X $20; PlayerAppleThrow's throw: move $14 for $14 frames
+ * (COP), move 0, ActorStopX. Then a frame (BRK first): ActorStepX;
+ * ActorOutOfWalls C set: ActorStopX, PlayerStand. Not V_1428 and no
+ * ground (ActorSnapToGround Z): PlayerFall. JUMP_PRESSED: PlayerJump
+ * with X $80, A 1. PadFacing his facing: it to ACTOR_FLIP, PlayerWalk.
+ * PlayerRunMove until SKID_STARTED; ActorDecelerateX negative or the
+ * speed's word 0: ActorStopX, PlayerStand. PlayerCrouch, and again.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from PlayerWalk (81:CDC1). Exit: never returns.
+ */
+void abi_PlayerSkid(void)
+{
+    uint8_t v;
+    uint16_t s;
+    uint32_t at;
+
+    putd(ACTOR_ACCEL_X, 0x10);
+    for (;;) {
+        abi_PlayerFlipByPad();
+        if (cpu.p & P_N) {
+            putd(ACTOR_ACCEL_X, 0x20);
+            abi_PlayerAppleThrow();
+            if (cpu.p & P_C) {
+                move_start(0x14);
+                a8_load(0x14);
+                actor_wait(0x81D2E2u);
+                move_start(0x00);
+                abi_ActorStopX();
+            }
+        } else {
+            v = (uint8_t)(((uint8_t)cpu.a ^ rd8(dpa(ACTOR_FACING))) - 1);
+            a8_load(v);
+            if (!v) {
+                abi_PlayerSpawnEvery8();
+                if (!ld(SKID_STARTED)) {
+                    (void)inc8_at(dba(SKID_STARTED));
+                    sound(0x0A);
+                    putd(ACTOR_ACCEL_X, 0x10);
+                    a8_load(0x12);
+                    op_rep(P_X);
+                    s = dp16(ACTOR_SPEED_X);
+                    cpu.x = s;
+                    cmp16_of(s, 0x0180);
+                    if (s >= 0x0180) {
+                        sound(0x04);
+                        a8_load(0x13);
+                    }
+                    op_sep(P_X);
+                    abi_PlayerMoveStart();
+                    op_rep(P_M);
+                    s = dp16(ACTOR_SPEED_X);
+                    a16_load(s);
+                    cmp16_of(s, 0x0180);
+                    op_sep(P_M);
+                    if (s >= 0x0180) {
+                        and_d(ACTOR_09, 0xFE);
+                        put(PLAYER_BOX_WANTED, 0x00);
+                    }
+                }
+            }
+        }
+        actor_yield(0x81D2EDu);
+        abi_ActorStepX();
+        abi_ActorOutOfWalls();
+        if (!(cpu.p & P_C)) {
+            if (!ld(V_1428)) {
+                abi_ActorSnapToGround();
+                if (cpu.p & P_Z) {
+                    abi_PlayerFall();
+                    return;
+                }
+            }
+            if (ld(JUMP_PRESSED)) {
+                x8_load(0x80);
+                a8_load(0x01);
+                abi_PlayerJump();
+                return;
+            }
+            abi_PadFacing();
+            if (!(cpu.p & P_N)) {
+                v = (uint8_t)cpu.a;
+                cmp8_of(v, rd8(dpa(ACTOR_FACING)));
+                if (v == rd8(dpa(ACTOR_FACING))) {
+                    wr8(dpa(ACTOR_FLIP), v);
+                    abi_PlayerWalk();
+                    return;
+                }
+            }
+            if (!ld(SKID_STARTED))
+                abi_PlayerRunMove();
+            abi_ActorDecelerateX();
+            if (!(cpu.p & P_N)) {
+                op_rep(P_M);
+                s = (uint16_t)(dp16(ACTOR_SPEED_X) | rd16(dpa(ACTOR_SPEED_X + 1)));
+                a16_load(s);
+                if (s) {
+                    op_sep(P_M);
+                    if ((at = jsr_test(0xD343, crouch))) {
+                        go_on(at);
+                        return;
+                    }
+                    continue;
+                }
+            }
+        }
+        op_sep(P_M);
+        abi_ActorStopX();
+        abi_PlayerStand();
+        return;
+    }
+}
+
+/* PlayerNoGroundFall's work: 0 when it returns, else PlayerFall's
+   address, its return address pulled */
+static uint32_t no_ground_fall(void)
+{
+    if (ld(V_1428))
+        return 0;
+    wr8(dpa(ACTOR_18), 0);
+    abi_GroundLeftLong();
+    if (cpu.p & P_C)
+        return 0;
+    abi_GroundRightLong();
+    if (cpu.p & P_C)
+        return 0;
+    pla8();                               /* its own return dropped */
+    pla8();
+    return 0x81CDD2u;                     /* PlayerFall */
+}
 
 /*
  * @routine 81:D347 PlayerNoGroundFall
@@ -460,20 +982,84 @@ static void in_air(int from_brk)
  */
 void abi_PlayerNoGroundFall(void)
 {
-    if (ld(V_1428))
-        return;
-    wr8(dpa(ACTOR_18), 0);
-    abi_GroundLeftLong();
-    if (cpu.p & P_C)
-        return;
-    abi_GroundRightLong();
-    if (cpu.p & P_C)
-        return;
-    pla8();                               /* its own return dropped */
-    pla8();
-    actor_leave(0x81CDD2u);               /* PlayerFall */
+    uint32_t at = no_ground_fall();
+
+    if (at)
+        actor_leave(at);
 }
 
+/* PlayerCrouch's work: 0 when down is not held, else where his code goes
+   on at the end (PlayerStand, or where a test it calls sends him), its
+   return address pulled at the start */
+static uint32_t crouch(void)
+{
+    uint8_t f;
+    uint32_t at;
+
+    ld(PAD1_DIRS);
+    if (!bit_a(PAD_DOWN))
+        return 0;
+    pla8();                               /* its own return dropped: on at the actor's level */
+    pla8();
+    put(PLAYER_BOX_WANTED, 0x01);
+    move_start(0x01);
+    a8_load(0x01);
+    or_d(ACTOR_09, 0x01);
+    putd(ACTOR_ACCEL_X, 0x28);
+    f = ldd(ACTOR_FLIP);
+    wr8(dpa(ACTOR_FACING), f);
+    for (;;) {
+        actor_yield(0x81D382u);
+        abi_ActorSnapToGround();
+        if (ground_hurts()) {
+            abi_PlayerEnter8CLong();
+            return 0x81DADDu;       /* PlayerKnockback */
+        }
+        abi_PlayerFlipByPad();
+        f = (uint8_t)(rd8(dpa(ACTOR_SPEED_X)) | rd8(dpa(ACTOR_SPEED_X + 1)) | rd8(dpa(ACTOR_SPEED_X + 2)));
+        a8_load(f);
+        if (!f) {
+            wr8(dpa(ACTOR_ACCEL_X), 0);
+        } else {
+            abi_ActorDecelerateX();
+            if ((at = jsr_test(0xD3B9, crouch_step)))
+                return at;
+        }
+        abi_PlayerAppleThrow();
+        if (cpu.p & P_C) {
+            move_start(0x15);
+            a8_load(0x18);
+            actor_wait(0x81D3C6u);
+            move_start(0x01);
+        }
+        if ((at = jsr_test(0xD3CF, crouch_jump)))
+            return at;
+        if ((at = jsr_test(0xD3D2, no_ground_fall)))
+            return at;
+        ld(PAD1_DIRS);
+        if (!bit_a(PAD_DOWN))
+            break;
+    }
+    f = ldd(ACTOR_FLIP);
+    wr8(dpa(ACTOR_FACING), f);
+    return 0x81CCB6u;               /* PlayerStand */
+}
+
+/* PlayerCrouchStep's work: 0 when it returns, else where
+   PlayerOutOfWallsHurt sends him */
+static uint32_t crouch_step(void)
+{
+    uint32_t at;
+
+    abi_ActorStepX();
+    if ((at = jsr_test(0xD3E6, out_of_walls_hurt)))
+        return at;
+    if (ld(V_1428))
+        return 0;
+    abi_ActorSnapToGround();
+    ld(GROUND_UNDER);
+    return 0;
+}
 
 /*
  * @routine 81:D3E1 PlayerCrouchStep
@@ -487,12 +1073,25 @@ void abi_PlayerNoGroundFall(void)
  */
 void abi_PlayerCrouchStep(void)
 {
-    abi_ActorStepX();
-    call_frame(0xD3E6, abi_PlayerOutOfWallsHurt);
-    if (ld(V_1428))
-        return;
-    abi_ActorSnapToGround();
-    ld(GROUND_UNDER);
+    uint32_t at = crouch_step();
+
+    if (at)
+        actor_leave(at);
+}
+
+/* PlayerCrouchJump's work: 0 when it returns, else PlayerJump's address
+   (X $80, A 1), its return address pulled */
+static uint32_t crouch_jump(void)
+{
+    if (!ld(JUMP_PRESSED))
+        return 0;
+    if (ld(V_1446))
+        return 0;
+    pla8();                               /* its own return dropped */
+    pla8();
+    x8_load(0x80);
+    a8_load(0x01);
+    return 0x81CFE0u;               /* PlayerJump */
 }
 
 /*
@@ -508,15 +1107,25 @@ void abi_PlayerCrouchStep(void)
  */
 void abi_PlayerCrouchJump(void)
 {
-    if (!ld(JUMP_PRESSED))
-        return;
-    if (ld(V_1446))
-        return;
-    pla8();                               /* its own return dropped */
-    pla8();
-    x8_load(0x80);
-    a8_load(0x01);
-    actor_leave(0x81CFE0u);               /* PlayerJump */
+    uint32_t at = crouch_jump();
+
+    if (at)
+        actor_leave(at);
+}
+
+/* PlayerAirStep's work: 0 when it returns, else where a test it calls
+   sends him, the return addresses they drop pulled */
+static uint32_t air_step(void)
+{
+    uint32_t at;
+
+    abi_ActorGravity();
+    abi_ActorStepX();
+    abi_ActorMoveY();
+    if ((at = jsr_test(0xD413, land_or_hurt)))
+        return at;
+    abi_ActorOutOfWalls();
+    return jsr_test(0xD41A, ground_hurt_test);
 }
 
 /*
@@ -532,16 +1141,231 @@ void abi_PlayerCrouchJump(void)
  */
 void abi_PlayerAirStep(void)
 {
-    abi_ActorGravity();
-    abi_ActorStepX();
-    abi_ActorMoveY();
-    call_frame(0xD413, abi_PlayerLandOrHurt);
-    abi_ActorOutOfWalls();
-    call_frame(0xD41A, abi_PlayerGroundHurtTest);
+    uint32_t at = air_step();
+
+    if (at)
+        actor_leave(at);
 }
 
+/*
+ * @routine 81:D470 PlayerLedgeGrab
+ * @actor
+ * WHAT IT DOES: Aladdin catches a ledge as he falls past it: set at the
+ * ledge's corner, his speeds stopped, the grab's sound and pose; on to
+ * hang from it.
+ * HOW: (16-bit A) the ledge tile's mirror flag (TILE_MIRRORED, X) and his
+ * ACTOR_FLIP must differ (else, paths no script runs, on at
+ * PlayerAirLand); his x pixels the probe's x to its 16 plus 1 (or plus
+ * $0F, mirrored), his y pixels the probe's y to its 16 plus 1. PLAYER_LANDED
+ * and AIR_THROW 0, V_1427 up, PlayerFlagsClear, ActorStopX, ActorStopY,
+ * SoundQueueAdd 6, PlayerMoveStart 6, PLAYER_BOX_WANTED 4; on at
+ * PlayerHang.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from PlayerAir (81:D0D5) and PlayerHover. Exit: never returns.
+ */
+void abi_PlayerLedgeGrab(void)
+{
+    uint16_t v;
+    uint8_t m;
 
+    op_rep(P_M);
+    m = rd8(dba(TILE_MIRRORED));
+    x8_load(m);
+    if (!m) {
+        x8_load(rd8(dpa(ACTOR_FLIP)));
+        if (cpu.x) {
+            abi_PlayerAirLand();
+            return;
+        }
+        v = (uint16_t)(rd16(dba(POINT_X)) & 0xFFF0);
+        a16_load(v);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(v, 0x0001, &cpu.p);
+    } else {
+        x8_load(rd8(dpa(ACTOR_FLIP)));
+        if (!cpu.x) {
+            abi_PlayerAirLand();
+            return;
+        }
+        v = (uint16_t)(rd16(dba(POINT_X)) & 0xFFF0);
+        a16_load(v);
+        flag_set(P_C, 0);
+        cpu.a = op_adc16(v, 0x000F, &cpu.p);
+    }
+    dp16_set(ACTOR_X + 1, cpu.a);
+    v = (uint16_t)(rd16(dba(POINT_Y)) & 0xFFF0);
+    a16_load(v);
+    flag_set(P_C, 0);
+    cpu.a = op_adc16(v, 0x0001, &cpu.p);
+    dp16_set(ACTOR_Y + 1, cpu.a);
+    op_sep(P_M);
+    wr8(dba(PLAYER_LANDED), 0);
+    wr8(dba(AIR_THROW), 0);
+    (void)inc8_at(dba(V_1427));
+    abi_PlayerFlagsClear();
+    abi_ActorStopX();
+    abi_ActorStopY();
+    sound(0x06);
+    move_start(0x06);
+    put(PLAYER_BOX_WANTED, 0x04);
+    abi_PlayerHang();
+}
 
+/*
+ * @routine 81:D4D1 PlayerHang
+ * @actor
+ * WHAT IT DOES: Aladdin hangs from a ledge: up climbs onto it (move 7,
+ * 32 frames, then up 24 pixels and across 8, standing); down lets go (18
+ * pixels lower, falling, with no hold for 16 frames).
+ * HOW: Each frame (BRK first): PAD1_DIRS bit 3 (up): PlayerMoveStart 7,
+ * PLAYER_BOX_WANTED 5, COP $20; V_1427 0, facing from ACTOR_FLIP; speed
+ * $000800 across and $FFE800 down, ActorMove once, both speeds cleared;
+ * on at PlayerStand. Bit 2 (down): facing from ACTOR_FLIP, NO_LANDING
+ * $10, y $12 lower (16-bit), V_1427 0, on at PlayerFall.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached
+ * from PlayerLedgeGrab's end and by a jump from 81:D9C2. Exit: never
+ * returns.
+ */
+void abi_PlayerHang(void)
+{
+    uint8_t v;
+
+    for (;;) {
+        actor_yield(0x81D4D1u);
+        v = (uint8_t)(rd8(dba(PAD1_DIRS)) & PAD_UP);
+        a8_load(v);
+        if (v)
+            break;
+        v = (uint8_t)(rd8(dba(PAD1_DIRS)) & PAD_DOWN);
+        a8_load(v);
+        if (v) {
+            v = ldd(ACTOR_FLIP);
+            wr8(dpa(ACTOR_FACING), v);
+            put(NO_LANDING, 0x10);
+            op_rep(P_M);
+            a16_load(dp16(ACTOR_Y + 1));
+            flag_set(P_C, 0);
+            cpu.a = op_adc16(cpu.a, 0x0012, &cpu.p);
+            dp16_set(ACTOR_Y + 1, cpu.a);
+            op_sep(P_M);
+            wr8(dba(V_1427), 0);
+            abi_PlayerFall();
+            return;
+        }
+    }
+    move_start(0x07);
+    put(PLAYER_BOX_WANTED, 0x05);
+    a8_load(0x20);
+    actor_wait(0x81D50Au);
+    wr8(dba(V_1427), 0);
+    v = ldd(ACTOR_FLIP);
+    wr8(dpa(ACTOR_FACING), v);
+    putd(ACTOR_SPEED_X + 2, 0x00);
+    putd(ACTOR_SPEED_Y + 2, 0xFF);
+    op_rep(P_M);
+    a16_load(0x0800);
+    dp16_set(ACTOR_SPEED_X, 0x0800);
+    a16_load(0xE800);
+    dp16_set(ACTOR_SPEED_Y, 0xE800);
+    op_sep(P_M);
+    abi_ActorMove();
+    abi_ActorSpeedXClear();
+    abi_ActorSpeedYClear();
+    abi_PlayerStand();
+}
+
+/*
+ * @routine 81:D86A PlayerHover
+ * @actor
+ * WHAT IT DOES: Aladdin hovers while the fourth action is held (with
+ * HOVER_ON): his own pose and a slow fall at speed $0200 across; let go,
+ * he falls; he can land, catch a ledge or meet ground that hurts. No
+ * script runs it.
+ * HOW: PLAYER_BOX_WANTED $12, V_141B 0, PlayerMoveStart $0C; Y = $18,
+ * ActorSpeedYSet; top speed $0200. Each frame (from the second, BRK
+ * first): ActorStepX, ActorMoveY; his y pixels' high byte not negative:
+ * ActorOutOfWalls and PlayerGroundHurtJump. PlayerFlipByPad. V_1428:
+ * the landing (below). HOVER_HELD 0: gravity $36, the pose step 1 with 1
+ * frame, on at PlayerAirStart. Level 5: GroundBehindBit4 at probe $18
+ * sets V_1A10 and V_1A12. PlayerRunSpeed, PlayerOutOfWallsHurt;
+ * ActorOutOfGround Z clear: the landing. NO_LANDING: down by 1. Else
+ * GroundBehindBit3 Z clear: PlayerLedgeGrab. The landing:
+ * PLAYER_BOX_WANTED 3, y fraction and the vertical speed cleared, on at
+ * PlayerLand.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * a jump from the player's air states with HOVER_ON (81:D07F and three
+ * more). Exit: never returns.
+ */
+void abi_PlayerHover(void)
+{
+    uint8_t v;
+    uint32_t at;
+
+    put(PLAYER_BOX_WANTED, 0x12);
+    wr8(dba(V_141B), 0);
+    move_start(0x0C);
+    y8_load(0x18);
+    abi_ActorSpeedYSet();
+    put(V_141E, 0x02);
+    wr8(dba(PLAYER_TOP_SPEED), 0);
+    for (int first = 1;; first = 0) {
+        if (!first)
+            actor_yield(0x81D887u);
+        abi_ActorStepX();
+        abi_ActorMoveY();
+        v = ldd(ACTOR_Y + 2);
+        if (!(v & 0x80)) {
+            abi_ActorOutOfWalls();
+            if ((at = jsr_test(0xD89A, ground_hurt_jump))) {
+                go_on(at);
+                return;
+            }
+        }
+        abi_PlayerFlipByPad();
+        if (ld(V_1428))
+            break;
+        if (!ld(HOVER_HELD)) {
+            putd(ACTOR_ACCEL_Y, 0x36);
+            putd(FRAMES_40, 0x01);
+            wr8(dpa(ACTOR_41), 0x01);
+            abi_PlayerAirStart();
+            return;
+        }
+        v = ld(LEVEL);
+        cmp8_of(v, 0x05);
+        if (v == 0x05) {
+            putd(ACTOR_18, 0x18);
+            abi_GroundBehindBit4();
+            if (!(cpu.p & P_Z)) {
+                put(V_1A10, 0x01);
+                wr8(dba(V_1A12), 0x01);
+            }
+        }
+        abi_PlayerRunSpeed();
+        if ((at = jsr_test(0xD8D3, out_of_walls_hurt))) {
+            go_on(at);
+            return;
+        }
+        abi_ActorOutOfGround();
+        if (!(cpu.p & P_Z))
+            break;
+        if (ld(NO_LANDING)) {
+            (void)dec8_at(dba(NO_LANDING));
+            continue;
+        }
+        abi_GroundBehindBit3();
+        if (!(cpu.p & P_Z)) {
+            abi_PlayerLedgeGrab();
+            return;
+        }
+    }
+    put(PLAYER_BOX_WANTED, 0x03);
+    wr8(dpa(ACTOR_Y), 0);
+    wr8(dpa(ACTOR_SPEED_Y), 0);
+    wr8(dpa(ACTOR_SPEED_Y + 1), 0);
+    wr8(dpa(ACTOR_SPEED_Y + 2), 0);
+    abi_PlayerLand();
+}
 
 /* Each frame of the knockback's end (BRK at brk_at): out of the ground,
    and flying when it is not. */
@@ -556,3 +1380,188 @@ static void ending_frame(uint32_t brk_at)
     abi_ActorFly();
 }
 
+/*
+ * @routine 81:DADD PlayerKnockback
+ * @actor
+ * WHAT IT DOES: Aladdin is hit: knocked back the way he faced, hurt's
+ * pose and sound, for $18 frames or until he lands, then he stands
+ * (blinking) or falls on. With no health left, or fallen out of the map,
+ * he loses a life: the song, and once the scene is over the stage starts
+ * again (or ends with no lives).
+ * HOW: HEALTH 0: NO_LANDING $FF. Y = 5 ($56 on level 6), unless
+ * FALLEN_OUT (then straight to the life's loss); GROUND_PUSHED and V_1427
+ * 0; ActorMotionPreset; SoundQueueAdd 2; PLAYER_BOX_WANTED 6,
+ * PlayerBoxSet; PlayerMoveStartAlso $17; gravity $30; facing turned
+ * round for the tests; HURT_FRAMES $18, V_141C 0. Each frame (BRK first):
+ * ActorFallCap, ActorFly, PlayerLandOrHurt, ActorOutOfWalls on both sides;
+ * with health HURT_FRAMES down, negative: the end. Rising: again.
+ * PlayerFallenTest C clear: the life's loss. Level 5: GroundBehindBit4 at
+ * probe $18 sets V_1A10, V_1A12 (no script runs it). V_1428, or
+ * ActorOutOfGround Z clear: the end. The end: PLAYER_FLAGS bit 1 off and
+ * bit 2 on; no health: the life's loss with move 8. Else (16-bit) y less
+ * 13 unless V_1428, PLAYER_HURT_TIME $7E, ACTOR_08 bit 4 and ACTOR_09
+ * bit 7 set, V_141B 0, PlayerFlagsClear; HURT_FRAMES not negative:
+ * PlayerStand; else the pose step 1 with 1 frame, PlayerAirStart. Fallen
+ * out: HEALTH 0, ACTOR_09 bit 7 off, ACTOR_08 bit 7 on and bit 3 off,
+ * FALLEN_OUT 0, V_1A10, V_1A12 and SCENE_ON up, V_1A08 $FF. The life's
+ * loss: a frame, SongPlay $2A, VIEW_EDGE_RULE 4, NO_LANDING $FF, V_1A10
+ * 1, Y = 2 ActorMotionPresetY, $B0 frames (out of the ground, flying);
+ * TaskCreate; frames until SCENE_WAIT is 0; V_141B 0, Level035CSet, LIVES
+ * down; TaskExec to one of two entries by whether any are left.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's jump (through the stub at $83:91FD), and
+ * by a jump from the player's states when ground hurts him. Exit: never
+ * returns.
+ */
+void abi_PlayerKnockback(void)
+{
+    uint8_t v;
+    uint32_t at;
+    int lost = 0, fallen = 0;
+
+    if (!ld(HEALTH))
+        put(NO_LANDING, 0xFF);
+    y8_load(0x05);
+    wr8(dba(GROUND_PUSHED), 0);
+    wr8(dba(V_1427), 0);
+    if (ld(FALLEN_OUT)) {
+        fallen = 1;
+    } else {
+        v = ld(LEVEL);
+        flag_set(P_C, 1);
+        cmp8_of(v, 0x06);
+        if (v == 0x06)
+            y8_load(0x56);
+        abi_ActorMotionPreset();
+        sound(0x02);
+        x8_load(0x06);
+        wr8(dba(PLAYER_BOX_WANTED), 0x06);
+        abi_PlayerBoxSet();
+        a8_load(0x17);
+        abi_PlayerMoveStartAlso();
+        putd(ACTOR_ACCEL_Y, 0x30);
+        v = (uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01);
+        a8_load(v);
+        wr8(dpa(ACTOR_FACING), v);
+        put(HURT_FRAMES, 0x18);
+        wr8(dba(V_141C), 0);
+        for (;;) {
+            actor_yield(0x81DB2Eu);
+            abi_ActorFallCap();
+            abi_ActorFly();
+            if ((at = jsr_test(0xDB39, land_or_hurt))) {
+                go_on(at);
+                return;
+            }
+            abi_ActorOutOfWalls();
+            v = (uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01);
+            a8_load(v);
+            wr8(dpa(ACTOR_FACING), v);
+            abi_ActorOutOfWalls();
+            v = (uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01);
+            a8_load(v);
+            wr8(dpa(ACTOR_FACING), v);
+            if (ld(HEALTH) && (dec8_at(dba(HURT_FRAMES)) & 0x80))
+                break;
+            if (ldd(ACTOR_SPEED_Y + 2) & 0x80)
+                continue;
+            abi_PlayerFallenTest();
+            if (!(cpu.p & P_C)) {
+                fallen = 1;
+                break;
+            }
+            v = ld(LEVEL);
+            cmp8_of(v, 0x05);
+            if (v == 0x05) {
+                /* no script runs this path */
+                putd(ACTOR_18, 0x18);
+                abi_GroundBehindBit4();
+                if (!(cpu.p & P_Z)) {
+                    put(V_1A10, 0x01);
+                    wr8(dba(V_1A12), 0x01);
+                }
+            }
+            if (ld(V_1428))
+                break;
+            abi_ActorOutOfGround();
+            if (!(cpu.p & P_Z))
+                break;
+        }
+    }
+    if (fallen) {
+        op_sep(P_M | P_X);
+        wr8(dba(HEALTH), 0);
+        and_d(ACTOR_09, 0x7F);
+        a8_load(0x80);
+        tsb_at(dpa(ACTOR_08), 0x80);
+        wr8(dba(FALLEN_OUT), 0);
+        (void)inc8_at(dba(V_1A10));
+        (void)inc8_at(dba(V_1A12));
+        (void)inc8_at(dba(SCENE_ON));
+        put(V_1A08, 0xFF);
+        and_d(ACTOR_08, 0xF7);
+        lost = 1;
+    } else {
+        op_sep(P_M);
+        v = (uint8_t)((rd8(dba(PLAYER_FLAGS)) & 0xFD) | 0x04);
+        a8_load(v);
+        wr8(dba(PLAYER_FLAGS), v);
+        if (!ld(HEALTH)) {
+            (void)inc8_at(dba(SCENE_ON));
+            x8_load(0x06);
+            wr8(dba(PLAYER_BOX_WANTED), 0x06);
+            a8_load(0x80);
+            tsb_at(dpa(ACTOR_08), 0x80);
+            a8_load(0x08);
+            abi_PlayerMoveStartAlso();
+            lost = 1;
+        }
+    }
+    if (!lost) {
+        if (!ld(V_1428)) {
+            op_rep(P_M);
+            a16_load(dp16(ACTOR_Y + 1));
+            flag_set(P_C, 1);
+            cpu.a = op_sbc16(cpu.a, 0x000D, &cpu.p);
+            dp16_set(ACTOR_Y + 1, cpu.a);
+            op_sep(P_M);
+        }
+        put(PLAYER_HURT_TIME, 0x7E);
+        or_d(ACTOR_08, 0x10);
+        wr8(dba(V_141B), 0);
+        or_d(ACTOR_09, 0x80);
+        abi_PlayerFlagsClear();
+        if (!(ld(HURT_FRAMES) & 0x80)) {
+            abi_PlayerStand();
+            return;
+        }
+        putd(FRAMES_40, 0x01);
+        wr8(dpa(ACTOR_41), 0x01);
+        abi_PlayerAirStart();
+        return;
+    }
+    /* the life is lost */
+    actor_yield(0x81DC0Bu);
+    a8_load(0x2A);
+    abi_SongPlay();
+    put(VIEW_EDGE_RULE, 0x04);
+    put(NO_LANDING, 0xFF);
+    put(V_1A10, 0x01);
+    y8_load(0x02);
+    abi_ActorMotionPresetY();
+    putd(FRAMES_40, 0xB0);
+    do
+        ending_frame(0x81DC2Cu);
+    while (dec8_at(dpa(FRAMES_40)));
+    task_create(0x81DC41u);
+    do
+        ending_frame(0x81DC4Au);
+    while (ld(SCENE_WAIT));
+    wr8(dba(V_141B), 0);
+    abi_Level035CSet();
+    (void)dec8_at(dba(LIVES));
+    if (ld(LIVES))
+        task_exec(0x81DC6Fu);
+    else
+        task_exec(0x81DC76u);
+}
