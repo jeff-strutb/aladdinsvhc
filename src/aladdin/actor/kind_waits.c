@@ -54,6 +54,8 @@ void abi_Kind68PlayerOn(void);
 #define SPOT_Y 0x00002Eu       /* scratch: its spot's y (word) */
 #define FEET_Y 0x00001Cu       /* scratch: the player's feet, his y plus $25 or $20 (word) */
 #define TOP_Y 0x00001Eu        /* scratch: its top under him (word) */
+#define CHAIN_HEAD_6D 0x1B14u     /* kind $6D variant $1C: set, it enters state $8C */
+#define RANGE_X_6D 0x1A44u        /* the point actors are kept in range of (x) */
 #define RANGE_Y 0x001A46u      /* the point actors are kept in range of (y) */
 #define PLAYER_X (PLAYER + ACTOR_X + 1)
 #define PLAYER_Y (PLAYER + ACTOR_Y + 1)
@@ -311,6 +313,78 @@ void abi_Kind67Wait(void)
 
 
 
+
+/*
+ * @routine 83:EF92 Kind6DWait
+ * WHAT IT DOES: Kind $6D's wait: by variant (bits 2-4 of $07) stomped or
+ * hurting and downed by shots, its height set by frame (variant 4), and
+ * ended when out of range; variant $1C also enters state $8C while $1B14
+ * is set and ends itself 144 pixels or more from the range point.
+ * HOW: Variant $14: ActorEndOutOfRange only. Others: ActorStompOrHurt,
+ * ActorDownedByShot (downed: $48 up), AnimStep, variant 4 ActorYByFrame,
+ * ActorEndOutOfRange with box 0. Variant $1C: $1B14 set, state bits $8C
+ * set and $09 bit 7 cleared; ActorStompOrHurt, ActorDownedByShot ($48 up),
+ * AnimStep; distance from RANGE_X 144 or more: into ActorEndOutOfRange
+ * past its range test.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Variant $1C is reached only by cov_kind6d_variant.box. Exit: as
+ * ActorEndOutOfRange; variant $1C near: M 8-bit, C clear; far: does not
+ * return.
+ */
+void abi_Kind6DWait(void)
+{
+    uint8_t v = (uint8_t)(rd8(dpa(ACTOR_07)) & 0x1C);
+    uint16_t d;
+
+    a8_load(v);
+    cmp8_of(v, 0x1C);
+    if (v == 0x1C) {
+        a8_load(rd8(dba(CHAIN_HEAD_6D)));
+        if ((uint8_t)cpu.a) {             /* the chain's head set: into state $8C, not hittable */
+            a8_load(0x8C);
+            tsb_at(dpa(ACTOR_STATE), 0x8C);
+            a8_load(0x80);
+            trb_at(dpa(ACTOR_09), 0x80);
+        }
+        abi_ActorStompOrHurt();
+        abi_ActorDownedByShot();
+        if (!(cpu.p & P_C))
+            inc8_at(dpa(ACTOR_48));
+        abi_AnimStep();
+        op_rep(0x20);
+        flag_set(P_C, 1);
+        d = op_sbc16(rd16(dba((uint16_t)RANGE_X_6D)), dp16(ACTOR_X + 1), &cpu.p);
+        a16_load(d);
+        if (d & 0x8000)
+            a16_load((uint16_t)((d ^ 0xFFFF) + 1));
+        cmp16_of(cpu.a, 0x0090);
+        op_sep(0x20);
+        if (cpu.p & P_C) {                /* 144 pixels or more away: the return dropped, it ends ($83:96C6) */
+            op_sep(0x30);
+            pla8();
+            pla8();
+            abi_ActorFreePlaced();
+            actor_leave(0x8394BFu);
+        }
+        return;
+    }
+    cmp8_of(v, 0x14);
+    if (v != 0x14) {
+        abi_ActorStompOrHurt();
+        abi_ActorDownedByShot();
+        if (!(cpu.p & P_C))
+            inc8_at(dpa(ACTOR_48));
+        abi_AnimStep();
+        v = (uint8_t)(rd8(dpa(ACTOR_07)) & 0x1C);
+        a8_load(v);
+        cmp8_of(v, 0x04);
+        if (v == 0x04)
+            abi_ActorYByFrame();
+    }
+    x8_load(0x00);
+    abi_ActorEndOutOfRange();
+}
 
 /*
  * @routine 83:F1D5 Kind6EWait
