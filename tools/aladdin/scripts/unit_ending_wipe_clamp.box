@@ -1,0 +1,8 @@
+# The ending's window closing from the right ($82:B4D5) when its right
+# edge comes out at 256 pixels or more ($82:B4F2: held at 255). The
+# ending's play-back never takes the edge that far. Step 0 (X = 0: the
+# table's $FFAB, $C020) from an edge of 0 leaves $DF00 pixels.
+load build/aladdin/states/level1.state
+wait 10
+set $00007C 00,00,00,00
+call 82B4D5 db=82 p=30 x=0 keep
