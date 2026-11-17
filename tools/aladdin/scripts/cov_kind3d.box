@@ -1,0 +1,67 @@
+# Actor kind $3D (kind3d.asm, actor_range.asm): the parts no play reaches.
+# 1. Its contact with Aladdin (Kind3DPlayerContact, $83:C3E4) on stage a4
+#    s2, the camera at x $0400 and Aladdin dropped near the one at x $04A8;
+#    the contact runs for record $0ECB (bobbing about y $008A; ground is at
+#    y $0090). Aladdin put far off for a frame, then at x $04A8, y $008E,
+#    in the air below it with its $07 ($0ED2) set to 1: pushed under it
+#    and hurt ($83:C40E on), V_141C set ($83:C428). Then at x $04D0 (out
+#    of its box across, in it up and down) and back at $04A8: pushed off
+#    to the left ($83:C441), again to x $04B0: to the right.
+# 2. Stage a4 s1, the camera and Aladdin placed near the kind $3D with
+#    $07 2 at x $0288 (record $0DDB, children $0E7B and $0ECB); the camera
+#    then put at x $0600: it ends with both children ($83:C4DD).
+# 3. Stage a4 s1 again, the same kind $3D put back in its start state ($0C,
+#    $07 2) with the free list's top ($15E4) 0, below the 2 its set needs:
+#    it ends at once ($83:C321).
+load build/aladdin/states/stage_a4_s2.state
+wait 30
+poke 001773 00,04
+poke 0019E5 00,04
+poke 0008E7 A8,04
+poke 0008EA 60,00
+wait 120
+poke 0008E7 00,03
+poke 0008EA 10,00
+wait 1
+poke 000ED2 01
+poke 0008E7 A8,04
+poke 0008EA 8E,00
+wait 1
+poke 0008E7 D0,04
+poke 0008EA A0,00
+wait 1
+poke 0008E7 A8,04
+poke 0008EA A0,00
+wait 1
+poke 0008E7 D0,04
+poke 0008EA A0,00
+wait 1
+poke 0008E7 B0,04
+poke 0008EA A0,00
+wait 11
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008E7 60,02
+poke 0008EA 40,02
+wait 90
+poke 001773 00,06
+poke 0019E5 00,06
+poke 0008E7 60,06
+wait 10
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008E7 60,02
+poke 0008EA 40,02
+wait 20
+poke 000DDB 0C
+poke 000DE2 02
+poke 0015E4 00
+wait 5
