@@ -16,7 +16,6 @@ incsrc "../include/rom.inc"
 arch 65816
 
 ; Places not yet named keep their address as their name.
-!routine_808584 = $808584  ; not yet filed
 !t_8558 = $8558  ; data bank
 !t_855a = $855A  ; data bank
 !t_b608 = $B608  ; data bank
@@ -33,11 +32,14 @@ arch 65816
 !t_b6f2 = $B6F2  ; data bank
 !t_b6f4 = $B6F4  ; data bank
 !t_b6f5 = $B6F5  ; data bank
-!v_082a = $082A
 !v_082b = $082B
 !v_082c = $082C
 !v_082d = $082D
-!v_082e = $082E
+!ROWS_ASK = $082A                ; nonzero: the stepped upload runs
+!ROWS_STEP = $082E               ; the stepped upload's step: 0 start, 1 a row
+!ROWS_ROW = $082F                ; the next row, two a step; at 0 again the upload is done
+!ROWS_TILE_HIGH = $0830          ; ORed into each nonzero nibble
+!ROWS_BUFFER = $7FB000           ; the stepped upload's nibbles, a byte per two tiles
 !v_0845 = $0845
 
 ; @routine 80:851B UploadCharsets
@@ -82,20 +84,80 @@ UploadCharsets:
 
 
 ; @routine 80:8577 UploadStepped
-; WHAT IT DOES: When $082A asks, runs step $082E of a stepped upload
-; through the table at $80:8584.
-; HOW: $082E * 2 indexes the jump table (0: the row number cleared, the
-; step on; 1: a row of the buffer at $7F:B000 written to VRAM).
+; WHAT IT DOES: When ROWS_ASK asks, runs step ROWS_STEP of a stepped
+; upload: 0 starts it at row 0; 1 writes a row of ROWS_BUFFER's nibbles
+; to VRAM as tiles' high bytes (ROWS_TILE_HIGH ORed into each nonzero
+; one), two rows a call, and ends the upload once the row wraps to 0.
+; HOW: ROWS_STEP * 2 indexes ROWS_STEPS (JMP). Step 0: ROWS_ROW 0,
+; ROWS_STEP up. Step 1: VMAIN $80; VRAM address ROWS_ROW * $40, X =
+; ROWS_ROW * $20 (16-bit); $40 bytes: the low nibble then the high one,
+; each a word (VMDATAL 0, VMDATAH the nibble, ORed with ROWS_TILE_HIGH
+; when nonzero); ROWS_ROW + 2, at 0 ROWS_ASK cleared; X 8-bit.
 ; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: as
-; the step.
+; the step: step 0 N and Z from ROWS_STEP; step 1 N, Z, C and V from the
+; row's sum, A its low byte, Y 0.
 %at($808577)
 UploadStepped:
-    ldy.w !v_082a
-    beq UploadStepped+23
-    lda.w !v_082e
+    ldy.w !ROWS_ASK
+    beq .done
+    lda.w !ROWS_STEP
     asl a
     tax
-    jmp.w (!routine_808584,x)
+    jmp.w (.steps,x)
+.steps:
+    dw .start, .row
+.start:
+    stz.w !ROWS_ROW
+    inc.w !ROWS_STEP
+.done:
+    rts
+.row:
+    lda.b #$80
+    sta.w !VMAIN
+    rep.b #$30
+    lda.w !ROWS_ROW
+    and.w #$00FF
+    asl a
+    asl a
+    asl a
+    asl a
+    asl a
+    tax
+    asl a
+    sta.w !VMADDL
+    sep.b #$20
+    ldy.w #$0040
+.tiles:
+    lda.l !ROWS_BUFFER,x
+    pha
+    and.b #$0F
+    beq .low
+    ora.w !ROWS_TILE_HIGH
+.low:
+    stz.w !VMDATAL
+    sta.w !VMDATAH
+    pla
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    beq .high
+    ora.w !ROWS_TILE_HIGH
+.high:
+    stz.w !VMDATAL
+    sta.w !VMDATAH
+    inx
+    dey
+    bne .tiles
+    clc
+    lda.w !ROWS_ROW
+    adc.b #$02
+    sta.w !ROWS_ROW
+    bne .more
+    stz.w !ROWS_ASK
+.more:
+    sep.b #$10
+    rts
 
 
 ; @routine 80:869A UploadBlockA

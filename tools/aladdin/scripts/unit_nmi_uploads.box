@@ -19,6 +19,12 @@ call 808577 d=0 db=80 p=30
 set 00082A 01
 set 00082E 01
 call 808577 d=0 db=80 p=30
+# The last row: ROWS_ROW at $FE wraps to 0, and the upload is done
+# (ROWS_ASK cleared, $80:85DC).
+set 00082A 01
+set 00082E 01
+set 00082F FE
+call 808577 d=0 db=80 p=30
 # UploadBlockA ($80:869A) and UploadBlockB ($80:86D9): request 7, the
 # second entry of each table ($80:B6A2, $80:B6EF).
 set 00082C 07

@@ -101,6 +101,17 @@ void abi_ActorLedgeAbove(void)
     flag_set(P_C, 1);
 }
 
+/* ActorMotionPreset by the JSL at `site`, once the return address is
+   dropped: the original's JSL writes its own return address where the
+   dropped one was (the caller's frame), so the C writes it too, then
+   steps S back up as the callee's RTL would. */
+static void preset_past_return(uint32_t site)
+{
+    jsl_frame(site);
+    abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /* GuardLedgeJump's work, run with its JSR's return on the stack: returns
    nonzero when the guard jumps, its own return address pulled (the caller
    then makes its RTS, which returns from the caller's caller). */
@@ -155,7 +166,7 @@ static int ledge_jump(void)
         wr8(dpa(ACTOR_FLIP), face);
         x8_load(rd8(dba(PROBES)));
         y8_load(rd8(dba((uint16_t)(JUMP_MOTIONS + cpu.x))));
-        abi_ActorMotionPreset();
+        preset_past_return(0xA5F201u);
         v = (uint8_t)(rd8(dba(TILE_BEHAVIOUR)) & 0x08);
         a8_load(v);
         if (v) {
@@ -192,7 +203,7 @@ static int ledge_jump(void)
     a16_load(pull16());                          /* its own return dropped */
     op_sep(0x20);
     y8_load(0x83);
-    abi_ActorMotionPreset();
+    preset_past_return(0xA5F23Bu);
     return 1;
 none:
     flag_set(P_C, 1);
