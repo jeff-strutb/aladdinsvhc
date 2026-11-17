@@ -58,6 +58,46 @@ void abi_PlayerFallenTest(void)
 }
 
 
+/* From $81:E966, PlayerHurtCountdown's end of the time: bit 4 of the
+   player's $08, bit 7 of the record's $08 and bit 2 of $0347 cleared; A
+   low the new $0347, N and Z from it. */
+static void hurt_time_out(void)
+{
+    a8_load((uint8_t)(rd8(dba(PLAYER + ACTOR_08)) & 0xEF));
+    wr8(dba(PLAYER + ACTOR_08), (uint8_t)cpu.a);
+    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) & 0x7F));
+    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    a8_load((uint8_t)(rd8(dba(V_0347)) & 0xFB));
+    wr8(dba(V_0347), (uint8_t)cpu.a);
+}
+
+/*
+ * @routine 81:E955 PlayerHurtTimeEnd
+ * WHAT IT DOES: Ends the time the player cannot be hurt, at once: he can
+ * be hit again.
+ * HOW: PLAYER_HURT_TIME cleared, then JSR to PlayerHurtCountdown's end of
+ * the time ($81:E966). No script runs it: written from its bytes.
+ * Entry: M 8-bit; D = the player's record; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSR. Exit: M 8-bit; A low = the new $0347, N and Z
+ * from it.
+ */
+void abi_PlayerHurtTimeEnd(void)
+{
+    wr8(dba(PLAYER_HURT_TIME), 0);
+    hurt_time_out();
+}
+
+/*
+ * @routine 81:E951 PlayerHurtTimeEndLong
+ * WHAT IT DOES: PlayerHurtTimeEnd for callers in other banks.
+ * HOW: JSR to it, then RTL. No script runs it: written from its bytes.
+ * Entry: as PlayerHurtTimeEnd; called by JSL. Exit: as PlayerHurtTimeEnd.
+ */
+void abi_PlayerHurtTimeEndLong(void)
+{
+    abi_PlayerHurtTimeEnd();
+}
+
 /*
  * @routine 81:E95C PlayerHurtCountdown
  * WHAT IT DOES: Counts down the time the player cannot be hurt; when it
@@ -76,12 +116,7 @@ void abi_PlayerHurtCountdown(void)
     if (!t || dec8_at(dba(PLAYER_HURT_TIME)))
         return;
     /* the time runs out: he can be hit again */
-    a8_load((uint8_t)(rd8(dba(PLAYER + ACTOR_08)) & 0xEF));
-    wr8(dba(PLAYER + ACTOR_08), (uint8_t)cpu.a);
-    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) & 0x7F));
-    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
-    a8_load((uint8_t)(rd8(dba(V_0347)) & 0xFB));
-    wr8(dba(V_0347), (uint8_t)cpu.a);
+    hurt_time_out();
 }
 
 

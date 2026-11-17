@@ -11,10 +11,15 @@
 
 void abi_MenuMarkErase(void);
 void abi_MenuMarkDraw(void);
+void abi_MenuCursorMove(void);
 
 #define MENU_CHOICE 0x000849u        /* the menu's choice */
 #define MENU_CHOICE_WAS 0x00084Au    /* the choice the mark was drawn at */
 #define MENU_CHOICE_PLACES 0xCE28u   /* by choice: its tilemap offset (words, the DB bank) */
+#define MENU_CURSOR_PLACES 0xCE1Fu   /* by choice: the one-tile cursor's tilemap offset (words, the DB bank) */
+#define MENU_CURSOR_TILE 0x248E      /* the cursor's tile word */
+#define MENU_CURSOR_MOVES 0x00084Bu  /* counted up at each move of the cursor */
+#define MENU_CURSOR_BLANK 0x0020     /* a blank tile word */
 
 
 
@@ -77,4 +82,53 @@ void abi_MenuMarkMove(void)
     choice_place(cpu.a);
     abi_MenuMarkDraw();
     op_sep(0x10);
+}
+
+/*
+ * @routine 81:EE21 MenuCursorMoveLong
+ * WHAT IT DOES: MenuCursorMove for callers in other banks.
+ * HOW: JSR to it, then RTL. No script runs it: written from its bytes.
+ * Entry: as MenuCursorMove; called by JSL. Exit: as MenuCursorMove.
+ */
+void abi_MenuCursorMoveLong(void)
+{
+    abi_MenuCursorMove();
+}
+
+/*
+ * @routine 81:EE25 MenuCursorMove
+ * WHAT IT DOES: Moves a menu's one-tile cursor from the choice it was at
+ * to the one now chosen, and counts the move.
+ * HOW: Tile word $0020 (a blank) at the tilemap offset of choice
+ * MENU_CHOICE_WAS, MENU_CURSOR_TILE at that of MENU_CHOICE (both from
+ * MENU_CURSOR_PLACES, by twice the choice; 16-bit A, then X); the upload
+ * marked, MENU_CURSOR_MOVES counted up. No script runs it: written from
+ * its bytes.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+ * whose $CE1F holds MENU_CURSOR_PLACES (bank $80: $0454, $04D4, $0554);
+ * called by JSR. Exit: M 8-bit, X 8-bit; A low = $8E; X = the new
+ * choice's offset's low byte; N and Z from MENU_CURSOR_MOVES.
+ */
+void abi_MenuCursorMove(void)
+{
+    lda8(ea_abs(MENU_CHOICE_WAS));
+    ACC8(asl);
+    tax8();
+    op_rep(P_M);
+    lda16(ea_absx(MENU_CURSOR_PLACES));
+    op_rep(P_X);
+    tax16();
+    lda16_v(MENU_CURSOR_BLANK);
+    sta16(ea_longx(TEXT_TILEMAP));
+    lda16(ea_abs(MENU_CHOICE));
+    and16_v(0x00FF);
+    ACC16(asl);
+    tax16();
+    lda16(ea_absx(MENU_CURSOR_PLACES));
+    tax16();
+    lda16_v(MENU_CURSOR_TILE);
+    sta16(ea_longx(TEXT_TILEMAP));
+    op_sep(0x30);
+    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
+    MEM8(inc, ea_abs(MENU_CURSOR_MOVES));
 }

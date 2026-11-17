@@ -132,9 +132,12 @@ void abi_SoundQueueAdd(void)
 
 #define SOUND_SPECIAL 0x03F8       /* the last special command ($F0, $F2, $F5, $F6) queued */
 #define SOUND_CMD_F0 0xF0
+#define SOUND_CMD_F1 0xF1
 #define SOUND_CMD_F2 0xF2
 #define SOUND_CMD_F5 0xF5
 #define SOUND_CMD_F6 0xF6
+
+void abi_SoundQueueF5WithA(void);
 
 /* Special command `cmd` queued and kept as the last one. */
 static void queue_special(uint8_t cmd)
@@ -142,6 +145,21 @@ static void queue_special(uint8_t cmd)
     a8_load(cmd);
     wr8(dba(SOUND_SPECIAL), cmd);
     abi_SoundQueueAdd();
+}
+
+/*
+ * @routine 81:F9E1 SoundQueueF5With4
+ * WHAT IT DOES: Queues sound command $F5 with its parameter 4, keeping
+ * $F5 as the last special command.
+ * HOW: A = 4, and on into SoundQueueF5WithA. No script runs it: written
+ * from its bytes.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSL. Exit: as SoundQueueF5WithA.
+ */
+void abi_SoundQueueF5With4(void)
+{
+    a8_load(0x04);
+    abi_SoundQueueF5WithA();
 }
 
 /*
@@ -185,6 +203,21 @@ void abi_SoundQueueF0(void)
 void abi_SoundQueueF2(void)
 {
     queue_special(SOUND_CMD_F2);
+}
+
+/*
+ * @routine 81:F9FE SoundQueueF1
+ * WHAT IT DOES: Queues sound command $F1 (not kept as the last special
+ * command).
+ * HOW: A = $F1, and on into SoundQueueAdd. No script runs it: written
+ * from its bytes.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSL. Exit: as SoundQueueAdd.
+ */
+void abi_SoundQueueF1(void)
+{
+    a8_load(SOUND_CMD_F1);
+    abi_SoundQueueAdd();
 }
 
 /*

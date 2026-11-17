@@ -23,6 +23,8 @@ arch 65816
 !HEALTH_MARK_GAINED_TILE = $60  ; the mark drawn as health is gained (HEALTH_MARK_TILE as it is lost)
 !HUD_COUNT_1 = $0369            ; the first counter's value
 !HUD_COUNT_2 = $036B            ; the second counter's value
+!HUD_DIGITS = $147E             ; six digits HudSixDigitsShow draws, from the last
+!DIGIT_BOTTOM = $10             ; a digit's bottom tile, on from its top
 
 ; @routine 81:F456 HudRefresh
 ; WHAT IT DOES: Each frame, brings the status line up to the game: the
@@ -245,4 +247,54 @@ HudMarkRefresh:
 .lF587:
     sep.b #$20
     inc.w !text_tilemap_upload
+    rts
+
+; @routine 81:F597 HudSixDigitsShow
+; WHAT IT DOES: Draws six digits on the status line, in three pairs: the
+; digits of HUD_DIGITS from its last byte to its first.
+; HOW: With 16-bit X, HudDigitPut for $1483 and $1482 at tilemap offsets
+; $96 and $98, $1481 and $1480 at $9C and $9E, $147F and $147E at $A2 and
+; $A4; then X 8-bit and the upload marked. No script runs it: written
+; from its bytes.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR. Exit: M 8-bit, X 8-bit; X = $A6; A low = the last bottom
+; tile; N and Z from the upload count.
+%at($81F597)
+HudSixDigitsShow:
+    rep.b #$10
+    ldx.w #150
+    lda.w !HUD_DIGITS+5
+    jsr.w HudDigitPut
+    lda.w !HUD_DIGITS+4
+    jsr.w HudDigitPut
+    ldx.w #156
+    lda.w !HUD_DIGITS+3
+    jsr.w HudDigitPut
+    lda.w !HUD_DIGITS+2
+    jsr.w HudDigitPut
+    ldx.w #162
+    lda.w !HUD_DIGITS+1
+    jsr.w HudDigitPut
+    lda.w !HUD_DIGITS
+    jsr.w HudDigitPut
+    sep.b #$10
+    inc.w !text_tilemap_upload
+    rts
+
+; @routine 81:F5CC HudDigitPut
+; WHAT IT DOES: Puts digit A on the status line at tilemap offset X: its
+; top tile, and its bottom tile a row below.
+; HOW: A plus DIGIT_TILE_0 to the tile byte at X, that or $10 to the one
+; $40 on; X stepped by 2.
+; Entry: M 8-bit, X 16-bit; A = the digit; X = the tilemap offset; called
+; by JSR (HudSixDigitsShow). Exit: M 8-bit, X 16-bit; X 2 on; A = the
+; bottom tile; N and Z from it, C and V from the addition.
+HudDigitPut:
+    clc
+    adc.b #!DIGIT_TILE_0
+    sta.l !text_tilemap,x
+    ora.b #!DIGIT_BOTTOM
+    sta.l !text_tilemap+64,x
+    inx
+    inx
     rts

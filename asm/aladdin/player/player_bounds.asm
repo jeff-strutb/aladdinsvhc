@@ -45,6 +45,28 @@ PlayerFallenTest:
 .lE908:
     rts
 
+; @routine 81:E951 PlayerHurtTimeEndLong
+; WHAT IT DOES: PlayerHurtTimeEnd for callers in other banks.
+; HOW: JSR to it, then RTL. No script runs it: written from its bytes.
+; Entry: as PlayerHurtTimeEnd; called by JSL. Exit: as PlayerHurtTimeEnd.
+%at($81E951)
+PlayerHurtTimeEndLong:
+    jsr.w PlayerHurtTimeEnd
+    rtl
+
+; @routine 81:E955 PlayerHurtTimeEnd
+; WHAT IT DOES: Ends the time the player cannot be hurt, at once: he can
+; be hit again.
+; HOW: PLAYER_HURT_TIME cleared, then JSR to PlayerHurtCountdown's end of
+; the time ($81:E966). No script runs it: written from its bytes.
+; Entry: M 8-bit; D = the player's record; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSR. Exit: M 8-bit; A low = the new $0347, N and Z
+; from it.
+PlayerHurtTimeEnd:
+    stz.w !player_hurt_time
+    jsr.w PlayerHurtCountdown_timeOut
+    rts
+
 ; @routine 81:E95C PlayerHurtCountdown
 ; WHAT IT DOES: Counts down the time the player cannot be hurt; when it
 ; runs out, the player can be hit again.
@@ -59,6 +81,7 @@ PlayerHurtCountdown:
     beq .lE97C
     dec.w !player_hurt_time
     bne .lE97C
+.timeOut:
     lda.w !player+!actor_08
     and.b #$EF
     sta.w !player+!actor_08

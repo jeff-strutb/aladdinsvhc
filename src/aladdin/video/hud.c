@@ -24,6 +24,8 @@
 #define HUD_VALUE_SHOWN 0x000363u  /* that value as shown */
 #define HUD_MARK_VALUE 0x00036Eu   /* zero: the 2x2 mark is blank */
 #define HUD_MARK_SHOWN 0x00036Du   /* that value as shown */
+#define HUD_DIGITS 0x00147Eu       /* six digits HudSixDigitsShow draws, from the last */
+#define DIGIT_BOTTOM 0x10          /* a digit's bottom tile, on from its top */
 
 void abi_HudMarkRefresh(void);
 void abi_HudCount1Show(void);
@@ -258,4 +260,60 @@ void abi_HudRefresh(void)
     nz8_of(0x01);
     flag_set(P_C, 0);
     flag_set(P_V, 0);
+}
+
+/*
+ * @routine 81:F5CC HudDigitPut
+ * WHAT IT DOES: Puts digit A on the status line at tilemap offset X: its
+ * top tile, and its bottom tile a row below.
+ * HOW: A plus DIGIT_TILE_0 to the tile byte at X, that or $10 to the one
+ * $40 on; X stepped by 2.
+ * Entry: M 8-bit, X 16-bit; A = the digit; X = the tilemap offset; called
+ * by JSR (HudSixDigitsShow). Exit: M 8-bit, X 16-bit; X 2 on; A = the
+ * bottom tile; N and Z from it, C and V from the addition.
+ */
+void abi_HudDigitPut(void)
+{
+    clc();
+    adc8_v(DIGIT_TILE_0);
+    sta8(ea_longx(TEXT_TILEMAP));
+    ora8_v(DIGIT_BOTTOM);
+    sta8(ea_longx(TEXT_TILEMAP + 64));
+    inx16();
+    inx16();
+}
+
+/* HudDigitPut for the digit at HUD_DIGITS + i. */
+static void digit_put(uint16_t i)
+{
+    lda8(ea_abs((uint16_t)(HUD_DIGITS + i)));
+    abi_HudDigitPut();
+}
+
+/*
+ * @routine 81:F597 HudSixDigitsShow
+ * WHAT IT DOES: Draws six digits on the status line, in three pairs: the
+ * digits of HUD_DIGITS from its last byte to its first.
+ * HOW: With 16-bit X, HudDigitPut for $1483 and $1482 at tilemap offsets
+ * $96 and $98, $1481 and $1480 at $9C and $9E, $147F and $147E at $A2 and
+ * $A4; then X 8-bit and the upload marked. No script runs it: written
+ * from its bytes.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR. Exit: M 8-bit, X 8-bit; X = $A6; A low = the last bottom
+ * tile; N and Z from the upload count.
+ */
+void abi_HudSixDigitsShow(void)
+{
+    op_rep(P_X);
+    ldx16_v(0x0096);
+    digit_put(5);
+    digit_put(4);
+    ldx16_v(0x009C);
+    digit_put(3);
+    digit_put(2);
+    ldx16_v(0x00A2);
+    digit_put(1);
+    digit_put(0);
+    op_sep(P_X);
+    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
 }

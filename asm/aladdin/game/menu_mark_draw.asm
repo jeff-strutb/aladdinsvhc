@@ -11,6 +11,10 @@ arch 65816
 !MENU_CHOICE = $0849             ; the menu's choice
 !MENU_CHOICE_WAS = $084A         ; the choice the mark was drawn at
 !MENU_CHOICE_PLACES = $CE28      ; by choice: its tilemap offset (words, the DB bank)
+!MENU_CURSOR_PLACES = $CE1F      ; by choice: the one-tile cursor's tilemap offset (words, the DB bank)
+!MENU_CURSOR_TILE = $248E        ; the cursor's tile word
+!MENU_CURSOR_MOVES = $084B       ; counted up at each move of the cursor
+!MENU_CURSOR_BLANK = $0020       ; a blank tile word
 
 
 ; @routine 81:EF39 MenuMarkDraw
@@ -66,3 +70,46 @@ MenuMarkMove:
     jsl.l MenuMarkDraw
     sep.b #$10
     rtl
+
+; @routine 81:EE21 MenuCursorMoveLong
+; WHAT IT DOES: MenuCursorMove for callers in other banks.
+; HOW: JSR to it, then RTL. No script runs it: written from its bytes.
+; Entry: as MenuCursorMove; called by JSL. Exit: as MenuCursorMove.
+MenuCursorMoveLong:
+    jsr.w MenuCursorMove
+    rtl
+
+; @routine 81:EE25 MenuCursorMove
+; WHAT IT DOES: Moves a menu's one-tile cursor from the choice it was at
+; to the one now chosen, and counts the move.
+; HOW: Tile word $0020 (a blank) at the tilemap offset of choice
+; MENU_CHOICE_WAS, MENU_CURSOR_TILE at that of MENU_CHOICE (both from
+; MENU_CURSOR_PLACES, by twice the choice; 16-bit A, then X); the upload
+; marked, MENU_CURSOR_MOVES counted up. No script runs it: written from
+; its bytes.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+; whose $CE1F holds MENU_CURSOR_PLACES (bank $80: $0454, $04D4, $0554);
+; called by JSR. Exit: M 8-bit, X 8-bit; A low = $8E; X = the new
+; choice's offset's low byte; N and Z from MENU_CURSOR_MOVES.
+MenuCursorMove:
+    lda.w !MENU_CHOICE_WAS
+    asl a
+    tax
+    rep.b #$20
+    lda.w !MENU_CURSOR_PLACES,x
+    rep.b #$10
+    tax
+    lda.w #!MENU_CURSOR_BLANK
+    sta.l !text_tilemap,x
+    lda.w !MENU_CHOICE
+    and.w #$00FF
+    asl a
+    tax
+    lda.w !MENU_CURSOR_PLACES,x
+    tax
+    lda.w #!MENU_CURSOR_TILE
+    sta.l !text_tilemap,x
+    sep.b #$30
+    inc.w !text_tilemap_upload
+    inc.w !MENU_CURSOR_MOVES
+    rts

@@ -105,6 +105,7 @@ SoundQueueAdd:
 
 !SOUND_SPECIAL = $03F8          ; the last special command ($F0, $F2, $F5, $F6) queued
 !SOUND_CMD_F0 = $F0
+!SOUND_CMD_F1 = $F1
 !SOUND_CMD_F2 = $F2
 !SOUND_CMD_F5 = $F5
 !SOUND_CMD_F6 = $F6
@@ -124,6 +125,16 @@ SoundQueueF6With1:
     jsl.l SoundQueueAdd
     xba
     bra SoundQueueAdd
+
+; @routine 81:F9E1 SoundQueueF5With4
+; WHAT IT DOES: Queues sound command $F5 with its parameter 4, keeping
+; $F5 as the last special command.
+; HOW: A = 4, and on into SoundQueueF5WithA. No script runs it: written
+; from its bytes.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSL. Exit: as SoundQueueF5WithA.
+SoundQueueF5With4:
+    lda.b #$04
 
 ; @routine 81:F9E3 SoundQueueF5WithA
 ; WHAT IT DOES: Queues sound command $F5 with its parameter A, keeping
@@ -164,3 +175,13 @@ SoundQueueF2:
     lda.b #!SOUND_CMD_F2
     sta.w !SOUND_SPECIAL
     bra SoundQueueAdd
+
+; @routine 81:F9FE SoundQueueF1
+; WHAT IT DOES: Queues sound command $F1 (not kept as the last special
+; command).
+; HOW: A = $F1, and on into SoundQueueAdd. No script runs it: written
+; from its bytes.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSL. Exit: as SoundQueueAdd.
+SoundQueueF1:
+    lda.b #!SOUND_CMD_F1
