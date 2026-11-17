@@ -1,0 +1,33 @@
+# Actor kind $61 ($83:E4EC), a bar Aladdin catches as he falls through it
+# (its hit box 5 by 1), past its first frame, which no script reaches: in
+# level $0A as cov_kinda0_fall.box, the view put on the kind $61 at x $88,
+# y $590 so it stays in range, then Aladdin dropped onto it from y $560:
+# it catches him ($83:E520), holds him at its place while it keeps the
+# box ($83:E53C) and, every $14 frames, lets him test it again ($83:E517).
+# Then again with the hurt count ($141B) set, so it lets him go at once
+# ($83:E559).
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,05
+poke 0019E9 00,05
+poke 001773 00,00
+poke 0019E5 00,00
+poke 0008E7 60,00
+poke 0008EA 70,05
+wait 60
+poke 0008E7 88,00
+poke 0008EA 60,05
+wait 300
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,05
+poke 0019E9 00,05
+poke 001773 00,00
+poke 0019E5 00,00
+poke 0008E7 60,00
+poke 0008EA 70,05
+wait 60
+poke 0008E7 88,00
+poke 0008EA 60,05
+poke 00141B 01
+wait 300
