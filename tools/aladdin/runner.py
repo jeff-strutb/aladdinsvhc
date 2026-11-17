@@ -54,7 +54,7 @@ QUIET = tuple(LEDGERS) + ('docs/',)
 # A7 = half as many lockstep pairs (~1.6 cores, ~0.6G each); one lockstep
 # pair for a bisection test; light Python reading the traces.
 BUILD = ('6', '5G')
-QUALIFY = ('8', '6G')
+QUALIFY = ('12', '8G')
 QUALIFY_TIMEOUT = 14400
 BISECT = ('2', '2G')
 LIGHT = ('1', '3G')
