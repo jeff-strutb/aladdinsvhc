@@ -97,8 +97,8 @@ GuardStart:
     tax
     jmp.w (.starts,x)
 .starts:
-    dw .guard, $EB31, PlayerSceneLeap, PlayerSceneHops, $ED0F, $EE29, $EEE1
-    dw EscortStaySpot18, EscortWaitSpot0, EscortWaitSpot0C, EscortWaitSpot10, $F00E, .shown
+    dw .guard, $EB31, PlayerSceneLeap, PlayerSceneHops, PlayerSceneDropIn, $EE29, $EEE1
+    dw EscortStaySpot18, EscortWaitSpot0, EscortWaitSpot0C, EscortWaitSpot10, GuardPlacedHold, .shown
 .shown:
     lda.b #$01
     sta.b !G_SHOWN

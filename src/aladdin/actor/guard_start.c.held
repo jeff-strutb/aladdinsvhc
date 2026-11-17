@@ -1,4 +1,4 @@
-/* heldc: keep (GuardStart goes on into GuardStop (A5:E5B6), whose C is held in guard_moves.c.held; Kind08Enter only jumps to GuardStart) */
+/* heldc: keep (GuardStart and GuardPlacedHold go on into GuardStop (A5:E5B6), whose C is held in guard_moves.c.held; Kind08Enter only jumps to GuardStart) */
 /*
  * guard_start.c.held: the start of bank $A5's actors of kind $08 (the
  * guard and the scripted figures that share its kind): its record set up
@@ -17,13 +17,16 @@ void abi_ActorMoveX(void);
 void abi_ActorSnapToGround(void);
 void abi_ActorSpeedXClear(void);
 void abi_ActorSpeedXFromA5(void);
+void abi_ActorPlaceAtSpot(void);
 void abi_AnimStart(void);
 void abi_EscortStaySpot18(void);
 void abi_EscortWaitSpot0(void);
 void abi_EscortWaitSpot0C(void);
 void abi_EscortWaitSpot10(void);
+void abi_GuardPlacedHold(void);
 void abi_GuardStart(void);
 void abi_GuardStop(void);
+void abi_PlayerSceneDropIn(void);
 void abi_PlayerSceneHops(void);
 void abi_PlayerSceneLeap(void);
 
@@ -151,6 +154,9 @@ void abi_GuardStart(void)
     case 3:
         abi_PlayerSceneHops();
         return;
+    case 4:
+        abi_PlayerSceneDropIn();
+        return;
     case 7:
         abi_EscortStaySpot18();
         return;
@@ -163,13 +169,39 @@ void abi_GuardStart(void)
     case 10:
         abi_EscortWaitSpot10();
         return;
+    case 11:
+        abi_GuardPlacedHold();
+        return;
     case 12:
         a8_load(0x01);
         wr8(dpa(G_SHOWN), 0x01);
         guard();
         return;
-    default:                                    /* 1, 4, 5, 6, 11 (their own starts), and past the table's 13 words */
+    default:                                    /* 1, 5, 6 (their own starts, no C yet), and past the table's 13 words */
         jump_routine(0xA50000u | rd16(0xA50000u | (uint16_t)(STARTS + cpu.x)));
         return;
     }
+}
+
+/*
+ * @routine A5:F00E GuardPlacedHold
+ * @actor
+ * WHAT IT DOES: Bank $A5's start for $07 = 11: a guard put at spot $20,
+ * in state 4 (holding back while the player is to its left), stopped.
+ * No script meets it: written from its bytes.
+ * HOW: G_STATE 4; ActorPlaceAtSpot with X = $20; AnimStart 0; on at
+ * GuardStop.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $A5; reached by
+ * the jump through the table at $A5:E56D for $07 = 11. Exit: never
+ * returns.
+ */
+void abi_GuardPlacedHold(void)
+{
+    a8_load(0x04);
+    wr8(dpa(G_STATE), 0x04);
+    x8_load(0x20);
+    abi_ActorPlaceAtSpot();
+    a8_load(0x00);
+    abi_AnimStart();
+    abi_GuardStop();
 }
