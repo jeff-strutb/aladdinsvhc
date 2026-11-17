@@ -20,6 +20,29 @@ arch 65816
 !aim_directions = $BC03         ; per octant 8 bytes, the direction of each step
 !near_span_table = $81BC7B      ; half-width: 2 bytes an entry
 
+; @routine 81:AB62 ActorPlayerBelow
+; WHAT IT DOES: Says whether the player is level with or below the actor:
+; 1 when his y is at or below its y, else 0.
+; HOW: With 16-bit A the player's y pixels compared with the actor's; X
+; counted up from 0 when not below.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSL. Exit: M 8-bit, X 8-bit; A low byte and X = the
+; answer; A high byte = the player's y high byte; N and Z from the
+; answer; C from the compare. No script runs it: written from its bytes.
+%at($81AB62)
+ActorPlayerBelow:
+    rep.b #$20
+    ldx.b #0
+    sec
+    lda.w !player+!actor_y+1
+    cmp.b !actor_y+1
+    bcc .above
+    inx
+.above:
+    sep.b #$20
+    txa
+    rtl
+
 ; @routine 81:AB85 ActorSideOfPlayer
 ; WHAT IT DOES: Says which way the actor must face to look at the player.
 ; HOW: 0 (right) when the player's x is at or right of the actor's, else

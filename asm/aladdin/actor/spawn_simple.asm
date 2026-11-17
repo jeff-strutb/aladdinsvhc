@@ -17,19 +17,33 @@ arch 65816
 ; @routine 81:A9E9 ActorSpawnShared
 ; WHAT IT DOES: Starts a child with hit box A at the spawner's spawn point,
 ; sharing the spawner's animated-tile slot, if a record is free.
-; HOW: ActorAlloc; then ActorSpawnTyped and ActorTileSlotShare.
+; HOW: ActorAlloc; then on into ActorSpawnSharedAt (ActorSpawnTyped and
+; ActorTileSlotShare).
 ; Entry: M 8-bit, X 8-bit; A low byte = the hit box; D = the spawner; DB =
 ; $81; called by JSL. Exit: none free: as ActorAlloc (N set). Started: M
 ; 8-bit, X 8-bit; A low byte = 0, Z set; X = the child's low byte.
 %at($81A9E9)
 ActorSpawnShared:
     jsl.l ActorAlloc
-    bmi .lA9F9
+    bmi ActorSpawnSharedAt_none
+
+; @routine 81:A9EF ActorSpawnSharedAt
+; WHAT IT DOES: Starts record X as a child with hit box A at the
+; spawner's spawn point, sharing the spawner's animated-tile slot:
+; ActorSpawnShared once its record is taken.
+; HOW: ActorSpawnTyped and ActorTileSlotShare; then M and X 8-bit and A
+; = 0. No script calls it here (ActorSpawnShared runs on into it): written
+; from its bytes.
+; Entry: M 8-bit, X 16-bit; X = the child's record; A low byte = the hit
+; box; D = the spawner; DB = $81; called by JSL, or reached from
+; ActorSpawnShared. Exit: M 8-bit, X 8-bit; A low byte = 0, Z set; X =
+; the child's low byte.
+ActorSpawnSharedAt:
     jsr.w ActorSpawnTyped
     jsr.w ActorTileSlotShare
     sep.b #$30
     lda.b #$00
-.lA9F9:
+.none:
     rtl
 
 

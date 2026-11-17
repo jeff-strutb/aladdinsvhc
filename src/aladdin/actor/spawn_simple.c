@@ -8,6 +8,7 @@
 #include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorSpawnShared(void);
+void abi_ActorSpawnSharedAt(void);
 void abi_ActorSpawnFacingY(void);
 void abi_ActorsFreeAll(void);
 void abi_ActorTileSlotShare(void);
@@ -22,7 +23,8 @@ void abi_ActorAlloc(void);
  * @routine 81:A9E9 ActorSpawnShared
  * WHAT IT DOES: Starts a child with hit box A at the spawner's spawn point,
  * sharing the spawner's animated-tile slot, if a record is free.
- * HOW: ActorAlloc; then ActorSpawnTyped and ActorTileSlotShare.
+ * HOW: ActorAlloc; then on into ActorSpawnSharedAt (ActorSpawnTyped and
+ * ActorTileSlotShare).
  * Entry: M 8-bit, X 8-bit; A low byte = the hit box; D = the spawner; DB =
  * $81; called by JSL. Exit: none free: as ActorAlloc (N set). Started: M
  * 8-bit, X 8-bit; A low byte = 0, Z set; X = the child's low byte.
@@ -32,6 +34,24 @@ void abi_ActorSpawnShared(void)
     abi_ActorAlloc();
     if (cpu.p & P_N)
         return;
+    abi_ActorSpawnSharedAt();
+}
+
+/*
+ * @routine 81:A9EF ActorSpawnSharedAt
+ * WHAT IT DOES: Starts record X as a child with hit box A at the
+ * spawner's spawn point, sharing the spawner's animated-tile slot:
+ * ActorSpawnShared once its record is taken.
+ * HOW: ActorSpawnTyped and ActorTileSlotShare; then M and X 8-bit and A
+ * = 0. No script calls it here (ActorSpawnShared runs on into it): written
+ * from its bytes.
+ * Entry: M 8-bit, X 16-bit; X = the child's record; A low byte = the hit
+ * box; D = the spawner; DB = $81; called by JSL, or reached from
+ * ActorSpawnShared. Exit: M 8-bit, X 8-bit; A low byte = 0, Z set; X =
+ * the child's low byte.
+ */
+void abi_ActorSpawnSharedAt(void)
+{
     abi_ActorSpawnTyped();
     abi_ActorTileSlotShare();
     op_sep(0x30);

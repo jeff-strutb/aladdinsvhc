@@ -10,6 +10,7 @@
 #include "ops65.h"
 void abi_ActorFreeListSortHigh(void);
 void abi_ActorFreeListTake(void);
+void abi_ActorSpawnSharedAt(void);
 #include "actor.h"
 #include "wram.h"
 
@@ -308,4 +309,38 @@ void abi_ActorFreeListTake(void)
     return;
 none:
     flag_set(P_C, 0);
+}
+
+#define POOL_B_1490 0x1490u       /* ActorSpawnSharedB: the hit box last started */
+
+/*
+ * @routine 81:EA52 ActorSpawnSharedB
+ * WHAT IT DOES: ActorSpawnShared from the second pool: starts a child
+ * with hit box A, the spawner's palette and sprite priority, at the
+ * spawner's spawn point, sharing its animated-tile slot, if a record of
+ * the second pool is free.
+ * HOW: ActorAllocB; none free (N): RTL. Else, A kept on the stack: the
+ * child's $2C = the spawner's AND $0E, its $09 = the spawner's AND $30;
+ * A to POOL_B_1490; ActorSpawnSharedAt. No script runs it: written from
+ * its bytes.
+ * Entry: M 8-bit, X 8-bit; A low byte = the hit box; D = the spawner; DB
+ * = $81; called by JSL. Exit: none free: as ActorAllocB (N set). Started:
+ * as ActorSpawnSharedAt.
+ */
+void abi_ActorSpawnSharedB(void)
+{
+    abi_ActorAllocB();
+    if (IF_N)
+        return;
+    pha8();
+    op_rep(P_X);
+    lda8(ea_dp(ACTOR_LOOK + 1));
+    and8_v(0x0E);
+    sta8(ea_absx(ACTOR_LOOK + 1));
+    lda8(ea_dp(ACTOR_09));
+    and8_v(0x30);
+    sta8(ea_absx(ACTOR_09));
+    pla8();
+    sta8(ea_abs(POOL_B_1490));
+    abi_ActorSpawnSharedAt();
 }
