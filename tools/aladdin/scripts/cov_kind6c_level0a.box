@@ -1,0 +1,16 @@
+# Actor kind $6C in level $0A (Kind6CStart, $83:E55E): there it acts only
+# while hittable, a test ($83:E570) no play reaches, as the level's three
+# are met only while V_145A is negative. Level $0A as in cov_climb_top.box,
+# then the camera at x $0480 and Aladdin at x $0500 near the climb's top:
+# the kind $6C placed at x $04F8, y $0038 starts with V_145A 0.
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 90,00
+poke 0008EA 70,00
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 0008E7 00,05
+wait 60
