@@ -33,6 +33,7 @@ void abi_ActorSnapToGround(void);
 void abi_ActorSpeedXSet1(void);
 void abi_ActorTileAheadIs70(void);
 void abi_ActorXTo40(void);
+void abi_Kind20Patrol(void);
 void abi_AnimStart(void);
 void abi_SoundQueueAdd(void);
 
@@ -184,13 +185,14 @@ ahead:
 
 /*
  * @routine 83:97AF Kind20Start
+ * @actor
  * WHAT IT DOES: Actor kind $20's start: a guard set up to walk its beat
  * the way its placement faces.
  * HOW: ACTOR_08 bit 1 and ACTOR_09 bits $90 set; KIND20_16 $D05A,
- * KIND20_29 $890F; with PLACE $1F, AnimStart 0, a 32-frame wait, then
- * PLACE 3; with PLACE bit 4, on at NO_PATROL (neither is run by a script);
- * Actor44SetBy07, AnimStart 2, facing and flip PLACE bit 0, ActorXTo40,
- * ActorSpeedXSet1; on into Kind20Patrol at its BRK.
+ * KIND20_29 $890F; with PLACE $1F (the ending's scene), AnimStart 0, a
+ * 32-frame wait, then PLACE 3; with PLACE bit 4, on at NO_PATROL (no
+ * script runs that); Actor44SetBy07, AnimStart 2, facing and flip PLACE
+ * bit 0, ActorXTo40, ActorSpeedXSet1; on into Kind20Patrol at its BRK.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
  * $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $20
  * (the table at $83:8CAB). Exit: never returns.
@@ -232,7 +234,7 @@ void abi_Kind20Start(void)
     sta8(ea_dp(ACTOR_FLIP));
     abi_ActorXTo40();
     abi_ActorSpeedXSet1();
-    actor_leave(0x8397F9u);
+    abi_Kind20Patrol();         /* on into its BRK */
 }
 
 /*
@@ -438,10 +440,10 @@ void abi_Kind20Spotted(void)
     sta8(ea_dp(COUNT));
     stz8(ea_dp(SPED_UP));
     /* on into Kind20Charge past its BRK and move; its JMP back to
-       Kind20Charge hands the actor on there (an actor's entry) */
+       Kind20Charge goes on in this same piece of the actor */
     on = charge_frame();
     if (on > 0)
-        actor_leave(0x839900u);
+        jump_routine(0x839900u);
     else if (on == 0)
         jump_routine(0x839956u);
 }
@@ -496,5 +498,5 @@ void abi_Kind20Halt(void)
     abi_ActorSpeedXSet1();
     abi_ActorXTo40();
     abi_Actor44Set40And80();
-    actor_leave(0x839832u);
+    jump_routine(0x839832u);
 }

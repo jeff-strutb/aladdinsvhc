@@ -33,13 +33,14 @@ arch 65816
 !KIND20_NO_PATROL = $839AC9    ; its code for bit 4 of K20_PLACE, which no script reaches
 
 ; @routine 83:97AF Kind20Start
+; @actor
 ; WHAT IT DOES: Actor kind $20's start: a guard set up to walk its beat
 ; the way its placement faces.
 ; HOW: ACTOR_08 bit 1 and ACTOR_09 bits $90 set; KIND20_16 $D05A,
-; KIND20_29 $890F; with PLACE $1F, AnimStart 0, a 32-frame wait, then
-; PLACE 3; with PLACE bit 4, on at NO_PATROL (neither is run by a script);
-; Actor44SetBy07, AnimStart 2, facing and flip PLACE bit 0, ActorXTo40,
-; ActorSpeedXSet1; on into Kind20Patrol at its BRK.
+; KIND20_29 $890F; with PLACE $1F (the ending's scene), AnimStart 0, a
+; 32-frame wait, then PLACE 3; with PLACE bit 4, on at NO_PATROL (no
+; script runs that); Actor44SetBy07, AnimStart 2, facing and flip PLACE
+; bit 0, ActorXTo40, ActorSpeedXSet1; on into Kind20Patrol at its BRK.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
 ; $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $20
 ; (the table at $83:8CAB). Exit: never returns.
@@ -58,7 +59,7 @@ Kind20Start:
     lda.b !K20_PLACE
     cmp.b #$1F
     bne .placed
-    lda.b #$00                     ; (no script runs this)
+    lda.b #$00                     ; the ending's scene
     jsl.l AnimStart
     lda.b #$20
     cop.b #$00

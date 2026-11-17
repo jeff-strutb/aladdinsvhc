@@ -119,6 +119,7 @@ void abi_ActorKnockedAwayResumed(void)
 
 /*
  * @routine 83:9C19 Kind20Hit
+ * @actor
  * WHAT IT DOES: Actor kind $20's guard struck: from in front (its facing
  * not negative) knocked away (animation 4, sound $0F, preset 3); from
  * behind turned round, sound 7, and knocked away from where its
@@ -145,7 +146,7 @@ void abi_Kind20Hit(void)
         lda8_v(0x04);
         ldx8_v(0x0F);
         ldy8_v(0x03);
-        actor_leave(0x839532u);
+        abi_ActorKnockedAway();
         return;
     }
     and8_v(0x01);

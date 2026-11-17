@@ -110,6 +110,7 @@ ActorKnockedAwayResumedB:
     bra ActorKnockedAwayResumed_five
 
 ; @routine 83:9C19 Kind20Hit
+; @actor
 ; WHAT IT DOES: Actor kind $20's guard struck: from in front (its facing
 ; not negative) knocked away (animation 4, sound $0F, preset 3); from
 ; behind turned round, sound 7, and knocked away from where its

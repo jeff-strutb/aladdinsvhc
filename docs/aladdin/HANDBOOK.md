@@ -107,8 +107,16 @@ per finding, each linked to the dated note that measured it.
   writes that frame too (`jsl_frame`) and steps S back
   ([decomp/log/coverage-restart-2026-11-16](decomp/log/coverage-restart-2026-11-16.md)).
 
-- A tail jump into an actor entry is actor_leave from code that is not an
-  actor entry itself, a tail call from code that is (cdraft's rule).
+- A jump into an actor entry from code running inside an actor's piece
+  (the piece's own code, or code it reached by a jump) goes on in the same
+  piece: a tail call in the C; the original's record does not end there.
+  Only a routine the actor's code called (JSR/JSL) that drops its return
+  and jumps on ends the call: actor_leave. cdraft's rule (actor_leave from
+  any routine not catalogued as an actor) is wrong for code reached by a
+  jump (kind $20's Kind20Spotted and Kind20Halt, cov_ending_gems).
+- A routine the kind tables ($83:8CAB-$8EFD) reach directly, with no stub
+  between, is an actor entry: tag it @actor, or its yields do not end its
+  piece on the original side (Kind20Start, cov_ending_gems).
 - t3 reruns every script when src/aladdin/include/ or any non-.c file in
   the C tree changes (.held files too): keep new C names in their .c and
   batch .held releases, one commit per gate.
