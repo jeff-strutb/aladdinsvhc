@@ -20,15 +20,21 @@ LIB = os.path.join(OUT, 'libaladdin.' + LIBEXT)
 
 def export_head():
     """The committed C tree at HEAD, so gates measure a commit while the
-    working tree keeps changing. Returns (source dir, short revision)."""
-    rev = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+    working tree keeps changing. Returns (source dir, short revision).
+    ALADDIN_GATE_REV names another commit (a probe branch, say) to export
+    in HEAD's place; give it a separate ALADDIN_GATE_OUT so its records stay
+    apart from the decomp's."""
+    want = os.environ.get('ALADDIN_GATE_REV', 'HEAD')
+    rev = subprocess.run(['git', 'rev-parse', '--short', want], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+    if not rev:
+        raise SystemExit('ALADDIN_GATE_REV: no such revision: %s' % want)
     tree = os.environ.get('ALADDIN_GATE_TREE', 'src/aladdin').rstrip('/')
     out = os.environ.get('ALADDIN_GATE_OUT')
     dst = os.path.join(ROOT, 'build', 'aladdin', out, 'gate_src') if out else \
         os.path.join(ROOT, 'build', 'aladdin', 'gate_src')
     shutil.rmtree(dst, ignore_errors=True)
     os.makedirs(dst)
-    arc = subprocess.run(['git', 'archive', 'HEAD', tree], capture_output=True, cwd=ROOT).stdout
+    arc = subprocess.run(['git', 'archive', rev, tree], capture_output=True, cwd=ROOT).stdout
     subprocess.run(['tar', '-x', '-C', dst], input=arc, check=True)
     return os.path.join(dst, tree), rev
 TAG = re.compile(r'@routine\s+([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4})\s+(\w+)')
