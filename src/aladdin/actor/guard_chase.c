@@ -257,15 +257,30 @@ void abi_GuardLedgeJump(void)
  * as GuardLedgeJump when it jumps; else M 8-bit when the facing was set,
  * M 16-bit otherwise.
  */
+void guard_chase_from(uint16_t at);
+
 void abi_GuardChase(void)
 {
-    uint16_t speed, pace;
-    uint8_t set;
-
     push16(0xF0F6);                              /* JSR GuardLedgeJump */
     if (ledge_jump())
         return;                                  /* its RTS was this routine's */
     cpu.s = (uint16_t)(cpu.s + 2);
+    guard_chase_from(0);
+}
+
+/* GuardChase after its ledge jump: from the start (at 0), or from its
+   speed-up step ($A5:F127) or its close step ($A5:F172), which the
+   guard's states reach by JSR (GuardRunOff, GuardHoldLeft and
+   GuardHoldRight); M 16-bit. */
+void guard_chase_from(uint16_t at)
+{
+    uint16_t speed, pace;
+    uint8_t set;
+
+    if (at == 0xF127u)
+        goto speed_up;
+    if (at == 0xF172u)
+        goto close;
 
     /* dx = his x less its own, shifted up through the ranges */
     flag_set(P_C, 1);
@@ -293,6 +308,7 @@ void abi_GuardChase(void)
             return;
         }
     }
+speed_up:
     /* speed up by 8, to at most $300 */
     speed = dp16(ACTOR_SPEED_X);
     a16_load(0x0300);
