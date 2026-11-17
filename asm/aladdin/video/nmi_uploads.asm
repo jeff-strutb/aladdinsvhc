@@ -43,13 +43,13 @@ arch 65816
 !v_0845 = $0845
 
 ; @routine 80:851B UploadCharsets
-; WHAT IT DOES: When $082B asks, copies one of two character sets from
-; $7F:D000 or $7F:D400 to VRAM from 0, 32 rows of $20 bytes.
-; HOW: $082B (3 or 6) indexes the source table at $80:8558 (word, bank);
+; WHAT IT DOES: When CHARSET_ASK asks, copies one of two character sets
+; from $7F:D000 or $7F:D400 to VRAM from 0, 32 rows of $20 bytes.
+; HOW: CHARSET_ASK (3 or 6) indexes CHARSET_SOURCES (word, bank); it is
 ; cleared; DMA channel 0, mode 0 to VMDATAL, 32 transfers of $20 bytes,
-; VRAM address stepping $80.
+; the VRAM address stepping $80.
 ; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
-; 8-bit; Y = 0 after a copy.
+; 8-bit; Y = 0 after a copy; X = 1; A (16 bits) = $1000.
 %at($80851B)
 UploadCharsets:
     ldy.w !v_082b
@@ -161,13 +161,13 @@ UploadStepped:
 
 
 ; @routine 80:869A UploadBlockA
-; WHAT IT DOES: When $082C asks, DMAs one of the blocks listed at $80:B6A2
-; to VRAM.
-; HOW: $082C is the entry's offset (7 bytes: source address and bank,
-; size, VRAM address); cleared; DMA channel 0, mode 1 to VMDATA, VMAIN
-; $80.
+; WHAT IT DOES: When BLOCK_A_ASK asks, DMAs one of the blocks listed at
+; BLOCKS_A to VRAM.
+; HOW: BLOCK_A_ASK is the entry's offset (7 bytes: source address and
+; bank, size, VRAM address); cleared; VMAIN $80, DMA channel 0, mode 1 to
+; VMDATA.
 ; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
-; 8-bit; X = the entry.
+; 8-bit; X = the entry; A = 1.
 %at($80869A)
 UploadBlockA:
     ldx.w !v_082c
@@ -198,13 +198,13 @@ UploadBlockA:
 
 
 ; @routine 80:86D9 UploadBlockB
-; WHAT IT DOES: When $082D asks, reads back one of the VRAM blocks listed
-; at $80:B6EF into work RAM.
-; HOW: $082D is the entry's offset (7 bytes: destination address and bank,
-; size, VRAM address); cleared; DMA channel 0, mode $81 from RDVRAML,
-; VMAIN $80, after the dummy read of RDVRAMH.
+; WHAT IT DOES: When BLOCK_B_ASK asks, reads back one of the VRAM blocks
+; listed at BLOCKS_B into work RAM.
+; HOW: BLOCK_B_ASK is the entry's offset (7 bytes: destination address
+; and bank, size, VRAM address); cleared; VMAIN $80, DMA channel 0, mode
+; $81 from RDVRAML, after the dummy read of RDVRAMH.
 ; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
-; 8-bit; X = the entry.
+; 8-bit; X = the entry; A = 1.
 %at($8086D9)
 UploadBlockB:
     ldx.w !v_082d
@@ -238,13 +238,14 @@ UploadBlockB:
 
 
 ; @routine 80:874F PaletteUploadFrom
-; WHAT IT DOES: When palette_upload asks, DMAs the palettes to CGRAM from
-; the source $0845 picks in the table at $80:B608: 512 bytes, or 256 for
-; source 6.
-; HOW: palette_upload cleared, CGADD 0; DMA channel 0, mode 0 to CGDATA,
-; the source from the table (3 bytes an entry), the size by the entry.
+; WHAT IT DOES: When PALETTE_UPLOAD asks, DMAs the palettes to CGRAM from
+; the source PALETTE_SOURCE picks in PALETTE_SOURCES: 512 bytes, or 256
+; for source 6.
+; HOW: CGADD 0, PALETTE_UPLOAD cleared; DMA channel 0, mode 0 to CGDATA,
+; the source from the table (3 bytes an entry), the size by the entry;
+; MDMAEN.
 ; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR from the NMI. Exit: M
-; 8-bit; X = $0845.
+; 8-bit; X = PALETTE_SOURCE; Y = the size's high byte; A = 1.
 %at($80874F)
 PaletteUploadFrom:
     lda.w !palette_upload

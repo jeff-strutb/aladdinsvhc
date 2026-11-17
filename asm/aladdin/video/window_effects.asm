@@ -43,12 +43,9 @@ arch 65816
 ; @routine 82:8735 HdmaStartAtBase
 ; WHAT IT DOES: Starts HDMA table set X on register set Y with its table
 ; at the base of the table area, $7E:F400.
-; HOW: The table's place ($0032) cleared, then on into HdmaStart
-; ($82:873B), which takes a free channel, points it at the registers,
-; and builds the table there from set X.
+; HOW: HDMA_TABLE_PLACE cleared, then on into HdmaStart (it follows).
 ; Entry: M 8-bit, X 8-bit; X = the table set; Y = the register set; DB =
-; $82; called by JSR. Exit: as HdmaStart: C clear; $002C = the channel's
-; HDMAEN bit.
+; $82; called by JSR. Exit: as HdmaStart.
 %at($828735)
 HdmaStartAtBase:
     stz.w !hdma_table_place
@@ -351,10 +348,10 @@ WindowBoxAt:
 ; @routine 82:871B HdmaChannelFree
 ; WHAT IT DOES: Finds a free HDMA channel among 4-7, from 7 down: C clear
 ; and X = the channel, or C set when all four are in use.
-; HOW: The high nibble of HDMAEN's shadow ORed with $03B5; all set: C set.
-; Else shifted left until a clear bit, X stepping down from 7.
-; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM; called
-; by JSR. Exit: X = the channel (or 3 or 4 when none); A shifted.
+; HOW: The high nibble of HDMAEN's shadow ORed with HDMA_RESERVED; all
+; set: C set. Else shifted left until a clear bit, X stepping down from 7.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR. Exit: X = the channel (or 3 or 4 when none); A shifted.
 %at($82871B)
 HdmaChannelFree:
     ldx.b #$07
@@ -379,16 +376,19 @@ HdmaChannelFree:
 
 ; @routine 82:873B HdmaStart
 ; WHAT IT DOES: Starts HDMA table set X on register set Y in a free
-; channel, its table built at $7E:F400 plus $0032: C clear, $002C the
-; channel's HDMAEN bit; C set when no channel is free.
-; HOW: $0030 cleared; HdmaChannelFree. The channel's bit ($82:BCA1) at
-; $002C, its register base * 16 at $002D; the table address ($F400 +
-; $0032) into hdma_table_at for it; DMAP and BBAD from the register set
-; ($82:BCA9), bank $7E. The set's entries ($82:BCBB: count, then a word)
-; copied to the table, $0030 added to each word, until a count of 0.
-; Entry: M 8-bit, X 8-bit; X = the table set; Y = the register set; $0032
-; = the table's place; DB = $82; called by JSR. Exit: M 8-bit, X 8-bit; C
-; as above.
+; channel, its table built at $7E:F400 plus HDMA_TABLE_PLACE: C clear,
+; HDMA_CHANNEL_BIT the channel's HDMAEN bit; C set when no channel is
+; free.
+; HOW: HDMA_VALUE_ADD cleared, HDMA_TABLE_SET = X; HdmaChannelFree. The
+; channel's bit (CHANNEL_BITS) at HDMA_CHANNEL_BIT, its register base
+; (channel * 16) at HDMA_CHANNEL_REGS; the table address ($F400 + the
+; place) into HDMA_TABLE_AT for it; DMAP and BBAD from the register set
+; (REGISTER_SETS), bank $7E. The set's entries (TABLE_SETS: count, then a
+; word) copied to the table, HDMA_VALUE_ADD added to each word, until a
+; count of 0.
+; Entry: M 8-bit, X 8-bit; X = the table set; Y = the register set;
+; HDMA_TABLE_PLACE = the table's place; DB = $82; called by JSR. Exit: M
+; 8-bit, X 8-bit; C as above; A = 0 after a start.
 %at($82873B)
 HdmaStart:
     stz.w !v_0030
@@ -457,10 +457,10 @@ HdmaStart:
 
 
 ; @routine 82:8000 WindowEffectTask
-; WHAT IT DOES: Runs window effect $06 of its slot (its parameter) from
-; the table at $82:8017, retrying each frame while the effect cannot
-; start.
-; HOW: D = the slot's page ($6F + Y); JSR through the table by the
+; WHAT IT DOES: Runs window effect EFFECT_PARAM / 2 of its slot (its
+; parameter) from the table at $82:8017, retrying each frame while the
+; effect cannot start.
+; HOW: D = the slot's page ($6F + Y); JSR through EFFECTS by the
 ; parameter; when it returns (no HDMA channel was free), TaskWait 1 and
 ; again.
 ; Entry: M 8-bit, X 8-bit; Y = the task's slot; a task's entry. Exit:
@@ -505,8 +505,8 @@ HdmaEffect2:
 ; WHAT IT DOES: Window effect 4: HDMA table set 6 on register set 8 with
 ; its table $20 into the area, the value at $7E:F480 7, and the task left
 ; waiting for good.
-; HOW: $0032 = $20; HdmaStart; no channel: back. $7E:F480 = 7, $7E:F481 =
-; 0; the channel on; TaskWait 2 forever.
+; HOW: HDMA_TABLE_PLACE $0020; HdmaStart; no channel: back. $7E:F480 =
+; 7, $7E:F481 = 0; the channel on; TaskWait 2 forever.
 ; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
 ; Exit: no channel: C set; else never returns.
 %at($8282DB)
@@ -537,13 +537,14 @@ HdmaEffect4:
 ; ($0E40, $00F8 and $0D60, $01D8), rebuilt each frame and swapped between
 ; two tables.
 ; HOW: HdmaStartAtBase with set $0E on register set $0E; $00BD up; the
-; channel on; its table address slot kept at $06 and the table at $07
-; ($F400). Each frame: TaskWait 1; the table address set; WindowBoxAt for
-; each place; an entry of 1 line of no window and the end; WH0's shadow
-; from the first entry; the 16 bytes moved from $7F:5600 to the table, and
-; the table swapped ($10 apart).
-; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
-; Exit: no channel: C set; else never returns.
+; channel on; its table address slot ((the channel's registers / 16 - 4)
+; * 2) kept at direct page $06 and the table at $07 ($F400). Each frame:
+; TaskWait 1; the table address set; WindowBoxAt for each place; an entry
+; of 1 line of no window and the end; WH0's shadow from the first entry;
+; the 16 bytes moved from $7F:5600 to the table, and the table swapped
+; ($10 apart).
+; Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+; from WindowEffectTask. Exit: no channel: C set; else never returns.
 %at($828388)
 HdmaEffect8:
     ldx.b #$0E
@@ -609,20 +610,22 @@ HdmaEffect8:
 
 
 ; @routine 82:84CB HdmaEffect10
-; WHAT IT DOES: Window effect 10: a window and colour math round the place
-; $0E78, $0144 in the level while it is on the screen; when $00C1 is set,
-; the window closes in from both sides and the task ends.
+; WHAT IT DOES: Window effect 10: a window and colour math round the
+; place $0E78, $0144 in the level while it is on the screen; when $00C1
+; is set, the window closes in from both sides and the task ends.
 ; HOW: HdmaStart with set $10 on register set $0C at place $100; the
-; channel on (its bit kept at $06); the masks cleared, WOBJSEL $C0; the
-; table's 32 bytes at $7E:F500 kept at $F520. Each frame: the place less
-; the scroll and the layer's shift: on the screen, the window's left and
-; right (right clamped to 255) and its first line into the table and
-; WH0/WH1's shadows, the fixed colour (8, 8, 16) added (CGADSUB $33), a
-; WRAM move queued to restore the table; off, the colour math off. With
-; $00C1 set, WH0 up and WH1 down a step a frame until they cross, then the
-; colour math off, the channel off and TaskExit.
-; Entry: M 8-bit, X 8-bit; D the task's page; DB = $82; called by JSR from
-; WindowEffectTask. Exit: no channel: C set; else never returns.
+; channel on (its bit kept at direct page $06); $7E:F510 $FF, $F511 0;
+; the masks cleared, WOBJSEL $C0; the table's 32 bytes at $7E:F500 kept
+; at $F520. Each frame: the place less the scroll and the layer's shift:
+; on the screen, the window's left and right (right + $10, clamped to
+; 255) and its first line (half the y, rounded up) into the kept table
+; and WH2/WH3's shadows, the fixed colour (8, 8, 16) added (CGWSEL $20,
+; CGADSUB $33), a WRAM move queued to restore the table; off, the table's
+; count 0, the colour math off. With $00C1 set, WH2 up and WH3 down a
+; step a frame (into $7E:F512/F513) until they cross, then the colour
+; math off, the channel off and TaskExit.
+; Entry: M 8-bit, X 8-bit; D the task's page; DB = $82; called by JSR
+; from WindowEffectTask. Exit: no channel: C set; else never returns.
 %at($8284CB)
 HdmaEffect10:
     lda.b #$01
@@ -763,9 +766,11 @@ HdmaEffect10:
 ; WHAT IT DOES: Window effect 11: a window that narrows over the lines
 ; above $00F8 in the level, a step a frame, then the task ends.
 ; HOW: HdmaStart with set $12 on register set $0C at place $80; the
-; channel on; WH2 and the table's window $00FF/$FF00; the line count
-; ($00F8 less the scroll y, + $30). Each frame: TaskWait 1, the left edge
-; up, the right edge down, the count down; at 0 TaskExit.
+; channel on; WH2/WH3's shadows and the table's window $00FF/$FF00; the
+; line count ($00F8 less the scroll y, + $30) at $7E:F483 and F486. Each
+; frame: TaskWait 1, the left edge ($7E:F480) up, the right edge
+; ($7E:F492) up and its complement at F493, the count down; at 0
+; TaskExit.
 ; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
 ; Exit: no channel: C set; else never returns.
 %at($82860B)
@@ -817,10 +822,11 @@ HdmaEffect11:
 ; @routine 82:867B HdmaEffect9
 ; WHAT IT DOES: Window effect 9: a window below the line $0200 in the
 ; level less the scroll (at most 240 lines down), kept each frame.
-; HOW: HdmaStartAtBase with set $16 on register set $10; the table's first
-; count $10; the channel on. Each frame: TaskWait 1; $0200 less the scroll
-; y: past the screen or 0 lines, the first count 0; else half of it (at
-; most 240) as the first two counts and $10 after.
+; HOW: HdmaStartAtBase with set $16 on register set $10; the table's
+; count at $7E:F500 $10, then 0; the channel on. Each frame: TaskWait 1;
+; $0200 less the scroll y: past the screen or 0 lines, the count 0; else
+; half of it (at most 240) as the first two counts ($7E:F400, F403) and
+; $10 at $7E:F500.
 ; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
 ; Exit: no channel: C set; else never returns.
 %at($82867B)
@@ -868,9 +874,9 @@ HdmaEffect9:
 ; WHAT IT DOES: Window effect 12: HDMA table set $14 on register set 0
 ; from the base, with the layers' window masks and the windows set, then
 ; the task ends.
-; HOW: HdmaStartAtBase; the table's first values from TM's shadow; the
-; channel on; TMW and TSW $10, WH0 $38, WH1 $C7, WH2 and WH3 0, WOBJSEL 3;
-; TaskExit.
+; HOW: HdmaStartAtBase; the table's first values from $0399 (and its low
+; nibble); the channel on; TMW and TSW $10, WH0 $38, WH1 $C7, WH2 and
+; WH3's shadows 0, WOBJSEL 3; TaskExit.
 ; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask.
 ; Exit: no channel: C set; else never returns.
 %at($8286CF)
@@ -899,3 +905,211 @@ HdmaEffect12:
     lda.b #$03
     sta.w !wobjsel_shadow
     jml.l TaskExit
+
+!waves_phase = $06              ; the waves (direct page): the sine's start (word)
+!waves_step = $08               ; lines a step of the sine lasts
+!waves_count = $09              ; lines left of the step
+!wave_sines = $5600             ; (bank $7F) the sine bytes
+!waves_table = $5300            ; (bank $7F) the window table while the waves are built
+!open_lines = $08               ; effect 6 (direct page): lines open
+!open_half = $09                ; effect 6: the half-height
+!window_bank = $7E              ; where the HDMA reads the window table ($7E:F800)
+!build_bank = $7F               ; where the waves build it ($7F:5300)
+
+; @routine 82:80F6 HdmaEffect3
+; WHAT IT DOES: Window effect 3: HDMA table set $0A on register set 6 at
+; place $30, the window's edges taken from the shape, then the waves
+; (WindowWavesLoop) for good.
+; HOW: HDMA_TABLE_PLACE $0030; HdmaStart; no channel: back (C set).
+; HalfSineBuild; X 16-bit, DB $82; WINDOW_SHAPE's pairs, from its last,
+; to WINDOW_EDGES; the channel on; on into WindowWavesLoop.
+; Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+; from WindowEffectTask. Exit: no channel: C set; else never returns.
+%at($8280F6)
+HdmaEffect3:
+    lda.b #$30
+    sta.w !hdma_table_place
+    stz.w !hdma_table_place+1
+    ldx.b #$0A
+    ldy.b #$06
+    jsr.w HdmaStart
+    bcc .started
+    rts
+.started:
+    jsr.w HalfSineBuild
+    rep.b #$10
+    lda.b #$82
+    pha
+    plb
+    ldx.w !window_shape
+.edges:
+    lda.w !window_shape,x
+    sta.l !window_edges,x
+    lda.w !window_shape+1,x
+    sta.l !window_edges+1,x
+    dex
+    dex
+    bne .edges
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+; @routine 82:812C WindowWavesLoop
+; WHAT IT DOES: The waves the wave effects end in, for good: each frame
+; the window's lines are the shape's edges moved by a sine that runs down
+; the screen and on in time.
+; HOW: The $200-byte window table moved from $7E:F800 to $7F:5300
+; (MVN, DB kept). Phase (direct page $06, word) 0, step $08 1. Each
+; frame: WindowColoursWait; count $09 = step; the phase up by one; Y =
+; the phase, X = WINDOW_SHAPE's last offset, DB $7F; for each pair from
+; the last: the sine byte at $5600+Y added to the shape's left and right
+; into $7F:5300; from offset $60 down Y down by one each pair; when the
+; count runs out the step up by one (from offset $60 down, $FF instead),
+; the count again; then the table moved back to $7E:F800.
+; Entry: M 8-bit, X 16-bit; D the task's page; reached by JMP from
+; effect 6, and from effect 3 running on into it. Exit: never returns.
+%at($82812C)
+WindowWavesLoop:
+    phb
+    lda.b #$01
+    xba
+    lda.b #$FF
+    ldx.w #!window_edges&$FFFF
+    ldy.w #!waves_table
+    mvn !build_bank,!window_bank
+    plb
+    ldy.w #$0000
+    sty.b !waves_phase
+    lda.b #$01
+    sta.b !waves_step
+.frame:
+    jsr.w WindowColoursWait
+    lda.b !waves_step
+    sta.b !waves_count
+    inc.b !waves_phase
+    ldy.b !waves_phase
+    ldx.w !window_shape
+    phb
+    lda.b #!build_bank
+    pha
+    plb
+.pair:
+    clc
+    lda.w !wave_sines,y
+    adc.l !window_shape|$820000,x
+    sta.w !waves_table,x
+    clc
+    lda.w !wave_sines,y
+    adc.l (!window_shape+1)|$820000,x
+    sta.w !waves_table+1,x
+    cpx.w #$0060
+    bcc .same
+    tya
+    dec a
+    tay
+.same:
+    dex
+    dex
+    beq .done
+    dec.b !waves_count
+    bne .pair
+    inc.b !waves_step
+    cpx.w #$0060
+    bcs .done
+    lda.b #$FF
+    sta.b !waves_step
+.done:
+    lda.b #$01
+    xba
+    lda.b #$FF
+    ldx.w #!waves_table
+    ldy.w #!window_edges&$FFFF
+    mvn !window_bank,!build_bank
+    plb
+    bra .frame
+
+; @routine 82:819A HdmaEffect6
+; WHAT IT DOES: Window effect 6: a circle that opens from the middle of
+; the screen (half its height a step, 3 lines a frame), then grows past
+; the shape line by line, then the waves (WindowWavesLoop) for good.
+; HOW: HDMA_TABLE_PLACE $0030; HdmaStart with set $0A on register set 6;
+; no channel: back. $03A6 and $03A7 0; HalfSineBuild; X 16-bit; the
+; window table at $7E:F7FE filled with $FF, 0 pairs ($200 bytes); DB
+; $82; the channel on. Lines (direct page $08) 0, half-height ($09) 4.
+; Each frame, lines + 3 while under $80: WindowLinesFromShape with
+; window_lines the lines and window_half the half-height, X $0100, shift
+; 0; WindowColoursWait. Then per shape pair from X $0100 up to
+; WINDOW_SHAPE's last: window_lines the lines, the half-height up by one
+; (to $80 at most) and halved into window_half, shift 0;
+; WindowLinesFromShape and WindowColoursWait (X kept); lines up by one.
+; Then WindowWavesLoop (JMP).
+; Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+; from WindowEffectTask. Exit: no channel: C set; else never returns.
+%at($82819A)
+HdmaEffect6:
+    lda.b #$30
+    sta.w !hdma_table_place
+    stz.w !hdma_table_place+1
+    ldx.b #$0A
+    ldy.b #$06
+    jsr.w HdmaStart
+    bcc .started
+    rts
+.started:
+    stz.w !v_03a6
+    stz.w !v_03a7
+    jsr.w HalfSineBuild
+    rep.b #$10
+    ldx.w #$01FE
+.clear:
+    lda.b #$FF
+    sta.l !window_edges-2,x
+    lda.b #$00
+    sta.l !window_edges-1,x
+    dex
+    dex
+    bpl .clear
+    lda.b #$82
+    pha
+    plb
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    stz.b !open_lines
+    lda.b #$04
+    sta.b !open_half
+.opening:
+    ldx.w #$0100
+    lda.b !open_lines
+    clc
+    adc.b #$03
+    sta.b !open_lines
+    cmp.b #$80
+    bcs .past
+    sta.w !window_lines
+    lda.b !open_half
+    sta.w !window_half
+    stz.w !window_shift
+    jsr.w WindowLinesFromShape
+    jsr.w WindowColoursWait
+    bra .opening
+.past:
+    lda.b !open_lines
+    sta.w !window_lines
+    lda.b !open_half
+    inc a
+    cmp.b #$80
+    bcc .half
+    lda.b #$80
+.half:
+    sta.b !open_half
+    lsr a
+    sta.w !window_half
+    stz.w !window_shift
+    phx
+    jsr.w WindowLinesFromShape
+    jsr.w WindowColoursWait
+    inc.b !open_lines
+    plx
+    inx
+    inx
+    cpx.w !window_shape
+    bcc .past
+    jmp.w WindowWavesLoop
