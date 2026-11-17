@@ -15,6 +15,8 @@
 #include "wram_video.h"
 
 void abi_PaletteCycleStart(void);
+void abi_TaskCreate(void);
+void abi_Bits035DExpand(void);
 
 #define TM_SHADOW 0x0399u  /* the layers on the main screen (TM, for the NMI) */
 #define TS_SHADOW 0x039Au  /* the layers on the sub screen (TS) */
@@ -203,4 +205,270 @@ void abi_Level09ScreenSetup(void)
     cycle(0x1C, 0x26);
     cycle(0x2A, 0x27);
     layers(0x17, 0x10, 0x03, 0x53);
+}
+
+/* More of the levels' state their set-ups write */
+#define SCROLL_KIND 0x083Du         /* the level's scroll handler (video/scroll_update.c), times 2 */
+#define V_1A09 0x1A09u              /* added to V_1A08 for the camera's window */
+#define V_145B 0x145Bu
+#define V_1C75 0x1C75u              /* word */
+#define SCROLL_Y_HELD 0x1A12u       /* nonzero: no camera follow up and down */
+#define RESTART_POINT 0x0360u       /* the level's restart point the player starts from */
+#define V_7FF043 0x7FF043u
+#define LEVEL06_BANDS 0xB991u       /* level 6's band count, then each band's lines (bank DB, $80) */
+
+/* TaskCreate from the JSL at site, its five inline bytes after it. */
+static void task_create(uint32_t site)
+{
+    jsl_frame(site);
+    abi_TaskCreate();
+    cpu.unwound = 0;
+}
+
+/*
+ * @routine 81:8943 Level04ScreenSetup
+ * WHAT IT DOES: Level 4's screen set-up: its camera trigger task and one
+ * palette cycle.
+ * HOW: TaskCreate slot 3, CameraTriggerTask; PaletteCycleStart (0, 2).
+ * Entry: M 8-bit, X 8-bit; reached by the jump through the table by level
+ * at $81:8802 (81:87FF). Exit: by RTS (to the caller of the routine at
+ * $81:87EF); as PaletteCycleStart leaves the registers.
+ */
+void abi_Level04ScreenSetup(void)
+{
+    task_create(0x818943u);
+    cycle(0x00, 0x02);
+}
+
+/*
+ * @routine 81:8954 Level05ScreenSetup
+ * WHAT IT DOES: Level 5's screen set-up: the camera's window moved on, its
+ * end scene's task and a window effect, three palette cycles, layers 1-3
+ * and sprites on the main screen with sprites alone on the sub screen,
+ * colour maths adding the sub screen at half.
+ * HOW: V_1A09 $28; TaskCreate slot 3 Level05EndScene, slot 6 (parameter
+ * 20) WindowEffectTask; PaletteCycleStart (0, $0A), ($0E, $0C), ($1C,
+ * $25); TM_SHADOW $17, TS_SHADOW $10; CGWSEL $03, CGADSUB $53 (shadows).
+ * Entry: as Level04ScreenSetup. Exit: by RTS; A = $53.
+ */
+void abi_Level05ScreenSetup(void)
+{
+    a8_load(0x28);
+    wr8(dba(V_1A09), 0x28);
+    task_create(0x818959u);
+    task_create(0x818962u);
+    cycle(0x00, 0x0A);
+    cycle(0x0E, 0x0C);
+    cycle(0x1C, 0x25);
+    layers(0x17, 0x10, 0x03, 0x53);
+}
+
+/*
+ * @routine 81:8995 Level06ScreenSetup
+ * WHAT IT DOES: Level 6's screen set-up: two tasks (the bands' speed-up
+ * and a colour band), eight palette cycles, the camera's scroll kind 2
+ * and parallax kind $0C, BG2 following the backdrop's y only, and two
+ * HDMA channels: 1 writing COLDATA from $80:B99E, 2 the backdrop bands'
+ * BG2 scroll from $7E:F400, whose line counts it copies in.
+ * HOW: TaskCreate slot 3 BandsSpeedUpTask, slot 6 ColourBandTask;
+ * PaletteCycleStart ($54, $0C), ($64, $0F), ($74, $12), ($84, $15), (0,
+ * 4), ($0E, 5), ($1C, 6), ($2A, 7); V_145B 3, SCROLL_KIND 2, V_083F $0C,
+ * BG2_FOLLOWS $40; channel 1: DMAP 0, BBAD $2C, A1T $80:B99E; channel 2:
+ * DMAP 2, BBAD $0F, A1T $7E:F400; LEVEL06_BANDS' count of line bytes to
+ * every third byte of BAND_HDMA; HDMAEN_SHADOW 6.
+ * Entry: as Level04ScreenSetup; DB = $80. Exit: by RTS; A = 6; X = 3 per
+ * band, Y = the bands (8-bit); SCRATCH 0.
+ */
+void abi_Level06ScreenSetup(void)
+{
+    uint8_t n, i;
+
+    task_create(0x818995u);
+    task_create(0x81899Eu);
+    cycle(0x54, 0x0C);
+    cycle(0x64, 0x0F);
+    cycle(0x74, 0x12);
+    cycle(0x84, 0x15);
+    cycle(0x00, 0x04);
+    cycle(0x0E, 0x05);
+    cycle(0x1C, 0x06);
+    cycle(0x2A, 0x07);
+    wr8(dba(V_145B), 0x03);
+    wr8(dba(SCROLL_KIND), 0x02);
+    wr8(dba(V_083F), 0x0C);
+    wr8(dba((uint16_t)BG2_FOLLOWS), 0x40);
+    wr8(dba((uint16_t)DMAP1), 0x00);
+    wr8(dba((uint16_t)BBAD1), 0x2C);
+    wr8(dba((uint16_t)A1T1L), 0x9E);
+    wr8(dba((uint16_t)A1T1H), 0xB9);
+    wr8(dba((uint16_t)A1B1), 0x80);
+    wr8(dba((uint16_t)DASB1), 0x00);
+    wr8(dba((uint16_t)DMAP2), 0x02);
+    wr8(dba((uint16_t)BBAD2), 0x0F);
+    wr8(dba((uint16_t)A1T2L), 0x00);
+    wr8(dba((uint16_t)A1T2H), 0xF4);
+    wr8(dba((uint16_t)A1B2), 0x7E);
+    wr8(dba((uint16_t)DASB2), 0x00);
+    n = rd8(dba(LEVEL06_BANDS));
+    wr8(dba((uint16_t)SCRATCH), n);
+    for (i = 0; i < n; i++)
+        wr8(BAND_HDMA + 3 * i, rd8(dba((uint16_t)(LEVEL06_BANDS + 1 + i))));
+    wr8(dba((uint16_t)SCRATCH), 0);
+    cpu.x = (uint8_t)(3 * n);
+    cpu.y = n;
+    a8_load(0x06);
+    wr8(dba((uint16_t)HDMAEN_SHADOW), 0x06);
+}
+
+/*
+ * @routine 81:8AE5 Level0AScreenSetup
+ * WHAT IT DOES: Level $0A's screen set-up: the camera's window moved on,
+ * the climb's top task, three palette cycles; V_1C75 $00BD; started from
+ * a restart point, $7F:F043 = $FE (no script starts it there).
+ * HOW: V_1A09 $50; TaskCreate slot 3 ClimbTopTask; PaletteCycleStart (0,
+ * $1D), ($0E, $1E), ($1C, $23); V_1C75 $BD, then 0; RESTART_POINT nonzero:
+ * V_7FF043 $FE.
+ * Entry: as Level04ScreenSetup. Exit: by RTS; A = RESTART_POINT, N and Z
+ * from it, or $FE.
+ */
+void abi_Level0AScreenSetup(void)
+{
+    uint8_t r;
+
+    a8_load(0x50);
+    wr8(dba(V_1A09), 0x50);
+    task_create(0x818AEAu);
+    cycle(0x00, 0x1D);
+    cycle(0x0E, 0x1E);
+    cycle(0x1C, 0x23);
+    a8_load(0xBD);
+    wr8(dba(V_1C75), 0xBD);
+    wr8(dba(V_1C75 + 1), 0x00);
+    r = rd8(dba(RESTART_POINT));
+    a8_load(r);
+    if (r) {
+        a8_load(0xFE);
+        wr8(V_7FF043, 0xFE);
+    }
+}
+
+/*
+ * @routine 81:8BA7 Level0DScreenSetup
+ * WHAT IT DOES: Level $0D's screen set-up: its scene's task, two palette
+ * cycles, parallax kind $14.
+ * HOW: TaskCreate slot 3 Level0DScene; PaletteCycleStart ($0E, 1), ($1C,
+ * 3); V_083F $14.
+ * Entry: as Level04ScreenSetup. Exit: by RTS; A = $14.
+ */
+void abi_Level0DScreenSetup(void)
+{
+    task_create(0x818BA7u);
+    cycle(0x0E, 0x01);
+    cycle(0x1C, 0x03);
+    a8_load(0x14);
+    wr8(dba(V_083F), 0x14);
+}
+
+/*
+ * @routine 81:8BC4 Level0EScreenSetup
+ * WHAT IT DOES: Level $0E's screen set-up: the grey past task, three
+ * palette cycles, layers 1-3 and sprites on both screens, parallax kind
+ * 8, then the level's bits expanded.
+ * HOW: TaskCreate slot 6 GreyPastTask; PaletteCycleStart (0, $0D), ($0E,
+ * $1B), ($54, $15); TM_SHADOW and TS_SHADOW $17; V_083F 8;
+ * Bits035DExpand.
+ * Entry: as Level04ScreenSetup. Exit: by RTS; as Bits035DExpand leaves
+ * the registers.
+ */
+void abi_Level0EScreenSetup(void)
+{
+    task_create(0x818BC4u);
+    cycle(0x00, 0x0D);
+    cycle(0x0E, 0x1B);
+    cycle(0x54, 0x15);
+    a8_load(0x17);
+    wr8(dba(TM_SHADOW), 0x17);
+    wr8(dba(TS_SHADOW), 0x17);
+    a8_load(0x08);
+    wr8(dba(V_083F), 0x08);
+    abi_Bits035DExpand();
+}
+
+/*
+ * @routine 81:8CF5 AutoScrollScreenSetup
+ * WHAT IT DOES: The screen set-up of the levels that scroll on their own:
+ * the scroll kind A, no camera up and down, no parallax, layers 1-3 and
+ * sprites on the main screen with sprites alone on the sub screen, colour
+ * maths adding it at half, a window effect and four palette cycles.
+ * HOW: SCROLL_KIND = A; V_145B 1, SCROLL_Y_HELD 1, V_083F 0; TM_SHADOW
+ * $17, TS_SHADOW $10; CGWSEL $03, CGADSUB $53; TaskCreate slot 6
+ * (parameter 18) WindowEffectTask; PaletteCycleStart (0, $15), ($0E,
+ * $16), ($1C, $17), ($2A, $18).
+ * Entry: M 8-bit, X 8-bit; A = the scroll kind. Exit: as
+ * PaletteCycleStart leaves the registers.
+ */
+void abi_AutoScrollScreenSetup(void)
+{
+    wr8(dba(SCROLL_KIND), (uint8_t)cpu.a);
+    a8_load(0x01);
+    wr8(dba(V_145B), 0x01);
+    wr8(dba(SCROLL_Y_HELD), 0x01);
+    a8_load(0x00);
+    wr8(dba(V_083F), 0x00);
+    layers(0x17, 0x10, 0x03, 0x53);
+    task_create(0x818D1Bu);
+    cycle(0x00, 0x15);
+    cycle(0x0E, 0x16);
+    cycle(0x1C, 0x17);
+    cycle(0x2A, 0x18);
+}
+
+/*
+ * @routine 81:8CF3 Level12ScreenSetup
+ * WHAT IT DOES: Level $12's screen set-up: it scrolls on its own, scroll
+ * kind $0A (a set speed, the camera following up and down).
+ * HOW: A = $0A, on into AutoScrollScreenSetup.
+ * Entry: as Level04ScreenSetup. Exit: as AutoScrollScreenSetup.
+ */
+void abi_Level12ScreenSetup(void)
+{
+    a8_load(0x0A);
+    abi_AutoScrollScreenSetup();
+}
+
+/*
+ * @routine 81:8D61 Level1CScreenSetup
+ * WHAT IT DOES: Level $1C's screen set-up: it scrolls on its own, scroll
+ * kind $0E (the faster set speed), and the windows mask layer 3.
+ * HOW: AutoScrollScreenSetup with A = $0E; TMW_SHADOW 4.
+ * Entry: as Level04ScreenSetup. Exit: by RTS; A = 4.
+ */
+void abi_Level1CScreenSetup(void)
+{
+    a8_load(0x0E);
+    abi_AutoScrollScreenSetup();
+    a8_load(0x04);
+    wr8(dba((uint16_t)TMW_SHADOW), 0x04);
+}
+
+/*
+ * @routine 81:8D6C Level14ScreenSetup
+ * WHAT IT DOES: Levels $14 and $1D's screen set-up: level 0's.
+ * HOW: Level00ScreenSetup.
+ * Entry: as Level04ScreenSetup. Exit: as Level00ScreenSetup.
+ */
+void abi_Level14ScreenSetup(void)
+{
+    abi_Level00ScreenSetup();
+}
+
+/*
+ * @routine 81:8D42 Level15ScreenSetup
+ * WHAT IT DOES: Level $15's screen set-up: level 2's.
+ * HOW: Level02ScreenSetup.
+ * Entry: as Level04ScreenSetup. Exit: as Level02ScreenSetup.
+ */
+void abi_Level15ScreenSetup(void)
+{
+    abi_Level02ScreenSetup();
 }
