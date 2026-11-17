@@ -36,7 +36,8 @@ void abi_LevelFlagFromMask(void)
     uint8_t set;
 
     y8_load(rd8(dba(V_035D)));
-    set = (uint8_t)(rd8(dba(LEVEL_FLAG_MASKS) + cpu.y) & rd8(dba(FLAG_BITS) + cpu.x));
+    set = rd8(dba(LEVEL_FLAG_MASKS) + cpu.y);
+    set = (uint8_t)(set & rd8(dba(FLAG_BITS) + cpu.x));
     a8_load(set);
     if (set)
         a8_load(0x01);

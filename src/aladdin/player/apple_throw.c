@@ -78,14 +78,17 @@ void abi_PlayerAppleThrow(void)
     cpu.y = (uint16_t)(pose << 1);
     if (dp16(ACTOR_FLIP) & 0x00FF) {
         flag_set(P_C, 0);
-        x = op_adc16(dp16(ACTOR_X + 1), rd16(dba(THROW_X) + cpu.y), &cpu.p);
+        x = dp16(ACTOR_X + 1);
+        x = op_adc16(x, rd16(dba(THROW_X) + cpu.y), &cpu.p);
     } else {
         flag_set(P_C, 1);
-        x = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(THROW_X) + cpu.y), &cpu.p);
+        x = dp16(ACTOR_X + 1);
+        x = op_sbc16(x, rd16(dba(THROW_X) + cpu.y), &cpu.p);
     }
     wr16(apple + ACTOR_X + 1, x);
     flag_set(P_C, 1);
-    y = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(THROW_Y) + cpu.y), &cpu.p);
+    y = dp16(ACTOR_Y + 1);
+    y = op_sbc16(y, rd16(dba(THROW_Y) + cpu.y), &cpu.p);
     wr16(apple + ACTOR_Y + 1, y);
     cpu.a = y;
     op_sep(P_M);

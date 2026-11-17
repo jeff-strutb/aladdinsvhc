@@ -118,7 +118,8 @@ void abi_LevelStartPlace(void)
     op_rep(0x30);
     /* the player's place: x (bit 15 set: facing left) and y */
     flag_set(P_C, 0);
-    x = op_adc16(db16((uint16_t)(0xED9D + y)), db16(SCRATCH), &cpu.p);
+    x = db16((uint16_t)(0xED9D + y));
+    x = op_adc16(x, db16(SCRATCH), &cpu.p);
     v = db16((uint16_t)(0xED9D + x));
     db16_set(0x08E7, v & 0x7FFF);
     db16_set(0x08EF, v & 0x8000 ? 0x0101 : 0x0000);
@@ -126,7 +127,8 @@ void abi_LevelStartPlace(void)
     /* the camera's: layer 0's scroll, the backdrop's half of it in the plain set-up
        except on level $10 */
     flag_set(P_C, 0);
-    x = op_adc16(db16((uint16_t)(0xEF15 + y)), db16(SCRATCH), &cpu.p);
+    x = db16((uint16_t)(0xEF15 + y));
+    x = op_adc16(x, db16(SCRATCH), &cpu.p);
     v = db16(x);
     db16_set(0x1773, v);
     db16_set((uint16_t)SCROLL_X_BEFORE, v);
@@ -275,9 +277,11 @@ out:
 void abi_LevelExitCheck(void)
 {
     uint16_t d;
-    uint8_t to;
+    uint8_t to, v;
 
-    a8_load(rd8(dba(V_141C)) | rd8(dba(0x1423)) | rd8(dba(0x141B)));
+    v = rd8(dba(V_141C));
+    v = (uint8_t)(v | rd8(dba(0x1423)));
+    a8_load(v | rd8(dba(0x141B)));
     if ((uint8_t)cpu.a)
         return;
     a8_load(rd8(dba(LEVEL_SPOT_COUNT)));
@@ -291,7 +295,8 @@ void abi_LevelExitCheck(void)
     if ((uint8_t)cpu.a) {
         /* scrolling levels: the exit once the camera is past its x */
         flag_set(P_C, 1);
-        cpu.a = op_sbc16(db16((uint16_t)(0xEC1F + cpu.x)), db16(0x1773), &cpu.p);
+        d = db16((uint16_t)(0xEC1F + cpu.x));
+        cpu.a = op_sbc16(d, db16(0x1773), &cpu.p);
         if (cpu.p & P_C)
             goto out;
         goto leave;
@@ -300,14 +305,16 @@ void abi_LevelExitCheck(void)
        reads the first spot's, as the original) */
     for (;;) {
         flag_set(P_C, 1);
-        d = op_sbc16(db16((uint16_t)(0xEC1F + cpu.x)), db16(0x08E7), &cpu.p);
+        d = db16((uint16_t)(0xEC1F + cpu.x));
+        d = op_sbc16(d, db16(0x08E7), &cpu.p);
         flag_set(P_C, 0);
         cpu.a = d = op_adc16(d, 0x0008, &cpu.p);
         cmp16_of(d, 0x0010);
         if (d < 0x0010) {
             cpu.x = db16(LEVEL_SPOTS);
             flag_set(P_C, 1);
-            d = op_sbc16(db16((uint16_t)(0xEC21 + cpu.x)), db16(0x08EA), &cpu.p);
+            d = db16((uint16_t)(0xEC21 + cpu.x));
+            d = op_sbc16(d, db16(0x08EA), &cpu.p);
             flag_set(P_C, 0);
             cpu.a = d = op_adc16(d, 0x0008, &cpu.p);
             cmp16_of(d, 0x0010);

@@ -22,7 +22,9 @@ static inline void dp16_set(uint16_t off, uint16_t v) { wr16(dpa(off), v); }
 /* The 24-bit pointer at a direct-page offset, and [dp],Y through it. */
 static inline uint32_t dp_long(uint16_t off)
 {
-    return rd16(dpa(off)) | (uint32_t)rd8(dpa((uint16_t)(off + 2))) << 16;
+    uint32_t lo = rd16(dpa(off));
+
+    return lo | (uint32_t)rd8(dpa((uint16_t)(off + 2))) << 16;
 }
 static inline uint32_t dp_long_y(uint16_t off, uint16_t y)
 {

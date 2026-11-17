@@ -932,7 +932,8 @@ void abi_PlayerSkid(void)
             abi_ActorDecelerateX();
             if (!(cpu.p & P_N)) {
                 op_rep(P_M);
-                s = (uint16_t)(dp16(ACTOR_SPEED_X) | rd16(dpa(ACTOR_SPEED_X + 1)));
+                s = dp16(ACTOR_SPEED_X);
+                s = (uint16_t)(s | rd16(dpa(ACTOR_SPEED_X + 1)));
                 a16_load(s);
                 if (s) {
                     op_sep(P_M);
@@ -1016,7 +1017,9 @@ static uint32_t crouch(void)
             return 0x81DADDu;       /* PlayerKnockback */
         }
         abi_PlayerFlipByPad();
-        f = (uint8_t)(rd8(dpa(ACTOR_SPEED_X)) | rd8(dpa(ACTOR_SPEED_X + 1)) | rd8(dpa(ACTOR_SPEED_X + 2)));
+        f = rd8(dpa(ACTOR_SPEED_X));
+        f = (uint8_t)(f | rd8(dpa(ACTOR_SPEED_X + 1)));
+        f = (uint8_t)(f | rd8(dpa(ACTOR_SPEED_X + 2)));
         a8_load(f);
         if (!f) {
             wr8(dpa(ACTOR_ACCEL_X), 0);

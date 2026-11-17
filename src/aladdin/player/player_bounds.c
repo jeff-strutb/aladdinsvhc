@@ -128,14 +128,16 @@ static void keep_within(uint16_t scroll, uint16_t limits, uint16_t field)
 
     op_rep(P_M);
     flag_set(P_C, 0);
-    edge = op_adc16(rd16(dba(scroll)), rd16(dba(limits)), &cpu.p);
+    edge = rd16(dba(scroll));
+    edge = op_adc16(edge, rd16(dba(limits)), &cpu.p);
     cpu.a = edge;
     cmp16_of(edge, dp16(field));
     if (edge >= dp16(field)) {
         dp16_set(field, edge);
     } else {
         flag_set(P_C, 0);
-        edge = op_adc16(rd16(dba(scroll)), rd16(dba(limits + 2)), &cpu.p);
+        edge = rd16(dba(scroll));
+        edge = op_adc16(edge, rd16(dba(limits + 2)), &cpu.p);
         cpu.a = edge;
         cmp16_of(edge, dp16(field));
         if (edge < dp16(field))

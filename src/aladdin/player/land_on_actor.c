@@ -37,11 +37,13 @@ void abi_PlayerLandOnActor(void)
     uint32_t box = dba(LAND_BOXES) + cpu.y;
     uint8_t flags = rd8(dpa(ACTOR_09));
     uint16_t d, py;
+    uint8_t v;
 
     bit8_of((uint8_t)cpu.a, flags);
     if (!(flags & 0x40))
         goto no;
-    a8_load((uint8_t)(rd8(dba(V_1428)) | rd8(dba(V_1427))));
+    v = rd8(dba(V_1428));
+    a8_load((uint8_t)(v | rd8(dba(V_1427))));
     if ((uint8_t)cpu.a)
         goto no;
     a8_load(rd8(dba(PLAYER + ACTOR_SPEED_Y + 2)));
@@ -50,7 +52,8 @@ void abi_PlayerLandOnActor(void)
     /* the box (offset, then width: x, then y) round the actor */
     op_rep(P_M);
     flag_set(P_C, 1);
-    d = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
+    d = dp16(ACTOR_X + 1);
+    d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, rd16(box), &cpu.p);
     cpu.a = d;
@@ -58,7 +61,8 @@ void abi_PlayerLandOnActor(void)
     if (d >= rd16(box + 2))
         goto no;
     flag_set(P_C, 1);
-    d = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(PLAYER + ACTOR_Y + 1)), &cpu.p);
+    d = dp16(ACTOR_Y + 1);
+    d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_Y + 1)), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, rd16(box + 4), &cpu.p);
     cpu.a = d;
@@ -68,13 +72,15 @@ void abi_PlayerLandOnActor(void)
     inc16_at(dba(SCRATCH));
     /* his feet above its top: he stands on it */
     flag_set(P_C, 0);
-    py = op_adc16(rd16(dba(PLAYER + ACTOR_Y + 1)), rd16(box + 8), &cpu.p);
+    py = rd16(dba(PLAYER + ACTOR_Y + 1));
+    py = op_adc16(py, rd16(box + 8), &cpu.p);
     cpu.a = py;
     cmp16_of(py, dp16(ACTOR_Y + 1));
     if (py >= dp16(ACTOR_Y + 1))
         goto no;
     flag_set(P_C, 1);
-    d = op_sbc16(dp16(ACTOR_Y + 1), rd16(box + 4), &cpu.p);
+    d = dp16(ACTOR_Y + 1);
+    d = op_sbc16(d, rd16(box + 4), &cpu.p);
     a16_load((uint16_t)(d + 1));
     wr16(dba(PLAYER + ACTOR_Y + 1), cpu.a);
     op_sep(0x30);

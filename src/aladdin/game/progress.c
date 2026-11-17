@@ -171,11 +171,12 @@ void abi_NewGameState(void)
  */
 void abi_LevelFromProgress(void)
 {
-    uint8_t at, level;
+    uint8_t at, level, ofs;
 
     x8_load(rd8(dba(LEVEL_035C)));
     flag_set(P_C, 0);
-    at = op_adc8(rd8(dba(LEVEL_BY_PROGRESS) + cpu.x), rd8(dba(0x035D)), &cpu.p);
+    ofs = rd8(dba(LEVEL_BY_PROGRESS) + cpu.x);
+    at = op_adc8(ofs, rd8(dba(0x035D)), &cpu.p);
     cpu.x = at;
     level = rd8(dba(LEVEL_BY_PROGRESS) + at);
     a8_load(level);

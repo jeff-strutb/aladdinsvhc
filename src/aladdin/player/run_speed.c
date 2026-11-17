@@ -55,7 +55,8 @@ void abi_PlayerRunSpeed(void)
     if (cpu.p & P_Z) {                    /* held his way: faster, to the top speed */
         op_rep(P_M);
         flag_set(P_C, 0);
-        cpu.a = op_adc16(dp16(ACTOR_SPEED_X), rd16(dba(PLAYER_RUN_ACCEL)), &cpu.p);
+        speed = dp16(ACTOR_SPEED_X);
+        cpu.a = op_adc16(speed, rd16(dba(PLAYER_RUN_ACCEL)), &cpu.p);
         top = rd16(dba(PLAYER_TOP_SPEED));
         cmp16_of(cpu.a, top);
         if (cpu.a >= top)

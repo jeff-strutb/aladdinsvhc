@@ -94,10 +94,14 @@ void abi_PlayerBoxSet(void)
  */
 void abi_TestBoxPlace(void)
 {
+    uint16_t v;
+
     flag_set(P_C, 0);
-    wr16(dba(TEST_BOX_X), op_adc16(dp16(ACTOR_X + 1), rd16(dba(BOX_OFFSET_X)), &cpu.p));
+    v = dp16(ACTOR_X + 1);
+    wr16(dba(TEST_BOX_X), op_adc16(v, rd16(dba(BOX_OFFSET_X)), &cpu.p));
     flag_set(P_C, 0);
-    cpu.a = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(BOX_OFFSET_Y)), &cpu.p);
+    v = dp16(ACTOR_Y + 1);
+    cpu.a = op_adc16(v, rd16(dba(BOX_OFFSET_Y)), &cpu.p);
     wr16(dba(TEST_BOX_Y), cpu.a);
     op_sep(0x30);
 }

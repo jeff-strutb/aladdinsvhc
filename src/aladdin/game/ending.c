@@ -124,13 +124,15 @@ void abi_EndingStageFrameBands(void)
  */
 void abi_EndingWipeLeftStep(void)
 {
-    uint16_t lo, hi;
+    uint16_t lo, hi, w;
 
     op_rep(0x20);
     flag_set(P_C, 1);
-    lo = op_sbc16(rd16(dba(WIPE_LEFT)), rd16(dba((uint16_t)(WIPE_STEPS + cpu.x))), &cpu.p);
+    w = rd16(dba(WIPE_LEFT));
+    lo = op_sbc16(w, rd16(dba((uint16_t)(WIPE_STEPS + cpu.x))), &cpu.p);
     wr16(dba(WIPE_LEFT), lo);
-    hi = op_sbc16(rd16(dba((uint16_t)(WIPE_LEFT + 2))), rd16(dba((uint16_t)(WIPE_STEPS + 2 + cpu.x))), &cpu.p);
+    w = rd16(dba((uint16_t)(WIPE_LEFT + 2)));
+    hi = op_sbc16(w, rd16(dba((uint16_t)(WIPE_STEPS + 2 + cpu.x))), &cpu.p);
     wr16(dba((uint16_t)(WIPE_LEFT + 2)), hi);
     a16_load(rd16(dba(WIPE_LEFT_PIXELS)));
     if (cpu.a & 0x8000)
@@ -154,13 +156,15 @@ void abi_EndingWipeLeftStep(void)
  */
 void abi_EndingWipeRightStep(void)
 {
-    uint16_t lo, hi;
+    uint16_t lo, hi, w;
 
     op_rep(0x20);
     flag_set(P_C, 1);
-    lo = op_sbc16(rd16(dba(WIPE_RIGHT)), rd16(dba((uint16_t)(WIPE_STEPS + cpu.x))), &cpu.p);
+    w = rd16(dba(WIPE_RIGHT));
+    lo = op_sbc16(w, rd16(dba((uint16_t)(WIPE_STEPS + cpu.x))), &cpu.p);
     wr16(dba(WIPE_RIGHT), lo);
-    hi = op_sbc16(rd16(dba((uint16_t)(WIPE_RIGHT + 2))), rd16(dba((uint16_t)(WIPE_STEPS + 2 + cpu.x))), &cpu.p);
+    w = rd16(dba((uint16_t)(WIPE_RIGHT + 2)));
+    hi = op_sbc16(w, rd16(dba((uint16_t)(WIPE_STEPS + 2 + cpu.x))), &cpu.p);
     wr16(dba((uint16_t)(WIPE_RIGHT + 2)), hi);
     a16_load(rd16(dba(WIPE_RIGHT_PIXELS)));
     cmp16_of(cpu.a, 0x0100);

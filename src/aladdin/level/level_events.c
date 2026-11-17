@@ -66,7 +66,8 @@ void abi_BandsSpeedUpTask(void)
         op_rep(P_M);
         for (band = 0, x = 0, y = 0; band < 11; band++, x += 4, y += 2) {
             flag_set(P_C, 0);
-            speed = op_adc16(rd16(BAND_SPEED + x), rd16(dba((uint16_t)(0xC5C0 + y))), &cpu.p);
+            speed = rd16(BAND_SPEED + x);
+            speed = op_adc16(speed, rd16(dba((uint16_t)(0xC5C0 + y))), &cpu.p);
             most = rd16(dba((uint16_t)(0xC5EC + y)));
             cmp16_of(speed, most);
             if (speed >= most)
@@ -219,7 +220,8 @@ void abi_ClimbTopTask(void)
         wr8(dba(0x08E4), v);
         /* at the top: the camera's y 0, the player's x low byte $80 on and
            its y low byte under $78 */
-        if (rd8(dba(0x1777)) | rd8(dba(0x1778)))
+        v = rd8(dba(0x1777));
+        if (v | rd8(dba(0x1778)))
             continue;
         v = rd8(dba(0x08E7));
         cmp8_of(v, 0x80);

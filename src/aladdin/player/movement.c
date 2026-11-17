@@ -89,7 +89,8 @@ void abi_ActorGravity(void)
     uint8_t v;
 
     flag_set(P_C, 0);
-    wr8(dpa(ACTOR_SPEED_Y), op_adc8(rd8(dpa(ACTOR_SPEED_Y)), rd8(dpa(ACTOR_ACCEL_Y)), &cpu.p));
+    v = rd8(dpa(ACTOR_SPEED_Y));
+    wr8(dpa(ACTOR_SPEED_Y), op_adc8(v, rd8(dpa(ACTOR_ACCEL_Y)), &cpu.p));
     wr8(dpa(ACTOR_SPEED_Y + 1), op_adc8(rd8(dpa(ACTOR_SPEED_Y + 1)), 0x00, &cpu.p));
     v = op_adc8(rd8(dpa(ACTOR_SPEED_Y + 2)), 0x00, &cpu.p);
     wr8(dpa(ACTOR_SPEED_Y + 2), v);

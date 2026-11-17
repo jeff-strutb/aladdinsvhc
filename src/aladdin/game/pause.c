@@ -60,7 +60,9 @@ void abi_PauseCheck(void)
     cmp8_of(v, 0x0F);
     if (v != 0x0F)
         goto cooldown;
-    v = (uint8_t)(rd8(dba(PAUSE_BLOCK)) | rd8(dba((uint16_t)PLAY_MODE)) | rd8(dba(V_03FA)));
+    v = rd8(dba(PAUSE_BLOCK));
+    v = (uint8_t)(v | rd8(dba((uint16_t)PLAY_MODE)));
+    v = (uint8_t)(v | rd8(dba(V_03FA)));
     a8_load(v);
     if (v)
         goto cooldown;
