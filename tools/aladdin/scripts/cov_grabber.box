@@ -1,0 +1,69 @@
+# The grabber (GrabberStart, $83:C763, kinds $46 and $62): the parts no
+# play reaches.
+# 1. The play of cov_actor_fall_top to frame 1925, a kind $46 (record
+#    $0B5B) holding Aladdin since frame 1908: V_1427 ($1427) poked to 0,
+#    so the next frame of the hold clears GRAB_HELD ($83:C7C2).
+# 2. Stage a2 s0 with the camera and Aladdin placed at x $0600 (as in
+#    cov_level_events), a kind $62 waiting at record $0C4B by frame 90: its
+#    GRAB_DROPPED ($43, $0C8E) poked to 1, so it goes straight to the
+#    shake ($83:C788) and falls as kind $62 does, on at y $A8 and below
+#    ($83:C854), falling and animating after it lands ($83:C8D1).
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 62
+hold B+R 74
+hold RIGHT 36
+hold B+LEFT 69
+hold RIGHT 76
+hold R 17
+hold R 12
+hold RIGHT 31
+hold RIGHT 64
+hold R 57
+hold L 29
+hold A 47
+hold Y+RIGHT 5
+hold LEFT 21
+hold LEFT 5
+hold UP 26
+hold B+RIGHT 61
+hold B 57
+hold LEFT 54
+hold B+RIGHT 4
+hold Y+LEFT 42
+hold RIGHT 30
+hold X 86
+hold RIGHT 22
+hold A 5
+hold Y+RIGHT 41
+hold RIGHT 15
+hold L 35
+hold Y+RIGHT+B 51
+hold B 4
+poke 001427 00
+wait 60
+load build/aladdin/states/stage_a2_s0.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 0008E7 80,06
+wait 60
+poke 000C8E 01
+wait 300
