@@ -273,3 +273,91 @@ void abi_ActorAimAt(void)
     a16_load(rd16(dba(0xBC03) + cpu.x));
     op_sep(0x30);
 }
+
+/* Helpers no code refers to: each runs only in the unit calls of
+   cov_helpers_unused.box. */
+
+/* REP #$30, LDY #0, SEC, LDA field,X, CMP field (the actor's); INY when
+   `below` and C set, or when not `below` and C clear; SEP #$20, TYA. */
+static void record_against(uint8_t field, int at_or_after)
+{
+    uint16_t theirs, mine;
+
+    op_rep(P_M | P_X);
+    cpu.y = 0;
+    cpu.p |= P_C;
+    theirs = rd16(abs_db((uint16_t)(field + cpu.x)));
+    cpu.a = theirs;
+    mine = rd16(dp(field));
+    cmp16_of(theirs, mine);
+    if (at_or_after ? (cpu.p & P_C) != 0 : (cpu.p & P_C) == 0)
+        cpu.y = 1;
+    op_sep(P_M);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | (uint8_t)cpu.y);
+    cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
+}
+
+/*
+ * @routine 81:AB50 ActorRecordBelow
+ * WHAT IT DOES: Says whether the record at X is level with or below the
+ * actor: 1 when its y is at or below the actor's, else 0. No code refers
+ * to it.
+ * HOW: M and X 16-bit; the record's y pixels (its $0F, absolute indexed
+ * by X) compared with the actor's; Y counted up from 0 when not above.
+ * Entry: D = the actor; X = the record's address; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSL. Exit: M 8-bit, X 16-bit; A low
+ * byte and Y = the answer; A high byte = the record's y high byte; N and
+ * Z from the answer; C from the compare.
+ */
+void abi_ActorRecordBelow(void)
+{
+    record_against(ACTOR_Y + 1, 1);
+}
+
+/*
+ * @routine 81:AB73 ActorRecordLeft
+ * WHAT IT DOES: Says whether the record at X is left of the actor: 1 when
+ * its x is less than the actor's, else 0. No code refers to it.
+ * HOW: M and X 16-bit; the record's x pixels (its $0C, absolute indexed
+ * by X) compared with the actor's; Y counted up from 0 when less.
+ * Entry: as ActorRecordBelow. Exit: as ActorRecordBelow, A high byte the
+ * record's x high byte.
+ */
+void abi_ActorRecordLeft(void)
+{
+    record_against(ACTOR_X + 1, 0);
+}
+
+/*
+ * @routine 81:AB96 ActorSideOfPlayerWide
+ * WHAT IT DOES: Says which way the actor must face to look at the player,
+ * as ActorSideOfPlayer, both x positions taken $100 further right first
+ * (so one near the level's left edge compares as it should). No code
+ * refers to it.
+ * HOW: M 16-bit; the actor's x + $100 to scratch $0C; the player's x +
+ * $100 compared with it; X counted up from 0 when less.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSL. Exit: M 8-bit; A low byte and X = the facing
+ * (0 right, 1 left); A high byte = the player's x + $100 high byte; N
+ * clear, Z from the facing; C from the compare; scratch $0C = the actor's
+ * x + $100.
+ */
+void abi_ActorSideOfPlayerWide(void)
+{
+    uint16_t mine, his;
+
+    op_rep(P_M);
+    cpu.p &= (uint8_t)~P_C;
+    mine = op_adc16(rd16(dp(ACTOR_X + 1)), 0x0100, &cpu.p);
+    wr16(abs_db(SCRATCH & 0xFFFF), mine);
+    cpu.x = 0;
+    cpu.p &= (uint8_t)~P_C;
+    his = op_adc16(rd16(abs_db(PLAYER_X_PIXEL & 0xFFFF)), 0x0100, &cpu.p);
+    cpu.a = his;
+    cmp16_of(his, rd16(abs_db(SCRATCH & 0xFFFF)));
+    if (!(cpu.p & P_C))
+        cpu.x = 1;
+    op_sep(P_M);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | (uint8_t)cpu.x);
+    cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
+}

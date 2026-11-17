@@ -29,6 +29,7 @@ ActorDirectionToPlayer:
     sta.w !scratch+4
     lda.w !actor_y+1,x
     sta.w !scratch+6
+.to_point:
     ldy.w #$0000
     lda.w !scratch+6
     sec
@@ -128,3 +129,62 @@ PlayerInFrontBox:
 .lAF38:
     sep.b #$20
     rtl
+
+; Helpers no code refers to: each runs only in the unit calls of
+; cov_helpers_unused.box.
+!offset_points = $BBDF           ; (data bank) per entry: x offset along the facing, y offset (words)
+
+; @routine 81:ABB4 ActorDirectionToPlayerOffset
+; WHAT IT DOES: The direction from the actor to a point by the player
+; (PlayerOffsetPoint), as ActorDirectionToPlayer gives it to the player.
+; No code refers to it.
+; HOW: PlayerOffsetPoint, then into ActorDirectionToPlayer after it puts
+; the player's position at $10, $12 (81:ABFB).
+; Entry: as PlayerOffsetPoint; called by JSL. Exit: as
+; ActorDirectionToPlayer.
+%at($81ABB4)
+ActorDirectionToPlayerOffset:
+    jsr.w PlayerOffsetPoint
+    jmp.w ActorDirectionToPlayer_to_point
+
+; @routine 81:ABBA ActorAimAtPlayerOffset
+; WHAT IT DOES: The direction from the actor to a point by the player
+; (PlayerOffsetPoint), as ActorAimAt gives it. No code refers to it.
+; HOW: PlayerOffsetPoint, then on into ActorAimAt.
+; Entry: as PlayerOffsetPoint; called by JSL. Exit: as ActorAimAt.
+ActorAimAtPlayerOffset:
+    jsr.w PlayerOffsetPoint
+    jmp.w ActorAimAt
+
+; @routine 81:ABC0 PlayerOffsetPoint
+; WHAT IT DOES: The point at scratch $10, $12: the player's position
+; offset by entry X of OFFSET_POINTS: across, added or taken away by the
+; actor's flip, and down. No code refers to it.
+; HOW: M and X 16-bit; the actor's flip bit 0 clear: the player's x plus
+; the entry's x offset, set: less it; the player's y plus the entry's y
+; offset.
+; Entry: D = the actor; X = the entry's offset (high byte 0); DB = $81;
+; called by JSR. Exit: M and X 16-bit; A = the point's y; N, V, Z, C from
+; its ADC; X, Y unchanged.
+PlayerOffsetPoint:
+    rep.b #$30
+    lda.b !actor_flip
+    and.w #$0001
+    bne .back
+    clc
+    lda.w !player+!actor_x+1
+    adc.w !offset_points,x
+    sta.w !scratch+4
+    bra .y
+.back:
+    sec
+    lda.w !player+!actor_x+1
+    sbc.w !offset_points,x
+    sta.w !scratch+4
+.y:
+    clc
+    lda.w !player+!actor_y+1
+    adc.w !offset_points+2,x
+    sta.w !scratch+6
+    rts
+

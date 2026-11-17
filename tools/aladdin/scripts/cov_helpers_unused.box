@@ -1,0 +1,44 @@
+# Unit calls of helpers no code refers to, each by JSL in a level
+# (stage_a0_s0), DB $81 (DivideBy, MultiplyXA and MultiplyWordByte: $80),
+# the actor the record at $092B, the machine put back after each.
+# DivideBy: 1000 / 7, M 16-bit, X 8-bit. MultiplyXA: $2A times $35, X
+# 16-bit. MultiplyWordByte: $1234 times $56 (scratch $0C-$0E).
+# ActorRecordBelow and ActorRecordLeft against Aladdin's record ($08DB),
+# with his y and x put above and below, left and right of the actor's
+# ($093A, $0937). ActorSideOfPlayerWide with Aladdin right and left of
+# the actor. ActorDirectionToPlayerOffset and ActorAimAtPlayerOffset by
+# entry 0 and 1 of the offsets ($81:BBDF), the actor's flip ($0940) clear
+# and set.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+call 81A7F1 long p=10 db=80 a=03E8 y=07
+call 81A806 long p=20 db=80 a=35 x=002A
+set 00000C 34,12,56
+call 81A812 long p=20 db=80
+set 0008EA 00,02
+set 00093A 00,01
+call 81AB50 long p=30 db=81 d=092B x=08DB
+set 0008EA 00,01
+set 00093A 00,02
+call 81AB50 long p=30 db=81 d=092B x=08DB
+set 0008E7 00,02
+set 000937 00,01
+call 81AB73 long p=30 db=81 d=092B x=08DB
+set 0008E7 00,01
+set 000937 00,02
+call 81AB73 long p=30 db=81 d=092B x=08DB
+set 0008E7 00,02
+set 000937 00,01
+call 81AB96 long p=30 db=81 d=092B
+set 0008E7 00,01
+set 000937 00,02
+call 81AB96 long p=30 db=81 d=092B
+set 000940 00
+call 81ABB4 long p=30 db=81 d=092B x=00
+set 000940 01
+call 81ABB4 long p=30 db=81 d=092B x=04
+set 000940 00
+call 81ABBA long p=30 db=81 d=092B x=00
+set 000940 01
+call 81ABBA long p=30 db=81 d=092B x=04
+wait 2
