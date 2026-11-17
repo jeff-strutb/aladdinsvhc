@@ -131,28 +131,11 @@ void abi_ActorBouncesPlayer(void)
 none:
     op_sep(0x32);
 }
-/*
- * @routine 83:83C9 ActorStompOrHurt
- * WHAT IT DOES: When Aladdin touches the actor: from the side or below he
- * is hurt; coming down on it from above (and able to bounce) he bounces
- * off and stomps it: it goes into state $8C, loses one from its $11, and
- * a small actor marks the stomp.
- * HOW: ActorHitsTestBoxIfActive; ScratchBelowBy10 tells above (C clear)
- * from not; not above: PlayerEnter8CFacing. Above: the bounce needs
- * health, $141B zero, $141C nonzero, $145A and the player's vertical
- * speed not negative; then the bounce at $83:84D5, bit 7 of the actor's
- * $09 cleared, the state, the DEC and the mark at $83:84F4.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
- * work RAM, the hit boxes' bank. Exit: M and X 8-bit. Hurt: A low = 1, N
- * and Z clear; X and C as PlayerEnter8CFacing leaves them. Otherwise
- * (stomped, or no touch): Z set; A, X, Y and the other flags from the
- * last test or call.
- */
-void abi_ActorStompOrHurt(void)
+/* After the compare that tells above (C clear) from not: hurt from the
+   side or below; stomped from above when he can bounce; else nothing.
+   ActorStompOrHurt's end, and ActorStompOrHurt16's. */
+static void stomp_or_hurt(void)
 {
-    if (!touch_from_above(1))
-        goto none;
-    abi_ScratchBelowBy10();
     if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
         abi_PlayerEnter8CFacing();
@@ -174,6 +157,60 @@ void abi_ActorStompOrHurt(void)
     call_routine(STOMP_MARK, 0);
 none:
     op_sep(0x32);
+}
+
+/*
+ * @routine 83:83C9 ActorStompOrHurt
+ * WHAT IT DOES: When Aladdin touches the actor: from the side or below he
+ * is hurt; coming down on it from above (and able to bounce) he bounces
+ * off and stomps it: it goes into state $8C, loses one from its $11, and
+ * a small actor marks the stomp.
+ * HOW: ActorHitsTestBoxIfActive; ScratchBelowBy10 tells above (C clear)
+ * from not; not above: PlayerEnter8CFacing. Above: the bounce needs
+ * health, $141B zero, $141C nonzero, $145A and the player's vertical
+ * speed not negative; then the bounce at $83:84D5, bit 7 of the actor's
+ * $09 cleared, the state, the DEC and the mark at $83:84F4.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the hit boxes' bank. Exit: M and X 8-bit. Hurt: A low = 1, N
+ * and Z clear; X and C as PlayerEnter8CFacing leaves them. Otherwise
+ * (stomped, or no touch): Z set; A, X, Y and the other flags from the
+ * last test or call.
+ */
+void abi_ActorStompOrHurt(void)
+{
+    if (!touch_from_above(1)) {
+        op_sep(0x32);
+        return;
+    }
+    abi_ScratchBelowBy10();
+    stomp_or_hurt();
+}
+
+/*
+ * @routine 83:83AD ActorStompOrHurt16
+ * WHAT IT DOES: As ActorStompOrHurt, with Aladdin counted above the actor
+ * with a margin of $10 rather than $0A (the scratch word at $0012 less
+ * $10 against the hit test's A).
+ * HOW: ActorHitsTestBoxIfActive; no touch: nothing. A to the scratch word
+ * at $0014; the scratch word at $0012 less $10 compared with it (C clear:
+ * above); then as ActorStompOrHurt from its compare ($83:83D5 and $83:83DD).
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the hit boxes' bank; called by JSR. Exit: as ActorStompOrHurt.
+ */
+void abi_ActorStompOrHurt16(void)
+{
+    uint16_t a;
+
+    if (!touch_from_above(1)) {
+        op_sep(0x32);
+        return;
+    }
+    a = (uint16_t)cpu.a;
+    wr16(dba(0x0014), a);
+    a16_load(rd16(dba(0x0012)));
+    op_sub16(0x10);
+    op_cmp16(a);
+    stomp_or_hurt();
 }
 
 /*

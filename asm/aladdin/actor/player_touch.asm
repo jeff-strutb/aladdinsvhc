@@ -93,6 +93,29 @@ ActorStompedByPlayer:
     sep.b #$32
     rts
 
+; @routine 83:83AD ActorStompOrHurt16
+; WHAT IT DOES: As ActorStompOrHurt, with Aladdin counted above the actor
+; with a margin of $10 rather than $0A (the scratch word at $0012 less
+; $10 against the hit test's A).
+; HOW: ActorHitsTestBoxIfActive; no touch: nothing. A to the scratch word
+; at $0014; the scratch word at $0012 less $10 compared with it (C clear:
+; above); then as ActorStompOrHurt from its compare ($83:83D5 and $83:83DD).
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM, the hit boxes' bank; called by JSR. Exit: as ActorStompOrHurt.
+;
+%at($8383AD)
+ActorStompOrHurt16:
+    jsr.w ActorHitsTestBoxIfActive
+    bcs ActorStompOrHurt_none
+    rep.b #$20
+    sta.w $0014
+    sec
+    lda.w $0012
+    sbc.w #$0010
+    cmp.w $0014
+    bcc ActorStompOrHurt_above
+    bra ActorStompOrHurt_hurt
+
 ; @routine 83:83C5 ActorStompOrHurtLong
 ; WHAT IT DOES: ActorStompOrHurt for callers in other banks.
 ; HOW: JSR to it, then RTL.
@@ -120,6 +143,7 @@ ActorStompOrHurt:
     rep.b #$20
     jsr.w ScratchBelowBy10
     bcc .above
+.hurt:
     sep.b #$30
     jsr.w PlayerEnter8CFacing
     lda.b #$01

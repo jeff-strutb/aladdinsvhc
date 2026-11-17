@@ -319,3 +319,41 @@ void abi_ActorEndsShot(void)
     }
     op_sep(0x30);
 }
+
+/*
+ * @routine 83:8208 ActorDownedByHarmlessShot
+ * WHAT IT DOES: When a shot reaches the actor: a shot that does not hit
+ * downs it (state $8C), turned from Aladdin, marked by a small actor (kind
+ * $11); a shot that hits ends, marked by kind $13, and the actor is
+ * unharmed.
+ * HOW: ActorTouchesSecondPool; on a touch, the shot's $11 negative:
+ * Spawn11AtY, its facing as ActorDownedByShot turns it from Aladdin,
+ * ActorStateSet8CSelf; not negative: Spawn13AtY and the shot's resume
+ * address ($03-$04) = SHOT_ENDS_AT. C cleared.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit.
+ * Touched: C clear; Y = the shot's record (low byte). No touch: C set; as
+ * ActorTouchesSecondPool leaves the rest.
+ */
+void abi_ActorDownedByHarmlessShot(void)
+{
+    abi_ActorTouchesSecondPool();
+    if (!(cpu.p & P_C)) {
+        if (shot_harmless()) {
+            abi_Spawn11AtY();
+            facing_away();
+            abi_ActorStateSet8CSelf();
+        } else {
+            uint32_t shot;
+
+            abi_Spawn13AtY();
+            shot = dba(0) + cpu.y;
+            a8_load((uint8_t)SHOT_ENDS_AT);
+            wr8(shot + ACTOR_03, (uint8_t)cpu.a);
+            a8_load((uint8_t)(SHOT_ENDS_AT >> 8));
+            wr8(shot + ACTOR_04, (uint8_t)cpu.a);
+        }
+        flag_set(P_C, 0);
+    }
+    op_sep(0x30);
+}

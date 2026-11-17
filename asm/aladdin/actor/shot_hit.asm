@@ -266,3 +266,51 @@ ActorEndsShot:
 .out:
     sep.b #$30
     rts
+
+; @routine 83:8208 ActorDownedByHarmlessShot
+; WHAT IT DOES: When a shot reaches the actor: a shot that does not hit
+; downs it (state $8C), turned from Aladdin, marked by a small actor (kind
+; $11); a shot that hits ends, marked by kind $13, and the actor is
+; unharmed.
+; HOW: ActorTouchesSecondPool; on a touch, the shot's $11 negative:
+; Spawn11AtY, its facing as ActorDownedByShot turns it from Aladdin,
+; ActorStateSet8CSelf; not negative: Spawn13AtY and the shot's resume
+; address ($03-$04) = SHOT_ENDS_AT. C cleared.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit.
+; Touched: C clear; Y = the shot's record (low byte). No touch: C set; as
+; ActorTouchesSecondPool leaves the rest.
+;
+%at($838208)
+ActorDownedByHarmlessShot:
+    jsr.w ActorTouchesSecondPool
+    bcs .out
+    lda.w !ACTOR_11,y
+    bpl .hits
+    jsr.w Spawn11AtY
+    lda.w !PLAYER_2F
+    cmp.b #$0B
+    bcs .far
+    lda.b #0
+    bra .side
+.far:
+    lda.b #1
+.side:
+    clc
+    adc.w !player+!actor_flip
+    and.b #$01
+    ora.b #$80
+    sta.b !actor_facing
+    jsr.w ActorStateSet8CSelf
+    bra .done
+.hits:
+    jsr.w Spawn13AtY
+    lda.b #!SHOT_ENDS_AT&255
+    sta.w !actor_03,y
+    lda.b #!SHOT_ENDS_AT>>8
+    sta.w !actor_04,y
+.done:
+    clc
+.out:
+    sep.b #$30
+    rts
