@@ -97,7 +97,8 @@ void abi_KindA6Stay(void)
     do {
         actor_yield(0x84AC4Fu);
         flag_set(P_C, 1);
-        d = op_sbc16(rd16(dba(RANGE_Y)), dp16(ACTOR_Y + 1), &cpu.p);
+        d = rd16(dba(RANGE_Y));
+        d = op_sbc16(d, dp16(ACTOR_Y + 1), &cpu.p);
         flag_set(P_C, 0);
         d = op_adc16(d, 0x0100, &cpu.p);
         cpu.a = d;

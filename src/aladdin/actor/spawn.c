@@ -65,14 +65,17 @@ void abi_ActorSpawnPlace(void)
     cpu.p = (uint8_t)((cpu.p & ~P_C) | (v & 1));
     if (!(v & 1)) {
         cpu.p &= (uint8_t)~P_C;
-        v = op_adc16(rd16(dp(ACTOR_X + 1)), rd16(abs_db((uint16_t)(SPAWN_OFFSET_X + cpu.y))), &cpu.p);
+        v = rd16(dp(ACTOR_X + 1));
+        v = op_adc16(v, rd16(abs_db((uint16_t)(SPAWN_OFFSET_X + cpu.y))), &cpu.p);
     } else {
         cpu.p |= P_C;
-        v = op_sbc16(rd16(dp(ACTOR_X + 1)), rd16(abs_db((uint16_t)(SPAWN_OFFSET_X + cpu.y))), &cpu.p);
+        v = rd16(dp(ACTOR_X + 1));
+        v = op_sbc16(v, rd16(abs_db((uint16_t)(SPAWN_OFFSET_X + cpu.y))), &cpu.p);
     }
     wr16(child(ACTOR_X + 1), v);
     cpu.p &= (uint8_t)~P_C;
-    cpu.a = op_adc16(rd16(dp(ACTOR_Y + 1)), rd16(abs_db((uint16_t)(SPAWN_OFFSET_Y + cpu.y))), &cpu.p);
+    v = rd16(dp(ACTOR_Y + 1));
+    cpu.a = op_adc16(v, rd16(abs_db((uint16_t)(SPAWN_OFFSET_Y + cpu.y))), &cpu.p);
     wr16(child(ACTOR_Y + 1), cpu.a);
     op_sep(P_M);
 }

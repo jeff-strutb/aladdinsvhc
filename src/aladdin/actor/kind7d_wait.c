@@ -72,13 +72,15 @@ void abi_Kind7DWait(void)
 
     op_rep(0x20);
     flag_set(P_C, 1);
-    a16_load(op_sbc16(dp16(K7D_Y_BASE), rd16(dba(K7D_SCROLL_Y)), &cpu.p));
+    d = dp16(K7D_Y_BASE);
+    a16_load(op_sbc16(d, rd16(dba(K7D_SCROLL_Y)), &cpu.p));
     dp16_set(ACTOR_Y + 1, cpu.a);
     op_sep(0x20);
     abi_Kind7DStep();
     op_rep(0x20);
     flag_set(P_C, 1);
-    d = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(K7D_RANGE_X)), &cpu.p);
+    d = dp16(ACTOR_X + 1);
+    d = op_sbc16(d, rd16(dba(K7D_RANGE_X)), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, 0x00E0, &cpu.p);
     a16_load(d);

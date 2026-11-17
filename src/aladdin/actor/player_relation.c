@@ -34,14 +34,16 @@ void abi_ActorDirectionToPlayer(void)
     /* the distances (Y: bit 2 when he is above, bit 1 when left) */
     cpu.y = 0;
     flag_set(P_C, 1);
-    dy = op_sbc16(rd16(dba(SCRATCH + 6)), dp16(ACTOR_Y + 1), &cpu.p);
+    dy = rd16(dba(SCRATCH + 6));
+    dy = op_sbc16(dy, dp16(ACTOR_Y + 1), &cpu.p);
     if (!(cpu.p & P_C)) {
         dy = (uint16_t)((dy ^ 0xFFFF) + 1);
         cpu.y = 4;
     }
     wr16(dba(SCRATCH), dy);
     flag_set(P_C, 1);
-    dx = op_sbc16(rd16(dba(SCRATCH + 4)), dp16(ACTOR_X + 1), &cpu.p);
+    dx = rd16(dba(SCRATCH + 4));
+    dx = op_sbc16(dx, dp16(ACTOR_X + 1), &cpu.p);
     if (!(cpu.p & P_C)) {
         dx = (uint16_t)((dx ^ 0xFFFF) + 1);
         cpu.y = (uint16_t)(cpu.y + 2);
@@ -95,7 +97,7 @@ void abi_ActorDirectionToPlayer(void)
 void abi_PlayerInFrontBox(void)
 {
     uint32_t box = dba(0xBC8F) + cpu.x;
-    uint16_t half, d;
+    uint16_t half, d, w;
 
     y8_load(rd8(dpa(ACTOR_FACING)));
     op_rep(P_M);
@@ -104,9 +106,11 @@ void abi_PlayerInFrontBox(void)
     wr16(dba(SCRATCH), half);
     flag_set(P_C, half & 0x8000);
     wr16(dba(SCRATCH + 2), (uint16_t)(half << 1));
-    wr16(dba(SCRATCH + 4), op_adc16(rd16(box + 2), rd16(box + 4), &cpu.p));
+    w = rd16(box + 2);
+    wr16(dba(SCRATCH + 4), op_adc16(w, rd16(box + 4), &cpu.p));
     flag_set(P_C, 0);
-    d = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(SCRATCH)), &cpu.p);
+    d = dp16(ACTOR_Y + 1);
+    d = op_adc16(d, rd16(dba(SCRATCH)), &cpu.p);
     flag_set(P_C, 1);
     d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_Y + 1)), &cpu.p);
     cpu.a = d;
@@ -117,7 +121,8 @@ void abi_PlayerInFrontBox(void)
         nz8_of((uint8_t)cpu.y);
         if (!(cpu.y & 0x80))
             cpu.x = (uint8_t)(cpu.x + 2);
-        d = op_adc16(dp16(ACTOR_X + 1), rd16(dba(0xBC91) + cpu.x), &cpu.p);
+        d = dp16(ACTOR_X + 1);
+        d = op_adc16(d, rd16(dba(0xBC91) + cpu.x), &cpu.p);
         flag_set(P_C, 1);
         d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
         cpu.a = d;

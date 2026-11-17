@@ -56,7 +56,8 @@ void abi_TileActorDraw(void)
     uint16_t at, tile;
 
     x8_load(rd8(dpa(TILE_SET)));
-    pick = (uint8_t)(rd8(dpa(TILE_SIDE)) ^ rd8(dpa(TILE_SHOWN)));
+    pick = rd8(dpa(TILE_SIDE));
+    pick = (uint8_t)(pick ^ rd8(dpa(TILE_SHOWN)));
     pick = (uint8_t)((uint8_t)((uint8_t)(pick << 1) | rd8(dpa(ACTOR_FLIP))) << 2);
     flag_set(P_C, 0);
     at = op_adc8(pick, rd8(dba(TILE_ACTOR_TILES) + cpu.x), &cpu.p);

@@ -59,7 +59,7 @@ void abi_TaskCreate(void);
  */
 void abi_Kind69Start(void)
 {
-    uint8_t pose;
+    uint8_t pose, sx;
 
     a8_load(0x30);
     tsb_at(dpa(ACTOR_09), 0x30);
@@ -131,7 +131,8 @@ void abi_Kind69Start(void)
         a8_load(rd8(dba((uint16_t)ESCORT_FLIP)));
         wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
         wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
-        a8_load((uint8_t)(rd8(dba((uint16_t)ESCORT_SPEED_X)) | rd8(dba((uint16_t)(ESCORT_SPEED_X + 1)))));
+        sx = rd8(dba((uint16_t)ESCORT_SPEED_X));
+        a8_load((uint8_t)(sx | rd8(dba((uint16_t)(ESCORT_SPEED_X + 1)))));
         pose = (uint8_t)cpu.a ? 0x01 : 0x00;
         a8_load(pose);
         flag_set(P_C, 0);               /* the ASL's: bit 7 of 0 or 1 */

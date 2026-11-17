@@ -48,6 +48,10 @@ static void count_within(uint16_t mine, uint16_t his, uint16_t half, uint16_t co
  */
 void abi_ActorPlayerBoxCount(void)
 {
-    count_within(dp16(ACTOR_X + 1), rd16(dba(PLAYER_X_PIXELS)), BOX_HALF_W, ACTOR_45);
-    count_within(dp16(ACTOR_Y + 1), rd16(dba(PLAYER_Y_PIXELS)), BOX_HALF_H, ACTOR_47);
+    uint16_t v;
+
+    v = dp16(ACTOR_X + 1);
+    count_within(v, rd16(dba(PLAYER_X_PIXELS)), BOX_HALF_W, ACTOR_45);
+    v = dp16(ACTOR_Y + 1);
+    count_within(v, rd16(dba(PLAYER_Y_PIXELS)), BOX_HALF_H, ACTOR_47);
 }

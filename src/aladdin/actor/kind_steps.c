@@ -232,10 +232,12 @@ void abi_Kind93AnimateSend(void)
 void abi_ActorPathStep(void)
 {
     uint8_t on;
+    uint16_t v;
 
     abi_ActorParityBitsSet();
     flag_set(P_C, 0);
-    cpu.a = op_adc16(dp16(PATH_STEP), dp16(PATH_AT), &cpu.p);
+    v = dp16(PATH_STEP);
+    cpu.a = op_adc16(v, dp16(PATH_AT), &cpu.p);
     dp16_set(PATH_AT, cpu.a);
     on = rd8(dpa(PATH_ON));
     a8_load(on);
@@ -257,7 +259,7 @@ void abi_ActorPathStep(void)
 void abi_ActorPathNext(void)
 {
     uint8_t frames = rd8(dpa(PATH_FRAMES));
-    uint16_t next;
+    uint16_t next, v;
 
     a8_load(frames);
     if (!frames || dec8_at(dpa(PATH_FRAMES)))
@@ -267,7 +269,9 @@ void abi_ActorPathNext(void)
     cpu.y = dp16(PATH_NEXT);
     nz16_of(cpu.y);
     flag_set(P_C, 0);
-    cpu.a = op_adc16((uint16_t)(rd16(dba(0) + cpu.y) ^ dp16(0x19)), dp16(0x1C), &cpu.p);
+    v = rd16(dba(0) + cpu.y);
+    v = (uint16_t)(v ^ dp16(0x19));
+    cpu.a = op_adc16(v, dp16(0x1C), &cpu.p);
     dp16_set(PATH_STEP, cpu.a);
     frames = rd8(dpa(PATH_FRAMES_EACH));
     a8_load(frames);

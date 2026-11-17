@@ -56,7 +56,7 @@ static void wait(uint8_t n, uint32_t cop_at)
 void abi_KindA7Start(void)
 {
     uint8_t v07 = rd8(dpa(ACTOR_07)), at, step;
-    uint16_t y;
+    uint16_t y, sc;
 
     a8_load(v07);
     if (v07) {
@@ -81,10 +81,12 @@ void abi_KindA7Start(void)
     x8_load(at);
     if (at) {
         flag_set(P_C, 0);
-        a16_load(op_adc16(rd16(dba((uint16_t)SCROLL_X)), rd16(dba((uint16_t)(KA7_PLACES + at))), &cpu.p));
+        sc = rd16(dba((uint16_t)SCROLL_X));
+        a16_load(op_adc16(sc, rd16(dba((uint16_t)(KA7_PLACES + at))), &cpu.p));
         dp16_set(ACTOR_X + 1, cpu.a);
         flag_set(P_C, 0);
-        a16_load(op_adc16(rd16(dba((uint16_t)SCROLL_Y)), rd16(dba((uint16_t)(KA7_PLACES + 2 + at))), &cpu.p));
+        sc = rd16(dba((uint16_t)SCROLL_Y));
+        a16_load(op_adc16(sc, rd16(dba((uint16_t)(KA7_PLACES + 2 + at))), &cpu.p));
         dp16_set(ACTOR_Y + 1, cpu.a);
     } else {
         a16_load(rd16(dba((uint16_t)(KA7_PLACES + at))));

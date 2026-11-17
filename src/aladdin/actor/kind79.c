@@ -192,10 +192,12 @@ void abi_Kind79Wait(void)
 void abi_Kind79InRange(void)
 {
     uint8_t st;
+    uint16_t r;
 
     op_rep(0x20);
     flag_set(P_C, 1);
-    a16_load(op_sbc16(rd16(dba(RANGE_X)), dp16(ACTOR_X + 1), &cpu.p));
+    r = rd16(dba(RANGE_X));
+    a16_load(op_sbc16(r, dp16(ACTOR_X + 1), &cpu.p));
     flag_set(P_C, 0);
     a16_load(op_adc16(cpu.a, 0x00D0, &cpu.p));
     cmp16_of(cpu.a, 0x01A0);
@@ -207,7 +209,8 @@ void abi_Kind79InRange(void)
     }
     op_rep(0x20);
     flag_set(P_C, 1);
-    a16_load(op_sbc16(rd16(dba(RANGE_Y)), dp16(ACTOR_Y + 1), &cpu.p));
+    r = rd16(dba(RANGE_Y));
+    a16_load(op_sbc16(r, dp16(ACTOR_Y + 1), &cpu.p));
     flag_set(P_C, 0);
     a16_load(op_adc16(cpu.a, 0x0098, &cpu.p));
     cmp16_of(cpu.a, 0x0148);

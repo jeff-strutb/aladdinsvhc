@@ -30,11 +30,15 @@ void abi_PlayerInFrontBox(void);
    scratch, then the tile there (TileAtProbeLong). */
 static void map_at(uint32_t ahead)
 {
+    uint16_t v;
+
     op_rep(0x21);
-    cpu.a = op_adc16(rd16(ahead), dp16(ACTOR_X + 1), &cpu.p);
+    v = rd16(ahead);
+    cpu.a = op_adc16(v, dp16(ACTOR_X + 1), &cpu.p);
     wr16(dba(SCRATCH), cpu.a);
     flag_set(P_C, 0);
-    cpu.a = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(SCRATCH + 2)), &cpu.p);
+    v = dp16(ACTOR_Y + 1);
+    cpu.a = op_adc16(v, rd16(dba(SCRATCH + 2)), &cpu.p);
     wr16(dba(SCRATCH + 2), cpu.a);
     abi_TileAtProbeLong();
 }
@@ -140,7 +144,7 @@ void abi_ActorMapAhead5Down12(void)
  */
 void abi_ActorSeesPlayer(void)
 {
-    uint16_t d, steps;
+    uint16_t d, steps, w;
     uint8_t v;
 
     x8_load(0x00);
@@ -156,7 +160,8 @@ void abi_ActorSeesPlayer(void)
     op_rep(P_M);
     x8_load(0x00);
     flag_set(P_C, 1);
-    d = op_sbc16(dp16(ACTOR_X + 1), rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
+    d = dp16(ACTOR_X + 1);
+    d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_X + 1)), &cpu.p);
     if (d & 0x8000) {
         d = (uint16_t)((d ^ 0xFFFF) + 1);
         x8_load(0x01);
@@ -175,10 +180,12 @@ void abi_ActorSeesPlayer(void)
     dp16_set(ACTOR_4C, 0);
     do {
         op_rep(0x21);
-        cpu.a = op_adc16(dp16(ACTOR_4C), dp16(ACTOR_48), &cpu.p);
+        w = dp16(ACTOR_4C);
+        cpu.a = op_adc16(w, dp16(ACTOR_48), &cpu.p);
         dp16_set(ACTOR_4C, cpu.a);
         flag_set(P_C, 0);
-        cpu.a = op_adc16(dp16(ACTOR_X + 1), dp16(ACTOR_4C), &cpu.p);
+        w = dp16(ACTOR_X + 1);
+        cpu.a = op_adc16(w, dp16(ACTOR_4C), &cpu.p);
         wr16(dba(SCRATCH), cpu.a);
         cpu.a = dp16(ACTOR_Y + 1);
         wr16(dba(SCRATCH + 2), cpu.a);

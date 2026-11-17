@@ -354,7 +354,8 @@ void abi_Kind6DWait(void)
         abi_AnimStep();
         op_rep(0x20);
         flag_set(P_C, 1);
-        d = op_sbc16(rd16(dba((uint16_t)RANGE_X_6D)), dp16(ACTOR_X + 1), &cpu.p);
+        d = rd16(dba((uint16_t)RANGE_X_6D));
+        d = op_sbc16(d, dp16(ACTOR_X + 1), &cpu.p);
         a16_load(d);
         if (d & 0x8000)
             a16_load((uint16_t)((d ^ 0xFFFF) + 1));

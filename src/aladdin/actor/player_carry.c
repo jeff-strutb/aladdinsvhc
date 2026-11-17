@@ -63,13 +63,16 @@ static void carry_axis(uint16_t now, uint16_t kept, uint16_t player, uint16_t ot
 void abi_ActorCarryPlayer(void)
 {
     uint8_t carries = rd8(dpa(CARRIES));
+    uint16_t v;
 
     a8_load(carries);
     if (!carries)
         return;
     op_rep(P_M);
-    carry_axis(dp16(ACTOR_X + 1), dp16(KEPT_X), PLAYER_X, V_143B);
-    carry_axis(dp16(ACTOR_Y + 1), dp16(KEPT_Y), PLAYER_Y, V_143E);
+    v = dp16(ACTOR_X + 1);
+    carry_axis(v, dp16(KEPT_X), PLAYER_X, V_143B);
+    v = dp16(ACTOR_Y + 1);
+    carry_axis(v, dp16(KEPT_Y), PLAYER_Y, V_143E);
     op_sep(P_M);
 }
 

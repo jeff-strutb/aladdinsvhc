@@ -42,6 +42,8 @@ void abi_ActorCreateChild8(void);
  */
 void abi_ActorSpawnRing(void)
 {
+    uint16_t v;
+
     a8_load(0x05);
     wr8(dpa(ACTOR_40), 0x05);
     x8_load(0x00);
@@ -55,10 +57,12 @@ void abi_ActorSpawnRing(void)
     for (;;) {
         /* the next point of the ring, from the last, and a kind $34 there */
         op_rep(0x21);
-        cpu.a = op_adc16(rd16(dba(RING_OFFSETS) + cpu.x), dp16(ACTOR_X + 1), &cpu.p);
+        v = rd16(dba(RING_OFFSETS) + cpu.x);
+        cpu.a = op_adc16(v, dp16(ACTOR_X + 1), &cpu.p);
         dp16_set(ACTOR_X + 1, cpu.a);
         flag_set(P_C, 0);
-        cpu.a = op_adc16(rd16(dba(RING_OFFSETS + 2) + cpu.x), dp16(ACTOR_Y + 1), &cpu.p);
+        v = rd16(dba(RING_OFFSETS + 2) + cpu.x);
+        cpu.a = op_adc16(v, dp16(ACTOR_Y + 1), &cpu.p);
         dp16_set(ACTOR_Y + 1, cpu.a);
         op_sep(P_M);
         wr8(dpa(ACTOR_43), (uint8_t)cpu.x);

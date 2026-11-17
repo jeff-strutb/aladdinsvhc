@@ -47,7 +47,8 @@ void abi_PlayerInReach(void)
         flag_set(P_C, reach & 0x8000);
         wr16(dba(REACH_SPAN_X), span);
         flag_set(P_C, 0);
-        d = op_adc16(dp16(ACTOR_X + 1), rd16(dba(REACH_HALF_X)), &cpu.p);
+        d = dp16(ACTOR_X + 1);
+        d = op_adc16(d, rd16(dba(REACH_HALF_X)), &cpu.p);
         flag_set(P_C, 1);
         d = op_sbc16(d, rd16(dba(PLAYER_X)), &cpu.p);
         cpu.a = d;

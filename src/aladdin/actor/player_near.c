@@ -190,11 +190,19 @@ static int near_within(uint16_t mine, uint16_t point, uint16_t half, uint16_t wh
 void abi_ActorNearPoint(void)
 {
     uint32_t box = dba(NEAR_BOX_TABLE) + cpu.y;
+    uint16_t mine, point, half;
 
     half_and_whole(rd16(box), SCRATCH);
     half_and_whole(rd16(box + 2), SCRATCH + 4);
-    if (near_within(dp16(ACTOR_X + 1), rd16(dba(NEAR_POINT_X)), rd16(dba(SCRATCH)), rd16(dba(SCRATCH + 2))))
-        near_within(dp16(ACTOR_Y + 1), rd16(dba(NEAR_POINT_Y)), rd16(dba(SCRATCH + 4)), rd16(dba(SCRATCH + 6)));
+    mine = dp16(ACTOR_X + 1);
+    point = rd16(dba(NEAR_POINT_X));
+    half = rd16(dba(SCRATCH));
+    if (near_within(mine, point, half, rd16(dba(SCRATCH + 2)))) {
+        mine = dp16(ACTOR_Y + 1);
+        point = rd16(dba(NEAR_POINT_Y));
+        half = rd16(dba(SCRATCH + 4));
+        near_within(mine, point, half, rd16(dba(SCRATCH + 6)));
+    }
 }
 
 /*
@@ -219,14 +227,16 @@ void abi_ActorAimAt(void)
        the y distance is the greater) */
     cpu.y = 0;
     flag_set(P_C, 1);
-    dy = op_sbc16(rd16(dba(V_0012)), dp16(ACTOR_Y + 1), &cpu.p);
+    dy = rd16(dba(V_0012));
+    dy = op_sbc16(dy, dp16(ACTOR_Y + 1), &cpu.p);
     if (!(cpu.p & P_C)) {
         dy = (uint16_t)((dy ^ 0xFFFF) + 1);
         cpu.y = 4;
     }
     wr16(dba(SCRATCH), dy);
     flag_set(P_C, 1);
-    dx = op_sbc16(rd16(dba(SCRATCH + 4)), dp16(ACTOR_X + 1), &cpu.p);
+    dx = rd16(dba(SCRATCH + 4));
+    dx = op_sbc16(dx, dp16(ACTOR_X + 1), &cpu.p);
     if (!(cpu.p & P_C)) {
         dx = (uint16_t)((dx ^ 0xFFFF) + 1);
         cpu.y = (uint16_t)(cpu.y + 2);

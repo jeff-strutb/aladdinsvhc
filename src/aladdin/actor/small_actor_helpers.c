@@ -49,7 +49,8 @@ void abi_Kind89PlayerPriority(void)
         cmp16_of(px, 0x0934);
         if (px >= 0x0934)
             x8_load(0x01);
-        bits = (uint8_t)((rd8(dba(PLAYER_09)) & 0xCF) | rd8(dba(PRIORITY_BY_SIDE) + cpu.x));
+        bits = (uint8_t)(rd8(dba(PLAYER_09)) & 0xCF);
+        bits = (uint8_t)(bits | rd8(dba(PRIORITY_BY_SIDE) + cpu.x));
         a8_load(bits);
         wr8(dba(PLAYER_09), bits);
     }

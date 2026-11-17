@@ -598,8 +598,11 @@ void abi_ActorSpeedXSetAccel(void)
  */
 void abi_ActorAccelerateXBack(void)
 {
+    uint8_t v;
+
     flag_set(P_C, 1);
-    wr8(dpa(ACTOR_SPEED_X), op_sbc8(rd8(dpa(ACTOR_SPEED_X)), rd8(dpa(ACTOR_ACCEL_X)), &cpu.p));
+    v = rd8(dpa(ACTOR_SPEED_X));
+    wr8(dpa(ACTOR_SPEED_X), op_sbc8(v, rd8(dpa(ACTOR_ACCEL_X)), &cpu.p));
     wr8(dpa(ACTOR_SPEED_X + 1), op_sbc8(rd8(dpa(ACTOR_SPEED_X + 1)), 0x00, &cpu.p));
     a8_load(op_sbc8(rd8(dpa(ACTOR_SPEED_X + 2)), 0x00, &cpu.p));
     wr8(dpa(ACTOR_SPEED_X + 2), (uint8_t)cpu.a);
@@ -615,8 +618,11 @@ void abi_ActorAccelerateXBack(void)
  */
 void abi_ActorAccelerateYBack(void)
 {
+    uint8_t v;
+
     flag_set(P_C, 1);
-    wr8(dpa(ACTOR_SPEED_Y), op_sbc8(rd8(dpa(ACTOR_SPEED_Y)), rd8(dpa(ACTOR_ACCEL_Y)), &cpu.p));
+    v = rd8(dpa(ACTOR_SPEED_Y));
+    wr8(dpa(ACTOR_SPEED_Y), op_sbc8(v, rd8(dpa(ACTOR_ACCEL_Y)), &cpu.p));
     wr8(dpa(ACTOR_SPEED_Y + 1), op_sbc8(rd8(dpa(ACTOR_SPEED_Y + 1)), 0x00, &cpu.p));
     a8_load(op_sbc8(rd8(dpa(ACTOR_SPEED_Y + 2)), 0x00, &cpu.p));
     wr8(dpa(ACTOR_SPEED_Y + 2), (uint8_t)cpu.a);
@@ -629,7 +635,8 @@ static uint16_t vector_at(void)
     uint16_t at;
 
     flag_set(P_C, 0);
-    at = op_adc16(dp16(ACTOR_FACING) & 0x00FF, rd16(dba(VECTOR_SETS) + cpu.x), &cpu.p);
+    at = dp16(ACTOR_FACING) & 0x00FF;
+    at = op_adc16(at, rd16(dba(VECTOR_SETS) + cpu.x), &cpu.p);
     cpu.a = at;
     cpu.x = at;
     return at;
@@ -711,15 +718,19 @@ void abi_ActorSpeedSetVector(void)
 void abi_ActorMoveByVectorX(void)
 {
     uint16_t at;
+    uint8_t v;
 
     a8_load(rd8(dpa(ACTOR_FACING)));
     op_rep(0x30);
     at = vector_at();
     op_sep(P_M);
     flag_set(P_C, 0);
-    wr8(dpa(ACTOR_X), op_adc8(rd8(VECTOR_X_FRAC + at), rd8(dpa(ACTOR_X)), &cpu.p));
-    wr8(dpa(ACTOR_X + 1), op_adc8(rd8(VECTOR_X_MID + at), rd8(dpa(ACTOR_X + 1)), &cpu.p));
-    a8_load(op_adc8(rd8(VECTOR_X_HI + at), rd8(dpa(ACTOR_X + 2)), &cpu.p));
+    v = rd8(VECTOR_X_FRAC + at);
+    wr8(dpa(ACTOR_X), op_adc8(v, rd8(dpa(ACTOR_X)), &cpu.p));
+    v = rd8(VECTOR_X_MID + at);
+    wr8(dpa(ACTOR_X + 1), op_adc8(v, rd8(dpa(ACTOR_X + 1)), &cpu.p));
+    v = rd8(VECTOR_X_HI + at);
+    a8_load(op_adc8(v, rd8(dpa(ACTOR_X + 2)), &cpu.p));
     wr8(dpa(ACTOR_X + 2), (uint8_t)cpu.a);
     op_sep(P_X);
 }
@@ -738,15 +749,19 @@ void abi_ActorMoveByVectorX(void)
 void abi_ActorMoveByVectorY(void)
 {
     uint16_t at;
+    uint8_t v;
 
     a8_load(rd8(dpa(ACTOR_FACING)));
     op_rep(0x30);
     at = vector_at();
     op_sep(P_M);
     flag_set(P_C, 0);
-    wr8(dpa(ACTOR_Y), op_adc8(rd8(VECTOR_Y_FRAC + at), rd8(dpa(ACTOR_Y)), &cpu.p));
-    wr8(dpa(ACTOR_Y + 1), op_adc8(rd8(VECTOR_Y_MID + at), rd8(dpa(ACTOR_Y + 1)), &cpu.p));
-    a8_load(op_adc8(rd8(VECTOR_Y_HI + at), rd8(dpa(ACTOR_Y + 2)), &cpu.p));
+    v = rd8(VECTOR_Y_FRAC + at);
+    wr8(dpa(ACTOR_Y), op_adc8(v, rd8(dpa(ACTOR_Y)), &cpu.p));
+    v = rd8(VECTOR_Y_MID + at);
+    wr8(dpa(ACTOR_Y + 1), op_adc8(v, rd8(dpa(ACTOR_Y + 1)), &cpu.p));
+    v = rd8(VECTOR_Y_HI + at);
+    a8_load(op_adc8(v, rd8(dpa(ACTOR_Y + 2)), &cpu.p));
     wr8(dpa(ACTOR_Y + 2), (uint8_t)cpu.a);
     op_sep(P_X);
 }

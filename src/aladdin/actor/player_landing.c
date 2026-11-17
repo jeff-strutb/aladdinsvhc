@@ -67,7 +67,7 @@ void abi_SoundQueueAdd(void);
  */
 void abi_PlayerStandOnActor(void)
 {
-    uint16_t back;
+    uint16_t back, y;
     uint8_t stomped = rd8(dba(PLAYER_STATE_8C_COUNT));
 
     cpu.a = PLAYER_LANDED_CODE;
@@ -83,7 +83,8 @@ void abi_PlayerStandOnActor(void)
     }
     wr16(dba(PLAYER_CODE), PLAYER_LANDED_CODE);
     flag_set(P_C, 1);
-    cpu.a = op_sbc16(dp16(ACTOR_Y + 1), rd16(dba(SCRATCH + 4)), &cpu.p);
+    y = dp16(ACTOR_Y + 1);
+    cpu.a = op_sbc16(y, rd16(dba(SCRATCH + 4)), &cpu.p);
     wr16(dba(PLAYER_Y_PIXELS), cpu.a);
     x8_load(0x01);
     wr8(dba(PLAYER_LANDED), 0x01);
