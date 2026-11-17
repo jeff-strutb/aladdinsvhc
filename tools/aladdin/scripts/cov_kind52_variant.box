@@ -1,0 +1,28 @@
+# Actor kind $52's start ($83:D359) with its $07 nonzero, which the third
+# level end's kind $52 (record $0BAB, $07 = 0) never has: it goes on at
+# $83:D4B2 ($83:D363), an actor that turns toward Aladdin every $14
+# frames and moves. Played as cov_level_ends.box until the actor is about
+# to start (state $0C); then the view and Aladdin put back near it (x
+# $0C00) so it stays in range, its $07 set to 1, and 300 frames run.
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+wait 70
+poke 001773 00,0C
+poke 0019E5 00,0C
+poke 0008E7 80,0C
+poke 000BB2 01
+wait 300

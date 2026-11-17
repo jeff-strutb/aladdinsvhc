@@ -1,0 +1,14 @@
+# Actor kind $64's start ($83:E4F0), which no level places: kind $61's
+# code with $41 = 1 ($83:E4EC sets it to 0). Level $0A as in
+# cov_kinda0_fall.box: with the view moved to the top, a kind $61 (record
+# $10AB) is placed in state $0C nine frames on; its kind is set to $64
+# before the actor loop starts it.
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 90,00
+poke 0008EA 70,00
+wait 9
+poke 0010B1 64
+wait 21
