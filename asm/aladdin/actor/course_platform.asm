@@ -58,8 +58,13 @@ arch 65816
 ; 12 waypoints of it), and an x the platforms are moved forward below.
 !COURSE_LIVE = $0400
 !v_1a44 = $1A44
-; Not yet filed: the check of the platform's rider.
-!RIDER_CHECK = $83CCF1
+!RIDER_X_KEPT = $35             ; the player's x pixels as the frame's rider check found them (word)
+!PLATFORM_BOX = $D2D9           ; in bank $80, by box: x offset, width, y offset, height, top offset (words)
+!NO_CARRY_X = $002C             ; scratch: the high byte of V_1434; nonzero, the rider is not carried in x (word)
+!v_1427_cp = $1427
+!v_141c_cp = $141C
+!v_1428_cp = $1428
+!v_1434_cp = $1434
 ; Not yet filed (no script reaches it): a platform's part of the course in
 ; a turn stretch.
 !PLATFORM_IN_TURN = $83CAA8
@@ -310,8 +315,8 @@ PlatformDipClear:
 ; WHAT IT DOES: The course platform's wait routine, each frame: its dip,
 ; how far it moved, its rider, a direction flip when its $42 is set, the
 ; course followed, and its animation by direction.
-; HOW: JUMPED cleared; PlatformDipUpdate; PlatformMoveMeasure; the rider
-; check at 83:CCF1; $42 set: cleared, $40 bit 0 flipped.
+; HOW: JUMPED cleared; PlatformDipUpdate; PlatformMoveMeasure;
+; PlatformRiderCheck; $42 set: cleared, $40 bit 0 flipped.
 ; PlatformCourseFollow; the direction ($40) unlike LAST_DIRECTION: kept,
 ; AnimStart with it. AnimStep.
 ; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
@@ -321,7 +326,7 @@ PlatformWait:
     stz.b !JUMPED
     jsr.w PlatformDipUpdate
     jsr.w PlatformMoveMeasure
-    jsr.w !RIDER_CHECK
+    jsr.w PlatformRiderCheck
     lda.b !actor_42
     beq .lCAE8
     stz.b !actor_42
@@ -774,4 +779,174 @@ PlatformMoveMeasure:
     sbc.b !LAST_Y
     sta.b !MOVED_Y
     sep.b #$20
+    rts
+
+; @routine 83:CCF1 PlatformRiderCheck
+; WHAT IT DOES: Carries the player along on the platform when he stands on
+; it, unless that puts him into firm ground, and starts its dip under him.
+; HOW: RIDDEN cleared. Nothing when it cannot be stood on (bit 6 of $09
+; clear), $1427 is set, or V_141C is set while he moves up. Else his x
+; pixels kept at RIDER_X_KEPT and PlatformCarriesRecordY with X = 0 (its
+; box) and Y = his record; on it: V_1428 and RIDDEN up; then
+; PlayerOnFirmGroundProbe8, Probe4 or PlayerOnFirmGround firm: his x put
+; back (no script runs this). DIP_PHASE 0: PlatformDipStart with A = $1F.
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
+; JSR. Exit: M 8-bit, X 8-bit; as its last call or test leaves the rest.
+%at($83CCF1)
+PlatformRiderCheck:
+    stz.b !RIDDEN
+    bit.b !actor_09
+    bvc .out
+    lda.w !v_1427_cp
+    bne .out
+    lda.w !v_141c_cp
+    beq .test
+    lda.w !player+!actor_speed_y+2
+    bmi .out
+.test:
+    rep.b #$10
+    ldx.w !player+!actor_x+1
+    stx.b !RIDER_X_KEPT
+    ldx.w #$0000
+    ldy.w #!player
+    jsr.w PlatformCarriesRecordY
+    bcs .out
+    inc.w !v_1428_cp
+    inc.b !RIDDEN
+    sep.b #$10
+    jsl.l PlayerOnFirmGroundProbe8
+    bcs .back
+    jsl.l PlayerOnFirmGroundProbe4
+    bcs .back
+    jsl.l PlayerOnFirmGround
+    bcc .dip
+.back:
+    lda.b !RIDER_X_KEPT
+    sta.w !player+!actor_x+1
+    lda.b !RIDER_X_KEPT+1
+    sta.w !player+!actor_x+2
+.dip:
+    lda.b !DIP_PHASE
+    bne .out
+    lda.b #$1F
+    jsr.w PlatformDipStart
+.out:
+    sep.b #$10
+    rts
+
+%at($83CD5B)
+PlatformCarriesOut:
+    jmp.w PlatformNotOn
+
+; @routine 83:CD5E PlatformCarriesRecordY
+; WHAT IT DOES: Tells whether record Y (the player) stands on the
+; platform, by its box X, and when he does, puts his feet on its top at
+; his place along it and carries him by its move in the frame.
+; HOW: Record Y free: out. NO_CARRY_X = the high byte of V_1434 (word).
+; His y + 2 at scratch + 6. Out (PlatformNotOn) unless LAST_X less his x
+; plus PLATFORM_BOX[X] is below its width (+2), and LAST_Y less his y + 2
+; plus the y offset (+4) below its height (+6), carries chained (SBC then
+; ADC). Half his x less LAST_X less the x offset at scratch + 2 and
+; scratch + 8 ($10 at scratch + 2 when DIRECTION is 0); scratch + 10 =
+; LAST_Y less $10; its top, scratch + 4 = that plus scratch + 2. Out
+; unless his y + 2 plus the top offset (+8) less the top is 0 to 15. With
+; DIRECTION_FLIP set (no script runs this) the top is scratch + 10 plus
+; scratch + 8, set to $10 when DIRECTION is 1. Then his y = the top less
+; the top offset plus MOVED_Y; NO_CARRY_X zero: his x plus MOVED_X. C
+; clear.
+; Entry: M 8-bit, X 16-bit; X = the box's offset in PLATFORM_BOX; Y = the
+; record; D = the platform's record; DB = $80; called by JSR. Exit: on: M
+; 8-bit, C clear. Out: as PlatformNotOn. Scratch $000C-$0017 and
+; $002C-$002D as its tests left them.
+PlatformCarriesRecordY:
+    lda.w !actor_state,y
+    beq PlatformCarriesOut
+    lda.w !v_1434_cp+1
+    sta.w !NO_CARRY_X
+    stz.w !NO_CARRY_X+1
+    rep.b #$20
+    clc
+    lda.w !actor_y+1,y
+    adc.w #$0002
+    sta.w !scratch+6
+    sec
+    lda.b !LAST_X
+    sbc.w !actor_x+1,y
+    adc.w !PLATFORM_BOX,x
+    cmp.w !PLATFORM_BOX+2,x
+    bcs PlatformCarriesOut
+    sec
+    lda.b !LAST_Y
+    sbc.w !scratch+6
+    adc.w !PLATFORM_BOX+4,x
+    cmp.w !PLATFORM_BOX+6,x
+    bcs PlatformCarriesOut
+    sec
+    lda.b !LAST_X
+    sbc.w !PLATFORM_BOX,x
+    sta.w !scratch
+    sec
+    lda.w !actor_x+1,y
+    sbc.w !scratch
+    lsr a
+    sta.w !scratch+2
+    sta.w !scratch+8
+    lda.b !DIRECTION
+    bne .top
+    lda.w #$0010
+    sta.w !scratch+2
+.top:
+    sec
+    lda.b !LAST_Y
+    sbc.w #$0010
+    sta.w !scratch+10
+    clc
+    adc.w !scratch+2
+    sta.w !scratch+4
+    clc
+    lda.w !scratch+6
+    adc.w !PLATFORM_BOX+8,x
+    sec
+    sbc.w !scratch+4
+    bcc PlatformNotOn
+    cmp.w #$0010
+    bcs PlatformNotOn
+    lda.b !DIRECTION_FLIP
+    beq .feet
+    lda.b !DIRECTION
+    eor.w #$0001
+    bne .flipped
+    lda.w #$0010
+    sta.w !scratch+8
+.flipped:
+    clc
+    lda.w !scratch+10
+    adc.w !scratch+8
+    sta.w !scratch+4
+.feet:
+    sec
+    lda.w !scratch+4
+    sbc.w !PLATFORM_BOX+8,x
+    clc
+    adc.b !MOVED_Y
+    sta.w !actor_y+1,y
+    lda.w !NO_CARRY_X
+    bne .done
+    clc
+    lda.w !actor_x+1,y
+    adc.b !MOVED_X
+    sta.w !actor_x+1,y
+.done:
+    sep.b #$20
+    clc
+    rts
+
+; @routine 83:CE11 PlatformNotOn
+; WHAT IT DOES: PlatformCarriesRecordY's answer when the record is not on
+; the platform.
+; HOW: SEP #$21 (M 8-bit, C set), RTS.
+; Entry: reached by a jump or branch from PlatformCarriesRecordY. Exit: M
+; 8-bit, C set; returns to PlatformCarriesRecordY's caller.
+PlatformNotOn:
+    sep.b #$21
     rts

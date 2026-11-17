@@ -27,6 +27,16 @@ void abi_PlatformOnCourseStart(void);
 void abi_PlatformCourseSlower(void);
 void abi_PlatformCourseFaster(void);
 void abi_PlatformSpawnOnCourse(void);
+void abi_PlayerOnFirmGround(void);
+void abi_PlayerOnFirmGroundProbe4(void);
+void abi_PlayerOnFirmGroundProbe8(void);
+void abi_PlatformRiderCheck(void);
+void abi_PlatformCarriesRecordY(void);
+void abi_PlatformNotOn(void);
+void abi_PlatformDipStart(void);
+void abi_PlatformDipUpdate(void);
+void abi_PlatformMoveMeasure(void);
+void abi_PlatformCourseFollow(void);
 
 /* The platform's own fields of its record */
 #define COURSE_STEPS 0x22u         /* steps left before the next waypoint is kept */
@@ -47,6 +57,13 @@ void abi_PlatformSpawnOnCourse(void);
 #define FIELD_21 0x21u             /* zeroed at its start; no code filed so far reads it */
 
 #define COURSE_STEPS_APART 0x26    /* steps from one waypoint to the next */
+#define RIDER_X_KEPT 0x35u        /* the player's x pixels as the frame's rider check found them (word) */
+#define PLATFORM_BOX 0xD2D9u      /* in bank $80, by box: x offset, width, y offset, height, top offset (words) */
+#define NO_CARRY_X 0x00002Cu      /* scratch: the high byte of V_1434; nonzero, the rider is not carried in x (word) */
+#define PLAYER_X (PLAYER + ACTOR_X + 1)
+#define PLAYER_SPEED_Y_HI (PLAYER + ACTOR_SPEED_Y + 2) /* negative: he moves up */
+#define V_1427 0x001427u
+#define JUMPED 0x16u              /* nonzero: it was moved along the course this frame */
 /* The course's waypoints, 8 bytes each: x and y (24-bit, fraction first),
    the direction and the speed. */
 #define COURSE 0x7F5000u
@@ -787,3 +804,216 @@ void abi_PlatformDipUpdate(void)
 }
 
 
+
+/*
+ * @routine 83:CCF1 PlatformRiderCheck
+ * WHAT IT DOES: Carries the player along on the platform when he stands on
+ * it, unless that puts him into firm ground, and starts its dip under him.
+ * HOW: RIDDEN cleared. Nothing when it cannot be stood on (bit 6 of $09
+ * clear), $1427 is set, or V_141C is set while he moves up. Else his x
+ * pixels kept at RIDER_X_KEPT and PlatformCarriesRecordY with X = 0 (its
+ * box) and Y = his record; on it: V_1428 and RIDDEN up; then
+ * PlayerOnFirmGroundProbe8, Probe4 or PlayerOnFirmGround firm: his x put
+ * back (no script runs this). DIP_PHASE 0: PlatformDipStart with A = $1F.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
+ * JSR. Exit: M 8-bit, X 8-bit; as its last call or test leaves the rest.
+ */
+void abi_PlatformRiderCheck(void)
+{
+    stz8(ea_dp(RIDDEN));  /* 83CCF1 stz */
+    bit8_v(rd8(ea_dp(ACTOR_09)));  /* 83CCF3 bit */
+    if (!IF_V) goto L_83CD44;  /* 83CCF5 bvc */
+    lda8(ea_abs(V_1427));  /* 83CCF7 lda */
+    if (!IF_Z) goto L_83CD44;  /* 83CCFA bne */
+    lda8(ea_abs(V_141C));  /* 83CCFC lda */
+    if (IF_Z) goto L_83CD06;  /* 83CCFF beq */
+    lda8(ea_abs(PLAYER_SPEED_Y_HI));  /* 83CD01 lda */
+    if (IF_N) goto L_83CD44;  /* 83CD04 bmi */
+L_83CD06:
+    op_rep(0x10);  /* 83CD06 rep */
+    ldx16(ea_abs(PLAYER_X));  /* 83CD08 ldx */
+    stx16(ea_dp(RIDER_X_KEPT));  /* 83CD0B stx */
+    ldx16_v(0x0000);  /* 83CD0D ldx */
+    ldy16_v(PLAYER);  /* 83CD10 ldy */
+    abi_PlatformCarriesRecordY();  /* 83CD13 jsr */
+    if (IF_C) goto L_83CD44;  /* 83CD16 bcs */
+    MEM8(inc, ea_abs(V_1428));  /* 83CD18 inc */
+    MEM8(inc, ea_dp(RIDDEN));  /* 83CD1B inc */
+    op_sep(0x10);  /* 83CD1D sep */
+    abi_PlayerOnFirmGroundProbe8();  /* 83CD1F jsl */
+    if (IF_C) goto L_83CD31;  /* 83CD23 bcs */
+    abi_PlayerOnFirmGroundProbe4();  /* 83CD25 jsl */
+    if (IF_C) goto L_83CD31;  /* 83CD29 bcs */
+    abi_PlayerOnFirmGround();  /* 83CD2B jsl */
+    if (!IF_C) goto L_83CD3B;  /* 83CD2F bcc */
+L_83CD31:
+    lda8(ea_dp(RIDER_X_KEPT));  /* 83CD31 lda */
+    sta8(ea_abs(PLAYER_X));  /* 83CD33 sta */
+    lda8(ea_dp(RIDER_X_KEPT + 1));  /* 83CD36 lda */
+    sta8(ea_abs(PLAYER_X + 1));  /* 83CD38 sta */
+L_83CD3B:
+    lda8(ea_dp(DIP_PHASE));  /* 83CD3B lda */
+    if (!IF_Z) goto L_83CD44;  /* 83CD3D bne */
+    lda8_v(0x1F);  /* 83CD3F lda */
+    abi_PlatformDipStart();  /* 83CD41 jsr */
+L_83CD44:
+    op_sep(0x10);  /* 83CD44 sep */
+}
+
+/*
+ * @routine 83:CD5E PlatformCarriesRecordY
+ * WHAT IT DOES: Tells whether record Y (the player) stands on the
+ * platform, by its box X, and when he does, puts his feet on its top at
+ * his place along it and carries him by its move in the frame.
+ * HOW: Record Y free: out. NO_CARRY_X = the high byte of V_1434 (word).
+ * His y + 2 at scratch + 6. Out (PlatformNotOn) unless LAST_X less his x
+ * plus PLATFORM_BOX[X] is below its width (+2), and LAST_Y less his y + 2
+ * plus the y offset (+4) below its height (+6), carries chained (SBC then
+ * ADC). Half his x less LAST_X less the x offset at scratch + 2 and
+ * scratch + 8 ($10 at scratch + 2 when DIRECTION is 0); scratch + 10 =
+ * LAST_Y less $10; its top, scratch + 4 = that plus scratch + 2. Out
+ * unless his y + 2 plus the top offset (+8) less the top is 0 to 15. With
+ * DIRECTION_FLIP set (no script runs this) the top is scratch + 10 plus
+ * scratch + 8, set to $10 when DIRECTION is 1. Then his y = the top less
+ * the top offset plus MOVED_Y; NO_CARRY_X zero: his x plus MOVED_X. C
+ * clear.
+ * Entry: M 8-bit, X 16-bit; X = the box's offset in PLATFORM_BOX; Y = the
+ * record; D = the platform's record; DB = $80; called by JSR. Exit: on: M
+ * 8-bit, C clear. Out: as PlatformNotOn. Scratch $000C-$0017 and
+ * $002C-$002D as its tests left them.
+ */
+void abi_PlatformCarriesRecordY(void)
+{
+    lda8(ea_absy(ACTOR_STATE));  /* 83CD5E lda */
+    if (IF_Z) goto out;  /* 83CD61 beq (83CD5B jmp) */
+    lda8(ea_abs(V_1434 + 1));  /* 83CD63 lda */
+    sta8(ea_abs(NO_CARRY_X));  /* 83CD66 sta */
+    stz8(ea_abs(NO_CARRY_X + 1));  /* 83CD69 stz */
+    op_rep(0x20);  /* 83CD6C rep */
+    clc();  /* 83CD6E clc */
+    lda16(ea_absy(ACTOR_Y + 1));  /* 83CD6F lda */
+    adc16_v(0x0002);  /* 83CD72 adc */
+    sta16(ea_abs(SCRATCH + 6));  /* 83CD75 sta */
+    sec();  /* 83CD78 sec */
+    lda16(ea_dp(LAST_X));  /* 83CD79 lda */
+    sbc16_v(rd16(ea_absy(ACTOR_X + 1)));  /* 83CD7B sbc */
+    adc16_v(rd16(ea_absx(PLATFORM_BOX)));  /* 83CD7E adc */
+    cmp16_v(rd16(ea_absx(PLATFORM_BOX + 2)));  /* 83CD81 cmp */
+    if (IF_C) goto out;  /* 83CD84 bcs */
+    sec();  /* 83CD86 sec */
+    lda16(ea_dp(LAST_Y));  /* 83CD87 lda */
+    sbc16_v(rd16(ea_abs(SCRATCH + 6)));  /* 83CD89 sbc */
+    adc16_v(rd16(ea_absx(PLATFORM_BOX + 4)));  /* 83CD8C adc */
+    cmp16_v(rd16(ea_absx(PLATFORM_BOX + 6)));  /* 83CD8F cmp */
+    if (IF_C) goto out;  /* 83CD92 bcs */
+    sec();  /* 83CD94 sec */
+    lda16(ea_dp(LAST_X));  /* 83CD95 lda */
+    sbc16_v(rd16(ea_absx(PLATFORM_BOX)));  /* 83CD97 sbc */
+    sta16(ea_abs(SCRATCH));  /* 83CD9A sta */
+    sec();  /* 83CD9D sec */
+    lda16(ea_absy(ACTOR_X + 1));  /* 83CD9E lda */
+    sbc16_v(rd16(ea_abs(SCRATCH)));  /* 83CDA1 sbc */
+    ACC16(lsr);  /* 83CDA4 lsr */
+    sta16(ea_abs(SCRATCH + 2));  /* 83CDA5 sta */
+    sta16(ea_abs(SCRATCH + 8));  /* 83CDA8 sta */
+    lda16(ea_dp(DIRECTION));  /* 83CDAB lda */
+    if (!IF_Z) goto L_83CDB5;  /* 83CDAD bne */
+    lda16_v(0x0010);  /* 83CDAF lda */
+    sta16(ea_abs(SCRATCH + 2));  /* 83CDB2 sta */
+L_83CDB5:
+    sec();  /* 83CDB5 sec */
+    lda16(ea_dp(LAST_Y));  /* 83CDB6 lda */
+    sbc16_v(0x0010);  /* 83CDB8 sbc */
+    sta16(ea_abs(SCRATCH + 10));  /* 83CDBB sta */
+    clc();  /* 83CDBE clc */
+    adc16_v(rd16(ea_abs(SCRATCH + 2)));  /* 83CDBF adc */
+    sta16(ea_abs(SCRATCH + 4));  /* 83CDC2 sta */
+    clc();  /* 83CDC5 clc */
+    lda16(ea_abs(SCRATCH + 6));  /* 83CDC6 lda */
+    adc16_v(rd16(ea_absx(PLATFORM_BOX + 8)));  /* 83CDC9 adc */
+    sec();  /* 83CDCC sec */
+    sbc16_v(rd16(ea_abs(SCRATCH + 4)));  /* 83CDCD sbc */
+    if (!IF_C) goto out;  /* 83CDD0 bcc */
+    cmp16_v(0x0010);  /* 83CDD2 cmp */
+    if (IF_C) goto out;  /* 83CDD5 bcs */
+    lda16(ea_dp(DIRECTION_FLIP));  /* 83CDD7 lda */
+    if (IF_Z) goto L_83CDF2;  /* 83CDD9 beq */
+    lda16(ea_dp(DIRECTION));  /* 83CDDB lda */
+    eor16_v(0x0001);  /* 83CDDD eor */
+    if (!IF_Z) goto L_83CDE8;  /* 83CDE0 bne */
+    lda16_v(0x0010);  /* 83CDE2 lda */
+    sta16(ea_abs(SCRATCH + 8));  /* 83CDE5 sta */
+L_83CDE8:
+    clc();  /* 83CDE8 clc */
+    lda16(ea_abs(SCRATCH + 10));  /* 83CDE9 lda */
+    adc16_v(rd16(ea_abs(SCRATCH + 8)));  /* 83CDEC adc */
+    sta16(ea_abs(SCRATCH + 4));  /* 83CDEF sta */
+L_83CDF2:
+    sec();  /* 83CDF2 sec */
+    lda16(ea_abs(SCRATCH + 4));  /* 83CDF3 lda */
+    sbc16_v(rd16(ea_absx(PLATFORM_BOX + 8)));  /* 83CDF6 sbc */
+    clc();  /* 83CDF9 clc */
+    adc16_v(rd16(ea_dp(MOVED_Y)));  /* 83CDFA adc */
+    sta16(ea_absy(ACTOR_Y + 1));  /* 83CDFC sta */
+    lda16(ea_abs(NO_CARRY_X));  /* 83CDFF lda */
+    if (!IF_Z) goto L_83CE0D;  /* 83CE02 bne */
+    clc();  /* 83CE04 clc */
+    lda16(ea_absy(ACTOR_X + 1));  /* 83CE05 lda */
+    adc16_v(rd16(ea_dp(MOVED_X)));  /* 83CE08 adc */
+    sta16(ea_absy(ACTOR_X + 1));  /* 83CE0A sta */
+L_83CE0D:
+    op_sep(0x20);  /* 83CE0D sep */
+    clc();  /* 83CE0F clc */
+    return;  /* 83CE10 rts */
+out:
+    abi_PlatformNotOn();
+}
+
+/*
+ * @routine 83:CE11 PlatformNotOn
+ * WHAT IT DOES: PlatformCarriesRecordY's answer when the record is not on
+ * the platform.
+ * HOW: SEP #$21 (M 8-bit, C set), RTS.
+ * Entry: reached by a jump or branch from PlatformCarriesRecordY. Exit: M
+ * 8-bit, C set; returns to PlatformCarriesRecordY's caller.
+ */
+void abi_PlatformNotOn(void)
+{
+    op_sep(0x21);
+}
+
+/*
+ * @routine 83:CAD1 PlatformWait
+ * WHAT IT DOES: The course platform's wait routine, each frame: its dip,
+ * how far it moved, its rider, a direction flip when its $42 is set, the
+ * course followed, and its animation by direction.
+ * HOW: JUMPED cleared; PlatformDipUpdate; PlatformMoveMeasure;
+ * PlatformRiderCheck; $42 set: cleared, $40 bit 0 flipped.
+ * PlatformCourseFollow; the direction ($40) unlike LAST_DIRECTION: kept,
+ * AnimStart with it. AnimStep.
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; called by
+ * JSR from the actor loop (83:94D0) by kind $47. Exit: as AnimStep.
+ */
+void abi_PlatformWait(void)
+{
+    stz8(ea_dp(JUMPED));  /* 83CAD1 stz */
+    abi_PlatformDipUpdate();  /* 83CAD3 jsr */
+    abi_PlatformMoveMeasure();  /* 83CAD6 jsr */
+    abi_PlatformRiderCheck();  /* 83CAD9 jsr */
+    lda8(ea_dp(0x42));  /* 83CADC lda */
+    if (IF_Z) goto L_83CAE8;  /* 83CADE beq */
+    stz8(ea_dp(0x42));  /* 83CAE0 stz */
+    lda8(ea_dp(0x40));  /* 83CAE2 lda */
+    eor8_v(0x01);  /* 83CAE4 eor */
+    sta8(ea_dp(0x40));  /* 83CAE6 sta */
+L_83CAE8:
+    abi_PlatformCourseFollow();  /* 83CAE8 jsr */
+    lda8(ea_dp(0x40));  /* 83CAEB lda */
+    cmp8_v(rd8(ea_dp(0x1C)));  /* 83CAED cmp */
+    if (IF_Z) goto L_83CAF7;  /* 83CAEF beq */
+    sta8(ea_dp(0x1C));  /* 83CAF1 sta */
+    abi_AnimStart();  /* 83CAF3 jsl */
+L_83CAF7:
+    abi_AnimStep();  /* 83CAF7 jsl */
+    return;  /* 83CAFB rts */
+}
