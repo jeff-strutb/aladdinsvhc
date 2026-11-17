@@ -1,0 +1,70 @@
+# The chain boss's pattern (Kind75Start, $84:87D1, run by the eighth piece,
+# the kind $74 record at $0E7B on this play): the parts no
+# play reaches. The play of rand_stage_a5_s3 (seed 7) to frame 2100, the
+# chain sweeping by then. Pokes:
+# - the piece's x high byte ($0E87) to $70: the next sweep frame clamps it
+#   at the left edge ($84:88AF);
+# - CHAIN_ROUND ($1B1D) to 3: the round after the next head turn wraps to
+#   0 ($84:8840);
+# - frame 2600, HEAD_TURNS ($1B33) to 3: the own turn at round 0 is the
+#   fourth, which goes on as the long turn ($84:8958);
+# - frame 2990 (a sweep), CHAIN_ROUND 0 and CHAIN_ROUND_OR ($1B1E) 4: the
+#   next head turn's list ($18) gives 4, the turn table's third word
+#   ($84:88D5).
+load build/aladdin/states/stage_a5_s3.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 76
+poke $000E87 70
+poke $001B1D 03
+wait 500
+poke $001B33 03
+wait 390
+poke $001B1D 00
+poke $001B1E 04
+wait 400
