@@ -52,6 +52,7 @@ arch 65816
 !KWR_K5D_48 = $48
 !KWR_K5D_49 = $49
 !KWR_ACTOR_08 = $08
+!KWR_K4E_STILL = $42           ; nonzero: Aladdin does not bounce on it
 !KWR_RANGE_X = $1A44           ; the point actors are kept in range of (x, word)
 
 ; @routine 83:91F3 ActorWaitNothing
@@ -749,3 +750,32 @@ Kind5DWait:
     jmp.w ActorEndPlaced
 .done4:
     rts
+
+; @routine 83:CFF8 Kind4EWait
+; WHAT IT DOES: Kind $4E's wait: unless K4E_STILL, Aladdin coming down on
+; it bounces off it, its code then to resume at K4E_BOUNCED_AT, with sound
+; $12; its animation; its end when out of range by box 0.
+; HOW: K4E_STILL 0: ActorBouncesPlayer; bounced (Z clear): resume address
+; ($03-$04) = K4E_BOUNCED_AT (16-bit), SoundQueueAdd $12. AnimStep; X = 0;
+; on into ActorEndOutOfRange (JML).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSR through the actor loop's wait
+; table. Exit: as ActorEndOutOfRange.
+;
+%at($83CFF8)
+Kind4EWait:
+    lda.b !KWR_K4E_STILL
+    bne .anim
+    jsr.w ActorBouncesPlayer
+    beq .anim
+    rep #$20
+    lda.w #$CFC1
+    sta.b !KWR_ACTOR_03
+    sep #$20
+    lda.b #$12
+    jsl.l SoundQueueAdd
+.anim:
+    jsl.l AnimStep
+    ldx.b #$00
+    jml.l ActorEndOutOfRange
+

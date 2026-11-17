@@ -12,6 +12,7 @@
 #include "actor.h"
 
 void abi_ActorBouncesOrHurtsPlayer(void);
+void abi_ActorBouncesPlayer(void);
 void abi_ActorDownedByHarmlessShot(void);
 void abi_ActorDownedByShot(void);
 void abi_ActorEndDropReturn(void);
@@ -76,6 +77,8 @@ void abi_SoundQueueAdd(void);
 #define K5D_49 0x49u
 #define K5D_TABLE 0xE361u           /* the steps' code (bank $83), by K5D_STATE */
 #define K5D_NEXT_AT 0xE30Eu         /* its code resumes here after step 3 (bank $83) */
+#define K4E_STILL 0x42u             /* nonzero: Aladdin does not bounce on it */
+#define K4E_BOUNCED_AT 0xCFC1u      /* its code resumes here once he bounces on it (bank $83) */
 #define RANGE_X 0x1A44u             /* the point actors are kept in range of (x, word) */
 
 /*
@@ -365,7 +368,7 @@ void abi_Kind41Wait(void)
     lda8(ea_dp(K41_ACTIVE));
     if (IF_Z) {
         lda8(ea_dp(ACTOR_07));
-        bit8_v(0x18);
+        bit8_i(0x18);
         if (IF_Z) {
             ldx8_v(0x00);
             abi_ActorEndOutOfRange();
@@ -413,7 +416,7 @@ void abi_Kind41Wait(void)
     }
     abi_AnimStep();
     lda8(ea_dp(ACTOR_07));
-    bit8_v(0x18);
+    bit8_i(0x18);
     if (IF_Z) {
         ldx8_v(0x28);
         abi_ActorEndOutOfRange();
@@ -854,3 +857,35 @@ void abi_Kind5DWait(void)
         return;
     }
 }
+
+/*
+ * @routine 83:CFF8 Kind4EWait
+ * WHAT IT DOES: Kind $4E's wait: unless K4E_STILL, Aladdin coming down on
+ * it bounces off it, its code then to resume at K4E_BOUNCED_AT, with sound
+ * $12; its animation; its end when out of range by box 0.
+ * HOW: K4E_STILL 0: ActorBouncesPlayer; bounced (Z clear): resume address
+ * ($03-$04) = K4E_BOUNCED_AT (16-bit), SoundQueueAdd $12. AnimStep; X = 0;
+ * on into ActorEndOutOfRange (JML).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSR through the actor loop's wait
+ * table. Exit: as ActorEndOutOfRange.
+ */
+void abi_Kind4EWait(void)
+{
+    lda8(ea_dp(K4E_STILL));
+    if (IF_Z) {
+        abi_ActorBouncesPlayer();
+        if (!IF_Z) {
+            op_rep(0x20);
+            lda16_v(K4E_BOUNCED_AT);
+            sta16(ea_dp(ACTOR_03));
+            op_sep(0x20);
+            lda8_v(0x12);
+            abi_SoundQueueAdd();
+        }
+    }
+    abi_AnimStep();
+    ldx8_v(0x00);
+    abi_ActorEndOutOfRange();
+}
+
