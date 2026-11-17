@@ -1,0 +1,15 @@
+# Kind $3B's wait (Kind3BWait, $83:C21C) for a rising one (its $07 bit 4)
+# found below the y it rises back to: put at that y, its rise 0
+# ($83:C265), which no play has. As in unit_dungeon_switches.box, stage a5
+# s2 with Aladdin and the camera placed at x $0B80; then a call of the wait
+# for the kind $3B at record $0CEB ($07 = $10, rest y 4) with its y ($0CFA)
+# 0 and its lift step ($0D2F) 1.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 100
+set 000CFA 00,00
+set 000D2F 01
+call 83C21C d=0CEB db=80 p=30
