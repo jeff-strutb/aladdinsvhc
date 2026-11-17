@@ -86,6 +86,13 @@ static int loop_left(uint32_t entry, uint16_t s, uint16_t exit_s)
 static uint32_t pushed_at[64];
 static uint8_t pushed_n[64];
 static int npushed;
+/* @pushes_return: a routine entered by a jump that pushes its own return
+   address before its RTS (ActorBackToCaller, the end of a helper that kept
+   its caller's return while it waited): nothing on the stack at its entry
+   is its return. Its call ends at its RTS back at its entry level, and its
+   return is the word it pushed, + 1. */
+static uint8_t pushret_bits[1 << 21];
+static int pushes_return(uint32_t pc) { return pushret_bits[pc >> 3] >> (pc & 7) & 1; }
 static int pushed_of(uint32_t pc)
 {
     for (int i = 0; i < npushed; i++) if (pushed_at[i] == pc) return pushed_n[i];
@@ -96,6 +103,13 @@ static int pushed_of(uint32_t pc)
    the routine returns by RTL. */
 static int jump_return(uint32_t pc, uint16_t sp, const uint8_t *w, uint32_t *ret, uint16_t *exit_s)
 {
+    if (pushes_return(pc)) {
+        /* its return is known at its RTS (the word it pushed): it ends
+           where an RTS lands back at its entry level */
+        *ret = 0xFFFFFFFFu;
+        *exit_s = sp;
+        return 1;
+    }
     sp = (uint16_t)(sp + pushed_of(pc));
     uint16_t word = (uint16_t)(w[(uint16_t)(sp + 1)] | w[(uint16_t)(sp + 2)] << 8);
     if (longret_bits[pc >> 3] >> (pc & 7) & 1) {
@@ -315,6 +329,7 @@ typedef struct {
     int c_state;             /* 0 none, 1 returned, 2 waiting in task_yield */
     int resumed;             /* this piece starts where the task resumed */
     int actor;               /* a piece of an actor's code (docs/aladdin/ACTORS.md) */
+    int jumped;              /* entered by a jump (a tail jump, or code reached only by jumps) */
     int exit_calls;          /* calls it made from its exit level (after its own return was pulled), not yet returned */
     uint16_t live_s;         /* stack above this is live (scratch below it) */
 } Watch;
@@ -341,6 +356,14 @@ static struct { int n; Watch *w[DEPTH]; uint32_t resume; uint16_t resume_s; } a5
 static uint16_t a5_loop_s;
 static int depth;
 static Watch *cur;  /* the watch whose C is running */
+/* A call entered by a jump that jumps on into an actor entry at the level
+   it was entered at (a tail jump between pieces of an actor's code, which
+   left nothing on the stack for it to return through): it ends at that
+   jump on both sides, the entry's work judged as its own call. */
+static int leaves_by_jump(const Watch *w, uint16_t s)
+{
+    return w->jumped && s == w->entry.s;
+}
 
 /* A C routine that reads past the replay is stopped here, not left spinning. */
 static jmp_buf *abort_c;   /* the running watch's (Watch.abort) */
@@ -750,6 +773,7 @@ static void on_insn(uint32_t pc)
         if (!have) { core_regs(&r); have = 1; }
         while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq
                && (r.s >= ws[depth - 1]->exit_s
+                   || (is_actor_entry(pc) && is_jump_op(prev_op) && leaves_by_jump(ws[depth - 1], r.s))
                    || (is_jump_op(prev_op) && loop_left(routines[ws[depth - 1]->idx].addr, r.s, ws[depth - 1]->exit_s)))) {
             finish_piece(ws[depth - 1], 2);
             a5_drop(ws[depth - 1]);
@@ -937,6 +961,9 @@ static void on_insn(uint32_t pc)
         if (t->in_irq) break;
         if (!have) { core_regs(&r); have = 1; }
         if (r.s == t->exit_s && t->exit_calls && (prev_op == 0x60 || prev_op == 0x6B)) { t->exit_calls--; break; }
+        if (t->ret_pc == 0xFFFFFFFFu && !t->actor && r.s == t->exit_s && prev_op == 0x60 && pushes_return(routines[t->idx].addr))
+            t->ret_pc = (routines[t->idx].addr & 0xFF0000)
+                        | (uint16_t)((wram[(uint16_t)(r.s - 1)] | wram[r.s] << 8) + 1);
         if ((pc == t->ret_pc && r.s == t->exit_s)
             || ((r.s > t->exit_s || (r.s == t->exit_s && !t->actor)) && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
         else break;
@@ -999,6 +1026,7 @@ static void on_insn(uint32_t pc)
         w->exit_s = (uint16_t)(sp + 3);
     } else { stats[idx].skipped++; return; }
     w->idx = idx; w->entry = r; w->live_s = r.s; w->resumed = 0;
+    w->jumped = is_jump_op(via);
     if (w->c_state == 2) a5_drop(w);
     w->in_irq = w->interrupted = w->dma = w->gsu = w->needs_asm = w->overflow = 0;
     w->stack_reset = 0;
@@ -1108,6 +1136,10 @@ static int load_routines(void *core, const char *lib, const char *only)
     const int *pun = dlsym(h, "game_pushed_count");
     if (pu && pun)
         for (int i = 0; i < *pun && npushed < 64; i++) { pushed_at[npushed] = pu[2 * i]; pushed_n[npushed++] = (uint8_t)pu[2 * i + 1]; }
+    const uint32_t *pr = dlsym(h, "game_pushes_returns");
+    const int *prn = dlsym(h, "game_pushes_return_count");
+    if (pr && prn)
+        for (int i = 0; i < *prn; i++) pushret_bits[pr[i] >> 3] |= (uint8_t)(1 << (pr[i] & 7));
     const int *count = dlsym(h, "game_routine_count");
     uint8_t *(*mem)(const char *, size_t *) = dlsym(core, "snesbox_memory");
     *(void **)&co_active_p = dlsym(core, "co_active");
@@ -2347,6 +2379,18 @@ static void no_c(uint32_t addr)
 
 void jump_routine_pushed(uint32_t addr, const uint8_t *pushed, int n)
 {
+    /* A5: a jump into an actor entry (@actor, or catalogued as one) that
+       ends the watched call on the original side (past its exit level, or
+       a tail jump at the level it was entered at: leaves_by_jump) ends the
+       C there too, as actor_leave does; the entry's work is judged as its
+       own call. Inside an actor's piece, and in the hybrid, the jump goes
+       on: a tail call, as below. */
+    if (!n && is_actor_entry(addr) && !machine_live && c_running && cur && !cur->actor
+        && (cpu.s >= cur->exit_s || leaves_by_jump(cur, cpu.s))) {
+        cpu.pc = addr;
+        task_yield();
+        for (;;) {}   /* never resumed */
+    }
     if (!n)
         for (int i = 0; i < nroutines; i++)
             if (routines[i].addr == addr) { routines[i].abi(); return; }
@@ -2966,6 +3010,13 @@ static int ls_exec(uint32_t pc)
     c->actor = actor;
     c->unit_noreturn = ls_unit_noreturn; c->name = routines[idx].name;
     ctx_run(c);
+    if (pushes_return(pc) && !cpu.unwound && c->status != 3) {
+        /* its RTS: the return is the word its C pushed, + 1, back at its
+           entry level */
+        ret = (pc & 0xFF0000) | (uint16_t)((wram[(uint16_t)(cpu.s + 1)] | wram[(uint16_t)(cpu.s + 2)] << 8) + 1);
+        exit_s = (uint16_t)(cpu.s + 2);
+        c->ret = ret; c->exit_s = exit_s;
+    }
     return ls_finish(c, r, exit_s, ret, r.s);
 }
 

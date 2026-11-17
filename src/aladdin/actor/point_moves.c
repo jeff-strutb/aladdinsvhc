@@ -15,6 +15,9 @@ void abi_ActorAimAt(void);
 void abi_ActorMoveByVector(void);
 void abi_ActorNearPoint(void);
 void abi_AnimStep(void);
+void abi_PlayerInReach(void);
+void abi_ActorMoveY(void);
+void abi_ActorOutOfGround(void);
 
 #define GOTO_X 0x48u            /* the point it goes to (words) */
 #define GOTO_Y 0x4Au
@@ -24,6 +27,10 @@ void abi_AnimStep(void);
 #define AIM_Y (SCRATCH + 6)
 #define NEAR_X (SCRATCH + 8)    /* ActorNearPoint's point (words) */
 #define NEAR_Y (SCRATCH + 10)
+#define REACH_TABLE 0xD9B0u     /* 8 bytes an entry: x and y reach, rise speed, step, limit */
+#define RISE_SPEED 0x1Du        /* the rise's speed, 16ths (word; $1F its third byte) */
+#define RISE_STEP 0x20u         /* added to the speed each frame */
+#define RISE_LIMIT 0x45u        /* the speed's top (word) */
 
 /*
  * @routine 83:FC5D ActorGoToPoint
@@ -84,4 +91,84 @@ void abi_ActorGoToPoint(void)
 void abi_Kind94Wait(void)
 {
     abi_AnimStep();
+}
+
+/*
+ * @routine 83:FB4F ActorBackToCaller
+ * @pushes_return
+ * WHAT IT DOES: The end of a helper that kept its caller's return
+ * address at GOTO_BACK while it waited: puts it back and returns there.
+ * HOW: GOTO_BACK (16-bit) pushed; M 8-bit; RTS.
+ * Entry: X 8-bit; D = the actor's record; reached by JMP ($83:FCEF).
+ * Exit: M 8-bit; A = GOTO_BACK; N and Z from it.
+ */
+void abi_ActorBackToCaller(void)
+{
+    op_rep(0x20);
+    a16_load(dp16(GOTO_BACK));
+    push16(cpu.a);
+    op_sep(0x20);
+}
+
+/*
+ * @routine 83:FCA5 ActorRiseWhenInReach
+ * @actor
+ * WHAT IT DOES: When Aladdin is in reach by entry X of the reach table,
+ * the actor rises a frame at a time, faster each frame up to a limit,
+ * until it is out of the ground; then back to its caller with C clear.
+ * Out of reach: C set at once.
+ * HOW: PlayerInReach; C set: M 8-bit, RTS. Else its return address
+ * pulled into GOTO_BACK; RISE_LIMIT = the entry's +4 byte * 16, RISE_SPEED
+ * = its +2 byte * 16 (third byte 0), RISE_STEP = its +3 byte. Each frame:
+ * BRK; RISE_SPEED + RISE_STEP, at most RISE_LIMIT; ActorMoveY;
+ * ActorOutOfGround, again while Z. C clear, on into ActorBackToCaller.
+ * Entry: M 8-bit, X 8-bit; X = the reach entry's offset (8 bytes an
+ * entry); D = the actor's record; DB = $80; called by JSR ($83:AC54,
+ * $83:AED6). Exit: in reach: as ActorBackToCaller, C clear; else M 8-bit,
+ * C set, as PlayerInReach.
+ */
+void abi_ActorRiseWhenInReach(void)
+{
+    abi_PlayerInReach();
+    if (IF_C) {
+        op_sep(0x20);
+        return;
+    }
+    pla16();
+    sta16(ea_dp(GOTO_BACK));
+    lda16(ea_absx(REACH_TABLE + 4));
+    and16_v(0x00FF);
+    ACC16(asl);
+    ACC16(asl);
+    ACC16(asl);
+    ACC16(asl);
+    sta16(ea_dp(RISE_LIMIT));
+    lda16(ea_absx(REACH_TABLE + 2));
+    and16_v(0x00FF);
+    ACC16(asl);
+    ACC16(asl);
+    ACC16(asl);
+    ACC16(asl);
+    sta16(ea_dp(RISE_SPEED));
+    op_sep(0x20);
+    stz8(ea_dp(RISE_SPEED + 2));
+    lda8(ea_absx(REACH_TABLE + 3));
+    sta8(ea_dp(RISE_STEP));
+    do {
+        actor_yield(0x83FCCEu);
+        op_rep(0x20);
+        clc();
+        lda16(ea_dp(RISE_STEP));
+        and16_v(0x00FF);
+        adc16_v(rd16(ea_dp(RISE_SPEED)));
+        cmp16_v(rd16(ea_dp(RISE_LIMIT)));
+        if (IF_C)
+            lda16(ea_dp(RISE_LIMIT));   /* at the limit or past it: the limit */
+        sta16(ea_dp(RISE_SPEED));
+        op_sep(0x20);
+        abi_ActorMoveY();
+        abi_ActorOutOfGround();
+    } while (IF_Z);
+    clc();
+    abi_ActorBackToCaller();
 }

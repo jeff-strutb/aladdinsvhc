@@ -44,6 +44,7 @@ USES = re.compile(r'@spcuses\s+([0-9A-Fa-f,\s-]+)')
 ACTOR = re.compile(r'@actor\b')
 ACTORLOOP = re.compile(r'@actorloop\b')
 PUSHED = re.compile(r'@pushed\s+(\d+)')
+PUSHESRET = re.compile(r'@pushes_return\b')
 
 
 def main(src=None, lib=None):
@@ -55,7 +56,7 @@ def main(src=None, lib=None):
         os.remove(LIB)
     files = sorted(glob.glob(os.path.join(SRC, '**', '*.c'), recursive=True))
     rows, bad, spc, uses, actors = [], [], {}, {}, []
-    loops, pushed = [], {}
+    loops, pushed, pushret = [], {}, []
     # Held C (held.txt beside the C, objdiff.py): compiled, but left out of
     # the table with every routine whose C calls it, so the original runs.
     sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
@@ -103,6 +104,10 @@ def main(src=None, lib=None):
             pu = PUSHED.search(head)
             if pu:
                 pushed[addr] = int(pu.group(1))
+            # @pushes_return: entered by a jump, it pushes its own return
+            # address before its RTS; the checks take its return there.
+            if PUSHESRET.search(head):
+                pushret.append(addr)
             for al in ALIAS.finditer(head):
                 rows.append((int(al.group(1), 16) << 16 | int(al.group(2), 16), name))
     if bad:
@@ -250,6 +255,8 @@ def main(src=None, lib=None):
                 % (''.join('0x%06X, ' % a for a in sorted(loops)), len(loops)))
         t.write('const uint32_t game_pushed[] = {%s0};\nconst int game_pushed_count = %d;\n'
                 % (''.join('0x%06X, %d, ' % (a, n) for a, n in sorted(pushed.items())), len(pushed)))
+        t.write('const uint32_t game_pushes_returns[] = {%s0};\nconst int game_pushes_return_count = %d;\n'
+                % (''.join('0x%06X, ' % a for a in sorted(pushret)), len(pushret)))
         # SPC700 code the C ends at (spc_restart, spc_boot_rom at $FFC0):
         # the checks end a call there.
         sj = sorted({int(m, 16) for f in files for m in re.findall(r'spc_restart\(0x([0-9A-Fa-f]{4})', open(f).read())}
