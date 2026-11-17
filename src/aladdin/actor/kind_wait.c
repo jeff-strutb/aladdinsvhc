@@ -25,6 +25,7 @@ void abi_Kind93AnimateSend(void);
 void abi_Kind9CAnimate(void);
 void abi_KindA0AnimateFreeOff(void);
 void abi_KindA3Animate(void);
+void abi_ChainPieceWork(void);
 
 /* The kinds' work, named by the first kind that uses it */
 #define KIND_00_WAIT_WORK 0x81E864u
@@ -401,4 +402,32 @@ void abi_ActorKind88Wait(void)
 void abi_ActorKindA2Wait(void)
 {
     abi_ActorAnimFreeFar();
+}
+
+/*
+ * @routine 83:926B ActorKind74Wait
+ * WHAT IT DOES: The routine actors of kind $74 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: ChainPieceWork.
+ * HOW: JSL ChainPieceWork ($84:8A78), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as ChainPieceWork leaves them.
+ */
+void abi_ActorKind74Wait(void)
+{
+    abi_ChainPieceWork();
+}
+
+/*
+ * @routine 83:9278 ActorKind75Wait
+ * WHAT IT DOES: The routine actors of kind $75 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: ChainPieceWork.
+ * HOW: JSL ChainPieceWork ($84:8A78), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as ChainPieceWork leaves them.
+ */
+void abi_ActorKind75Wait(void)
+{
+    abi_ChainPieceWork();
 }

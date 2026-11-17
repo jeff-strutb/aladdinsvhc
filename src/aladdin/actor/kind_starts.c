@@ -43,6 +43,7 @@ void abi_Kind9CStart(void);
 void abi_KindAnimate9628(void);
 void abi_LandingPad(void);
 void abi_LongReturn(void);
+void abi_Kind76Start(void);
 
 /*
  * @routine 83:920E Kind10Start
@@ -634,4 +635,18 @@ void abi_Kind9BEnter(void)
 void abi_Kind9CEnter(void)
 {
     abi_Kind9CStart();
+}
+
+/*
+ * @routine 83:9281 Kind76Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $76 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind76Start.
+ * HOW: JML to Kind76Start ($84:8FBA).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind76Start.
+ */
+void abi_Kind76Enter(void)
+{
+    abi_Kind76Start();
 }

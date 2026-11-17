@@ -477,3 +477,14 @@ Kind9BEnter:
 %at($8393EE)
 Kind9CEnter:
     jml.l Kind9CStart
+
+; @routine 83:9281 Kind76Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $76 go on from the actor loop in
+; its start state (the table at $83:8CAB): Kind76Start.
+; HOW: JML to Kind76Start ($84:8FBA).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind76Start.
+%at($839281)
+Kind76Enter:
+    jml.l Kind76Start

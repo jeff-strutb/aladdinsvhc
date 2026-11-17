@@ -90,28 +90,26 @@ ActorKind73Wait:
 
 ; @routine 83:926B ActorKind74Wait
 ; WHAT IT DOES: The routine actors of kind $74 run each frame they wait
-; (not the last), when bit 7 of their byte at $09 is set: the work at
-; $84:8A78.
-; HOW: JSL $84:8A78, then RTS.
+; (not the last), when bit 7 of their byte at $09 is set: ChainPieceWork.
+; HOW: JSL ChainPieceWork ($84:8A78), then RTS.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
 ; (its low 7 bits); called by JSR through the actor loop's table by kind.
-; Exit: as the C states.
+; Exit: as ChainPieceWork leaves them.
 %at($83926B)
 ActorKind74Wait:
-    jsl.l !kind_74_wait_work
+    jsl.l ChainPieceWork
     rts
 
 ; @routine 83:9278 ActorKind75Wait
 ; WHAT IT DOES: The routine actors of kind $75 run each frame they wait
-; (not the last), when bit 7 of their byte at $09 is set: the work at
-; $84:8A78.
-; HOW: JSL $84:8A78, then RTS.
+; (not the last), when bit 7 of their byte at $09 is set: ChainPieceWork.
+; HOW: JSL ChainPieceWork ($84:8A78), then RTS.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
 ; (its low 7 bits); called by JSR through the actor loop's table by kind.
-; Exit: as the C states.
+; Exit: as ChainPieceWork leaves them.
 %at($839278)
 ActorKind75Wait:
-    jsl.l !kind_74_wait_work
+    jsl.l ChainPieceWork
     rts
 
 ; @routine 83:9285 ActorKind76Wait
