@@ -9,6 +9,8 @@
 #include "ops65.h"
 
 void abi_ShotFly(void);
+void abi_Kind75Start(void);
+void abi_Kind74Start(void);
 void abi_KindA7Start(void);
 void abi_Kind63Knocked(void);
 void abi_Kind85Start(void);
@@ -843,4 +845,32 @@ void abi_Kind8EEnter(void)
 void abi_KindA7Enter(void)
 {
     abi_KindA7Start();
+}
+
+/*
+ * @routine 83:9267 Kind74Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $74 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind74Start.
+ * HOW: JML to Kind74Start ($84:87C2).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind74Start.
+ */
+void abi_Kind74Enter(void)
+{
+    abi_Kind74Start();
+}
+
+/*
+ * @routine 83:9274 Kind75Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $75 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind75Start.
+ * HOW: JML to Kind75Start ($84:87D1).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind75Start.
+ */
+void abi_Kind75Enter(void)
+{
+    abi_Kind75Start();
 }
