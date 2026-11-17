@@ -44,6 +44,23 @@ SNESBOX = os.path.join(B, 'box', 'snesbox')
 LIBNAME = 'libaladdin.dylib' if sys.platform == 'darwin' else 'libaladdin.so'
 LIB = os.path.join(B, 'hybrid', LIBNAME)
 SCRIPTS = os.path.join(ROOT, 'tools', 'aladdin', 'scripts')
+
+
+@functools.lru_cache(maxsize=None)
+def gate_scripts():
+    """The scripts of the revision the gates measure (REV), exported, sorted.
+    A gate lists and runs these, never the work tree's: a script landed
+    while a gate runs is not part of the commit it measures. (A script's
+    state loads name paths from the repository root, where snesbox runs.)"""
+    import shutil
+    d = os.path.join(WORKD, 'gate_scripts')
+    shutil.rmtree(d, ignore_errors=True)
+    os.makedirs(d)
+    arc = subprocess.run(['git', 'archive', REV, 'tools/aladdin/scripts'], capture_output=True, cwd=ROOT)
+    if arc.returncode:
+        raise SystemExit('no scripts at %s' % REV)
+    subprocess.run(['tar', '-x', '-C', d], input=arc.stdout, check=True)
+    return tuple(sorted(glob.glob(os.path.join(d, 'tools', 'aladdin', 'scripts', '*.box'))))
 # The C judged (ALADDIN_GATE_TREE, default the decomp's) and where its records
 # and work go (ALADDIN_GATE_OUT, a directory under build/aladdin: another
 # tree's records kept apart from the decomp's; default the decomp's own).
@@ -267,7 +284,7 @@ def reached():
                     sp = re.search(r'@spc\s', text[m.end():text.find('*/', m.end())])
                     tags.append(('%06X' % a, codemap.rom_offset(a), 0x80 if sp else 0x33))
     out = {}
-    for s in glob.glob(os.path.join(SCRIPTS, '*.box')):
+    for s in gate_scripts():
         name = os.path.splitext(os.path.basename(s))[0]
         d = os.path.join(B, 'box', name)
         if not os.path.exists(os.path.join(d, 'rommap.bin')):
@@ -352,7 +369,7 @@ def live(only, full=False):
     global LIB
     rev = build_gate_lib()
     LIB = GATE_LIB
-    scripts = sorted(glob.glob(os.path.join(SCRIPTS, '*.box')))
+    scripts = list(gate_scripts())
     have = c_routines()
     targets = (set(only) & set(have)) if only else set(have)
     rch = reached()
@@ -534,7 +551,7 @@ def reaching(addrs):
     whose trace entered one of them, every script with no trace (it may),
     and every script with a noreturn unit call of one."""
     want, out = set(addrs), set()
-    for s in glob.glob(os.path.join(SCRIPTS, '*.box')):
+    for s in gate_scripts():
         name = os.path.splitext(os.path.basename(s))[0]
         if name not in reached() or reached()[name] & want:
             out.add(name)
@@ -553,7 +570,7 @@ def image(full=False, routines=None, names=None):
     global LIB
     rev = build_gate_lib()
     LIB = GATE_LIB
-    scripts = sorted(glob.glob(os.path.join(SCRIPTS, '*.box')))
+    scripts = list(gate_scripts())
     old = {r['script']: r for r in csv.DictReader(open(IMAGE))} if os.path.exists(IMAGE) else {}
     stamp, verdicts = datetime.date.today().isoformat(), []
     rows, run_these = [], []
@@ -731,7 +748,7 @@ def noreturn_scripts(addr, spc=None):
     """The scripts with a unit call of addr marked noreturn (spccall of its
     APU address spc, for an SPC700 routine)."""
     out = []
-    for path in sorted(glob.glob(os.path.join(SCRIPTS, '*.box'))):
+    for path in gate_scripts():
         for l in open(path):
             w = l.split('#')[0].split()
             if len(w) >= 2 and 'noreturn' in w and (
