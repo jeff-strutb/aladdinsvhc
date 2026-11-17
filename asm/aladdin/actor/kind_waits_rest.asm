@@ -46,6 +46,12 @@ arch 65816
 !KWR_ACTOR_01 = $01            ; frames left to wait
 !KWR_ACTOR_03 = $03            ; resume address (low, high at $04)
 !KWR_ACTOR_04 = $04
+!KWR_K5D_STATE = $13           ; 0 waiting; 1-4 the timed steps
+!KWR_K5D_COUNT = $41           ; frames left in the step
+!KWR_K5D_GO = $4A              ; nonzero: it starts
+!KWR_K5D_48 = $48
+!KWR_K5D_49 = $49
+!KWR_ACTOR_08 = $08
 !KWR_RANGE_X = $1A44           ; the point actors are kept in range of (x, word)
 
 ; @routine 83:91F3 ActorWaitNothing
@@ -672,4 +678,74 @@ ActorBobAboutLine:
     lda.b #$01
     sta.b !KWR_BOB_STATE
 .back:
+    rts
+
+; @routine 83:E352 Kind5DWait
+; WHAT IT DOES: Kind $5D's wait, a timed sequence: K5D_49 = K5D_48 and its
+; animation each frame; once K5D_GO is set, $B0 frames; bit 4 of ACTOR_08
+; set; $1F frames, then animation 1, its code to resume at K5D_NEXT_AT;
+; $38 frames, then it ends for good.
+; HOW: K5D_48 to K5D_49, AnimStep; JMP (K5D_TABLE,X) by K5D_STATE * 2.
+; 0: K5D_GO set: K5D_COUNT $B0, state up. 1: K5D_COUNT down, at 0 state
+; up. 2: ACTOR_08 |= $10, K5D_COUNT $1F, state up. 3: K5D_COUNT down, at
+; 0: AnimStart 1, K5D_COUNT $38, resume address ($03-$04) = K5D_NEXT_AT,
+; state up. 4: K5D_COUNT down, at 0: the loop's return address dropped
+; (PLA PLA), on into ActorEndPlaced ($83:96CA).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR through
+; the actor loop's wait table. Exit: M 8-bit; or ended: no return.
+;
+%at($83E352)
+Kind5DWait:
+    lda.b !KWR_K5D_48
+    sta.b !KWR_K5D_49
+    jsl.l AnimStep
+    lda.b !KWR_K5D_STATE
+    asl
+    tax
+    jmp.w (.steps,x)
+.steps:
+    dw .wait, .first, .flag, .second, .last
+.wait:
+    lda.b !KWR_K5D_GO
+    beq .done0
+    lda.b #$B0
+    sta.b !KWR_K5D_COUNT
+    inc.b !KWR_K5D_STATE
+.done0:
+    rts
+.first:
+    dec.b !KWR_K5D_COUNT
+    bne .done1
+    inc.b !KWR_K5D_STATE
+.done1:
+    rts
+.flag:
+    lda.b !KWR_ACTOR_08
+    ora.b #$10
+    sta.b !KWR_ACTOR_08
+    lda.b #$1F
+    sta.b !KWR_K5D_COUNT
+    inc.b !KWR_K5D_STATE
+    rts
+.second:
+    dec.b !KWR_K5D_COUNT
+    bne .done3
+    lda.b #$01
+    jsl.l AnimStart
+    lda.b #$38
+    sta.b !KWR_K5D_COUNT
+    lda.b #$0E
+    sta.b !KWR_ACTOR_03
+    lda.b #$E3
+    sta.b !KWR_ACTOR_04
+    inc.b !KWR_K5D_STATE
+.done3:
+    rts
+.last:
+    dec.b !KWR_K5D_COUNT
+    bne .done4
+    pla
+    pla
+    jmp.w ActorEndPlaced
+.done4:
     rts

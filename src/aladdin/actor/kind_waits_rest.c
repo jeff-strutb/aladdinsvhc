@@ -69,6 +69,13 @@ void abi_SoundQueueAdd(void);
 #define BOB_TABLE 0xE240u           /* the states' code (bank $83), by BOB_STATE */
 #define K5C_GONE_AT 0xE128u         /* its code resumes here once out of view (bank $83) */
 #define K5C_DONE_AT 0xE282u         /* and here once Aladdin has no health */
+#define K5D_STATE 0x13u             /* 0 waiting for K5D_GO; 1-4 the timed steps; then it ends */
+#define K5D_COUNT 0x41u             /* frames left in the step */
+#define K5D_GO 0x4Au                /* nonzero: it starts */
+#define K5D_48 0x48u                /* copied to K5D_49 each frame */
+#define K5D_49 0x49u
+#define K5D_TABLE 0xE361u           /* the steps' code (bank $83), by K5D_STATE */
+#define K5D_NEXT_AT 0xE30Eu         /* its code resumes here after step 3 (bank $83) */
 #define RANGE_X 0x1A44u             /* the point actors are kept in range of (x, word) */
 
 /*
@@ -773,4 +780,77 @@ void abi_Kind5CWait(void)
     sta8(ea_dp(ACTOR_01));
     MEM8(asl, ea_dp(ACTOR_09));
     MEM8(lsr, ea_dp(ACTOR_09));
+}
+
+/*
+ * @routine 83:E352 Kind5DWait
+ * WHAT IT DOES: Kind $5D's wait, a timed sequence: K5D_49 = K5D_48 and its
+ * animation each frame; once K5D_GO is set, $B0 frames; bit 4 of ACTOR_08
+ * set; $1F frames, then animation 1, its code to resume at K5D_NEXT_AT;
+ * $38 frames, then it ends for good.
+ * HOW: K5D_48 to K5D_49, AnimStep; JMP (K5D_TABLE,X) by K5D_STATE * 2.
+ * 0: K5D_GO set: K5D_COUNT $B0, state up. 1: K5D_COUNT down, at 0 state
+ * up. 2: ACTOR_08 |= $10, K5D_COUNT $1F, state up. 3: K5D_COUNT down, at
+ * 0: AnimStart 1, K5D_COUNT $38, resume address ($03-$04) = K5D_NEXT_AT,
+ * state up. 4: K5D_COUNT down, at 0: the loop's return address dropped
+ * (PLA PLA), on into ActorEndPlaced ($83:96CA).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR through
+ * the actor loop's wait table. Exit: M 8-bit; or ended: no return.
+ */
+void abi_Kind5DWait(void)
+{
+    lda8(ea_dp(K5D_48));
+    sta8(ea_dp(K5D_49));
+    abi_AnimStep();
+    lda8(ea_dp(K5D_STATE));
+    ACC8(asl);
+    tax8();
+    switch (cpu.x) {
+    case 0:
+        lda8(ea_dp(K5D_GO));
+        if (IF_Z)
+            return;
+        lda8_v(0xB0);
+        sta8(ea_dp(K5D_COUNT));
+        MEM8(inc, ea_dp(K5D_STATE));
+        return;
+    case 2:
+        MEM8(dec, ea_dp(K5D_COUNT));
+        if (IF_Z)
+            MEM8(inc, ea_dp(K5D_STATE));
+        return;
+    case 4:
+        lda8(ea_dp(ACTOR_08));
+        ora8_v(0x10);
+        sta8(ea_dp(ACTOR_08));
+        lda8_v(0x1F);
+        sta8(ea_dp(K5D_COUNT));
+        MEM8(inc, ea_dp(K5D_STATE));
+        return;
+    case 6:
+        MEM8(dec, ea_dp(K5D_COUNT));
+        if (!IF_Z)
+            return;
+        lda8_v(0x01);
+        abi_AnimStart();
+        lda8_v(0x38);
+        sta8(ea_dp(K5D_COUNT));
+        lda8_v((uint8_t)K5D_NEXT_AT);
+        sta8(ea_dp(ACTOR_03));
+        lda8_v((uint8_t)(K5D_NEXT_AT >> 8));
+        sta8(ea_dp(ACTOR_04));
+        MEM8(inc, ea_dp(K5D_STATE));
+        return;
+    case 8:
+        MEM8(dec, ea_dp(K5D_COUNT));
+        if (!IF_Z)
+            return;
+        pla8();
+        pla8();
+        actor_leave(0x8396CAu);           /* ActorEndPlaced */
+        return;
+    default:                              /* past the table: its next bytes */
+        jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K5D_TABLE + cpu.x)));
+        return;
+    }
 }
