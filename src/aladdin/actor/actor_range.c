@@ -10,6 +10,7 @@
 void abi_ActorClear(void);
 void abi_ActorTileSlotRelease(void);
 void abi_ActorFreePlacedAtY(void);
+void abi_ActorEndPlaced(void);
 
 /* Where the actor loop takes the next record (docs/aladdin/ACTORS.md) */
 #define ACTOR_LOOP_NEXT 0x8394BFu
@@ -146,7 +147,9 @@ void abi_ActorEndDropReturn(void)
     op_sep(0x30);
     pla8();
     pla8();
-    actor_leave(0x8396CAu);
+    /* on into ActorEndPlaced by falling through, not a jump: the call
+       goes on through it to the actor loop */
+    abi_ActorEndPlaced();
 }
 
 /*

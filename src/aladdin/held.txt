@@ -4,6 +4,5 @@
 # one in the commit that fixes the C. Format: BB:AAAA Name  # why
 81:825B LevelRamSetupLong  # A5 DIVERGENT at 142a658
 81:825F LevelRamSetup  # A5 DIVERGENT at 142a658
-83:96C6 ActorEndDropReturn  # A5 DIVERGENT at 142a658
 83:9894 Kind20Spotted  # A5 DIVERGENT at 142a658
 83:9956 Kind20Halt  # A5 DIVERGENT at 142a658
