@@ -1,0 +1,45 @@
+# Actor kind $91's start (A5:F534) with each of its variants 1 to 5 (its
+# $07, the table at A5:F53F), which no script meets: the ending's kind $91
+# (variant 0) is the only one placed where a script goes. Played as
+# cov_ending_gems.box until the actor is live at $0C4B (from frame 11250),
+# then at frame 11300 it is put back in its start state ($0C) with each
+# variant in turn; the actor loop starts it again by its kind's table.
+# Variant 1 waits for $0970 to be 0, then sets $0978 to 5 once $0937 is
+# at or past its x ($00E8): run with $0937 0, then $0100. Variant 2 sets
+# $0978 to 6 with $0970 0, variant 3 (with $0970 poked to 1) clears it,
+# sets $0978 to 1 and its x and y into $0937 and $093A; both end the
+# actor (83:96CA), whose record is started again for the next. Variants 4
+# and 5 set and clear $0971. Each ending variant runs within a frame, and
+# the next restart follows at once, before another actor takes the record
+# (one does within four frames). What the variants change is put back.
+load build/aladdin/states/stage_a0_s0.state
+poke $000376 32
+wait 10500
+poke $00033F 0A
+wait 800
+poke $000C4B 0C
+poke $000C52 01
+wait 4
+poke $000937 00,01
+wait 4
+poke $000937 00,00
+poke $000978 04
+poke $000C4B 0C
+poke $000C52 02
+wait 1
+poke $000978 04
+poke $000970 01
+poke $000C4B 0C
+poke $000C52 03
+wait 1
+poke $000978 04
+poke $000937 00,00
+poke $00093A 00,00
+poke $000C4B 0C
+poke $000C52 04
+wait 1
+poke $000C4B 0C
+poke $000C52 05
+wait 1
+poke $000971 00
+wait 120
