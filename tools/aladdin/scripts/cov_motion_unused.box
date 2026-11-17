@@ -1,0 +1,23 @@
+# Unit calls of the motion helpers no code refers to (81:A401, 81:A447,
+# 81:A481, 81:A498, 81:A520, 81:A5DB, 81:A5ED), each by JSL in a level
+# (stage_a0_s0) on the record at $092B, M and X 8-bit, D the record, the
+# machine put back after each. PlayerCarryX runs facing right ($093F 0)
+# and left (1); the speed steps take $000C = 5; the caps run over their
+# limits (horizontal speed $0200 at $0945, vertical $0700 at $0949).
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+call 81A401 long p=30 db=81 d=092B y=03
+set 00093F 00
+call 81A447 long p=30 db=80 d=092B
+set 00093F 01
+call 81A447 long p=30 db=80 d=092B
+set 00000C 05
+call 81A481 long p=30 db=80 d=092B
+set 00000C 05
+call 81A498 long p=30 db=80 d=092B
+call 81A520 long p=30 db=80 d=092B
+set 000945 00,02
+call 81A5DB long p=30 db=80 d=092B
+set 000949 00,07
+call 81A5ED long p=30 db=80 d=092B
+wait 2

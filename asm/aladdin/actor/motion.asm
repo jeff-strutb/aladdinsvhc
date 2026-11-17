@@ -762,3 +762,167 @@ ActorMoveByVectorY:
     sta.b !actor_y+2
     sep.b #$10
     rtl
+
+; Motion helpers no code refers to: each runs only in the unit calls of
+; cov_motion_unused.box.
+!SPEED_STEP = $000C              ; (data bank) the step ActorSpeedXDownFlyAgainst and ActorSpeedXUpFlyAgainst take
+
+; @routine 81:A401 ActorMotionPresetX
+; WHAT IT DOES: Gives the actor the horizontal speed of motion preset Y
+; alone (ActorMotionPreset without the vertical part). No code refers to
+; it.
+; HOW: Copies the horizontal speed's three bytes from the preset tables,
+; fraction first.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the preset; called
+; by JSL. Exit: A low byte = the speed's high byte; N, Z from it; X, Y,
+; C, V unchanged.
+%at($81A401)
+ActorMotionPresetX:
+    lda.w !motion_preset_speed_x_frac,y
+    sta.b !actor_speed_x
+    lda.w !motion_preset_speed_x_mid,y
+    sta.b !actor_speed_x+1
+    lda.w !motion_preset_speed_x_hi,y
+    sta.b !actor_speed_x+2
+    rtl
+
+; @routine 81:A447 PlayerCarryX
+; WHAT IT DOES: Moves Aladdin across by this actor's horizontal speed, the
+; way the actor faces: what something carrying him would do. No code
+; refers to it.
+; HOW: M 8-bit; facing right, the actor's 24-bit horizontal speed added to
+; Aladdin's 24-bit x; facing left, taken from it.
+; Entry: D = the actor; DB a bank whose $0000-$1FFF is work RAM; called by
+; JSL. Exit: M 8-bit; A low byte = Aladdin's x's high byte; N, V, Z, C
+; from its ADC or SBC; X, Y unchanged.
+%at($81A447)
+PlayerCarryX:
+    sep.b #$20
+    lda.b !actor_facing
+    bne .left
+    clc
+    lda.w !player+!actor_x
+    adc.b !actor_speed_x
+    sta.w !player+!actor_x
+    lda.w !player+!actor_x+1
+    adc.b !actor_speed_x+1
+    sta.w !player+!actor_x+1
+    lda.w !player+!actor_x+2
+    adc.b !actor_speed_x+2
+    sta.w !player+!actor_x+2
+    rtl
+.left:
+    sec
+    lda.w !player+!actor_x
+    sbc.b !actor_speed_x
+    sta.w !player+!actor_x
+    lda.w !player+!actor_x+1
+    sbc.b !actor_speed_x+1
+    sta.w !player+!actor_x+1
+    lda.w !player+!actor_x+2
+    sbc.b !actor_speed_x+2
+    sta.w !player+!actor_x+2
+    rtl
+
+; @routine 81:A481 ActorSpeedXDownFlyAgainst
+; WHAT IT DOES: The actor's horizontal speed less a step, then a frame of
+; flight against the vertical pull. No code refers to it.
+; HOW: The byte at $000C (data bank) taken from the 24-bit horizontal
+; speed, the borrow on through it; then ActorFlyAgainst.
+; Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM,
+; $000C the step; called by JSL. Exit: as ActorFlyAgainst.
+%at($81A481)
+ActorSpeedXDownFlyAgainst:
+    sec
+    lda.b !actor_speed_x
+    sbc.w !SPEED_STEP
+    sta.b !actor_speed_x
+    lda.b !actor_speed_x+1
+    sbc.b #$00
+    sta.b !actor_speed_x+1
+    lda.b !actor_speed_x+2
+    sbc.b #$00
+    sta.b !actor_speed_x+2
+    jmp.w ActorFlyAgainst
+
+; @routine 81:A498 ActorSpeedXUpFlyAgainst
+; WHAT IT DOES: The actor's horizontal speed plus a step, then a frame of
+; flight against the vertical pull. No code refers to it.
+; HOW: The byte at $000C (data bank) added to the 24-bit horizontal speed,
+; the carry on through it; then ActorFlyAgainst.
+; Entry: as ActorSpeedXDownFlyAgainst. Exit: as ActorFlyAgainst.
+%at($81A498)
+ActorSpeedXUpFlyAgainst:
+    clc
+    lda.b !actor_speed_x
+    adc.w !SPEED_STEP
+    sta.b !actor_speed_x
+    lda.b !actor_speed_x+1
+    adc.b #$00
+    sta.b !actor_speed_x+1
+    lda.b !actor_speed_x+2
+    adc.b #$00
+    sta.b !actor_speed_x+2
+    jmp.w ActorFlyAgainst
+
+; @routine 81:A520 ActorFallAgainst
+; WHAT IT DOES: One frame of a fall with the vertical pull reversed and no
+; horizontal movement: the gravity is taken from the vertical speed, and
+; the actor moves by it. No code refers to it.
+; HOW: Takes the gravity from the 24-bit vertical speed, then ActorMoveY.
+; Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMoveY.
+%at($81A520)
+ActorFallAgainst:
+    sec
+    lda.b !actor_speed_y
+    sbc.b !actor_accel_y
+    sta.b !actor_speed_y
+    lda.b !actor_speed_y+1
+    sbc.b #$00
+    sta.b !actor_speed_y+1
+    lda.b !actor_speed_y+2
+    sbc.b #$00
+    sta.b !actor_speed_y+2
+    bra ActorMoveY
+
+; @routine 81:A5DB ActorSpeedXCap
+; WHAT IT DOES: Holds the actor's horizontal speed to $0160 (pixels
+; $01.60 a frame): faster, it is set to that and stops accelerating. No
+; code refers to it.
+; HOW: The speed's upper word compared with $0160; above it, the word =
+; $0160 and the horizontal acceleration 0.
+; Entry: D = the actor; called by JSL. Exit: M 8-bit; A = $0160 (16 bits);
+; N, Z, C from the compare; X, Y unchanged.
+%at($81A5DB)
+ActorSpeedXCap:
+    rep.b #$20
+    lda.w #$0160
+    cmp.b !actor_speed_x+1
+    bcs .held
+    sta.b !actor_speed_x+1
+    sep.b #$20
+    stz.b !actor_accel_x
+.held:
+    sep.b #$20
+    rtl
+
+; @routine 81:A5ED ActorSpeedYCap
+; WHAT IT DOES: Holds the actor's vertical speed to $0600 (6 pixels a
+; frame down): faster, it is set to that and gravity stops. No code
+; refers to it.
+; HOW: The speed's upper word compared with $0600; above it (unsigned),
+; the word = $0600 and the gravity 0.
+; Entry: D = the actor; called by JSL. Exit: M 8-bit; A = $0600 (16 bits);
+; N, Z, C from the compare; X, Y unchanged.
+%at($81A5ED)
+ActorSpeedYCap:
+    rep.b #$20
+    lda.w #$0600
+    cmp.b !actor_speed_y+1
+    bcs .held
+    sta.b !actor_speed_y+1
+    sep.b #$20
+    stz.b !actor_accel_y
+.held:
+    sep.b #$20
+    rtl

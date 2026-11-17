@@ -811,3 +811,171 @@ void abi_ActorBobY(void)
     op_sep(P_M);
     abi_ActorMoveY();
 }
+
+/* Motion helpers no code refers to: each runs only in the unit calls of
+   cov_motion_unused.box. */
+
+/*
+ * @routine 81:A401 ActorMotionPresetX
+ * WHAT IT DOES: Gives the actor the horizontal speed of motion preset Y
+ * alone (ActorMotionPreset without the vertical part). No code refers to
+ * it.
+ * HOW: Copies the horizontal speed's three bytes from the preset tables,
+ * fraction first.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the preset; called
+ * by JSL. Exit: A low byte = the speed's high byte; N, Z from it; X, Y,
+ * C, V unchanged.
+ */
+void abi_ActorMotionPresetX(void)
+{
+    copy_byte(MOTION_PRESET_SPEED_X_FRAC, ACTOR_SPEED_X);
+    copy_byte(MOTION_PRESET_SPEED_X_MID, ACTOR_SPEED_X + 1);
+    copy_byte(MOTION_PRESET_SPEED_X_HI, ACTOR_SPEED_X + 2);
+}
+
+/* Aladdin's 24-bit x plus (minus) this actor's horizontal speed, byte by
+   byte: each byte reads his x, then the speed, then writes his x. */
+static void player_x_step(int left)
+{
+    int i;
+
+    if (left)
+        cpu.p |= P_C;
+    else
+        cpu.p &= (uint8_t)~P_C;
+    for (i = 0; i < 3; i++) {
+        uint32_t at = dba((uint16_t)(PLAYER + ACTOR_X + i));
+        uint8_t a = rd8(at);
+
+        a = left ? op_sbc8(a, rd8(dp(ACTOR_SPEED_X + i)), &cpu.p)
+                 : op_adc8(a, rd8(dp(ACTOR_SPEED_X + i)), &cpu.p);
+        wr8(at, a);
+        set_a8(a);
+    }
+}
+
+/*
+ * @routine 81:A447 PlayerCarryX
+ * WHAT IT DOES: Moves Aladdin across by this actor's horizontal speed, the
+ * way the actor faces: what something carrying him would do. No code
+ * refers to it.
+ * HOW: M 8-bit; facing right, the actor's 24-bit horizontal speed added to
+ * Aladdin's 24-bit x; facing left, taken from it.
+ * Entry: D = the actor; DB a bank whose $0000-$1FFF is work RAM; called by
+ * JSL. Exit: M 8-bit; A low byte = Aladdin's x's high byte; N, V, Z, C
+ * from its ADC or SBC; X, Y unchanged.
+ */
+void abi_PlayerCarryX(void)
+{
+    uint8_t facing;
+
+    op_sep(P_M);
+    facing = rd8(dp(ACTOR_FACING));
+    set_a8(facing);
+    cpu.p = nz8(cpu.p, facing);
+    player_x_step(facing != 0);
+}
+
+/*
+ * @routine 81:A481 ActorSpeedXDownFlyAgainst
+ * WHAT IT DOES: The actor's horizontal speed less a step, then a frame of
+ * flight against the vertical pull. No code refers to it.
+ * HOW: The byte at $000C (data bank) taken from the 24-bit horizontal
+ * speed, the borrow on through it; then ActorFlyAgainst.
+ * Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM,
+ * $000C the step; called by JSL. Exit: as ActorFlyAgainst.
+ */
+void abi_ActorSpeedXDownFlyAgainst(void)
+{
+    uint8_t a;
+
+    cpu.p |= P_C;
+    a = rd8(dp(ACTOR_SPEED_X));
+    a = op_sbc8(a, rd8(dba(0x000C)), &cpu.p);
+    wr8(dp(ACTOR_SPEED_X), a);
+    set_a8(a);
+    sbc_byte(ACTOR_SPEED_X + 1, 0);
+    sbc_byte(ACTOR_SPEED_X + 2, 0);
+    abi_ActorFlyAgainst();
+}
+
+/*
+ * @routine 81:A498 ActorSpeedXUpFlyAgainst
+ * WHAT IT DOES: The actor's horizontal speed plus a step, then a frame of
+ * flight against the vertical pull. No code refers to it.
+ * HOW: The byte at $000C (data bank) added to the 24-bit horizontal speed,
+ * the carry on through it; then ActorFlyAgainst.
+ * Entry: as ActorSpeedXDownFlyAgainst. Exit: as ActorFlyAgainst.
+ */
+void abi_ActorSpeedXUpFlyAgainst(void)
+{
+    uint8_t a;
+
+    cpu.p &= (uint8_t)~P_C;
+    a = rd8(dp(ACTOR_SPEED_X));
+    a = op_adc8(a, rd8(dba(0x000C)), &cpu.p);
+    wr8(dp(ACTOR_SPEED_X), a);
+    set_a8(a);
+    adc_byte(ACTOR_SPEED_X + 1, 0);
+    adc_byte(ACTOR_SPEED_X + 2, 0);
+    abi_ActorFlyAgainst();
+}
+
+/*
+ * @routine 81:A520 ActorFallAgainst
+ * WHAT IT DOES: One frame of a fall with the vertical pull reversed and no
+ * horizontal movement: the gravity is taken from the vertical speed, and
+ * the actor moves by it. No code refers to it.
+ * HOW: Takes the gravity from the 24-bit vertical speed, then ActorMoveY.
+ * Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMoveY.
+ */
+void abi_ActorFallAgainst(void)
+{
+    sub24_byte(ACTOR_SPEED_Y, ACTOR_ACCEL_Y);
+    abi_ActorMoveY();
+}
+
+/* REP #$20, LDA #cap, CMP dp: over the cap, the speed's word = cap and
+   the acceleration byte 0; SEP #$20. */
+static void speed_cap(uint8_t speed, uint16_t cap, uint8_t accel)
+{
+    op_rep(P_M);
+    cpu.a = cap;
+    cmp16_of(cap, rd16(dp(speed)));
+    if (!(cpu.p & P_C)) {
+        wr16(dp(speed), cap);
+        op_sep(P_M);
+        wr8(dp(accel), 0);
+    }
+    op_sep(P_M);
+}
+
+/*
+ * @routine 81:A5DB ActorSpeedXCap
+ * WHAT IT DOES: Holds the actor's horizontal speed to $0160 (pixels
+ * $01.60 a frame): faster, it is set to that and stops accelerating. No
+ * code refers to it.
+ * HOW: The speed's upper word compared with $0160; above it, the word =
+ * $0160 and the horizontal acceleration 0.
+ * Entry: D = the actor; called by JSL. Exit: M 8-bit; A = $0160 (16 bits);
+ * N, Z, C from the compare; X, Y unchanged.
+ */
+void abi_ActorSpeedXCap(void)
+{
+    speed_cap(ACTOR_SPEED_X + 1, 0x0160, ACTOR_ACCEL_X);
+}
+
+/*
+ * @routine 81:A5ED ActorSpeedYCap
+ * WHAT IT DOES: Holds the actor's vertical speed to $0600 (6 pixels a
+ * frame down): faster, it is set to that and gravity stops. No code
+ * refers to it.
+ * HOW: The speed's upper word compared with $0600; above it (unsigned),
+ * the word = $0600 and the gravity 0.
+ * Entry: D = the actor; called by JSL. Exit: M 8-bit; A = $0600 (16 bits);
+ * N, Z, C from the compare; X, Y unchanged.
+ */
+void abi_ActorSpeedYCap(void)
+{
+    speed_cap(ACTOR_SPEED_Y + 1, 0x0600, ACTOR_ACCEL_Y);
+}
