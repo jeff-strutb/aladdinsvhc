@@ -33,7 +33,7 @@ void abi_TaskWait(void);
  * IRIS_RADII by IRIS_WHICH; IRIS_X and IRIS_Y from IRIS_CENTRES by
  * IRIS_WHICH * 4. Each frame: CircleWipeStep with A = IRIS_RADIUS, X =
  * IRIS_X, Y = IRIS_Y (16-bit); MVN of the $200-byte window table from
- * $7E:5000 to $7F:F500, DB kept; M and X 8-bit; TaskWait 1; IRIS_RADIUS
+ * $7F:5000 to $7E:F500, DB kept; M and X 8-bit; TaskWait 1; IRIS_RADIUS
  * down by one; at 0, TaskExit.
  * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
  * whose $DB87 holds the tables (bank $80); a task's entry (TaskCreate slot
@@ -81,7 +81,7 @@ void abi_IrisCloseTask(void)
         cpu.x = 0x5000;
         cpu.y = 0xF500;
         a16_load(0x01FF);
-        mvn(0x7E, 0x7F);
+        mvn(0x7E, 0x7F);                   /* to $7E:F500 from $7F:5000 */
         plb();
         op_sep(0x30);
         a8_load(0x01);

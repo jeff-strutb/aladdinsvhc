@@ -15,6 +15,8 @@ arch 65816
 !IRIS_RADII = $DB87             ; by IRIS_WHICH: the starting radius (bytes)
 !IRIS_CENTRES = $DB89           ; by IRIS_WHICH * 4: x, then y (words)
 !WINDOW_03A6 = $03A6            ; the windows' settings, $03A6-$03AE
+!SHAPE_BANK = $7F               ; where CircleWipeStep draws the window table ($7F:5000)
+!HDMA_BANK = $7E                ; where the HDMA reads it ($7E:F500)
 
 ; @routine 80:B263 IrisCloseTask
 ; WHAT IT DOES: Closes the screen down to nothing round a point: starts
@@ -26,7 +28,7 @@ arch 65816
 ; IRIS_RADII by IRIS_WHICH; IRIS_X and IRIS_Y from IRIS_CENTRES by
 ; IRIS_WHICH * 4. Each frame: CircleWipeStep with A = IRIS_RADIUS, X =
 ; IRIS_X, Y = IRIS_Y (16-bit); MVN of the $200-byte window table from
-; $7E:5000 to $7F:F500, DB kept; M and X 8-bit; TaskWait 1; IRIS_RADIUS
+; $7F:5000 to $7E:F500, DB kept; M and X 8-bit; TaskWait 1; IRIS_RADIUS
 ; down by one; at 0, TaskExit.
 ; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
 ; whose $DB87 holds the tables (bank $80); a task's entry (TaskCreate slot
@@ -69,7 +71,7 @@ IrisCloseTask:
     ldx.w #$5000
     ldy.w #$F500
     lda.w #$01FF
-    mvn $7E,$7F
+    mvn !HDMA_BANK,!SHAPE_BANK
     plb
     sep.b #$30
     lda.b #$01
