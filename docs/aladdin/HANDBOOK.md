@@ -107,6 +107,15 @@ per finding, each linked to the dated note that measured it.
   writes that frame too (`jsl_frame`) and steps S back
   ([decomp/log/coverage-restart-2026-11-16](decomp/log/coverage-restart-2026-11-16.md)).
 
+- A tail jump into an actor entry is actor_leave from code that is not an
+  actor entry itself, a tail call from code that is (cdraft's rule).
+- t3 reruns every script when src/aladdin/include/ or any non-.c file in
+  the C tree changes (.held files too): keep new C names in their .c and
+  batch .held releases, one commit per gate.
+- asar defines are global across all filed files: a `!name` defined again
+  with another value assembles wrong bytes without an error
+  ([decomp/log/banks-81-83-2026-11-16](decomp/log/banks-81-83-2026-11-16.md)).
+
 ## Running the game
 
 - Title menu: about 480 frames after a START at frame 2400; GAME START,
