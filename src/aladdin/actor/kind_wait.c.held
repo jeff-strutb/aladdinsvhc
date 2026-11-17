@@ -1,18 +1,4 @@
 /*
- * @routine 83:91F8 ActorKind00Wait
- * WHAT IT DOES: The routine actors of kinds $00, $01, $02, $03 and $07
- * run each frame they wait (not the last), when bit 7 of their byte at
- * $09 is set: the work at $81:E864.
- * HOW: JSL $81:E864, then RTS.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
- * (its low 7 bits); called by JSR through the actor loop's table by kind.
- * Exit: as $81:E864 leaves them.
- */
-void abi_ActorKind00Wait(void)
-{
-    call_routine(KIND_00_WAIT_WORK, 1);
-}
-/*
  * @routine 83:9209 ActorKind08Wait
  * WHAT IT DOES: The routine actors of kind $08 run each frame they wait
  * (not the last), when bit 7 of their byte at $09 is set: the work at
