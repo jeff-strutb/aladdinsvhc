@@ -29,8 +29,10 @@ State and logs live in build/aladdin/gate-runner/ (runner.json, runner.log,
 batch-REV.log). Every job runs through the machine's CPU and memory queue,
 the command named by ALADDIN_CPU_RUN (called as CMD -j CORES -m MEMORY --
 COMMAND), with the cores and memory it uses; builds and progress take the
-build lock, the file ALADDIN_BUILD_LOCK (flock). The runner will not start
-without both.
+build lock, the file ALADDIN_BUILD_LOCK (flock). Its commits take the
+landing lock, ALADDIN_LAND_LOCK, which writers hold while they merge a
+batch into the branch, so the two never meet in git's index. The runner
+will not start without all three.
 """
 import csv, datetime, json, os, re, subprocess, sys, time
 
@@ -40,6 +42,7 @@ STATE = os.path.join(D, 'runner.json')
 LOG = os.path.join(D, 'runner.log')
 CPU_RUN = os.environ.get('ALADDIN_CPU_RUN')
 LOCK = os.environ.get('ALADDIN_BUILD_LOCK')
+LAND = os.environ.get('ALADDIN_LAND_LOCK')
 HELD = os.path.join(ROOT, 'src', 'aladdin', 'held.txt')
 LEDGERS = ['config/aladdin/t3_live.csv', 'config/aladdin/whole_image.csv', 'README.md', 'docs/aladdin/progress-map.svg']
 BISECT_OUT = 'runner-bisect'
@@ -195,10 +198,10 @@ def hold(rev, why, out):
     with open(HELD, 'w') as f:
         f.write(cur if cur.endswith('\n') else cur + '\n')
         f.write(lines)
-    git('add', HELD)
+    subprocess.run(['flock', LAND, 'git', 'add', HELD], cwd=ROOT)
     msg = 'Hold %s: %s' % (', '.join('%s %s' % (names.get(a, '?'), a) for a in sorted(why)),
                            '; '.join(sorted(set(why.values()))))
-    p = subprocess.run(['git', 'commit', '-q', '-m', msg[:400], '--', HELD], capture_output=True, text=True, cwd=ROOT)
+    p = subprocess.run(['flock', LAND, 'git', 'commit', '-q', '-m', msg[:400], '--', HELD], capture_output=True, text=True, cwd=ROOT)
     if p.returncode:
         log('hold commit failed: %s' % p.stderr.strip())
         return False
@@ -216,7 +219,7 @@ def commit_ledgers(state):
     if not changed:
         state['batches'] = 0
         return
-    p = subprocess.run(['git', 'commit', '-q', '-m', 'Gate ledgers at %s (%d batch(es))' % (
+    p = subprocess.run(['flock', LAND, 'git', 'commit', '-q', '-m', 'Gate ledgers at %s (%d batch(es))' % (
         state.get('done', '')[:7], state.get('batches', 0)), '--'] + changed, capture_output=True, text=True, cwd=ROOT)
     if p.returncode:
         log('ledger commit failed: %s' % p.stderr.strip())
@@ -306,8 +309,8 @@ def prune(head):
 def main(argv):
     once = '--once' in argv
     every = int(argv[argv.index('--ledger-every') + 1]) if '--ledger-every' in argv else 3
-    if not CPU_RUN or not os.access(CPU_RUN, os.X_OK) or not LOCK:
-        print('runner: set ALADDIN_CPU_RUN (the CPU queue command) and ALADDIN_BUILD_LOCK (the build lock file)')
+    if not CPU_RUN or not os.access(CPU_RUN, os.X_OK) or not LOCK or not LAND:
+        print('runner: set ALADDIN_CPU_RUN (the CPU queue command), ALADDIN_BUILD_LOCK (the build lock file) and ALADDIN_LAND_LOCK (the landing lock file)')
         return 2
     os.makedirs(D, exist_ok=True)
     state = load_state()
