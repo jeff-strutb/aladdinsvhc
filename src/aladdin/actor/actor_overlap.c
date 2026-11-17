@@ -69,7 +69,7 @@ static int within(uint16_t a, uint16_t b, uint16_t sum, uint16_t twice)
  */
 void abi_ActorTouchesSecondPool(void)
 {
-    uint16_t y, x, mine, sum;
+    uint16_t y, x, mine, sum, v, w, s;
 
     a8_load(rd8(dpa(ACTOR_08)));
     if ((uint8_t)cpu.a & 0x80)
@@ -95,19 +95,28 @@ void abi_ActorTouchesSecondPool(void)
         cpu.x = x;
         mine = (uint16_t)((dp16(ACTOR_06) & 0x00FF) << 2);
         flag_set(P_C, 0);
-        sum = op_adc16(db16((uint16_t)(SECOND_POOL_BOXES + x)), db16((uint16_t)(HIT_BOXES + mine)), &cpu.p);
+        v = db16((uint16_t)(SECOND_POOL_BOXES + x));
+        sum = op_adc16(v, db16((uint16_t)(HIT_BOXES + mine)), &cpu.p);
         wr16(dba(SCRATCH), sum);
         wr16(dba(SCRATCH + 2), (uint16_t)(sum << 1));
         flag_set(P_C, 0);
-        sum = op_adc16(db16((uint16_t)(SECOND_POOL_BOXES + 2 + x)), db16((uint16_t)(HIT_BOXES + 2 + mine)), &cpu.p);
+        v = db16((uint16_t)(SECOND_POOL_BOXES + 2 + x));
+        sum = op_adc16(v, db16((uint16_t)(HIT_BOXES + 2 + mine)), &cpu.p);
         flag_set(P_C, 1);
         wr16(dba(SCRATCH + 4), op_sbc16(sum, 0x0004, &cpu.p));
         wr16(dba(SCRATCH + 6), (uint16_t)(sum << 1));
-        if (within(dp16(ACTOR_X + 1), db16((uint16_t)(ACTOR_X + 1 + y)), db16(SCRATCH), db16(SCRATCH + 2))
-            && within(dp16(ACTOR_Y + 1), db16((uint16_t)(ACTOR_Y + 1 + y)), db16(SCRATCH + 4), db16(SCRATCH + 6))) {
-            cpu.y = y;
-            op_sep(P_M);
-            return;
+        v = dp16(ACTOR_X + 1);
+        w = db16((uint16_t)(ACTOR_X + 1 + y));
+        s = db16(SCRATCH);
+        if (within(v, w, s, db16(SCRATCH + 2))) {
+            v = dp16(ACTOR_Y + 1);
+            w = db16((uint16_t)(ACTOR_Y + 1 + y));
+            s = db16(SCRATCH + 4);
+            if (within(v, w, s, db16(SCRATCH + 6))) {
+                cpu.y = y;
+                op_sep(P_M);
+                return;
+            }
         }
 next:
         flag_set(P_C, 0);
@@ -154,7 +163,7 @@ static uint16_t zone_offset(uint16_t at)
  */
 void abi_ActorZonePlace(void)
 {
-    uint16_t dx = zone_offset((uint16_t)(ZONES + 2 + cpu.y));
+    uint16_t dx = zone_offset((uint16_t)(ZONES + 2 + cpu.y)), dy;
 
     /* x ahead of the actor by its facing, y below */
     op_rep(P_M);
@@ -167,7 +176,8 @@ void abi_ActorZonePlace(void)
         wr16(dba(SCRATCH), op_sbc16(dp16(ACTOR_X + 1), dx, &cpu.p));
     }
     flag_set(P_C, 0);
-    cpu.a = op_adc16(zone_offset((uint16_t)(ZONES + 3 + cpu.y)), dp16(ACTOR_Y + 1), &cpu.p);
+    dy = zone_offset((uint16_t)(ZONES + 3 + cpu.y));
+    cpu.a = op_adc16(dy, dp16(ACTOR_Y + 1), &cpu.p);
     wr16(dba(SCRATCH + 2), cpu.a);
 }
 
@@ -187,19 +197,28 @@ void abi_ActorZonePlace(void)
  */
 void abi_ActorZoneHasTestBox(void)
 {
-    uint16_t sum;
+    uint16_t sum, v, w, s;
 
     abi_ActorZonePlace();
     flag_set(P_C, 0);
-    sum = op_adc16(db16((uint16_t)(ZONES + cpu.y)) & 0x00FF, db16((uint16_t)TEST_BOX_HALF_W), &cpu.p);
+    v = db16((uint16_t)(ZONES + cpu.y)) & 0x00FF;
+    sum = op_adc16(v, db16((uint16_t)TEST_BOX_HALF_W), &cpu.p);
     wr16(dba(SCRATCH + 4), sum);
     wr16(dba(SCRATCH + 6), (uint16_t)(sum << 1));
     flag_set(P_C, 0);
-    sum = op_adc16(db16((uint16_t)(ZONES + 1 + cpu.y)) & 0x00FF, db16((uint16_t)TEST_BOX_HALF_H), &cpu.p);
+    v = db16((uint16_t)(ZONES + 1 + cpu.y)) & 0x00FF;
+    sum = op_adc16(v, db16((uint16_t)TEST_BOX_HALF_H), &cpu.p);
     wr16(dba(SCRATCH + 8), sum);
     wr16(dba(SCRATCH + 10), (uint16_t)(sum << 1));
-    if (within(db16(SCRATCH), db16((uint16_t)TEST_BOX_X), db16(SCRATCH + 4), db16(SCRATCH + 6)))
-        within(db16(SCRATCH + 2), db16((uint16_t)TEST_BOX_Y), db16(SCRATCH + 8), db16(SCRATCH + 10));
+    v = db16(SCRATCH);
+    w = db16((uint16_t)TEST_BOX_X);
+    s = db16(SCRATCH + 4);
+    if (within(v, w, s, db16(SCRATCH + 6))) {
+        v = db16(SCRATCH + 2);
+        w = db16((uint16_t)TEST_BOX_Y);
+        s = db16(SCRATCH + 8);
+        within(v, w, s, db16(SCRATCH + 10));
+    }
     op_sep(P_M);
 }
 
@@ -272,7 +291,8 @@ void abi_ActorZoneHasTestPoint(void)
     if (cpu.p & P_C)
         goto out;
     flag_set(P_C, 1);
-    cpu.a = d = op_sbc16(db16((uint16_t)TEST_BOX_Y), db16(SCRATCH + 2), &cpu.p);
+    d = db16((uint16_t)TEST_BOX_Y);
+    cpu.a = d = op_sbc16(d, db16(SCRATCH + 2), &cpu.p);
     if (!(cpu.p & P_C))
         goto out;
     cmp16_of(d, db16(SCRATCH + 10));

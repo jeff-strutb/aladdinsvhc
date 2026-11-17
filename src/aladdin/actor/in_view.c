@@ -26,10 +26,11 @@ void abi_ActorsInView(void);
 static int box_holds_range_point(void)
 {
     uint32_t box = dba(VIEW_BOXES) + cpu.x;
-    uint16_t d;
+    uint16_t d, v;
 
     flag_set(P_C, 1);
-    d = op_sbc16(rd16(dba(RANGE_X)), dp16(ACTOR_X + 1), &cpu.p);
+    v = rd16(dba(RANGE_X));
+    d = op_sbc16(v, dp16(ACTOR_X + 1), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, rd16(box), &cpu.p);
     cpu.a = d;
@@ -37,7 +38,8 @@ static int box_holds_range_point(void)
     if (d >= rd16(box + 2))
         return 0;
     flag_set(P_C, 1);
-    d = op_sbc16(rd16(dba(RANGE_Y)), dp16(ACTOR_Y + 1), &cpu.p);
+    v = rd16(dba(RANGE_Y));
+    d = op_sbc16(v, dp16(ACTOR_Y + 1), &cpu.p);
     flag_set(P_C, 0);
     d = op_adc16(d, rd16(box + 4), &cpu.p);
     cpu.a = d;

@@ -144,7 +144,8 @@ void abi_Kind2DWatch(void)
             a8_load(at);
             x8_load(at);
             op_rep(0x21);
-            d = op_adc16(dp16(ACTOR_X + 1), rd16(dba((uint16_t)(K2D_REACH_X + at))), &cpu.p);
+            d = dp16(ACTOR_X + 1);
+            d = op_adc16(d, rd16(dba((uint16_t)(K2D_REACH_X + at))), &cpu.p);
             flag_set(P_C, 1);
             d = op_sbc16(d, rd16(dba((uint16_t)PLAYER_X)), &cpu.p);
             a16_load(d);
@@ -156,7 +157,8 @@ void abi_Kind2DWatch(void)
                 abi_AnimStart();
                 op_rep(0x20);
                 flag_set(P_C, 1);
-                d = op_sbc16(dp16(ACTOR_X + 1), rd16(dba((uint16_t)PLAYER_X)), &cpu.p);
+                d = dp16(ACTOR_X + 1);
+                d = op_sbc16(d, rd16(dba((uint16_t)PLAYER_X)), &cpu.p);
                 a16_load(d);
                 if (d & 0x8000) {
                     d = (uint16_t)((d ^ 0xFFFF) + 1);

@@ -66,16 +66,18 @@ void abi_BlockPointInBounds(void)
  */
 void abi_BlockPointStep(void)
 {
-    uint16_t alt, pick, dy;
+    uint16_t alt, pick, dy, v;
 
     op_rep(0x30);
     alt = (uint16_t)((dp16(BLOCK_ALT) & 0x0001) << 1);
-    pick = (uint16_t)((((dp16(ACTOR_47) << 1) | dp16(ACTOR_FACING)) & 0x00FF) << 2);
+    v = dp16(ACTOR_47);
+    pick = (uint16_t)((((v << 1) | dp16(ACTOR_FACING)) & 0x00FF) << 2);
     flag_set(P_C, 0);
     cpu.x = op_adc16(pick, rd16(dba(BLOCK_STEPS) + alt), &cpu.p);
     /* x by the step; y by it, turned on the way back */
     flag_set(P_C, 0);
-    cpu.a = op_adc16(dp16(BLOCK_X), rd16(dba(BLOCK_STEPS) + cpu.x), &cpu.p);
+    v = dp16(BLOCK_X);
+    cpu.a = op_adc16(v, rd16(dba(BLOCK_STEPS) + cpu.x), &cpu.p);
     dp16_set(BLOCK_X, cpu.a);
     dy = rd16(dba(BLOCK_STEPS + 2) + cpu.x);
     cpu.y = dp16(BACK_LEG);
@@ -105,7 +107,9 @@ void abi_BlockPlatformMove(void)
 
     /* the move picked by its variant, $47, the leg and its facing */
     x8_load(rd8(dpa(ACTOR_07)));
-    pick = (uint8_t)((uint8_t)(((uint8_t)(rd8(dpa(ACTOR_47)) << 1) | rd8(dpa(BACK_LEG))) << 1) | rd8(dpa(ACTOR_FACING)));
+    pick = rd8(dpa(ACTOR_47));
+    pick = (uint8_t)((uint8_t)(pick << 1) | rd8(dpa(BACK_LEG)));
+    pick = (uint8_t)((uint8_t)(pick << 1) | rd8(dpa(ACTOR_FACING)));
     flag_set(P_C, 0);
     cpu.y = op_adc8(pick, rd8(dba(MOVE_LISTS) + cpu.x), &cpu.p);
     x8_load(rd8(dba(MOVE_PICKS) + cpu.y));
@@ -115,7 +119,8 @@ void abi_BlockPlatformMove(void)
 
         flag_set(P_C, 0);
         for (int i = 0; i < 3; i++) {
-            v = op_adc8(rd8(dpa((uint16_t)(at + i))), rd8(dba(MOVE_PICKS + 3 * axis + i) + cpu.x), &cpu.p);
+            v = rd8(dpa((uint16_t)(at + i)));
+            v = op_adc8(v, rd8(dba(MOVE_PICKS + 3 * axis + i) + cpu.x), &cpu.p);
             wr8(dpa((uint16_t)(at + i)), v);
         }
     }

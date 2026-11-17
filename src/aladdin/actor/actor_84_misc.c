@@ -157,7 +157,8 @@ void abi_ActorsFollowSteps(void)
         cpu.y = dir;
         op_sep(0x20);
         flag_set(P_C, 0);
-        step = op_adc8(rd8(dpa(ACTOR_41)), rd8(dba(FOLLOW_STEP)), &cpu.p);
+        step = rd8(dpa(ACTOR_41));
+        step = op_adc8(step, rd8(dba(FOLLOW_STEP)), &cpu.p);
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | step);
         if (!step || (step & 0x80))
             a8_load(0x01);

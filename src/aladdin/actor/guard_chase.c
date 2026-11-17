@@ -274,7 +274,7 @@ void abi_GuardChase(void)
    GuardHoldRight); M 16-bit. */
 void guard_chase_from(uint16_t at)
 {
-    uint16_t speed, pace;
+    uint16_t speed, pace, px;
     uint8_t set;
 
     if (at == 0xF127u)
@@ -284,7 +284,8 @@ void guard_chase_from(uint16_t at)
 
     /* dx = his x less its own, shifted up through the ranges */
     flag_set(P_C, 1);
-    cpu.a = op_sbc16(rd16(dba(PLAYER_X_AT)), dp16(ACTOR_X + 1), &cpu.p);
+    px = rd16(dba(PLAYER_X_AT));
+    cpu.a = op_sbc16(px, dp16(ACTOR_X + 1), &cpu.p);
     flag_set(P_C, 0);
     cpu.a = op_adc16(cpu.a, 0x0030, &cpu.p);
     cmp16_of(cpu.a, 0x0060);

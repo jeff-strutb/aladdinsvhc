@@ -91,6 +91,7 @@ void abi_BackdropMover(void)
 void abi_KindA3Shot(void)
 {
     uint8_t variant, flags;
+    uint16_t step;
 
     a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
     wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
@@ -109,7 +110,8 @@ void abi_KindA3Shot(void)
     /* it steps out across by its variant's step, then flies */
     cpu.x = (uint8_t)(variant << 1);
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(dba(A3_STEPS) + cpu.x), dp16(ACTOR_X + 1), &cpu.p);
+    step = rd16(dba(A3_STEPS) + cpu.x);
+    cpu.a = op_adc16(step, dp16(ACTOR_X + 1), &cpu.p);
     dp16_set(ACTOR_X + 1, cpu.a);
     a8_load(0x08);
     actor_wait(0x848381u);

@@ -71,8 +71,11 @@ static void pause(uint8_t n, uint32_t brk_at)
 /* A random pick from list (CHAIN_ROUND | CHAIN_ROUND_OR) + base. */
 static void pick(uint8_t base)
 {
+    uint8_t round;
+
     flag_set(P_C, 0);
-    a8_load(op_adc8((uint8_t)(rd8(dba(CHAIN_ROUND)) | rd8(dba(CHAIN_ROUND_OR))), base, &cpu.p));
+    round = rd8(dba(CHAIN_ROUND));
+    a8_load(op_adc8((uint8_t)(round | rd8(dba(CHAIN_ROUND_OR))), base, &cpu.p));
     flag_set(P_C, cpu.a & 0x80);
     a8_load((uint8_t)(cpu.a << 1));
     x8_load((uint8_t)cpu.a);
@@ -84,6 +87,7 @@ static void pick(uint8_t base)
 static void sweep(void)
 {
     uint8_t s, x;
+    uint16_t step;
 
     wr8(dba(HEAD_ANIM), 0);
     a8_load(rd8(dba(FIRST_SWEEPS)));
@@ -114,7 +118,8 @@ static void sweep(void)
             continue;
         op_rep(0x20);
         flag_set(P_C, 0);
-        a16_load(op_adc16(rd16(dba((uint16_t)(SWEEP_STEPS + s))), dp16(ACTOR_X), &cpu.p));
+        step = rd16(dba((uint16_t)(SWEEP_STEPS + s)));
+        a16_load(op_adc16(step, dp16(ACTOR_X), &cpu.p));
         dp16_set(ACTOR_X, cpu.a);
         op_sep(0x20);
         op_xba();

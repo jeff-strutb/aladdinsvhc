@@ -112,6 +112,7 @@ static void part0(void)
 static void part2(void)
 {
     uint8_t at;
+    uint16_t off;
 
     face(0x00);
     a8_load(0x00);
@@ -125,10 +126,12 @@ static void part2(void)
         x8_load(at);
         op_rep(0x20);
         flag_set(P_C, 0);
-        a16_load(op_adc16(rd16(dba((uint16_t)(BESIDE_X + at))), rd16(dba((uint16_t)PLAYER_X)), &cpu.p));
+        off = rd16(dba((uint16_t)(BESIDE_X + at)));
+        a16_load(op_adc16(off, rd16(dba((uint16_t)PLAYER_X)), &cpu.p));
         dp16_set(ACTOR_X + 1, cpu.a);
         flag_set(P_C, 0);
-        a16_load(op_adc16(rd16(dba((uint16_t)(BESIDE_Y + at))), rd16(dba((uint16_t)PLAYER_Y)), &cpu.p));
+        off = rd16(dba((uint16_t)(BESIDE_Y + at)));
+        a16_load(op_adc16(off, rd16(dba((uint16_t)PLAYER_Y)), &cpu.p));
         dp16_set(ACTOR_Y + 1, cpu.a);
         op_sep(0x20);
     }

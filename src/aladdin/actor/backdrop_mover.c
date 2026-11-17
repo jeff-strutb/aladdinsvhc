@@ -33,15 +33,17 @@ void abi_CameraPastX08E8(void);
  */
 void abi_BackdropOffsetStep(void)
 {
-    uint16_t at, n;
+    uint16_t at, n, v;
 
     op_rep(P_M);
     at = (uint16_t)(dp16(ACTOR_FACING) << 2);
     cpu.x = (uint8_t)at;
     flag_set(P_C, 0);
-    cpu.a = op_adc16(rd16(dba(BACKDROP_OFFSET_Y)), rd16(dba(BACKDROP_STEPS) + cpu.x), &cpu.p);
+    v = rd16(dba(BACKDROP_OFFSET_Y));
+    cpu.a = op_adc16(v, rd16(dba(BACKDROP_STEPS) + cpu.x), &cpu.p);
     wr16(dba(BACKDROP_OFFSET_Y), cpu.a);
-    cpu.a = op_adc16(rd16(dba(BACKDROP_OFFSET_Y + 2)), rd16(dba(BACKDROP_STEPS + 2) + cpu.x), &cpu.p);
+    v = rd16(dba(BACKDROP_OFFSET_Y + 2));
+    cpu.a = op_adc16(v, rd16(dba(BACKDROP_STEPS + 2) + cpu.x), &cpu.p);
     wr16(dba(BACKDROP_OFFSET_Y + 2), cpu.a);
     n = (uint16_t)(dp16(ACTOR_40) - 1);
     dp16_set(ACTOR_40, n);

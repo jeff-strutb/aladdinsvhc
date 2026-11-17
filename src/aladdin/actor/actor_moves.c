@@ -35,8 +35,11 @@ void abi_MultiplyBy(void);
  */
 void abi_ActorSpeedUpMove(void)
 {
+    uint8_t v;
+
     flag_set(P_C, 0);
-    wr8(dpa(0x19), op_adc8(rd8(dpa(0x19)), rd8(dpa(0x1C)), &cpu.p));
+    v = rd8(dpa(0x19));
+    wr8(dpa(0x19), op_adc8(v, rd8(dpa(0x1C)), &cpu.p));
     wr8(dpa(0x1A), op_adc8(rd8(dpa(0x1A)), 0x00, &cpu.p));
     a8_load(op_adc8(rd8(dpa(0x1B)), 0x00, &cpu.p));
     wr8(dpa(0x1B), (uint8_t)cpu.a);
@@ -48,7 +51,7 @@ void abi_ActorSpeedUpMove(void)
    to the actor's x and y. Shared with motion.c. */
 void actor_scale_and_move(uint8_t speed)
 {
-    uint8_t a;
+    uint8_t a, v;
 
     wr8(dba((uint16_t)WRMPYA), speed);
     a8_load(rd8(dba(SCRATCH)));
@@ -67,13 +70,19 @@ void actor_scale_and_move(uint8_t speed)
     flag_set(P_C, 0);
     wr8(dba(SCRATCH + 5), op_adc8((uint8_t)cpu.y, rd8(dba(SCRATCH + 5)), &cpu.p));
     flag_set(P_C, 0);
-    wr8(dpa(0x0B), op_adc8(rd8(dpa(0x0B)), rd8(dba(SCRATCH)), &cpu.p));
-    wr8(dpa(0x0C), op_adc8(rd8(dpa(0x0C)), rd8(dba(SCRATCH + 1)), &cpu.p));
-    wr8(dpa(0x0D), op_adc8(rd8(dpa(0x0D)), rd8(dba(SCRATCH + 2)), &cpu.p));
+    v = rd8(dpa(0x0B));
+    wr8(dpa(0x0B), op_adc8(v, rd8(dba(SCRATCH)), &cpu.p));
+    v = rd8(dpa(0x0C));
+    wr8(dpa(0x0C), op_adc8(v, rd8(dba(SCRATCH + 1)), &cpu.p));
+    v = rd8(dpa(0x0D));
+    wr8(dpa(0x0D), op_adc8(v, rd8(dba(SCRATCH + 2)), &cpu.p));
     flag_set(P_C, 0);
-    wr8(dpa(0x0E), op_adc8(rd8(dpa(0x0E)), rd8(dba(SCRATCH + 4)), &cpu.p));
-    wr8(dpa(0x0F), op_adc8(rd8(dpa(0x0F)), rd8(dba(SCRATCH + 5)), &cpu.p));
-    a = op_adc8(rd8(dpa(0x10)), rd8(dba(SCRATCH + 6)), &cpu.p);
+    v = rd8(dpa(0x0E));
+    wr8(dpa(0x0E), op_adc8(v, rd8(dba(SCRATCH + 4)), &cpu.p));
+    v = rd8(dpa(0x0F));
+    wr8(dpa(0x0F), op_adc8(v, rd8(dba(SCRATCH + 5)), &cpu.p));
+    v = rd8(dpa(0x10));
+    a = op_adc8(v, rd8(dba(SCRATCH + 6)), &cpu.p);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     wr8(dpa(0x10), a);
     op_sep(0x30);

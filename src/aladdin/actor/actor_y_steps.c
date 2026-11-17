@@ -38,9 +38,12 @@ void abi_ActorYByFrame47(void)
     a8_load(frame);
     cmp8_of(frame, was);
     if (frame != was) {                   /* a new frame: its y step */
+        uint16_t step;
+
         cpu.x = (uint8_t)(frame << 1);
         op_rep(0x21);
-        cpu.a = op_adc16(rd16(dba(FRAME_Y_STEPS_47) + cpu.x), dp16(ACTOR_Y + 1), &cpu.p);
+        step = rd16(dba(FRAME_Y_STEPS_47) + cpu.x);
+        cpu.a = op_adc16(step, dp16(ACTOR_Y + 1), &cpu.p);
         dp16_set(ACTOR_Y + 1, cpu.a);
         op_sep(P_M);
         a8_load(frame);
@@ -59,10 +62,12 @@ static void bob_step(uint8_t step)
     cpu.x = (uint8_t)(step << 2);
     op_rep(P_M);
     flag_set(P_C, 0);
-    y = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(BOB_STEPS) + cpu.x), &cpu.p);
+    y = dp16(ACTOR_Y + 1);
+    y = op_adc16(y, rd16(dba(BOB_STEPS) + cpu.x), &cpu.p);
     dp16_set(ACTOR_Y + 1, y);
     op_sep(P_M);
-    top = op_adc8(rd8(dpa(ACTOR_Y + 2)), rd8(dba(BOB_STEPS + 2) + cpu.x), &cpu.p);
+    top = rd8(dpa(ACTOR_Y + 2));
+    top = op_adc8(top, rd8(dba(BOB_STEPS + 2) + cpu.x), &cpu.p);
     wr8(dpa(ACTOR_Y + 2), top);
     cpu.a = (uint16_t)((y & 0xFF00) | top);
 }

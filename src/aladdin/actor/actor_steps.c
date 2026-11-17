@@ -41,8 +41,9 @@ void abi_PlayerLandOnActor(void);
  */
 void abi_ActorRiseAfterDelay(void)
 {
-    uint8_t delay = (uint8_t)(rd8(dpa(ACTOR_47)) | rd8(dpa(ACTOR_48))), speed;
+    uint8_t delay = rd8(dpa(ACTOR_47)), speed;
 
+    delay = (uint8_t)(delay | rd8(dpa(ACTOR_48)));
     a8_load(delay);
     if (delay) {                          /* still waiting: the count down */
         uint16_t n = (uint16_t)(dp16(ACTOR_47) - 1);
@@ -76,10 +77,13 @@ void abi_ActorYByFrame(void)
     y8_load(frame);
     cmp8_of(frame, was);
     if (frame != was) {                   /* a new frame: its y step */
+        uint16_t y;
+
         cpu.x = (uint8_t)(frame << 1);
         a8_load((uint8_t)cpu.x);
         flag_set(P_C, 0);
-        cpu.a = op_adc16(dp16(ACTOR_Y + 1), rd16(dba(FRAME_Y_STEPS) + cpu.x), &cpu.p);
+        y = dp16(ACTOR_Y + 1);
+        cpu.a = op_adc16(y, rd16(dba(FRAME_Y_STEPS) + cpu.x), &cpu.p);
         dp16_set(ACTOR_Y + 1, cpu.a);
     }
     wr8(dpa(ACTOR_49), frame);

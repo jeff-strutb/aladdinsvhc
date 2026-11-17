@@ -30,7 +30,8 @@ void abi_BackdropDriftDown(void)
     uint16_t low;
 
     flag_set(P_C, 1);
-    low = op_sbc16(rd16(dba(BACK_Y_OFFSET)), dp16(DRIFT_SPEED), &cpu.p);
+    low = rd16(dba(BACK_Y_OFFSET));
+    low = op_sbc16(low, dp16(DRIFT_SPEED), &cpu.p);
     wr16(dba(BACK_Y_OFFSET), low);
     cpu.a = op_sbc16(rd16(dba(BACK_Y_OFFSET + 2)), 0x0000, &cpu.p);
     wr16(dba(BACK_Y_OFFSET + 2), cpu.a);
@@ -50,7 +51,8 @@ void abi_BackdropDriftUp(void)
     uint16_t low;
 
     flag_set(P_C, 0);
-    low = op_adc16(rd16(dba(BACK_Y_OFFSET)), dp16(DRIFT_SPEED), &cpu.p);
+    low = rd16(dba(BACK_Y_OFFSET));
+    low = op_adc16(low, dp16(DRIFT_SPEED), &cpu.p);
     wr16(dba(BACK_Y_OFFSET), low);
     cpu.a = op_adc16(rd16(dba(BACK_Y_OFFSET + 2)), 0x0000, &cpu.p);
     wr16(dba(BACK_Y_OFFSET + 2), cpu.a);

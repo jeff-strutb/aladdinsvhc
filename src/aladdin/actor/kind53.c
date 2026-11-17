@@ -106,6 +106,7 @@ void abi_Kind53Held(void)
 {
     uint32_t holder;
     uint8_t v;
+    uint16_t at;
 
     a8_load(0x03);
     wr8(dpa(ACTOR_08), 0x03);
@@ -144,10 +145,12 @@ void abi_Kind53Held(void)
         op_rep(0x11);
         cpu.x = dp16(KIND53_HOLDER);
         holder = dba(0) + cpu.x;
-        cpu.a = op_adc16(rd16(holder + ACTOR_X + 1), dp16(ACTOR_X + 1), &cpu.p);
+        at = rd16(holder + ACTOR_X + 1);
+        cpu.a = op_adc16(at, dp16(ACTOR_X + 1), &cpu.p);
         dp16_set(ACTOR_X + 1, cpu.a);
         flag_set(P_C, 0);
-        cpu.a = op_adc16(rd16(holder + ACTOR_Y + 1), dp16(ACTOR_Y + 1), &cpu.p);
+        at = rd16(holder + ACTOR_Y + 1);
+        cpu.a = op_adc16(at, dp16(ACTOR_Y + 1), &cpu.p);
         dp16_set(ACTOR_Y + 1, cpu.a);
         op_sep(P_M);
         v = rd8(holder + KIND53_LET_GO);

@@ -190,7 +190,8 @@ static void kind63_from(int at)
                 nz16_of(cpu.a);
                 wr16(dba(SIDE), cpu.a);
                 flag_set(P_C, 0);
-                d = op_adc16(dp16(ACTOR_Y + 1), rd16(dba((uint16_t)(REACH_Y + i))), &cpu.p);
+                d = dp16(ACTOR_Y + 1);
+                d = op_adc16(d, rd16(dba((uint16_t)(REACH_Y + i))), &cpu.p);
                 flag_set(P_C, 1);
                 cpu.a = op_sbc16(d, rd16(dba(PLAYER_Y_AT)), &cpu.p);
                 op_sep(0x20);

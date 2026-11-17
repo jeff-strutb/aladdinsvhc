@@ -217,10 +217,15 @@ void abi_PlatformDipWaitOff(void)
  */
 void abi_PlatformDipStep(void)
 {
+    uint8_t v;
+
     flag_set(P_C, 0);
-    wr8(dpa(DIP), op_adc8(rd8(dba((uint16_t)(DIP_RATES + cpu.x))), rd8(dpa(DIP)), &cpu.p));
-    wr8(dpa(DIP + 1), op_adc8(rd8(dba((uint16_t)(DIP_RATES + 1 + cpu.x))), rd8(dpa(DIP + 1)), &cpu.p));
-    a8_load(op_adc8(rd8(dba((uint16_t)(DIP_RATES + 2 + cpu.x))), rd8(dpa(DIP + 2)), &cpu.p));
+    v = rd8(dba((uint16_t)(DIP_RATES + cpu.x)));
+    wr8(dpa(DIP), op_adc8(v, rd8(dpa(DIP)), &cpu.p));
+    v = rd8(dba((uint16_t)(DIP_RATES + 1 + cpu.x)));
+    wr8(dpa(DIP + 1), op_adc8(v, rd8(dpa(DIP + 1)), &cpu.p));
+    v = rd8(dba((uint16_t)(DIP_RATES + 2 + cpu.x)));
+    a8_load(op_adc8(v, rd8(dpa(DIP + 2)), &cpu.p));
     wr8(dpa(DIP + 2), (uint8_t)cpu.a);
 }
 
@@ -251,11 +256,15 @@ void abi_PlatformPositionKeep(void)
  */
 void abi_PlatformMoveMeasure(void)
 {
+    uint16_t v;
+
     op_rep(P_M);
     flag_set(P_C, 1);
-    dp16_set(MOVED_X, op_sbc16(dp16(ACTOR_X + 1), dp16(LAST_X), &cpu.p));
+    v = dp16(ACTOR_X + 1);
+    dp16_set(MOVED_X, op_sbc16(v, dp16(LAST_X), &cpu.p));
     flag_set(P_C, 1);
-    cpu.a = op_sbc16(dp16(ACTOR_Y + 1), dp16(LAST_Y), &cpu.p);
+    v = dp16(ACTOR_Y + 1);
+    cpu.a = op_sbc16(v, dp16(LAST_Y), &cpu.p);
     dp16_set(MOVED_Y, cpu.a);
     op_sep(P_M);
 }
@@ -789,7 +798,7 @@ void abi_PlatformCourseFaster(void)
  */
 void abi_PlatformDipUpdate(void)
 {
-    uint8_t phase = rd8(dpa(0x13));
+    uint8_t phase = rd8(dpa(0x13)), v;
 
     /* the dip phase's step; then its y = its base y plus the dip */
     a8_load(phase);
@@ -797,9 +806,12 @@ void abi_PlatformDipUpdate(void)
     x8_load((uint8_t)(phase << 1));
     call_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xCC34 + cpu.x)), 0);
     flag_set(P_C, 0);
-    wr8(dpa(0x0E), op_adc8(rd8(dpa(0x4D)), rd8(dpa(0x4A)), &cpu.p));
-    wr8(dpa(0x0F), op_adc8(rd8(dpa(0x4E)), rd8(dpa(0x4B)), &cpu.p));
-    a8_load(op_adc8(rd8(dpa(0x4F)), rd8(dpa(0x4C)), &cpu.p));
+    v = rd8(dpa(0x4D));
+    wr8(dpa(0x0E), op_adc8(v, rd8(dpa(0x4A)), &cpu.p));
+    v = rd8(dpa(0x4E));
+    wr8(dpa(0x0F), op_adc8(v, rd8(dpa(0x4B)), &cpu.p));
+    v = rd8(dpa(0x4F));
+    a8_load(op_adc8(v, rd8(dpa(0x4C)), &cpu.p));
     wr8(dpa(0x10), (uint8_t)cpu.a);
 }
 
