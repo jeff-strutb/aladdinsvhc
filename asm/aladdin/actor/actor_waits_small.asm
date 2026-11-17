@@ -14,6 +14,24 @@ incsrc "../include/actor_anim.inc"
 arch 65816
 
 !WAIT_HITS = $42  ; counted up each frame a shot does not down it
+!KIND28_STOMPS = $45  ; kind $28: nonzero, it is stomped or hurts; zero, it bounces the player
+!KIND28_RIGHT = $46   ; kind $28: counted up each frame it faces right
+!V_032D_WS = $032D    ; counted each frame (its bit 0: odd or even)
+!KIND37_FREE = $45    ; kinds $37/$38: nonzero, it ends as other actors do
+!KIND37_HIT = $46     ; 1 bounced, 2 downed by a shot
+!KIND37_MAKER = $4C   ; the record that made it (word)
+!KIND37_PARTNER = $4E ; the record it is freed with (word)
+!KIND37_MAKER_COUNT = $004B ; in its maker's record: its count of these
+!ACTOR_27_WS = $27   ; the picture its animation shows, as AnimStep sets it
+!KIND2A_BOB = $49     ; kind $2A: nonzero, it bobs with its animation
+!KIND2A_FRAME = $4A   ; kind $2A: the frame it last bobbed on
+!KIND2A_UP = $4B      ; kind $2A: nonzero after frame 6, frame 5 then moves it down
+!KIND2A_RIGHT = $4C   ; kind $2A: counted when downed facing right
+!KIND2A_STILL = $47   ; kind $2A: nonzero, no animation, touch or shot test
+!KIND2A_HITS = $48    ; kind $2A: counted when downed by a shot
+!KIND3B_REST_Y = $4A  ; kind $3B: the y pixels it rises back to (word)
+!KIND3B_RISE = $40    ; kind $3B: how far below them it is (low byte)
+!KIND3B_LIFT_STEP = $44 ; kind $3B: ActorLiftPlayerStep's step
 
 ; Kind $69's end: what it sets in the escort's record, and its count.
 !ESCORT_CODE = !actor_escort+!actor_03   ; where the escort's code goes on (word)
@@ -355,3 +373,301 @@ Kind8AWait:
     jsl.l AnimStep
     ldx.b #$00
     jmp.w ActorEndOutOfRange
+
+; @routine 83:A1BD Kind28Wait
+; WHAT IT DOES: Kind $28's wait: animates; downed by shots; counts the
+; frames it faces right; stomped or hurting as touched, or with its $45
+; clear it bounces the player and, when it does (no script has it), it
+; is downed itself (state $8C, its per-frame routine off); ended when out
+; of range (box 8).
+; HOW: AnimStep; ActorDownedByShot; its facing not negative: $46 up. $45
+; set: ActorStompOrHurt; else ActorBouncesPlayer, Z clear: bit 7 of $09
+; cleared, state $8C. Then ActorEndOutOfRange with X = 8.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Exit: as ActorEndOutOfRange.
+%at($83A1BD)
+Kind28Wait:
+    jsl.l AnimStep
+    jsr.w ActorDownedByShot
+    lda.b !actor_facing
+    bmi .stomp
+    inc.b !KIND28_RIGHT
+.stomp:
+    lda.b !KIND28_STOMPS
+    beq .bounce
+    jsr.w ActorStompOrHurt
+    bra .range
+.bounce:
+    jsr.w ActorBouncesPlayer
+    beq .range
+    lda.b #$80
+    trb.b !actor_09
+    lda.b #$8C
+    sta.b !actor_state
+.range:
+    ldx.b #$08
+    jmp.w ActorEndOutOfRange
+
+; @routine 83:B11C Kind3CWait
+; WHAT IT DOES: Kind $3C's wait: drifts across, turning round on odd
+; frames of $032D clear (no script has it); while high on the screen
+; (its y pixel low byte below $D4) it bounces the player, with sound $12,
+; and then turns its rise into a fall (no script has that); ended once
+; left behind.
+; HOW: $032D bit 0 clear: its facing flipped. ActorMoveX. Its $0F below
+; $D4: ActorBouncesPlayer, Z clear: SoundQueueAdd $12; its speed y high
+; byte negative: KIND3C_LEG = $55 less KIND3C_LEG, ActorSpeedYTurn. Then JML
+; ActorEndIfLeftBehind.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Exit: as ActorEndIfLeftBehind.
+%at($83B11C)
+Kind3CWait:
+    lda.w !V_032D_WS
+    bit.b #$01
+    bne .move
+    lda.b !actor_facing
+    eor.b #$01
+    sta.b !actor_facing
+.move:
+    jsl.l ActorMoveX
+    lda.b !actor_y+1
+    cmp.b #$D4
+    bcs .tail
+    jsr.w ActorBouncesPlayer
+    beq .tail
+    lda.b #$12
+    jsl.l SoundQueueAdd
+    lda.b !actor_speed_y+2
+    bpl .tail
+    sec
+    lda.b #$55
+    sbc.b !KIND3C_LEG
+    sta.b !KIND3C_LEG
+    jsr.w ActorSpeedYTurn
+.tail:
+    jml.l ActorEndIfLeftBehind
+
+; @routine 83:BD22 Kind37Wait
+; WHAT IT DOES: The wait of kinds $37 and $38: bounces or hurts the player
+; (bounced: it is downed, state $8C, no script has it); downed by shots
+; (KIND37_HIT = 2, no script has it); animates; kind $38, or kind $37 with
+; KIND37_FREE set, ends out of range (box $10); kind $37 with KIND37_FREE
+; clear, once out of range, frees its partner (KIND37_PARTNER) and counts
+; its maker's $4B down, then ends (no script has that).
+; HOW: The test of $07 bit 0 branches to the next instruction either way.
+; ActorBouncesOrHurtsPlayer; A = 1: state bits $8C set, bit 7 of $09
+; cleared, KIND37_HIT = 1. ActorDownedByShot, C clear: KIND37_HIT = 2.
+; AnimStep. Kind not $38: ActorEndOutOfRange with X = 0. Else X = $10;
+; KIND37_FREE set: ActorEndOutOfRange; clear: ActorInRange, in range
+; back; out: ActorFreePlacedAtY with Y = KIND37_PARTNER, its maker's
+; $4B ($4B,X with X = KIND37_MAKER) down by one; its return dropped and
+; into ActorEndPlaced (by the code at $83:96C6).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind
+; (also the start entry of kind $37 in the table at $83:8CAB). Exit: as
+; ActorEndOutOfRange; in range: as ActorInRange; ended: no return.
+%at($83BD22)
+Kind37Wait:
+    lda.b !actor_07
+    and.b #$01
+    bne .test
+.test:
+    jsr.w ActorBouncesOrHurtsPlayer
+    dec a
+    bne .shot
+    lda.b #$8C
+    tsb.b !actor_state
+    lda.b #$80
+    trb.b !actor_09
+    lda.b #$01
+    sta.b !KIND37_HIT
+.shot:
+    jsr.w ActorDownedByShot
+    bcs .anim
+    lda.b #$02
+    sta.b !KIND37_HIT
+.anim:
+    jsl.l AnimStep
+    lda.b !actor_06
+    cmp.b #$38
+    beq .kind38
+    ldx.b #$00
+    jmp.w ActorEndOutOfRange
+.kind38:
+    ldx.b #$10
+    lda.b !KIND37_FREE
+    beq .own
+    jmp.w ActorEndOutOfRange
+.own:
+    jsr.w ActorInRange
+    bcs .far
+    rts
+.far:
+    rep.b #$10
+    ldy.b !KIND37_PARTNER
+    jsr.w ActorFreePlacedAtY
+    ldx.b !KIND37_MAKER
+    dec.w !KIND37_MAKER_COUNT,x
+    sep.b #$10
+    jmp.w ActorEndOutOfRange_end
+
+; @routine 83:A413 Kind2AWait
+; WHAT IT DOES: Kind $2A's wait: while KIND2A_BOB is set it bobs with its
+; animation (3 down on frame 4, 2 up or down on frame 5, 3 up on frame
+; 6); unless KIND2A_STILL is set it animates, is stomped or hurts, and
+; when downed by a shot (no script has it) counts KIND2A_HITS, and
+; KIND2A_RIGHT when it faces right; ended when out of range (box 8).
+; HOW: KIND2A_BOB set: X 16-bit = its y pixels; its frame ($27) unlike
+; KIND2A_FRAME: kept, then frame 4: y + 3, KIND2A_UP = 0; frame 5: y - 2
+; with KIND2A_UP clear, else + 2; frame 6: y - 3, KIND2A_UP up; the y
+; stored. KIND2A_STILL clear: AnimStep, ActorStompOrHurt,
+; ActorDownedByShot; C clear: facing not negative, KIND2A_RIGHT up;
+; KIND2A_HITS up. Then ActorEndOutOfRange with X = 8.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Exit: as ActorEndOutOfRange.
+%at($83A413)
+Kind2AWait:
+    lda.b !KIND2A_BOB
+    beq .still
+    rep.b #$10
+    ldx.b !actor_y+1
+    lda.b !ACTOR_27_WS
+    cmp.b !KIND2A_FRAME
+    beq .kept
+    sta.b !KIND2A_FRAME
+    sec
+    sbc.b #$04
+    bne .frame5
+    inx
+    inx
+    inx
+    stz.b !KIND2A_UP
+    bra .store
+.frame5:
+    dec a
+    bne .frame6
+    lda.b !KIND2A_UP
+    bne .down
+    dex
+    dex
+    bra .store
+.down:
+    inx
+    inx
+    bra .store
+.frame6:
+    dec a
+    bne .kept
+    dex
+    dex
+    dex
+    inc.b !KIND2A_UP
+.store:
+    stx.b !actor_y+1
+.kept:
+    sep.b #$10
+.still:
+    lda.b !KIND2A_STILL
+    bne .range
+    jsl.l AnimStep
+    jsr.w ActorStompOrHurt
+    jsr.w ActorDownedByShot
+    bcs .range
+    lda.b !actor_facing
+    bmi .hit
+    inc.b !KIND2A_RIGHT
+.hit:
+    inc.b !KIND2A_HITS
+.range:
+    ldx.b #$08
+    jmp.w ActorEndOutOfRange
+
+; @routine 83:C21C Kind3BWait
+; WHAT IT DOES: Kind $3B's wait, by its $07: bit 4 set, it rises back to
+; KIND3B_REST_Y, carrying the player while it lifts him; bit 3 set, it
+; animates and, once out of range, sets its level flag; else it lifts
+; the player when he lands on it, and variant 2 stays while another
+; actor shares its tile slot; ended when out of range (box $18).
+; HOW: Bit 4: its y less KIND3B_REST_Y (below it: put at it, 0; no script
+; has that) in KIND3B_RISE; LIFT_STEP positive: below $10, speed entry
+; $5D, ActorMoveY and PlayerToActorBelow with A = 3; else KIND3B_RISE
+; nonzero: speed entry $5A, ActorMoveY. Then AnimStep and ActorFreeOut-
+; OfRange with X = $18. Bit 3: AnimStep, ActorFreeOutOfRange with X =
+; $18; freed: LevelFlagFromMask with X = $07 & 7. Else: $4C = $1E,
+; ActorTestCarries with X = 2, ActorLiftPlayerStep; variant 2 with its
+; tile slot's users not 1: back; else ActorFreeOutOfRange with X = $18.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+; from the actor loop (83:94D0) each frame the actor waits, by its kind.
+; Exit: as ActorFreeOutOfRange, LevelFlagFromMask or ActorLiftPlayerStep.
+%at($83C21C)
+Kind3BWait:
+    lda.b !actor_07
+    bit.b #$10
+    bne .rise
+    bit.b #$08
+    beq .lift
+    jsl.l AnimStep
+    ldx.b #$18
+    jsr.w ActorFreeOutOfRange
+    bcc .back
+    lda.b !actor_07
+    and.b #$07
+    tax
+    jsr.w LevelFlagFromMask
+.back:
+    rts
+.lift:
+    lda.b #$1E
+    sta.b !actor_4c
+    ldx.b #$02
+    jsr.w ActorTestCarries
+    ldx.b #$02
+    jsr.w ActorLiftPlayerStep
+    lda.b !actor_07
+    cmp.b #$02
+    bne .range
+    ldy.b !actor_tile_slot
+    lda.w !actor_tile_slot_users,y
+    dec a
+    beq .range
+    rts
+.range:
+    ldx.b #$18
+    jmp.w ActorFreeOutOfRange
+.rise:
+    rep.b #$20
+    sec
+    lda.b !actor_y+1
+    sbc.b !KIND3B_REST_Y
+    bcs .above
+    lda.b !KIND3B_REST_Y
+    sta.b !actor_y+1
+    lda.w #$0000
+.above:
+    sep.b #$20
+    sta.b !KIND3B_RISE
+    lda.b !KIND3B_LIFT_STEP
+    beq .free
+    bmi .free
+    lda.b !KIND3B_RISE
+    cmp.b #$10
+    bcs .anim
+    ldy.b #$5D
+    jsl.l ActorSpeedYSet
+    jsl.l ActorMoveY
+    lda.b #$03
+    jsl.l PlayerToActorBelow
+    bra .anim
+.free:
+    lda.b !KIND3B_RISE
+    beq .anim
+    ldy.b #$5A
+    jsl.l ActorSpeedYSet
+    jsl.l ActorMoveY
+.anim:
+    jsl.l AnimStep
+    ldx.b #$18
+    jmp.w ActorFreeOutOfRange

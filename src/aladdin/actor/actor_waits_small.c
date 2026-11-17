@@ -32,8 +32,38 @@ void abi_SoundQueueAdd(void);
 void abi_ActorHitsTestBoxIfPlayerFreeLong(void);
 void abi_PlayerEnter8CFacingLong(void);
 void abi_ActorFlyAgainst(void);
+void abi_ActorBouncesPlayer(void);
+void abi_ActorBouncesOrHurtsPlayer(void);
+void abi_ActorInRange(void);
+void abi_ActorFreePlacedAtY(void);
+void abi_ActorMoveX(void);
+void abi_ActorEndIfLeftBehind(void);
+void abi_ActorFreeOutOfRange(void);
+void abi_LevelFlagFromMask(void);
+void abi_ActorTestCarries(void);
+void abi_ActorLiftPlayerStep(void);
+void abi_ActorMoveY(void);
+void abi_PlayerToActorBelow(void);
 
 #define WAIT_HITS 0x42u  /* counted up each frame a shot does not down it */
+#define KIND28_STOMPS 0x45u   /* kind $28: nonzero, it is stomped or hurts; zero, it bounces the player */
+#define KIND28_RIGHT 0x46u    /* kind $28: counted up each frame it faces right */
+#define FRAME_COUNT_32D 0x00032Du /* counted each frame (its bit 0: odd or even) */
+#define KIND37_FREE 0x45u     /* kinds $37/$38: nonzero, it ends as other actors do */
+#define KIND37_HIT 0x46u      /* 1 bounced, 2 downed by a shot */
+#define KIND37_MAKER 0x4Cu    /* the record that made it (word) */
+#define KIND37_PARTNER 0x4Eu  /* the record it is freed with (word) */
+#define KIND37_MAKER_COUNT 0x004Bu /* in its maker's record: its count of these */
+#define ACTOR_27 0x27u        /* the picture its animation shows, as AnimStep sets it */
+#define KIND2A_BOB 0x49u      /* kind $2A: nonzero, it bobs with its animation */
+#define KIND2A_FRAME 0x4Au    /* kind $2A: the frame it last bobbed on */
+#define KIND2A_UP 0x4Bu       /* kind $2A: nonzero after frame 6, frame 5 then moves it down */
+#define KIND2A_RIGHT 0x4Cu    /* kind $2A: counted when downed facing right */
+#define KIND2A_STILL 0x47u    /* kind $2A: nonzero, no animation, touch or shot test */
+#define KIND2A_HITS 0x48u     /* kind $2A: counted when downed by a shot */
+#define KIND3B_REST_Y 0x4Au   /* kind $3B: the y pixels it rises back to (word) */
+#define KIND3B_RISE 0x40u     /* kind $3B: how far below them it is (low byte) */
+#define KIND3B_LIFT_STEP 0x44u /* kind $3B: ActorLiftPlayerStep's step */
 
 /* Kind $69's end: what it sets in the escort's record, and its count */
 #define ESCORT_CODE (ACTOR_ESCORT + ACTOR_03)  /* where the escort's code goes on (word) */
@@ -417,4 +447,321 @@ void abi_Kind8AWait(void)
     abi_AnimStep();
     x8_load(0x00);
     abi_ActorEndOutOfRange();
+}
+
+/*
+ * @routine 83:A1BD Kind28Wait
+ * WHAT IT DOES: Kind $28's wait: animates; downed by shots; counts the
+ * frames it faces right; stomped or hurting as touched, or with its $45
+ * clear it bounces the player and, when it does (no script has it), it
+ * is downed itself (state $8C, its per-frame routine off); ended when out
+ * of range (box 8).
+ * HOW: AnimStep; ActorDownedByShot; its facing not negative: $46 up. $45
+ * set: ActorStompOrHurt; else ActorBouncesPlayer, Z clear: bit 7 of $09
+ * cleared, state $8C. Then ActorEndOutOfRange with X = 8.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Exit: as ActorEndOutOfRange.
+ */
+void abi_Kind28Wait(void)
+{
+    abi_AnimStep();  /* 83A1BD jsl */
+    abi_ActorDownedByShot();  /* 83A1C1 jsr */
+    lda8(ea_dp(ACTOR_FACING));  /* 83A1C4 lda */
+    if (IF_N) goto L_83A1CA;  /* 83A1C6 bmi */
+    MEM8(inc, ea_dp(KIND28_RIGHT));  /* 83A1C8 inc */
+L_83A1CA:
+    lda8(ea_dp(KIND28_STOMPS));  /* 83A1CA lda */
+    if (IF_Z) goto L_83A1D3;  /* 83A1CC beq */
+    abi_ActorStompOrHurt();  /* 83A1CE jsr */
+    goto L_83A1E0;  /* 83A1D1 bra */
+L_83A1D3:
+    abi_ActorBouncesPlayer();  /* 83A1D3 jsr */
+    if (IF_Z) goto L_83A1E0;  /* 83A1D6 beq */
+    lda8_v(0x80);  /* 83A1D8 lda */
+    trb8(ea_dp(ACTOR_09));  /* 83A1DA trb */
+    lda8_v(0x8C);  /* 83A1DC lda */
+    sta8(ea_dp(ACTOR_STATE));  /* 83A1DE sta */
+L_83A1E0:
+    ldx8_v(0x08);  /* 83A1E0 ldx */
+    abi_ActorEndOutOfRange();  /* 83A1E2 jmp */
+}
+
+/*
+ * @routine 83:B11C Kind3CWait
+ * WHAT IT DOES: Kind $3C's wait: drifts across, turning round on odd
+ * frames of $032D clear (no script has it); while high on the screen
+ * (its y pixel low byte below $D4) it bounces the player, with sound $12,
+ * and then turns its rise into a fall (no script has that); ended once
+ * left behind.
+ * HOW: $032D bit 0 clear: its facing flipped. ActorMoveX. Its $0F below
+ * $D4: ActorBouncesPlayer, Z clear: SoundQueueAdd $12; its speed y high
+ * byte negative: KIND3C_LEG = $55 less KIND3C_LEG, ActorSpeedYTurn. Then JML
+ * ActorEndIfLeftBehind.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Exit: as ActorEndIfLeftBehind.
+ */
+void abi_Kind3CWait(void)
+{
+    lda8(ea_abs(FRAME_COUNT_32D));  /* 83B11C lda */
+    bit8_i(0x01);  /* 83B11F bit */
+    if (!IF_Z) goto L_83B129;  /* 83B121 bne */
+    lda8(ea_dp(ACTOR_FACING));  /* 83B123 lda */
+    eor8_v(0x01);  /* 83B125 eor */
+    sta8(ea_dp(ACTOR_FACING));  /* 83B127 sta */
+L_83B129:
+    abi_ActorMoveX();  /* 83B129 jsl */
+    lda8(ea_dp(ACTOR_Y + 1));  /* 83B12D lda */
+    cmp8_v(0xD4);  /* 83B12F cmp */
+    if (IF_C) goto L_83B14C;  /* 83B131 bcs */
+    abi_ActorBouncesPlayer();  /* 83B133 jsr */
+    if (IF_Z) goto L_83B14C;  /* 83B136 beq */
+    lda8_v(0x12);  /* 83B138 lda */
+    abi_SoundQueueAdd();  /* 83B13A jsl */
+    lda8(ea_dp(ACTOR_SPEED_Y + 2));  /* 83B13E lda */
+    if (!IF_N) goto L_83B14C;  /* 83B140 bpl */
+    sec();  /* 83B142 sec */
+    lda8_v(0x55);  /* 83B143 lda */
+    sbc8_v(rd8(ea_dp(KIND3C_LEG)));  /* 83B145 sbc */
+    sta8(ea_dp(KIND3C_LEG));  /* 83B147 sta */
+    abi_ActorSpeedYTurn();  /* 83B149 jsr */
+L_83B14C:
+    abi_ActorEndIfLeftBehind();  /* 83B14C jml */
+}
+
+/*
+ * @routine 83:BD22 Kind37Wait
+ * WHAT IT DOES: The wait of kinds $37 and $38: bounces or hurts the player
+ * (bounced: it is downed, state $8C, no script has it); downed by shots
+ * (KIND37_HIT = 2, no script has it); animates; kind $38, or kind $37 with
+ * KIND37_FREE set, ends out of range (box $10); kind $37 with KIND37_FREE
+ * clear, once out of range, frees its partner (KIND37_PARTNER) and counts
+ * its maker's $4B down, then ends (no script has that).
+ * HOW: The test of $07 bit 0 branches to the next instruction either way.
+ * ActorBouncesOrHurtsPlayer; A = 1: state bits $8C set, bit 7 of $09
+ * cleared, KIND37_HIT = 1. ActorDownedByShot, C clear: KIND37_HIT = 2.
+ * AnimStep. Kind not $38: ActorEndOutOfRange with X = 0. Else X = $10;
+ * KIND37_FREE set: ActorEndOutOfRange; clear: ActorInRange, in range
+ * back; out: ActorFreePlacedAtY with Y = KIND37_PARTNER, its maker's
+ * $4B ($4B,X with X = KIND37_MAKER) down by one; its return dropped and
+ * into ActorEndPlaced (by the code at $83:96C6).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind
+ * (also the start entry of kind $37 in the table at $83:8CAB). Exit: as
+ * ActorEndOutOfRange; in range: as ActorInRange; ended: no return.
+ */
+void abi_Kind37Wait(void)
+{
+    lda8(ea_dp(ACTOR_07));  /* 83BD22 lda */
+    and8_v(0x01);  /* 83BD24 and; 83BD26 bne to the next instruction */
+    abi_ActorBouncesOrHurtsPlayer();  /* 83BD28 jsr */
+    ACC8(dec);  /* 83BD2B dec */
+    if (!IF_Z) goto L_83BD3A;  /* 83BD2C bne */
+    lda8_v(0x8C);  /* 83BD2E lda */
+    tsb8(ea_dp(ACTOR_STATE));  /* 83BD30 tsb */
+    lda8_v(0x80);  /* 83BD32 lda */
+    trb8(ea_dp(ACTOR_09));  /* 83BD34 trb */
+    lda8_v(0x01);  /* 83BD36 lda */
+    sta8(ea_dp(KIND37_HIT));  /* 83BD38 sta */
+L_83BD3A:
+    abi_ActorDownedByShot();  /* 83BD3A jsr */
+    if (IF_C) goto L_83BD43;  /* 83BD3D bcs */
+    lda8_v(0x02);  /* 83BD3F lda */
+    sta8(ea_dp(KIND37_HIT));  /* 83BD41 sta */
+L_83BD43:
+    abi_AnimStep();  /* 83BD43 jsl */
+    lda8(ea_dp(ACTOR_06));  /* 83BD47 lda */
+    cmp8_v(0x38);  /* 83BD49 cmp */
+    if (IF_Z) goto L_83BD52;  /* 83BD4B beq */
+    ldx8_v(0x00);  /* 83BD4D ldx */
+    abi_ActorEndOutOfRange();  /* 83BD4F jmp */
+    return;
+L_83BD52:
+    ldx8_v(0x10);  /* 83BD52 ldx */
+    lda8(ea_dp(KIND37_FREE));  /* 83BD54 lda */
+    if (IF_Z) goto L_83BD5B;  /* 83BD56 beq */
+    abi_ActorEndOutOfRange();  /* 83BD58 jmp */
+    return;
+L_83BD5B:
+    abi_ActorInRange();  /* 83BD5B jsr */
+    if (IF_C) goto L_83BD61;  /* 83BD5E bcs */
+    return;  /* 83BD60 rts */
+L_83BD61:
+    op_rep(0x10);  /* 83BD61 rep */
+    ldy16(ea_dp(KIND37_PARTNER));  /* 83BD63 ldy */
+    abi_ActorFreePlacedAtY();  /* 83BD65 jsr */
+    ldx16(ea_dp(KIND37_MAKER));  /* 83BD68 ldx */
+    MEM8(dec, ea_absx(KIND37_MAKER_COUNT));  /* 83BD6A dec */
+    op_sep(0x10);  /* 83BD6D sep */
+    /* 83BD6F jmp $96C6: SEP #$30, the return dropped, into ActorEndPlaced */
+    op_sep(0x30);
+    pla8();
+    pla8();
+    abi_ActorEndPlaced();
+}
+
+/*
+ * @routine 83:A413 Kind2AWait
+ * WHAT IT DOES: Kind $2A's wait: while KIND2A_BOB is set it bobs with its
+ * animation (3 down on frame 4, 2 up or down on frame 5, 3 up on frame
+ * 6); unless KIND2A_STILL is set it animates, is stomped or hurts, and
+ * when downed by a shot (no script has it) counts KIND2A_HITS, and
+ * KIND2A_RIGHT when it faces right; ended when out of range (box 8).
+ * HOW: KIND2A_BOB set: X 16-bit = its y pixels; its frame ($27) unlike
+ * KIND2A_FRAME: kept, then frame 4: y + 3, KIND2A_UP = 0; frame 5: y - 2
+ * with KIND2A_UP clear, else + 2; frame 6: y - 3, KIND2A_UP up; the y
+ * stored. KIND2A_STILL clear: AnimStep, ActorStompOrHurt,
+ * ActorDownedByShot; C clear: facing not negative, KIND2A_RIGHT up;
+ * KIND2A_HITS up. Then ActorEndOutOfRange with X = 8.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Exit: as ActorEndOutOfRange.
+ */
+void abi_Kind2AWait(void)
+{
+    lda8(ea_dp(KIND2A_BOB));  /* 83A413 lda */
+    if (IF_Z) goto L_83A44A;  /* 83A415 beq */
+    op_rep(0x10);  /* 83A417 rep */
+    ldx16(ea_dp(ACTOR_Y + 1));  /* 83A419 ldx */
+    lda8(ea_dp(ACTOR_27));  /* 83A41B lda */
+    cmp8_v(rd8(ea_dp(KIND2A_FRAME)));  /* 83A41D cmp */
+    if (IF_Z) goto L_83A448;  /* 83A41F beq */
+    sta8(ea_dp(KIND2A_FRAME));  /* 83A421 sta */
+    sec();  /* 83A423 sec */
+    sbc8_v(0x04);  /* 83A424 sbc */
+    if (!IF_Z) goto L_83A42F;  /* 83A426 bne */
+    inx16();  /* 83A428 inx */
+    inx16();  /* 83A429 inx */
+    inx16();  /* 83A42A inx */
+    stz8(ea_dp(KIND2A_UP));  /* 83A42B stz */
+    goto L_83A446;  /* 83A42D bra */
+L_83A42F:
+    ACC8(dec);  /* 83A42F dec */
+    if (!IF_Z) goto L_83A43E;  /* 83A430 bne */
+    lda8(ea_dp(KIND2A_UP));  /* 83A432 lda */
+    if (!IF_Z) goto L_83A43A;  /* 83A434 bne */
+    dex16();  /* 83A436 dex */
+    dex16();  /* 83A437 dex */
+    goto L_83A446;  /* 83A438 bra */
+L_83A43A:
+    inx16();  /* 83A43A inx */
+    inx16();  /* 83A43B inx */
+    goto L_83A446;  /* 83A43C bra */
+L_83A43E:
+    ACC8(dec);  /* 83A43E dec */
+    if (!IF_Z) goto L_83A448;  /* 83A43F bne */
+    dex16();  /* 83A441 dex */
+    dex16();  /* 83A442 dex */
+    dex16();  /* 83A443 dex */
+    MEM8(inc, ea_dp(KIND2A_UP));  /* 83A444 inc */
+L_83A446:
+    stx16(ea_dp(ACTOR_Y + 1));  /* 83A446 stx */
+L_83A448:
+    op_sep(0x10);  /* 83A448 sep */
+L_83A44A:
+    lda8(ea_dp(KIND2A_STILL));  /* 83A44A lda */
+    if (!IF_Z) goto L_83A462;  /* 83A44C bne */
+    abi_AnimStep();  /* 83A44E jsl */
+    abi_ActorStompOrHurt();  /* 83A452 jsr */
+    abi_ActorDownedByShot();  /* 83A455 jsr */
+    if (IF_C) goto L_83A462;  /* 83A458 bcs */
+    lda8(ea_dp(ACTOR_FACING));  /* 83A45A lda */
+    if (IF_N) goto L_83A460;  /* 83A45C bmi */
+    MEM8(inc, ea_dp(KIND2A_RIGHT));  /* 83A45E inc */
+L_83A460:
+    MEM8(inc, ea_dp(KIND2A_HITS));  /* 83A460 inc */
+L_83A462:
+    ldx8_v(0x08);  /* 83A462 ldx */
+    abi_ActorEndOutOfRange();  /* 83A464 jmp */
+}
+
+/*
+ * @routine 83:C21C Kind3BWait
+ * WHAT IT DOES: Kind $3B's wait, by its $07: bit 4 set, it rises back to
+ * KIND3B_REST_Y, carrying the player while it lifts him; bit 3 set, it
+ * animates and, once out of range, sets its level flag; else it lifts
+ * the player when he lands on it, and variant 2 stays while another
+ * actor shares its tile slot; ended when out of range (box $18).
+ * HOW: Bit 4: its y less KIND3B_REST_Y (below it: put at it, 0; no script
+ * has that) in KIND3B_RISE; LIFT_STEP positive: below $10, speed entry
+ * $5D, ActorMoveY and PlayerToActorBelow with A = 3; else KIND3B_RISE
+ * nonzero: speed entry $5A, ActorMoveY. Then AnimStep and ActorFreeOut-
+ * OfRange with X = $18. Bit 3: AnimStep, ActorFreeOutOfRange with X =
+ * $18; freed: LevelFlagFromMask with X = $07 & 7. Else: $4C = $1E,
+ * ActorTestCarries with X = 2, ActorLiftPlayerStep; variant 2 with its
+ * tile slot's users not 1: back; else ActorFreeOutOfRange with X = $18.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by JSR
+ * from the actor loop (83:94D0) each frame the actor waits, by its kind.
+ * Exit: as ActorFreeOutOfRange, LevelFlagFromMask or ActorLiftPlayerStep.
+ */
+void abi_Kind3BWait(void)
+{
+    lda8(ea_dp(ACTOR_07));  /* 83C21C lda */
+    bit8_i(0x10);  /* 83C21E bit */
+    if (!IF_Z) goto L_83C25C;  /* 83C220 bne */
+    bit8_i(0x08);  /* 83C222 bit */
+    if (IF_Z) goto L_83C23A;  /* 83C224 beq */
+    abi_AnimStep();  /* 83C226 jsl */
+    ldx8_v(0x18);  /* 83C22A ldx */
+    abi_ActorFreeOutOfRange();  /* 83C22C jsr */
+    if (!IF_C) return;  /* 83C22F bcc (83C239 rts) */
+    lda8(ea_dp(ACTOR_07));  /* 83C231 lda */
+    and8_v(0x07);  /* 83C233 and */
+    tax8();  /* 83C235 tax */
+    abi_LevelFlagFromMask();  /* 83C236 jsr */
+    return;  /* 83C239 rts */
+L_83C23A:
+    lda8_v(0x1E);  /* 83C23A lda */
+    sta8(ea_dp(ACTOR_4C));  /* 83C23C sta */
+    ldx8_v(0x02);  /* 83C23E ldx */
+    abi_ActorTestCarries();  /* 83C240 jsr */
+    ldx8_v(0x02);  /* 83C243 ldx */
+    abi_ActorLiftPlayerStep();  /* 83C245 jsr */
+    lda8(ea_dp(ACTOR_07));  /* 83C248 lda */
+    cmp8_v(0x02);  /* 83C24A cmp */
+    if (!IF_Z) goto L_83C257;  /* 83C24C bne */
+    ldy8(ea_dp(ACTOR_TILE_SLOT));  /* 83C24E ldy */
+    lda8(ea_absy(ACTOR_TILE_SLOT_USERS));  /* 83C250 lda */
+    ACC8(dec);  /* 83C253 dec */
+    if (IF_Z) goto L_83C257;  /* 83C254 beq */
+    return;  /* 83C256 rts */
+L_83C257:
+    ldx8_v(0x18);  /* 83C257 ldx */
+    abi_ActorFreeOutOfRange();  /* 83C259 jmp */
+    return;
+L_83C25C:
+    op_rep(0x20);  /* 83C25C rep */
+    sec();  /* 83C25E sec */
+    lda16(ea_dp(ACTOR_Y + 1));  /* 83C25F lda */
+    sbc16_v(rd16(ea_dp(KIND3B_REST_Y)));  /* 83C261 sbc */
+    if (IF_C) goto L_83C26C;  /* 83C263 bcs */
+    lda16(ea_dp(KIND3B_REST_Y));  /* 83C265 lda */
+    sta16(ea_dp(ACTOR_Y + 1));  /* 83C267 sta */
+    lda16_v(0x0000);  /* 83C269 lda */
+L_83C26C:
+    op_sep(0x20);  /* 83C26C sep */
+    sta8(ea_dp(KIND3B_RISE));  /* 83C26E sta */
+    lda8(ea_dp(KIND3B_LIFT_STEP));  /* 83C270 lda */
+    if (IF_Z) goto L_83C28E;  /* 83C272 beq */
+    if (IF_N) goto L_83C28E;  /* 83C274 bmi */
+    lda8(ea_dp(KIND3B_RISE));  /* 83C276 lda */
+    cmp8_v(0x10);  /* 83C278 cmp */
+    if (IF_C) goto L_83C29C;  /* 83C27A bcs */
+    ldy8_v(0x5D);  /* 83C27C ldy */
+    abi_ActorSpeedYSet();  /* 83C27E jsl */
+    abi_ActorMoveY();  /* 83C282 jsl */
+    lda8_v(0x03);  /* 83C286 lda */
+    abi_PlayerToActorBelow();  /* 83C288 jsl */
+    goto L_83C29C;  /* 83C28C bra */
+L_83C28E:
+    lda8(ea_dp(KIND3B_RISE));  /* 83C28E lda */
+    if (IF_Z) goto L_83C29C;  /* 83C290 beq */
+    ldy8_v(0x5A);  /* 83C292 ldy */
+    abi_ActorSpeedYSet();  /* 83C294 jsl */
+    abi_ActorMoveY();  /* 83C298 jsl */
+L_83C29C:
+    abi_AnimStep();  /* 83C29C jsl */
+    ldx8_v(0x18);  /* 83C2A0 ldx */
+    abi_ActorFreeOutOfRange();  /* 83C2A2 jmp */
 }
