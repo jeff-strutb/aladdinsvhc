@@ -11,6 +11,10 @@
 #include "actor.h"
 void abi_ActorSpawnAtLong(void);
 void abi_StoryActorPlace(void);
+void abi_SongPlay(void);
+void abi_PaletteCycleStartLong(void);
+void abi_Mode7ScreenSetup(void);
+#include "wram.h"
 
 void abi_TaskCreate(void);
 void abi_TaskWait(void);
@@ -52,6 +56,77 @@ void abi_StoryScene2Start(void)
     a8_load(0x40);
     wr8(dba(SCENE_END_WAIT), 0x40);
     task_create(0x80B0B8u);
+}
+
+/*
+ * @routine 80:B0C2 StoryScene3Start
+ * WHAT IT DOES: Sets up the story's third scene: song $34, its actors
+ * from the first entry, the scene's task with scene 4, and palette cycle
+ * $14 in slot 0.
+ * HOW: SongPlay $34; StoryActorPlace with X = 0; TaskCreate (slot 4,
+ * parameter 4, $81:F344); PaletteCycleStartLong with X = 0, A = $14.
+ * Entry: M 8-bit, X 8-bit; called by JSR (through the table at
+ * $80:B092); DB a bank whose $0000-$1FFF is work RAM. Exit: as
+ * PaletteCycleStartLong leaves them.
+ */
+void abi_StoryScene3Start(void)
+{
+    a8_load(0x34);
+    abi_SongPlay();
+    x8_load(0x00);
+    abi_StoryActorPlace();
+    task_create(0x80B0CDu);
+    x8_load(0x00);
+    a8_load(0x14);
+    abi_PaletteCycleStartLong();
+}
+
+/*
+ * @routine 80:B0DF StoryScene4Start
+ * WHAT IT DOES: Sets up the story's fourth scene: song $23, its actors
+ * from entry $24, a frame, the Mode 7 screen (set $20), the spinning zoom
+ * task, and the first two palette bytes $2048 uploaded.
+ * HOW: SongPlay $23; StoryActorPlace with X = $24; TaskWait 1;
+ * Mode7ScreenSetup $20; TaskCreate (slot 4, parameter 0,
+ * SceneSpinZoomTask); the palette buffer's first word's bytes $48, $20;
+ * PALETTE_UPLOAD up.
+ * Entry: M 8-bit, X 8-bit; called by JSR (through the table at $80:B092)
+ * from the story's task; DB a bank whose $0000-$1FFF is work RAM. Exit:
+ * when the task has resumed; N and Z from PALETTE_UPLOAD.
+ */
+void abi_StoryScene4Start(void)
+{
+    a8_load(0x23);
+    abi_SongPlay();
+    x8_load(0x24);
+    abi_StoryActorPlace();
+    a8_load(0x01);
+    jsl_frame(0x80B0ECu);
+    abi_TaskWait();
+    a8_load(0x20);
+    abi_Mode7ScreenSetup();
+    task_create(0x80B0F6u);
+    a8_load(0x48);
+    wr8(PALETTE_BUFFER, 0x48);
+    a8_load(0x20);
+    wr8(PALETTE_BUFFER + 1, 0x20);
+    (void)inc8_at(dba(PALETTE_UPLOAD));
+}
+
+/*
+ * @routine 80:B160 StoryScene6Start
+ * WHAT IT DOES: Sets up the story's sixth scene: song $13 and the scene's
+ * task with scene $13.
+ * HOW: SongPlay $13; TaskCreate (slot 4, parameter $13, $81:F344).
+ * Entry: M 8-bit, X 8-bit; called by JSR (through the table at
+ * $80:B092); DB a bank whose $0000-$1FFF is work RAM. Exit: as TaskCreate
+ * leaves them.
+ */
+void abi_StoryScene6Start(void)
+{
+    a8_load(0x13);
+    abi_SongPlay();
+    task_create(0x80B166u);
 }
 
 /*

@@ -22,10 +22,8 @@ arch 65816
 !routine_8181a3 = $8181A3  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
 !routine_82b458 = $82B458  ; not yet filed
-!routine_82b4af = $82B4AF  ; not yet filed
 !routine_82b4d5 = $82B4D5  ; not yet filed
 !routine_82b501 = $82B501  ; not yet filed
-!routine_82b538 = $82B538  ; not yet filed
 !t_e0ae = $E0AE  ; data bank
 !t_e433 = $E433  ; data bank
 !v_0000 = $0000
@@ -457,7 +455,7 @@ EndingStagesTask:
     adc.w #$0003
     sta.w !v_1a44
     sep.b #$20
-    jsr.w !routine_82b538
+    jsr.w EndingStageFrameBands
     rep.b #$20
     lda.w !v_1773
     cmp.w #$0400
@@ -473,7 +471,7 @@ EndingStagesTask:
     lda.b #$01
     jsl.l TaskWait
     ldx.b #$08
-    jsr.w !routine_82b4af
+    jsr.w EndingWipeLeftStep
     ldx.b #$0C
     jsr.w !routine_82b4d5
     lda.w !v_03a6
@@ -522,3 +520,84 @@ EndingStagesTask:
     ldy.w !vram_queue_pending
     bne .lB44B
     bra .lB447
+
+
+!WIPE_LEFT = $0078              ; the ending's window's left edge: fraction, then pixels (word), then a fourth byte
+!WIPE_LEFT_PIXELS = $0079
+!WIPE_STEPS = $DB91             ; (data bank) per step, by X: the amount the edges close by (two words)
+!WINDOW_LEFT = $03A6            ; WH0's shadow: the window's left
+
+; @routine 82:B4AF EndingWipeLeftStep
+; WHAT IT DOES: Closes the ending's window from the left by step X: its
+; left edge (WIPE_LEFT, 32-bit) less the step's amount, not below 0
+; pixels, into WH0's shadow.
+; HOW: 16-bit: WIPE_LEFT less WIPE_STEPS + X (two words, with the
+; borrow); WIPE_LEFT_PIXELS negative: 0. WINDOW_LEFT = its low byte.
+; Entry: M 8-bit; X = the step * 4; DB a bank whose $0000-$1FFF is work
+; RAM and that holds WIPE_STEPS; called by JSR. Exit: M 8-bit; A = the
+; left edge's pixels; N and Z from it.
+%at($82B4AF)
+EndingWipeLeftStep:
+    rep.b #$20
+    sec
+    lda.w !WIPE_LEFT
+    sbc.w !WIPE_STEPS,x
+    sta.w !WIPE_LEFT
+    lda.w !WIPE_LEFT+2
+    sbc.w !WIPE_STEPS+2,x
+    sta.w !WIPE_LEFT+2
+    lda.w !WIPE_LEFT_PIXELS
+    bpl .left
+    stz.w !WIPE_LEFT_PIXELS
+.left:
+    sep.b #$20
+    lda.w !WIPE_LEFT_PIXELS
+    sta.w !WINDOW_LEFT
+    rts
+
+; @routine 82:B511 EndingStageFrame
+; WHAT IT DOES: Draws a frame of a stage played back at the ending: the
+; sprites built, the layers scrolled, the actors in view drawn, the
+; backdrop following, and the uploads asked for.
+; HOW: TILE_BLOCKS_LENGTH and OAM_0857 0; OamBuildBegin, LayersScrollLong,
+; ActorsInView, OamDrawActors, BgFollowLayersLong; OAM_0857,
+; TILE_BLOCKS_PENDING and VRAM_QUEUE_PENDING up.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR from the ending's stages task. Exit: N and Z from
+; VRAM_QUEUE_PENDING; else as BgFollowLayersLong leaves them.
+%at($82B511)
+EndingStageFrame:
+    stz.w !tile_blocks_length
+    stz.w !tile_blocks_length+1
+    stz.w !oam_0857
+    jsl.l OamBuildBegin
+    jsl.l LayersScrollLong
+    jsl.l ActorsInView
+    jsl.l OamDrawActors
+    jsl.l BgFollowLayersLong
+    inc.w !oam_0857
+    inc.w !tile_blocks_pending
+    inc.w !vram_queue_pending
+    rts
+
+; @routine 82:B538 EndingStageFrameBands
+; WHAT IT DOES: As EndingStageFrame, with the backdrop's parallax bands
+; stepped too (the last stage, scrolled across).
+; HOW: As EndingStageFrame, ParallaxUpdateLong after OamBuildBegin.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR from the ending's stages task. Exit: as EndingStageFrame.
+%at($82B538)
+EndingStageFrameBands:
+    stz.w !tile_blocks_length
+    stz.w !tile_blocks_length+1
+    stz.w !oam_0857
+    jsl.l OamBuildBegin
+    jsl.l ParallaxUpdateLong
+    jsl.l LayersScrollLong
+    jsl.l ActorsInView
+    jsl.l OamDrawActors
+    jsl.l BgFollowLayersLong
+    inc.w !oam_0857
+    inc.w !tile_blocks_pending
+    inc.w !vram_queue_pending
+    rts

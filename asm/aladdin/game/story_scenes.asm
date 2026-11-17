@@ -5,6 +5,7 @@
 ; C: src/aladdin/game/story_scenes.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/actor.inc"
 
 arch 65816
@@ -33,6 +34,76 @@ StoryScene2Start:
     sta.w !SCENE_END_WAIT
     jsl.l TaskCreate
     db 4*24, 3                  ; slot 4, parameter 3
+    dl !STORY_SCENE_TASK
+    rts
+
+; @routine 80:B0C2 StoryScene3Start
+; WHAT IT DOES: Sets up the story's third scene: song $34, its actors
+; from the first entry, the scene's task with scene 4, and palette cycle
+; $14 in slot 0.
+; HOW: SongPlay $34; StoryActorPlace with X = 0; TaskCreate (slot 4,
+; parameter 4, $81:F344); PaletteCycleStartLong with X = 0, A = $14.
+; Entry: M 8-bit, X 8-bit; called by JSR (through the table at
+; $80:B092); DB a bank whose $0000-$1FFF is work RAM. Exit: as
+; PaletteCycleStartLong leaves them.
+%at($80B0C2)
+StoryScene3Start:
+    lda.b #$34
+    jsl.l SongPlay
+    ldx.b #$00
+    jsr.w StoryActorPlace
+    jsl.l TaskCreate
+    db 4*24, 4                  ; slot 4, parameter 4
+    dl !STORY_SCENE_TASK
+    ldx.b #$00
+    lda.b #$14
+    jsl.l PaletteCycleStartLong
+    rts
+
+; @routine 80:B0DF StoryScene4Start
+; WHAT IT DOES: Sets up the story's fourth scene: song $23, its actors
+; from entry $24, a frame, the Mode 7 screen (set $20), the spinning zoom
+; task, and the first two palette bytes $2048 uploaded.
+; HOW: SongPlay $23; StoryActorPlace with X = $24; TaskWait 1;
+; Mode7ScreenSetup $20; TaskCreate (slot 4, parameter 0,
+; SceneSpinZoomTask); the palette buffer's first word's bytes $48, $20;
+; PALETTE_UPLOAD up.
+; Entry: M 8-bit, X 8-bit; called by JSR (through the table at $80:B092)
+; from the story's task; DB a bank whose $0000-$1FFF is work RAM. Exit:
+; when the task has resumed; N and Z from PALETTE_UPLOAD.
+%at($80B0DF)
+StoryScene4Start:
+    lda.b #$23
+    jsl.l SongPlay
+    ldx.b #$24
+    jsr.w StoryActorPlace
+    lda.b #$01
+    jsl.l TaskWait
+    lda.b #$20
+    jsl.l Mode7ScreenSetup
+    jsl.l TaskCreate
+    db 4*24, 0                  ; slot 4, parameter 0
+    dl SceneSpinZoomTask
+    lda.b #$48
+    sta.l !palette_buffer
+    lda.b #$20
+    sta.l !palette_buffer+1
+    inc.w !palette_upload
+    rts
+
+; @routine 80:B160 StoryScene6Start
+; WHAT IT DOES: Sets up the story's sixth scene: song $13 and the scene's
+; task with scene $13.
+; HOW: SongPlay $13; TaskCreate (slot 4, parameter $13, $81:F344).
+; Entry: M 8-bit, X 8-bit; called by JSR (through the table at
+; $80:B092); DB a bank whose $0000-$1FFF is work RAM. Exit: as TaskCreate
+; leaves them.
+%at($80B160)
+StoryScene6Start:
+    lda.b #$13
+    jsl.l SongPlay
+    jsl.l TaskCreate
+    db 4*24, $13                ; slot 4, parameter $13
     dl !STORY_SCENE_TASK
     rts
 
