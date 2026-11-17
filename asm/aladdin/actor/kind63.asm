@@ -232,3 +232,23 @@ Kind63ShotHit:
     jmp.w Kind63ThrowAgain
 .waiting:
     jmp.w Kind63WaitThrows
+
+; @routine 84:81BE Kind63Knocked
+; @actor
+; WHAT IT DOES: Actor kind $63 in its second state (hit): KIND63_GONE
+; counted up, its sprite priority cleared, and it is knocked away with
+; animation 8, sound $0F and motion preset 3.
+; HOW: KIND63_GONE up; ActorPriorityClear; A = 8, X = $0F, Y = 3; on into
+; ActorKnockedAway (JML).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the actor
+; loop's jump for kind $63 with state bit 7 set (the table at $83:8DFD,
+; through the stub at $83:9252). Exit: as ActorKnockedAway.
+%at($8481BE)
+Kind63Knocked:
+    inc.b !KIND63_GONE
+    jsr.w ActorPriorityClear
+    lda.b #$08
+    ldx.b #$0F
+    ldy.b #$03
+    jml.l ActorKnockedAway
+

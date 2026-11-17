@@ -1,7 +1,8 @@
 /*
  * kind63.c: actor kind $63, which watches for Aladdin to come within
  * reach below it and throws at him (two children of hit box $A2 each
- * round), and its per-frame work while it waits.
+ * round), its per-frame work while it waits, and its knock-away when
+ * hit (its second state).
  */
 #include "machine.h"
 #include "native.h"
@@ -17,6 +18,8 @@ void abi_AnimStart(void);
 void abi_ActorNearPlayer(void);
 void abi_ActorSpawnA2(void);
 void abi_ActorSpawnPairA3(void);
+void abi_ActorPriorityClear(void);
+void abi_ActorKnockedAway(void);
 
 #define KIND63_HIT 0x43u     /* nonzero while it shows being hit: no shot test then */
 #define KIND63_GONE 0x47u    /* counted up each frame it is out of range */
@@ -294,3 +297,26 @@ void abi_Kind63ShotHit(void)
     a8_load(n);
     kind63_from(n ? AT_WAIT_THROWS : AT_THROW_AGAIN);
 }
+
+/*
+ * @routine 84:81BE Kind63Knocked
+ * @actor
+ * WHAT IT DOES: Actor kind $63 in its second state (hit): KIND63_GONE
+ * counted up, its sprite priority cleared, and it is knocked away with
+ * animation 8, sound $0F and motion preset 3.
+ * HOW: KIND63_GONE up; ActorPriorityClear; A = 8, X = $0F, Y = 3; on into
+ * ActorKnockedAway (JML).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the actor
+ * loop's jump for kind $63 with state bit 7 set (the table at $83:8DFD,
+ * through the stub at $83:9252). Exit: as ActorKnockedAway.
+ */
+void abi_Kind63Knocked(void)
+{
+    (void)inc8_at(dpa(KIND63_GONE));
+    abi_ActorPriorityClear();
+    a8_load(0x08);
+    x8_load(0x0F);
+    y8_load(0x03);
+    abi_ActorKnockedAway();
+}
+
