@@ -9,6 +9,7 @@
 #include "ops65.h"
 
 void abi_ShotFly(void);
+void abi_KindA7Start(void);
 void abi_Kind63Knocked(void);
 void abi_Kind85Start(void);
 void abi_Kind8EStart(void);
@@ -828,4 +829,18 @@ void abi_Kind85Enter(void)
 void abi_Kind8EEnter(void)
 {
     abi_Kind8EStart();
+}
+
+/*
+ * @routine 83:9442 KindA7Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $A7 go on from the actor loop in
+ * its start state (the table at $83:8DAB): KindA7Start.
+ * HOW: JML to KindA7Start ($84:AC66).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as KindA7Start.
+ */
+void abi_KindA7Enter(void)
+{
+    abi_KindA7Start();
 }
