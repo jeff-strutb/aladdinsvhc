@@ -847,3 +847,95 @@ void abi_BackdropSplitSetup(void)
     a8_load((uint8_t)(rd8(dba(HDMAEN_SHADOW)) | 0xC0));
     wr8(dba(HDMAEN_SHADOW), (uint8_t)cpu.a);
 }
+
+#define BAND_MODES 0x16E5u          /* HDMA channel 2's table: BGMODE by lines (9 bytes) */
+#define BAND_LAYERS 0x16F5u         /* HDMA channel 3's table: TM by lines (9 bytes) */
+#define BAND_SETS 0xB9A7u           /* (bank $80) 7 bytes a set: top mode, lines, lines, bottom mode, top, middle and bottom layers */
+
+/*
+ * @routine 81:8EC1 ModeBandsSetup
+ * WHAT IT DOES: Splits the screen into bands by lines: a line on top, two
+ * bands in Mode 7, and a line below, each with its own BG mode and main
+ * screen layers, from the set at BAND_SETS + X. No code refers to it.
+ * HOW: HDMA channel 2: mode 0 to BGMODE from $00:BAND_MODES; channel 3:
+ * mode 0 to TM from $00:BAND_LAYERS. BAND_MODES: 1 line of the set's top
+ * mode, its first lines of mode 7, its second lines of mode 7, 1 line of
+ * its bottom mode, the end; BAND_LAYERS: the same lines with its top,
+ * middle (both bands) and bottom layers.
+ * Entry: M 8-bit; X = the set's offset (a multiple of 7; X at either
+ * width); DB = $80; called by JSR (ModeBandsSetupLong). Exit: A = the
+ * set's bottom layers, N and Z from it; X, Y unchanged.
+ */
+void abi_ModeBandsSetup(void)
+{
+    uint8_t v;
+    uint16_t x = cpu.x;
+
+    wr8(dba(DMAP2), 0x00);
+    a8_load(0x05);
+    wr8(dba(BBAD2), 0x05);
+    a8_load(0xE5);
+    wr8(dba(A1T2L), 0xE5);
+    a8_load(0x16);
+    wr8(dba(A1T2H), 0x16);
+    a8_load(0x00);
+    wr8(dba(A1B2), 0x00);
+    wr8(dba(DASB2), 0x00);
+    a8_load(0x01);
+    wr8(dba(BAND_MODES + 0), 0x01);
+    wr8(dba(BAND_LAYERS + 0), 0x01);
+    v = rd8(dba((uint16_t)(BAND_SETS + x)));
+    a8_load(v);
+    wr8(dba(BAND_MODES + 1), v);
+    v = rd8(dba((uint16_t)(BAND_SETS + 1 + x)));
+    a8_load(v);
+    wr8(dba(BAND_MODES + 2), v);
+    wr8(dba(BAND_LAYERS + 2), v);
+    a8_load(0x07);
+    wr8(dba(BAND_MODES + 3), 0x07);
+    wr8(dba(BAND_MODES + 5), 0x07);
+    v = rd8(dba((uint16_t)(BAND_SETS + 2 + x)));
+    a8_load(v);
+    wr8(dba(BAND_MODES + 4), v);
+    wr8(dba(BAND_LAYERS + 4), v);
+    a8_load(0x01);
+    wr8(dba(BAND_MODES + 6), 0x01);
+    wr8(dba(BAND_LAYERS + 6), 0x01);
+    v = rd8(dba((uint16_t)(BAND_SETS + 3 + x)));
+    a8_load(v);
+    wr8(dba(BAND_MODES + 7), v);
+    wr8(dba(BAND_MODES + 8), 0x00);
+    wr8(dba(BAND_LAYERS + 8), 0x00);
+    wr8(dba(DMAP3), 0x00);
+    a8_load(0x2C);
+    wr8(dba(BBAD3), 0x2C);
+    a8_load(0xF5);
+    wr8(dba(A1T3L), 0xF5);
+    a8_load(0x16);
+    wr8(dba(A1T3H), 0x16);
+    a8_load(0x00);
+    wr8(dba(A1B3), 0x00);
+    wr8(dba(DASB3), 0x00);
+    v = rd8(dba((uint16_t)(BAND_SETS + 4 + x)));
+    a8_load(v);
+    wr8(dba(BAND_LAYERS + 1), v);
+    v = rd8(dba((uint16_t)(BAND_SETS + 5 + x)));
+    a8_load(v);
+    wr8(dba(BAND_LAYERS + 3), v);
+    wr8(dba(BAND_LAYERS + 5), v);
+    v = rd8(dba((uint16_t)(BAND_SETS + 6 + x)));
+    a8_load(v);
+    wr8(dba(BAND_LAYERS + 7), v);
+}
+
+/*
+ * @routine 81:8EBD ModeBandsSetupLong
+ * WHAT IT DOES: ModeBandsSetup for a caller in another bank. No code
+ * refers to it.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ModeBandsSetup; called by JSL. Exit: as ModeBandsSetup.
+ */
+void abi_ModeBandsSetupLong(void)
+{
+    abi_ModeBandsSetup();
+}

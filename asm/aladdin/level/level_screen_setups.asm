@@ -967,3 +967,80 @@ BackdropSplitSetup:
     ora.b #$C0
     sta.w !hdmaen_shadow
     rts
+
+!BAND_MODES = $16E5              ; HDMA channel 2's table: BGMODE by lines (9 bytes)
+!BAND_LAYERS = $16F5             ; HDMA channel 3's table: TM by lines (9 bytes)
+!BAND_SETS = $B9A7               ; (bank $80) 7 bytes a set: top mode, lines, lines, bottom mode, top, middle and bottom layers
+
+; @routine 81:8EBD ModeBandsSetupLong
+; WHAT IT DOES: ModeBandsSetup for a caller in another bank. No code
+; refers to it.
+; HOW: JSR to it, then RTL.
+; Entry: as ModeBandsSetup; called by JSL. Exit: as ModeBandsSetup.
+%at($818EBD)
+ModeBandsSetupLong:
+    jsr.w ModeBandsSetup
+    rtl
+
+; @routine 81:8EC1 ModeBandsSetup
+; WHAT IT DOES: Splits the screen into bands by lines: a line on top, two
+; bands in Mode 7, and a line below, each with its own BG mode and main
+; screen layers, from the set at BAND_SETS + X. No code refers to it.
+; HOW: HDMA channel 2: mode 0 to BGMODE from $00:BAND_MODES; channel 3:
+; mode 0 to TM from $00:BAND_LAYERS. BAND_MODES: 1 line of the set's top
+; mode, its first lines of mode 7, its second lines of mode 7, 1 line of
+; its bottom mode, the end; BAND_LAYERS: the same lines with its top,
+; middle (both bands) and bottom layers.
+; Entry: M 8-bit; X = the set's offset (a multiple of 7; X at either
+; width); DB = $80; called by JSR (ModeBandsSetupLong). Exit: A = the
+; set's bottom layers, N and Z from it; X, Y unchanged.
+ModeBandsSetup:
+    stz.w !DMAP2
+    lda.b #$05
+    sta.w !BBAD2
+    lda.b #$E5
+    sta.w !A1T2L
+    lda.b #$16
+    sta.w !A1T2H
+    lda.b #$00
+    sta.w !A1B2
+    stz.w !DASB2
+    lda.b #$01
+    sta.w !BAND_MODES
+    sta.w !BAND_LAYERS
+    lda.w !BAND_SETS,x
+    sta.w !BAND_MODES+1
+    lda.w !BAND_SETS+1,x
+    sta.w !BAND_MODES+2
+    sta.w !BAND_LAYERS+2
+    lda.b #$07
+    sta.w !BAND_MODES+3
+    sta.w !BAND_MODES+5
+    lda.w !BAND_SETS+2,x
+    sta.w !BAND_MODES+4
+    sta.w !BAND_LAYERS+4
+    lda.b #$01
+    sta.w !BAND_MODES+6
+    sta.w !BAND_LAYERS+6
+    lda.w !BAND_SETS+3,x
+    sta.w !BAND_MODES+7
+    stz.w !BAND_MODES+8
+    stz.w !BAND_LAYERS+8
+    stz.w !DMAP3
+    lda.b #$2C
+    sta.w !BBAD3
+    lda.b #$F5
+    sta.w !A1T3L
+    lda.b #$16
+    sta.w !A1T3H
+    lda.b #$00
+    sta.w !A1B3
+    stz.w !DASB3
+    lda.w !BAND_SETS+4,x
+    sta.w !BAND_LAYERS+1
+    lda.w !BAND_SETS+5,x
+    sta.w !BAND_LAYERS+3
+    sta.w !BAND_LAYERS+5
+    lda.w !BAND_SETS+6,x
+    sta.w !BAND_LAYERS+7
+    rts
