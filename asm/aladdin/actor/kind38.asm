@@ -1,0 +1,120 @@
+; kind38.asm: actor kind $38, which rolls along until Aladdin is close,
+; then turns to him and flies up at him. Its wait is Kind37Wait
+; (actor_waits_small.asm), shared with kind $37.
+; C: src/aladdin/actor/kind38.c.
+
+incsrc "../include/macros.inc"
+incsrc "../include/actor.inc"
+
+arch 65816
+
+!KIND38_16 = $16                ; word: $D1D6
+!KIND38_47 = $47                ; ActorYByFrame47's frame kept
+!KIND38_4A = $4A
+!KIND38_4B = $4B                ; 8
+!KIND38_UP = $45                ; set once it flies (Kind37Wait then ends it as other actors)
+!KIND38_HIT = $46               ; Kind37Wait's: 1 bounced, 2 downed by a shot
+!KIND38_CHECKS = $49            ; near checks left before it may turn
+!KIND38_SIDE = $48              ; the side Aladdin is on (ActorSideOfPlayer)
+!KIND38_FRAMES = $40            ; frames left of a pause
+
+; @routine 83:BE01 Kind38Start
+; @actor
+; WHAT IT DOES: Actor kind $38: it rolls along bobbing with its frames
+; until Aladdin is close across (or it meets a wall), then, on a random
+; pick by which side he is on (else it rolls on for 16 more checks; no
+; script has that), it turns to him, pauses, shows itself (animation 1)
+; for 32 frames and flies up at him for good.
+; HOW: ACTOR_08 = 2, ACTOR_09 = $90, facing and flip 1, AnimStart 0,
+; $16 = $D1D6; $47 cleared, $4B = 8, $4A, KIND38_UP and KIND38_HIT
+; cleared, KIND38_CHECKS = 1. ActorSpeedXSet with Y = $18; each frame
+; (BRK) ActorMoveX, ActorYByFrame47; ActorOutOfWallProbe4 C set (no
+; script): KIND38_SIDE from ActorSideOfPlayer, on at the turn. Else
+; ActorNearPlayerX with Y = 2, C clear and KIND38_CHECKS counted down to
+; 0: KIND38_SIDE from ActorSideOfPlayer; RandomFromList with X = (side +
+; 3) * 2: zero, KIND38_CHECKS = $10 and roll on. The turn: KIND38_FRAMES
+; = $10, facing and flip = bit 0 of KIND38_SIDE, $10 frames; KIND38_UP
+; up, AnimStart 1, $20 frames; ActorMotionPreset with Y = $30; each frame
+; (BRK) ActorFlyAgainst.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's jump for kind $38 in its start state (the table at
+; $83:8CAB). Exit: never returns.
+%at($83BE01)
+Kind38Start:
+    lda.b #$02
+    sta.b !actor_08
+    lda.b #$90
+    sta.b !actor_09
+    lda.b #$01
+    sta.b !actor_facing
+    sta.b !actor_flip
+    lda.b #$00
+    jsl.l AnimStart
+    rep.b #$20
+    lda.w #$D1D6
+    sta.b !KIND38_16
+    sep.b #$20
+    stz.b !KIND38_47
+    lda.b #$08
+    sta.b !KIND38_4B
+    stz.b !KIND38_4A
+    stz.b !KIND38_UP
+    stz.b !KIND38_HIT
+    lda.b #$01
+    sta.b !KIND38_CHECKS
+    bra .lBE30
+.lBE30:
+    ldy.b #$18
+    jsl.l ActorSpeedXSet
+.lBE36:
+    brk.b #$00
+    jsl.l ActorMoveX
+    jsr.w ActorYByFrame47
+    jsl.l ActorOutOfWallProbe4
+    bcs .wall
+    ldy.b #$02
+    jsl.l ActorNearPlayerX
+    bcs .lBE36
+    dec.b !KIND38_CHECKS
+    bne .lBE36
+    jsl.l ActorSideOfPlayer
+    sta.b !KIND38_SIDE
+    clc
+    adc.b #$03
+    asl a
+    tax
+    jsl.l RandomFromList
+    bne .lBE6E
+    lda.b #$10
+    sta.b !KIND38_CHECKS
+    bra .lBE36
+.wall:
+    jsl.l ActorSideOfPlayer
+    sta.b !KIND38_SIDE
+.lBE6E:
+    lda.b #$10
+    sta.b !KIND38_FRAMES
+    lda.b !KIND38_SIDE
+    and.b #$01
+    sta.b !actor_facing
+    sta.b !actor_flip
+.lBE7A:
+    brk.b #$00
+    dec.b !KIND38_FRAMES
+    bne .lBE7A
+    inc.b !KIND38_UP
+    lda.b #$01
+    jsl.l AnimStart
+    lda.b #$20
+    sta.b !KIND38_FRAMES
+.lBE8C:
+    brk.b #$00
+    dec.b !KIND38_FRAMES
+    bne .lBE8C
+    ldy.b #$30
+    jsl.l ActorMotionPreset
+.lBE98:
+    brk.b #$00
+    jsl.l ActorFlyAgainst
+    bra .lBE98
+
