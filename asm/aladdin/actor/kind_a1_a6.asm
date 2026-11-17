@@ -125,3 +125,58 @@ KindA6Stay:
     bcc .lAC4F
     sep.b #$20
     jml.l ActorEndPlaced
+
+!KIND_A1_LONG = $40             ; set once it has taken the long bounce ($6A)
+!BOUNCE_LONG = $6A              ; the long bounce, taken once; after it $68
+!BOUNCE_AFTER = $68
+
+; @routine 84:A97F KindA1Start
+; @actor
+; WHAT IT DOES: Actor kind $A1: it bounces about: each time it lands
+; (kept 12 above the floor line), sound $4D and a bounce picked at random
+; from list $20; the long bounce ($6A) only once, then $68 in its place.
+; HOW: ACTOR_08 = 3, ACTOR_09 = $D0, facing 1, KIND_A1_LONG and KIND_A1_HITS 0;
+; AnimStart 0; ActorMotionPreset $6B. Each frame (BRK): ActorFly,
+; ActorClampAboveFloor12; landed (C set): SoundQueueAdd $4D;
+; RandomFromList with X = $40; $6A with KIND_A1_LONG set: $68 ($84:A9B6,
+; which no script meets); $6A else: KIND_A1_LONG up; ActorMotionPreset
+; with it.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+; the actor loop's jump for kind $A1 in state $0C (the table at $83:8DAB,
+; through the stub at $83:9409). Exit: never returns.
+%at($84A97F)
+KindA1Start:
+    lda.b #$03
+    sta.b !actor_08
+    lda.b #$D0
+    sta.b !actor_09
+    lda.b #$01
+    sta.b !actor_facing
+    stz.b !KIND_A1_LONG
+    stz.b !KIND_A1_HITS
+    lda.b #$00
+    jsl.l AnimStart
+    ldy.b #$6B
+    jsl.l ActorMotionPreset
+.frame:
+    brk.b #$00
+    jsl.l ActorFly
+    jsr.w ActorClampAboveFloor12
+    bcc .frame
+    lda.b #$4D
+    jsl.l SoundQueueAdd
+    ldx.b #$40
+    jsl.l RandomFromList
+    cmp.b #!BOUNCE_LONG
+    bne .bounce
+    ldx.b !KIND_A1_LONG
+    beq .first
+    lda.b #!BOUNCE_AFTER
+    bra .bounce
+.first:
+    inc.b !KIND_A1_LONG
+.bounce:
+    tay
+    jsl.l ActorMotionPreset
+    bra .frame
+

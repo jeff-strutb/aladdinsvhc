@@ -1,5 +1,6 @@
 /*
- * kind_a1_a6.c: actor kinds $A1 in state $4C (hit: it flies off) and $A6
+ * kind_a1_a6.c: actor kind $A1's start (it bounces about at random) and
+ * its state $4C (hit: it flies off), and kind $A6
  * (it stays until far above or below the point actors are kept in range
  * of). Drafted by cdraft.py; named and described by hand.
  */
@@ -19,6 +20,8 @@ void abi_AnimStep(void);
 void abi_ActorBouncesOrHurtsPlayerLong(void);
 void abi_ActorDownedByShotLong(void);
 void abi_SoundQueueAdd(void);
+void abi_ActorClampAboveFloor12(void);
+void abi_RandomFromList(void);
 
 #define RANGE_Y 0x1A46u  /* the y of the point actors are kept in range of (word) */
 #define KIND_A1_HITS 0x41u       /* counted up each time Aladdin comes down on it */
@@ -103,3 +106,64 @@ void abi_KindA6Stay(void)
     op_sep(P_M);
     abi_ActorEndPlaced();
 }
+
+#define KIND_A1_LONG 0x40u      /* set once it has taken the long bounce ($6A) */
+#define BOUNCE_LONG 0x6Au       /* the long bounce, taken once; after it $68 */
+#define BOUNCE_AFTER 0x68u
+
+/*
+ * @routine 84:A97F KindA1Start
+ * @actor
+ * WHAT IT DOES: Actor kind $A1: it bounces about: each time it lands
+ * (kept 12 above the floor line), sound $4D and a bounce picked at random
+ * from list $20; the long bounce ($6A) only once, then $68 in its place.
+ * HOW: ACTOR_08 = 3, ACTOR_09 = $D0, facing 1, KIND_A1_LONG and KIND_A1_HITS 0;
+ * AnimStart 0; ActorMotionPreset $6B. Each frame (BRK): ActorFly,
+ * ActorClampAboveFloor12; landed (C set): SoundQueueAdd $4D;
+ * RandomFromList with X = $40; $6A with KIND_A1_LONG set: $68 ($84:A9B6,
+ * which no script meets); $6A else: KIND_A1_LONG up; ActorMotionPreset
+ * with it.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+ * the actor loop's jump for kind $A1 in state $0C (the table at $83:8DAB,
+ * through the stub at $83:9409). Exit: never returns.
+ */
+void abi_KindA1Start(void)
+{
+    uint8_t pick;
+
+    a8_load(0x03);
+    wr8(dpa(ACTOR_08), 0x03);
+    a8_load(0xD0);
+    wr8(dpa(ACTOR_09), 0xD0);
+    a8_load(0x01);
+    wr8(dpa(ACTOR_FACING), 0x01);
+    wr8(dpa(KIND_A1_LONG), 0);
+    wr8(dpa(KIND_A1_HITS), 0);
+    a8_load(0x00);
+    abi_AnimStart();
+    y8_load(0x6B);
+    abi_ActorMotionPreset();
+    for (;;) {
+        actor_yield(0x84A99Bu);
+        abi_ActorFly();
+        abi_ActorClampAboveFloor12();
+        if (!(cpu.p & P_C))
+            continue;
+        a8_load(0x4D);
+        abi_SoundQueueAdd();
+        x8_load(0x40);
+        abi_RandomFromList();
+        pick = (uint8_t)cpu.a;
+        cmp8_of(pick, BOUNCE_LONG);
+        if (pick == BOUNCE_LONG) {
+            x8_load(rd8(dpa(KIND_A1_LONG)));
+            if ((uint8_t)cpu.x)
+                a8_load(BOUNCE_AFTER);
+            else
+                (void)inc8_at(dpa(KIND_A1_LONG));
+        }
+        y8_load((uint8_t)cpu.a);
+        abi_ActorMotionPreset();
+    }
+}
+
