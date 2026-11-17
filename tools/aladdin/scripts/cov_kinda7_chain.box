@@ -1,0 +1,11 @@
+# Actor kind $A7, a figure of the ending, with $07 set ($84:AC74): it
+# clears the chain head ($1B14) and waits for another actor to set it,
+# which no scene does, so the ending's figure at $0B5B ($07 = 1, from
+# frame 9900) waits for good. The head is set at frame 9960: then its
+# wait, its place from the screen's corner ($84:AC95), its fade in steps
+# of 4 frames ($84:ACE5) and its rise ($84:AD19). As cov_ending.box
+# otherwise.
+load build/aladdin/states/stage_a0_s0.state
+wait 9960
+poke 001B14 01
+wait 2040
