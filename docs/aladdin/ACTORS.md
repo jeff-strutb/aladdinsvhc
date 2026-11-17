@@ -92,3 +92,12 @@ ActorEndPlaced) goes on in the same piece, as the original's jump does: its
 C's actor_leave runs that entry's C on when it runs as an actor's piece.
 Swapped in on its own (the piece running as original code), its call ends
 at the jump, where the original side ends it, and a piece opens there.
+
+## Entered by the loop's RTI at another entry
+
+An actor's code may rewrite its record's resume address to another of its
+entry points (kind $08's states, $A5:E5B6 and up): the loop's RTI then lands
+on an @actor entry where no parked piece resumes. A piece starts there on
+both sides, as at the loop's jump; the parked piece of that record is
+dropped at its next yield or end. Where a parked piece does resume at that
+same address, it resumes, and no new piece opens.

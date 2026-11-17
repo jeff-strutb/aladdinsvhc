@@ -399,6 +399,7 @@ static int srole;
 static volatile int *sstuck;
 static FILE *slsrep;
 static long sframe;
+static const char *scall_name;   /* the call the hybrid's C is running (for a report) */
 static void (*core_put)(const struct SmpState *);
 static void (*core_time)(uint32_t);
 static uint8_t (*core_bus)(int, uint16_t, uint8_t);
@@ -632,6 +633,18 @@ static uint8_t live_access(int write, uint16_t a, uint8_t v)
         }
     }
     scyc_put('A', scn, 0);
+    /* Past the end of the original's whole record of the call (not cut by
+       a load): the C makes an access the original did not, so the run has
+       diverged; and no time passes here, so a C polling a port (the $CC
+       handshake in SoundUpload) would wait for ever with nothing reported.
+       The run ends here, reported, as the S-CPU's C does when stuck. */
+    if (shave && !scut && !sopen && !spast_end) {
+        fprintf(slsrep, "frame %ld: the SPC700 C of %s %s %04X past the end of the original's record of its call: DIVERGENT\n",
+                sframe, scall_name ? scall_name : "-", write ? "writes" : "reads", a);
+        fflush(slsrep);
+        *sstuck = 1;
+        _exit(6);
+    }
     /* The original's record was cut by a state load: the C runs on to the
        frame's end (the load replaces the machine), each access timed like
        the record's last step, so a loop polling a timer can end. */
@@ -686,6 +699,7 @@ static int hybrid_exec(uint16_t pc, uint16_t prev_end)
         fwrite(&at, 4, 1, scyclog);
     }
     sthread = snesbox_co_active ? snesbox_co_active() : NULL;
+    scall_name = rt[idx].name;
     live = 1;
     if (setjmp(live_abort) == 0) {
         rt[idx].abi();

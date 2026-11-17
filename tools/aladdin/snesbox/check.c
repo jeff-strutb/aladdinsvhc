@@ -56,6 +56,11 @@ static int is_jump_entry(uint32_t pc) { return jump_bits[pc >> 3] >> (pc & 7) & 
 static uint8_t actor_bits[1 << 21];     /* actors' code (@actor), entered by the actor loop's jump */
 static int is_actor_entry(uint32_t pc) { return actor_bits[pc >> 3] >> (pc & 7) & 1; }
 static int is_jump_op(uint8_t op);
+/* An actor's piece starts at an @actor entry the actor loop reaches by its
+   jump through the kind tables, or by its RTI when the actor's code
+   rewrote its record's resume address to that entry (kind $08's states)
+   and no parked piece resumes there. */
+static int actor_enters(uint32_t pc, uint8_t via) { return is_actor_entry(pc) && (is_jump_op(via) || via == 0x40); }
 static uint8_t longret_bits[1 << 21];   /* routines that return by RTL */
 static uint8_t jumprt_bits[1 << 21];    /* routines entered only by jumps */
 static int jump_entered(uint32_t pc, uint8_t via) { return is_jump_op(via) && (jumprt_bits[pc >> 3] >> (pc & 7) & 1); }
@@ -621,6 +626,7 @@ static void on_insn(uint32_t pc)
     struct SnesboxRegs r;
     int have = 0;
     uint8_t prev_op = *core_opcode;
+    int resumed_now = 0;   /* a parked piece resumed at this instruction */
     if (prev_op == 0x9A || prev_op == 0x1B)
         for (int i = 0; i < depth; i++)
             if (!ws[i]->in_irq) ws[i]->stack_reset = 1;
@@ -735,6 +741,7 @@ static void on_insn(uint32_t pc)
                 w->oread.n = w->owrite.n = w->oseq.n = 0;
             }
             a5apark[k].n = 0;
+            resumed_now = 1;
             break;
         }
     }
@@ -833,7 +840,7 @@ static void on_insn(uint32_t pc)
         w->ret_pc = ue.ret;
         w->exit_s = ue.exit_s;
         ue.set = 0;
-    } else if (is_actor_entry(pc) && is_jump_op(via)) {
+    } else if (actor_enters(pc, via) && !(via == 0x40 && resumed_now)) {
         w->ret_pc = 0xFFFFFFFFu;
         w->exit_s = (uint16_t)sp;
         w->actor = 1;
@@ -1538,7 +1545,7 @@ not_active:
     if (routine_at(pc) < 0) return;
     struct SnesboxRegs r; core_regs(&r);
     /* An actor's code, entered by the actor loop's jump: its first piece. */
-    if (is_actor_entry(pc) && is_jump_op(*core_opcode)) {
+    if (actor_enters(pc, *core_opcode)) {
         o_open(pc, &r);
         m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.actor = 1;
         return;
@@ -2695,7 +2702,7 @@ static int ls_exec(uint32_t pc)
     if (idx < 0) return 0;
     core_regs(&r);
     uint32_t ret; uint16_t exit_s;
-    int actor = is_actor_entry(pc) && is_jump_op(*core_opcode);
+    int actor = actor_enters(pc, *core_opcode);
     if (actor || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
     else if (jump_entered(pc, *core_opcode)) jump_return(pc, r.s, wram, &ret, &exit_s);
     else if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
