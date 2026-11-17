@@ -1,6 +1,6 @@
 /*
  * kind3d.c: actor kind $3D, a thing the player can stand on and ride:
- * its contact with him each frame it waits. Written from the bytes where
+ * its contact with him each frame it waits, a child it starts and its bob. Written from the bytes where
  * no script runs them; named and described by hand.
  */
 #include "machine.h"
@@ -12,6 +12,12 @@
 
 void abi_ActorPlayerBoxCount(void);
 void abi_ActorTurnsShotBack(void);
+void abi_ActorBobReturnStep(void);
+void abi_ActorBobStep(void);
+void abi_ActorKeepSpot(void);
+void abi_AnimStart(void);
+void abi_ChildStartListed(void);
+void abi_SoundQueueAdd(void);
 void abi_PlayerEnter8CFacing(void);
 void abi_PlayerMoveWithActor(void);
 
@@ -154,4 +160,84 @@ void abi_Kind3DWait(void)
 {
     abi_Kind3DPlayerContact();
     abi_ActorTurnsShotBack();
+}
+
+/*
+ * @routine 83:C332 ActorStartChild1E5
+ * WHAT IT DOES: Starts the actor's one child (set 1 of its table at
+ * 83:C324): at spawn point $1E, its $07 = 5.
+ * HOW: ChildStartListed with X = $1E, Y = 5. No script runs it: written
+ * from its bytes.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR through
+ * the actor's table at 83:C324 (83:C317). Exit: as ChildStartListed.
+ */
+void abi_ActorStartChild1E5(void)
+{
+    ldx8_v(0x1E);
+    ldy8_v(0x05);
+    abi_ChildStartListed();
+}
+
+/* `n` frames (BRK at brk_at first) of ActorKeepSpot and `step`. */
+static void bob_frames(uint8_t n, uint32_t brk_at, void (*step)(void))
+{
+    lda8_v(n);
+    sta8(ea_dp(ACTOR_40));
+    do {
+        actor_yield(brk_at);
+        abi_ActorKeepSpot();
+        step();
+        MEM8(dec, ea_dp(ACTOR_40));
+    } while (!IF_Z);
+}
+
+/*
+ * @routine 83:C363 Kind3DBob
+ * @actor
+ * WHAT IT DOES: Actor kind $3D with $07 4 and up: a thing the player can
+ * ride (Kind3DWait) that bobs: 40 frames still, 14 frames up (its $4B set
+ * at the top, with sound $4E), 27 frames still, 56 frames back down,
+ * again, keeping its place each frame for the ride.
+ * HOW: $07 = its bit 0; ACTOR_08 = 2; K3D_X_WAS, $42, K3D_Y_WAS, $44 and
+ * K3D_RIDDEN 0; AnimStart with $07; ACTOR_09 = $90. Again and again: K3D_4B
+ * 0; BRK; ActorKeepSpot; COP $28; 14 frames (BRK first) of ActorKeepSpot
+ * and ActorBobStep; K3D_4B up; SoundQueueAdd $4E; BRK; ActorKeepSpot;
+ * COP $1B; K3D_4B 0; 56 frames (BRK first) of ActorKeepSpot and
+ * ActorBobReturnStep.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * a branch from kind $3D's start ($83:C306). Exit: never returns.
+ */
+void abi_Kind3DBob(void)
+{
+    lda8(ea_dp(ACTOR_07));
+    and8_v(0x01);
+    sta8(ea_dp(ACTOR_07));
+    lda8_v(0x02);
+    sta8(ea_dp(ACTOR_08));
+    stz8(ea_dp(K3D_X_WAS));
+    stz8(ea_dp(K3D_X_WAS + 1));
+    stz8(ea_dp(K3D_Y_WAS));
+    stz8(ea_dp(K3D_Y_WAS + 1));
+    stz8(ea_dp(K3D_RIDDEN));
+    lda8(ea_dp(ACTOR_07));
+    abi_AnimStart();
+    lda8_v(0x90);
+    sta8(ea_dp(ACTOR_09));
+    for (;;) {
+        stz8(ea_dp(K3D_4B));
+        actor_yield(0x83C383u);
+        abi_ActorKeepSpot();
+        lda8_v(0x28);
+        actor_wait(0x83C38Bu);
+        bob_frames(0x0E, 0x83C391u, abi_ActorBobStep);
+        MEM8(inc, ea_dp(K3D_4B));
+        lda8_v(0x4E);
+        abi_SoundQueueAdd();
+        actor_yield(0x83C3A6u);
+        abi_ActorKeepSpot();
+        lda8_v(0x1B);
+        actor_wait(0x83C3AEu);
+        stz8(ea_dp(K3D_4B));
+        bob_frames(0x38, 0x83C3B6u, abi_ActorBobReturnStep);
+    }
 }

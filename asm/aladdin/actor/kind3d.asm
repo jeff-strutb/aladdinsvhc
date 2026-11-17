@@ -1,5 +1,5 @@
 ; kind3d.asm: actor kind $3D, a thing the player can stand on and ride:
-; its contact with him each frame it waits. Written from the bytes where
+; its contact with him each frame it waits, a child it starts and its bob. Written from the bytes where
 ; no script runs them; named and described by hand.
 ; C: src/aladdin/actor/kind3d.c.
 
@@ -132,3 +132,79 @@ Kind3DWait:
     jsr.w Kind3DPlayerContact
     jsr.w ActorTurnsShotBack
     rts
+
+; @routine 83:C332 ActorStartChild1E5
+; WHAT IT DOES: Starts the actor's one child (set 1 of its table at
+; 83:C324): at spawn point $1E, its $07 = 5.
+; HOW: ChildStartListed with X = $1E, Y = 5. No script runs it: written
+; from its bytes.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR through
+; the actor's table at 83:C324 (83:C317). Exit: as ChildStartListed.
+%at($83C332)
+ActorStartChild1E5:
+    ldx.b #$1E
+    ldy.b #$05
+    jsr.w ChildStartListed
+    rts
+
+; @routine 83:C363 Kind3DBob
+; @actor
+; WHAT IT DOES: Actor kind $3D with $07 4 and up: a thing the player can
+; ride (Kind3DWait) that bobs: 40 frames still, 14 frames up (its $4B set
+; at the top, with sound $4E), 27 frames still, 56 frames back down,
+; again, keeping its place each frame for the ride.
+; HOW: $07 = its bit 0; ACTOR_08 = 2; K3D_X_WAS, $42, K3D_Y_WAS, $44 and
+; K3D_RIDDEN 0; AnimStart with $07; ACTOR_09 = $90. Again and again: K3D_4B
+; 0; BRK; ActorKeepSpot; COP $28; 14 frames (BRK first) of ActorKeepSpot
+; and ActorBobStep; K3D_4B up; SoundQueueAdd $4E; BRK; ActorKeepSpot;
+; COP $1B; K3D_4B 0; 56 frames (BRK first) of ActorKeepSpot and
+; ActorBobReturnStep.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; a branch from kind $3D's start ($83:C306). Exit: never returns.
+%at($83C363)
+Kind3DBob:
+    lda.b !actor_07
+    and.b #$01
+    sta.b !actor_07
+    lda.b #$02
+    sta.b !actor_08
+    stz.b !K3D_X_WAS
+    stz.b !K3D_X_WAS+1
+    stz.b !K3D_Y_WAS
+    stz.b !K3D_Y_WAS+1
+    stz.b !K3D_RIDDEN
+    lda.b !actor_07
+    jsl.l AnimStart
+    lda.b #$90
+    sta.b !actor_09
+.again:
+    stz.b !K3D_4B
+    brk.b #$00
+    jsl.l ActorKeepSpot
+    lda.b #$28
+    cop.b #$00
+    lda.b #$0E
+    sta.b !actor_40
+.up:
+    brk.b #$00
+    jsl.l ActorKeepSpot
+    jsr.w ActorBobStep
+    dec.b !actor_40
+    bne .up
+    inc.b !K3D_4B
+    lda.b #$4E
+    jsl.l SoundQueueAdd
+    brk.b #$00
+    jsl.l ActorKeepSpot
+    lda.b #$1B
+    cop.b #$00
+    stz.b !K3D_4B
+    lda.b #$38
+    sta.b !actor_40
+.down:
+    brk.b #$00
+    jsl.l ActorKeepSpot
+    jsr.w ActorBobReturnStep
+    dec.b !actor_40
+    bne .down
+    bra .again
