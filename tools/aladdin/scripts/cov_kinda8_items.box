@@ -1,0 +1,18 @@
+# Actor kind $A8 at a level end ($83:FB1A) with its $07 below the
+# stage's count of items ($0375): it waits its delay, takes pose 0 and
+# plays sound $28 ($83:FB36). The scripts collect none, so the count is
+# set to $FF as the stage starts; then act 1 stage 1's end as in
+# cov_level_end_press.box.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 000375 FF
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+wait 300
