@@ -22,7 +22,12 @@ the last one done), the runner:
      routines do not cause (still red with all of them held) holds nothing.
      Holds are lines in src/aladdin/held.txt, committed by the runner alone;
      the next pass reruns the scripts reaching what the hold changed.
-  5. commits the ledgers (config/aladdin/t3_live.csv, whole_image.csv, and
+  5. a batch that changed the harness (the checker, core patches,
+     hybrid.py) qualifies only the routines it changed, like any other;
+     the whole game is checked again off the critical path: a full A7 on
+     the new harness into the A7 ledger, run once no commit has landed for
+     15 minutes, which reports red scripts (regressions) without holding;
+  6. commits the ledgers (config/aladdin/t3_live.csv, whole_image.csv, and
      progress.py's README and map) every N batches (default 3), or when idle.
 
 State and logs live in build/aladdin/gate-runner/ (runner.json, runner.log,
@@ -46,6 +51,7 @@ LAND = os.environ.get('ALADDIN_LAND_LOCK')
 HELD = os.path.join(ROOT, 'src', 'aladdin', 'held.txt')
 LEDGERS = ['config/aladdin/t3_live.csv', 'config/aladdin/whole_image.csv', 'README.md', 'docs/aladdin/progress-map.svg']
 BISECT_OUT = 'runner-bisect'
+REGRESS_IDLE = 900
 # Paths whose change needs no gate run (the runner's own outputs).
 QUIET = tuple(LEDGERS) + ('docs/',)
 
@@ -251,6 +257,9 @@ def batch(state, head):
         return False
     got = dict(l.split(' ', 1) if ' ' in l else (l, '') for l in text.splitlines() if l.startswith(('routines', 'scripts')))
     addrs = got.get('routines', '').split()
+    if got.get('harness') == 'yes':
+        state['regress'] = head
+        log('%s: harness changed: whole-game A7 queued for when no commit lands for %d min' % (short, REGRESS_IDLE // 60))
     if not addrs:
         log('%s: no routine affected' % short)
         return True
@@ -298,6 +307,22 @@ def batch(state, head):
     return True
 
 
+def regress(state):
+    """The off-path whole-game check: a full A7 at the queued revision into
+    the A7 ledger (its rows are then measured on the new harness); red
+    scripts are reported, not held."""
+    rev = state['regress']
+    log('%s: whole-game A7 (regression check) starts' % rev[:7])
+    out = os.path.join(D, 'regress-%s.log' % rev[:7])
+    t0 = time.time()
+    rc, text = job(QUALIFY, 'python3 tools/aladdin/t3.py --image --full', env={
+        'ALADDIN_GATE_REV': rev}, timeout=QUALIFY_TIMEOUT, out=out)
+    red = [l.split()[0] for l in text.splitlines() if re.search(r': (DIVERGENT|FAILED)$', l.strip()) and l.split()]
+    log('%s: whole-game A7 done in %.0fs: %s' % (rev[:7], time.time() - t0,
+        'no red script' if not red and 'IDENTICAL' in text else '%d red: %s (see %s)' % (len(red), ' '.join(sorted(set(red))), out)))
+    state.pop('regress', None)
+
+
 def prune(head):
     """Drop objdiff's compiled trees of revisions other than head (they are rebuilt when needed)."""
     w = os.path.join(ROOT, 'build', 'aladdin', 'objdiff')
@@ -323,6 +348,10 @@ def main(argv):
     while True:
         head = git('rev-parse', 'HEAD')
         if head == state.get('done'):
+            if state.get('regress') and time.time() - state.get('at', 0) > REGRESS_IDLE and not dirty():
+                regress(state)
+                save_state(state)
+                continue
             if state.get('batches') and (once or time.time() - state.get('at', 0) > 600):
                 commit_ledgers(state)
                 save_state(state)

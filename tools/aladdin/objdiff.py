@@ -246,7 +246,7 @@ def tags(d):
     return out
 
 
-def affected(old_rev, new_rev='HEAD'):
+def affected(old_rev, new_rev='HEAD', checker=True):
     """(routine addresses whose compiled C differs, checker changed?). The
     checker counts as changed (everything affected) when objects cannot be
     read or a file compiles at one revision only."""
@@ -263,7 +263,8 @@ def affected(old_rev, new_rev='HEAD'):
     # A file that did not compile has no object: it cannot be compared.
     if src(od, TREE, '*.c') != set(oobjs) or src(nd, TREE, '*.c') != set(nobjs):
         return set(), True
-    if changed(ob, nb) or set(ob) != set(nb):
+    # checker=False: the routines only; a changed checker is the caller's to handle.
+    if checker and (changed(ob, nb) or set(ob) != set(nb)):
         return set(), True
     bad = changed(oc, nc)
     # A section of old's that is gone: whatever referred to it in new refers

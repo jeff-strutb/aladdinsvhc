@@ -199,15 +199,21 @@ def tags_in(rev, path):
 
 
 @functools.lru_cache(maxsize=None)
-def affected_since(rev):
-    """(routines whose results may differ between `rev` and REV, everything?)."""
+def affected_since(rev, harness=True):
+    """(routines whose results may differ between `rev` and REV, everything?).
+    harness=False leaves out what a harness change (the checker, the core
+    patches, hybrid.py) does to every result: the routines the batch itself
+    changed, for the runner's critical path (the whole game is checked
+    again off it)."""
     paths = changed_since(rev)
     if paths is None:
         return frozenset(), True
     out, headers = set(), False
     for p in paths:
         if p.startswith(HARNESS):
-            return frozenset(), True
+            if harness:
+                return frozenset(), True
+            continue
         if not p.startswith(TREE + '/'):
             continue
         if p.endswith(('.c', '.c.held')):
@@ -222,7 +228,7 @@ def affected_since(rev):
     if headers:
         sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
         import objdiff
-        got, everything = objdiff.affected(rev, REV)
+        got, everything = objdiff.affected(rev, REV, checker=harness)
         if everything:
             return frozenset(), True
         out |= got
@@ -230,8 +236,12 @@ def affected_since(rev):
 
 
 def stale(rev, addr):
-    """True when a result for routine `addr` measured on `rev` may not hold for REV."""
-    got, everything = affected_since(rev)
+    """True when a result for routine `addr` measured on `rev` may not hold
+    for REV because its C, a held C, a header or its script changed. A
+    harness change alone does not make it stale: the whole game is checked
+    again on the new harness off the critical path (runner.py's regression
+    check, which rewrites the A7 ledger)."""
+    got, everything = affected_since(rev, False)
     return everything or addr in got
 
 
@@ -302,7 +312,7 @@ def script_stale(name, rev, prev):
     paths = changed_since(prev['source'])
     if paths is None:
         return 'no committed revision to compare'
-    got, everything = affected_since(prev['source'])
+    got, everything = affected_since(prev['source'], False)
     if everything:
         return 'shared code changed'
     if 'tools/aladdin/scripts/%s.box' % name in paths:
@@ -901,7 +911,10 @@ def main(argv):
         # (ALL: everything), and the scripts added or changed since.
         # A script added or changed reaches routines whose results it adds
         # to: they are qualified again too (run after build.py traced it).
-        got, everything = affected_since(argv[1])
+        # Routines the batch changed, harness changes left out (they queue
+        # the off-path whole-game check: the "harness" line).
+        got, everything = affected_since(argv[1], False)
+        harness = affected_since(argv[1])[1] and not everything
         paths = changed_since(argv[1]) or set()
         new = sorted(os.path.splitext(os.path.basename(p))[0] for p in paths
                      if p.startswith('tools/aladdin/scripts/') and p.endswith('.box'))
@@ -911,6 +924,7 @@ def main(argv):
             out |= set(reached().get(s, have)) & set(have)
         print('routines', ' '.join(sorted(out)))
         print('scripts', ' '.join(new))
+        print('harness', 'yes' if harness else 'no')
         return 0
     if argv[:1] == ['--failures'] and argv[1:]:
         # After --qualify --run ADDR...: routines whose A5 diverged, and each
