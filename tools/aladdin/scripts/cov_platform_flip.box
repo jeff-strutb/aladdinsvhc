@@ -4,7 +4,9 @@
 # rand_stage_a1_s1 (seed 7) to frame 280, Aladdin riding the platform at
 # record $12DB (frames 268 to 372); its DIRECTION_FLIP ($42, $131D) poked
 # to 1 (DIRECTION 0; its wait then flips DIRECTION to 1 and clears it),
-# and 20 frames later poked to 1 again.
+# and 20 frames later poked to 1 again. The kind $4B at record $123B
+# follows that platform then, so the DIRECTION change is also its $07
+# following the record's $40 (Kind4BStart, $83:CE5A).
 load build/aladdin/states/stage_a1_s1.state
 hold Y+RIGHT 23
 hold RIGHT 13
