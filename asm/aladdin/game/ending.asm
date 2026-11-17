@@ -21,8 +21,6 @@ arch 65816
 !dp_0a = $0A  ; direct page
 !routine_8181a3 = $8181A3  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
-!routine_82b458 = $82B458  ; not yet filed
-!routine_82b4d5 = $82B4D5  ; not yet filed
 !routine_82b501 = $82B501  ; not yet filed
 !t_e0ae = $E0AE  ; data bank
 !t_e433 = $E433  ; data bank
@@ -429,7 +427,7 @@ EndingStagesTask:
     lda.w !v_033f
     cmp.b #$0B
     beq .lB396
-    jsr.w !routine_82b458
+    jsr.w EndingStageScroll
     lda.w !v_0077
     eor.b #$01
     sta.w !v_0077
@@ -473,7 +471,7 @@ EndingStagesTask:
     ldx.b #$08
     jsr.w EndingWipeLeftStep
     ldx.b #$0C
-    jsr.w !routine_82b4d5
+    jsr.w EndingWipeRightStep
     lda.w !v_03a6
     bne .lB3D5
     lda.w !v_03a7
@@ -526,6 +524,16 @@ EndingStagesTask:
 !WIPE_LEFT_PIXELS = $0079
 !WIPE_STEPS = $DB91             ; (data bank) per step, by X: the amount the edges close by (two words)
 !WINDOW_LEFT = $03A6            ; WH0's shadow: the window's left
+!WINDOW_RIGHT = $03A7           ; WH1's shadow: the window's right
+!WIPE_RIGHT = $007C             ; the window's right edge: fraction, then pixels (word), then a fourth byte
+!WIPE_RIGHT_PIXELS = $007D
+!ENDING_STAGE = $0076           ; the stage being played back (its index in ENDING_HOLDS)
+!ENDING_STEP = $0077            ; the play-back's step (0 or 1): its scroll and wipe entries
+!ENDING_EE = $00EE              ; the stage, kept for the task started at the end
+!BG_SCROLL_X_18C9 = $18C9       ; a second layer's scroll x, moved with it
+!ENDING_SCROLLS = $DB92         ; (data bank) per step, by X: the scroll's change (word)
+!ENDING_HOLDS = $DBB3           ; (data bank) per stage: how many waits of 63 frames follow
+!ENDING_B0A9_TASK = $82B0A9     ; the task started after each move (not yet filed)
 
 ; @routine 82:B4AF EndingWipeLeftStep
 ; WHAT IT DOES: Closes the ending's window from the left by step X: its
@@ -601,3 +609,90 @@ EndingStageFrameBands:
     inc.w !tile_blocks_pending
     inc.w !vram_queue_pending
     rts
+
+; @routine 82:B4D5 EndingWipeRightStep
+; WHAT IT DOES: Closes the ending's window from the right by step X: its
+; right edge (WIPE_RIGHT, 32-bit) less the step's amount, at most 255
+; pixels, into WH1's shadow.
+; HOW: 16-bit: WIPE_RIGHT less WIPE_STEPS + X (two words, with the
+; borrow); WIPE_RIGHT_PIXELS $0100 or more: $00FF (no script's play-back
+; reaches it: $82:B4F2). WINDOW_RIGHT = its low byte.
+; Entry: M 8-bit; X = the step * 4; DB a bank whose $0000-$1FFF is work
+; RAM and that holds WIPE_STEPS; called by JSR. Exit: M 8-bit; A = the
+; right edge's pixels; N and Z from it.
+%at($82B4D5)
+EndingWipeRightStep:
+    rep.b #$20
+    sec
+    lda.w !WIPE_RIGHT
+    sbc.w !WIPE_STEPS,x
+    sta.w !WIPE_RIGHT
+    lda.w !WIPE_RIGHT+2
+    sbc.w !WIPE_STEPS+2,x
+    sta.w !WIPE_RIGHT+2
+    lda.w !WIPE_RIGHT_PIXELS
+    cmp.w #$0100
+    bcc .right
+    lda.w #$00FF
+    sta.w !WIPE_RIGHT_PIXELS
+.right:
+    sep.b #$20
+    lda.w !WIPE_RIGHT_PIXELS
+    sta.w !WINDOW_RIGHT
+    rts
+
+; @routine 82:B458 EndingStageScroll
+; WHAT IT DOES: The play-back's move to the next stage: for 41 frames the
+; stage is drawn while the view scrolls by its step and the window closes
+; from both sides; then the task at $82:B0A9 is started and the task
+; waits 63 frames as many times as the stage's hold says, and the stage
+; count goes on.
+; HOW: TASK_PARAM $29; each frame: TaskWait 1; EndingStageFrame; X =
+; ENDING_STEP * 4; SCROLL_X and BG_SCROLL_X_18C9 + ENDING_SCROLLS + X;
+; EndingWipeLeftStep, EndingWipeRightStep; TASK_PARAM down. TaskCreate
+; (slot 5, parameter 0, $82:B0A9); ENDING_EE = ENDING_STAGE; Y =
+; ENDING_HOLDS by it; Y times TaskWait $3F; ENDING_STAGE up.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
+; that holds the tables; called by JSR from the ending's stages task.
+; Exit: N and Z from ENDING_STAGE.
+%at($82B458)
+EndingStageScroll:
+    lda.b #$29
+    sta.w !task_param
+.frame:
+    lda.b #$01
+    jsl.l TaskWait
+    jsr.w EndingStageFrame
+    lda.w !ENDING_STEP
+    asl a
+    asl a
+    tax
+    rep.b #$20
+    clc
+    lda.w !layer0+!LAYER_SCROLL_X
+    adc.w !ENDING_SCROLLS,x
+    sta.w !layer0+!LAYER_SCROLL_X
+    clc
+    lda.w !BG_SCROLL_X_18C9
+    adc.w !ENDING_SCROLLS,x
+    sta.w !BG_SCROLL_X_18C9
+    sep.b #$20
+    jsr.w EndingWipeLeftStep
+    jsr.w EndingWipeRightStep
+    dec.w !task_param
+    bne .frame
+    jsl.l TaskCreate
+    db 5*24, 0                  ; slot 5, parameter 0
+    dl !ENDING_B0A9_TASK
+    lda.w !ENDING_STAGE
+    sta.w !ENDING_EE
+    tax
+    ldy.w !ENDING_HOLDS,x
+.hold:
+    lda.b #$3F
+    jsl.l TaskWait
+    dey
+    bne .hold
+    inc.w !ENDING_STAGE
+    rts
+
