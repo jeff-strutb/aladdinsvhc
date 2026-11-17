@@ -1,0 +1,13 @@
+# Actor kind $51's start ($83:D239) with bits 0 and 1 of its $07 set, which
+# the first level's kind $51 (record $0B5B, $07 = 0) never has: bit 0
+# waits $90 frames rather than $40 ($83:D25A), bit 1 goes to the variant at
+# $83:D279 ($83:D247). The actor put back in its start state ($0C) with $07
+# = 1, then later with $07 = 2, so the actor loop starts it again.
+load build/aladdin/states/level1.state
+wait 30
+poke $000B5B 0C
+poke $000B62 01
+wait 400
+poke $000B5B 0C
+poke $000B62 02
+wait 120

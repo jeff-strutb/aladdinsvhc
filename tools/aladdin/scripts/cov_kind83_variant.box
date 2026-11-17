@@ -1,0 +1,14 @@
+# Actor kind $83's start ($84:9538) with bit 4 of its $07 set ($84:9555),
+# which no script's carpet ride meets. Played as cov_carpet_dive.box from
+# stage_a2_s1.state; at frame 300 the kind $83 actor at $0BAB (started at
+# frame 240) is put back in its start state ($0C) with $07 = $11, so the
+# actor loop starts it again by its kind's table with the bit set.
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+hold DOWN 120
+hold DOWN+RIGHT 120
+hold UP 30
+poke $000BAB 0C
+poke $000BB2 11
+hold UP 30
+hold DOWN+LEFT 120
