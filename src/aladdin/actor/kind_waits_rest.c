@@ -23,6 +23,12 @@ void abi_ActorStompOrHurt16(void);
 void abi_ActorTestCarries(void);
 void abi_ActorTurnsShotBack(void);
 void abi_AnimStep(void);
+void abi_ActorMotionPreset(void);
+void abi_ActorFlyAgainst(void);
+void abi_ActorFly(void);
+void abi_ActorZoneHurtsPlayer(void);
+void abi_ActorEndIfLeftBehind(void);
+void abi_ActorEndIfAhead(void);
 void abi_PlayerEnter8CFacing(void);
 void abi_AnimStart(void);
 void abi_ActorZoneHasTestBox(void);
@@ -56,6 +62,13 @@ void abi_SoundQueueAdd(void);
 #define K57_FACES 0x44u             /* nonzero: it turns to face Aladdin */
 #define K57_TOUCH 0x42u             /* 0: touching hurts him; positive: stomp or hurt; negative: nothing */
 #define K57_FACING_SRC 0x1Fu        /* its facing's sign picks pose 8 or $0B */
+#define K71_SIZE 0x27u              /* its size: its hurt zone is ($0F + it) * 4 */
+#define BOB_STATE 0x13u             /* 0 still; 1-2 rising to BOB_LINE; 3-4 falling back */
+#define BOB_Y 0x0Fu                 /* its y (word) */
+#define BOB_LINE 0x40u              /* the y (word) it turns at */
+#define BOB_TABLE 0xE240u           /* the states' code (bank $83), by BOB_STATE */
+#define K5C_GONE_AT 0xE128u         /* its code resumes here once out of view (bank $83) */
+#define K5C_DONE_AT 0xE282u         /* and here once Aladdin has no health */
 #define RANGE_X 0x1A44u             /* the point actors are kept in range of (x, word) */
 
 /*
@@ -628,4 +641,136 @@ shots:
     }
     abi_AnimStep();
     abi_ActorPictureSend();
+}
+
+/*
+ * @routine 83:F3F1 Kind71Wait
+ * WHAT IT DOES: Kind $71's wait: Aladdin in its hurt zone (by K71_SIZE)
+ * is hurt; its animation; it ends once ahead of the view (bit 4 of
+ * ACTOR_07 set) or left behind (clear).
+ * HOW: Y = (K71_SIZE + $0F) * 4, ActorZoneHurtsPlayer; AnimStep; ACTOR_07
+ * bit 4: on into ActorEndIfAhead, else ActorEndIfLeftBehind (JMP).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+ * JSR through the actor loop's wait table. Exit: as ActorEndIfAhead or
+ * ActorEndIfLeftBehind.
+ */
+void abi_Kind71Wait(void)
+{
+    lda8(ea_dp(K71_SIZE));
+    clc();
+    adc8_v(0x0F);
+    ACC8(asl);
+    ACC8(asl);
+    tay8();
+    abi_ActorZoneHurtsPlayer();
+    abi_AnimStep();
+    lda8(ea_dp(ACTOR_07));
+    and8_v(0x10);
+    if (!IF_Z)
+        abi_ActorEndIfAhead();
+    else
+        abi_ActorEndIfLeftBehind();
+}
+
+/*
+ * @routine 83:E239 ActorBobAboutLine
+ * WHAT IT DOES: Moves the actor by BOB_STATE: 0 still; 1 motion preset
+ * $47, then (2) flown against its motion until its y is above BOB_LINE;
+ * 3 preset $48, then (4) flown until its y is back at or below the line,
+ * and again.
+ * HOW: JMP (BOB_TABLE,X) by BOB_STATE * 2. 1: Y = $47, ActorMotionPreset,
+ * BOB_STATE up, on into 2. 2: ActorFlyAgainst; BOB_Y below BOB_LINE: BOB_STATE
+ * up; else RTS. 3: Y = $48, ActorMotionPreset, BOB_STATE up, on into
+ * 4. 4: ActorFly; BOB_Y below BOB_LINE: RTS; else BOB_STATE 1.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR. Exit:
+ * M 8-bit.
+ */
+void abi_ActorBobAboutLine(void)
+{
+    lda8(ea_dp(BOB_STATE));
+    ACC8(asl);
+    tax8();
+    switch (cpu.x) {
+    case 0:
+        return;
+    case 2:
+        ldy8_v(0x47);
+        abi_ActorMotionPreset();
+        MEM8(inc, ea_dp(BOB_STATE));
+        /* fall through */
+    case 4:
+        abi_ActorFlyAgainst();
+        op_rep(0x20);
+        lda16(ea_dp(BOB_Y));
+        cmp16_v(rd16(ea_dp(BOB_LINE)));
+        op_sep(0x20);
+        if (!IF_C)
+            MEM8(inc, ea_dp(BOB_STATE));
+        return;
+    case 6:
+        ldy8_v(0x48);
+        abi_ActorMotionPreset();
+        MEM8(inc, ea_dp(BOB_STATE));
+        /* fall through */
+    case 8:
+        abi_ActorFly();
+        op_rep(0x20);
+        lda16(ea_dp(BOB_Y));
+        cmp16_v(rd16(ea_dp(BOB_LINE)));
+        op_sep(0x20);
+        if (IF_C) {
+            lda8_v(0x01);
+            sta8(ea_dp(BOB_STATE));
+        }
+        return;
+    default:                              /* past the table: its next bytes */
+        jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(BOB_TABLE + cpu.x)));
+        return;
+    }
+}
+
+/*
+ * @routine 83:E1EE Kind5CWait
+ * WHAT IT DOES: Kind $5C's wait: it bobs about its line, animated and
+ * drawn; out of the view (more than $140 pixels to either side of
+ * RANGE_X), its code goes on at K5C_GONE_AT next; in view with Aladdin
+ * out of health, at K5C_DONE_AT after one frame, its wait over.
+ * HOW: ActorBobAboutLine, AnimStep, ActorPictureSend; its x - RANGE_X +
+ * $140 (16-bit) not below $280: resume address ($03-$04) = K5C_GONE_AT,
+ * RTS. Else HEALTH 0: resume = K5C_DONE_AT, frames ($01) 1, bit 7 of
+ * ACTOR_09 cleared (ASL, LSR). RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSR through the actor loop's wait
+ * table. Exit: M 8-bit.
+ */
+void abi_Kind5CWait(void)
+{
+    abi_ActorBobAboutLine();
+    abi_AnimStep();
+    abi_ActorPictureSend();
+    op_rep(0x20);
+    sec();
+    lda16(ea_dp(0x0C));
+    sbc16_v(rd16(ea_abs(RANGE_X)));
+    adc16_v(0x0140);
+    cmp16_v(0x0280);
+    op_sep(0x20);
+    if (IF_C) {
+        lda8_v((uint8_t)K5C_GONE_AT);
+        sta8(ea_dp(ACTOR_03));
+        lda8_v((uint8_t)(K5C_GONE_AT >> 8));
+        sta8(ea_dp(ACTOR_04));
+        return;
+    }
+    lda8(ea_abs(HEALTH));
+    if (!IF_Z)
+        return;
+    lda8_v((uint8_t)K5C_DONE_AT);
+    sta8(ea_dp(ACTOR_03));
+    lda8_v((uint8_t)(K5C_DONE_AT >> 8));
+    sta8(ea_dp(ACTOR_04));
+    lda8_v(0x01);
+    sta8(ea_dp(ACTOR_01));
+    MEM8(asl, ea_dp(ACTOR_09));
+    MEM8(lsr, ea_dp(ACTOR_09));
 }

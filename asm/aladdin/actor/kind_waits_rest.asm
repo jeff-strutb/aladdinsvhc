@@ -39,6 +39,13 @@ arch 65816
 !KWR_K57_FACING_SRC = $1F      ; its sign picks pose 8 or $0B
 !KWR_FACING = $14
 !KWR_FLIP = $15
+!KWR_K71_SIZE = $27            ; its size: its hurt zone is ($0F + it) * 4
+!KWR_BOB_STATE = $13           ; 0 still; 1-2 rising; 3-4 falling back
+!KWR_BOB_Y = $0F               ; its y (word)
+!KWR_BOB_LINE = $40            ; the y (word) it turns at
+!KWR_ACTOR_01 = $01            ; frames left to wait
+!KWR_ACTOR_03 = $03            ; resume address (low, high at $04)
+!KWR_ACTOR_04 = $04
 !KWR_RANGE_X = $1A44           ; the point actors are kept in range of (x, word)
 
 ; @routine 83:91F3 ActorWaitNothing
@@ -543,4 +550,126 @@ Kind57Wait:
 .still:
     jsl.l AnimStep
     jsl.l ActorPictureSend
+    rts
+
+; @routine 83:F3F1 Kind71Wait
+; WHAT IT DOES: Kind $71's wait: Aladdin in its hurt zone (by K71_SIZE)
+; is hurt; its animation; it ends once ahead of the view (bit 4 of
+; ACTOR_07 set) or left behind (clear).
+; HOW: Y = (K71_SIZE + $0F) * 4, ActorZoneHurtsPlayer; AnimStep; ACTOR_07
+; bit 4: on into ActorEndIfAhead, else ActorEndIfLeftBehind (JMP).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+; JSR through the actor loop's wait table. Exit: as ActorEndIfAhead or
+; ActorEndIfLeftBehind.
+;
+%at($83F3F1)
+Kind71Wait:
+    lda.b !KWR_K71_SIZE
+    clc
+    adc.b #$0F
+    asl
+    asl
+    tay
+    jsr.w ActorZoneHurtsPlayer
+    jsl.l AnimStep
+    lda.b !KWR_ACTOR_07
+    and.b #$10
+    beq .behind
+    jmp.w ActorEndIfAhead
+.behind:
+    jmp.w ActorEndIfLeftBehind
+
+; @routine 83:E1EE Kind5CWait
+; WHAT IT DOES: Kind $5C's wait: it bobs about its line, animated and
+; drawn; out of the view (more than $140 pixels to either side of
+; RANGE_X), its code goes on at K5C_GONE_AT next; in view with Aladdin
+; out of health, at K5C_DONE_AT after one frame, its wait over.
+; HOW: ActorBobAboutLine, AnimStep, ActorPictureSend; its x - RANGE_X +
+; $140 (16-bit) not below $280: resume address ($03-$04) = K5C_GONE_AT,
+; RTS. Else HEALTH 0: resume = K5C_DONE_AT, frames ($01) 1, bit 7 of
+; ACTOR_09 cleared (ASL, LSR). RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSR through the actor loop's wait
+; table. Exit: M 8-bit.
+;
+%at($83E1EE)
+Kind5CWait:
+    jsr.w ActorBobAboutLine
+    jsl.l AnimStep
+    jsl.l ActorPictureSend
+    rep #$20
+    sec
+    lda.b !KWR_X
+    sbc.w !KWR_RANGE_X
+    adc.w #$0140
+    cmp.w #$0280
+    sep #$20
+    bcc .inview
+    lda.b #$28
+    sta.b !KWR_ACTOR_03
+    lda.b #$E1
+    sta.b !KWR_ACTOR_04
+    rts
+.inview:
+    lda.w !KWR_HEALTH
+    bne .done
+    lda.b #$82
+    sta.b !KWR_ACTOR_03
+    lda.b #$E2
+    sta.b !KWR_ACTOR_04
+    lda.b #$01
+    sta.b !KWR_ACTOR_01
+    asl.b !KWR_ACTOR_09
+    lsr.b !KWR_ACTOR_09
+.done:
+    rts
+
+; @routine 83:E239 ActorBobAboutLine
+; WHAT IT DOES: Moves the actor by BOB_STATE: 0 still; 1 motion preset
+; $47, then (2) flown against its motion until its y is above BOB_LINE;
+; 3 preset $48, then (4) flown until its y is back at or below the line,
+; and again.
+; HOW: JMP (BOB_TABLE,X) by BOB_STATE * 2. 1: Y = $47, ActorMotionPreset,
+; BOB_STATE up, on into 2. 2: ActorFlyAgainst; BOB_Y below BOB_LINE: BOB_STATE
+; up; else RTS. 3: Y = $48, ActorMotionPreset, BOB_STATE up, on into
+; 4. 4: ActorFly; BOB_Y below BOB_LINE: RTS; else BOB_STATE 1.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR. Exit:
+; M 8-bit.
+;
+%at($83E239)
+ActorBobAboutLine:
+    lda.b !KWR_BOB_STATE
+    asl
+    tax
+    jmp.w (.states,x)
+.states:
+    dw .still, .rise, .rising, .fall, .falling
+.rise:
+    ldy.b #$47
+    jsl.l ActorMotionPreset
+    inc.b !KWR_BOB_STATE
+.rising:
+    jsl.l ActorFlyAgainst
+    rep #$20
+    lda.b !KWR_BOB_Y
+    cmp.b !KWR_BOB_LINE
+    sep #$20
+    bcs .still
+    inc.b !KWR_BOB_STATE
+.still:
+    rts
+.fall:
+    ldy.b #$48
+    jsl.l ActorMotionPreset
+    inc.b !KWR_BOB_STATE
+.falling:
+    jsl.l ActorFly
+    rep #$20
+    lda.b !KWR_BOB_Y
+    cmp.b !KWR_BOB_LINE
+    sep #$20
+    bcc .back
+    lda.b #$01
+    sta.b !KWR_BOB_STATE
+.back:
     rts

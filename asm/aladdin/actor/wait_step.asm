@@ -330,3 +330,28 @@ ActorEndIfLeftBehind:
 .kept:
     sep.b #$20
     rts
+
+; @routine 83:9749 ActorEndIfAhead
+; WHAT IT DOES: The tail some actors' per-frame routines jump into: the
+; actor ends once it is more than $120 pixels right of the view's left
+; edge (ahead of the camera), else back to the routine's caller.
+; HOW: The word at $1773 plus $120 (ADC with C clear); below its x pixels:
+; on into the code at $83:96C6 (SEP #$30, its caller's return address
+; dropped, ActorFreePlaced, the actor loop's next record at $83:94BF).
+; Else SEP #$20, RTS.
+; Entry: M 8-bit; D = the actor; DB = $80; reached by JMP from the
+; per-frame routine the actor loop called by JSR. Exit: kept: M 8-bit; A
+; = the word at $1773 plus $120; N, Z and C from its compare. Ended: the
+; loop goes on at $83:94BF, no return.
+;
+%at($839749)
+ActorEndIfAhead:
+    rep.b #$21
+    lda.w !V_1773
+    adc.w #$0120
+    cmp.b !actor_x+1
+    bcc .gone
+    sep.b #$20
+    rts
+.gone:
+    jmp.w ActorEndOutOfRange_end

@@ -428,6 +428,41 @@ void abi_ActorEndIfLeftBehind(void)
 }
 
 /*
+ * @routine 83:9749 ActorEndIfAhead
+ * WHAT IT DOES: The tail some actors' per-frame routines jump into: the
+ * actor ends once it is more than $120 pixels right of the view's left
+ * edge (ahead of the camera), else back to the routine's caller.
+ * HOW: The word at $1773 plus $120 (ADC with C clear); below its x pixels:
+ * on into the code at $83:96C6 (SEP #$30, its caller's return address
+ * dropped, ActorFreePlaced, the actor loop's next record at $83:94BF).
+ * Else SEP #$20, RTS.
+ * Entry: M 8-bit; D = the actor; DB = $80; reached by JMP from the
+ * per-frame routine the actor loop called by JSR. Exit: kept: M 8-bit; A
+ * = the word at $1773 plus $120; N, Z and C from its compare. Ended: the
+ * loop goes on at $83:94BF, no return.
+ */
+void abi_ActorEndIfAhead(void)
+{
+    uint16_t edge;
+
+    op_rep(0x21);
+    edge = op_adc16(rd16(dba(V_1773)), 0x0120, &cpu.p);
+    cpu.a = edge;
+    cmp16_of(edge, dp16(ACTOR_X + 1));
+    if (edge < dp16(ACTOR_X + 1)) {
+        op_sep(0x30);
+        pla8();
+        pla8();
+        /* JSR ActorFreePlaced at $83:96CA: its return address on the
+           stack while it runs, pulled by its RTS */
+        call_frame(0x96CC, abi_ActorFreePlaced);
+        actor_leave(ACTOR_LOOP_NEXT);
+        return;
+    }
+    op_sep(P_M);
+}
+
+/*
  * @routine 83:DFCD ActorWaitStepSounds
  * WHAT IT DOES: Each frame it waits: its animation on. With bit 7 of $07
  * set: while $42 is set, every 8th count of $032D a sound by its x (the
