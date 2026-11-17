@@ -89,6 +89,17 @@ ActorEndOutOfRange:
     sep.b #$30
     rts
 .end:
+
+; @routine 83:96C6 ActorEndDropReturn
+; WHAT IT DOES: Ends the actor for good from a routine its code called:
+; the call's return address dropped, then as ActorEndPlaced.
+; HOW: 8-bit registers; two bytes pulled (the JSR's return address); on
+; into ActorEndPlaced. ActorEndOutOfRange's own way out.
+; Entry: D = the actor's record; DB a bank whose $0000-$1FFF is work RAM;
+; reached by a jump from a routine the actor's code called by JSR, one
+; return address above the actor loop's stack level. Exit: never returns;
+; as ActorEndPlaced.
+ActorEndDropReturn:
     sep.b #$30
     pla
     pla
