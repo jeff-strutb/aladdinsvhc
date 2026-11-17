@@ -4,3 +4,10 @@
 # one in the commit that fixes the C. Format: BB:AAAA Name  # why
 83:9894 Kind20Spotted  # A5 DIVERGENT at 142a658
 83:9956 Kind20Halt  # A5 DIVERGENT at 142a658
+83:94A4 ActorLoop  # A5 DIVERGENT at 8eb6980
+83:94BF ActorLoopBack  # A5 DIVERGENT at 8eb6980
+83:94D3 ActorLoopNext  # A5 DIVERGENT at 8eb6980
+83:97AF Kind20Start  # A5 DIVERGENT at 8eb6980
+83:97F9 Kind20Patrol  # A5 DIVERGENT at 8eb6980
+83:9832 Kind20LookAbout  # A5 DIVERGENT at 8eb6980
+83:9900 Kind20Charge  # A5 DIVERGENT at 8eb6980
