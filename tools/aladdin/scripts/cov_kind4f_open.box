@@ -1,0 +1,10 @@
+# Actor kind $4F's start ($83:D01A) when the flag its $07 names is already
+# set in $035A ($83:D037: it shows open at once), which no script meets.
+# The title left alone runs its demo, where a kind $4F actor waits at
+# $0C4B ($07 = $0C, flag $A9) from frame 1530; at frame 1560 $035A gets
+# bit 0 and the actor is put back in its start state ($0C).
+load build/aladdin/states/title.state
+wait 1560
+poke $00035A 01
+poke $000C4B 0C
+wait 60

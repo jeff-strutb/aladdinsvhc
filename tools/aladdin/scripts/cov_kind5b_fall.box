@@ -1,0 +1,22 @@
+# Actor kind $5B's start ($83:DF14) running its first fall to the end
+# ($83:DF8D, the BRA past the second fall), which no script reaches: the
+# actor is always gone before its 128 frames are up. Played as
+# rand_stage_a2_s0.box for 600 frames, where the kind $5B actor at $0CEB
+# is in that fall; its frame count ($40, at $0D2B) is then set to 1.
+load build/aladdin/states/stage_a2_s0.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 53
+poke $000D2B 01
+wait 20
