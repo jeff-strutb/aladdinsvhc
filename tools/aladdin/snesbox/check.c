@@ -1056,6 +1056,14 @@ static FILE *lsrep;
    opens it (the original's on stderr) and the original's returns. */
 static long calls_from = -1;
 static const char *ls_cur_name;
+/* The other side gave up: the report so far (the frames compared before
+   the stall, which say where the two first went apart) is kept. */
+static void other_side_stuck(void)
+{
+    if (lsrep) fflush(lsrep);
+    _exit(6);
+}
+
 static void stuck_report(const char *cond)
 {
     fprintf(stderr, "lockstep: %s side stuck in frame %ld waiting for %s; frames o/h %ld/%ld, calls o/h %llu/%llu,"
@@ -1078,7 +1086,7 @@ static void stuck_report(const char *cond)
 static pid_t parent_pid;
 #define PARENT_GONE() (role == 2 && getppid() != parent_pid)
 #define WAIT_UNTIL(cond) do { long spins_ = 0; while (!(cond)) { \
-        if (LOAD(sh->stuck) || PARENT_GONE()) _exit(6); \
+        if (LOAD(sh->stuck) || PARENT_GONE()) other_side_stuck(); \
         if (++spins_ > 600000) { stuck_report(#cond); STORE(sh->stuck, 1); _exit(6); } usleep(50); } } while (0)
 
 static struct {
@@ -1646,7 +1654,7 @@ static int fetch_more(uint32_t need)
             spc_lockstep_past_end();
             hybrid_finish(cur_frame + 1);
         }
-        if (LOAD(sh->stuck) || PARENT_GONE()) _exit(6);
+        if (LOAD(sh->stuck) || PARENT_GONE()) other_side_stuck();
         if (++spins > 600000) { stuck_report("more of the call's record"); STORE(sh->stuck, 1); _exit(6); }
         usleep(50);
     }
@@ -2924,7 +2932,7 @@ void lockstep_before_frame(long f)
         long spins = 0;
         while (!(LOAD(sh->o_frames) > f || LOAD(sh->o_done))) {
             fetch_avail();
-            if (LOAD(sh->stuck) || PARENT_GONE()) _exit(6);
+            if (LOAD(sh->stuck) || PARENT_GONE()) other_side_stuck();
             if (++spins > 600000) { stuck_report("LOAD(sh->o_frames) > f || LOAD(sh->o_done)"); STORE(sh->stuck, 1); _exit(6); }
             usleep(50);
         }
