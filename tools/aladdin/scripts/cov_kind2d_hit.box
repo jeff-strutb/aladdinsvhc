@@ -1,0 +1,14 @@
+# Kind $2D hit ($83:AA5A) when already hit once ($4F set, $83:AA8C) and
+# while it faces left (bit 7 of its facing, $83:AA75), which no script
+# meets. stage_a5_s2's thrower ($0BFB) put in its hit state ($8C) at
+# frame 30, first with $4F 1, then from the state again with facing $80.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke $000BFB 8C
+poke $000C4A 01
+wait 60
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke $000BFB 8C
+poke $000C0F 80
+wait 60
