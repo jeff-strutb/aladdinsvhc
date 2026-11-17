@@ -18,6 +18,13 @@ void abi_PaletteCycleStart(void);
 void abi_TaskCreate(void);
 void abi_Bits035DExpand(void);
 void abi_UnpackSet(void);
+void abi_LevelStartPlace(void);
+void abi_Level04ScreenSetup(void);
+void abi_Level07ScreenSetup(void);
+void abi_Level08ScreenSetup(void);
+void abi_Level0AScreenSetup(void);
+void abi_Level0BScreenSetup(void);
+void abi_Level0FScreenSetup(void);
 
 #define TM_SHADOW 0x0399u  /* the layers on the main screen (TM, for the NMI) */
 #define TS_SHADOW 0x039Au  /* the layers on the sub screen (TS) */
@@ -590,4 +597,253 @@ void abi_LevelScreenSetup(void)
     a8_load((uint8_t)(level << 1));
     x8_load((uint8_t)cpu.a);
     jump_routine(0x810000u | rd16(LEVEL_SETUPS + cpu.x));
+}
+
+/* The set-ups of the levels no script plays, and a colour split no code
+   reaches. Each runs only in the unit calls of cov_level_setups.box. */
+#define V_7FF489 0x7FF489u
+#define BACKDROP_STAGE 0x0841u      /* PlayField3Stages's stage, times 2 (word) */
+#define SPLIT_TABLE 0x1C7Eu         /* HDMA channel 6's table: three entries of lines and four bytes */
+#define SPLIT_LAYERS 0xB9DBu        /* (bank $80) HDMA channel 7's table: TM by lines */
+
+/*
+ * @routine 81:8908 Level03ScreenSetup
+ * WHAT IT DOES: Level 3's screen set-up: layer set-up mode $0A, layer 2
+ * following $40, a task in slot 3, four palette cycles, and HDMA channel 4
+ * writing layer 2's horizontal scroll from the table at $7E:F400 (as
+ * Level02ScreenSetup). No script plays level 3.
+ * HOW: V_083F = $0A, BG2_FOLLOWS = $40, V_7FF481 and V_7FF489 = 2;
+ * TaskCreate (slot 3, parameter 0, $80:A12D); PaletteCycleStart ($54, 0),
+ * ($64, 3), ($74, 6), ($84, 9); then into Level02ScreenSetup's HDMA
+ * channel 4 set-up.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * reached by the jump through the table by level at $81:8802 (81:87FF).
+ * Exit: as Level02ScreenSetup.
+ */
+void abi_Level03ScreenSetup(void)
+{
+    a8_load(0x0A);
+    wr8(dba(V_083F), 0x0A);
+    a8_load(0x40);
+    wr8(dba(BG2_FOLLOWS), 0x40);
+    a8_load(0x02);
+    wr8(V_7FF481, 0x02);
+    wr8(V_7FF489, 0x02);
+    jsl_frame(0x81891Cu);
+    abi_TaskCreate();
+    cpu.unwound = 0;
+    cycle(0x54, 0x00);
+    cycle(0x64, 0x03);
+    cycle(0x74, 0x06);
+    cycle(0x84, 0x09);
+    bg2_scroll_hdma();
+}
+
+/*
+ * @routine 81:8BF4 Level0FScreenSetup
+ * WHAT IT DOES: Level $0F's (and level $1B's) screen set-up: two palette
+ * cycles, layers 1-3 and sprites on the main and the sub screen, layer
+ * set-up mode 8, and the level's bits expanded. No script plays it.
+ * HOW: PaletteCycleStart (0, $1C), ($54, $15); TM_SHADOW and TS_SHADOW
+ * $17; V_083F = 8; Bits035DExpand.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * reached by the jump through the table by level at $81:8802 (81:87FF),
+ * or called by JSR (81:8D5D). Exit: as Bits035DExpand leaves them.
+ */
+void abi_Level0FScreenSetup(void)
+{
+    cycle(0x00, 0x1C);
+    cycle(0x54, 0x15);
+    a8_load(0x17);
+    wr8(dba(TM_SHADOW), 0x17);
+    wr8(dba(TS_SHADOW), 0x17);
+    a8_load(0x08);
+    wr8(dba(V_083F), 0x08);
+    abi_Bits035DExpand();
+}
+
+/*
+ * @routine 81:8C14 Level10ScreenSetup
+ * WHAT IT DOES: Level $10's screen set-up: layer set-up mode $10, the
+ * backdrop's stage 4 past the first restart point, a task in slot 3,
+ * seven palette cycles, and the level's bits expanded. No script plays
+ * it from its start.
+ * HOW: V_083F = $10; with RESTART_POINT nonzero, BACKDROP_STAGE's low
+ * byte 4; TaskCreate (slot 3, parameter 0, $80:A5AC); PaletteCycleStart
+ * (0, $0D), ($0E, $2A), ($1C, $2B), ($54, $15), ($64, $24), ($74, $27),
+ * ($84, $2A); Bits035DExpand.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * reached by the jump through the table by level at $81:8802 (81:87FF).
+ * Exit: as Bits035DExpand leaves them.
+ */
+void abi_Level10ScreenSetup(void)
+{
+    uint8_t point;
+
+    a8_load(0x10);
+    wr8(dba(V_083F), 0x10);
+    point = rd8(dba(RESTART_POINT));
+    a8_load(point);
+    if (point) {
+        a8_load(0x04);
+        wr8(dba(BACKDROP_STAGE), 0x04);
+    }
+    jsl_frame(0x818C23u);
+    abi_TaskCreate();
+    cpu.unwound = 0;
+    cycle(0x00, 0x0D);
+    cycle(0x0E, 0x2A);
+    cycle(0x1C, 0x2B);
+    cycle(0x54, 0x15);
+    cycle(0x64, 0x24);
+    cycle(0x74, 0x27);
+    cycle(0x84, 0x2A);
+    abi_Bits035DExpand();
+}
+
+/*
+ * @routine 81:8D46 Level16ScreenSetup
+ * WHAT IT DOES: Level $16's screen set-up: level 4's. No script plays it.
+ * HOW: Level04ScreenSetup.
+ * Entry: as Level04ScreenSetup. Exit: as Level04ScreenSetup.
+ */
+void abi_Level16ScreenSetup(void)
+{
+    abi_Level04ScreenSetup();
+}
+
+/*
+ * @routine 81:8D4A Level17ScreenSetup
+ * WHAT IT DOES: Level $17's screen set-up: level 7's. No script plays it.
+ * HOW: Level07ScreenSetup.
+ * Entry: as Level07ScreenSetup. Exit: as Level07ScreenSetup.
+ */
+void abi_Level17ScreenSetup(void)
+{
+    abi_Level07ScreenSetup();
+}
+
+/*
+ * @routine 81:8D4E Level18ScreenSetup
+ * WHAT IT DOES: Level $18's screen set-up: level 8's. No script plays it.
+ * HOW: Level08ScreenSetup.
+ * Entry: as Level08ScreenSetup. Exit: as Level08ScreenSetup.
+ */
+void abi_Level18ScreenSetup(void)
+{
+    abi_Level08ScreenSetup();
+}
+
+/*
+ * @routine 81:8D52 Level19ScreenSetup
+ * WHAT IT DOES: Level $19's screen set-up: level $0A's. No script plays
+ * it.
+ * HOW: Level0AScreenSetup.
+ * Entry: as Level0AScreenSetup. Exit: as Level0AScreenSetup.
+ */
+void abi_Level19ScreenSetup(void)
+{
+    abi_Level0AScreenSetup();
+}
+
+/*
+ * @routine 81:8D56 Level1AScreenSetup
+ * WHAT IT DOES: Level $1A's screen set-up: level $0B's, then the player
+ * and the camera put at the level's start. No script plays it.
+ * HOW: Level0BScreenSetup, then LevelStartPlace.
+ * Entry: as Level0BScreenSetup, DB = $80 (for LevelStartPlace). Exit: as
+ * LevelStartPlace.
+ */
+void abi_Level1AScreenSetup(void)
+{
+    abi_Level0BScreenSetup();
+    abi_LevelStartPlace();
+}
+
+/*
+ * @routine 81:8D5D Level1BScreenSetup
+ * WHAT IT DOES: Level $1B's screen set-up: level $0F's. No script plays
+ * it.
+ * HOW: Level0FScreenSetup.
+ * Entry: as Level0FScreenSetup. Exit: as Level0FScreenSetup.
+ */
+void abi_Level1BScreenSetup(void)
+{
+    abi_Level0FScreenSetup();
+}
+
+/*
+ * @routine 81:8D70 BackdropSplitSetup
+ * WHAT IT DOES: Splits the screen's backdrop colour: the top 104 lines
+ * keep colour 0 as it is in the palette buffer, the rest are black, and
+ * HDMA channel 7 sets the main screen's layers by lines. No code refers
+ * to it.
+ * HOW: SPLIT_TABLE: 1 line, 103 lines, 1 line, then the end; each entry
+ * CGRAM address 0 (twice) and a colour: colour 0 of PALETTE_BUFFER for
+ * the first two, black for the third; colour 0 in the buffer then black.
+ * Channel 6: mode 3 to CGADD/CGDATA from $00:1C7E (also in HDMA_TABLE_AT
+ * + 4); channel 7: mode 0 to TM from SPLIT_LAYERS in bank $80 (also in
+ * HDMA_TABLE_AT + 6); HDMAEN_SHADOW bits 6 and 7 set.
+ * Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM and $4300-$437F
+ * the DMA registers; called by JSR (it ends RTS). Exit: A = the new
+ * HDMAEN_SHADOW, N set, Z clear; X, Y unchanged.
+ */
+void abi_BackdropSplitSetup(void)
+{
+    uint8_t lo, hi;
+
+    a8_load(0x01);
+    wr8(dba(SPLIT_TABLE + 0), 0x01);
+    a8_load(0x67);
+    wr8(dba(SPLIT_TABLE + 5), 0x67);
+    a8_load(0x01);
+    wr8(dba(SPLIT_TABLE + 10), 0x01);
+    wr8(dba(SPLIT_TABLE + 15), 0x00);
+    wr8(dba(SPLIT_TABLE + 1), 0x00);
+    wr8(dba(SPLIT_TABLE + 6), 0x00);
+    wr8(dba(SPLIT_TABLE + 11), 0x00);
+    wr8(dba(SPLIT_TABLE + 2), 0x00);
+    wr8(dba(SPLIT_TABLE + 7), 0x00);
+    wr8(dba(SPLIT_TABLE + 12), 0x00);
+    lo = rd8(PALETTE_BUFFER);
+    a8_load(lo);
+    wr8(dba(SPLIT_TABLE + 3), lo);
+    wr8(dba(SPLIT_TABLE + 8), lo);
+    wr8(dba(SPLIT_TABLE + 13), 0x00);
+    hi = rd8(PALETTE_BUFFER + 1);
+    a8_load(hi);
+    wr8(dba(SPLIT_TABLE + 4), hi);
+    wr8(dba(SPLIT_TABLE + 9), hi);
+    wr8(dba(SPLIT_TABLE + 14), 0x00);
+    a8_load(0x00);
+    wr8(PALETTE_BUFFER, 0x00);
+    wr8(PALETTE_BUFFER + 1, 0x00);
+    a8_load(0x03);
+    wr8(dba(DMAP6), 0x03);
+    a8_load(0x21);
+    wr8(dba(BBAD6), 0x21);
+    a8_load(0x7E);
+    wr8(dba(A1T6L), 0x7E);
+    wr8(dba(HDMA_TABLE_AT + 4), 0x7E);
+    a8_load(0x1C);
+    wr8(dba(A1T6H), 0x1C);
+    wr8(dba(HDMA_TABLE_AT + 5), 0x1C);
+    a8_load(0x00);
+    wr8(dba(A1B6), 0x00);
+    wr8(dba(DASB6), 0x00);
+    a8_load(0x00);
+    wr8(dba(DMAP7), 0x00);
+    a8_load(0x2C);
+    wr8(dba(BBAD7), 0x2C);
+    a8_load(0xDB);
+    wr8(dba(A1T7L), 0xDB);
+    wr8(dba(HDMA_TABLE_AT + 6), 0xDB);
+    a8_load(0xB9);
+    wr8(dba(A1T7H), 0xB9);
+    wr8(dba(HDMA_TABLE_AT + 7), 0xB9);
+    a8_load(0x80);
+    wr8(dba(A1B7), 0x80);
+    wr8(dba(DASB7), 0x00);
+    a8_load((uint8_t)(rd8(dba(HDMAEN_SHADOW)) | 0xC0));
+    wr8(dba(HDMAEN_SHADOW), (uint8_t)cpu.a);
 }

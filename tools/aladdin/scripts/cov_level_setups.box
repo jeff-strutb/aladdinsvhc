@@ -1,0 +1,22 @@
+# Unit calls of the screen set-ups of the levels no script plays (the table
+# at $81:8802 by level: $03, $0F, $10, $16-$1B) and of the backdrop colour
+# split at $81:8D70, which no code refers to. Each is called by JSR in a
+# level (stage_a0_s0), M and X 8-bit, DB $80, D 0, and the machine is put
+# back after it. Level $10's runs twice: from its start (restart point
+# $0360 = 0) and from a later point ($0360 = 1, the backdrop's stage 4).
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+call 818908 p=30 db=80 d=0
+call 818BF4 p=30 db=80 d=0
+set 000360 00
+call 818C14 p=30 db=80 d=0
+set 000360 01
+call 818C14 p=30 db=80 d=0
+call 818D46 p=30 db=80 d=0
+call 818D4A p=30 db=80 d=0
+call 818D4E p=30 db=80 d=0
+call 818D52 p=30 db=80 d=0
+call 818D56 p=30 db=80 d=0
+call 818D5D p=30 db=80 d=0
+call 818D70 p=30 db=80 d=0
+wait 2

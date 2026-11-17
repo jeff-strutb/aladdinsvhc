@@ -718,3 +718,252 @@ LevelScreenSetup:
     asl a
     tax
     jmp.w (!LEVEL_SETUPS,x)
+
+; The set-ups of the levels no script plays, and a colour split no code
+; reaches. Each runs only in the unit calls of cov_level_setups.box.
+!V_7FF489 = $7FF489
+!backdrop_stage = $0841          ; PlayField3Stages's stage, times 2 (word)
+!SPLIT_TABLE = $1C7E             ; HDMA channel 6's table: three entries of lines and four bytes
+!routine_80a12d = $80A12D  ; not yet filed
+!routine_80a5ac = $80A5AC  ; not yet filed
+
+; @routine 81:8908 Level03ScreenSetup
+; WHAT IT DOES: Level 3's screen set-up: layer set-up mode $0A, layer 2
+; following $40, a task in slot 3, four palette cycles, and HDMA channel 4
+; writing layer 2's horizontal scroll from the table at $7E:F400 (as
+; Level02ScreenSetup). No script plays level 3.
+; HOW: V_083F = $0A, BG2_FOLLOWS = $40, V_7FF481 and V_7FF489 = 2;
+; TaskCreate (slot 3, parameter 0, $80:A12D); PaletteCycleStart ($54, 0),
+; ($64, 3), ($74, 6), ($84, 9); then into Level02ScreenSetup's HDMA
+; channel 4 set-up.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; reached by the jump through the table by level at $81:8802 (81:87FF).
+; Exit: as Level02ScreenSetup.
+%at($818908)
+Level03ScreenSetup:
+    lda.b #$0A
+    sta.w !V_083F
+    lda.b #$40
+    sta.w !bg2_follows
+    lda.b #$02
+    sta.l !V_7FF481
+    sta.l !V_7FF489
+    jsl.l TaskCreate
+    db 3*24, 0                  ; slot 3, parameter 0
+    dl !routine_80a12d
+    ldx.b #$54
+    lda.b #$00
+    jsr.w PaletteCycleStart
+    ldx.b #$64
+    lda.b #$03
+    jsr.w PaletteCycleStart
+    ldx.b #$74
+    lda.b #$06
+    jsr.w PaletteCycleStart
+    ldx.b #$84
+    lda.b #$09
+    jsr.w PaletteCycleStart
+    bra Level02ScreenSetup_l88E0
+
+; @routine 81:8BF4 Level0FScreenSetup
+; WHAT IT DOES: Level $0F's (and level $1B's) screen set-up: two palette
+; cycles, layers 1-3 and sprites on the main and the sub screen, layer
+; set-up mode 8, and the level's bits expanded. No script plays it.
+; HOW: PaletteCycleStart (0, $1C), ($54, $15); TM_SHADOW and TS_SHADOW
+; $17; V_083F = 8; Bits035DExpand.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; reached by the jump through the table by level at $81:8802 (81:87FF),
+; or called by JSR (81:8D5D). Exit: as Bits035DExpand leaves them.
+%at($818BF4)
+Level0FScreenSetup:
+    ldx.b #$00
+    lda.b #$1C
+    jsr.w PaletteCycleStart
+    ldx.b #$54
+    lda.b #$15
+    jsr.w PaletteCycleStart
+    lda.b #$17
+    sta.w !TM_SHADOW
+    sta.w !TS_SHADOW
+    lda.b #$08
+    sta.w !V_083F
+    jsl.l Bits035DExpand
+    rts
+
+; @routine 81:8C14 Level10ScreenSetup
+; WHAT IT DOES: Level $10's screen set-up: layer set-up mode $10, the
+; backdrop's stage 4 past the first restart point, a task in slot 3,
+; seven palette cycles, and the level's bits expanded. No script plays
+; it from its start.
+; HOW: V_083F = $10; with RESTART_POINT nonzero, BACKDROP_STAGE's low
+; byte 4; TaskCreate (slot 3, parameter 0, $80:A5AC); PaletteCycleStart
+; (0, $0D), ($0E, $2A), ($1C, $2B), ($54, $15), ($64, $24), ($74, $27),
+; ($84, $2A); Bits035DExpand.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; reached by the jump through the table by level at $81:8802 (81:87FF).
+; Exit: as Bits035DExpand leaves them.
+%at($818C14)
+Level10ScreenSetup:
+    lda.b #$10
+    sta.w !V_083F
+    lda.w !RESTART_POINT
+    beq .at_start
+    lda.b #$04
+    sta.w !backdrop_stage
+.at_start:
+    jsl.l TaskCreate
+    db 3*24, 0                  ; slot 3, parameter 0
+    dl !routine_80a5ac
+    ldx.b #$00
+    lda.b #$0D
+    jsr.w PaletteCycleStart
+    ldx.b #$0E
+    lda.b #$2A
+    jsr.w PaletteCycleStart
+    ldx.b #$1C
+    lda.b #$2B
+    jsr.w PaletteCycleStart
+    ldx.b #$54
+    lda.b #$15
+    jsr.w PaletteCycleStart
+    ldx.b #$64
+    lda.b #$24
+    jsr.w PaletteCycleStart
+    ldx.b #$74
+    lda.b #$27
+    jsr.w PaletteCycleStart
+    ldx.b #$84
+    lda.b #$2A
+    jsr.w PaletteCycleStart
+    jsl.l Bits035DExpand
+    rts
+
+; @routine 81:8D46 Level16ScreenSetup
+; WHAT IT DOES: Level $16's screen set-up: level 4's. No script plays it.
+; HOW: Level04ScreenSetup.
+; Entry: as Level04ScreenSetup. Exit: as Level04ScreenSetup.
+%at($818D46)
+Level16ScreenSetup:
+    jsr.w Level04ScreenSetup
+    rts
+
+; @routine 81:8D4A Level17ScreenSetup
+; WHAT IT DOES: Level $17's screen set-up: level 7's. No script plays it.
+; HOW: Level07ScreenSetup.
+; Entry: as Level07ScreenSetup. Exit: as Level07ScreenSetup.
+%at($818D4A)
+Level17ScreenSetup:
+    jsr.w Level07ScreenSetup
+    rts
+
+; @routine 81:8D4E Level18ScreenSetup
+; WHAT IT DOES: Level $18's screen set-up: level 8's. No script plays it.
+; HOW: Level08ScreenSetup.
+; Entry: as Level08ScreenSetup. Exit: as Level08ScreenSetup.
+%at($818D4E)
+Level18ScreenSetup:
+    jsr.w Level08ScreenSetup
+    rts
+
+; @routine 81:8D52 Level19ScreenSetup
+; WHAT IT DOES: Level $19's screen set-up: level $0A's. No script plays
+; it.
+; HOW: Level0AScreenSetup.
+; Entry: as Level0AScreenSetup. Exit: as Level0AScreenSetup.
+%at($818D52)
+Level19ScreenSetup:
+    jsr.w Level0AScreenSetup
+    rts
+
+; @routine 81:8D56 Level1AScreenSetup
+; WHAT IT DOES: Level $1A's screen set-up: level $0B's, then the player
+; and the camera put at the level's start. No script plays it.
+; HOW: Level0BScreenSetup, then LevelStartPlace.
+; Entry: as Level0BScreenSetup, DB = $80 (for LevelStartPlace). Exit: as
+; LevelStartPlace.
+%at($818D56)
+Level1AScreenSetup:
+    jsr.w Level0BScreenSetup
+    jsr.w LevelStartPlace
+    rts
+
+; @routine 81:8D5D Level1BScreenSetup
+; WHAT IT DOES: Level $1B's screen set-up: level $0F's. No script plays
+; it.
+; HOW: Level0FScreenSetup.
+; Entry: as Level0FScreenSetup. Exit: as Level0FScreenSetup.
+%at($818D5D)
+Level1BScreenSetup:
+    jsr.w Level0FScreenSetup
+    rts
+
+; @routine 81:8D70 BackdropSplitSetup
+; WHAT IT DOES: Splits the screen's backdrop colour: the top 104 lines
+; keep colour 0 as it is in the palette buffer, the rest are black, and
+; HDMA channel 7 sets the main screen's layers by lines. No code refers
+; to it.
+; HOW: SPLIT_TABLE: 1 line, 103 lines, 1 line, then the end; each entry
+; CGRAM address 0 (twice) and a colour: colour 0 of PALETTE_BUFFER for
+; the first two, black for the third; colour 0 in the buffer then black.
+; Channel 6: mode 3 to CGADD/CGDATA from $00:1C7E (also in HDMA_TABLE_AT
+; + 4); channel 7: mode 0 to TM from SPLIT_LAYERS in bank $80 (also in
+; HDMA_TABLE_AT + 6); HDMAEN_SHADOW bits 6 and 7 set.
+; Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM and $4300-$437F
+; the DMA registers; called by JSR (it ends RTS). Exit: A = the new
+; HDMAEN_SHADOW, N set, Z clear; X, Y unchanged.
+%at($818D70)
+BackdropSplitSetup:
+    lda.b #$01
+    sta.w !SPLIT_TABLE
+    lda.b #$67
+    sta.w !SPLIT_TABLE+5
+    lda.b #$01
+    sta.w !SPLIT_TABLE+10
+    stz.w !SPLIT_TABLE+15
+    stz.w !SPLIT_TABLE+1
+    stz.w !SPLIT_TABLE+6
+    stz.w !SPLIT_TABLE+11
+    stz.w !SPLIT_TABLE+2
+    stz.w !SPLIT_TABLE+7
+    stz.w !SPLIT_TABLE+12
+    lda.l !palette_buffer
+    sta.w !SPLIT_TABLE+3
+    sta.w !SPLIT_TABLE+8
+    stz.w !SPLIT_TABLE+13
+    lda.l !palette_buffer+1
+    sta.w !SPLIT_TABLE+4
+    sta.w !SPLIT_TABLE+9
+    stz.w !SPLIT_TABLE+14
+    lda.b #$00
+    sta.l !palette_buffer
+    sta.l !palette_buffer+1
+    lda.b #$03
+    sta.w !DMAP6
+    lda.b #$21
+    sta.w !BBAD6
+    lda.b #$7E
+    sta.w !A1T6L
+    sta.w !hdma_table_at+4
+    lda.b #$1C
+    sta.w !A1T6H
+    sta.w !hdma_table_at+5
+    lda.b #$00
+    sta.w !A1B6
+    stz.w !DASB6
+    lda.b #$00
+    sta.w !DMAP7
+    lda.b #$2C
+    sta.w !BBAD7
+    lda.b #$DB
+    sta.w !A1T7L
+    sta.w !hdma_table_at+6
+    lda.b #$B9
+    sta.w !A1T7H
+    sta.w !hdma_table_at+7
+    lda.b #$80
+    sta.w !A1B7
+    stz.w !DASB7
+    lda.w !hdmaen_shadow
+    ora.b #$C0
+    sta.w !hdmaen_shadow
+    rts
