@@ -159,13 +159,17 @@ SceneSpinZoomTask:
 
 
 ; @routine 82:B1CE TextPageExtra
-; WHAT IT DOES: After a page of the ending's text, adds what that page
-; shows besides the text: an actor and lines for page 12 of the timed
-; text, and for page 6 of the untimed one.
-; HOW: $F4 nonzero (timed) and page ($EE) 12, or $F4 zero and page 6: an
-; actor (kind 5, at $0376's x, $838BDA) and messages $76 and $78, then $7C
-; when the item total ($0376) is 70, else $7A (by $81:972D).
-; Entry: M 8-bit, X 8-bit; D = 0; DB = $82; called by JSR. Exit: M 8-bit.
+; WHAT IT DOES: After a page of the ending's text, adds the item count to
+; the two pages that show it: page 12 of the timed text, with layouts $6C
+; and $6E, and page 6 of the untimed captions, with layouts $76 and $78 and
+; then $7C when the count ($0376) is 70, else $7A.
+; HOW: $F4 nonzero (timed) and page ($EE) 12, or $F4 zero and page 6: the
+; count drawn as two digits (TextNumberTwoDigitsLong, offset $0522 or
+; $0530), then the layouts by TextLayoutShow. Any other page: nothing.
+; Entry: M 8-bit, X 8-bit; D = 0; DB a bank whose $0000-$1FFF is work RAM
+; and $4200-$421F the CPU's; called by JSR. Exit: M 8-bit, X 8-bit; at a
+; page with no count, A = the page and the flags from its compare; else as
+; TextLayoutShow leaves them.
 %at($82B1CE)
 TextPageExtra:
     lda.b !v_00f4
@@ -210,11 +214,27 @@ TextPageExtra:
     rts
 
 
+; @routine 82:B0A9 EndingStageTextTask
+; WHAT IT DOES: The ending play-back's caption for the stage just reached:
+; its page of text drawn, revealed and left up; the task then waits a frame
+; at a time for good, until the next stage's caption takes its slot.
+; HOW: $F4 = 0 (untimed: the captions' entries in the page tables), then
+; EndingTextTask's set-up and page loop from its palettes on with the page
+; $EE that EndingStageScroll set: the first pass draws it at once, with no
+; count down or conceal, and after its reveal the loop waits forever.
+; Entry: M 8-bit, X 8-bit; D = 0; a task's entry (TaskCreate in
+; EndingStageScroll, slot 5). Exit: never returns.
+%at($82B0A9)
+EndingStageTextTask:
+    stz.b !v_00f4
+    bra EndingTextTask_pages
+
 ; @routine 82:B0AD EndingTextTask
 ; WHAT IT DOES: Runs the ending's text: 13 pages, each drawn, its bands
 ; revealed, shown for 660 frames and concealed; after the last, long waits
 ; and the text masked for good.
-; HOW: Page 0, timed ($F4 = 14); HDMA channel 5 on the bands' window bytes
+; HOW: Page 0, timed ($F4 = 14, the timed pages' place in the page
+; tables); then the page loop: HDMA channel 5 on the bands' window bytes
 ; (TextBandsCommit), the screen set up. Per page: TextPageDraw from the
 ; page tables in bank $A5, TextPageExtra, TaskWait, TextBandsReveal; the
 ; count $EF from $294; at 0 TextBandsConceal and the next page. After page
@@ -230,6 +250,7 @@ EndingTextTask:
     sta.b !v_00ef
     lda.b #$02
     sta.b !v_00f0
+.pages:
     lda.b #$61
     jsl.l PaletteLoad
     lda.b #$5F
@@ -533,7 +554,6 @@ EndingStagesTask:
 !BG_SCROLL_X_18C9 = $18C9       ; a second layer's scroll x, moved with it
 !ENDING_SCROLLS = $DB92         ; (data bank) per step, by X: the scroll's change (word)
 !ENDING_HOLDS = $DBB3           ; (data bank) per stage: how many waits of 63 frames follow
-!ENDING_B0A9_TASK = $82B0A9     ; the task started after each move (not yet filed)
 
 ; @routine 82:B4AF EndingWipeLeftStep
 ; WHAT IT DOES: Closes the ending's window from the left by step X: its
@@ -644,13 +664,13 @@ EndingWipeRightStep:
 ; @routine 82:B458 EndingStageScroll
 ; WHAT IT DOES: The play-back's move to the next stage: for 41 frames the
 ; stage is drawn while the view scrolls by its step and the window closes
-; from both sides; then the task at $82:B0A9 is started and the task
+; from both sides; then the stage's caption (EndingStageTextTask) is started and the task
 ; waits 63 frames as many times as the stage's hold says, and the stage
 ; count goes on.
 ; HOW: TASK_PARAM $29; each frame: TaskWait 1; EndingStageFrame; X =
 ; ENDING_STEP * 4; SCROLL_X and BG_SCROLL_X_18C9 + ENDING_SCROLLS + X;
 ; EndingWipeLeftStep, EndingWipeRightStep; TASK_PARAM down. TaskCreate
-; (slot 5, parameter 0, $82:B0A9); ENDING_EE = ENDING_STAGE; Y =
+; (slot 5, parameter 0, EndingStageTextTask); ENDING_EE = ENDING_STAGE; Y =
 ; ENDING_HOLDS by it; Y times TaskWait $3F; ENDING_STAGE up.
 ; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
 ; that holds the tables; called by JSR from the ending's stages task.
@@ -683,7 +703,7 @@ EndingStageScroll:
     bne .frame
     jsl.l TaskCreate
     db 5*24, 0                  ; slot 5, parameter 0
-    dl !ENDING_B0A9_TASK
+    dl EndingStageTextTask
     lda.w !ENDING_STAGE
     sta.w !ENDING_EE
     tax

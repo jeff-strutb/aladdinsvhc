@@ -417,9 +417,18 @@ void abi_BandTableSet2(void)
     band_table(2);
 }
 
-/* PlayField3Stages's x for the backdrop: the play field's up to WIDE_X,
-   past it half as fast. No script runs it. */
-static void wide_x(void)
+/*
+ * @routine 81:CA55 BackdropWideX
+ * WHAT IT DOES: PlayField3Stages's x for the backdrop in its later
+ * stages: the play field's scroll X up to WIDE_X, past it half as fast.
+ * HOW: The play field's scroll X, compared with WIDE_X; at or past it,
+ * what is past it halved and WIDE_X added back. The result is the
+ * backdrop's scroll X.
+ * Entry: M 16-bit, X 16-bit; DB = $80 (work RAM); called by JSR from
+ * PlayField3Stages. Exit: A = the backdrop's scroll X; below WIDE_X, C
+ * clear and N, Z from the compare; else C, N, V, Z from the add.
+ */
+void abi_BackdropWideX(void)
 {
     uint16_t sx = rd16(dba(LAYER0 + LAYER_SCROLL_X));
 
@@ -500,10 +509,10 @@ void abi_PlayField3Stages(void)
         d = (uint16_t)((d ^ 0xFFFF) + 1);
         flag_set(P_C, 0);
         wr16(dba(LAYER1 + LAYER_SCROLL_Y), op_adc16(d, rd16(dba(LAYER1 + LAYER_SCROLL_Y)), &cpu.p));
-        wide_x();
+        abi_BackdropWideX();
         return;
     case 4:
-        wide_x();
+        abi_BackdropWideX();
         return;
     default:
         jump_routine(0x810000u | rd16(0x810000u | (uint16_t)(0xC9F8u + cpu.x)));

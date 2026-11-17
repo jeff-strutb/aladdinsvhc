@@ -172,6 +172,23 @@ out:
 }
 
 /*
+ * @routine 81:B9F1 LevelGraphicsLoadEnd
+ * WHAT IT DOES: The end of LevelGraphicsLoad, shared by its way out with
+ * no parts (the JMP at $81:B92A) and its last part: the caller's D and P
+ * back, and the return.
+ * HOW: PLD, PLP, RTL.
+ * @pushed 3
+ * Entry: reached by a jump or a branch with LevelGraphicsLoad's P and D
+ * pushed above its JSL's return address. Exit: D and P as LevelGraphicsLoad
+ * found them (N and Z the pulled P's); A, X, Y unchanged.
+ */
+void abi_LevelGraphicsLoadEnd(void)
+{
+    pld();
+    plp();
+}
+
+/*
  * @routine 81:BA9E AnimSetGraphicsUnpack
  * WHAT IT DOES: Unpacks animation set A's graphics into bank $7F where the
  * last unpack stopped, and notes where they went.

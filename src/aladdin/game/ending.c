@@ -20,6 +20,7 @@ void abi_ActorRecordsInit(void);
 void abi_DemoStartLong(void);
 void abi_EndingStagesTask(void);
 void abi_EndingTextTask(void);
+void abi_EndingStageTextTask(void);
 void abi_KeptOptionsSeal(void);
 void abi_Mode7Rotate(void);
 void abi_NewGameStateLong(void);
@@ -176,13 +177,13 @@ void abi_EndingWipeRightStep(void)
  * @routine 82:B458 EndingStageScroll
  * WHAT IT DOES: The play-back's move to the next stage: for 41 frames the
  * stage is drawn while the view scrolls by its step and the window closes
- * from both sides; then the task at $82:B0A9 is started and the task
+ * from both sides; then the stage's caption (EndingStageTextTask) is started and the task
  * waits 63 frames as many times as the stage's hold says, and the stage
  * count goes on.
  * HOW: TASK_PARAM $29; each frame: TaskWait 1; EndingStageFrame; X =
  * ENDING_STEP * 4; SCROLL_X and BG_SCROLL_X_18C9 + ENDING_SCROLLS + X;
  * EndingWipeLeftStep, EndingWipeRightStep; TASK_PARAM down. TaskCreate
- * (slot 5, parameter 0, $82:B0A9); ENDING_EE = ENDING_STAGE; Y =
+ * (slot 5, parameter 0, EndingStageTextTask); ENDING_EE = ENDING_STAGE; Y =
  * ENDING_HOLDS by it; Y times TaskWait $3F; ENDING_STAGE up.
  * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM and
  * that holds the tables; called by JSR from the ending's stages task.
@@ -318,4 +319,207 @@ L_80B220:
     adc8_v(rd8(ea_dp(0x07)));  /* 80B25D adc */
     sta8(ea_dp(0x06));  /* 80B25F sta */
     goto L_80B205;  /* 80B261 bra */
+}
+
+/* EndingTextTask's page loop, from its palettes on (82:B0BB): the set-up,
+   then each page drawn, revealed and (timed) counted down and concealed;
+   EndingStageTextTask goes into it too. Never returns. */
+static void ending_text_pages(void)
+{
+    lda8_v(0x61);  /* 82B0BB lda */
+    abi_PaletteLoad();  /* 82B0BD jsl */
+    lda8_v(0x5F);  /* 82B0C1 lda */
+    abi_PaletteLoad();  /* 82B0C3 jsl */
+    stz8(ea_dp(0xF9));  /* 82B0C7 stz */
+    lda8_v(0x40);  /* 82B0C9 lda */
+    sta8(ea_abs(DMAP5));  /* 82B0CB sta */
+    lda8_v(0x24);  /* 82B0CE lda */
+    sta8(ea_abs(BBAD5));  /* 82B0D0 sta */
+    lda8_v(0xEF);  /* 82B0D3 lda */
+    sta8(ea_abs(A1T5L));  /* 82B0D5 sta */
+    lda8_v(0xCE);  /* 82B0D8 lda */
+    sta8(ea_abs(A1T5H));  /* 82B0DA sta */
+    lda8_v(0x80);  /* 82B0DD lda */
+    sta8(ea_abs(A1B5));  /* 82B0DF sta */
+    stz8(ea_abs(DASB5));  /* 82B0E2 stz */
+    ldx8_v(0x07);  /* 82B0E5 ldx */
+L_82B0E7:
+    stz8(ea_absx(TEXT_BANDS));  /* 82B0E7 stz */
+    dex8();  /* 82B0EA dex */
+    if (!IF_N) goto L_82B0E7;  /* 82B0EB bpl */
+    abi_TextBandsCommit();  /* 82B0ED jsr */
+    lda8_v(0x20);  /* 82B0F0 lda */
+    tsb8(ea_abs(HDMAEN_SHADOW));  /* 82B0F2 tsb */
+    lda8_v(0x00);  /* 82B0F5 lda */
+    sta8(ea_abs(0x03A8));  /* 82B0F7 sta */
+    lda8_v(0xFF);  /* 82B0FA lda */
+    sta8(ea_abs(0x03A9));  /* 82B0FC sta */
+    stz8(ea_abs(0x0005));  /* 82B0FF stz */
+    abi_KeptOptionsSeal();  /* 82B102 jsl */
+    lda8(ea_dp(0xF4));  /* 82B106 lda */
+    if (IF_Z) goto L_82B115;  /* 82B108 beq */
+L_82B10A:
+    op_rep(0x20);  /* 82B10A rep */
+    MEM16(dec, ea_dp(0xEF));  /* 82B10C dec */
+    op_sep(0x20);  /* 82B10E sep */
+    if (!IF_Z) goto L_82B187;  /* 82B110 bne */
+    push16(0xB114); abi_TextBandsConceal(); cpu.s = (uint16_t)(cpu.s + 2);  /* 82B112 jsr */
+L_82B115:
+    abi_TextLayerClear();  /* 82B115 jsl */
+    ldx8_v(0x07);  /* 82B119 ldx */
+L_82B11B:
+    lda8_v(0x08);  /* 82B11B lda */
+    sta8(ea_absx(TEXT_BANDS));  /* 82B11D sta */
+    sta8(ea_absx(0x1C9E));  /* 82B120 sta */
+    dex8();  /* 82B123 dex */
+    if (!IF_N) goto L_82B11B;  /* 82B124 bpl */
+    abi_TextBandsCommit();  /* 82B126 jsr */
+    lda8(ea_dp(0xEE));  /* 82B129 lda */
+    ACC8(asl);  /* 82B12B asl */
+    adc8_v(rd8(ea_dp(0xF4)));  /* 82B12C adc */
+    tax8();  /* 82B12E tax */
+    phb();  /* 82B12F phb */
+    lda8_v(0xA5);  /* 82B130 lda */
+    pha8();  /* 82B132 pha */
+    plb();  /* 82B133 plb */
+    op_rep(0x10);  /* 82B134 rep */
+    ldy16(ea_absx(0xE433));  /* 82B136 ldy */
+    sty16(ea_dp(0xF5));  /* 82B139 sty */
+    ldy16(ea_absx(0xE0AE));  /* 82B13B ldy */
+    abi_TextPageDraw();  /* 82B13E jsr */
+    op_sep(0x10);  /* 82B141 sep */
+    plb();  /* 82B143 plb */
+    abi_TextPageExtra();  /* 82B144 jsr */
+    lda8_v(0x01);  /* 82B147 lda */
+    jsl_frame(0x82B149u); abi_TaskWait();  /* 82B149 jsl */
+    push16(0xB14F); abi_TextBandsReveal(); cpu.s = (uint16_t)(cpu.s + 2);  /* 82B14D jsr */
+    lda8(ea_dp(0xF4));  /* 82B150 lda */
+    if (IF_Z) goto L_82B17F;  /* 82B152 beq */
+    lda8_v(0x94);  /* 82B154 lda */
+    sta8(ea_dp(0xEF));  /* 82B156 sta */
+    lda8_v(0x02);  /* 82B158 lda */
+    sta8(ea_dp(0xF0));  /* 82B15A sta */
+    MEM8(inc, ea_dp(0xEE));  /* 82B15C inc */
+    lda8(ea_dp(0xEE));  /* 82B15E lda */
+    cmp8_v(0x0D);  /* 82B160 cmp */
+    if (!IF_Z) goto L_82B187;  /* 82B162 bne */
+    lda8_v(0xFF);  /* 82B164 lda */
+    jsl_frame(0x82B166u); abi_TaskWait();  /* 82B166 jsl */
+    lda8_v(0xFF);  /* 82B16A lda */
+    jsl_frame(0x82B16Cu); abi_TaskWait();  /* 82B16C jsl */
+    lda8_v(0xFF);  /* 82B170 lda */
+    jsl_frame(0x82B172u); abi_TaskWait();  /* 82B172 jsl */
+    lda8_v(0xFF);  /* 82B176 lda */
+    jsl_frame(0x82B178u); abi_TaskWait();  /* 82B178 jsl */
+    push16(0xB17E); abi_TextBandsConceal(); cpu.s = (uint16_t)(cpu.s + 2);  /* 82B17C jsr */
+L_82B17F:
+    lda8_v(0x01);  /* 82B17F lda */
+    jsl_frame(0x82B181u); abi_TaskWait();  /* 82B181 jsl */
+    goto L_82B17F;  /* 82B185 bra */
+L_82B187:
+    lda8_v(0x01);  /* 82B187 lda */
+    jsl_frame(0x82B189u); abi_TaskWait();  /* 82B189 jsl */
+    goto L_82B10A;  /* 82B18D jmp */
+}
+
+/*
+ * @routine 82:B0A9 EndingStageTextTask
+ * WHAT IT DOES: The ending play-back's caption for the stage just reached:
+ * its page of text drawn, revealed and left up; the task then waits a frame
+ * at a time for good, until the next stage's caption takes its slot.
+ * HOW: $F4 = 0 (untimed: the captions' entries in the page tables), then
+ * EndingTextTask's set-up and page loop from its palettes on with the page
+ * $EE that EndingStageScroll set: the first pass draws it at once, with no
+ * count down or conceal, and after its reveal the loop waits forever.
+ * Entry: M 8-bit, X 8-bit; D = 0; a task's entry (TaskCreate in
+ * EndingStageScroll, slot 5). Exit: never returns.
+ */
+void abi_EndingStageTextTask(void)
+{
+    stz8(ea_dp(0xF4));  /* 82B0A9 stz */
+    ending_text_pages();  /* 82B0AB bra */
+}
+
+/*
+ * @routine 82:B0AD EndingTextTask
+ * WHAT IT DOES: Runs the ending's text: 13 pages, each drawn, its bands
+ * revealed, shown for 660 frames and concealed; after the last, long waits
+ * and the text masked for good.
+ * HOW: Page 0, timed ($F4 = 14, the timed pages' place in the page
+ * tables); then the page loop: HDMA channel 5 on the bands' window bytes
+ * (TextBandsCommit), the screen set up. Per page: TextPageDraw from the
+ * page tables in bank $A5, TextPageExtra, TaskWait, TextBandsReveal; the
+ * count $EF from $294; at 0 TextBandsConceal and the next page. After page
+ * 13: four waits of 255 frames, TextBandsConceal, then a frame's wait
+ * forever.
+ * Entry: M 8-bit, X 8-bit; D = 0; a task's entry. Exit: never returns.
+ */
+void abi_EndingTextTask(void)
+{
+    lda8_v(0x0E);  /* 82B0AD lda */
+    sta8(ea_dp(0xF4));  /* 82B0AF sta */
+    stz8(ea_dp(0xEE));  /* 82B0B1 stz */
+    lda8_v(0x00);  /* 82B0B3 lda */
+    sta8(ea_dp(0xEF));  /* 82B0B5 sta */
+    lda8_v(0x02);  /* 82B0B7 lda */
+    sta8(ea_dp(0xF0));  /* 82B0B9 sta */
+    ending_text_pages();
+}
+
+/*
+ * @routine 82:B1CE TextPageExtra
+ * WHAT IT DOES: After a page of the ending's text, adds the item count to
+ * the two pages that show it: page 12 of the timed text, with layouts $6C
+ * and $6E, and page 6 of the untimed captions, with layouts $76 and $78 and
+ * then $7C when the count ($0376) is 70, else $7A.
+ * HOW: $F4 nonzero (timed) and page ($EE) 12, or $F4 zero and page 6: the
+ * count drawn as two digits (TextNumberTwoDigitsLong, offset $0522 or
+ * $0530), then the layouts by TextLayoutShow. Any other page: nothing.
+ * Entry: M 8-bit, X 8-bit; D = 0; DB a bank whose $0000-$1FFF is work RAM
+ * and $4200-$421F the CPU's; called by JSR. Exit: M 8-bit, X 8-bit; at a
+ * page with no count, A = the page and the flags from its compare; else as
+ * TextLayoutShow leaves them.
+ */
+void abi_TextPageExtra(void)
+{
+    lda8(ea_dp(0xF4));  /* 82B1CE lda */
+    if (IF_Z) goto L_82B1D9;  /* 82B1D0 beq */
+    lda8(ea_dp(0xEE));  /* 82B1D2 lda */
+    cmp8_v(0x0C);  /* 82B1D4 cmp */
+    if (IF_Z) goto L_82B1E0;  /* 82B1D6 beq */
+    return;  /* 82B1D8 rts */
+L_82B1D9:
+    lda8(ea_dp(0xEE));  /* 82B1D9 lda */
+    cmp8_v(0x06);  /* 82B1DB cmp */
+    if (IF_Z) goto L_82B1F8;  /* 82B1DD beq */
+    return;  /* 82B1DF rts */
+L_82B1E0:
+    ldx8(ea_abs(0x0376));  /* 82B1E0 ldx */
+    lda8_v(0x05);  /* 82B1E3 lda */
+    ldy8_v(0x22);  /* 82B1E5 ldy */
+    abi_TextNumberTwoDigitsLong();  /* 82B1E7 jsl */
+    lda8_v(0x6C);  /* 82B1EB lda */
+    abi_TextLayoutShow();  /* 82B1ED jsl */
+    lda8_v(0x6E);  /* 82B1F1 lda */
+    abi_TextLayoutShow();  /* 82B1F3 jsl */
+    return;  /* 82B1F7 rts */
+L_82B1F8:
+    ldx8(ea_abs(0x0376));  /* 82B1F8 ldx */
+    lda8_v(0x05);  /* 82B1FB lda */
+    ldy8_v(0x30);  /* 82B1FD ldy */
+    abi_TextNumberTwoDigitsLong();  /* 82B1FF jsl */
+    lda8_v(0x76);  /* 82B203 lda */
+    abi_TextLayoutShow();  /* 82B205 jsl */
+    lda8_v(0x78);  /* 82B209 lda */
+    abi_TextLayoutShow();  /* 82B20B jsl */
+    lda8(ea_abs(0x0376));  /* 82B20F lda */
+    cmp8_v(0x46);  /* 82B212 cmp */
+    if (IF_Z) goto L_82B21D;  /* 82B214 beq */
+    lda8_v(0x7A);  /* 82B216 lda */
+    abi_TextLayoutShow();  /* 82B218 jsl */
+    return;  /* 82B21C rts */
+L_82B21D:
+    lda8_v(0x7C);  /* 82B21D lda */
+    abi_TextLayoutShow();  /* 82B21F jsl */
+    return;  /* 82B223 rts */
 }

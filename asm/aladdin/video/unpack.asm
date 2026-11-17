@@ -44,7 +44,7 @@ arch 65816
 ; LevelGraphicsLoad's way out when the level has no parts (it branches
 ; back here).
 LevelGraphicsNone:
-    jmp.w LevelGraphicsLoad_done
+    jmp.w LevelGraphicsLoadEnd
 ; @routine 81:B92D LevelGraphicsLoad
 ; WHAT IT DOES: Loads the level's graphics: the parts that go to VRAM
 ; now, then the parts kept unpacked in bank $7F.
@@ -124,7 +124,7 @@ LevelGraphicsLoad:
     sta.w !unpack_next
     lda.w !level_gfx+1,x
     and.w #$00FF
-    beq .done
+    beq LevelGraphicsLoadEnd
     and.w #$00FF
     sta.b !level_gfx_left
 .kept_part:
@@ -158,7 +158,17 @@ LevelGraphicsLoad:
     tax
     dec.b !level_gfx_left
     bne .kept_part
-.done:
+
+; @routine 81:B9F1 LevelGraphicsLoadEnd
+; WHAT IT DOES: The end of LevelGraphicsLoad, shared by its way out with
+; no parts (the JMP at $81:B92A) and its last part: the caller's D and P
+; back, and the return.
+; HOW: PLD, PLP, RTL.
+; @pushed 3
+; Entry: reached by a jump or a branch with LevelGraphicsLoad's P and D
+; pushed above its JSL's return address. Exit: D and P as LevelGraphicsLoad
+; found them (N and Z the pulled P's); A, X, Y unchanged.
+LevelGraphicsLoadEnd:
     pld
     plp
     rtl

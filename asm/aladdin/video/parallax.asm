@@ -442,16 +442,26 @@ PlayField3Stages:
     clc
     adc.w !layer1+!LAYER_SCROLL_Y
     sta.w !layer1+!LAYER_SCROLL_Y
-    jsr.w .wide_x
+    jsr.w BackdropWideX
     rts
 .eased:
     inc.w !backdrop_stage
     inc.w !backdrop_stage
     rts
 .wide:
-    jsr.w .wide_x
+    jsr.w BackdropWideX
     rts
-.wide_x:
+
+; @routine 81:CA55 BackdropWideX
+; WHAT IT DOES: PlayField3Stages's x for the backdrop in its later
+; stages: the play field's scroll X up to WIDE_X, past it half as fast.
+; HOW: The play field's scroll X, compared with WIDE_X; at or past it,
+; what is past it halved and WIDE_X added back. The result is the
+; backdrop's scroll X.
+; Entry: M 16-bit, X 16-bit; DB = $80 (work RAM); called by JSR from
+; PlayField3Stages. Exit: A = the backdrop's scroll X; below WIDE_X, C
+; clear and N, Z from the compare; else C, N, V, Z from the add.
+BackdropWideX:
     sec
     lda.w !layer0+!LAYER_SCROLL_X
     cmp.w #$1000
