@@ -203,8 +203,9 @@ L_81828C:
  */
 void abi_LevelLoadLong(void)
 {
+    push16(0x81A5);
     abi_LevelLoad();
-    return;
+    cpu.s = (uint16_t)(cpu.s + 2);  /* 8181A3 jsr: LevelLoad waits */
 }
 
 /*
