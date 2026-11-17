@@ -1,0 +1,20 @@
+# Actor kind $A0, the ledge that gives way ($84:A8E0), carrying Aladdin
+# down as it falls ($84:A942-A94D, A956-A966). As cov_kinda0_fall.box, but
+# Aladdin placed at y $0070, 32 pixels above the ledge at y $0090: inside
+# the solid test's band for landing on top (29 to 36 above, by its box
+# $30: half-height 37), so he stands on it rather than hanging from it, and
+# each falling frame finds him on it again.
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 90,00
+poke 0008EA 70,00
+wait 30
+poke 001773 00,01
+poke 0019E5 00,01
+poke 0008E7 80,01
+wait 30
+poke 0008E7 F0,01
+poke 0008EA 70,00
+wait 150
