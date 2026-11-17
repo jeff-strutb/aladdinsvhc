@@ -53,6 +53,11 @@ arch 65816
 !KWR_K5D_49 = $49
 !KWR_ACTOR_08 = $08
 !KWR_K4E_STILL = $42           ; nonzero: Aladdin does not bounce on it
+!KWR_K58_COUNT = $42           ; frames to the copier test
+!KWR_K58_CARRY_BOX = $4C       ; the carry test's box
+!KWR_K58_Y_COPY = $4A          ; its y (word), copied each frame
+!KWR_LEVEL_035E = $035E        ; 8: the level where it ends past $7D0
+!KWR_VIEW_X = $1773            ; the view's left edge (word)
 !KWR_RANGE_X = $1A44           ; the point actors are kept in range of (x, word)
 
 ; @routine 83:91F3 ActorWaitNothing
@@ -779,3 +784,80 @@ Kind4EWait:
     ldx.b #$00
     jml.l ActorEndOutOfRange
 
+; @routine 83:DC9B Kind58Wait
+; WHAT IT DOES: Kind $58's wait, an actor that carries and lifts Aladdin:
+; its animation; once K58_COUNT runs out, on a copier (RAM at COPIER_RAM)
+; Aladdin is put on it; the carry test with its box raised 8 and the lift
+; step; in level 8 with the view's left edge past $7D0, it ends for good
+; unless it can be hit (bit 6 of ACTOR_09); else its end when out of
+; range by box $18.
+; HOW: AnimStep; K58_COUNT nonzero: down; at 0: COPIER_RAM + 1 written and
+; read back the same: PLAYER_X_PIXELS = its x, PLAYER_Y_PIXELS = its y -
+; $18. Its y (pushed) - 8; K58_CARRY_BOX $2C, X = 0, ActorTestCarries; y
+; pulled back (as two bytes) into it and K58_Y_COPY; A = $2C, X = 1,
+; ActorLiftPlayerStep. LEVEL_035E 8 and VIEW_X >= $7D0: bit 6 of ACTOR_09
+; set: RTS; else the loop's return address dropped (PLA PLA), on into
+; ActorEndPlaced ($83:96CA). Else X = $18, on into ActorEndOutOfRange.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+; JSR through the actor loop's wait table. Exit: as ActorEndOutOfRange;
+; RTS; or ended: no return.
+;
+%at($83DC9B)
+Kind58Wait:
+    jsl.l AnimStep
+    lda.b !KWR_K58_COUNT
+    beq .carry
+    dec.b !KWR_K58_COUNT
+    bne .carry
+    lda.l $701000
+    inc
+    sta.l $701000
+    cmp.l $701000
+    bne .carry
+    rep #$20
+    lda.b !KWR_X
+    sta.w $08E7
+    clc
+    lda.b !KWR_K41_Y
+    adc.w #$FFE8
+    sta.w $08EA
+.carry:
+    rep #$20
+    lda.b !KWR_K41_Y
+    pha
+    clc
+    adc.w #$FFF8
+    sta.b !KWR_K41_Y
+    sep #$20
+    lda.b #$2C
+    sta.b !KWR_K58_CARRY_BOX
+    ldx.b #$00
+    jsr.w ActorTestCarries
+    pla
+    sta.b !KWR_K41_Y
+    sta.b !KWR_K58_Y_COPY
+    pla
+    sta.b !KWR_K41_Y+1
+    sta.b !KWR_K58_Y_COPY+1
+    lda.b #$2C
+    ldx.b #$01
+    jsr.w ActorLiftPlayerStep
+    lda.w !KWR_LEVEL_035E
+    cmp.b #$08
+    bne .range
+    rep #$20
+    lda.w !KWR_VIEW_X
+    cmp.w #$07D0
+    sep #$20
+    bcs .past
+.range:
+    ldx.b #$18
+    jml.l ActorEndOutOfRange
+.past:
+    bit.b !KWR_ACTOR_09
+    bvs .done
+    pla
+    pla
+    jmp.w ActorEndPlaced
+.done:
+    rts

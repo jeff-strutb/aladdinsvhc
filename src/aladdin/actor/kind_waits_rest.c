@@ -24,6 +24,7 @@ void abi_ActorStompOrHurt16(void);
 void abi_ActorTestCarries(void);
 void abi_ActorTurnsShotBack(void);
 void abi_AnimStep(void);
+void abi_ActorLiftPlayerStep(void);
 void abi_ActorMotionPreset(void);
 void abi_ActorFlyAgainst(void);
 void abi_ActorFly(void);
@@ -79,6 +80,14 @@ void abi_SoundQueueAdd(void);
 #define K5D_NEXT_AT 0xE30Eu         /* its code resumes here after step 3 (bank $83) */
 #define K4E_STILL 0x42u             /* nonzero: Aladdin does not bounce on it */
 #define K4E_BOUNCED_AT 0xCFC1u      /* its code resumes here once he bounces on it (bank $83) */
+#define K58_COUNT 0x42u             /* frames to the copier test, counted down to 0 */
+#define K58_CARRY_BOX 0x4Cu         /* the carry test's box, $2C */
+#define K58_Y_COPY 0x4Au            /* its y (word), copied each frame */
+#define COPIER_RAM 0x701000u        /* cartridge RAM a copier has and a retail cartridge lacks */
+#define PLAYER_X_PIXELS 0x08E7u     /* the player's x pixels (word) */
+#define PLAYER_Y_PIXELS 0x08EAu     /* the player's y pixels (word) */
+#define LEVEL_035E 0x035Eu          /* 8: the level where it ends past VIEW_X $7D0 */
+#define VIEW_X 0x1773u              /* the view's left edge (word) */
 #define RANGE_X 0x1A44u             /* the point actors are kept in range of (x, word) */
 
 /*
@@ -889,3 +898,84 @@ void abi_Kind4EWait(void)
     abi_ActorEndOutOfRange();
 }
 
+/*
+ * @routine 83:DC9B Kind58Wait
+ * WHAT IT DOES: Kind $58's wait, an actor that carries and lifts Aladdin:
+ * its animation; once K58_COUNT runs out, on a copier (RAM at COPIER_RAM)
+ * Aladdin is put on it; the carry test with its box raised 8 and the lift
+ * step; in level 8 with the view's left edge past $7D0, it ends for good
+ * unless it can be hit (bit 6 of ACTOR_09); else its end when out of
+ * range by box $18.
+ * HOW: AnimStep; K58_COUNT nonzero: down; at 0: COPIER_RAM + 1 written and
+ * read back the same: PLAYER_X_PIXELS = its x, PLAYER_Y_PIXELS = its y -
+ * $18. Its y (pushed) - 8; K58_CARRY_BOX $2C, X = 0, ActorTestCarries; y
+ * pulled back (as two bytes) into it and K58_Y_COPY; A = $2C, X = 1,
+ * ActorLiftPlayerStep. LEVEL_035E 8 and VIEW_X >= $7D0: bit 6 of ACTOR_09
+ * set: RTS; else the loop's return address dropped (PLA PLA), on into
+ * ActorEndPlaced ($83:96CA). Else X = $18, on into ActorEndOutOfRange.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+ * JSR through the actor loop's wait table. Exit: as ActorEndOutOfRange;
+ * RTS; or ended: no return.
+ */
+void abi_Kind58Wait(void)
+{
+    abi_AnimStep();
+    lda8(ea_dp(K58_COUNT));
+    if (!IF_Z) {
+        MEM8(dec, ea_dp(K58_COUNT));
+        if (IF_Z) {
+            lda8(COPIER_RAM);
+            ACC8(inc);
+            sta8(COPIER_RAM);
+            cmp8_v(rd8(COPIER_RAM));
+            if (IF_Z) {
+                op_rep(0x20);
+                lda16(ea_dp(0x0C));
+                sta16(ea_abs(PLAYER_X_PIXELS));
+                clc();
+                lda16(ea_dp(0x0F));
+                adc16_v(0xFFE8);
+                sta16(ea_abs(PLAYER_Y_PIXELS));
+            }
+        }
+    }
+    op_rep(0x20);
+    lda16(ea_dp(0x0F));
+    pha16();
+    clc();
+    adc16_v(0xFFF8);
+    sta16(ea_dp(0x0F));
+    op_sep(0x20);
+    lda8_v(0x2C);
+    sta8(ea_dp(K58_CARRY_BOX));
+    ldx8_v(0x00);
+    abi_ActorTestCarries();
+    pla8();
+    sta8(ea_dp(0x0F));
+    sta8(ea_dp(K58_Y_COPY));
+    pla8();
+    sta8(ea_dp(0x10));
+    sta8(ea_dp(K58_Y_COPY + 1));
+    lda8_v(0x2C);
+    ldx8_v(0x01);
+    abi_ActorLiftPlayerStep();
+    lda8(ea_abs(LEVEL_035E));
+    cmp8_v(0x08);
+    if (IF_Z) {
+        op_rep(0x20);
+        lda16(ea_abs(VIEW_X));
+        cmp16_v(0x07D0);
+        op_sep(0x20);
+        if (IF_C) {
+            bit8_v(rd8(ea_dp(ACTOR_09)));
+            if (IF_V)
+                return;
+            pla8();
+            pla8();
+            actor_leave(0x8396CAu);       /* ActorEndPlaced */
+            return;
+        }
+    }
+    ldx8_v(0x18);
+    abi_ActorEndOutOfRange();
+}
