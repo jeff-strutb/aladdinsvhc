@@ -1,0 +1,59 @@
+# Actor kind $8E ($84:9B6B) with $07 = 0 (pose 0 for 32 frames, $84:9B75)
+# and $07 = 2 (the burst, $84:9B72 and $84:9BBD), which no script meets:
+# its level ($12) makes them only with $07 = 1. Level $12 started as in
+# cov_level12_start.box; 750 frames into the second hold of act 6, two
+# live kind $8E actors are restarted (state $0C): $0FBB with $07 = 0, and
+# $0F1B with $07 = 2 and its copy count (+$41, which its spawner sets) 2.
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+press START
+repeat 750
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+poke $000FBB 0C
+poke $000FC2 00
+poke $000F1B 0C
+poke $000F22 02
+poke $000F5C 02
+repeat 150
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+wait 30
+wait 40
