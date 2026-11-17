@@ -543,3 +543,47 @@ Kind83Enter:
 %at($8393A3)
 Kind95Enter:
     jml.l Kind95Start
+
+; @routine 83:9362 Kind90Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $90 go on from the actor loop in
+; its start state (the table at $83:8DAB): Kind90Start.
+; HOW: JML to Kind90Start ($A5:F4D2).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind90Start.
+%at($839362)
+Kind90Enter:
+    jml.l Kind90Start
+
+; @routine 83:9409 KindA1Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $A1 go on from the actor loop in
+; its start state (the table at $83:8DAB): KindA1Start.
+; HOW: JML to KindA1Start ($84:A97F).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as KindA1Start.
+%at($839409)
+KindA1Enter:
+    jml.l KindA1Start
+
+; @routine 83:9446 KindA8Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $A8 go on from the actor loop in
+; its start state (the table at $83:8DAB): KindA8Start.
+; HOW: JML to KindA8Start ($83:FB1A).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as KindA8Start.
+%at($839446)
+KindA8Enter:
+    jml.l KindA8Start
+
+; @routine 83:939F Kind94Second
+; @actor
+; WHAT IT DOES: Where actors of kind $94 go on from the actor loop in
+; a state with bit 7 set (the table at $83:8EFD): KindA8Start.
+; HOW: JML to KindA8Start ($83:FB1A).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as KindA8Start.
+%at($83939F)
+Kind94Second:
+    jml.l KindA8Start

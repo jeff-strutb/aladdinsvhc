@@ -383,3 +383,15 @@ ActorKindA0Wait:
 ActorKindA3Wait:
     jsl.l KindA3Animate
     rts
+
+; @routine 83:9240 ActorKind49Wait
+; WHAT IT DOES: The routine actors of kind $49 run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: Kind49Wait.
+; HOW: JSL Kind49Wait ($84:805B), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as Kind49Wait leaves them.
+%at($839240)
+ActorKind49Wait:
+    jsl.l Kind49Wait
+    rts
