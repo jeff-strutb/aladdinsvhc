@@ -72,21 +72,6 @@ void abi_ActorGoToPoint(void)
     op_sep(0x30);
 }
 
-/*
- * @routine 83:FB4F ActorBackToCaller
- * WHAT IT DOES: The end of a helper that kept its caller's return
- * address at GOTO_BACK while it waited: puts it back and returns there.
- * HOW: GOTO_BACK (16-bit) pushed; M 8-bit; RTS.
- * Entry: X 8-bit; D = the actor's record; reached by JMP ($83:FCEF).
- * Exit: M 8-bit; A = GOTO_BACK; N and Z from it.
- */
-void abi_ActorBackToCaller(void)
-{
-    op_rep(0x20);
-    a16_load(dp16(GOTO_BACK));
-    push16(cpu.a);
-    op_sep(0x20);
-}
 
 /*
  * @routine 83:FB15 Kind94Wait
