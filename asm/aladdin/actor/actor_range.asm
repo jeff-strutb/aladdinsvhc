@@ -12,6 +12,9 @@ arch 65816
 !PLACED_FLAGS = $7EC600         ; a byte per placement: bit 7 set, never placed again
 !RANGE_X = $1A44                ; the point actors are kept in range of (words)
 !RANGE_Y = $1A46
+!CHILD_A = $40                  ; ActorEndFarWithChildren: its first child's record (word)
+!CHILD_B = $42                  ; its second child's record (word)
+!CHILD_COUNT = $44              ; how many children it has (1 or 2)
 ; In the bank DB names, 8 bytes an entry by X: added to the x and y
 ; differences, then the spans they must be below (words).
 !RANGE_BOXES = $CE73
@@ -160,4 +163,56 @@ ActorFreePlacedAtY:
     jsr.w ActorFreePlaced
     pld
     plp
+    rts
+
+; @routine 83:C4AB ActorEndFarWithChildren
+; WHAT IT DOES: Ends an actor and its one or two children for good once it
+; is 256 pixels or more from the range point, across or up and down,
+; unless it can be hit (bit 6 of $09).
+; HOW: BIT $09, V set: back. Else RANGE_X less its x plus $100 and
+; RANGE_Y less its y plus $100, each below $200: back (M 8-bit). Far:
+; ActorFreePlacedAtY for the child at CHILD_A, and for CHILD_B when
+; CHILD_COUNT is not 1 (no script runs this); its return dropped and on
+; into ActorEndPlaced.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSR from the actor's code at its own
+; level. Exit: near: M 8-bit, N, Z and C from the y test (V set: N, V, Z
+; from the BIT). Far: never returns; as ActorEndPlaced.
+%at($83C4AB)
+ActorEndFarWithChildren:
+    bit.b !actor_09
+    bvs .back
+    rep.b #$20
+    sec
+    lda.w !RANGE_X
+    sbc.b !actor_x+1
+    clc
+    adc.w #$0100
+    cmp.w #$0200
+    bcs .far
+    sec
+    lda.w !RANGE_Y
+    sbc.b !actor_y+1
+    clc
+    adc.w #$0100
+    cmp.w #$0200
+    bcc .near
+.far:
+    sep.b #$20
+    rep.b #$10
+    ldy.b !CHILD_A
+    jsr.w ActorFreePlacedAtY
+    lda.b !CHILD_COUNT
+    dec a
+    beq .one
+    ldy.b !CHILD_B
+    jsr.w ActorFreePlacedAtY
+.one:
+    sep.b #$10
+    pla
+    pla
+    jmp.w ActorEndPlaced
+.near:
+    sep.b #$20
+.back:
     rts

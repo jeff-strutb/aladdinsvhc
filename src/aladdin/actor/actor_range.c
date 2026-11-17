@@ -9,12 +9,17 @@
 
 void abi_ActorClear(void);
 void abi_ActorTileSlotRelease(void);
+void abi_ActorFreePlacedAtY(void);
 
 /* Where the actor loop takes the next record (docs/aladdin/ACTORS.md) */
 #define ACTOR_LOOP_NEXT 0x8394BFu
 #define PLACED_FLAGS 0x7EC600u     /* a byte per placement: bit 7 set, never placed again */
 #define RANGE_X 0x001A44u          /* the point actors are kept in range of (words) */
 #define RANGE_Y 0x001A46u
+#define CHILD_A 0x40u              /* ActorEndFarWithChildren: its first child's record (word) */
+#define CHILD_B 0x42u              /* its second child's record (word) */
+#define CHILD_COUNT 0x44u          /* how many children it has (1 or 2) */
+#define ACTOR_END_PLACED 0x8396CAu
 /* In the bank DB names, 8 bytes an entry by X: added to the x and y
    differences, then the spans they must be below (words). */
 #define RANGE_BOXES 0xCE73u
@@ -215,4 +220,58 @@ void abi_ActorFreePlacedAtY(void)
     abi_ActorFreePlaced();
     pld();
     plp();
+}
+
+/*
+ * @routine 83:C4AB ActorEndFarWithChildren
+ * WHAT IT DOES: Ends an actor and its one or two children for good once it
+ * is 256 pixels or more from the range point, across or up and down,
+ * unless it can be hit (bit 6 of $09).
+ * HOW: BIT $09, V set: back. Else RANGE_X less its x plus $100 and
+ * RANGE_Y less its y plus $100, each below $200: back (M 8-bit). Far:
+ * ActorFreePlacedAtY for the child at CHILD_A, and for CHILD_B when
+ * CHILD_COUNT is not 1 (no script runs this); its return dropped and on
+ * into ActorEndPlaced.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSR from the actor's code at its own
+ * level. Exit: near: M 8-bit, N, Z and C from the y test (V set: N, V, Z
+ * from the BIT). Far: never returns; as ActorEndPlaced.
+ */
+void abi_ActorEndFarWithChildren(void)
+{
+    bit8_v(rd8(ea_dp(ACTOR_09)));  /* 83C4AB bit */
+    if (IF_V) return;  /* 83C4AD bvs (83C4EB rts) */
+    op_rep(0x20);  /* 83C4AF rep */
+    sec();  /* 83C4B1 sec */
+    lda16(ea_abs(RANGE_X));  /* 83C4B2 lda */
+    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));  /* 83C4B5 sbc */
+    clc();  /* 83C4B7 clc */
+    adc16_v(0x0100);  /* 83C4B8 adc */
+    cmp16_v(0x0200);  /* 83C4BB cmp */
+    if (IF_C) goto far;  /* 83C4BE bcs */
+    sec();  /* 83C4C0 sec */
+    lda16(ea_abs(RANGE_Y));  /* 83C4C1 lda */
+    sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));  /* 83C4C4 sbc */
+    clc();  /* 83C4C6 clc */
+    adc16_v(0x0100);  /* 83C4C7 adc */
+    cmp16_v(0x0200);  /* 83C4CA cmp */
+    if (!IF_C) {  /* 83C4CD bcc */
+        op_sep(0x20);  /* 83C4E9 sep */
+        return;  /* 83C4EB rts */
+    }
+far:
+    op_sep(0x20);  /* 83C4CF sep */
+    op_rep(0x10);  /* 83C4D1 rep */
+    ldy16(ea_dp(CHILD_A));  /* 83C4D3 ldy */
+    abi_ActorFreePlacedAtY();  /* 83C4D5 jsr */
+    lda8(ea_dp(CHILD_COUNT));  /* 83C4D8 lda */
+    ACC8(dec);  /* 83C4DA dec */
+    if (IF_Z) goto one;  /* 83C4DB beq */
+    ldy16(ea_dp(CHILD_B));  /* 83C4DD ldy */
+    abi_ActorFreePlacedAtY();  /* 83C4DF jsr */
+one:
+    op_sep(0x10);  /* 83C4E2 sep */
+    pla8();  /* 83C4E4 pla */
+    pla8();  /* 83C4E5 pla */
+    actor_leave(ACTOR_END_PLACED);  /* 83C4E6 jmp */
 }

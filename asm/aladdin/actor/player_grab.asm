@@ -15,6 +15,10 @@ arch 65816
 !PLAYER_STATE_8C_COUNT = $141B  ; counted up on entering state $8C
 !V_1448 = $1448                 ; 7 to $0F: no taking hold
 !V_141C = $141C                 ; zero: no taking hold
+!HOLDS = $21                    ; ActorHoldPlayer: nonzero while it holds him
+!HOLD_PAUSE = $4F               ; ActorHoldPlayer: frames before it can hold him again
+!HOLD_AT = $13                  ; ActorHoldPlayer: its offset for him (PlayerToActorAbove's A)
+!HELD_RESUME = $D99B            ; where his code resumes while he is held
 
 ; @routine 83:882E ActorGrabbableByPlayer
 ; WHAT IT DOES: Tells whether Aladdin can take hold of the actor: he is
@@ -94,3 +98,61 @@ PlayerFacesActorClose:
 .out:
     sep.b #$20
     rtl
+
+; @routine 83:BAEF ActorHoldPlayerLong
+; WHAT IT DOES: ActorHoldPlayer for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorHoldPlayer; called by JSL. Exit: as ActorHoldPlayer.
+%at($83BAEF)
+ActorHoldPlayerLong:
+    jsr.w ActorHoldPlayer
+    rtl
+
+; @routine 83:BAF3 ActorHoldPlayer
+; WHAT IT DOES: A frame of an actor that takes hold of the player: when
+; ActorGrabTest finds him it holds him (HOLDS set) at its offset HOLD_AT;
+; while it holds him he stays there until $1427 is cleared, which lets
+; him go with a pause of 8 frames before it can hold him again.
+; HOW: HOLDS set: V_1427 clear, HOLDS = 0 and HOLD_PAUSE = 8; else
+; PlayerToActorAbove with A = HOLD_AT. HOLDS clear: HOLD_PAUSE nonzero,
+; one less; else ActorGrabTest; C clear: his resume address ($03-$04) =
+; HELD_RESUME, PlayerSpotAboveActor with A = HOLD_AT, HOLDS up, C clear;
+; else HOLDS = 0. The scripts run only that last path (HOLDS and
+; HOLD_PAUSE clear, the test failing).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+; JSR. Exit: M 8-bit, X 8-bit. Taken: C clear, HOLDS 1. Held: as
+; PlayerToActorAbove. Let go: A = 8. Else HOLDS 0, the rest as the pause
+; count or ActorGrabTest leaves them.
+ActorHoldPlayer:
+    lda.b !HOLDS
+    beq .free
+    lda.w !V_1427
+    bne .keep
+    stz.b !HOLDS
+    lda.b #$08
+    sta.b !HOLD_PAUSE
+    rts
+.keep:
+    lda.b !HOLD_AT
+    jsl.l PlayerToActorAbove
+    rts
+.free:
+    lda.b !HOLD_PAUSE
+    beq .test
+    dec.b !HOLD_PAUSE
+    bra .none
+.test:
+    jsl.l ActorGrabTest
+    bcs .none
+    lda.b #!HELD_RESUME&255
+    sta.w !player+!actor_03
+    lda.b #!HELD_RESUME>>8
+    sta.w !player+!actor_04
+    lda.b !HOLD_AT
+    jsl.l PlayerSpotAboveActor
+    inc.b !HOLDS
+    clc
+    rts
+.none:
+    stz.b !HOLDS
+    rts
