@@ -1,0 +1,122 @@
+# The story card between acts (81:F10D) run with no button pressed, which
+# no other script does (they skip it with START). Passwords entered as
+# tools/aladdin/states/02_passwords.box enters them.
+# 1. The first password's card (part 1): its text, then load-list command
+#    6 (81:F2DA: a fade, and the list goes on to its second text).
+# 2. The second's (part 2): 400 frames in, while its text types, a line no
+#    text in the game has is put in work RAM at $07E8 (the card's data
+#    bank, $80, reads work RAM at $0000-$1FFF; $07E0-$07EF stays 0 and
+#    unused through the card) and the text pointer ($50) at it: characters
+#    $41, $BA, $B7, $41, then the end code $FD. $BA and $B7 put a mark
+#    on the row above (81:F259). The end code goes on to the list's next
+#    command, 4 (81:F2AD: the card ends, the level starts).
+# 3. The second again, with the part ($035C) poked to 0 after the password
+#    has set it and before the card starts: part 0 is shown as part 7
+#    (81:F112), whose list is command 8 (81:F2FC: on to the final act's
+#    scene at 80:AF42).
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+wait 2600
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+wait 400
+poke $0007E8 41,BA,B7,41,FD
+poke $000050 E7,07
+wait 1300
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+wait 60
+poke $00035C 00
+wait 400

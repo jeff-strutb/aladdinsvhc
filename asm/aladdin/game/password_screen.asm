@@ -52,7 +52,6 @@ PasswordPictureDraw:
 !routine_81825b = $81825B  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
 !routine_8196b1 = $8196B1  ; not yet filed
-!routine_81f10d = $81F10D  ; not yet filed
 !t_fdd1 = $FDD1  ; data bank
 !t_fe36 = $FE36  ; data bank
 !t_fe3c = $FE3C  ; data bank
@@ -382,4 +381,4 @@ PasswordScreen:
     dl !routine_818181
 .lAF4B:
     jsl.l TaskExec
-    dl !routine_81f10d
+    dl StoryCardTask
