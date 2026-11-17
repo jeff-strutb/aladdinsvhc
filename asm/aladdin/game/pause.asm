@@ -51,7 +51,8 @@ PauseCooldown:
 ; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM; called
 ; by JSR from the play loop's task (81:82DB), whose stack holds the states
 ; while it waits. Exit: M and X 8-bit; not paused: A low = the cooldown, N
-; and Z from it; paused: A low = $60, X = $C0, N, Z and C from the CPX.
+; and Z from it; paused: A = $0160 (M 8-bit), N and Z clear (its load),
+; X = $C0, C as the last TaskWait's resume left it.
 %at($818398)
 PauseCheck:
     lda.w !PAUSE_COOLDOWN
