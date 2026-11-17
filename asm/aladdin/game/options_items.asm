@@ -61,6 +61,18 @@ OptionStereoShow:
 OptionExitStep:
     rts
 
+; @routine 83:8BCF OptionsLeave
+; WHAT IT DOES: Leaves the options screen for the title: its sound stopped,
+; then the task starts again at TitleAfterFadeOut.
+; HOW: SoundQueueF2; TaskExec with the entry in the three bytes after its
+; JSL ($80:9C79).
+; Entry: M 8-bit, X 8-bit; reached by JMP from the options task ($83:8979)
+; when its exit item is chosen. Exit: never returns.
+OptionsLeave:
+    jsl.l SoundQueueF2
+    jsl.l TaskExec
+    dl TitleAfterFadeOut
+
 ; @routine 83:8C7B OptionCursorClear
 ; WHAT IT DOES: Clears the options screen's cursor beside every item, and
 ; asks for the text layer's upload.

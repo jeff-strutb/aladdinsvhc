@@ -14,6 +14,8 @@ void abi_TextLayoutShow(void);
 void abi_KeptOptionsSeal(void);
 void abi_SoundQueueAdd(void);
 void abi_OptionStereoShow(void);
+void abi_SoundQueueF2(void);
+void abi_TaskExec(void);
 
 #define SOUND_OUTPUT (KEPT_OPTIONS + 1) /* the second kept option: bit 7 set, stereo */
 #define TEXT_STEREO 0x68           /* the string "STEREO" */
@@ -33,6 +35,24 @@ void abi_OptionStereoShow(void);
  */
 void abi_OptionExitStep(void)
 {
+}
+
+/*
+ * @routine 83:8BCF OptionsLeave
+ * WHAT IT DOES: Leaves the options screen for the title: its sound stopped,
+ * then the task starts again at TitleAfterFadeOut.
+ * HOW: SoundQueueF2; TaskExec with the entry in the three bytes after its
+ * JSL ($80:9C79).
+ * Entry: M 8-bit, X 8-bit; reached by JMP from the options task ($83:8979)
+ * when its exit item is chosen. Exit: never returns.
+ */
+void abi_OptionsLeave(void)
+{
+    abi_SoundQueueF2();
+    /* TaskExec at $83:8BD3: its frame, as the JSL pushes it; the three
+       bytes after the JSL are the task's new entry. It never returns. */
+    jsl_frame(0x838BD3u);
+    abi_TaskExec();
 }
 
 /*
