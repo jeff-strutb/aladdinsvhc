@@ -1,0 +1,13 @@
+# The rise of $83:FCA5 held at its limit ($83:FCDE): each frame its speed
+# ($1D) grows by $20 and is kept at most $45; with entry 0 of the table at
+# $80:D9B2 ($45 = $800, $28 a frame) the actor is out of the ground long
+# before. As cov_dungeon_switches.box's first play until the kind $31 at
+# record $0C4B is in the rise (its $1D 0), then its $45 lowered to $30.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 82
+poke 000C90 30,00
+wait 60

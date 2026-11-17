@@ -1,0 +1,9 @@
+# Actor kind $6D's start in state $80 ($83:EFF0) with bit 7 of its $14
+# set, which play never has when it gets there: the bit is cleared
+# ($83:F012). On stage_a3_s0.state the kind $6D at record $0B5B put in
+# state $80 with $14 = $80, and the frames after it.
+load build/aladdin/states/stage_a3_s0.state
+wait 10
+poke 000B5B 80
+poke 000B6F 80
+wait 60
