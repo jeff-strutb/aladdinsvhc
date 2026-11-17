@@ -9,6 +9,9 @@
 #include "ops65.h"
 
 void abi_ShotFly(void);
+void abi_Kind63Knocked(void);
+void abi_Kind85Start(void);
+void abi_Kind8EStart(void);
 void abi_Kind90Start(void);
 void abi_KindA1Start(void);
 void abi_KindA8Start(void);
@@ -783,4 +786,46 @@ void abi_KindA8Enter(void)
 void abi_Kind94Second(void)
 {
     abi_KindA8Start();
+}
+
+/*
+ * @routine 83:9252 Kind63Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $63 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): Kind63Knocked.
+ * HOW: JML to Kind63Knocked ($84:81BE).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind63Knocked.
+ */
+void abi_Kind63Second(void)
+{
+    abi_Kind63Knocked();
+}
+
+/*
+ * @routine 83:92F2 Kind85Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $85 go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind85Start.
+ * HOW: JML to Kind85Start ($84:9602).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind85Start.
+ */
+void abi_Kind85Enter(void)
+{
+    abi_Kind85Start();
+}
+
+/*
+ * @routine 83:9351 Kind8EEnter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $8E go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind8EStart.
+ * HOW: JML to Kind8EStart ($84:9B6B).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind8EStart.
+ */
+void abi_Kind8EEnter(void)
+{
+    abi_Kind8EStart();
 }
