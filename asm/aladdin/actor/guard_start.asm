@@ -84,6 +84,7 @@ GuardStart:
     sta.w !G_COUNT
     sta.l !G_CART_COUNTS,x
     stz.b !G_SHOWN
+.restart:
     stz.b !actor_40
     stz.b !G_STATE
     stz.b !G_MOVING
@@ -97,7 +98,7 @@ GuardStart:
     tax
     jmp.w (.starts,x)
 .starts:
-    dw .guard, $EB31, PlayerSceneLeap, PlayerSceneHops, PlayerSceneDropIn, $EE29, $EEE1
+    dw .guard, PlayerSceneRuns, PlayerSceneLeap, PlayerSceneHops, PlayerSceneDropIn, PlayerSceneWalkOff, PlayerSceneFallPose
     dw EscortStaySpot18, EscortWaitSpot0, EscortWaitSpot0C, EscortWaitSpot10, GuardPlacedHold, .shown
 .shown:
     lda.b #$01

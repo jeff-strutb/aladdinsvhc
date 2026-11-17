@@ -29,6 +29,7 @@ void abi_GuardStop(void);
 void abi_PlayerSceneDropIn(void);
 void abi_PlayerSceneHops(void);
 void abi_PlayerSceneLeap(void);
+void abi_PlayerSceneWalkOff(void);
 
 #define G_KIND_TIMES2 0x1476u   /* the kind * 2 it was started with (from the actor loop's X) */
 #define G_COUNT 0x1475u         /* the count in cartridge RAM, after its increment */
@@ -157,6 +158,9 @@ void abi_GuardStart(void)
     case 4:
         abi_PlayerSceneDropIn();
         return;
+    case 5:
+        abi_PlayerSceneWalkOff();
+        return;
     case 7:
         abi_EscortStaySpot18();
         return;
@@ -177,7 +181,7 @@ void abi_GuardStart(void)
         wr8(dpa(G_SHOWN), 0x01);
         guard();
         return;
-    default:                                    /* 1, 5, 6 (their own starts, no C yet), and past the table's 13 words */
+    default:                                    /* 1 and 6 (their C held: they go on at this start's restart), and past the table's 13 words */
         jump_routine(0xA50000u | rd16(0xA50000u | (uint16_t)(STARTS + cpu.x)));
         return;
     }

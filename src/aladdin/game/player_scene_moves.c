@@ -20,9 +20,17 @@ void abi_ActorSnapToGround(void);
 void abi_ActorSpeedXFromA5(void);
 void abi_ActorSpeedYFromA5(void);
 void abi_AnimStart(void);
+void abi_EscortStaySpot18(void);
 
 #define SCENE_CUE 0x146Cu  /* counted up by scripted actors as the scene goes on */
 #define HOP_TIME 0x42u  /* frames left of its run */
+#define SCENE_START_COUNT 0x1475u      /* the count A5:E515 kept when the figure started (the cartridge RAM's byte, plus 1) */
+#define SCENE_START_SLOT 0x1476u       /* its index into the cartridge RAM's bytes */
+#define SCENE_CART_RAM 0x700000u       /* cartridge RAM (the board has none: a read gives the bus's last byte) */
+#define SCENE_STEP_A 0x00BDu           /* nonzero: the walk-off figure goes on (set by the scene) */
+#define SCENE_STEP_B 0x00BEu           /* counted up as the walk-off figure has run past the player */
+#define SCENE_STEP_C 0x00BFu           /* counted up as the walk-off figure has reached its mark */
+#define SCENE_MARK_X 0x0F68u           /* the walk-off figure's mark */
 
 /* Each frame (BRK at `brk_at` first) until the scene's cue is given. */
 static void wait_cue(uint32_t brk_at)
@@ -162,4 +170,116 @@ void abi_PlayerSceneHops(void)
         abi_ActorSpeedYFromA5();
         fall_to_ground(0xA5ED01u);
     }
+}
+
+/* Each frame (BRK at `brk_at`): ActorMoveX and ActorSnapToGround. */
+static void walk_step(uint32_t brk_at)
+{
+    actor_yield(brk_at);
+    abi_ActorMoveX();
+    abi_ActorSnapToGround();
+}
+
+/*
+ * @routine A5:EE29 PlayerSceneWalkOff
+ * @actor
+ * WHAT IT DOES: The scripted figure's way 5: unless the cartridge RAM
+ * still holds the count the start kept, it goes to the escort's spot
+ * ($18) instead; else it falls to the ground, walks right to its mark,
+ * poses, runs on until it is 24 pixels past the player, turns to face
+ * left for a while, and, once the scene says so, walks on for good.
+ * HOW: SCENE_START_COUNT - 1 against the cartridge RAM's byte at
+ * SCENE_START_SLOT: different, on at EscortStaySpot18. Each frame
+ * ActorOutOfGround zero: BRK and ActorFly. Facing and flip 0, animation 1,
+ * ActorSpeedXFromA5 0; each frame (BRK) ActorMoveX, ActorSnapToGround
+ * until its x (16-bit) reaches SCENE_MARK_X. SCENE_STEP_C up; animation 6,
+ * COP $30; animation $1E, COP $20; animation 2, ActorSpeedXFromA5 $12;
+ * each frame ActorMoveX, ActorSnapToGround while the player's x + $18 is
+ * at least its own. SCENE_STEP_B up; animation 4, flip 1, COP $80; flip 0,
+ * animation 0; BRK until SCENE_STEP_A; COP $10; animation 1,
+ * ActorSpeedXFromA5 0; each frame ActorMoveX and ActorSnapToGround for
+ * good.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $A5; reached by
+ * the jump through the table at $A5:E56D for $07 = 5. Exit: never returns.
+ */
+void abi_PlayerSceneWalkOff(void)
+{
+    uint8_t kept, ram;
+    uint16_t x, reach;
+
+    x8_load(rd8(dba(SCENE_START_SLOT)));
+    kept = (uint8_t)(rd8(dba(SCENE_START_COUNT)) - 1);
+    a8_load(kept);
+    ram = rd8(SCENE_CART_RAM + cpu.x);
+    cmp8_of(kept, ram);
+    if (kept != ram) {
+        abi_EscortStaySpot18();                  /* its JMP: the piece goes on there */
+        return;
+    }
+    for (;;) {
+        abi_ActorOutOfGround();
+        if (!(cpu.p & P_Z))
+            break;
+        actor_yield(0xA5EE3Fu);
+        abi_ActorFly();
+    }
+    wr8(dpa(ACTOR_FACING), 0x00);
+    wr8(dpa(ACTOR_FLIP), 0x00);
+    a8_load(0x01);
+    abi_AnimStart();
+    y8_load(0x00);
+    abi_ActorSpeedXFromA5();
+    do {
+        walk_step(0xA5EE56u);
+        op_rep(0x20);
+        x = dp16(ACTOR_X + 1);
+        a16_load(x);
+        cmp16_of(x, SCENE_MARK_X);
+        op_sep(0x20);
+    } while (x < SCENE_MARK_X);
+    (void)inc8_at(dba(SCENE_STEP_C));
+    a8_load(0x06);
+    abi_AnimStart();
+    a8_load(0x30);
+    actor_wait(0xA5EE76u);
+    a8_load(0x1E);
+    abi_AnimStart();
+    a8_load(0x20);
+    actor_wait(0xA5EE80u);
+    a8_load(0x02);
+    abi_AnimStart();
+    y8_load(0x12);
+    abi_ActorSpeedXFromA5();
+    do {
+        walk_step(0xA5EE8Du);
+        op_rep(0x20);
+        flag_set(P_C, 0);
+        reach = op_adc16(rd16(dba(PLAYER + ACTOR_X + 1)), 0x0018, &cpu.p);
+        a16_load(reach);
+        x = dp16(ACTOR_X + 1);
+        cmp16_of(reach, x);
+        op_sep(0x20);
+    } while (reach >= x);
+    (void)inc8_at(dba(SCENE_STEP_B));
+    a8_load(0x04);
+    abi_AnimStart();
+    a8_load(0x01);
+    wr8(dpa(ACTOR_FLIP), 0x01);
+    a8_load(0x80);
+    actor_wait(0xA5EEB5u);
+    wr8(dpa(ACTOR_FLIP), 0x00);
+    a8_load(0x00);
+    abi_AnimStart();
+    do {
+        actor_yield(0xA5EEBFu);
+        a8_load(rd8(dba(SCENE_STEP_A)));
+    } while (!(uint8_t)cpu.a);
+    a8_load(0x10);
+    actor_wait(0xA5EEC8u);
+    a8_load(0x01);
+    abi_AnimStart();
+    y8_load(0x00);
+    abi_ActorSpeedXFromA5();
+    for (;;)
+        walk_step(0xA5EED5u);
 }
