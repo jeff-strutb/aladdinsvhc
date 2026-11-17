@@ -1,4 +1,4 @@
-/* heldc: keep (each piece is resumed at a code word the guard's wait rewrites in its record ($03); the checker does not yet open a piece where the actor loop's RTI lands on an @actor entry with no matching park, nor drop that record's stale park); GuardStepAhead (A5:EAE6) too: released as pull16 and actor_leave(A5:E6A0), cov_title_demo_skip, IDENTICAL at 894df13, differs from frame 528 ($0329 01/06) with 5 fewer calls swapped */
+/* heldc: keep (each piece is resumed at a code word the guard's wait rewrites in its record ($03); the checker does not yet open a piece where the actor loop's RTI lands on an @actor entry with no matching park, nor drop that record's stale park) */
 /*
  * guard_moves.c.held: the bank $A5 guard's (actor kind $08) moves: the
  * pieces its code word sends it to (stop, run, jump, give up, walk), the
@@ -36,7 +36,7 @@ void abi_GuardSnapToTile(void);
 void abi_PointInGroundLong(void);
 void abi_GuardJump(void);
 void abi_GuardStop(void);
-static uint32_t guard_step_ahead(void);
+uint32_t guard_step_ahead(void);
 
 #define G_POINT_X SCRATCH               /* the probe point PointInGround tests: x (word) */
 #define G_POINT_Y (SCRATCH + 2)         /* its y (word) */
@@ -52,8 +52,6 @@ static uint32_t guard_step_ahead(void);
 #define G_HIDE_A 0x141Cu                /* nonzero: the guard waits before it comes back */
 #define G_HIDE_B 0x1427u
 #define PLAYER_X_AT (PLAYER + ACTOR_X + 1)
-#define G_STEP_AHEAD_X 0xCFF4u          /* (data bank) by speed and facing: x of the point ahead (word) */
-#define G_STEP_AHEAD_Y 0xD010u          /* (data bank) by speed and facing: y of the point ahead (word) */
 
 static void climb(void);
 static void flip(void);
@@ -492,49 +490,4 @@ void abi_GuardWalk(void)
     anim(0x04);
     for (;;)
         actor_yield(0xA5E80Eu);
-}
-
-/* GuardStepAhead's work, for a caller that has pushed its JSR's return:
-   0 when the ground ahead is clear (the routine's RTS, the return not yet
-   pulled); else, with the return pulled and the rise's speed set, where
-   the guard goes on ($A5:E6A0, GuardJump). */
-static uint32_t guard_step_ahead(void)
-{
-    uint8_t x;
-
-    x = (uint8_t)(((rd8(dpa(ACTOR_SPEED_X + 1)) << 1) ^ rd8(dpa(ACTOR_FACING))) << 1);
-    a8_load(x);
-    x8_load(x);
-    op_rep(0x20);
-    flag_set(P_C, 0);
-    a16_load(op_adc16(rd16(dba((uint16_t)(G_STEP_AHEAD_X + x))), dp16(ACTOR_X + 1), &cpu.p));
-    wr16(dba(G_POINT_X), cpu.a);
-    flag_set(P_C, 0);
-    a16_load(op_adc16(rd16(dba((uint16_t)(G_STEP_AHEAD_Y + x))), dp16(ACTOR_Y + 1), &cpu.p));
-    wr16(dba(G_POINT_Y), cpu.a);
-    abi_PointInGroundLong();                     /* leaves M 8-bit */
-    a8_load((uint8_t)(rd8(dba(G_TILE)) & 0x07));
-    if (!(uint8_t)cpu.a)
-        return 0;
-    a8_load((uint8_t)(pull16() >> 8));           /* PLA, PLA: its JSR's return; A its high byte */
-    y8_load(0x09);
-    abi_ActorSpeedYFromA5();
-    return 0xA5E6A0u;
-}
-
-/*
- * @routine A5:EAE6 GuardStepAhead
- * WHAT IT DOES: The running guard's look ahead: where the ground rises in
- * front of it, it jumps (it leaves its caller and goes to GuardJump).
- * HOW: X = ((speed's middle byte * 2) EOR facing) * 2; the point = its x
- * + G_STEP_AHEAD_X, its y + G_STEP_AHEAD_Y (16-bit) by X;
- * PointInGroundLong; G_TILE's kind 0: RTS. Else its JSR's return pulled,
- * ActorSpeedYFromA5 9, on at GuardJump.
- * Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; called by JSR
- * from GuardRun. Exit: M 8-bit (no ground ahead); else never returns.
- */
-void abi_GuardStepAhead(void)
-{
-    if (guard_step_ahead())
-        actor_leave(0xA5E6A0u);
 }
