@@ -1,0 +1,47 @@
+# Actor kind $79, the riser (Kind79Wait $83:F68C, Kind79InRange $83:F639,
+# Kind79SlotClear $83:F683): the parts no play reaches. Each part is the
+# play of rand_stage_a3_s1 (seed 7) to frame 100, the kind $79 at record
+# $0B5B rising (x $00F0, y about $0088), then:
+# A. Aladdin put at x $00F0, y $00C0, inside its zone $80 (24 across, 32
+#    down, from 40 below it) while in the air: it takes him up ($83:F6A6);
+#    50 frames on its y poked to $0200, out of its height range while
+#    taken: his code goes on at $CDD2 and it starts again ($83:F665).
+# B. Its $07 bit 1 set ($0B62 = 3) and its y poked to $0020, above $0032:
+#    its hit state and KIND79_LOW ($83:F6D1).
+# C. KIND79_LOW ($0BA4) and its wait ($0BA2) set: the hit state each frame
+#    ($83:F69A) and the wait counted down ($83:F690).
+# D. Its x poked to $0800, far across from the range point: its slot
+#    cleared and it ends ($83:F64C, Kind79SlotClear).
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 0008E7 F0,00
+poke 0008EA C0,00
+wait 50
+poke 000B6A 00,02
+wait 5
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 000B62 03
+poke 000B6A 20,00
+wait 5
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 000BA4 01
+poke 000BA2 03
+wait 3
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 000B67 00,08
+wait 3
