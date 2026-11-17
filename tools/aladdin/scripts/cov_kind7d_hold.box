@@ -1,0 +1,38 @@
+# Actor kind $7D's steps (Kind7DStep, $84:9120): Aladdin taking hold of
+# one, held as it rises, put back when ground comes in front of it, its
+# pause, and its wait again. No play takes hold. The play of
+# rand_stage_a4_s2 (seed 7) to frame 1100, the kind $7D at record $0BFB
+# rising at x $0198, y about $0051; Aladdin put close in front of it (x
+# $0188, y $0057), still ($08F8-$08FA 0) and with no state $8C counted
+# ($141B 0, the hold's test): it takes him; at y about $0017 its probe
+# meets the ground row at y $0000-$000F and he is put back.
+load build/aladdin/states/stage_a4_s2.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 12
+poke 0008E7 88,01
+poke 0008EA 57,00
+poke 0008F8 00,00,00
+poke 00141B 00
+wait 260
