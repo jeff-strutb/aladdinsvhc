@@ -17,6 +17,7 @@
 void abi_PaletteCycleStart(void);
 void abi_TaskCreate(void);
 void abi_Bits035DExpand(void);
+void abi_UnpackSet(void);
 
 #define TM_SHADOW 0x0399u  /* the layers on the main screen (TM, for the NMI) */
 #define TS_SHADOW 0x039Au  /* the layers on the sub screen (TS) */
@@ -471,4 +472,122 @@ void abi_Level14ScreenSetup(void)
 void abi_Level15ScreenSetup(void)
 {
     abi_Level02ScreenSetup();
+}
+
+#define V_03A1 0x03A1u
+#define BAND_FILL 0x7EDF80u         /* level $11's table of 64 words $4000 (its HDMA scroll) */
+#define LEVEL11_MODES 0xB9C3u       /* level $11's HDMA tables in bank $80: BGMODE, BG3 y, TM */
+#define LEVEL11_BG3Y 0xB9CAu
+#define LEVEL11_LAYERS 0xB9D4u
+#define LEVEL_SETUPS 0x818802u      /* the set-ups by level (words, this bank) */
+
+/*
+ * @routine 81:8A4A Level07ScreenSetup
+ * WHAT IT DOES: Level 7's screen set-up: its red-out task, three palette
+ * cycles, scroll kind 6, layers 1-3 and sprites on the main screen, its
+ * graphics set $1A unpacked, parallax kind $12.
+ * HOW: TaskCreate slot 6 RedOutTask; PaletteCycleStart (0, $11), ($0E,
+ * $12), ($1C, $13); V_145B 1, SCROLL_KIND 6, TM_SHADOW $17;
+ * UnpackSet $1A; V_083F $12; V_03A1 $3B.
+ * Entry: as Level04ScreenSetup. Exit: by RTS; A = $3B.
+ */
+void abi_Level07ScreenSetup(void)
+{
+    task_create(0x818A4Au);
+    cycle(0x00, 0x11);
+    cycle(0x0E, 0x12);
+    cycle(0x1C, 0x13);
+    a8_load(0x01);
+    wr8(dba(V_145B), 0x01);
+    a8_load(0x06);
+    wr8(dba(SCROLL_KIND), 0x06);
+    a8_load(0x17);
+    wr8(dba(TM_SHADOW), 0x17);
+    a8_load(0x1A);
+    abi_UnpackSet();
+    a8_load(0x12);
+    wr8(dba(V_083F), 0x12);
+    a8_load(0x3B);
+    wr8(dba(V_03A1), 0x3B);
+}
+
+/*
+ * @routine 81:8C62 Level11ScreenSetup
+ * WHAT IT DOES: Level $11's screen set-up: parallax kind 2, its graphics
+ * set $21 unpacked, a table of 64 words $4000 at BAND_FILL, three HDMA
+ * channels from bank $80's tables (BGMODE, BG3's y, the main screen's
+ * layers), layers 2 and 3 and sprites on the main screen, three palette
+ * cycles.
+ * HOW: V_083F 2; UnpackSet $21; SCROLL_LIMIT_X's high byte 1; BAND_FILL
+ * from its last word down: 0, $40; channel 1: DMAP 0, BBAD $05, A1T
+ * $80:B9C3; channel 2: DMAP 2, BBAD $12, A1T $80:B9CA; channel 3: DMAP 0,
+ * BBAD $2C, A1T $80:B9D4; TM_SHADOW $16; PaletteCycleStart ($64, $24),
+ * ($74, $27), ($84, $2A).
+ * Entry: as Level04ScreenSetup. Exit: by RTS; as PaletteCycleStart leaves
+ * the registers.
+ */
+void abi_Level11ScreenSetup(void)
+{
+    int x;
+
+    a8_load(0x02);
+    wr8(dba(V_083F), 0x02);
+    a8_load(0x21);
+    abi_UnpackSet();
+    a8_load(0x01);
+    wr8(dba((uint16_t)(SCROLL_LIMIT_X + 1)), 0x01);
+    for (x = 0x7E; x >= 0; x -= 2) {
+        wr8(BAND_FILL + x, 0x00);
+        wr8(BAND_FILL + 1 + x, 0x40);
+    }
+    cpu.x = 0xFE;
+    a8_load(0x00);
+    wr8(dba((uint16_t)DMAP1), 0x00);
+    wr8(dba((uint16_t)BBAD1), 0x05);
+    wr8(dba((uint16_t)A1T1L), (uint8_t)LEVEL11_MODES);
+    wr8(dba((uint16_t)A1T1H), (uint8_t)(LEVEL11_MODES >> 8));
+    wr8(dba((uint16_t)A1B1), 0x80);
+    wr8(dba((uint16_t)DASB1), 0x00);
+    wr8(dba((uint16_t)DMAP2), 0x02);
+    wr8(dba((uint16_t)BBAD2), 0x12);
+    wr8(dba((uint16_t)A1T2L), (uint8_t)LEVEL11_BG3Y);
+    wr8(dba((uint16_t)A1T2H), (uint8_t)(LEVEL11_BG3Y >> 8));
+    wr8(dba((uint16_t)A1B2), 0x80);
+    wr8(dba((uint16_t)DASB2), 0x00);
+    wr8(dba((uint16_t)DMAP3), 0x00);
+    wr8(dba((uint16_t)BBAD3), 0x2C);
+    wr8(dba((uint16_t)A1T3L), (uint8_t)LEVEL11_LAYERS);
+    wr8(dba((uint16_t)A1T3H), (uint8_t)(LEVEL11_LAYERS >> 8));
+    wr8(dba((uint16_t)A1B3), 0x80);
+    wr8(dba((uint16_t)DASB3), 0x00);
+    a8_load(0x16);
+    wr8(dba(TM_SHADOW), 0x16);
+    cycle(0x64, 0x24);
+    cycle(0x74, 0x27);
+    cycle(0x84, 0x2A);
+}
+
+/*
+ * @routine 81:87EF LevelScreenSetup
+ * WHAT IT DOES: Starts the level's screen: V_145B and V_1C7D cleared,
+ * NMI, IRQ by V and auto joypad read on, then the level's own set-up.
+ * HOW: V_145B 0, NMITIMEN_SHADOW $31, V_1C7D 0; JMP through LEVEL_SETUPS
+ * by LEVEL (byte, times 2).
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSR from the level's start (81:8216). Exit: as the level's
+ * set-up.
+ */
+void abi_LevelScreenSetup(void)
+{
+    uint8_t level;
+
+    wr8(dba(V_145B), 0);
+    a8_load(0x31);
+    wr8(dba((uint16_t)NMITIMEN_SHADOW), 0x31);
+    wr8(dba(V_1C7D), 0);
+    level = rd8(dba((uint16_t)LEVEL));
+    flag_set(P_C, level & 0x80);
+    a8_load((uint8_t)(level << 1));
+    x8_load((uint8_t)cpu.a);
+    jump_routine(0x810000u | rd16(LEVEL_SETUPS + cpu.x));
 }

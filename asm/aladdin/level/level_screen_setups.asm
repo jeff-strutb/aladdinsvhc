@@ -580,3 +580,141 @@ Level1CScreenSetup:
 Level14ScreenSetup:
     jsr.w Level00ScreenSetup
     rts
+
+!V_03A1 = $03A1
+!L11_BAND_FILL = $7EDF80        ; level $11's table of 64 words $4000 (its HDMA scroll)
+!LEVEL11_MODES = $80B9C3        ; level $11's HDMA tables in bank $80: BGMODE, BG3 y, TM
+!LEVEL11_BG3Y = $80B9CA
+!LEVEL11_LAYERS = $80B9D4
+!LEVEL_SETUPS = $818802         ; the set-ups by level (words, this bank)
+
+; @routine 81:8A4A Level07ScreenSetup
+; WHAT IT DOES: Level 7's screen set-up: its red-out task, three palette
+; cycles, scroll kind 6, layers 1-3 and sprites on the main screen, its
+; graphics set $1A unpacked, parallax kind $12.
+; HOW: TaskCreate slot 6 RedOutTask; PaletteCycleStart (0, $11), ($0E,
+; $12), ($1C, $13); V_145B 1, SCROLL_KIND 6, TM_SHADOW $17;
+; UnpackSet $1A; V_083F $12; V_03A1 $3B.
+; Entry: as Level04ScreenSetup. Exit: by RTS; A = $3B.
+%at($818A4A)
+Level07ScreenSetup:
+    jsl.l TaskCreate
+    db 6*24, 0               ; slot 6, parameter 0
+    dl RedOutTask
+    ldx.b #$00
+    lda.b #$11
+    jsr.w PaletteCycleStart
+    ldx.b #$0E
+    lda.b #$12
+    jsr.w PaletteCycleStart
+    ldx.b #$1C
+    lda.b #$13
+    jsr.w PaletteCycleStart
+    lda.b #$01
+    sta.w !V_145B
+    lda.b #$06
+    sta.w !scroll_kind
+    lda.b #$17
+    sta.w !TM_SHADOW
+    lda.b #$1A
+    jsl.l UnpackSet
+    lda.b #$12
+    sta.w !V_083F
+    lda.b #$3B
+    sta.w !V_03A1
+    rts
+
+; @routine 81:8C62 Level11ScreenSetup
+; WHAT IT DOES: Level $11's screen set-up: parallax kind 2, its graphics
+; set $21 unpacked, a table of 64 words $4000 at BAND_FILL, three HDMA
+; channels from bank $80's tables (BGMODE, BG3's y, the main screen's
+; layers), layers 2 and 3 and sprites on the main screen, three palette
+; cycles.
+; HOW: V_083F 2; UnpackSet $21; SCROLL_LIMIT_X's high byte 1; BAND_FILL
+; from its last word down: 0, $40; channel 1: DMAP 0, BBAD $05, A1T
+; $80:B9C3; channel 2: DMAP 2, BBAD $12, A1T $80:B9CA; channel 3: DMAP 0,
+; BBAD $2C, A1T $80:B9D4; TM_SHADOW $16; PaletteCycleStart ($64, $24),
+; ($74, $27), ($84, $2A).
+; Entry: as Level04ScreenSetup. Exit: by RTS; as PaletteCycleStart leaves
+; the registers.
+%at($818C62)
+Level11ScreenSetup:
+    lda.b #$02
+    sta.w !V_083F
+    lda.b #$21
+    jsl.l UnpackSet
+    lda.b #$01
+    sta.w !scroll_limit_x+1
+    ldx.b #126
+.fill:
+    lda.b #$00
+    sta.l !L11_BAND_FILL,x
+    lda.b #$40
+    sta.l !L11_BAND_FILL+1,x
+    dex
+    dex
+    bpl .fill
+    lda.b #$00
+    sta.w !DMAP1
+    lda.b #$05
+    sta.w !BBAD1
+    lda.b #!LEVEL11_MODES
+    sta.w !A1T1L
+    lda.b #!LEVEL11_MODES>>8
+    sta.w !A1T1H
+    lda.b #!LEVEL11_MODES>>16
+    sta.w !A1B1
+    stz.w !DASB1
+    lda.b #$02
+    sta.w !DMAP2
+    lda.b #$12
+    sta.w !BBAD2
+    lda.b #!LEVEL11_BG3Y
+    sta.w !A1T2L
+    lda.b #!LEVEL11_BG3Y>>8
+    sta.w !A1T2H
+    lda.b #!LEVEL11_BG3Y>>16
+    sta.w !A1B2
+    stz.w !DASB2
+    lda.b #$00
+    sta.w !DMAP3
+    lda.b #$2C
+    sta.w !BBAD3
+    lda.b #!LEVEL11_LAYERS
+    sta.w !A1T3L
+    lda.b #!LEVEL11_LAYERS>>8
+    sta.w !A1T3H
+    lda.b #!LEVEL11_LAYERS>>16
+    sta.w !A1B3
+    stz.w !DASB3
+    lda.b #$16
+    sta.w !TM_SHADOW
+    ldx.b #$64
+    lda.b #$24
+    jsr.w PaletteCycleStart
+    ldx.b #$74
+    lda.b #$27
+    jsr.w PaletteCycleStart
+    ldx.b #$84
+    lda.b #$2A
+    jsr.w PaletteCycleStart
+    rts
+
+; @routine 81:87EF LevelScreenSetup
+; WHAT IT DOES: Starts the level's screen: V_145B and V_1C7D cleared,
+; NMI, IRQ by V and auto joypad read on, then the level's own set-up.
+; HOW: V_145B 0, NMITIMEN_SHADOW $31, V_1C7D 0; JMP through LEVEL_SETUPS
+; by LEVEL (byte, times 2).
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSR from the level's start (81:8216). Exit: as the level's
+; set-up.
+%at($8187EF)
+LevelScreenSetup:
+    stz.w !V_145B
+    lda.b #$31
+    sta.w !nmitimen_shadow
+    stz.w !V_1C7D
+    lda.w !level
+    asl a
+    tax
+    jmp.w (!LEVEL_SETUPS,x)
