@@ -1,0 +1,13 @@
+# Actor kind $49's per-frame work ($84:805B) with $07 = 0 (its box $34,
+# $84:8068), which no script meets. Played as rand_stage_a5_s1.box for 240
+# frames, where a kind $49 actor waits at $0D3B ($07 = 2); its $07 ($0D42)
+# is then set to 0 for its next frames.
+load build/aladdin/states/stage_a5_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 66
+poke $000D42 00
+wait 20
