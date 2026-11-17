@@ -94,6 +94,19 @@ per finding, each linked to the dated note that measured it.
   image (FrameStep reached the frame update, $81:830D), so no routine can
   certify until it is held back.
 
+- An actor start's variant no script meets is covered by restarting a
+  live actor of the kind: its state poked to $0C and its $07 to the
+  variant; the loop starts it again by its kind's table
+  ([decomp/log/coverage-restart-2026-11-16](decomp/log/coverage-restart-2026-11-16.md)).
+- Copier and patch checks (cartridge RAM at bank $70, NOPs in the actor
+  loop's code) are branches no retail cart takes: gate C cannot pass
+  their routines until the standard says how such a branch is judged
+  ([decomp/log/coverage-restart-2026-11-16](decomp/log/coverage-restart-2026-11-16.md)).
+- A routine that drops its return address and then calls by JSL has the
+  JSL's frame written over the dropped one, in its caller's frame: its C
+  writes that frame too (`jsl_frame`) and steps S back
+  ([decomp/log/coverage-restart-2026-11-16](decomp/log/coverage-restart-2026-11-16.md)).
+
 ## Running the game
 
 - Title menu: about 480 frames after a START at frame 2400; GAME START,
