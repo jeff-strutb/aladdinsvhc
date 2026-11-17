@@ -29,6 +29,16 @@ arch 65816
 !KWR_K50_DOWNED = $45          ; counted up each time a shot downs it facing right
 !KWR_K42_PARENT = $40          ; the record (word) whose $4F it sets
 !KWR_V_03F5 = $03F5            ; nonzero: no mark on the parent
+!KWR_K57_FIRST_X = $0937       ; the first record's x (word)
+!KWR_K57_RIGHT_OF = $146C      ; 1: the first record is at or right of it
+!KWR_K57_POSE = $2D            ; its pose
+!KWR_K57_FRAME = $2F           ; its animation's frame
+!KWR_K57_MODE = $43            ; 0: in play; 1: still; 2 up: posed by facing
+!KWR_K57_FACES = $44           ; nonzero: it turns to face Aladdin
+!KWR_K57_TOUCH = $42           ; 0: hurts him; positive: stomp or hurt
+!KWR_K57_FACING_SRC = $1F      ; its sign picks pose 8 or $0B
+!KWR_FACING = $14
+!KWR_FLIP = $15
 !KWR_RANGE_X = $1A44           ; the point actors are kept in range of (x, word)
 
 ; @routine 83:91F3 ActorWaitNothing
@@ -454,3 +464,83 @@ Kind42Wait:
     jsl.l AnimStep
     ldx.b #$00
     jmp.w ActorEndOutOfRange
+
+; @routine 83:DAD6 Kind57Wait
+; WHAT IT DOES: Kind $57's wait: K57_RIGHT_OF set when the first record is
+; at or right of it. In play (K57_MODE 0): animated and drawn; in pose $18,
+; or $0C at its first frame, Aladdin in its zone $38 is hurt; shots hit it
+; (state $CC); with K57_FACES it turns to face him; touching it, by
+; K57_TOUCH, hurts him, or he stomps it or is hurt, or nothing. Still
+; (K57_MODE 1): animated and drawn. Posed (2 up): pose 8 (K57_FACING_SRC
+; negative) or $0B started when its frame is not $10 or $16, then
+; animated and drawn.
+; HOW: K57_FIRST_X compared with its x (16-bit), C rotated into
+; K57_RIGHT_OF. K57_MODE 0: AnimStep, ActorPictureSend; K57_POSE $18, or
+; $0C with K57_FRAME 0: Y = $38, ActorZoneHasTestBox, C clear:
+; PlayerEnter8CFacing. ActorHitByShotCC. K57_FACES: ActorSideOfPlayer, X
+; to the facing ($14) and flip ($15). K57_TOUCH 0: ActorHurtsPlayerOnTouch;
+; positive: ActorStompOrHurt. Else A = $10 ($16 when K57_FACING_SRC is not
+; negative); K57_MODE 1 or K57_FRAME = A: skip; else AnimStart with A / 2.
+; Then AnimStep, ActorPictureSend.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSR through the actor loop's wait
+; table. Exit: M 8-bit.
+;
+%at($83DAD6)
+Kind57Wait:
+    rep #$20
+    lda.w !KWR_K57_FIRST_X
+    cmp.b !KWR_X
+    sep #$20
+    lda.b #$00
+    rol
+    sta.w !KWR_K57_RIGHT_OF
+    lda.b !KWR_K57_MODE
+    bne .posed
+    jsl.l AnimStep
+    jsl.l ActorPictureSend
+    lda.b !KWR_K57_POSE
+    cmp.b #$18
+    beq .zone
+    cmp.b #$0C
+    bne .shots
+    lda.b !KWR_K57_FRAME
+    bne .shots
+.zone:
+    ldy.b #$38
+    jsr.w ActorZoneHasTestBox
+    bcs .shots
+    jsr.w PlayerEnter8CFacing
+.shots:
+    jsr.w ActorHitByShotCC
+    lda.b !KWR_K57_FACES
+    beq .touch
+    jsl.l ActorSideOfPlayer
+    stx.b !KWR_FACING
+    stx.b !KWR_FLIP
+.touch:
+    lda.b !KWR_K57_TOUCH
+    beq .hurts
+    bmi .done
+    jsr.w ActorStompOrHurt
+    rts
+.hurts:
+    jsr.w ActorHurtsPlayerOnTouch
+.done:
+    rts
+.posed:
+    dec
+    beq .still
+    lda.b #$10
+    ldx.b !KWR_K57_FACING_SRC
+    bmi .pick
+    lda.b #$16
+.pick:
+    cmp.b !KWR_K57_FRAME
+    beq .still
+    lsr
+    jsl.l AnimStart
+.still:
+    jsl.l AnimStep
+    jsl.l ActorPictureSend
+    rts

@@ -23,6 +23,12 @@ void abi_ActorStompOrHurt16(void);
 void abi_ActorTestCarries(void);
 void abi_ActorTurnsShotBack(void);
 void abi_AnimStep(void);
+void abi_PlayerEnter8CFacing(void);
+void abi_AnimStart(void);
+void abi_ActorZoneHasTestBox(void);
+void abi_ActorStompOrHurt(void);
+void abi_ActorSideOfPlayer(void);
+void abi_ActorHitByShotCC(void);
 void abi_SoundQueueAdd(void);
 
 #define K2B_4B 0x4Bu                /* cleared while bit 4 of ACTOR_07 is set */
@@ -42,6 +48,14 @@ void abi_SoundQueueAdd(void);
 #define K50_DOWNED 0x45u            /* counted up each time a shot downs it facing right */
 #define K42_PARENT 0x40u            /* the record (word) whose $4F it sets when he is hurt */
 #define V_03F5 0x03F5u              /* nonzero: no mark on the parent */
+#define K57_FIRST_X 0x0937u         /* the first record's x (word), from $092B */
+#define K57_RIGHT_OF 0x146Cu        /* 1: the first record is at or right of it */
+#define K57_POSE 0x2Du              /* its pose: $18, or $0C at frame 0, hurts by zone $38 */
+#define K57_FRAME 0x2Fu             /* its animation's frame */
+#define K57_MODE 0x43u              /* 0: in play; 1: still; 2 up: posed by its facing */
+#define K57_FACES 0x44u             /* nonzero: it turns to face Aladdin */
+#define K57_TOUCH 0x42u             /* 0: touching hurts him; positive: stomp or hurt; negative: nothing */
+#define K57_FACING_SRC 0x1Fu        /* its facing's sign picks pose 8 or $0B */
 #define RANGE_X 0x1A44u             /* the point actors are kept in range of (x, word) */
 
 /*
@@ -526,4 +540,92 @@ void abi_Kind42Wait(void)
     abi_AnimStep();
     ldx8_v(0x00);
     abi_ActorEndOutOfRange();
+}
+
+/*
+ * @routine 83:DAD6 Kind57Wait
+ * WHAT IT DOES: Kind $57's wait: K57_RIGHT_OF set when the first record is
+ * at or right of it. In play (K57_MODE 0): animated and drawn; in pose $18,
+ * or $0C at its first frame, Aladdin in its zone $38 is hurt; shots hit it
+ * (state $CC); with K57_FACES it turns to face him; touching it, by
+ * K57_TOUCH, hurts him, or he stomps it or is hurt, or nothing. Still
+ * (K57_MODE 1): animated and drawn. Posed (2 up): pose 8 (K57_FACING_SRC
+ * negative) or $0B started when its frame is not $10 or $16, then
+ * animated and drawn.
+ * HOW: K57_FIRST_X compared with its x (16-bit), C rotated into
+ * K57_RIGHT_OF. K57_MODE 0: AnimStep, ActorPictureSend; K57_POSE $18, or
+ * $0C with K57_FRAME 0: Y = $38, ActorZoneHasTestBox, C clear:
+ * PlayerEnter8CFacing. ActorHitByShotCC. K57_FACES: ActorSideOfPlayer, X
+ * to the facing ($14) and flip ($15). K57_TOUCH 0: ActorHurtsPlayerOnTouch;
+ * positive: ActorStompOrHurt. Else A = $10 ($16 when K57_FACING_SRC is not
+ * negative); K57_MODE 1 or K57_FRAME = A: skip; else AnimStart with A / 2.
+ * Then AnimStep, ActorPictureSend.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSR through the actor loop's wait
+ * table. Exit: M 8-bit.
+ */
+void abi_Kind57Wait(void)
+{
+    uint8_t mode, pose, a;
+
+    op_rep(0x20);
+    lda16(ea_abs(K57_FIRST_X));
+    cmp16_v(rd16(ea_dp(0x0C)));
+    op_sep(0x20);
+    lda8_v(0x00);
+    ACC8(rol);
+    sta8(ea_abs(K57_RIGHT_OF));
+    lda8(ea_dp(K57_MODE));
+    mode = (uint8_t)cpu.a;
+    if (mode == 0) {
+        abi_AnimStep();
+        abi_ActorPictureSend();
+        lda8(ea_dp(K57_POSE));
+        pose = (uint8_t)cpu.a;
+        cmp8_v(0x18);
+        if (pose != 0x18) {
+            cmp8_v(0x0C);
+            if (pose != 0x0C)
+                goto shots;
+            lda8(ea_dp(K57_FRAME));
+            if (!IF_Z)
+                goto shots;
+        }
+        ldy8_v(0x38);
+        abi_ActorZoneHasTestBox();
+        if (!IF_C)
+            abi_PlayerEnter8CFacing();
+shots:
+        abi_ActorHitByShotCC();
+        lda8(ea_dp(K57_FACES));
+        if (!IF_Z) {
+            abi_ActorSideOfPlayer();
+            stx8(ea_dp(ACTOR_FACING));
+            stx8(ea_dp(ACTOR_FLIP));
+        }
+        lda8(ea_dp(K57_TOUCH));
+        if (IF_Z) {
+            abi_ActorHurtsPlayerOnTouch();
+            return;
+        }
+        if (!IF_N)
+            abi_ActorStompOrHurt();
+        return;
+    }
+    ACC8(dec);
+    if (!IF_Z) {
+        lda8_v(0x10);
+        ldx8(ea_dp(K57_FACING_SRC));
+        if (!IF_N)
+            lda8_v(0x16);
+        a = (uint8_t)cpu.a;
+        cmp8_v(rd8(ea_dp(K57_FRAME)));
+        if (!IF_Z) {
+            (void)a;
+            ACC8(lsr);
+            abi_AnimStart();
+        }
+    }
+    abi_AnimStep();
+    abi_ActorPictureSend();
 }
