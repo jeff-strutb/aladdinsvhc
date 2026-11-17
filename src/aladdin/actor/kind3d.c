@@ -18,6 +18,11 @@ void abi_ActorKeepSpot(void);
 void abi_AnimStart(void);
 void abi_ChildStartListed(void);
 void abi_SoundQueueAdd(void);
+void abi_ActorEndFarWithChildren(void);
+void abi_ActorEndPlaced(void);
+void abi_ActorStartChild1E(void);
+void abi_ActorStartTwoChildren(void);
+void abi_Kind3DBob(void);
 void abi_PlayerEnter8CFacing(void);
 void abi_PlayerMoveWithActor(void);
 
@@ -33,6 +38,8 @@ void abi_PlayerMoveWithActor(void);
 #define K3D_ON 0x003B             /* his y above it, standing on it */
 #define K3D_LEFT 0x0010           /* his x left of it, pushed off */
 #define K3D_RIGHT 0x0011          /* right of it */
+#define K3D_RECORDS_NEEDED 0xD296u /* in bank $80: by $07, the free list's top it needs at least */
+#define K3D_CHILD_SETS 0xC324u    /* in bank $83: by $07, the code that starts its children (words) */
 
 /* $83:C441: pushed off to the side, K3D_Y_COUNT up. */
 static void side_push(void)
@@ -239,5 +246,57 @@ void abi_Kind3DBob(void)
         actor_wait(0x83C3AEu);
         stz8(ea_dp(K3D_4B));
         bob_frames(0x38, 0x83C3B6u, abi_ActorBobReturnStep);
+    }
+}
+
+/*
+ * @routine 83:C302 Kind3DStart
+ * @actor
+ * WHAT IT DOES: Actor kind $3D: with $07 4 and up the bobbing thing the
+ * player rides (Kind3DBob); else, when the free list holds records enough
+ * for the set, it starts its children by set $07 (0: ActorStartChild1E,
+ * 1: ActorStartChild1E5, 2: ActorStartTwoChildren) and stays, ended with
+ * them once it is far from the range point; with too few records it ends.
+ * HOW: $07 at least 4: on at Kind3DBob. Else $44 0; ACTOR_FREE_TOP
+ * negative or below K3D_RECORDS_NEEDED by $07: JMP ActorEndPlaced (no
+ * script runs this). JSR through K3D_CHILD_SETS by $07 times 2; then each
+ * frame (BRK first) ActorEndFarWithChildren.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80 (the table
+ * K3D_RECORDS_NEEDED's bank); reached by the actor loop's jump for kind
+ * $3D in state $0C (the table at $83:8CAB). Exit: never returns.
+ */
+void abi_Kind3DStart(void)
+{
+    lda8(ea_dp(ACTOR_07));
+    cmp8_v(0x04);
+    if (IF_C) {
+        abi_Kind3DBob();
+        return;
+    }
+    stz8(ea_dp(ACTOR_44));
+    tay8();
+    ACC8(asl);
+    tax8();
+    lda8(ea_abs(ACTOR_FREE_TOP));
+    if (IF_N) {
+        abi_ActorEndPlaced();
+        return;
+    }
+    cmp8_v(rd8(ea_absy(K3D_RECORDS_NEEDED)));
+    if (!IF_C) {
+        abi_ActorEndPlaced();
+        return;
+    }
+    switch (cpu.x) {
+    case 0: abi_ActorStartChild1E(); break;
+    case 2: abi_ActorStartChild1E5(); break;
+    case 4: abi_ActorStartTwoChildren(); break;
+    default: call_routine(0x830000u | rd16(0x830000u | (uint16_t)(K3D_CHILD_SETS + cpu.x)), 0); break;
+    }
+    for (;;) {
+        actor_yield(0x83C31Au);
+        push16(0xC31E);
+        abi_ActorEndFarWithChildren();
+        cpu.s = (uint16_t)(cpu.s + 2);
     }
 }

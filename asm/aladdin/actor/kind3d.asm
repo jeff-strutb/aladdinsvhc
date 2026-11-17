@@ -19,6 +19,8 @@ arch 65816
 !K3D_ON = $003B                  ; his y above it, standing on it
 !K3D_LEFT = $0010                ; his x left of it, pushed off
 !K3D_RIGHT = $0011               ; right of it
+!K3D_RECORDS_NEEDED = $D296      ; in bank $80: by $07, the free list's top it needs at least
+!K3D_CHILD_SETS = $C324          ; in bank $83: by $07, the code that starts its children (words)
 
 ; @routine 83:C3E4 Kind3DPlayerContact
 ; WHAT IT DOES: Actor kind $3D's contact with the player: once he comes
@@ -208,3 +210,38 @@ Kind3DBob:
     dec.b !actor_40
     bne .down
     bra .again
+
+; @routine 83:C302 Kind3DStart
+; @actor
+; WHAT IT DOES: Actor kind $3D: with $07 4 and up the bobbing thing the
+; player rides (Kind3DBob); else, when the free list holds records enough
+; for the set, it starts its children by set $07 (0: ActorStartChild1E,
+; 1: ActorStartChild1E5, 2: ActorStartTwoChildren) and stays, ended with
+; them once it is far from the range point; with too few records it ends.
+; HOW: $07 at least 4: on at Kind3DBob. Else $44 0; ACTOR_FREE_TOP
+; negative or below K3D_RECORDS_NEEDED by $07: JMP ActorEndPlaced (no
+; script runs this). JSR through K3D_CHILD_SETS by $07 times 2; then each
+; frame (BRK first) ActorEndFarWithChildren.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80 (the table
+; K3D_RECORDS_NEEDED's bank); reached by the actor loop's jump for kind
+; $3D in state $0C (the table at $83:8CAB). Exit: never returns.
+%at($83C302)
+Kind3DStart:
+    lda.b !actor_07
+    cmp.b #$04
+    bcs Kind3DBob
+    stz.b !actor_44
+    tay
+    asl a
+    tax
+    lda.w !actor_free_top
+    bmi .end
+    cmp.w !K3D_RECORDS_NEEDED,y
+    bcc .end
+    jsr.w (!K3D_CHILD_SETS,x)
+.frame:
+    brk.b #$00
+    jsr.w ActorEndFarWithChildren
+    bra .frame
+.end:
+    jmp.w ActorEndPlaced
