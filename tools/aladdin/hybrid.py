@@ -231,6 +231,9 @@ def main(src=None, lib=None):
             ops = {rom[o] for o in range(int(r['offset'], 16), int(r['end'], 16)) if mp[o] & 1}
             if 0x6B in ops and 0x60 not in ops:
                 longret.append(int(r['addr'], 16))
+        # The actor loop's entries all leave by its one RTL (a re-entry's
+        # span can end before it, falling through into the next entry's).
+        longret += [a for a in loops if a not in longret]
         t.write('const uint32_t game_long_returns[] = {%s0};\nconst int game_long_return_count = %d;\n'
                 % (''.join('0x%06X, ' % a for a in longret), len(longret)))
         # Routines the catalog knows only as entered by a jump (no call

@@ -2790,7 +2790,13 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
             c->resume = actor_resume_of(wram, out.s, &rs);
             c->resume_s = rs;
             aparked[k] = c;
-        } else ctx_abandon(c);
+        } else {
+            ctx_abandon(c);
+            /* left into the actor loop's code that has C (a re-entry), or
+               on into more actor code: its record opens at this same jump,
+               as on the original side */
+            if (is_actor_entry(out.pc) || is_actor_loop(out.pc)) *core_opcode = 0x4C;
+        }
     } else if (c->status == 3 && (out.pc == ACTOR_LOOP_NEXT || out.pc == ACTOR_LOOP_PLAYER || is_actor_entry(out.pc))) {
         /* a routine that ended its actor (actor_leave), or handed it on to
            more of its code (a jump to an actor entry): nothing resumes it */
