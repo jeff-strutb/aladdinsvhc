@@ -25,6 +25,7 @@ void abi_EscortWaitSpot0C(void);
 void abi_EscortWaitSpot10(void);
 void abi_GuardPlacedHold(void);
 void abi_GuardStart(void);
+void guard_start_restart(void);
 void abi_GuardStop(void);
 void abi_PlayerSceneDropIn(void);
 void abi_PlayerSceneHops(void);
@@ -106,7 +107,7 @@ static void guard(void)
  */
 void abi_GuardStart(void)
 {
-    uint8_t n, v07;
+    uint8_t n;
 
     wr8(dba(G_KIND_TIMES2), (uint8_t)cpu.x);
     a8_load(0x01);
@@ -133,6 +134,16 @@ void abi_GuardStart(void)
     wr8(dba(G_COUNT), n);
     wr8(G_CART_COUNTS + (uint8_t)cpu.x, n);
     wr8(dpa(G_SHOWN), 0x00);
+    guard_start_restart();
+}
+
+/* GuardStart past its setting up ($A5:E554): its fields cleared and on by
+   its $07; where PlayerSceneRuns and PlayerSceneFallPose go on (their
+   $07 set to 0 first). */
+void guard_start_restart(void)
+{
+    uint8_t v07;
+
     wr8(dpa(ACTOR_40), 0x00);
     wr8(dpa(G_STATE), 0x00);
     wr8(dpa(G_MOVING), 0x00);
