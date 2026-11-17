@@ -666,33 +666,7 @@ void abi_Kind76Enter(void)
     abi_Kind76Start();
 }
 
-/*
- * @routine 83:91F4 Kind00Start
- * @actor
- * WHAT IT DOES: Where actors of kinds $00-$03 and $07 (the player) go on from the actor loop
- * in its start state (the table at $83:8CAB): PlayerStart.
- * HOW: JML to PlayerStart ($81:CB3B).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as PlayerStart.
- */
-void abi_Kind00Start(void)
-{
-    abi_PlayerStart();
-}
 
-/*
- * @routine 83:91FD Kind00Second
- * @actor
- * WHAT IT DOES: Where actors of kinds $00, $02, $03 and $07 (the player) go on from the actor loop
- * in a state with bit 7 set (the table at $83:8DFD): PlayerKnockback.
- * HOW: JML to PlayerKnockback ($81:DADD).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as PlayerKnockback.
- */
-void abi_Kind00Second(void)
-{
-    abi_PlayerKnockback();
-}
 
 /*
  * @routine 83:9201 Kind01Second
