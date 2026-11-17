@@ -30,6 +30,8 @@ void abi_TextLayerClear(void);
 void abi_VramCopy(void);
 void abi_VramCopy2(void);
 void abi_VramFillMap(void);
+void abi_ScreenBlank(void);
+void abi_UnpackSet(void);
 void abi_Wait64Frames(void);
 void abi_OpeningActorPlace(void);
 void abi_ScreenFadeInStart(void);
@@ -203,8 +205,34 @@ static void scene_end(void)
     abi_OpeningActorPlace();
 }
 
-
-
-
-
-
+/*
+ * @routine 80:AE63 OpeningScene5Start
+ * WHAT IT DOES: Sets up the fifth scene of the opening story: more
+ * graphics, an actor, the sprite task and two of the slots at $15F1.
+ * HOW: With the NMI off and the screen blanked, graphics set $27 and the
+ * second table's copy $54; the actor of entry 19; the task at
+ * $81:F332 in slot 4 with parameter 2; slot 0 at $15F1 started with $28
+ * and slot $0E with $29.
+ * Entry: M 8-bit, X 8-bit; called by JSR; DB = $80, whose $0000-$1FFF is
+ * work RAM. Exit: A low = $29, X = $0E; N and Z from the INC of $15F1+X;
+ * the rest as that routine leaves them.
+ */
+void abi_OpeningScene5Start(void)
+{
+    abi_NmiDisable();
+    abi_ScreenBlank();
+    lda8_v(0x27);
+    abi_UnpackSet();
+    ldx8_v(0x54);
+    abi_VramCopy2();
+    abi_NmiEnable();
+    ldx8_v(0x72);
+    abi_OpeningActorPlace();
+    task_create(0x80AE80u);
+    ldx8_v(0x00);
+    lda8_v(0x28);
+    abi_PaletteCycleStartLong();
+    ldx8_v(0x0E);
+    lda8_v(0x29);
+    abi_PaletteCycleStartLong();
+}
