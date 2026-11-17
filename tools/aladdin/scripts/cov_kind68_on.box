@@ -1,0 +1,20 @@
+# Kind $68's test for Aladdin standing on it (Kind68PlayerOn, $83:E90D):
+# the two parts no play reaches. The play of rand_stage_a3_s2 (seed 7) to
+# frame 200, Aladdin on the climb's platforms; then:
+# - $141B poked to 1 ($0367 is nonzero throughout): his feet are taken 32
+#   below his y rather than 37 ($83:E993);
+# - the shape ($47) of the three flat platforms (records $0E7B, $0ECB and
+#   $0FBB) poked to 1: the one he is on has its top by the slope
+#   ($83:E9B3).
+load build/aladdin/states/stage_a3_s2.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 26
+poke 00141B 01
+poke 000EC2 01
+poke 000F12 01
+poke 001002 01
+wait 120
