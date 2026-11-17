@@ -1,7 +1,7 @@
 ; kind2d.asm: actor kind $2D, a thrower: it watches for Aladdin within its
 ; reach ahead of it and throws copies of its kind at him (each with $07
 ; bit 7 set), which fly by their motion preset and hurt him in their zone;
-; and the ROM check its start makes first.
+; what it does when hit; and the ROM check its start makes first.
 ; C: src/aladdin/actor/kind2d.c.
 
 incsrc "../include/macros.inc"
@@ -339,3 +339,49 @@ Kind2DThrown:
     ldx.b #$00
     jsr.w ActorEndOutOfRange
     bra .frame
+
+; @routine 83:AA5A Kind2DHit
+; WHAT IT DOES: Kind $2D when hit (its state with bit 7 set): a thrown
+; copy is knocked away at once; a thrower, the first time, is knocked
+; away with sound $0F, or, while it faces left (bit 7 of its facing),
+; turned to face by bit 0 and knocked away in the air with sound 7.
+; HOW: K2D_4F set: ActorKnockedAwayResumedB with A = 5, X = 2, Y = 3
+; ($83:AA8C). Else K2D_4F = 1; facing negative ($83:AA75): facing = bit
+; 0, flip its opposite, SoundQueueAdd 7, ActorKnockedAwayResumed with A
+; = 5, X = 2, Y = $4C; else SoundQueueAdd $0F, ActorKnockedAway with A =
+; 5, X = $0F, Y = 3. Each by JMP. The first two paths no script meets
+; yet: written from their bytes.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the actor
+; loop's jump for kind $2D with state bit 7 set (the table at $83:8DFD).
+; Exit: as the routine it goes on into.
+%at($83AA5A)
+Kind2DHit:
+    lda.b !K2D_4F
+    bne .copy
+    lda.b #$01
+    sta.b !K2D_4F
+    lda.b !actor_facing
+    bmi .facing_left
+    lda.b #$0F
+    jsl.l SoundQueueAdd
+    lda.b #$05
+    ldx.b #$0F
+    ldy.b #$03
+    jmp.w ActorKnockedAway
+.facing_left:
+    and.b #$01
+    sta.b !actor_facing
+    eor.b #$01
+    sta.b !actor_flip
+    lda.b #$07
+    jsl.l SoundQueueAdd
+    lda.b #$05
+    ldx.b #$02
+    ldy.b #$4C
+    jmp.w ActorKnockedAwayResumed
+.copy:
+    lda.b #$05
+    ldx.b #$02
+    ldy.b #$03
+    jmp.w ActorKnockedAwayResumedB
+

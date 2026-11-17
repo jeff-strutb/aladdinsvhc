@@ -2,7 +2,7 @@
  * kind2d.c: actor kind $2D, a thrower: it watches for Aladdin within its
  * reach ahead of it and throws copies of its kind at him (each with $07
  * bit 7 set), which fly by their motion preset and hurt him in their
- * zone; and the ROM check its start makes first.
+ * zone; what it does when hit; and the ROM check its start makes first.
  */
 #include "machine.h"
 #include "native.h"
@@ -12,6 +12,9 @@
 
 void abi_ActorEndOutOfRange(void);
 void abi_RandomNext(void);
+void abi_ActorKnockedAway(void);
+void abi_ActorKnockedAwayResumed(void);
+void abi_ActorKnockedAwayResumedB(void);
 void abi_ActorFly(void);
 void abi_ActorMotionPreset(void);
 void abi_ActorPictureQueue(void);
@@ -383,3 +386,57 @@ void abi_Kind2DThrown(void)
         abi_ActorEndOutOfRange();
     }
 }
+
+/*
+ * @routine 83:AA5A Kind2DHit
+ * WHAT IT DOES: Kind $2D when hit (its state with bit 7 set): a thrown
+ * copy is knocked away at once; a thrower, the first time, is knocked
+ * away with sound $0F, or, while it faces left (bit 7 of its facing),
+ * turned to face by bit 0 and knocked away in the air with sound 7.
+ * HOW: K2D_4F set: ActorKnockedAwayResumedB with A = 5, X = 2, Y = 3
+ * ($83:AA8C). Else K2D_4F = 1; facing negative ($83:AA75): facing = bit
+ * 0, flip its opposite, SoundQueueAdd 7, ActorKnockedAwayResumed with A
+ * = 5, X = 2, Y = $4C; else SoundQueueAdd $0F, ActorKnockedAway with A =
+ * 5, X = $0F, Y = 3. Each by JMP. The first two paths no script meets
+ * yet: written from their bytes.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the actor
+ * loop's jump for kind $2D with state bit 7 set (the table at $83:8DFD).
+ * Exit: as the routine it goes on into.
+ */
+void abi_Kind2DHit(void)
+{
+    uint8_t f;
+
+    a8_load(rd8(dpa(K2D_4F)));
+    if ((uint8_t)cpu.a) {
+        a8_load(0x05);
+        x8_load(0x02);
+        y8_load(0x03);
+        abi_ActorKnockedAwayResumedB();
+        return;
+    }
+    a8_load(0x01);
+    wr8(dpa(K2D_4F), 0x01);
+    f = rd8(dpa(ACTOR_FACING));
+    a8_load(f);
+    if (f & 0x80) {
+        a8_load((uint8_t)(f & 0x01));
+        wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+        a8_load((uint8_t)(cpu.a ^ 0x01));
+        wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
+        a8_load(0x07);
+        abi_SoundQueueAdd();
+        a8_load(0x05);
+        x8_load(0x02);
+        y8_load(0x4C);
+        abi_ActorKnockedAwayResumed();
+        return;
+    }
+    a8_load(0x0F);
+    abi_SoundQueueAdd();
+    a8_load(0x05);
+    x8_load(0x0F);
+    y8_load(0x03);
+    abi_ActorKnockedAway();
+}
+
