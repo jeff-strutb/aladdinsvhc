@@ -1,0 +1,10 @@
+# Actor kind $55's start ($83:D7FB) with its $07 = $10, which the kind $55
+# of stage_a2_s0 (record $0B5B, $07 = 5) never has: with none of bits 0,
+# 1 and 3 set it waits 16 frames first ($83:D801), and with bit 4 set it
+# turns its $14 ($83:D836). The record put back in its start state ($0C)
+# 15 frames into rand_stage_a2_s0.box's play.
+load build/aladdin/states/stage_a2_s0.state
+hold Y+RIGHT 15
+poke 000B5B 0C
+poke 000B62 10
+wait 120
