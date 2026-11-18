@@ -19,29 +19,30 @@ arch 65816
 ; HOW: Bit 6 clear: nothing. Else ActorPictureQueue.
 ; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
 ; ActorPictureQueue; nothing to send: A low byte = 0, Z set.
-; @routine 81:946F Compare2FStep26
-; WHAT IT DOES: With A equal to the direct page's $2F, X = its $26 less
-; one. Nothing in the game calls it.
+; @routine 81:946F ActorFrameIsStep
+; WHAT IT DOES: With A equal to the actor's frame (ACTOR_FRAME, $2F), X =
+; the frame's time (ACTOR_FRAME_TIME, $26) less one. Nothing in the game
+; calls it.
 ; HOW: CMP $0A:00C1 (long: work RAM's $00C1; its result is not used), CMP
 ; $2F: not equal, out; else LDX $26, DEX. Bytes or words as M and X are
 ; set.
 ; Entry: any widths; D, A as above; called by JSL. Exit: not equal: N, Z,
 ; C from CMP $2F; else X = $26 less one, N and Z from it, C from the CMP.
 %at($81946F)
-Compare2FStep26:
+ActorFrameIsStep:
     cmp.l $0A00C1
-    cmp.b $2F
+    cmp.b !ACTOR_FRAME
     bne .out
-    ldx.b $26
+    ldx.b !ACTOR_FRAME_TIME
     dex
 .out:
     rtl
 
-; @routine 81:947B ActorPictureQueueAltOnce
+; @routine 81:947B ActorFramePictureOnce
 ; WHAT IT DOES: Once for the actor (while its byte at $0843+X is 0), when
-; it shows its own picture (bit 6 of $09) and the picture in its $2F is not
-; the one last sent, queues that picture's parts. Nothing in the game calls
-; it.
+; it shows its own picture (bit 6 of $09) and the picture numbered by its
+; frame (ACTOR_FRAME, $2F) is not the one last sent, queues that picture's
+; parts. Nothing in the game calls it.
 ; HOW: $0843+X nonzero, bit 6 of $09 clear, or $2F = ACTOR_REDRAW: out
 ; (ActorPictureNone's RTL). Else $0843+X counted up and, with A = $2F, on
 ; at ActorPictureQueueNew.
@@ -49,13 +50,13 @@ Compare2FStep26:
 ; $81; called by JSL. Exit: out: A = the byte that ended it, N, Z from it
 ; (CMP for $2F); queued: as ActorPictureQueueParts.
 %at($81947B)
-ActorPictureQueueAltOnce:
+ActorFramePictureOnce:
     lda.w $0843,x
     bne ActorPictureNone
     lda.b !actor_09
     and.b #$40
     beq ActorPictureNone
-    lda.b $2F
+    lda.b !ACTOR_FRAME
     cmp.b !ACTOR_REDRAW
     beq ActorPictureNone
     inc.w $0843,x
@@ -104,7 +105,7 @@ ActorPictureQueue:
 ; ActorPictureQueueParts.
 ; Entry: M 8-bit, X 8-bit; A low byte = the picture; D = the actor; DB =
 ; $81; reached from ActorPictureQueue and by a branch from
-; ActorPictureQueueAltOnce. Exit: as ActorPictureQueueParts.
+; ActorFramePictureOnce. Exit: as ActorPictureQueueParts.
 ActorPictureQueueNew:
     sta.b !ACTOR_REDRAW
     asl a
@@ -119,7 +120,7 @@ ActorPictureQueueNew:
 ; the $FF that ends the list.
 ; Entry: M 8-bit, X 8-bit; scratch $0C = the picture * 2 (word); D = the
 ; actor; DB = $81; reached from ActorPictureQueueNew and by a jump from
-; ActorPictureQueueAltParts. Exit: M 8-bit, X 8-bit; N, Z from the last
+; ActorFramePictureParts. Exit: M 8-bit, X 8-bit; N, Z from the last
 ; compare (Z set).
 ActorPictureQueueParts:
     lda.w !vram_queue_count
@@ -283,7 +284,7 @@ ActorPictureSendFromKind:
     iny
     bra .part
 
-; @routine 81:95B0 ActorPictureQueueAltParts
+; @routine 81:95B0 ActorFramePictureParts
 ; WHAT IT DOES: Queues the parts of the picture whose number * 2 is in
 ; scratch $0C, as ActorPictureQueueParts. Nothing in the game calls it.
 ; HOW: LDA $2F (its value is not used: the next step loads A), then on at
@@ -291,6 +292,6 @@ ActorPictureSendFromKind:
 ; Entry: M 8-bit, X 8-bit; as ActorPictureQueueParts; called by JSL. Exit:
 ; as ActorPictureQueueParts.
 %at($8195B0)
-ActorPictureQueueAltParts:
-    lda.b $2F
+ActorFramePictureParts:
+    lda.b !ACTOR_FRAME
     jmp.w ActorPictureQueueParts

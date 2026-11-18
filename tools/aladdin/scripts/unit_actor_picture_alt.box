@@ -2,10 +2,10 @@
 # game reaches, and the second part of a picture sent by
 # ActorPictureSendFromKind (no actor's picture list has one there).
 # Unit calls by JSL on the first level's state, DB $81 (work RAM through
-# it), M and X 8-bit unless set: Compare2FStep26 ($946F) with A equal to
-# $2F and not; ActorPictureQueueAltOnce ($947B) out at each of its three
+# it), M and X 8-bit unless set: ActorFrameIsStep ($946F) with A equal to
+# $2F and not; ActorFramePictureOnce ($947B) out at each of its three
 # tests, then through ActorPictureQueueNew and ActorPictureQueueParts;
-# ActorPictureQueueAltParts ($95B0); ActorPictureSendFromKind ($9527)
+# ActorFramePictureParts ($95B0); ActorPictureSendFromKind ($9527)
 # with a two-part picture. The actor is made at $1D00: bit 6 of $09 set,
 # picture 1 in $27 and $2F, $28 (the last sent) 0, its picture list at
 # $1D40 -> $1D50, picture 1's parts at $1D60 (source $8000, size $40, bank

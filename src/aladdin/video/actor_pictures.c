@@ -37,41 +37,42 @@ void abi_ActorPictureSend(void)
 }
 
 /*
- * @routine 81:946F Compare2FStep26
- * WHAT IT DOES: With A equal to the direct page's $2F, X = its $26 less
- * one. Nothing in the game calls it.
+ * @routine 81:946F ActorFrameIsStep
+ * WHAT IT DOES: With A equal to the actor's frame (ACTOR_FRAME, $2F), X =
+ * the frame's time (ACTOR_FRAME_TIME, $26) less one. Nothing in the game
+ * calls it.
  * HOW: CMP $0A:00C1 (long: work RAM's $00C1; its result is not used), CMP
  * $2F: not equal, out; else LDX $26, DEX. Bytes or words as M and X are
  * set.
  * Entry: any widths; D, A as above; called by JSL. Exit: not equal: N, Z,
  * C from CMP $2F; else X = $26 less one, N and Z from it, C from the CMP.
  */
-void abi_Compare2FStep26(void)
+void abi_ActorFrameIsStep(void)
 {
     if (cpu.p & P_M) {
         cmp8_v(rd8(0x0A00C1u));           /* CMP $0A:00C1: work RAM's $00C1 */
-        cmp8_v(rd8(ea_dp(0x2F)));
+        cmp8_v(rd8(ea_dp(ACTOR_FRAME)));
     } else {
         cmp16_v(rd16(0x0A00C1u));
-        cmp16_v(rd16(ea_dp(0x2F)));
+        cmp16_v(rd16(ea_dp(ACTOR_FRAME)));
     }
     if (IF_Z) {
         if (cpu.p & P_X) {
-            ldx8(ea_dp(0x26));
+            ldx8(ea_dp(ACTOR_FRAME_TIME));
             dex8();
         } else {
-            ldx16(ea_dp(0x26));
+            ldx16(ea_dp(ACTOR_FRAME_TIME));
             dex16();
         }
     }
 }
 
 /*
- * @routine 81:947B ActorPictureQueueAltOnce
+ * @routine 81:947B ActorFramePictureOnce
  * WHAT IT DOES: Once for the actor (while its byte at $0843+X is 0), when
- * it shows its own picture (bit 6 of $09) and the picture in its $2F is not
- * the one last sent, queues that picture's parts. Nothing in the game calls
- * it.
+ * it shows its own picture (bit 6 of $09) and the picture numbered by its
+ * frame (ACTOR_FRAME, $2F) is not the one last sent, queues that picture's
+ * parts. Nothing in the game calls it.
  * HOW: $0843+X nonzero, bit 6 of $09 clear, or $2F = ACTOR_REDRAW: out
  * (ActorPictureNone's RTL). Else $0843+X counted up and, with A = $2F, on
  * at ActorPictureQueueNew.
@@ -79,7 +80,7 @@ void abi_Compare2FStep26(void)
  * $81; called by JSL. Exit: out: A = the byte that ended it, N, Z from it
  * (CMP for $2F); queued: as ActorPictureQueueParts.
  */
-void abi_ActorPictureQueueAltOnce(void)
+void abi_ActorFramePictureOnce(void)
 {
     lda8(ea_absx(0x0843));
     if (!IF_Z)
@@ -88,7 +89,7 @@ void abi_ActorPictureQueueAltOnce(void)
     and8_v(0x40);
     if (IF_Z)
         return;
-    lda8(ea_dp(0x2F));
+    lda8(ea_dp(ACTOR_FRAME));
     cmp8_v(rd8(ea_dp(ACTOR_REDRAW)));
     if (IF_Z)
         return;
@@ -97,7 +98,7 @@ void abi_ActorPictureQueueAltOnce(void)
 }
 
 /*
- * @routine 81:95B0 ActorPictureQueueAltParts
+ * @routine 81:95B0 ActorFramePictureParts
  * WHAT IT DOES: Queues the parts of the picture whose number * 2 is in
  * scratch $0C, as ActorPictureQueueParts. Nothing in the game calls it.
  * HOW: LDA $2F (its value is not used: the next step loads A), then on at
@@ -105,9 +106,9 @@ void abi_ActorPictureQueueAltOnce(void)
  * Entry: M 8-bit, X 8-bit; as ActorPictureQueueParts; called by JSL. Exit:
  * as ActorPictureQueueParts.
  */
-void abi_ActorPictureQueueAltParts(void)
+void abi_ActorFramePictureParts(void)
 {
-    lda8(ea_dp(0x2F));
+    lda8(ea_dp(ACTOR_FRAME));
     abi_ActorPictureQueueParts();
 }
 
@@ -143,7 +144,7 @@ void abi_ActorPictureQueue(void)
  * ActorPictureQueueParts.
  * Entry: M 8-bit, X 8-bit; A low byte = the picture; D = the actor; DB =
  * $81; reached from ActorPictureQueue and by a branch from
- * ActorPictureQueueAltOnce. Exit: as ActorPictureQueueParts.
+ * ActorFramePictureOnce. Exit: as ActorPictureQueueParts.
  */
 void abi_ActorPictureQueueNew(void)
 {
@@ -165,7 +166,7 @@ void abi_ActorPictureQueueNew(void)
  * the $FF that ends the list.
  * Entry: M 8-bit, X 8-bit; scratch $0C = the picture * 2 (word); D = the
  * actor; DB = $81; reached from ActorPictureQueueNew and by a jump from
- * ActorPictureQueueAltParts. Exit: M 8-bit, X 8-bit; N, Z from the last
+ * ActorFramePictureParts. Exit: M 8-bit, X 8-bit; N, Z from the last
  * compare (Z set).
  */
 void abi_ActorPictureQueueParts(void)
