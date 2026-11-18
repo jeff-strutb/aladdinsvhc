@@ -41,10 +41,19 @@ static void task_create(uint32_t site)
     cpu.unwound = 0;
 }
 
-static void pose(uint8_t n)
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+static void pose(uint8_t n, uint32_t site)
 {
     a8_load(n);
-    abi_AnimStart();
+    jsl_call(site, abi_AnimStart);
 }
 
 static void wait_frames(uint8_t n, uint32_t cop_at)
@@ -75,13 +84,16 @@ static void wait_for(uint16_t addr, int want, uint32_t brk_at)
 }
 
 /* FRAMES = n, then each frame (BRK at brk_at) the step, until it counts down. */
-static void for_frames(uint8_t n, uint32_t brk_at, void (*step)(void))
+static void for_frames(uint8_t n, uint32_t brk_at, void (*step)(void), uint32_t site, int jsr)
 {
     a8_load(n);
     wr8(dpa(FRAMES), n);
     do {
         actor_yield(brk_at);
-        step();
+        if (jsr)
+            call_frame((uint16_t)(site + 2), step);   /* JSR: its last byte */
+        else
+            jsl_call(site, step);
     } while (dec8_at(dpa(FRAMES)));
 }
 
@@ -107,7 +119,7 @@ static void part0(void)
     set_bits(ACTOR_2C, 0x0C);
     wait_for(STORY_7A, 2, 0x84A528u);
     set_bits(ACTOR_09, 0x80);
-    pose(0x08);
+    pose(0x08, 0x84A535u);
     wait_frames(0x30, 0x84A53Bu);
     abi_ActorEndPlaced();
 }
@@ -117,42 +129,42 @@ static void part1(void)
     set_bits(ACTOR_2C, 0x08);
     set_bits(ACTOR_08, 0x02);
     set_bits(ACTOR_09, 0x80);
-    pose(0x01);
+    pose(0x01, 0x84A54Fu);
     wait_for(CUE_CF, 0, 0x84A553u);
-    pose(0x02);
+    pose(0x02, 0x84A55Cu);
     wait_frames(0x18, 0x84A562u);
-    pose(0x01);
+    pose(0x01, 0x84A566u);
     (void)inc8_at(dpa(ACTOR_FACING));
     (void)inc8_at(dpa(ACTOR_FLIP));
     a8_load(0x20);
     wr8(dpa(FRAMES), 0x20);
     y8_load(0x66);
-    abi_ActorSpeedXSet();
+    jsl_call(0x84A574u, abi_ActorSpeedXSet);
     do {
         actor_yield(0x84A578u);
-        abi_ActorMoveX();
+        jsl_call(0x84A57Au, abi_ActorMoveX);
     } while (dec8_at(dpa(FRAMES)));
     wait_frames(0x20, 0x84A584u);
-    pose(0x02);
+    pose(0x02, 0x84A588u);
     wait_frames(0x18, 0x84A58Eu);
-    pose(0x01);
+    pose(0x01, 0x84A592u);
     face(0);
     task_create(0x84A59Au);                      /* scene 7 */
     wait_for(CUE_CF, 0, 0x84A5A3u);
     wait_frames(0x30, 0x84A5ACu);
     (void)inc8_at(dba(STORY_7A));
     wait_for(STORY_79, 1, 0x84A5B1u);
-    pose(0x02);
+    pose(0x02, 0x84A5BAu);
     wait_frames(0x18, 0x84A5C0u);
-    pose(0x01);
+    pose(0x01, 0x84A5C4u);
     (void)inc8_at(dpa(ACTOR_FLIP));
     wait_for(CUE_CF, 0, 0x84A5CAu);
     task_create(0x84A5D1u);                      /* scene 16 */
     wait_for(CUE_CF, 0, 0x84A5DAu);
     wait_frames(0x20, 0x84A5E3u);
-    pose(0x02);
+    pose(0x02, 0x84A5E7u);
     wait_frames(0x18, 0x84A5EDu);
-    pose(0x01);
+    pose(0x01, 0x84A5F1u);
     wr8(dpa(ACTOR_FLIP), 0);
     task_create(0x84A5F7u);                      /* scene 17 */
     wr8(dba(STORY_7A), 0);
@@ -169,51 +181,51 @@ static void part2(void)
     set_bits(ACTOR_09, 0x80);
     (void)inc8_at(dpa(ACTOR_FACING));
     (void)inc8_at(dpa(ACTOR_FLIP));
-    pose(0x04);
+    pose(0x04, 0x84A619u);
     wait_for(STORY_7A, 1, 0x84A61Du);
     y8_load(0x6E);
-    abi_ActorMotionPreset();
-    for_frames(0x40, 0x84A62Eu, abi_ActorFlyAgainstNoRise);
+    jsl_call(0x84A626u, abi_ActorMotionPreset);
+    for_frames(0x40, 0x84A62Eu, abi_ActorFlyAgainstNoRise, 0x84A630u, 1);
     wait_frames(0x20, 0x84A639u);
     task_create(0x84A63Bu);                      /* scene 8 */
     (void)inc8_at(dba(STORY_78));
     wait_for(STORY_7A, 2, 0x84A647u);
-    pose(0x06);
+    pose(0x06, 0x84A650u);
     wait_frames(0x20, 0x84A656u);
-    pose(0x07);
+    pose(0x07, 0x84A65Au);
     wait_frames(0x20, 0x84A660u);
     task_create(0x84A662u);                      /* scene 12 */
     wait_for(CUE_CF, 0, 0x84A66Bu);
-    pose(0x05);
+    pose(0x05, 0x84A674u);
     wait_frames(0x10, 0x84A67Au);
     y8_load(0x87);
-    abi_ActorSpeedYSet();
-    for_frames(0x50, 0x84A686u, abi_ActorMoveY);
-    pose(0x09);
+    jsl_call(0x84A67Eu, abi_ActorSpeedYSet);
+    for_frames(0x50, 0x84A686u, abi_ActorMoveY, 0x84A688u, 0);
+    pose(0x09, 0x84A692u);
     place(0x00E0, 0x0030);
     y8_load(0x6F);
-    abi_ActorMotionPreset();
-    for_frames(0x60, 0x84A6AEu, abi_ActorFlyAgainstNoRise);
+    jsl_call(0x84A6A6u, abi_ActorMotionPreset);
+    for_frames(0x60, 0x84A6AEu, abi_ActorFlyAgainstNoRise, 0x84A6B0u, 1);
     wait_frames(0x50, 0x84A6B9u);
     place(0x0020, 0x0030);
     face(0);
     y8_load(0x6F);
-    abi_ActorMotionPreset();
-    for_frames(0x60, 0x84A6D7u, abi_ActorFlyAgainstNoRise);
+    jsl_call(0x84A6CFu, abi_ActorMotionPreset);
+    for_frames(0x60, 0x84A6D7u, abi_ActorFlyAgainstNoRise, 0x84A6D9u, 1);
     wait_frames(0x30, 0x84A6E2u);
     place(0x00E8, 0x0050);
-    pose(0x05);
+    pose(0x05, 0x84A6F4u);
     a8_load(0x40);
     y8_load(0x69);
-    abi_ActorSpeedXSetAccel();
+    jsl_call(0x84A6FCu, abi_ActorSpeedXSetAccel);
     a8_load(0x01);
     face(0x01);
-    for_frames(0x20, 0x84A70Au, abi_ActorMoveX);
+    for_frames(0x20, 0x84A70Au, abi_ActorMoveX, 0x84A70Cu, 0);
     /* slowing, until its speed turns back */
     do {
         actor_yield(0x84A714u);
-        abi_ActorAccelerateXBack();
-        abi_ActorMoveX();
+        jsl_call(0x84A716u, abi_ActorAccelerateXBack);
+        jsl_call(0x84A71Au, abi_ActorMoveX);
         v = rd8(dpa(ACTOR_SPEED_X + 2));
         a8_load(v);
     } while (!(v & 0x80));
@@ -235,10 +247,10 @@ static void part2(void)
     wr8(dba(STORY_76), 0x40);
     wr8(dba(STORY_77), 0);
     y8_load(0x71);
-    abi_ActorMotionPreset();
+    jsl_call(0x84A748u, abi_ActorMotionPreset);
     for (;;) {
         actor_yield(0x84A74Cu);
-        abi_ActorFlyAgainstNoRise();
+        call_frame(0xA750u, abi_ActorFlyAgainstNoRise);
     }
 }
 
@@ -249,7 +261,7 @@ static void part3(void)
     set_bits(ACTOR_2C, 0x0A);
     set_bits(ACTOR_08, 0x02);
     set_bits(ACTOR_09, 0x80);
-    pose(0x03);
+    pose(0x03, 0x84A761u);
     for (;;) {
         actor_yield(0x84A765u);
         v = rd8(dba(STORY_7B));
@@ -262,11 +274,11 @@ static void part3(void)
             break;
     }
     y8_load(0x66);
-    abi_ActorSpeedXSet();
+    jsl_call(0x84A773u, abi_ActorSpeedXSet);
     a8_load(0xFB);
     wr8(dpa(ACTOR_44), 0xFB);
     (void)inc8_at(dpa(ACTOR_42));
-    for_frames(0x60, 0x84A781u, abi_ActorMoveX);
+    for_frames(0x60, 0x84A781u, abi_ActorMoveX, 0x84A783u, 0);
     wr8(dpa(ACTOR_42), 0);
     wait_frames(0x20, 0x84A78Fu);
     task_create(0x84A791u);                      /* scene 15 */

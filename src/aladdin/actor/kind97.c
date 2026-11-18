@@ -35,6 +35,15 @@ void abi_Kind97Start(void);
 #define K97_CHILD_KIND 0x37u    /* the kind of the child it drops */
 #define K97_KIND 0x97u          /* its own kind, back in ACTOR_06 after the drop */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine 83:93B5 Kind97Enter
  * @actor
@@ -112,7 +121,7 @@ static void dropper(void)
             }
             op_sep(0x20);
         }
-        abi_Kind97DropChild();
+        call_frame(0x9F89u, abi_Kind97DropChild);
         await_child(0x849F8Cu, 0);
     }
 }
@@ -146,11 +155,11 @@ static void sender(void)
             continue;
         op_sep(0x20);
         a8_load(0x02);
-        abi_ActorFreeListTake();
+        jsl_call(0x849FDFu, abi_ActorFreeListTake);
         if (!(cpu.p & P_C))
             continue;
         wr8(dpa(K97_TAKEN), (uint8_t)cpu.y);
-        abi_CarrierPairSend();
+        call_frame(0x9FE9u, abi_CarrierPairSend);
         await_child(0x849FEAu, 1);
     }
 }
@@ -251,7 +260,7 @@ void abi_Kind97DropChild(void)
     op_sep(0x20);
     a8_load(K97_CHILD_KIND);
     wr8(dpa(ACTOR_06), K97_CHILD_KIND);
-    abi_ActorCreate();
+    jsl_call(0x84A01Fu, abi_ActorCreate);
     if (!(cpu.p & P_C)) {
         op_rep(0x10);
         child = rd16(dba(K97_CREATED));
@@ -262,7 +271,7 @@ void abi_Kind97DropChild(void)
         wr8(dba((uint16_t)(ACTOR_07 + cpu.x)), (uint8_t)cpu.a);
         a8_load(0x44);
         wr8(dpa(ACTOR_SPAWN_AT), 0x44);
-        abi_ActorSpawnPlace();
+        jsl_call(0x84A036u, abi_ActorSpawnPlace);
         a8_load(0x0C);
         wr8(dba((uint16_t)(ACTOR_STATE + cpu.x)), 0x0C);
         (void)inc8_at(dpa(K97_BUSY));

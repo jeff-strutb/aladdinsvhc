@@ -23,6 +23,15 @@ void abi_ActorSpawnPlace(void);
 #define PAIR_WAIT 0x40u  /* frames until it sends the next */
 
 /* The record ActorCreateIn last took, in X (16-bit). */
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 static uint32_t pair_place(void)
 {
     op_rep(P_X);
@@ -78,7 +87,7 @@ void abi_CarrierPairSend(void)
     /* a kind $38 from its stream */
     a8_load(0x38);
     wr8(dpa(ACTOR_06), 0x38);
-    abi_ActorCreateIn();
+    jsl_call(0x84A072u, abi_ActorCreateIn);
     inc8_at(dpa(ACTOR_STREAM));
     inc8_at(dpa(ACTOR_STREAM));
     first = pair_place();
@@ -87,7 +96,7 @@ void abi_CarrierPairSend(void)
     wr8(first + ACTOR_07, (uint8_t)cpu.a);
     a8_load(0x44);
     wr8(dpa(ACTOR_SPAWN_AT), 0x44);
-    abi_ActorSpawnPlace();
+    jsl_call(0x84A08Bu, abi_ActorSpawnPlace);
     first = dba(0) + cpu.x;
     pair_start(first);
     wr8(first + ACTOR_45, 0);
@@ -102,11 +111,11 @@ void abi_CarrierPairSend(void)
     y8_load(rd8(dpa(ACTOR_STREAM)));
     a8_load(0x53);
     wr8(dpa(ACTOR_06), 0x53);
-    abi_ActorCreateIn();
+    jsl_call(0x84A0B8u, abi_ActorCreateIn);
     second = pair_place();
     a8_load(0x44);
     wr8(dpa(ACTOR_SPAWN_AT), 0x44);
-    abi_ActorSpawnPlace();
+    jsl_call(0x84A0C5u, abi_ActorSpawnPlace);
     second = dba(0) + cpu.x;
     op_rep(0x21);
     cpu.a = op_adc16(rd16(second + ACTOR_X + 1), 0xFFFC, &cpu.p);

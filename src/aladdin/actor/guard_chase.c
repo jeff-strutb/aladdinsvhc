@@ -35,6 +35,15 @@ void abi_RandomFromList(void);
 #define CODE_RUN 0xE5E8u
 #define CODE_GIVE_UP 0xE794u
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine A5:F284 ActorLedgeAbove
  * WHAT IT DOES: Looks for the top of the ground at a point offset from
@@ -66,7 +75,7 @@ void abi_ActorLedgeAbove(void)
     wr16(dba(POINT_X), cpu.a);
     /* up a tile at a time through empty tiles until one is ground */
     for (;;) {
-        abi_PointInGroundLong();
+        jsl_call(0xA5F29Fu, abi_PointInGroundLong);
         op_sep(0x30);
         a8_load((uint8_t)(rd8(dba(TILE_BEHAVIOUR)) & 0x07));
         if ((uint8_t)cpu.a)
@@ -86,7 +95,7 @@ void abi_ActorLedgeAbove(void)
         flag_set(P_C, 0);
         cpu.a = op_adc16(rd16(dba(POINT_Y)), 0xFFF0, &cpu.p);
         wr16(dba(POINT_Y), cpu.a);
-        abi_PointInGroundLong();
+        jsl_call(0xA5F2CBu, abi_PointInGroundLong);
         op_sep(0x30);
         a8_load((uint8_t)(rd8(dba(TILE_BEHAVIOUR)) & 0x07));
         if (!(uint8_t)cpu.a) {
@@ -133,7 +142,7 @@ static int ledge_jump(void)
         cmp16_of(d, 0xFF80);
         if (d >= 0xFF80) {                       /* by 65 to 128: on a random pick */
             x8_load(0x4A);
-            abi_RandomFromList();
+            jsl_call(0xA5F1C7u, abi_RandomFromList);
             op_rep(0x20);
             if (cpu.p & P_Z)
                 goto none;
@@ -141,7 +150,7 @@ static int ledge_jump(void)
         a16_load(0xFFD0);
         x8_load(0x05);
         y8_load(0x18);
-        abi_ActorProbeUpTowardPlayer();
+        call_frame(0xF1D8u, abi_ActorProbeUpTowardPlayer);
         if (cpu.p & P_C)
             goto none;
         x8_load(0x02);
@@ -187,7 +196,7 @@ static int ledge_jump(void)
     cmp16_of(d, 0x0040);
     if (d < 0x0040) {                            /* by less than 64: on a random pick */
         x8_load(0x4C);
-        abi_RandomFromList();
+        jsl_call(0xA5F21Du, abi_RandomFromList);
         op_rep(0x20);
         if (cpu.p & P_Z)
             goto none;
@@ -195,7 +204,7 @@ static int ledge_jump(void)
     a16_load(0x0060);
     x8_load(0x05);
     y8_load(0x20);
-    abi_ActorLedgeAbove();
+    call_frame(0xF22Eu, abi_ActorLedgeAbove);
     if (cpu.p & P_C)
         goto none;
     a16_load(CODE_JUMP);

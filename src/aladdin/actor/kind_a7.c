@@ -22,6 +22,15 @@ void abi_PaletteSave(void);
 #define SCROLL_X (LAYER0 + LAYER_SCROLL_X)
 #define SCROLL_Y (LAYER0 + LAYER_SCROLL_Y)
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 static void wait(uint8_t n, uint32_t cop_at)
 {
     a8_load(n);
@@ -72,13 +81,13 @@ void abi_KindA7Start(void)
         wait(0xFF, 0x84AC84u);
     }
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0x84AC88u, abi_AnimStart);
 
     /* its place */
     op_rep(0x20);
-    at = (uint8_t)(rd8(dpa(ACTOR_07)) << 2);
-    a16_load((uint16_t)(rd16(dpa(ACTOR_07)) << 2));
-    x8_load(at);
+    a16_load((uint16_t)(rd16(dpa(ACTOR_07)) << 2));   /* LDA $07 (16-bit), ASL, ASL: one read */
+    at = (uint8_t)cpu.a;
+    x8_load(at);                                     /* TAX (X 8-bit) */
     if (at) {
         flag_set(P_C, 0);
         sc = rd16(dba((uint16_t)SCROLL_X));
@@ -102,11 +111,11 @@ void abi_KindA7Start(void)
     a8_load((uint8_t)(((rd8(dpa(ACTOR_LOOK + 1)) & 0x0E) >> 1) | 0x08));
     flag_set(P_C, 0);
     y8_load(0x01);
-    abi_PaletteSave();
+    jsl_call(0x84ACC2u, abi_PaletteSave);
     a8_load(0xE0);
     wr8(dpa(KA7_FADE), 0xE0);
     y8_load(0x01);
-    abi_PaletteFadeStep();
+    jsl_call(0x84ACCCu, abi_PaletteFadeStep);
     a8_load(0x02);
     wr8(dba(CGWSEL_SHADOW), 0x02);
     a8_load(0x12);
@@ -119,10 +128,11 @@ void abi_KindA7Start(void)
         if ((uint8_t)cpu.x)
             a8_load(0x04);
         actor_wait(0x84ACE7u);
-        step = inc8_at(dpa(KA7_FADE));
+        (void)inc8_at(dpa(KA7_FADE));
+        step = rd8(dpa(KA7_FADE));                   /* LDA KA7_FADE: read again after the INC */
         a8_load(step);
         y8_load(0x01);
-        abi_PaletteFadeStep();
+        jsl_call(0x84ACEFu, abi_PaletteFadeStep);
         step = rd8(dpa(KA7_FADE));
         a8_load(step);
         cmp8_of(step, 0x08);

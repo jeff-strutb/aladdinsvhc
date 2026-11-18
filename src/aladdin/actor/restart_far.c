@@ -35,6 +35,15 @@ static void escort_spot10_restart(void);
 /* ActorRestartIfPlayerFarLeft's work, run with its JSR's return on the
    stack: nonzero when the player is far left, that return replaced by the
    restart point less one (the caller's RTS then lands on it). */
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 static int restart_far(void)
 {
     uint16_t sum, ax;
@@ -113,21 +122,21 @@ void abi_ActorRestartIfPlayerFarLeft(void)
 void abi_EscortStaySpot18(void)
 {
     x8_load(0x18);
-    abi_ActorPlaceAtSpot();
+    call_frame(0xEF10, abi_ActorPlaceAtSpot);
     for (;;)
         actor_yield(0xA5EF11u);
 }
 
 /* The three waits at a spot: flipped, first pose, placed, the restart
    point in A (its high byte XBA'd in), then the follow. */
-static void escort_wait_spot(uint8_t spot, uint16_t restart)
+static void escort_wait_spot(uint8_t spot, uint16_t restart, uint32_t anim_at, uint16_t place_ret)
 {
     a8_load(0x01);
     wr8(dpa(ACTOR_FLIP), 0x01);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(anim_at, abi_AnimStart);
     x8_load(spot);
-    abi_ActorPlaceAtSpot();
+    call_frame(place_ret, abi_ActorPlaceAtSpot);
     a8_load((uint8_t)(restart >> 8));
     cpu.a = (uint16_t)(cpu.a << 8 | cpu.a >> 8);  /* XBA */
     nz8_of((uint8_t)cpu.a);
@@ -147,7 +156,7 @@ static void escort_wait_spot(uint8_t spot, uint16_t restart)
  */
 void abi_EscortWaitSpot0(void)
 {
-    escort_wait_spot(0x00, ESCORT_RESTART_A);
+    escort_wait_spot(0x00, ESCORT_RESTART_A, 0xA5EF1Bu, 0xEF23);
 }
 
 /*
@@ -162,7 +171,7 @@ void abi_EscortWaitSpot0(void)
  */
 void abi_EscortWaitSpot0C(void)
 {
-    escort_wait_spot(0x0C, ESCORT_RESTART_C);
+    escort_wait_spot(0x0C, ESCORT_RESTART_C, 0xA5EF9Du, 0xEFA5);
 }
 
 /*
@@ -182,7 +191,7 @@ void abi_EscortWaitSpot0C(void)
  */
 void abi_EscortWaitSpot10(void)
 {
-    escort_wait_spot(0x10, ESCORT_RESTART_10);
+    escort_wait_spot(0x10, ESCORT_RESTART_10, 0xA5EFB4u, 0xEFBC);
 }
 
 static void escort_spot10_restart(void)
@@ -190,13 +199,13 @@ static void escort_spot10_restart(void)
     a8_load(0x01);
     wr8(dpa(ACTOR_FLIP), 0x01);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0xA5EFCBu, abi_AnimStart);
     x8_load(0x14);
-    abi_ActorPlaceAtSpot();
+    call_frame(0xEFD3, abi_ActorPlaceAtSpot);
     do {
         actor_yield(0xA5EFD4u);
         y8_load(0x08);
-        abi_ActorNearPlayerX();
+        jsl_call(0xA5EFD8u, abi_ActorNearPlayerX);
     } while (cpu.p & P_C);
     jump_routine(0xA5EFDEu);                     /* code no script runs */
 }
@@ -231,30 +240,30 @@ static void escort_follow(void)
     do {
         actor_yield(0xA5EF44u);
         y8_load(0x08);
-        abi_ActorNearPlayerX();
+        jsl_call(0xA5EF48u, abi_ActorNearPlayerX);
     } while (cpu.p & P_C);
     wr8(dpa(ACTOR_FLIP), 0);
     for (;;) {
         /* on foot */
         y8_load(0x12);
-        abi_ActorSpeedXFromA5();
+        call_frame(0xEF54, abi_ActorSpeedXFromA5);
         a8_load(0x02);
-        abi_ActorAnimChange();
+        call_frame(0xEF59, abi_ActorAnimChange);
         do {
             actor_yield(0xA5EF5Au);
             restart_check(0xEF5C);
-            abi_ActorMoveX();
-            abi_ActorSnapToGround();
+            jsl_call(0xA5EF5Fu, abi_ActorMoveX);
+            jsl_call(0xA5EF63u, abi_ActorSnapToGround);
         } while (!(cpu.p & P_Z));
         /* off a ledge: falling until on ground again */
         y8_load(0x7E);
-        abi_ActorMotionPreset();
+        jsl_call(0xA5EF6Bu, abi_ActorMotionPreset);
         do {
             actor_yield(0xA5EF6Fu);
             restart_check(0xEF71);
-            abi_ActorAnimRiseFall();
-            abi_ActorFly();
-            abi_ActorOutOfGround();
+            call_frame(0xEF76, abi_ActorAnimRiseFall);
+            jsl_call(0xA5EF77u, abi_ActorFly);
+            jsl_call(0xA5EF7Bu, abi_ActorOutOfGround);
         } while (cpu.p & P_Z);
     }
 }

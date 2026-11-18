@@ -24,6 +24,15 @@ void abi_ActorOutOfWallProbe4(void);
 #define K90_PRESETS 0xD875u     /* by $07: its motion preset */
 #define K90_FLIGHTS 0xD87Bu     /* by $07: flights a step */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 static void report(uint8_t how)
 {
     a8_load(how);
@@ -65,7 +74,7 @@ void abi_Kind90Start(void)
     a8_load(rd8(dba((uint16_t)(K90_STEP_COUNTS + v07))));
     wr8(dpa(K90_STEPS), (uint8_t)cpu.a);
     y8_load(rd8(dba((uint16_t)(K90_PRESETS + v07))));
-    abi_ActorMotionPreset();
+    jsl_call(0xA5F4E9u, abi_ActorMotionPreset);
     for (;;) {
         x8_load(rd8(dpa(ACTOR_07)));
         a8_load(rd8(dba((uint16_t)(K90_FLIGHTS + cpu.x))));
@@ -76,9 +85,9 @@ void abi_Kind90Start(void)
             return;
         }
         do
-            abi_ActorFly();
+            jsl_call(0xA5F4FFu, abi_ActorFly);
         while (dec8_at(dpa(K90_FLIGHT)));
-        abi_ActorOutOfWallProbe4();
+        jsl_call(0xA5F507u, abi_ActorOutOfWallProbe4);
         if (cpu.p & P_C) {
             a8_load(rd8(dba((uint16_t)V_0012)));
             flag_set(P_Z, !((uint8_t)cpu.a & 0x40));
@@ -87,7 +96,7 @@ void abi_Kind90Start(void)
                 return;
             }
         }
-        abi_ActorOutOfGround();
+        jsl_call(0xA5F514u, abi_ActorOutOfGround);
         if (!(cpu.p & P_Z)) {
             report(0x80);
             return;

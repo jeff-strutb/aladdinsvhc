@@ -28,6 +28,15 @@ void abi_RandomFromList(void);
 #define KIND_A1_SAFE 0x1B2Bu     /* nonzero: it goes straight to state $8C, untested */
 #define ACTOR_END_PLACED 0x8396CAu  /* ActorEndPlaced, entered at the actor loop's level */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine 84:A9FC KindA1Hit
  * @actor
@@ -45,7 +54,7 @@ void abi_KindA1Hit(void)
     uint8_t wait, flags;
 
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0x84A9FEu, abi_AnimStart);
     wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x10));
     wait = rd8(dpa(ACTOR_41));
     a8_load(wait);
@@ -55,10 +64,10 @@ void abi_KindA1Hit(void)
     }
     /* it falls away on motion $1F until it is off the screen */
     y8_load(0x1F);
-    abi_ActorMotionPreset();
+    jsl_call(0x84AA12u, abi_ActorMotionPreset);
     do {
         actor_yield(0x84AA16u);
-        abi_ActorFly();
+        jsl_call(0x84AA18u, abi_ActorFly);
         flags = rd8(dpa(ACTOR_09));       /* BIT: N, V from it, Z from A AND it */
         flag_set(P_N, flags & 0x80);
         flag_set(P_V, flags & 0x40);
@@ -66,7 +75,6 @@ void abi_KindA1Hit(void)
     } while (flags & 0x40);
     abi_ActorEndPlaced();
 }
-
 
 /*
  * @routine 84:AC3F KindA6Stay
@@ -88,7 +96,7 @@ void abi_KindA6Stay(void)
     a8_load(0x03);
     wr8(dpa(ACTOR_08), 0x03);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0x84AC45u, abi_AnimStart);
     flip = rd8(dpa(ACTOR_07));
     a8_load(flip);
     wr8(dpa(ACTOR_FLIP), flip);
@@ -141,19 +149,19 @@ void abi_KindA1Start(void)
     wr8(dpa(KIND_A1_LONG), 0);
     wr8(dpa(KIND_A1_HITS), 0);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0x84A991u, abi_AnimStart);
     y8_load(0x6B);
-    abi_ActorMotionPreset();
+    jsl_call(0x84A997u, abi_ActorMotionPreset);
     for (;;) {
         actor_yield(0x84A99Bu);
-        abi_ActorFly();
-        abi_ActorClampAboveFloor12();
+        jsl_call(0x84A99Du, abi_ActorFly);
+        call_frame(0xA9A3u, abi_ActorClampAboveFloor12);
         if (!(cpu.p & P_C))
             continue;
         a8_load(0x4D);
-        abi_SoundQueueAdd();
+        jsl_call(0x84A9A8u, abi_SoundQueueAdd);
         x8_load(0x40);
-        abi_RandomFromList();
+        jsl_call(0x84A9AEu, abi_RandomFromList);
         pick = (uint8_t)cpu.a;
         cmp8_of(pick, BOUNCE_LONG);
         if (pick == BOUNCE_LONG) {
@@ -164,10 +172,9 @@ void abi_KindA1Start(void)
                 (void)inc8_at(dpa(KIND_A1_LONG));
         }
         y8_load((uint8_t)cpu.a);
-        abi_ActorMotionPreset();
+        jsl_call(0x84A9C1u, abi_ActorMotionPreset);
     }
 }
-
 
 /*
  * @routine 84:A9C7 KindA1Touch
@@ -192,7 +199,7 @@ void abi_KindA1Touch(void)
 {
     uint8_t flags, safe, got = 0;
 
-    abi_AnimStep();
+    jsl_call(0x84A9C7u, abi_AnimStep);
     flags = rd8(dpa(ACTOR_09));
     bit8_of((uint8_t)cpu.a, flags);
     if (!(flags & 0x40)) {
@@ -205,21 +212,20 @@ void abi_KindA1Touch(void)
     safe = rd8(dba(KIND_A1_SAFE));
     a8_load(safe);
     if (!safe) {
-        abi_ActorBouncesOrHurtsPlayerLong();
+        jsl_call(0x84A9DDu, abi_ActorBouncesOrHurtsPlayerLong);
         got = (uint8_t)(cpu.a - 1);
         a8_load(got);
         if (got) {
-            abi_ActorDownedByShotLong();
+            jsl_call(0x84A9EEu, abi_ActorDownedByShotLong);
             return;
         }
         (void)inc8_at(dpa(KIND_A1_HITS));
         a8_load(0x0F);
-        abi_SoundQueueAdd();
+        jsl_call(0x84A9E8u, abi_SoundQueueAdd);
     }
     /* to state $8C: bit 7 of $09 cleared, so this work stops */
-    flags = (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F);
-    wr8(dpa(ACTOR_09), flags);
-    flag_set(P_C, 0);
+    MEM8(asl, dpa(ACTOR_09));                    /* ASL $09; LSR $09: bit 7 cleared, two RMWs */
+    MEM8(lsr, dpa(ACTOR_09));
     a8_load(0x8C);
     wr8(dpa(ACTOR_STATE), 0x8C);
 }

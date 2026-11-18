@@ -37,6 +37,15 @@ void abi_ActorFreeOutOfRangeLong(void);
 #define K9A_BOUNCES 0x41u       /* nonzero: Aladdin bounces off it (else touching it hurts him) */
 #define K9E_FRAME 0x27u         /* its animation frame: 7, 8, 9, $0C and $0D are drawn in front */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine 84:951C Kind81WaitWork
  * WHAT IT DOES: What actors of kind $81 do each frame they wait: nothing.
@@ -179,7 +188,7 @@ void abi_Kind8CWaitWork(void)
  */
 void abi_KindA4WaitWork(void)
 {
-    abi_AnimStep();
+    jsl_call(0x84AB97u, abi_AnimStep);
 }
 
 /*
@@ -195,8 +204,8 @@ void abi_KindA4WaitWork(void)
  */
 void abi_Kind99WaitWork(void)
 {
-    abi_AnimStep();
-    abi_ActorHurtsPlayerOnTouchLong();
+    jsl_call(0x84A438u, abi_AnimStep);
+    jsl_call(0x84A43Cu, abi_ActorHurtsPlayerOnTouchLong);
     x8_load(0x18);
     abi_ActorFreeOutOfRangeLong();
 }
@@ -214,8 +223,8 @@ void abi_Kind99WaitWork(void)
  */
 void abi_KindA5WaitWork(void)
 {
-    abi_AnimStep();
-    abi_ActorHurtsPlayerOnTouchLong();
+    jsl_call(0x84AC31u, abi_AnimStep);
+    jsl_call(0x84AC35u, abi_ActorHurtsPlayerOnTouchLong);
     x8_load(0x18);
     abi_ActorFreeOutOfRangeLong();
 }
@@ -246,17 +255,17 @@ void abi_ActorBouncesPlayerLong(void)
  */
 void abi_Kind9AWaitWork(void)
 {
-    abi_AnimStep();
+    jsl_call(0x84A4E3u, abi_AnimStep);
     a8_load(rd8(dpa(K9A_BOUNCES)));
     if (!(uint8_t)cpu.a) {
-        abi_ActorHurtsPlayerOnTouchLong();
+        jsl_call(0x84A4EBu, abi_ActorHurtsPlayerOnTouchLong);
     } else {
-        abi_ActorBouncesPlayerLong();
+        jsl_call(0x84A4F1u, abi_ActorBouncesPlayerLong);
         if (!(cpu.p & P_Z)) {
             a8_load(0x12);
-            abi_SoundQueueAdd();
+            jsl_call(0x84A4F9u, abi_SoundQueueAdd);
             a8_load(0x18);
-            abi_AnimStart();
+            jsl_call(0x84A4FFu, abi_AnimStart);
         }
     }
     x8_load(0x18);
@@ -278,7 +287,7 @@ void abi_Kind9EWaitWork(void)
 {
     uint8_t f;
 
-    abi_AnimStep();
+    jsl_call(0x84A8BDu, abi_AnimStep);
     a8_load(0x20);
     trb_at(dpa(ACTOR_09), 0x20);
     f = rd8(dpa(K9E_FRAME));

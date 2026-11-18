@@ -25,16 +25,25 @@ void abi_AnimStart(void);
 
 /* Stood on or held: ActorSolidForPlayer, then (unless PLAYER_380 bit 2)
    ActorHoldPlayer; C clear when one of them says so. */
-static int stood_or_held(int hold_test)
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+static int stood_or_held(int hold_test, uint32_t solid_at, uint32_t hold_at)
 {
     y8_load(SOLID_BOX);
-    abi_ActorSolidForPlayerLong();
+    jsl_call(solid_at, abi_ActorSolidForPlayerLong);
     if (hold_test && !(cpu.p & P_C))
         return 1;
     a8_load(rd8(PLAYER_380));
     flag_set(P_Z, !((uint8_t)cpu.a & 0x04));
     if (!((uint8_t)cpu.a & 0x04)) {
-        abi_ActorHoldPlayerLong();
+        jsl_call(hold_at, abi_ActorHoldPlayerLong);
         if (hold_test)
             return !(cpu.p & P_C);
     }
@@ -71,32 +80,32 @@ void abi_KindA0Start(void)
     a8_load(0x90);
     tsb_at(dpa(ACTOR_09), 0x90);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0x84A8EAu, abi_AnimStart);
     a8_load(0x07);
     wr8(dpa(KA0_13), 0x07);
     do
         actor_yield(0x84A8F2u);
-    while (!stood_or_held(1));
+    while (!stood_or_held(1, 0x84A8F6u, 0x84A904u));
 
     /* it shakes for 32 frames */
     a8_load(0x20);
     wr8(dpa(KA0_FRAMES), 0x20);
     do {
         actor_yield(0x84A910u);
-        (void)stood_or_held(0);
+        (void)stood_or_held(0, 0x84A914u, 0x84A920u);
     } while (dec8_at(dpa(KA0_FRAMES)));
 
     /* then falls, carrying him */
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_call(0x84A92Au, abi_AnimStart);
     a8_load(0x0A);
     y8_load(0x00);
-    abi_ActorSpeedYSetGravity();
+    jsl_call(0x84A932u, abi_ActorSpeedYSetGravity);
     for (;;) {
         actor_yield(0x84A936u);
         wr8(dpa(KA0_ON), 0);
         y8_load(SOLID_BOX);
-        abi_ActorSolidForPlayerLong();
+        jsl_call(0x84A93Cu, abi_ActorSolidForPlayerLong);
         if (!(cpu.p & P_C)) {
             (void)inc8_at(dpa(KA0_ON));
             a8_load(rd8(dpa(ACTOR_Y + 1)));
@@ -104,7 +113,7 @@ void abi_KindA0Start(void)
             a8_load(rd8(dpa(ACTOR_Y + 2)));
             wr8(dba(KEPT_Y + 1), (uint8_t)cpu.a);
         }
-        abi_ActorFall();
+        jsl_call(0x84A94Eu, abi_ActorFall);
         a8_load(rd8(dpa(KA0_ON)));
         if ((uint8_t)cpu.a) {
             op_rep(0x20);
@@ -119,6 +128,6 @@ void abi_KindA0Start(void)
         a8_load(rd8(PLAYER_380));
         flag_set(P_Z, !((uint8_t)cpu.a & 0x04));
         if (!((uint8_t)cpu.a & 0x04))
-            abi_ActorHoldPlayerLong();
+            jsl_call(0x84A96Fu, abi_ActorHoldPlayerLong);
     }
 }
