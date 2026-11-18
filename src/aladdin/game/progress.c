@@ -10,6 +10,7 @@ void abi_GameStartTask(void);
 void abi_LevelPlayStartTask(void);
 void abi_NewGameState(void);
 void abi_LevelFromProgress(void);
+void abi_TaskExec(void);
 void abi_LevelCountersClear(void);
 void abi_DemoStart(void);
 void abi_PlayStartCounts(void);
@@ -181,4 +182,23 @@ void abi_LevelFromProgress(void)
     level = rd8(dba(LEVEL_BY_PROGRESS) + at);
     a8_load(level);
     wr8(dba(LEVEL), level);
+}
+
+/*
+ * @routine 81:8181 NextPartTask
+ * WHAT IT DOES: The game task's start of the next part of play (the story
+ * card's TaskExec, $81:F2D3): the level from the game's progress, then the
+ * play loop from its start.
+ * HOW: LevelFromProgress; $0359 and $035A cleared; TaskExec with the entry
+ * in the three bytes after its JSL (the play loop's start, $81:8191).
+ * Entry: M 8-bit, X 8-bit; the task's start (TaskExec). Exit: never
+ * returns.
+ */
+void abi_NextPartTask(void)
+{
+    call_frame(0x8183, abi_LevelFromProgress);  /* 818181 jsr */
+    wr8(dba(0x0359), 0x00);
+    wr8(dba(0x035A), 0x00);
+    jsl_frame(0x81818Au);
+    abi_TaskExec();
 }

@@ -224,3 +224,19 @@ LevelFromProgress:
     lda.w !progress_levels,x
     sta.w !level
     rts
+
+; @routine 81:8181 NextPartTask
+; WHAT IT DOES: The game task's start of the next part of play (the story
+; card's TaskExec, $81:F2D3): the level from the game's progress, then the
+; play loop from its start.
+; HOW: LevelFromProgress; $0359 and $035A cleared; TaskExec with the entry
+; in the three bytes after its JSL (the play loop's start, $81:8191).
+; Entry: M 8-bit, X 8-bit; the task's start (TaskExec). Exit: never
+; returns.
+%at($818181)
+NextPartTask:
+    jsr.w LevelFromProgress
+    stz.w !state_0359
+    stz.w !state_035a
+    jsl.l TaskExec
+    dl !play_loop
