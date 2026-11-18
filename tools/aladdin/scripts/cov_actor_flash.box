@@ -1,0 +1,18 @@
+# An actor drawn flashing (OamDrawActor, $81:9309): with ACTOR_08 bit 5
+# set, the sprite takes FLASH_PALETTE on the frames V_032D bit 1 is set
+# ($81:931E-$81:9325, the palette $0A00 at $81:932F), its own palette on
+# the others. No actor of any script's play has that bit. Aladdin's record
+# ($08DB) on the first level given ACTOR_08 $D028 (his $D008 with bit 5)
+# before each of four frames, so V_032D (counting up each frame) has bit 1
+# clear on two of them and set on two.
+load build/aladdin/states/level1.state
+wait 10
+poke 0008E3 28
+wait 1
+poke 0008E3 28
+wait 1
+poke 0008E3 28
+wait 1
+poke 0008E3 28
+wait 1
+wait 20
