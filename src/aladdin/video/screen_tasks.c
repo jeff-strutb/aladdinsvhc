@@ -81,6 +81,100 @@ void abi_TextLayerBlankWords(void)
     } while (dec16_at(dba(SCRATCH)));
 }
 
+/* TextLayoutDrawBig's scratch: the run's high byte, the tile, the rows
+   left in a character, the place of its character. */
+#define BIG_HIGH (SCRATCH + 4)
+#define BIG_TILE (SCRATCH + 6)
+#define BIG_ROWS (SCRATCH + 8)
+#define BIG_PLACE (SCRATCH + 10)
+
+/*
+ * @routine 81:979A TextLayoutDrawBig
+ * WHAT IT DOES: Draws text layout X's first run as large characters, each
+ * four tiles (two by two), into the text layer's tilemap, and has the NMI
+ * copy the tilemap to VRAM. Nothing in the game calls it.
+ * HOW: With DB = $82, the layout's offset from the word table at $B575.
+ * Its first byte: 0 draws nothing; else the low 6 bits count the
+ * characters. Then the tilemap offset (word), the high byte of every word
+ * drawn, and per character its first tile (word): tiles t, t+1 in the row,
+ * t+2, t+3 in the row below. Each next character two words to the right.
+ * text_tilemap_upload counted up.
+ * Entry: M 8-bit; X = the layout's offset in the table (16 bits taken);
+ * called by JSL. Exit: M and X 8-bit; DB as at entry, N and Z from it
+ * (PLB); C as the last character left it (the ADC), or as at entry with
+ * no characters; scratch $0C-$17 used.
+ */
+void abi_TextLayoutDrawBig(void)
+{
+    phb();
+    lda8_v(0x82);
+    pha8();
+    plb();
+    op_rep(0x10);
+    ldy16(ea_absx(0xB575));
+    op_sep(0x20);
+    lda8(ea_absy(0x0000));
+    if (!IF_Z) {
+        iny16();
+        pha8();
+        set_al(rol8_r(al()));
+        set_al(rol8_r(al()));
+        pla8();
+        op_rep(0x20);
+        and16_v(0x003F);
+        sta16(ea_abs(SCRATCH));
+        lda16(ea_absy(0x0000));
+        sta16(ea_abs(BIG_PLACE));
+        tax16();
+        iny16();
+        iny16();
+        lda16(ea_absy(0x0000));
+        and16_v(0x00FF);
+        xba();
+        sta16(ea_abs(BIG_HIGH));
+        dey16();
+        for (;;) {                        /* each character */
+            iny16();
+            iny16();
+            lda16(ea_absy(0x0000));
+            sta16(ea_abs(BIG_TILE));
+            lda16_v(0x0001);
+            sta16(ea_abs(BIG_ROWS));
+            for (;;) {                    /* its two rows */
+                lda16(ea_abs(BIG_TILE));
+                ora16_v(rd16(ea_abs(BIG_HIGH)));
+                sta16(ea_longx(TEXT_TILEMAP));
+                inx16();
+                inx16();
+                MEM16(inc, ea_abs(BIG_TILE));
+                lda16(ea_abs(BIG_TILE));
+                ora16_v(rd16(ea_abs(BIG_HIGH)));
+                sta16(ea_longx(TEXT_TILEMAP));
+                MEM16(dec, ea_abs(BIG_ROWS));
+                if (IF_N)
+                    break;
+                txa16();
+                clc();
+                adc16_v(0x003E);
+                tax16();
+                MEM16(inc, ea_abs(BIG_TILE));
+            }
+            MEM16(dec, ea_abs(SCRATCH));
+            if (IF_Z)
+                break;
+            ldx16(ea_abs(BIG_PLACE));
+            inx16();
+            inx16();
+            inx16();
+            inx16();
+            stx16(ea_abs(BIG_PLACE));
+        }
+    }
+    op_sep(0x30);
+    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
+    plb();
+}
+
 
 
 

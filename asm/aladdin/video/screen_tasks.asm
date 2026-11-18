@@ -30,6 +30,12 @@ arch 65816
 !text_layouts = $B575
 !TEXT_LAYOUT_BANK = $82
 !layout_blank = !scratch+3       ; TextLayoutDraw: the layout byte, bit 7 set to blank
+; TextLayoutDrawBig's scratch: the run's high byte, the tile, the rows left
+; in a character, the place of its character.
+!big_high = !scratch+4
+!big_tile = !scratch+6
+!big_rows = !scratch+8
+!big_place = !scratch+10
 ; Random lists: per list, a mask, then its entries.
 !random_lists = $81DCE7
 
@@ -159,6 +165,90 @@ TextLayerBlankWords:
     dec.w !scratch
     bne TextLayerBlankWords
     rts
+
+; @routine 81:979A TextLayoutDrawBig
+; WHAT IT DOES: Draws text layout X's first run as large characters, each
+; four tiles (two by two), into the text layer's tilemap, and has the NMI
+; copy the tilemap to VRAM. Nothing in the game calls it.
+; HOW: With DB = $82, the layout's offset from the word table at $B575.
+; Its first byte: 0 draws nothing; else the low 6 bits count the
+; characters. Then the tilemap offset (word), the high byte of every word
+; drawn, and per character its first tile (word): tiles t, t+1 in the row,
+; t+2, t+3 in the row below. Each next character two words to the right.
+; text_tilemap_upload counted up.
+; Entry: M 8-bit; X = the layout's offset in the table (16 bits taken);
+; called by JSL. Exit: M and X 8-bit; DB as at entry, N and Z from it
+; (PLB); C as the last character left it (the ADC), or as at entry with
+; no characters; scratch $0C-$17 used.
+%at($81979A)
+TextLayoutDrawBig:
+    phb
+    lda.b #!TEXT_LAYOUT_BANK
+    pha
+    plb
+    rep.b #$10
+    ldy.w !text_layouts,x
+    sep.b #$20
+    lda.w 0,y
+    beq .done
+    iny
+    pha
+    rol a
+    rol a
+    pla
+    rep.b #$20
+    and.w #$003F
+    sta.w !scratch
+    lda.w 0,y
+    sta.w !big_place
+    tax
+    iny
+    iny
+    lda.w 0,y
+    and.w #$00FF
+    xba
+    sta.w !big_high
+    dey
+.char:
+    iny
+    iny
+    lda.w 0,y
+    sta.w !big_tile
+    lda.w #$0001
+    sta.w !big_rows
+.row:
+    lda.w !big_tile
+    ora.w !big_high
+    sta.l !text_tilemap,x
+    inx
+    inx
+    inc.w !big_tile
+    lda.w !big_tile
+    ora.w !big_high
+    sta.l !text_tilemap,x
+    dec.w !big_rows
+    bmi .next
+    txa
+    clc
+    adc.w #$003E
+    tax
+    inc.w !big_tile
+    bra .row
+.next:
+    dec.w !scratch
+    beq .done
+    ldx.w !big_place
+    inx
+    inx
+    inx
+    inx
+    stx.w !big_place
+    bra .char
+.done:
+    sep.b #$30
+    inc.w !text_tilemap_upload
+    plb
+    rtl
 
 
 
