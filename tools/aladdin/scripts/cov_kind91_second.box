@@ -1,0 +1,12 @@
+# Kind $91's second state (Kind91Second, $83:9378: JML Kind91FreeOff),
+# which the actor loop jumps to for a kind $91 record in a state with bit 7
+# set (the table at $83:8EFD). Played as cov_kind91_variants.box until the
+# ending's kind $91 is live at record $0C4B (frame 11300); then it is put
+# in state $8C, and 30 frames run.
+load build/aladdin/states/stage_a0_s0.state
+poke $000376 32
+wait 10500
+poke $00033F 0A
+wait 800
+poke $000C4B 8C
+wait 30
