@@ -1,0 +1,32 @@
+# The window effects' start when no HDMA channel is free: HdmaChannelFree
+# ($82:871B) finds channels 4-7 all in use (the high nibble of HDMAEN's
+# shadow ORed with HDMA_RESERVED, $03B5, is $F0) and returns C set;
+# HdmaStart returns at once ($82:8749) and each effect returns from its
+# start ($82:8107, $82:82EC, $82:81AB, $82:8391, $82:84DC, $82:861C,
+# $82:86D8). In play a level never runs more than its channels allow.
+# From the first level's state; HDMA_RESERVED set before each call (a set
+# applies to the next call only); each effect is entered by JSR with
+# DB = $82, as from WindowEffectTask.
+load build/aladdin/states/level1.state
+wait 10
+# HdmaEffect3 ($82:80F6)
+set 0003B5 F0
+call 8280F6 db=82 p=30
+# HdmaEffect4 ($82:82DB)
+set 0003B5 F0
+call 8282DB db=82 p=30
+# HdmaEffect6 ($82:819A)
+set 0003B5 F0
+call 82819A db=82 p=30
+# HdmaEffect8 ($82:8388)
+set 0003B5 F0
+call 828388 db=82 p=30
+# HdmaEffect10 ($82:84CB)
+set 0003B5 F0
+call 8284CB db=82 p=30
+# HdmaEffect11 ($82:860B)
+set 0003B5 F0
+call 82860B db=82 p=30
+# HdmaEffect12 ($82:86CF)
+set 0003B5 F0
+call 8286CF db=82 p=30
