@@ -27,6 +27,15 @@ void abi_Kind9ASpawn(void);
 #define K99_ANIMS 0xD90Eu       /* (data bank $80) kind $99's animation by $07 (bytes) */
 #define K99_SPREAD 0xD92Eu      /* (data bank $80) kind $99's offset across by $07 (words) */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine 84:A3B7 Kind99Start
  * @actor
@@ -59,7 +68,7 @@ void abi_Kind99Start(void)
     sta8(ea_dp(ACTOR_FLIP));
     ldx8(ea_dp(ACTOR_07));
     lda8(ea_absx(K99_ANIMS));
-    abi_AnimStart();
+    jsl_call(0x84A3D0u, abi_AnimStart);
     lda8(ea_dp(ACTOR_07));
     and8_v(0xFE);
     if (IF_Z) {
@@ -71,7 +80,7 @@ void abi_Kind99Start(void)
         stz8(ea_dp(ACTOR_SPEED_X + 2));
         do {
             actor_yield(0x84A428u);
-            abi_ActorMoveX();
+            jsl_call(0x84A42Au, abi_ActorMoveX);
             lda8(ea_dp(ACTOR_09));
             and8_v(0x40);
         } while (!IF_Z);
@@ -152,26 +161,26 @@ void abi_Kind9AStart(void)
     lda8_v(0x30);
     sta8(ea_dp(ACTOR_ACCEL_Y));
     lda8_v(0x17);
-    abi_AnimStart();
+    jsl_call(0x84A475u, abi_AnimStart);
     do {
         actor_yield(0x84A479u);
-        abi_ActorFly();
-        abi_ActorOutOfGround();
+        jsl_call(0x84A47Bu, abi_ActorFly);
+        jsl_call(0x84A47Fu, abi_ActorOutOfGround);
     } while (IF_Z);
     lda8(ea_dp(ACTOR_Y + 1));
     clc();
     adc8_v(0x04);
     sta8(ea_dp(ACTOR_Y + 1));
     lda8_v(0x18);
-    abi_AnimStart();
+    jsl_call(0x84A48Eu, abi_AnimStart);
     lda8_v(0x48);
-    abi_SoundQueueAdd();
+    jsl_call(0x84A494u, abi_SoundQueueAdd);
     lda8_v(0x08);
     actor_wait(0x84A49Au);
     lda8_v(0x1E);
-    abi_AnimStart();
+    jsl_call(0x84A49Eu, abi_AnimStart);
     lda8_v(0x3E);
-    abi_SoundQueueAdd();
+    jsl_call(0x84A4A4u, abi_SoundQueueAdd);
     lda8_v(0x10);
     sta8(ea_dp(K9A_FRAMES));
     stz8(ea_dp(ACTOR_07));
@@ -184,7 +193,7 @@ void abi_Kind9AStart(void)
     } while (!IF_Z);
     MEM8(inc, ea_dp(K9A_BOUNCES));
     lda8_v(0x1F);
-    abi_AnimStart();
+    jsl_call(0x84A4C0u, abi_AnimStart);
     lda8_v(0x80);
     actor_wait(0x84A4C6u);
     lda8(ea_dp(ACTOR_08));
@@ -208,6 +217,6 @@ void abi_Kind9ASpawn(void)
 {
     stz8(ea_dp(ACTOR_SPAWN_AT));
     lda8_v(K9A_CHILD_KIND);
-    abi_ActorCreateChild8();
+    jsl_call(0x84A4D8u, abi_ActorCreateChild8);
     MEM8(inc, ea_dp(ACTOR_07));
 }

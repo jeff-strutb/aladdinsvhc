@@ -31,12 +31,21 @@ void abi_ActorEndPlaced(void);
 #define KA4_WAYS 0xAA43u        /* in bank $84: KindA4Start's ways (words), by X */
 #define KA4_WAY4 0x10           /* a $07 of $10 or more takes way 4 (its low 4 bits kept) */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /* $07 0 ($84:AA4D): shows while CUE_AE is set, steady 127 frames, then
    blinking every 32; for good. */
 static void pulse(void)
 {
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_call(0x84AA4Fu, abi_AnimStart);
     for (;;) {                                  /* $84:AA53 */
         lda8_v(0x08);
         trb8(ea_dp(ACTOR_08));
@@ -94,17 +103,17 @@ static void drop(void)
     lda8_v(0x43);
     actor_wait(0x84AA93u);
     lda8_v(0x41);
-    abi_SoundQueueAdd();
+    jsl_call(0x84AA97u, abi_SoundQueueAdd);
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_call(0x84AA9Du, abi_AnimStart);
     lda8_v(0xFF);
     ldy8_v(0x8A);
-    abi_ActorSpeedYSetGravity();
+    jsl_call(0x84AAA5u, abi_ActorSpeedYSetGravity);
     lda8_v(0x20);
     sta8(ea_dp(KA4_LEFT));
     do {
         actor_yield(0x84AAADu);
-        abi_ActorFallAgainst();
+        jsl_call(0x84AAAFu, abi_ActorFallAgainst);
         MEM8(dec, ea_dp(KA4_LEFT));
     } while (!IF_Z);
     lda8_v(0x0A);
@@ -136,12 +145,12 @@ static void drop(void)
         cmp8_v(0x05);
         if (IF_Z) {
             lda8_v(0x3A);
-            abi_SoundQueueAdd();
+            jsl_call(0x84AAF1u, abi_SoundQueueAdd);
         }
         MEM8(dec, ea_dp(KA4_LEFT));
     } while (!IF_N);
     lda8_v(0x3A);
-    abi_SoundQueueAdd();
+    jsl_call(0x84AAFBu, abi_SoundQueueAdd);
     abi_ActorEndPlaced();
 }
 
@@ -157,37 +166,37 @@ static void rise(void)
     lda8_v(0x01);
     sta8(ea_dp(ACTOR_08));
     ldy8_v(0x74);
-    abi_ActorMotionPreset();
+    jsl_call(0x84AB15u, abi_ActorMotionPreset);
     stz8(ea_dp(ACTOR_SPAWN_AT));
     step_wait(0x84AB1Bu);
     lda8_v(0x98);
     actor_wait(0x84AB28u);
     stz8(ea_dp(ACTOR_Y + 2));
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_call(0x84AB2Eu, abi_AnimStart);
     lda8_v(0x43);
-    abi_SoundQueueAdd();
+    jsl_call(0x84AB34u, abi_SoundQueueAdd);
     lda8_v(0x14);
     actor_wait(0x84AB3Au);
     lda8_v(0x03);
-    abi_AnimStart();
+    jsl_call(0x84AB3Eu, abi_AnimStart);
     lda8(ea_dp(ACTOR_Y + 1));
     sec();
     sbc8_v(0x04);
     sta8(ea_dp(ACTOR_Y + 1));
     lda8_v(0x42);
-    abi_SoundQueueAdd();
+    jsl_call(0x84AB4Bu, abi_SoundQueueAdd);
     lda8_v(0x11);
     sta8(ea_dp(KA4_COUNT));
     do {
-        abi_ActorFly();
+        jsl_call(0x84AB53u, abi_ActorFly);
         actor_yield(0x84AB57u);
         MEM8(dec, ea_dp(KA4_COUNT));
     } while (!IF_Z);
     lda8_v(KA4_WAY4);
     sta8(ea_dp(ACTOR_07));
     lda8(ea_dp(ACTOR_06));
-    abi_ActorSpawnSameLook();
+    jsl_call(0x84AB63u, abi_ActorSpawnSameLook);
     abi_ActorEndPlaced();
 }
 
@@ -196,7 +205,7 @@ static void pose(void)
 {
     stz8(ea_dp(ACTOR_LOOK));
     lda8_v(0x05);
-    abi_AnimStart();
+    jsl_call(0x84AB6Fu, abi_AnimStart);
     lda8_v(0x0E);
     actor_wait(0x84AB75u);
     abi_ActorEndPlaced();
@@ -206,9 +215,9 @@ static void pose(void)
 static void pose_once(void)
 {
     lda8_v(0x2D);
-    abi_SoundQueueAdd();
+    jsl_call(0x84AB7Du, abi_SoundQueueAdd);
     lda8_v(0x04);
-    abi_AnimStart();
+    jsl_call(0x84AB83u, abi_AnimStart);
     lda8_v(0x34);
     sta8(ea_dp(ACTOR_X + 1));
     lda8_v(0x16);
