@@ -224,6 +224,16 @@ static inline void ply8(void) { ldy8_v(op_pull8()); }
 static inline void ply16(void) { ldy16_v(pull16()); }
 static inline void plp(void) { op_plp(op_pull8()); }
 static inline void plb(void) { cpu.db = op_pull8(); fl8(cpu.db); }
+/* RTI, at the end of an @interrupt routine (native mode): P pulled, then
+   the address the interrupt pushed (PC, then its bank); the checks return
+   the call there, as after a routine's RTS. */
+static inline void rti(void)
+{
+    plp();
+    (void)op_pull8();
+    (void)op_pull8();
+    (void)op_pull8();
+}
 static inline void pld(void) { cpu.d = pull16(); fl16(cpu.d); }
 
 /* ---- flags ---- */
