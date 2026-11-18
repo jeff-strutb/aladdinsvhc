@@ -824,6 +824,11 @@ static uint32_t a5_noreturn_pc = 0xFFFFFFFFu;
 void check_unit_noreturn(uint32_t pc)
 {
     a5_noreturn_pc = pc;
+    /* The calls open when it starts (a script's wait can end inside one:
+       unit_power_on's ActorWaitWake) never go on: the call never returns
+       to them. As at a state load, they are dropped, not judged against
+       whatever the call's own code does later. */
+    check_rollback(0);
 }
 
 void check_unit_entry(uint32_t pc, uint32_t ret, uint16_t exit_s, uint16_t entry_s)
