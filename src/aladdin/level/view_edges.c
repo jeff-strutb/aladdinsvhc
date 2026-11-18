@@ -35,10 +35,15 @@ void abi_PlayerOnFirmGroundProbe8(void);
  */
 void abi_ViewEdgeRuleRun(void)
 {
-    a8_load(rd8(dba(VIEW_EDGE_RULE)));
+    lda8(ea_abs(VIEW_EDGE_RULE));
     ACC8(asl);
     tax8();
+    /* JSR ($E986,X) at $81:E982: its return address on the stack while
+       the rule runs, as the original's */
+    op_push8(0xE9);
+    op_push8(0x84);
     call_routine(0x810000u | rd16(0x810000u | (uint16_t)(VIEW_EDGE_RULES + cpu.x)), 0);
+    cpu.s = (uint16_t)(cpu.s + 2);
 }
 
 /* VIEW_X plus the limit word at VIEW_X_LIMITS + at, 16-bit, compared
@@ -88,7 +93,7 @@ void abi_ViewEdgePush(void)
         abi_PlayerOnFirmGroundProbe4();
         cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C)) {             /* off firm ground: pushed back */
-            abi_PlayerKeepOnScreenX();
+            call_frame(0xE9F5, abi_PlayerKeepOnScreenX);
             goto out;
         }
     }
@@ -98,7 +103,9 @@ void abi_ViewEdgePush(void)
     if (!(cpu.p & P_C))
         goto out;
     op_sep(0x30);
+    jsl_frame(0x81EA07u);
     abi_PlayerEnter8CFrom1Long();
+    cpu.s = (uint16_t)(cpu.s + 3);
     inc8_at(dba(VIEW_EDGE_RULE));
 out:
     op_sep(0x30);
@@ -119,27 +126,29 @@ out:
  */
 void abi_ViewEdgeHurt(void)
 {
-    uint16_t view = rd16(dba(VIEW_X)), x = dp16(ACTOR_X + 1);
-
     op_rep(P_M);
-    flag_set(P_C, 1);
-    cpu.a = op_sbc16(view, 0x0030, &cpu.p);
-    if (cpu.a & 0x8000)                   /* the view near the map's left end */
+    lda16(ea_abs(VIEW_X));
+    sec();
+    sbc16_v(0x0030);
+    if (IF_N)                             /* the view near the map's left end */
         goto out;
-    flag_set(P_C, 1);
-    cpu.a = op_sbc16(cpu.a, x, &cpu.p);
-    if (!(cpu.p & P_C)) {                 /* not more than 48 left of the view */
-        flag_set(P_C, 0);
-        cpu.a = op_adc16(view, 0x0130, &cpu.p);
-        flag_set(P_C, 1);
-        cpu.a = op_sbc16(cpu.a, x, &cpu.p);
-        if (cpu.p & P_C)                  /* nor 48 past its right edge */
+    sec();
+    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
+    if (!IF_C) {                          /* not more than 48 left of the view */
+        lda16(ea_abs(VIEW_X));
+        clc();
+        adc16_v(0x0130);
+        sec();
+        sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
+        if (IF_C)                         /* nor 48 past its right edge */
             goto out;
     }
     op_sep(P_M);
-    a8_load(EDGE_NONE);
-    wr8(dba(VIEW_EDGE_RULE), EDGE_NONE);
+    lda8_v(EDGE_NONE);
+    sta8(ea_abs(VIEW_EDGE_RULE));
+    jsl_frame(0x81EA28u);
     abi_PlayerEnter8CFrom1Long();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;
 out:
     op_sep(P_M);

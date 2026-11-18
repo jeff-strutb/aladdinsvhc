@@ -64,78 +64,84 @@ void abi_ViewEdgeRuleRun(void);
  * JSL (ActorKind00Wait). Exit: as TestBoxPlace leaves them (M and X 8-bit;
  * A = the test box's y; its RTL is this routine's).
  */
+/* A JSL from `site` into fn: its return frame pushed, popped after. */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 void abi_PlayerFrameWork(void)
 {
-    uint8_t scene, move;
-
-    wr8(dba(PFW_1435), 0);
-    scene = rd8(dba(PFW_SCENE));
-    a8_load(scene);
-    if (scene) {                          /* a scene moves him */
-        if (scene & 0x80) {
-            a8_load(rd8(dba(PFW_081E)));
-            if (!(uint8_t)cpu.a)
+    stz8(ea_abs(PFW_1435));                           /* 81E864 */
+    lda8(ea_abs(PFW_SCENE));
+    if (!IF_Z) {                                      /* a scene moves him: 81E84D */
+        if (IF_N) {
+            lda8(ea_abs(PFW_081E));
+            if (IF_Z)
                 goto picture;
         }
-        bit8_v(rd8(dba(PFW_SCENE)));
-        if (!(cpu.p & P_V))
-            abi_AnimStep();
+        bit8_v(rd8(ea_abs(PFW_SCENE)));
+        if (!IF_V)
+            jsl_call(0x81E859u, abi_AnimStep);
 picture:
-        abi_ActorPictureSend();
-        abi_TestBoxPlace();
+        jsl_call(0x81E85Du, abi_ActorPictureSend);
+        abi_TestBoxPlace();                           /* JMP */
         return;
     }
 
     /* his move's animation, when the move changed */
-    move = rd8(dba(PLAYER_MOVE));
-    a8_load(move);
-    cmp8_of(move, rd8(dba(PFW_MOVE_WAS)));
-    if (move != rd8(dba(PFW_MOVE_WAS))) {
-        wr8(dba(PFW_MOVE_WAS), move);
-        a8_load(rd8(dba(PLAYER_MOVE)));
-        abi_PlayerMoveStart();
+    lda8(ea_abs(PLAYER_MOVE));
+    cmp8_v(rd8(ea_abs(PFW_MOVE_WAS)));
+    if (!IF_Z) {
+        sta8(ea_abs(PFW_MOVE_WAS));
+        lda8(ea_abs(PLAYER_MOVE));
+        call_frame(0xE87C, abi_PlayerMoveStart);
     }
-    abi_PlayerHurtCountdown();
-    a8_load(rd8(dba(V_142D)));
-    if (!(uint8_t)cpu.a)
-        abi_AnimStep();
-    abi_ViewEdgeRuleRun();
-    abi_ActorPictureSend();
-    x8_load(rd8(dba(PFW_1A0A)));
-    if (cpu.x) {
-        a8_load(rd8(dba((uint16_t)(PFW_03F1_VALUES + cpu.x))));
-        wr8(dba(PFW_03F1), (uint8_t)cpu.a);
+    call_frame(0xE87F, abi_PlayerHurtCountdown);
+    lda8(ea_abs(V_142D));
+    if (IF_Z)
+        jsl_call(0x81E885u, abi_AnimStep);
+    call_frame(0xE88B, abi_ViewEdgeRuleRun);
+    jsl_call(0x81E88Cu, abi_ActorPictureSend);
+    ldx8(ea_abs(PFW_1A0A));
+    if (!IF_Z) {
+        lda8(ea_absx(PFW_03F1_VALUES));
+        sta8(ea_abs(PFW_03F1));
     }
 
     /* fallen out of the bottom of the level: hurt */
-    a8_load(rd8(dba(HEALTH)));
-    if ((uint8_t)cpu.a) {
-        uint8_t level = rd8(dba(LEVEL));
-
-        a8_load(level);
-        cmp8_of(level, PFW_NO_FALL_1);
-        if (level != PFW_NO_FALL_1) {
-            cmp8_of(level, PFW_NO_FALL_2);
-            if (level != PFW_NO_FALL_2) {
-                abi_PlayerFallenTest();
-                if (!(cpu.p & P_C)) {
-                    a8_load((uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
-                    wr8(dpa(ACTOR_09), (uint8_t)cpu.a);
-                    abi_PlayerEnter8CFrom1Long();
+    lda8(ea_abs(HEALTH));
+    if (!IF_Z) {
+        lda8(ea_abs(LEVEL));
+        cmp8_v(PFW_NO_FALL_1);
+        if (!IF_Z) {
+            cmp8_v(PFW_NO_FALL_2);
+            if (!IF_Z) {
+                call_frame(0xE8AD, abi_PlayerFallenTest);
+                if (!IF_C) {
+                    lda8(ea_dp(ACTOR_09));
+                    and8_v(0x7F);
+                    sta8(ea_dp(ACTOR_09));
+                    jsl_call(0x81E8B6u, abi_PlayerEnter8CFrom1Long);
                 }
             }
         }
     }
 
     /* bit 7 of his $08 from PFW_FLAGS */
-    a8_load((uint8_t)(rd8(dpa(ACTOR_08)) & 0x7F));
-    x8_load(rd8(dba(PFW_FLAGS)));
-    if (cpu.x)
-        a8_load((uint8_t)(0x80 | rd8(dpa(ACTOR_08))));
-    wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
-    wr8(dba(V_1428), 0);
-    wr8(dba(V_1434), 0);
-    wr8(dba(PFW_142C), 0);
-    abi_PlayerBoxUpdate();
-    abi_TestBoxPlace();
+    lda8(ea_dp(ACTOR_08));
+    and8_v(0x7F);
+    ldx8(ea_abs(PFW_FLAGS));
+    if (!IF_Z) {
+        lda8_v(0x80);
+        ora8_v(rd8(ea_dp(ACTOR_08)));
+    }
+    sta8(ea_dp(ACTOR_08));
+    stz8(ea_abs(V_1428));
+    stz8(ea_abs(V_1434));
+    stz8(ea_abs(PFW_142C));
+    call_frame(0xE8D4, abi_PlayerBoxUpdate);
+    abi_TestBoxPlace();                               /* on into it */
 }

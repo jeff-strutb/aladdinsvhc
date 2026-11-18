@@ -38,6 +38,16 @@ void abi_AnimOfMove(void)
     a8_load(rd8(dba(ANIM_OF_MOVE) + at));
 }
 
+/* $81:DCA5, the end both move starts share: JSR AnimOfMove, then JSL
+   AnimStart, each with its return address on the stack. */
+static void move_anim_start(void)
+{
+    call_frame(0xDCA7, abi_AnimOfMove);
+    jsl_frame(0x81DCA8u);
+    abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine 81:DCA2 PlayerMoveStart
  * WHAT IT DOES: Puts the player into move A, starting its animation from
@@ -48,9 +58,8 @@ void abi_AnimOfMove(void)
  */
 void abi_PlayerMoveStart(void)
 {
-    wr8(dba(PLAYER_MOVE), (uint8_t)cpu.a);
-    abi_AnimOfMove();
-    abi_AnimStart();
+    sta8(ea_abs(PLAYER_MOVE));
+    move_anim_start();
 }
 
 /*
@@ -62,7 +71,6 @@ void abi_PlayerMoveStart(void)
  */
 void abi_PlayerMoveStartAlso(void)
 {
-    wr8(dba(PLAYER_MOVE), (uint8_t)cpu.a);
-    abi_AnimOfMove();
-    abi_AnimStart();
+    sta8(ea_abs(PLAYER_MOVE));
+    move_anim_start();
 }

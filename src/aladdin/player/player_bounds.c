@@ -133,28 +133,25 @@ void abi_PlayerHurtCountdown(void)
 
 
 /* The actor's position word `field` kept between the screen's edges:
-   the scroll plus the limit pair at `limits` (the lower, then the upper). */
-static void keep_within(uint16_t scroll, uint16_t limits, uint16_t field)
+   the scroll plus the limit pair at `limits` (the lower, then the upper),
+   each compared with the word once, as the original's CLC, LDA, ADC, CMP. */
+static void keep_within(uint16_t scroll, uint16_t limits, uint8_t field)
 {
-    uint16_t edge;
-
     op_rep(P_M);
-    flag_set(P_C, 0);
-    edge = rd16(dba(scroll));
-    edge = op_adc16(edge, rd16(dba(limits)), &cpu.p);
-    cpu.a = edge;
-    cmp16_of(edge, dp16(field));
-    if (edge >= dp16(field)) {
-        dp16_set(field, edge);
-    } else {
-        flag_set(P_C, 0);
-        edge = rd16(dba(scroll));
-        edge = op_adc16(edge, rd16(dba(limits + 2)), &cpu.p);
-        cpu.a = edge;
-        cmp16_of(edge, dp16(field));
-        if (edge < dp16(field))
-            dp16_set(field, edge);
+    clc();
+    lda16(ea_abs(scroll));
+    adc16_v(rd16(ea_abs(limits)));
+    cmp16_v(rd16(ea_dp(field)));
+    if (!IF_C) {                          /* past the lower edge: set to it */
+        clc();
+        lda16(ea_abs(scroll));
+        adc16_v(rd16(ea_abs((uint16_t)(limits + 2))));
+        cmp16_v(rd16(ea_dp(field)));
+        if (IF_C)                         /* within the upper edge */
+            goto out;
     }
+    sta16(ea_dp(field));
+out:
     op_sep(P_M);
 }
 
@@ -184,7 +181,7 @@ void abi_PlayerKeepOnScreenX(void)
  */
 void abi_PlayerKeepOnScreen(void)
 {
-    abi_PlayerKeepOnScreenX();
+    call_frame(0xE9AF, abi_PlayerKeepOnScreenX);
     keep_within(FIELD_SCROLL_Y, SCREEN_Y_LIMITS, ACTOR_Y + 1);
 }
 
