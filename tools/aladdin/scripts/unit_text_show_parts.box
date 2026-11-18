@@ -1,0 +1,9 @@
+# Text layout 0 drawn with the first and the second part of the text
+# buffer marked for upload ($81:9718 TextLayoutShowFirst, $81:971F
+# TextLayoutShowSecond): nothing in the game calls them (the third's,
+# $81:9726, is the one in use), so no screen runs them; unit calls by JSL
+# on the first level's state. (The machine is put back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+call 819718 long a=00 db=80 p=30
+call 81971F long a=00 db=80 p=30
