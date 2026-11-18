@@ -58,7 +58,7 @@ static int box_holds_range_point(void)
  * width and height sets the bit, else clears it; with the bit set and bit
  * 3 of $08 set, the record's address goes on its list and the list's count
  * steps up.
- * Entry: DB = $81; called by JSL. Exit: P and D as at entry; A, X, Y as
+ * Entry: DB = $80; called by JSL. Exit: P and D as at entry; A, X, Y as
  * the walk left them.
  */
 void abi_ActorsInView(void)

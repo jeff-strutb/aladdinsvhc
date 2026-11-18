@@ -40,7 +40,7 @@ TitleMenuCursorLong:
 ; restarted, MENU_CHOICE_WAS = the choice, v_0343 (the title's idle
 ; countdown) raised to at least TITLE_IDLE_LEAST, and sound
 ; SOUND_MENU_MOVE.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR (81:EDA2). Exit: M
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR (81:EDA2). Exit: M
 ; 8-bit, X 8-bit; as TitleMenuBlink leaves it, or as SoundQueueAdd (A's
 ; high byte $04).
 %at($81EDA6)
@@ -94,7 +94,7 @@ TitleMenuCursor:
 ; blanked (its layout with bit 7, TextLayoutShow). Blanked:
 ; MENU_BLINK_FRAMES counted down; at 0, MENU_BLINK_HIDDEN cleared and the
 ; line of MENU_CHOICE_WAS drawn.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: M 8-bit, X
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: M 8-bit, X
 ; 8-bit; a line drawn or blanked: as TextLayoutShow leaves it, Y = the
 ; choice. Else Y = MENU_BLINK_HIDDEN; shown: A = the count, N, Z and C as
 ; its compare with MENU_BLINK_SHOWN; blanked: A = the count before, N

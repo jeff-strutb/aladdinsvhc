@@ -19,7 +19,7 @@ arch 65816
 ; HOW: The level's entry in the escort table, less one, is the escort's
 ; $07; its record is made new, with hit box 8, sprite attributes $0220
 ; and the player's x and y.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: no escort: X =
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: no escort: X =
 ; the level; A low byte = 0; Z set. Else: M 8-bit; A = the player's y
 ; (16 bits); N, Z from it; X = the level. Y, C, V unchanged.
 %at($8185A1)

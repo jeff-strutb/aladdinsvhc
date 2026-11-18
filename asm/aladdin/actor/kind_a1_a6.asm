@@ -141,7 +141,7 @@ KindA6Stay:
 ; RandomFromList with X = $40; $6A with KIND_A1_LONG set: $68 ($84:A9B6,
 ; which no script meets); $6A else: KIND_A1_LONG up; ActorMotionPreset
 ; with it.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for kind $A1 in state $0C (the table at $83:8DAB,
 ; through the stub at $83:9409). Exit: never returns.
 %at($84A97F)

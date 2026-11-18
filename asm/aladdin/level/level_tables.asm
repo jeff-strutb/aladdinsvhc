@@ -228,7 +228,7 @@ RestartPointCheck:
 ; list is.
 ; HOW: The level's word in the spot table is the list's offset; its first
 ; byte is the count.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: M and X 8-bit;
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: M and X 8-bit;
 ; A low byte = the count, high byte = the level word * 2's; X = the low
 ; byte of the list's offset; Y = the level * 2 (low byte); N, Z from the
 ; count; C = bit 15 of the level word; V unchanged.
@@ -312,7 +312,7 @@ LevelExitCheck:
 ; WHAT IT DOES: Sets $035C-$035D from the level's entry in the table at
 ; $81:B933.
 ; HOW: The level * 2 indexes the table; its two bytes are copied.
-; Entry: M 8-bit, X 8-bit; DB = $81. Exit: A low byte = the second byte;
+; Entry: M 8-bit, X 8-bit; DB = $80. Exit: A low byte = the second byte;
 ; N, Z from it; X = the level * 2; C = the level's bit 7; Y, V unchanged.
 %at($81878B)
 Level035CSet:

@@ -96,7 +96,7 @@ void abi_UnpackBegin(void)
  * after the list gives 5-byte entries, each unpacked to the next
  * destination on. The count kept at $1E. With no parts, it ends (through
  * the JMP at $81:B92A).
- * Entry: M 8-bit; DB = $81; called by JSL. Exit: P and D as at entry; A,
+ * Entry: M 8-bit; DB = $80; called by JSL. Exit: P and D as at entry; A,
  * X, Y as the last part left them; DB as at entry.
  */
 void abi_LevelGraphicsLoad(void)

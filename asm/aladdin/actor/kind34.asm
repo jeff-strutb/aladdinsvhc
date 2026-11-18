@@ -69,7 +69,7 @@ Kind34Part0:
 ; HOW: ActorSpeedXClear; ActorSpeedYSet with entry 9; ACTOR_ACCEL_Y = 2;
 ; each frame (BRK first) AnimStep, ActorFly, K34_FRAMES down; at 0,
 ; ActorEndPlaced.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81 (the speed
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80 (the speed
 ; table's bank); reached by a jump from Kind34Start. Exit: never returns.
 Kind34Part1:
     jsl.l ActorSpeedXClear

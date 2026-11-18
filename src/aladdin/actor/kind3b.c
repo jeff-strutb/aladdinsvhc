@@ -242,7 +242,7 @@ void abi_Kind3BStart(void)
  * ActorMoveX and ActorCarryPlayer until K3B_FRAMES runs out; facing
  * flipped; 12 BRKs; K3B_FRAMES = K3B_RUN, again. No script runs past its
  * first BRK: written from its bytes.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81 (the speed
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80 (the speed
  * table's bank); reached by a jump from Kind3BStart. Exit: never returns.
  */
 void abi_Kind3BPart0(void)
@@ -283,7 +283,7 @@ void abi_Kind3BPart0(void)
  * $20; each frame (BRK first) ActorMoveY and ActorCarryPlayer until
  * K3B_FRAMES runs out; the speed turned: its low word negated, its top
  * byte EOR $FF; 12 BRKs; K3B_FRAMES = K3B_RUN, again.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81 (the speed
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80 (the speed
  * table's bank); reached by a jump from Kind3BStart. Exit: never returns.
  */
 void abi_Kind3BPart1(void)

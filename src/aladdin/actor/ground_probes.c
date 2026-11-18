@@ -26,7 +26,7 @@ void abi_PointInGroundLong(void);
  * WHAT IT DOES: Moves the actor out of a wall at its probe 8 in front:
  * C set when it was moved.
  * HOW: ActorOutOfWallLong with A = 8.
- * Entry: M 8-bit; D = the actor; DB = $81; called by JSR. Exit: as
+ * Entry: M 8-bit; D = the actor; DB = $80; called by JSR. Exit: as
  * ActorOutOfWall.
  */
 void abi_ActorOutOfWall8(void)
@@ -69,7 +69,7 @@ static int ground_at_point(void)
  * behaviour's low 3 bits being ground), a tile up each time: first while
  * no ground, then, once in ground, a tile up at a time until a probe finds
  * none (C clear). C set when the probes run out.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSR. Exit:
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR. Exit:
  * M 8-bit, X 8-bit; C as above; the point at the last probe.
  */
 void abi_ActorLedgeAhead(void)
@@ -117,7 +117,7 @@ none:
  * player is not left of the actor, else - Y; X probes (PointInGroundLong,
  * the behaviour byte tested with $48), the point a tile up after each.
  * Entry: M 16-bit, X 8-bit; A = the y offset; X = the probes; Y = the x
- * offset; D = the actor; DB = $81; called by JSR. Exit: M 16-bit, X
+ * offset; D = the actor; DB = $80; called by JSR. Exit: M 16-bit, X
  * 8-bit; C as above.
  */
 void abi_ActorProbeUpTowardPlayer(void)

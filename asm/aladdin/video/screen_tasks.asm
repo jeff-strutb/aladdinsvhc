@@ -388,7 +388,7 @@ BrightnessDownTask:
 ; WHAT IT DOES: Picks a random entry from list X.
 ; HOW: The list (its offset at $DCE7 + X) starts with a mask; RandomNext
 ; masked by it picks the entry, a byte after the mask.
-; Entry: X 8-bit; X = the list's number * 2; DB = $81. Exit: M and X
+; Entry: X 8-bit; X = the list's number * 2; DB = $80. Exit: M and X
 ; 8-bit; Y = A low byte = the entry; A high byte = the byte after it;
 ; scratch $1C = the masked random (word); N, Z from the entry; C, V from
 ; the ADC.

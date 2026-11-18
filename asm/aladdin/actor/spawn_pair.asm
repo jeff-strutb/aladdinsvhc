@@ -19,7 +19,7 @@ arch 65816
 ; HOW: $43 up; for each child the spawn point 0 ($21), ActorSpawn, its
 ; $07, and the whole pixels of its x and y from the two words; a spawn
 ; with no record free ends it; then $43 cleared.
-; Entry: M 8-bit, X 8-bit; D = the spawner; DB = $81; called by JSR.
+; Entry: M 8-bit, X 8-bit; D = the spawner; DB = $80; called by JSR.
 ; Exit: M 8-bit, X 8-bit (spawned) or as ActorSpawn left them; $43 = 0.
 %at($848173)
 ActorSpawnPairA3:

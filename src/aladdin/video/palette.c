@@ -169,7 +169,7 @@ void abi_PaletteSaveReversed(void)
  * WHAT IT DOES: Loads the level's palettes.
  * HOW: The level's list gives a count and the sets; each is loaded with
  * PaletteLoad, X and Y kept on the stack across it.
- * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: X = the list's
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: X = the list's
  * offset past the last set; Y = 0; Z set, N clear; with sets, A and C, V
  * as the last PaletteLoad leaves them; DB as at entry.
  */

@@ -148,7 +148,7 @@ PlayerSceneStand:
 ; PlayerMoveChange 4: each frame ActorBobY and ActorMoveX until
 ; PLAY_SCREEN is 12; then on at ENDING_RIDE_ON, which no script reaches
 ; yet and is not filed.
-; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
 ; the jump through the player's start table by $07 at $81:CB61 (81:CB56).
 ; Exit: never returns.
 %at($81E27A)

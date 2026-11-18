@@ -534,7 +534,7 @@ TileSlotsClaim3:
 ; WHAT IT DOES: Creates an actor of kind A as a child of the actor,
 ; placed at its spawn point, if the kind can be created.
 ; HOW: ActorCreate; on success ActorSpawnInit for the new record.
-; Entry: M 8-bit, X 8-bit; D = the spawner; A = the kind; DB = $81;
+; Entry: M 8-bit, X 8-bit; D = the spawner; A = the kind; DB = $80;
 ; called by JSL. Exit: C clear when created (X 16-bit = the record); else
 ; as ActorCreate.
 %at($81A9A6)

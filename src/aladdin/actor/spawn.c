@@ -48,7 +48,7 @@ static void set_a8(uint8_t v)
  * HOW: The spawner's spawn offset index picks an offset across and one
  * down; across is added to the spawner's x, or taken away when bit 0 of
  * its flip is set; down is added to its y.
- * Entry: M 8-bit, X 16-bit; D = the spawner; X = the child; DB = $81.
+ * Entry: M 8-bit, X 16-bit; D = the spawner; X = the child; DB = $80.
  * Exit: M 8-bit; A = the child's y (16 bits); Y = the index; N, V, Z, C
  * from the y ADC; X unchanged.
  */
@@ -127,7 +127,7 @@ void abi_ActorPlaceAtRecord(void)
  * HOW: The child's state = new; ActorSpawnPlace; the spawner's flip
  * becomes both the child's facing and flip; $34 = $FF; $07 is the
  * spawner's.
- * Entry: M 8-bit, X 16-bit; D = the spawner; X = the child; DB = $81;
+ * Entry: M 8-bit, X 16-bit; D = the spawner; X = the child; DB = $80;
  * called by JSR. Exit: A low byte = the spawner's $07; N, Z from it;
  * Y = the spawn offset index; X, C, V as ActorSpawnPlace leaves them.
  */
@@ -244,7 +244,7 @@ void abi_ActorSpawnSameLook(void)
  * the child's hit box and state (new), ActorSpawnPlace, then its facing and
  * flip = the kept X and its $07 = the kept Y.
  * Entry: M 8-bit, X 8-bit; D = the spawner; A low byte = the hit box; X =
- * the facing; Y = the $07 value; DB = $81. Exit: none free: N set, as
+ * the facing; Y = the $07 value; DB = $80. Exit: none free: N set, as
  * ActorAlloc leaves it. Spawned: M and X 8-bit; X = the child's address's
  * low byte; A low byte = the kept Y; Z set; N from it; Y = the spawn
  * offset index (low byte); C, V from ActorSpawnPlace.

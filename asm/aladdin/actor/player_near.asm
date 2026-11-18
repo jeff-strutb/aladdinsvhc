@@ -72,7 +72,7 @@ ActorSideOfPlayer:
 ; doubles in scratch; x - player's x + half-width is below the width
 ; (unsigned) when within it across; the same for y, tested only when x
 ; passes.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the box's byte
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; Y = the box's byte
 ; offset. Exit: C clear when inside; A = the last sum (16 bits); N, Z, C
 ; from its compare; scratch $0C-$13 = half-width, width, half-height,
 ; height; M 8-bit; X, Y, V unchanged.
@@ -109,7 +109,7 @@ ActorNearPlayer:
 ; actor across, whatever the height.
 ; HOW: Takes span Y's half-width and keeps it and its double in scratch;
 ; x - player's x + half-width is below the width (unsigned) when within.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the span's byte
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; Y = the span's byte
 ; offset. Exit: C clear when within; A = the sum (16 bits); N, Z, C from
 ; its compare; scratch $0C-$0F = half-width, width; M 8-bit; X, Y, V
 ; unchanged.
@@ -163,7 +163,7 @@ ActorNearPlayerY:
 ; doubles in scratch; the actor's x - the point's x + half-width is below
 ; the width (unsigned) when within it across; the same for y, tested only
 ; when x passes.
-; Entry: M 16-bit; D = the actor; DB = $81; Y = the box's byte offset;
+; Entry: M 16-bit; D = the actor; DB = $80; Y = the box's byte offset;
 ; $14, $16 = the point (words); called by JSL. Exit: C clear when inside;
 ; A = the last sum; N, Z, C from its compare; scratch $0C-$13 =
 ; half-width, width, half-height, height; M 16-bit; X, Y, V unchanged.
@@ -201,7 +201,7 @@ ActorNearPoint:
 ; which is larger (+1 up or down); the step in it from the smaller against
 ; the larger (under 1/8, 3/8, 5/8, 7/8 of it, else 4, the larger / 8 kept
 ; at $0E); the table's byte at the octant * 8 + the step.
-; Entry: M 16-bit, X 16-bit; D = the actor; DB = $81; $10, $12 = the point
+; Entry: M 16-bit, X 16-bit; D = the actor; DB = $80; $10, $12 = the point
 ; (words); called by JSL. Exit: M and X 8-bit; A low byte = the direction;
 ; X = the table offset, Y = the octant (low bytes); scratch $0C = the
 ; octant * 8, $0E = the larger difference / 8.

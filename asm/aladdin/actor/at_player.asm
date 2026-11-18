@@ -44,7 +44,7 @@ ActorAtPlayerEnd:
 ; HOW: ActorAtPlayer; $11 = $FF; facing and flip = his flip ($08F0).
 ; Each frame: ActorAtPlayer, BRK, then player_box_wanted compared with 3,
 ; 6 and $12; on a match ActorEnd (by the JML after ActorAtPlayer).
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for kind $12 in state $0C (the table at
 ; $83:8CAB, through the stub at $83:921A). Exit: never returns.
 %at($81EBDE)

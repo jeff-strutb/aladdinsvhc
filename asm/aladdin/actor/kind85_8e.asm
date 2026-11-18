@@ -54,7 +54,7 @@ Kind85Start:
 ; ActorCreateChild8 with A = its kind ($06), K8E_FRAMES 2, two frames of
 ; BRK, ActorMoveByVector with X = $20 and the facing written back;
 ; K8E_COPIES down; ActorEndPlaced.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for kind $8E in state $0C (the table at $83:8DAB,
 ; through the stub at $83:9351). Exit: never returns; ends in
 ; ActorEndPlaced.

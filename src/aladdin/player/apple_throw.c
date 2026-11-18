@@ -36,7 +36,7 @@ void abi_SoundQueueAdd(void);
  * his flip is 0), THROW_Y (taken from his y) and THROW_COURSE (its $07);
  * kind $10. APPLES down by one in decimal (a low digit 0 takes 7 off);
  * SoundQueueAdd 3; V_141C zero: ActorStopX. C set.
- * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; called by
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by
  * JSR from the player's code. Exit: M 8-bit, X 8-bit; C set when thrown,
  * clear when not.
  */

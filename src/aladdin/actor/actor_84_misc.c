@@ -58,7 +58,7 @@ void abi_PlayerClampAboveFloor(void);
  * spawner's $44; the child's $4C word = the spawner's record (D); the
  * spawner's $42 up.
  * Entry: M 8-bit, X 8-bit; A = the byte for the child's $07 sum; D = the
- * spawner; DB = $81; called by JSR. Exit: M 8-bit, X 8-bit; spawned: X =
+ * spawner; DB = $80; called by JSR. Exit: M 8-bit, X 8-bit; spawned: X =
  * the child's low byte; else as ActorSpawn.
  */
 void abi_ActorSpawnA2(void)
@@ -130,7 +130,7 @@ void abi_ActorAnimFreeFar(void)
  * $0B-$10) copied from the record before; its direction ($42 and $1FF) in
  * Y and the step in A (0 or negative taken as 1); ActorMoveAlong. D kept
  * on the stack.
- * Entry: M 8-bit, X 8-bit; DB = $81; called by JSR. Exit: M 8-bit, X
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: M 8-bit, X
  * 8-bit; D as at entry.
  */
 void abi_ActorsFollowSteps(void)

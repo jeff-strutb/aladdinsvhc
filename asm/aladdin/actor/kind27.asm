@@ -45,7 +45,7 @@ arch 65816
 ; ActorEndPlaced. Bit 4: ACTOR_08 bit 0 set (TSB); AnimStart $0D; COP
 ; with its $40; ActorEndPlaced. Neither: on at Kind27Waiter. No script
 ; runs bit 3: written from its bytes.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81 (the speed
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80 (the speed
 ; table's bank); reached by the actor loop's jump for kind $27 in state
 ; $0C (the table at $83:8CAB). Exit: never returns.
 %at($839E3A)

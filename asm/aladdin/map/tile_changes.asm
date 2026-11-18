@@ -270,7 +270,7 @@ PointOffsetAt:
 ; to its quarters; a change inside the box queues its four quarters
 ; (TileChangeQueueQuarter). Then the queue empties, and the NMI's write is
 ; requested when anything was queued.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: M and X 8-bit;
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSL. Exit: M and X 8-bit;
 ; D as at entry, N and Z from it (PLD); no changes: as at entry, A low
 ; byte = 0.
 %at($819999)

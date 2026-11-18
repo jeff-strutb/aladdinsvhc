@@ -65,7 +65,7 @@ void abi_ActorSpawnSharedAt(void)
  * HOW: ActorAlloc; the child's hit box, state $0C (new), ActorSpawnPlace;
  * its facing and flip from X, its $07 from Y.
  * Entry: M 8-bit, X 8-bit; A low byte = the hit box; X = the facing; Y =
- * the child's $07; D = the spawner; DB = $81; called by JSL. Exit: none
+ * the child's $07; D = the spawner; DB = $80; called by JSL. Exit: none
  * free: as ActorAlloc (N set). Started: M 8-bit, X 16-bit, X = the child;
  * Z set (SEP #$22); A low byte = Y at entry.
  */

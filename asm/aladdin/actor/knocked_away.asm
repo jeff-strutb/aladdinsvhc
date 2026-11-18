@@ -24,7 +24,7 @@ arch 65816
 ; ActorMotionPreset Y; SoundQueueAdd X; its facing and flip Aladdin's
 ; flip with bit 0 turned; STEPS 16 frames (BRK) of AnimStep and
 ; ActorPictureSend; then fly_off.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; A = the
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; A = the
 ; animation, X = the sound, Y = the preset; reached by a kind's jump.
 ; Exit: never returns.
 %at($839532)
@@ -76,7 +76,7 @@ ActorKnockedAway:
 ; HOW: Y kept on the stack; ANIM_AT = X; AnimResume, ActorPictureSend;
 ; ActorMotionPreset Y; COP 5; then fly_off (into ActorKnockedAway's
 ; flight).
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; A = the
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; A = the
 ; animation, X its frame, Y the preset; reached by a kind's jump.
 ; Exit: never returns.
 ActorKnockedAwayResumed:
@@ -120,7 +120,7 @@ ActorKnockedAwayResumedB:
 ; negative: A 4, X $0F, Y 3, on to ActorKnockedAway. Else facing = its
 ; bit 0, flip the other; SoundQueueAdd 7; A 4, X 3, Y $4C,
 ; ActorKnockedAwayResumed.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for kind $20 in a state with bit 7 set (the table
 ; at $83:8DFD). Exit: never returns.
 %at($839C19)

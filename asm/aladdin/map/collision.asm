@@ -103,7 +103,7 @@ ProbeRight_y:
 ; WHAT IT DOES: Says whether the ground is at the probe point in front of
 ; the actor, the way it faces.
 ; HOW: Facing right, GroundRight; facing left, GroundLeft.
-; Entry: M 8-bit; D = the actor; DB = $81; called by JSR. Exit: as
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSR. Exit: as
 ; PointInGround.
 %at($81B79F)
 GroundInFront:
@@ -113,7 +113,7 @@ GroundInFront:
 ; WHAT IT DOES: Says whether the ground is at the probe point to the
 ; actor's right.
 ; HOW: ProbeRight, then PointInGround.
-; Entry: X 8-bit; D = the actor; DB = $81; called by JSR. Exit: as
+; Entry: X 8-bit; D = the actor; DB = $80; called by JSR. Exit: as
 ; PointInGround.
 GroundRight:
     jsr.w ProbeRight
@@ -123,7 +123,7 @@ GroundRight:
 ; WHAT IT DOES: Says whether the ground is at the probe point to the
 ; actor's left.
 ; HOW: ProbeLeft, then PointInGround.
-; Entry: X 8-bit; D = the actor; DB = $81; called by JSR. Exit: as
+; Entry: X 8-bit; D = the actor; DB = $80; called by JSR. Exit: as
 ; PointInGround.
 GroundLeft:
     jsr.w ProbeLeft
@@ -134,7 +134,7 @@ GroundLeft:
 ; actor.
 ; HOW: Its flip clear (facing left), GroundRight; set (facing right),
 ; GroundLeft.
-; Entry: M 8-bit; D = the actor; DB = $81; called by JSR. Exit: as
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSR. Exit: as
 ; PointInGround.
 GroundBehind:
     lda.b !actor_flip
@@ -164,7 +164,7 @@ GroundLeftLong:
 ; @routine 81:B7C3 ActorInGround
 ; WHAT IT DOES: Says whether the actor's own position is in the ground.
 ; HOW: The point = the actor's x and y; then PointInGroundLong.
-; Entry: D = the actor; DB = $81; called by JSL. Exit: as PointInGround.
+; Entry: D = the actor; DB = $80; called by JSL. Exit: as PointInGround.
 ActorInGround:
     rep.b #$30
     lda.b !actor_x+1
@@ -174,7 +174,7 @@ ActorInGround:
 ; @routine 81:B7CF PointInGroundLong
 ; WHAT IT DOES: PointInGround for callers in other banks.
 ; HOW: 16-bit registers, then PointInGround.
-; Entry: D = the actor; DB = $81; called by JSL. Exit: as PointInGround.
+; Entry: D = the actor; DB = $80; called by JSL. Exit: as PointInGround.
 PointInGroundLong:
     rep.b #$30
     jsr.w PointInGround
@@ -186,7 +186,7 @@ PointInGroundLong:
 ; HOW: TileAt; an empty tile (kind 0) or kind with bit 7 is not ground; a
 ; solid tile (kind 1) is; otherwise the point is in it when at or below
 ; the surface (SurfaceHeight).
-; Entry: M 16-bit, X 16-bit; D = the actor; DB = $81; called by JSR.
+; Entry: M 16-bit, X 16-bit; D = the actor; DB = $80; called by JSR.
 ; Exit: M and X 8-bit; C as above; not ground or solid: A and N, Z as
 ; TileAt leaves them (solid: Z set); else A = the point's y (16 bits), N,
 ; Z from its compare with the surface.
@@ -265,7 +265,7 @@ TileAtProbeLong:
 ; @routine 81:B82F TileAtProbe
 ; WHAT IT DOES: The map tile at the probe point, from 8-bit code.
 ; HOW: 16-bit registers, then TileAt.
-; Entry: D = the actor; DB = $81; called by JSR. Exit: as TileAt.
+; Entry: D = the actor; DB = $80; called by JSR. Exit: as TileAt.
 TileAtProbe:
     rep.b #$30
 ; @routine 81:B831 TileAt
@@ -275,7 +275,7 @@ TileAtProbe:
 ; one, place it in the 32-wide screen map) gives the screen's tiles
 ; offset, a negative one taken as 0; the point's 16-pixel tile place in the
 ; screen; the tile's top y kept as the surface; then TileAtPlace.
-; Entry: M 16-bit, X 16-bit; D = the actor; DB = $81; called by JSR.
+; Entry: M 16-bit, X 16-bit; D = the actor; DB = $80; called by JSR.
 ; Exit: as TileAtPlace, or as ProbeOnView off the view.
 TileAt:
     jsr.w ProbeOnView
@@ -323,7 +323,7 @@ TileAt:
 ; level's tiles; the tile number (word / 8) indexes the behaviour table;
 ; the behaviour's bit 7 is kept as mirrored, its low 3 bits pick the kind.
 ; Entry: M 16-bit, X 16-bit; A = the tile's place (byte offset in the
-; screen); DB = $81; called by JSR. Exit: M and X 8-bit; A low byte = X =
+; screen); DB = $80; called by JSR. Exit: M and X 8-bit; A low byte = X =
 ; the kind; N, Z from it; C = bit 2 of the tile word; Y, V unchanged.
 TileAtPlace:
     clc
@@ -369,7 +369,7 @@ SurfaceHeightSolid:
 ; place past the screen's top takes the screen above's tiles; then
 ; TileAtPlace: an empty tile above returns Z set; else SurfaceHeight with
 ; its kind.
-; Entry: M 8-bit, X 8-bit; A = X = the kind; DB = $81; called by JSR.
+; Entry: M 8-bit, X 8-bit; A = X = the kind; DB = $80; called by JSR.
 ; Exit: as SurfaceHeight; or, the tile above empty, A low byte = X = 0,
 ; Z set, M and X 8-bit.
 SurfaceHeightOver:
@@ -462,7 +462,7 @@ SurfaceHeight:
 ; probes $0C, 8 and 4 until one moves it.
 ; HOW: ActorOutOfWall at probes $0C and 8 while it returns C clear, then
 ; ActorOutOfWallProbe4.
-; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as the
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSL. Exit: as the
 ; last ActorOutOfWall.
 %at($81B59F)
 ActorOutOfWalls:
@@ -475,7 +475,7 @@ ActorOutOfWalls:
 ; @routine 81:B5AD ActorOutOfWallProbe4
 ; WHAT IT DOES: Moves the actor out of a wall at probe 4 in front of it.
 ; HOW: ActorOutOfWall at probe 4.
-; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSL. Exit: as
 ; ActorOutOfWall.
 ActorOutOfWallProbe4:
     lda.b #4
@@ -487,7 +487,7 @@ ActorOutOfWallProbe4:
 ; WHAT IT DOES: Tests the ground behind the actor at probes $10 and then
 ; $14, until a tile with behaviour bit 3.
 ; HOW: GroundBehind at probe $10; without bit 3, again at probe $14.
-; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSL. Exit: as
 ; GroundBehind, but A low byte = the last tile's behaviour bit 3, N, Z
 ; from it.
 GroundBehindBit3:
@@ -511,7 +511,7 @@ GroundBehindBit3:
 ; behaviour's bit 4 into bit 5 when it is set.
 ; HOW: GroundBehind; then the behaviour byte, when bit 4 is set, shifts
 ; left.
-; Entry: M 8-bit; D = the actor; DB = $81; called by JSL. Exit: as
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSL. Exit: as
 ; GroundBehind, but A low byte = the behaviour's bit 4 and N, Z from it;
 ; C its bit 7 when shifted.
 %at($81B5F6)
@@ -587,7 +587,7 @@ ActorOutOfWall:
 ; actor's own x at that y: when it is ground, the vertical speed is
 ; cleared and y moves down to the next tile boundary (16 less the
 ; point's y in the tile).
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSL.
 ; Exit: M 8-bit; X as the last test leaves it (8-bit, or 16-bit when the
 ; point was above the top). Above the top or a pass-through or kind with
 ; bit 7: A low byte = 0, Z set. Settled: A = the new y (16 bits); N, V, Z,
@@ -706,7 +706,7 @@ ActorSnapToGround5:
 ; actor's x (the tile above for a solid tile), then to its left and right
 ; (a solid tile flat at its top); the first ground found moves the y by
 ; the surface less the point's y. With none, the kept y comes back.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSL.
 ; Exit: M and X 8-bit; on ground: C set, A = the new y (16 bits), N, V, Z
 ; from its ADC; none: Z set, A = the kept y (16 bits), N as it, C as the
 ; last test left it.
@@ -772,7 +772,7 @@ ActorSnapToGround:
 ; the raised y is kept in scratch $2A, and the actor tested at 15 pixels
 ; above it: ground there with its surface above the point lowers the kept
 ; y by the difference. The actor takes the kept y.
-; Entry: X 8-bit; D = the actor; DB = $81; called by JSL. Exit: M and X
+; Entry: X 8-bit; D = the actor; DB = $80; called by JSL. Exit: M and X
 ; 8-bit; no tile, or the point above the surface: Z set; raised: A = the
 ; new y (16 bits), N, Z from it, C as the last test left it.
 %at($81B4F3)
@@ -838,7 +838,7 @@ ActorOutOfGround:
 ; WHAT IT DOES: Says whether the player stands on firm ground at probe 8:
 ; C set when the ground to its left or right is solid and not soft.
 ; HOW: PlayerOnFirmGround's test with the probe offset 8.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: as
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSL. Exit: as
 ; PlayerOnFirmGround.
 %at($81B74E)
 PlayerOnFirmGroundProbe8:
@@ -851,7 +851,7 @@ PlayerOnFirmGroundProbe8:
 ; HOW: With the player's record as the direct page (its own kept on the
 ; stack): GroundLeft at probe 0, its behaviour not $20 or $40 and its
 ; kind not soft; else the same at GroundRight (behaviour not $40).
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: D as at entry,
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSL. Exit: D as at entry,
 ; N and Z from it (PLD); C as above; M and X 8-bit; A, X, Y as the last
 ; test left them.
 %at($81B756)
@@ -862,7 +862,7 @@ PlayerOnFirmGround:
 ; WHAT IT DOES: Says whether the player stands on firm ground at probe 4:
 ; C set when the ground to its left or right is solid and not soft.
 ; HOW: PlayerOnFirmGround's test with the probe offset 4.
-; Entry: M 8-bit, X 8-bit; DB = $81; called by JSL. Exit: as
+; Entry: M 8-bit, X 8-bit; DB = $80; called by JSL. Exit: as
 ; PlayerOnFirmGround.
 PlayerOnFirmGroundProbe4:
     ldx.b #4

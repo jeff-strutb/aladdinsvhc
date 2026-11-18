@@ -103,7 +103,7 @@ ActorLedgeAbove:
 ; on a random pick (list $4C); then ActorLedgeAbove (96 below, 5 probes,
 ; 32 ahead); found: code word $E6A0, return dropped, ActorMotionPreset
 ; $83.
-; Entry: M 16-bit, X 8-bit; D = the guard; DB = $81; called by JSR from
+; Entry: M 16-bit, X 8-bit; D = the guard; DB = $80; called by JSR from
 ; GuardChase. Exit: jumping: to GuardChase's caller, M 8-bit; else M
 ; 16-bit and C set, or C as the compare left it.
 %at($A5F19D)
@@ -208,7 +208,7 @@ GuardLedgeJump:
 ; clear: code word $E794, $146B = $40, and back. Each new speed: code word
 ; $E5E8 and $146B = 2 (once), the speed's high byte cleared, the facing
 ; (and flip) toward the player.
-; Entry: M 16-bit, X 8-bit; D = the guard; DB = $81; called by JSR. Exit:
+; Entry: M 16-bit, X 8-bit; D = the guard; DB = $80; called by JSR. Exit:
 ; as GuardLedgeJump when it jumps; else M 8-bit when the facing was set, M
 ; 16-bit otherwise.
 %at($A5F0F4)

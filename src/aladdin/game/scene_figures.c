@@ -187,7 +187,7 @@ static void ride_bobbing_to(uint32_t brk_at, uint8_t screen)
  * PLAY_SCREEN is 12; then on at ENDING_RIDE_ON, which no script reaches
  * yet: its C is not written, and it runs as the original's
  * (jump_routine).
- * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
  * the jump through the player's start table by $07 at $81:CB61 (81:CB56).
  * Exit: never returns.
  */

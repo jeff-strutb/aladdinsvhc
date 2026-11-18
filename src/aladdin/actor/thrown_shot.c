@@ -80,7 +80,7 @@ static int shot_gone(void)
  * AnimStep, ActorMove; after 2 frames bit 7 of $08 cleared; ActorInGround
  * with C set and bit 6 of V_0012 clear: Spawn13AtYLong at its own record
  * (Y = D), then ActorEnd.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for kinds $10, $14-$17 in state $0C (through the
  * stub at $83:920E). Exit: never returns; ends in ActorEnd.
  */
@@ -150,7 +150,7 @@ void abi_ShotFly(void)
  * HOW: BRK; SoundQueueAdd 8; bit 7 of $08 set; ActorAllocBLong; a record
  * (N clear): state $0C, kind $11, $07 0, $08 $80, its x and y pixels; then
  * (also with none) ActorEnd, M and X 8-bit.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for kind $10 in state $4C and kind $B9 in state
  * $0C (through the stub at $83:9212). Exit: never returns; ends in
  * ActorEnd.

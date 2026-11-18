@@ -62,7 +62,7 @@ static void choice_place(uint16_t index)
  * HOW: MenuMarkErase at the tilemap offset of choice MENU_CHOICE_WAS
  * (from the table MENU_CHOICE_PLACES, by twice the choice), MenuMarkDraw
  * at that of MENU_CHOICE, with 16-bit X.
- * Entry: M 8-bit, X 8-bit; DB = $81, the table's bank; called by JSL
+ * Entry: M 8-bit, X 8-bit; DB = $80, the table's bank; called by JSL
  * (81:EDD1, 80:9F42). Exit: M 8-bit, X 8-bit; P otherwise as MenuMarkDraw
  * leaves it; A = $2014; Y = twice the choice.
  */

@@ -56,7 +56,7 @@ static void bounced(void)
  * ActorPictureSend. At 0: ACTOR_09 bit 7 set (TSB), Kind20Halt. No script
  * runs the fall, a bounce, a shot or PLACE bit 4: written from their
  * bytes.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for kind $20 through the entry at $83:90E1.
  * Exit: never returns.
  */

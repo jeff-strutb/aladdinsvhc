@@ -50,7 +50,7 @@ void abi_ActorAtPlayer(void)
  * Each frame: ActorAtPlayer, BRK, then PLAYER_BOX_WANTED compared with 3,
  * 6 and $12; on a match ActorEnd (by the JML after ActorAtPlayer, at
  * $81:EC1F).
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for kind $12 in state $0C (the table at
  * $83:8CAB, through the stub at $83:921A). Exit: never returns.
  */

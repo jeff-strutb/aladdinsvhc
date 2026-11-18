@@ -53,7 +53,7 @@ ActorMotionReset:
 ; a jump or a throw's arc.
 ; HOW: Copies the horizontal speed's three bytes from the preset tables,
 ; fraction first, then goes on into ActorMotionPresetY.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the preset.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; Y = the preset.
 ; Exit: as ActorMotionPresetY.
 ActorMotionPreset:
     lda.w !motion_preset_speed_x_frac,y
@@ -67,7 +67,7 @@ ActorMotionPreset:
 ; preset Y.
 ; HOW: Copies the vertical speed's three bytes and the gravity from the
 ; preset tables, fraction first.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the preset.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; Y = the preset.
 ; Exit: A low byte = the gravity; N, Z from it; X, Y, C, V unchanged.
 ActorMotionPresetY:
     lda.w !motion_preset_speed_y_frac,y
@@ -84,7 +84,7 @@ ActorMotionPresetY:
 ; WHAT IT DOES: Sets the actor's horizontal acceleration to A and its
 ; horizontal speed from the speed table.
 ; HOW: Stores A as the acceleration, then goes on into ActorSpeedXSet.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; A low byte = the
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; A low byte = the
 ; acceleration; Y = the entry's offset. Exit: as ActorSpeedXSet.
 %at($81A411)
 ActorSpeedXSetAccel:
@@ -92,7 +92,7 @@ ActorSpeedXSetAccel:
 ; @routine 81:A413 ActorSpeedXSet
 ; WHAT IT DOES: Sets the actor's horizontal speed from the speed table.
 ; HOW: Copies the three bytes of the entry at byte offset Y.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the entry's offset.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; Y = the entry's offset.
 ; Exit: A low byte = the speed's high byte; N, Z from it; X, Y, C, V
 ; unchanged.
 ActorSpeedXSet:
@@ -108,14 +108,14 @@ ActorSpeedXSet:
 ; WHAT IT DOES: Sets the actor's gravity to A and its vertical speed from
 ; the speed table.
 ; HOW: Stores A as the gravity, then goes on into ActorSpeedYSet.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; A low byte = the
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; A low byte = the
 ; gravity; Y = the entry's offset. Exit: as ActorSpeedYSet.
 ActorSpeedYSetGravity:
     sta.b !actor_accel_y
 ; @routine 81:A425 ActorSpeedYSet
 ; WHAT IT DOES: Sets the actor's vertical speed from the speed table.
 ; HOW: Copies the three bytes of the entry at byte offset Y.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; Y = the entry's offset.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; Y = the entry's offset.
 ; Exit: A low byte = the speed's high byte; N, Z from it; X, Y, C, V
 ; unchanged.
 ActorSpeedYSet:

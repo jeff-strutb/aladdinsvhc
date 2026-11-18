@@ -62,7 +62,7 @@ static void jsl_call(uint32_t site, void (*fn)(void))
  * ActorMoveByVector with set GOTO_SPEED; BRK; the point to scratch
  * $14/$16, ActorNearPoint with box $20; outside (C set), again. GOTO_BACK
  * pushed back, M and X 8-bit, RTS.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; called by
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
  * JSR (from $83:AE90 and $83:AECF). Exit: M and X 8-bit; A = GOTO_BACK; C
  * clear; Y as ActorNearPoint leaves it.
  */

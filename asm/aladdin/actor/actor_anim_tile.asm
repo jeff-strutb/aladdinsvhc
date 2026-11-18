@@ -25,7 +25,7 @@ arch 65816
 ; ActorAnimChange 0. Else the speed less $1C0 at $002C: outside -16 to 15,
 ; 1 when its high byte is negative, else 2; inside, nothing when the
 ; animation ($2D) is 4 or 2, else 1.
-; Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSR. Exit:
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR. Exit:
 ; as ActorAnimChange, or M 8-bit.
 %at($A5E9D2)
 ActorAnimByTile:
