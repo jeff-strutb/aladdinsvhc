@@ -1,0 +1,17 @@
+# Window effect 10 (HdmaEffect10, $82:84CB) in stage a1 s1: its window's
+# left x is $0E78 less the layer's x ($1773) less BG1_X_SHIFT; from $F0 to
+# $FF the right edge it adds 16 to overflows and is held at $FF
+# ($82:8543). Play keeps the camera far left of $0E78 there (the state
+# has it at $0100). The camera set to $0D80 before each of four frames
+# puts the window at x $F8 (BG1_X_SHIFT 0 in this state).
+load build/aladdin/states/stage_a1_s1.state
+wait 2
+poke 001773 80,0D
+wait 1
+poke 001773 80,0D
+wait 1
+poke 001773 80,0D
+wait 1
+poke 001773 80,0D
+wait 1
+wait 20
