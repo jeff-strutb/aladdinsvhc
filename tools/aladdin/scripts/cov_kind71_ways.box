@@ -1,0 +1,19 @@
+# Actor kind $71 (83:F370), which no level's placements hold, by its three
+# ways: in stage a3 s1 the three records at the top of the free stack (its
+# top offset $15E4 lowered from $34 to $2E, so no other spawn takes them)
+# made kind $71 and started (state $0C last): $07 $01 stays and shows
+# animations 1 and 0 (83:F3A7), $07 $10 steps back and moves right
+# (83:F382), $07 $08 paces (83:F3C5).
+load build/aladdin/states/stage_a3_s1.state
+wait 10
+poke 0015E4 2E
+poke 000BB1 71,01
+poke 000BB6 00,00,01,00,60,00
+poke 000BAB 0C
+poke 000C01 71,10
+poke 000C06 00,80,02,00,60,00
+poke 000BFB 0C
+poke 000C51 71,08
+poke 000C56 00,C0,00,00,60,00
+poke 000C4B 0C
+wait 900
