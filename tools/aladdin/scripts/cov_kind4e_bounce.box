@@ -1,0 +1,22 @@
+# Actor kind $4E ($83:CFA9, its wait $83:CFF8), placed only in stage a5 s0
+# (level $0E, at x $0A70-$0CC0), where no other script goes. The view is
+# moved to x $0D00 with the placing point ($1BEF) set to x $0B00 and its
+# column bands ($1BEB, $1BED: the point's band + 9 and - 2) to match, so
+# the placing sweep up to the view places only columns $62-$71 (x
+# $0C40-$0E3F): the kind $4E at x $0CC0, y $0148, and none of kind $86
+# (x $09A0-$0B62), whose wait at $83:9303 has no C yet. Aladdin dropped
+# onto it from $48 above: he bounces off it, its wait sets its resume
+# address to $83:CFC1 (Kind4EBounced), and it squashes and springs back,
+# then rests.
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001BEB 61,00,56
+poke 001BEF 00,0B
+poke 001773 00,0D
+poke 0019E5 00,0D
+poke 0008E7 40,0D
+poke 0008EA 00,01
+wait 100
+poke 0008E7 C0,0C
+poke 0008EA 00,01
+wait 300
