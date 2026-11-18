@@ -1,6 +1,6 @@
 /*
- * backdrop_actor.c: pieces of the actor of kind $6E (its start at
- * $83:F09C, its wait routine at $83:F1D5), drawn as the picture of the
+ * backdrop_actor.c: the actor of kind $6E (its start, Kind6EStart, its
+ * wait routine at $83:F1D5 and its pieces), drawn as the picture of the
  * backdrop layer, not as sprites: it moves right 3 pixels a frame, its
  * picture's frames are uploads cycled from a table, and the backdrop is
  * shown, scrolled to put the picture where the actor is, only while it is
@@ -30,6 +30,292 @@
 #define TM_SHADOW 0x000399u        /* TM's shadow: the main screen's layers */
 #define LAYERS_WITH_BACKDROP 0x17  /* BG1, BG2, BG3 and sprites */
 #define LAYERS_NO_BACKDROP 0x15    /* BG1, BG3 and sprites */
+
+#define K6E_STEP 0x40u          /* the spawner's offset in K6E_SPAWNS; else frames left of a stretch */
+#define K6E_COPIER 0x4Au        /* set when the copier checks found one */
+#define K6E_SOUND_TIME 0x48u    /* frames to Kind6EWait's next sound */
+#define K6E_QUIET 0x49u         /* nonzero: Kind6EWait sounds no more */
+#define K6E_RAMP 0x43u          /* its gravity ramp (word; the high byte is the gravity) */
+#define K6E_PAIRS_AT 0x47u      /* its offset in K6E_PAIRS */
+#define K6E_CHILD_SLOT 0x21u    /* the slot byte its children are made with */
+#define K6E_SPAWNS 0xD687u      /* (data bank) 4 bytes a child: scroll x (word), $07, slot */
+#define K6E_MOTIONS 0xD69Cu     /* (data bank) by $07: its motion preset */
+#define K6E_PAIRS 0xD69Fu       /* (data bank) decelerate's step, then frames of speeding up; 0 ends */
+#define K6E_18CA 0x18CAu
+#define K6E_0834 0x0834u
+#define K6E_083D 0x083Du        /* $10 when a copier was found */
+#define K6E_SCROLL_X 0x1773u    /* the play field's scroll x (word) */
+#define K6E_RANGE_X 0x1A44u
+#define K6E_RANGE_Y 0x1A46u
+#define K6E_TM_SHADOW 0x0399u
+
+void abi_ActorAccelerateX(void);
+void abi_ActorDecelerateX(void);
+void abi_ActorEndPlaced(void);
+void abi_ActorFly(void);
+void abi_ActorMotionPreset(void);
+void abi_ActorMoveX(void);
+void abi_ActorSpawnShared(void);
+void abi_ActorSpeedXSet(void);
+void abi_ActorStepRight3(void);
+void abi_SoundQueueAdd(void);
+
+/* $07 0 ($83:F058): makes a child each time the scroll passes the list's
+   next point; never ends. */
+static void k6e_spawner(void)
+{
+    stz8(ea_dp(ACTOR_FLIP));
+    stz8(ea_dp(K6E_STEP));
+    lda8_v(0x01);
+    sta8(ea_abs(K6E_18CA));
+    lda8_v(0x01);
+    sta8(ea_abs(K6E_0834));
+    op_rep(0x20);
+    for (;;) {
+        actor_yield(0x83F068u);
+        ldx8(ea_dp(K6E_STEP));
+        lda16(ea_abs(K6E_SCROLL_X));
+        cmp16_v(rd16(ea_absx(K6E_SPAWNS)));
+        if (!IF_C)
+            continue;
+        lda16(ea_abs(K6E_RANGE_X));
+        sta16(ea_dp(ACTOR_X + 1));
+        lda16(ea_abs(K6E_RANGE_Y));
+        sta16(ea_dp(ACTOR_Y + 1));
+        op_sep(0x20);
+        lda8(ea_absx(K6E_SPAWNS + 2));
+        sta8(ea_dp(ACTOR_07));
+        lda8(ea_absx(K6E_SPAWNS + 3));
+        sta8(ea_dp(K6E_CHILD_SLOT));
+        phx8();
+        lda8_v(0x6E);
+        abi_ActorSpawnShared();
+        plx8();
+        inx8();
+        inx8();
+        inx8();
+        inx8();
+        stx8(ea_dp(K6E_STEP));
+        op_rep(0x20);
+    }
+}
+
+/* $07 1 and 2 ($83:F09C): rises, glides right, then speeds off right. */
+static void k6e_flyer(void)
+{
+    stz8(ea_dp(K6E_COPIER));
+    phb();
+    lda8_v(0x80);
+    pha8();
+    plb();
+    ldy8(ea_abs(0xA000));
+    ldx8(ea_abs(0xA001));
+    lda8_v(0x00);
+    pha8();
+    plb();
+    cpy8_v(rd8(ea_abs(0xA000)));
+    if (!IF_Z)
+        goto copier;
+    cpx8_v(rd8(ea_abs(0xA001)));
+    if (!IF_Z)
+        goto copier;
+    ldx8_v(0x20);
+    sec();
+    lda8_v(0x90);
+    sbc8_v(0x20);
+    pha8();
+    plb();
+    lda8_v(0x23);
+    sta8(ea_absx(0x0000));
+    cmp8_v(rd8(ea_absx(0x0000)));
+    if (!IF_Z)
+        goto cart;
+    lda8_v(0x23);
+    sta8(ea_absx(0x0020));
+    cmp8_v(rd8(ea_absx(0x0020)));
+    if (!IF_Z)
+        goto cart;
+copier:
+    plb();
+    MEM8(inc, ea_dp(K6E_COPIER));
+    goto fly;
+cart:
+    plb();
+fly:
+    stz8(ea_dp(PICTURE_AT));
+    stz8(ea_dp(PICTURE_TIME));
+    lda8_v(0x80);
+    sta8(ea_dp(ACTOR_09));
+    lda8_v(0x2A);
+    abi_SoundQueueAdd();
+    lda8_v(0x9D);
+    sta8(ea_dp(K6E_SOUND_TIME));
+    stz8(ea_dp(K6E_QUIET));
+    ldx8(ea_dp(ACTOR_07));
+    ldy8(ea_absx(K6E_MOTIONS));
+    abi_ActorMotionPreset();
+    do {
+        actor_yield(0x83F0F7u);
+        abi_ActorFly();
+        abi_ActorStepRight3();
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+    } while (IF_N);
+    lda8_v(0x30);
+    sta8(ea_dp(K6E_STEP));
+    do {
+        actor_yield(0x83F108u);
+        abi_ActorStepRight3();
+        MEM8(dec, ea_dp(K6E_STEP));
+    } while (!IF_Z);
+    lda8(ea_dp(K6E_COPIER));
+    if (!IF_Z) {
+        lda8_v(0x10);
+        sta8(ea_abs(K6E_083D));
+    }
+    MEM8(inc, ea_dp(K6E_QUIET));
+    lda8_v(0x2B);
+    abi_SoundQueueAdd();
+    stz8(ea_dp(ACTOR_SPEED_X));
+    stz8(ea_dp(ACTOR_SPEED_X + 1));
+    stz8(ea_dp(ACTOR_SPEED_X + 2));
+    stz8(ea_dp(K6E_RAMP));
+    stz8(ea_dp(K6E_RAMP + 1));
+    lda8_v(0x10);
+    sta8(ea_dp(ACTOR_ACCEL_X));
+    do {
+        actor_yield(0x83F130u);
+        abi_ActorAccelerateX();
+        op_rep(0x20);
+        lda16_v(0x0200);
+        cmp16_v(rd16(ea_dp(ACTOR_SPEED_X)));
+        if (!IF_C)
+            sta16(ea_dp(ACTOR_SPEED_X));
+        clc();
+        lda16(ea_dp(K6E_RAMP));
+        adc16_v(0x0080);
+        sta16(ea_dp(K6E_RAMP));
+        lda16_v(0x3000);
+        cmp16_v(rd16(ea_dp(K6E_RAMP)));
+        if (!IF_C)
+            sta16(ea_dp(K6E_RAMP));
+        op_sep(0x20);
+        lda8(ea_dp(K6E_RAMP + 1));
+        sta8(ea_dp(ACTOR_ACCEL_Y));
+        abi_ActorFly();
+        abi_ActorStepRight3();
+        lda8(ea_abs(K6E_TM_SHADOW));
+        cmp8_v(0x15);
+    } while (!IF_Z);
+    abi_ActorEndPlaced();
+}
+
+/* $07 3 ($83:F169): slows and speeds by the pairs of its list, turning
+   each time; at the list's 0, a sound and it ends. */
+static void k6e_pairs(void)
+{
+    stz8(ea_dp(PICTURE_AT));
+    stz8(ea_dp(PICTURE_TIME));
+    stz8(ea_dp(K6E_PAIRS_AT));
+    lda8_v(0x2A);
+    abi_SoundQueueAdd();
+    lda8_v(0x9D);
+    sta8(ea_dp(K6E_SOUND_TIME));
+    stz8(ea_dp(K6E_QUIET));
+    lda8_v(0x80);
+    sta8(ea_dp(ACTOR_09));
+    stz8(ea_dp(ACTOR_FACING));
+    ldy8_v(0x45);
+    abi_ActorSpeedXSet();
+    do {
+        ldx8(ea_dp(K6E_PAIRS_AT));
+        lda8(ea_absx(K6E_PAIRS));
+        sta8(ea_dp(ACTOR_ACCEL_X));
+        MEM8(inc, ea_dp(K6E_PAIRS_AT));
+        do {
+            actor_yield(0x83F190u);
+            abi_ActorDecelerateX();
+            abi_ActorMoveX();
+            abi_ActorStepRight3();
+            lda8(ea_dp(ACTOR_SPEED_X));
+            ora8_v(rd8(ea_dp(ACTOR_SPEED_X + 1)));
+            ora8_v(rd8(ea_dp(ACTOR_SPEED_X + 2)));
+        } while (!IF_Z);
+        lda8(ea_dp(ACTOR_FACING));
+        eor8_v(0x01);
+        sta8(ea_dp(ACTOR_FACING));
+        ldx8(ea_dp(K6E_PAIRS_AT));
+        lda8(ea_absx(K6E_PAIRS));
+        sta8(ea_dp(K6E_STEP));
+        MEM8(inc, ea_dp(K6E_PAIRS_AT));
+        do {
+            actor_yield(0x83F1B4u);
+            abi_ActorAccelerateX();
+            abi_ActorMoveX();
+            abi_ActorStepRight3();
+            MEM8(dec, ea_dp(K6E_STEP));
+        } while (!IF_Z);
+        ldx8(ea_dp(K6E_PAIRS_AT));
+        lda8(ea_absx(K6E_PAIRS + 1));
+    } while (!IF_Z);
+    lda8_v(0x23);
+    abi_SoundQueueAdd();
+    abi_ActorEndPlaced();
+}
+
+/*
+ * @routine 83:F049 Kind6EStart
+ * @actor
+ * WHAT IT DOES: Actor kind $6E, the backdrop picture: by its $07, 0 a
+ * spawner that makes a kind $6E child each time the view's scroll passes
+ * the next point of its list; 1 and 2 one that rises and glides right,
+ * then speeds off right until the main screen's layers are $15 and ends
+ * (a copier makes it set $083D); 3 one that slows and speeds by a list of
+ * pairs, turning each time, then a sound and ends.
+ * HOW: JMP through the table at $83:F050 by $07. 0: facing, K6E_STEP 0,
+ * K6E_18CA and K6E_0834 1; each frame (BRK) while the scroll x ($1773) is
+ * at or past the list's word: its x, y = RANGE_X, RANGE_Y, $07 and the
+ * slot from the list, ActorSpawnShared $6E (X kept), K6E_STEP + 4. 1, 2:
+ * K6E_COPIER set when $80:A000-$A001 do not read the same at $00, or $23
+ * reads back at $70:0020 and $70:0040; PICTURE_AT, PICTURE_TIME 0,
+ * ACTOR_09 $80, SoundQueueAdd $2A, K6E_SOUND_TIME $9D, K6E_QUIET 0,
+ * ActorMotionPreset by K6E_MOTIONS; each frame (BRK) ActorFly and
+ * ActorStepRight3 while rising; $30 frames of ActorStepRight3; a copier:
+ * K6E_083D $10; K6E_QUIET up, SoundQueueAdd $2B, its speed 0, the ramp 0,
+ * acceleration $10; each frame (BRK) ActorAccelerateX (speed at most
+ * $0200), the ramp + $80 (at most $3000), gravity its high byte,
+ * ActorFly, ActorStepRight3, until TM_SHADOW is $15: ActorEndPlaced. 3:
+ * PICTURE_AT, PICTURE_TIME, K6E_PAIRS_AT 0, SoundQueueAdd $2A,
+ * K6E_SOUND_TIME $9D, K6E_QUIET 0, ACTOR_09 $80, facing 0,
+ * ActorSpeedXSet $45; for each pair of K6E_PAIRS: acceleration the first,
+ * each frame (BRK) ActorDecelerateX, ActorMoveX, ActorStepRight3 until
+ * its speed is 0; facing turned; the second's frames (BRK) of
+ * ActorAccelerateX, ActorMoveX, ActorStepRight3; at the list's 0,
+ * SoundQueueAdd $23 and ActorEndPlaced.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's jump for kind $6E in state $0C (the table at
+ * $83:8CAB). Exit: never returns.
+ */
+void abi_Kind6EStart(void)
+{
+    lda8(ea_dp(ACTOR_07));
+    ACC8(asl);
+    tax8();
+    switch (cpu.x) {
+    case 0:
+        k6e_spawner();
+        return;
+    case 2:
+    case 4:
+        k6e_flyer();
+        return;
+    case 6:
+        k6e_pairs();
+        return;
+    default:                        /* past the table's 4 words: no $07 names one */
+        jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xF050 + cpu.x)));
+        return;
+    }
+}
 
 /*
  * @routine 83:F211 ActorStepRight3

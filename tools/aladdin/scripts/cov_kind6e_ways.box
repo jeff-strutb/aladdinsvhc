@@ -1,0 +1,40 @@
+# Actor kind $6E's start (Kind6EStart, $83:F049) past where play stops:
+# stage a2 s1 with the copier RAM on and the view moved on as
+# cov_copier_ram_level_events.box does. A. The flyer in record $0C9B ($07
+# 1, copier found) ends its glide about 575 frames on and sets $083D
+# ($83:F115); it speeds off with its gravity ramp ($43) growing $80 a
+# frame, and the level's main screen turns to $15 (its end) before the
+# ramp reaches $3000: at frame 605 the ramp set to $2FF0, so it meets its
+# cap ($83:F150). B. The flyer in record $0D3B put back to state $0C with
+# $07 2 (the table's third entry, $83:F054, which no actor of the level
+# has). C. The one in record $0D8B ($07 3) ends its last stretch only
+# after play leaves it: at frame 92 its count ($40) set to 1 and its
+# offset in the pairs list ($47) to $0A, past its five pairs, so it meets
+# the list's 0: sound $23 and its end ($83:F1C5-F1D4).
+load build/aladdin/states/stage_a2_s1.state
+cartram on
+wait 30
+poke 001773 00,1A
+poke 0019E5 00,1A
+poke 0008E7 80,1A
+wait 605
+poke 000CDE F0,2F
+wait 195
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+poke 001773 00,1A
+poke 0019E5 00,1A
+poke 0008E7 80,1A
+wait 20
+poke 000D3B 0C
+poke 000D42 02
+wait 100
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+poke 001773 00,1A
+poke 0019E5 00,1A
+poke 0008E7 80,1A
+wait 92
+poke 000DCB 01
+poke 000DD2 0A
+wait 60
