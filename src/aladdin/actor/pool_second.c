@@ -36,8 +36,8 @@ void abi_SecondPoolFreeAll(void)
         x8_load(state);
         if (state) {
             op_sep(P_M);
-            abi_ActorFree();
-            abi_ActorTileSlotRelease();
+            call_frame(0x95D1, abi_ActorFree);
+            call_frame(0x95D4, abi_ActorTileSlotRelease);
             op_rep(P_M);
         }
         flag_set(P_C, 0);

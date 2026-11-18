@@ -122,7 +122,9 @@ void abi_Kind34Wait(void)
  */
 void abi_Kind23Wait(void)
 {
+    jsl_frame(0x839D46u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -249,7 +251,7 @@ void abi_Kind3AWait(void)
  */
 void abi_Kind22Wait(void)
 {
-    abi_ActorHurtsPlayerOnTouch();
+    call_frame(0x9CE4, abi_ActorHurtsPlayerOnTouch);
     ldx8_v(0x18);
     abi_ActorEndOutOfRange();
 }

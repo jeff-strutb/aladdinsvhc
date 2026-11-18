@@ -3,6 +3,7 @@
  * animated-tile slot let go, and the actor loop goes on without it.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "wram.h"
 #include "actor.h"
@@ -64,7 +65,7 @@ void abi_ActorFree(void)
 {
     uint8_t top;
 
-    abi_ActorClear();
+    call_frame(0x95E7, abi_ActorClear);
     top = (uint8_t)(rd8_rmw(ACTOR_POOL2_TOP) + 1);
     wr8(ACTOR_POOL2_TOP, top);
     top = (uint8_t)(rd8_rmw(ACTOR_POOL2_TOP) + 1);
@@ -140,7 +141,7 @@ done:
  */
 void abi_ActorEnd(void)
 {
-    abi_ActorFree();
-    abi_ActorTileSlotRelease();
+    call_frame(0x95BA, abi_ActorFree);
+    call_frame(0x95BD, abi_ActorTileSlotRelease);
     actor_leave(ACTOR_LOOP_NEXT);
 }

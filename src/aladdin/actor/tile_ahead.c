@@ -55,5 +55,5 @@ void abi_ActorTileAheadIs70(void)
  */
 void abi_ActorFreePlacedAtYLong(void)
 {
-    abi_ActorFreePlacedAtY();
+    call_frame(0x96D2, abi_ActorFreePlacedAtY);   /* its JSR's return on the stack */
 }
