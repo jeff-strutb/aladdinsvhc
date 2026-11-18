@@ -1,0 +1,18 @@
+# Kind $3D's child set 1 (ActorStartChild1E5, $83:C332: one child at spawn
+# point $1E with $07 = 5), which no placement gives (stage a4 s1's kind
+# $3D has $07 = 2). Stage a4 s1, the camera and Aladdin placed near it at
+# x $0288 (record $0DDB) as cov_kind3d.box does; once it has started, it
+# is put back in its start state ($0C) with $07 = 1 and starts its one
+# child through set 1.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008E7 60,02
+poke 0008EA 40,02
+wait 20
+poke 000DDB 0C
+poke 000DE2 01
+wait 90

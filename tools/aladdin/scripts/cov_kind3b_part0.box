@@ -1,0 +1,14 @@
+# Kind $3B's platform part 0 (Kind3BPart0, $83:C05E: it moves to and fro
+# across, carrying Aladdin), placed with $07 = 0 only in stage a5 s2 (x
+# $0540 and $0620), where no script ran it past its first BRK. The view
+# put at x $0500, y 0, Aladdin dropped at x $0540 from y $0020, and 300
+# frames of its runs and rests.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,05
+poke 0019E5 00,05
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,05
+poke 0008EA 20,00
+wait 300
