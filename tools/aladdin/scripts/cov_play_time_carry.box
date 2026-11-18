@@ -1,0 +1,10 @@
+# The play time's carries past the seconds' tens (PlayTimeTick,
+# $81:85CE): the minutes, then the hours ($81:8602-$81:8621). No script
+# plays ten minutes. On the first level the time is set to 9:59:59 and
+# the frame count to 59, so the next frame's tick carries through every
+# digit into the hours' tens.
+load build/aladdin/states/level1.state
+wait 10
+poke $00147C 3B
+poke $00147E 09,05,09,05,09,00
+wait 5

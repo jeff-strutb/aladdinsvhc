@@ -1,0 +1,9 @@
+# BG2 following the play field's x (BgFollowLayers, $81:8598, mode $80
+# in BG2_FOLLOWS, $1A15), which no level sets. On the first level (mode
+# $40) the mode is set to $80 for two frames, then put back to $40.
+load build/aladdin/states/level1.state
+wait 10
+poke $001A15 80
+wait 2
+poke $001A15 40
+wait 5
