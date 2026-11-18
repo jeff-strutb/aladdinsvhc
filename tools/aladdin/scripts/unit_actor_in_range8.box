@@ -1,0 +1,8 @@
+# ActorInRange8 ($83:9653: ActorInRange, then SEP #$30), which nothing in
+# the ROM calls, as unit calls (JSR) on Aladdin's record with box 0 and
+# DB = $80 (the boxes' bank, as the actors run): in range as the level
+# left it, then with the range point ($1A44) put far right: out of range.
+load build/aladdin/states/level1.state
+call 839653 d=08DB db=80 p=30 x=0
+poke 001A44 00,10
+call 839653 d=08DB db=80 p=30 x=0

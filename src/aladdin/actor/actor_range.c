@@ -132,6 +132,22 @@ out:
 }
 
 /*
+ * @routine 83:9653 ActorInRange8
+ * WHAT IT DOES: ActorInRange, with M and X 8-bit after it either way.
+ * No caller in the ROM (2026-11-18): no JSR, JMP, JSL or JML to it, no word
+ * $9653 (a table entry) or $9652 (a pushed RTS address) in bank $83, and
+ * none of the 233 scripts' traces runs it; unit_actor_in_range8 calls it.
+ * HOW: JSR ActorInRange; SEP #$30; RTS.
+ * Entry: as ActorInRange; called by JSR. Exit: C set when out of range;
+ * M and X 8-bit; A, N, V and Z as ActorInRange leaves them.
+ */
+void abi_ActorInRange8(void)
+{
+    abi_ActorInRange();
+    op_sep(0x30);
+}
+
+/*
  * @routine 83:9659 ActorEndOutOfRangeLong
  * WHAT IT DOES: Ends the actor for good when it is out of range of the
  * camera's point by box X; otherwise returns to it. For callers in other
