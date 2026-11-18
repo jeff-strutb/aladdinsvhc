@@ -19,6 +19,10 @@ void abi_HdmaChannelFree(void);
 void abi_HdmaEffect10(void);
 void abi_HdmaEffect11(void);
 void abi_HdmaEffect12(void);
+void abi_HdmaEffect0(void);
+void abi_HdmaEffect1(void);
+void abi_HdmaEffect5(void);
+void abi_HdmaEffect7(void);
 void abi_HdmaEffect2(void);
 void abi_HdmaEffect4(void);
 void abi_HdmaEffect8(void);
@@ -84,6 +88,9 @@ void abi_WindowLinesFromShape(void);
 #define TABLE_SETS 0xBCBBu      /* (bank $82) per set: its entries' offset (word); entries: count, word */
 #define EFFECTS 0x8017u         /* (bank $82) the effects, by the task's parameter */
 #define EFFECT_PARAM 0x06u      /* the task's parameter: the effect (direct page) */
+#define EFFECT0_STEP 0x07u      /* effect 0 (direct page): added to the last word each round (word) */
+#define EFFECT5_VALUE 0x08u     /* effect 5 (direct page): the word being written (word) */
+#define EFFECT5_ROUNDS 0x0Au    /* effect 5: rounds left (word) */
 
 /*
  * @routine 82:871B HdmaChannelFree
@@ -228,7 +235,11 @@ static void effect_by_param(uint8_t x)
     case 0x14: abi_HdmaEffect10(); break;
     case 0x16: abi_HdmaEffect11(); break;
     case 0x18: abi_HdmaEffect12(); break;
-    default:                            /* effects 0, 1, 5, 7: no script starts them */
+    case 0x00: abi_HdmaEffect0(); break;
+    case 0x02: abi_HdmaEffect1(); break;
+    case 0x0A: abi_HdmaEffect5(); break;
+    case 0x0E: abi_HdmaEffect7(); break;
+    default:                            /* past the table: what its words say */
         call_routine(0x820000u | rd16(0x820000u | (uint16_t)(EFFECTS + x)), 0);
         break;
     }
@@ -477,6 +488,224 @@ void abi_HdmaEffect4(void)
     for (;;) {
         a8_load(0x02);
         jsl_frame(0x828301u);
+        abi_TaskWait();
+    }
+}
+
+/*
+ * @routine 82:8031 HdmaEffect0
+ * WHAT IT DOES: Window effect 0: HDMA table set 0 on register set 2 from
+ * the table area's base, its $40 bytes at $7E:F500 cleared, then every 5
+ * frames the table's words moved down one and the last one's count
+ * stepped by one, the step's direction turned when the count reaches 0
+ * or $20.
+ * HOW: HdmaStartAtBase; no channel: back. X 16-bit; $7E:F500-F53F 0;
+ * the channel on; the step (direct page $07, word) $0100. Each round:
+ * TaskWait 5; 16-bit: the words at $7E:F504 on moved to $7E:F500 (30 of
+ * them); the word after them ($7E:F53E) plus the step, AND $1F00: nonzero
+ * is stored there, zero turns the step (its negative).
+ * Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+ * from WindowEffectTask (no TaskCreate names it). Exit: no channel: C
+ * set; else never returns.
+ */
+void abi_HdmaEffect0(void)
+{
+    uint16_t x, y, v, step;
+
+    if (start(abi_HdmaStartAtBase, 0x00, 0x02))
+        return;
+    op_rep(0x10);
+    x = 0x0000;
+    y = 0x0040;
+    do {
+        a8_load(0x00);
+        wr8(HDMA_TABLES + 0x100 + x, 0x00);
+        x = (uint16_t)(x + 1);
+        y = (uint16_t)(y - 1);
+    } while (y);
+    cpu.x = x;
+    cpu.y = y;
+    nz16_of(y);
+    channel_on();
+    a8_load(0x01);
+    wr8(dpa(EFFECT0_STEP + 1), 0x01);
+    wr8(dpa(EFFECT0_STEP), 0x00);
+    for (;;) {
+        op_sep(0x30);
+        a8_load(0x05);
+        jsl_frame(0x82805Du);
+        abi_TaskWait();
+        op_rep(0x30);
+        x = 0x0000;
+        y = 0x001E;
+        do {
+            a16_load(rd16(HDMA_TABLES + 0x104 + x));
+            wr16(HDMA_TABLES + 0x100 + x, (uint16_t)cpu.a);
+            x = (uint16_t)(x + 2);
+            y = (uint16_t)(y - 1);
+        } while (y);
+        cpu.x = x;
+        cpu.y = y;
+        nz16_of(y);
+        flag_set(P_C, 0);
+        v = rd16(HDMA_TABLES + 0x102 + x);
+        step = dp16(EFFECT0_STEP);
+        v = op_adc16(v, step, &cpu.p);
+        a16_load((uint16_t)(v & 0x1F00));
+        if (cpu.a) {
+            wr16(HDMA_TABLES + 0x102 + x, (uint16_t)cpu.a);
+            continue;
+        }
+        a16_load(dp16(EFFECT0_STEP));
+        a16_load((uint16_t)(cpu.a ^ 0xFFFF));
+        a16_load((uint16_t)(cpu.a + 1));
+        dp16_set(EFFECT0_STEP, (uint16_t)cpu.a);
+    }
+}
+
+/*
+ * @routine 82:8092 HdmaEffect1
+ * WHAT IT DOES: Window effect 1: HDMA table set 2 on register set 4 from
+ * the table area's base, $80 words at $7E:F500 from $0080 down to 1, then
+ * every 2 frames each word that is not yet 0 taken down by one.
+ * HOW: HdmaStartAtBase; no channel: back. 16-bit: $7E:F600 = 0; the
+ * words $0080, $007F ... $0001 at $7E:F500 on; 8-bit; the channel on.
+ * Each round: TaskWait 2; 16-bit, each of the $80 words, nonzero, one
+ * less.
+ * Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask
+ * (no TaskCreate names it). Exit: no channel: C set; else never returns.
+ */
+void abi_HdmaEffect1(void)
+{
+    uint16_t x, y;
+
+    if (start(abi_HdmaStartAtBase, 0x02, 0x04))
+        return;
+    op_rep(0x30);
+    a16_load(0x0000);
+    wr16(HDMA_TABLES + 0x200, 0x0000);
+    a16_load(0x0080);
+    x = 0x0000;
+    y = 0x0080;
+    do {
+        wr16(HDMA_TABLES + 0x100 + x, (uint16_t)cpu.a);
+        a16_load((uint16_t)(cpu.a - 1));
+        x = (uint16_t)(x + 2);
+        y = (uint16_t)(y - 1);
+    } while (y);
+    cpu.x = x;
+    cpu.y = y;
+    nz16_of(y);
+    op_sep(0x30);
+    channel_on();
+    for (;;) {
+        op_sep(0x30);
+        a8_load(0x02);
+        jsl_frame(0x8280C4u);
+        abi_TaskWait();
+        op_rep(0x30);
+        x = 0x0000;
+        y = 0x0080;
+        do {
+            a16_load(rd16(HDMA_TABLES + 0x100 + x));
+            if (cpu.a) {
+                a16_load((uint16_t)(cpu.a - 1));
+                wr16(HDMA_TABLES + 0x100 + x, (uint16_t)cpu.a);
+            }
+            x = (uint16_t)(x + 2);
+            y = (uint16_t)(y - 1);
+        } while (y);
+        cpu.x = x;
+        cpu.y = y;
+        nz16_of(y);
+    }
+}
+
+/*
+ * @routine 82:8307 HdmaEffect7
+ * WHAT IT DOES: Window effect 7: HDMA table set $0C on register set 8
+ * with its table $20 into the area, the values at $7E:F480 1 and 7, and
+ * the task left waiting for good.
+ * HOW: HDMA_TABLE_PLACE $0020; HdmaStart; no channel: back. $7E:F480 =
+ * 1, $7E:F481 = 7; the channel on; TaskWait 2 forever.
+ * Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask
+ * (its TaskCreate is at $80:A8BB). Exit: no channel: C set; else never
+ * returns.
+ */
+void abi_HdmaEffect7(void)
+{
+    place(0x20, 0x00);
+    if (start(abi_HdmaStart, 0x0C, 0x08))
+        return;
+    a8_load(0x01);
+    wr8(HDMA_TABLES + 0x80, 0x01);
+    a8_load(0x07);
+    wr8(HDMA_TABLES + 0x81, 0x07);
+    channel_on();
+    for (;;) {
+        a8_load(0x02);
+        jsl_frame(0x82832Du);
+        abi_TaskWait();
+    }
+}
+
+/*
+ * @routine 82:8333 HdmaEffect5
+ * WHAT IT DOES: Window effect 5: HDMA table set 8 on register set $0A
+ * with its table $10 into the area; then $80 rounds, 2 frames each, of
+ * the words at $7E:F700: in round n (from $80 down to 1) n words rising
+ * from $0101 - n by one, held at $0100; then the task waits for good.
+ * HOW: HDMA_TABLE_PLACE $0010; HdmaStart; no channel: back. The channel
+ * on; 16-bit; rounds (direct page $0A, word) $80. Each round: Y = the
+ * rounds; the value ($08, word) $0101 less the rounds; Y words of it to
+ * $7E:F700 on, each one more than the last until $0100; TaskWait 2
+ * (A 16-bit); the rounds down. Then TaskWait 1 forever.
+ * Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+ * from WindowEffectTask (no TaskCreate names it). Exit: no channel: C
+ * set; else never returns.
+ */
+void abi_HdmaEffect5(void)
+{
+    uint16_t x, y;
+
+    place(0x10, 0x00);
+    if (start(abi_HdmaStart, 0x08, 0x0A))
+        return;
+    channel_on();
+    op_rep(0x30);
+    a16_load(0x0080);
+    dp16_set(EFFECT5_ROUNDS, 0x0080);
+    do {
+        cpu.x = 0x0000;
+        nz16_of(0x0000);
+        x = 0x0000;
+        y = dp16(EFFECT5_ROUNDS);
+        cpu.y = y;
+        nz16_of(y);
+        flag_set(P_C, 1);
+        a16_load(op_sbc16(0x0101, dp16(EFFECT5_ROUNDS), &cpu.p));
+        dp16_set(EFFECT5_VALUE, (uint16_t)cpu.a);
+        do {
+            a16_load(dp16(EFFECT5_VALUE));
+            wr16(HDMA_TABLES + 0x300 + x, (uint16_t)cpu.a);
+            x = (uint16_t)(x + 2);
+            a16_load(dp16(EFFECT5_VALUE));
+            cmp16_of((uint16_t)cpu.a, 0x0100);
+            if (cpu.a != 0x0100)
+                a16_load((uint16_t)(cpu.a + 1));
+            dp16_set(EFFECT5_VALUE, (uint16_t)cpu.a);
+            y = (uint16_t)(y - 1);
+            cpu.y = y;
+            nz16_of(y);
+        } while (y);
+        cpu.x = x;
+        a16_load(0x0002);
+        jsl_frame(0x828377u);
+        abi_TaskWait();
+    } while (dec16_at(dpa(EFFECT5_ROUNDS)));
+    for (;;) {
+        a16_load(0x0001);
+        jsl_frame(0x828382u);
         abi_TaskWait();
     }
 }

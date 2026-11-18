@@ -535,6 +535,219 @@ HdmaEffect4:
     bra .l82FF
 
 
+; Window effects 0, 1, 5 and 7: the table area and their direct page.
+!hdma_tables = $7EF400          ; the HDMA tables are built from here on
+!effect0_step = $07             ; effect 0: added to the last word each round (word)
+!effect5_value = $08            ; effect 5: the word being written (word)
+!effect5_rounds = $0A           ; effect 5: rounds left (word)
+
+; @routine 82:8031 HdmaEffect0
+; WHAT IT DOES: Window effect 0: HDMA table set 0 on register set 2 from
+; the table area's base, its $40 bytes at $7E:F500 cleared, then every 5
+; frames the table's words moved down one and the last one's count
+; stepped by one, the step's direction turned when the count reaches 0
+; or $20.
+; HOW: HdmaStartAtBase; no channel: back. X 16-bit; $7E:F500-F53F 0;
+; the channel on; the step (direct page $07, word) $0100. Each round:
+; TaskWait 5; 16-bit: the words at $7E:F504 on moved to $7E:F500 (30 of
+; them); the word after them ($7E:F53E) plus the step, AND $1F00: nonzero
+; is stored there, zero turns the step (its negative).
+; Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+; from WindowEffectTask (no TaskCreate names it). Exit: no channel: C
+; set; else never returns.
+%at($828031)
+HdmaEffect0:
+    ldx.b #$00
+    ldy.b #$02
+    jsr.w HdmaStartAtBase
+    bcc .start
+    rts
+.start:
+    rep.b #$10
+    ldx.w #$0000
+    ldy.w #$0040
+.clear:
+    lda.b #$00
+    sta.l !hdma_tables+256,x
+    inx
+    dey
+    bne .clear
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    lda.b #$01
+    sta.b !effect0_step+1
+    stz.b !effect0_step
+.round:
+    sep.b #$30
+    lda.b #$05
+    jsl.l TaskWait
+    rep.b #$30
+    ldx.w #$0000
+    ldy.w #$001E
+.move:
+    lda.l !hdma_tables+260,x
+    sta.l !hdma_tables+256,x
+    inx
+    inx
+    dey
+    bne .move
+    clc
+    lda.l !hdma_tables+258,x
+    adc.b !effect0_step
+    and.w #$1F00
+    beq .turn
+    sta.l !hdma_tables+258,x
+    bra .round
+.turn:
+    lda.b !effect0_step
+    eor.w #$FFFF
+    inc a
+    sta.b !effect0_step
+    bra .round
+
+; @routine 82:8092 HdmaEffect1
+; WHAT IT DOES: Window effect 1: HDMA table set 2 on register set 4 from
+; the table area's base, $80 words at $7E:F500 from $0080 down to 1, then
+; every 2 frames each word that is not yet 0 taken down by one.
+; HOW: HdmaStartAtBase; no channel: back. 16-bit: $7E:F600 = 0; the
+; words $0080, $007F ... $0001 at $7E:F500 on; 8-bit; the channel on.
+; Each round: TaskWait 2; 16-bit, each of the $80 words, nonzero, one
+; less.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask
+; (no TaskCreate names it). Exit: no channel: C set; else never returns.
+%at($828092)
+HdmaEffect1:
+    ldx.b #$02
+    ldy.b #$04
+    jsr.w HdmaStartAtBase
+    bcc .start
+    rts
+.start:
+    rep.b #$30
+    lda.w #$0000
+    sta.l !hdma_tables+512
+    lda.w #$0080
+    ldx.w #$0000
+    ldy.w #$0080
+.fill:
+    sta.l !hdma_tables+256,x
+    dec a
+    inx
+    inx
+    dey
+    bne .fill
+    sep.b #$30
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+.round:
+    sep.b #$30
+    lda.b #$02
+    jsl.l TaskWait
+    rep.b #$30
+    ldx.w #$0000
+    ldy.w #$0080
+.word:
+    lda.l !hdma_tables+256,x
+    beq .next
+    dec a
+    sta.l !hdma_tables+256,x
+.next:
+    inx
+    inx
+    dey
+    bne .word
+    bra .round
+
+; @routine 82:8307 HdmaEffect7
+; WHAT IT DOES: Window effect 7: HDMA table set $0C on register set 8
+; with its table $20 into the area, the values at $7E:F480 1 and 7, and
+; the task left waiting for good.
+; HOW: HDMA_TABLE_PLACE $0020; HdmaStart; no channel: back. $7E:F480 =
+; 1, $7E:F481 = 7; the channel on; TaskWait 2 forever.
+; Entry: M 8-bit, X 8-bit; DB = $82; called by JSR from WindowEffectTask
+; (its TaskCreate is at $80:A8BB). Exit: no channel: C set; else never
+; returns.
+%at($828307)
+HdmaEffect7:
+    lda.b #$20
+    sta.w !v_0032
+    stz.w !v_0033
+    ldx.b #$0C
+    ldy.b #$08
+    jsr.w HdmaStart
+    bcc .start
+    rts
+.start:
+    lda.b #$01
+    sta.l !v_7ef480
+    lda.b #$07
+    sta.l !v_7ef481
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+.wait:
+    lda.b #$02
+    jsl.l TaskWait
+    bra .wait
+
+; @routine 82:8333 HdmaEffect5
+; WHAT IT DOES: Window effect 5: HDMA table set 8 on register set $0A
+; with its table $10 into the area; then $80 rounds, 2 frames each, of
+; the words at $7E:F700: in round n (from $80 down to 1) n words rising
+; from $0101 - n by one, held at $0100; then the task waits for good.
+; HOW: HDMA_TABLE_PLACE $0010; HdmaStart; no channel: back. The channel
+; on; 16-bit; rounds (direct page $0A, word) $80. Each round: Y = the
+; rounds; the value ($08, word) $0101 less the rounds; Y words of it to
+; $7E:F700 on, each one more than the last until $0100; TaskWait 2
+; (A 16-bit); the rounds down. Then TaskWait 1 forever.
+; Entry: M 8-bit, X 8-bit; DB = $82; D the task's page; called by JSR
+; from WindowEffectTask (no TaskCreate names it). Exit: no channel: C
+; set; else never returns.
+%at($828333)
+HdmaEffect5:
+    lda.b #$10
+    sta.w !v_0032
+    stz.w !v_0033
+    ldx.b #$08
+    ldy.b #$0A
+    jsr.w HdmaStart
+    bcc .start
+    rts
+.start:
+    lda.w !v_002c
+    tsb.w !hdmaen_shadow
+    rep.b #$30
+    lda.w #$0080
+    sta.b !effect5_rounds
+.round:
+    ldx.w #$0000
+    ldy.b !effect5_rounds
+    sec
+    lda.w #$0101
+    sbc.b !effect5_rounds
+    sta.b !effect5_value
+.word:
+    lda.b !effect5_value
+    sta.l !hdma_tables+768,x
+    inx
+    inx
+    lda.b !effect5_value
+    cmp.w #$0100
+    beq .held
+    inc a
+.held:
+    sta.b !effect5_value
+    dey
+    bne .word
+    lda.w #$0002
+    jsl.l TaskWait
+    dec.b !effect5_rounds
+    bne .round
+.wait:
+    lda.w #$0001
+    jsl.l TaskWait
+    bra .wait
+
+
 ; @routine 82:8388 HdmaEffect8
 ; WHAT IT DOES: Window effect 8: windows round two places in the level
 ; ($0E40, $00F8 and $0D60, $01D8), rebuilt each frame and swapped between

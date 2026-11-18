@@ -1,0 +1,39 @@
+# Window effects 0, 1, 5 and 7 (WindowEffectTask's table at $82:8017:
+# $82:8031, $82:8092, $82:8333, $82:8307). No TaskCreate in the ROM names
+# effects 0, 1 or 5, and effect 7's only creator ($80:A8BB) is in code no
+# script reaches; so each is started by crafted state in the title's demo,
+# where kind $2E starts WindowEffectTask for effect 6 in task slot $90
+# (direct page $00FF, the effect's number times 2 at $0105) about 2200
+# frames after the title state. HDMA_RESERVED ($03B5) at $F0 makes
+# channels 4-7 read as taken, so the task's effect returns and the task
+# reads $0105 again each frame ($82:800A); the effect's number is set
+# there, the channels freed, and the effect runs (each one never returns,
+# so one effect per load).
+load build/aladdin/states/title.state
+wait 2190
+poke 0003B5 F0
+wait 30
+poke 000105 00
+poke 0003B5 00
+wait 300
+load build/aladdin/states/title.state
+wait 2190
+poke 0003B5 F0
+wait 30
+poke 000105 02
+poke 0003B5 00
+wait 300
+load build/aladdin/states/title.state
+wait 2190
+poke 0003B5 F0
+wait 30
+poke 000105 0A
+poke 0003B5 00
+wait 300
+load build/aladdin/states/title.state
+wait 2190
+poke 0003B5 F0
+wait 30
+poke 000105 0E
+poke 0003B5 00
+wait 300
