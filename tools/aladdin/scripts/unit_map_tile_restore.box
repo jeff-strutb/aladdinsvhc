@@ -1,0 +1,18 @@
+# The map-tile routines at $81:9A92-$9B6C that nothing in the game calls:
+# MapTileRestore ($9A9C), MapTileRestoreShown ($9AAC, on into
+# MapTileRestoreShownTail $9AB4 and MapTileBlockQueue $9AF6),
+# MapTileRestoreAtOffset ($9A92, by its branch into the tail) and
+# MapTileSetShown ($9B2A); MapTileSourceOf ($9ABF) and MapTileSourceAt
+# ($9AC2) through them. Unit calls by JSL on the first level's state (M and
+# X 16-bit, DB $80; its pointers at $54, $57 and $5A are the level's data,
+# its tile_blocks queue empty). The points: x $40 (bit 4 clear) and x $50
+# (bit 4 set) with y 0; MapTileRestoreAtOffset with the point in $0C,
+# $0E set to $50, $10 (both bit 4s set). (The machine is put back after
+# each call.)
+load build/aladdin/states/level1.state
+wait 10
+call 819A9C long x=0040 y=0000 db=80 p=00
+call 819AAC long x=0050 y=0000 db=80 p=00
+set $00000C 50,00,10,00
+call 819A92 long x=0100 y=0000 db=80 p=00
+call 819B2A long a=0001 x=0040 y=0000 db=80 p=00

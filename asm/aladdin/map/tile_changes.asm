@@ -23,6 +23,12 @@ arch 65816
 !tm_quarter = $12                ; MapQuarterAt: the quarter's offset in the tile (0, 2, 4, 6)
 !level_quarters = $5A            ; the level's tile quarters: a long pointer (word, then bank $5C)
 !tc_level_tiles = $7F0000        ; the screens' tiles, a word each
+; MapTileSourceAt (D = 0): the long pointers it reads the level's tiles
+; through (purposes as these routines use them), its scratch.
+!block_tiles = $54               ; per block, where its tiles' words start in block_tile_words (words)
+!block_tile_words = $57          ; the level's tile words, as loaded
+!ms_place = $10                  ; the tile's place in its block
+!ms_block = $12                  ; the block's start, from block_sources
 
 ; @routine 81:9A64 TileChangeQueueQuarter
 ; WHAT IT DOES: Queues one 8x8 quarter of a changed map tile for the NMI
@@ -283,6 +289,223 @@ MapTileAt:
     tcd
     jsr.w MapTileAddress
     lda.l !tc_level_tiles,x
+    pld
+    rtl
+
+; @routine 81:9A92 MapTileRestoreAtOffset
+; WHAT IT DOES: Puts back the level's own tile (as loaded) at tile offset
+; X of the level's map, for the point in scratch $0C, $0E, and queues it
+; for the screen. Nothing in the game calls it.
+; HOW: With the direct page at 0 (its own kept on the stack),
+; MapTileSourceAt finds the tile's word; then on at
+; MapTileRestoreShownTail.
+; Entry: M 16-bit, X 16-bit; X = the tile's offset in the level's tiles;
+; Y = the y; $0C, $0E = the point (rounded to the tile); called by JSL.
+; Exit: as MapTileRestoreShownTail.
+%at($819A92)
+MapTileRestoreAtOffset:
+    phd
+    lda.w #$0000
+    tcd
+    jsr.w MapTileSourceAt
+    bra MapTileRestoreShownTail
+
+; @routine 81:9A9C MapTileRestore
+; WHAT IT DOES: Puts back the level's own tile (as loaded) under point X,
+; Y in the level's map. Nothing in the game calls it.
+; HOW: With the direct page at 0 (its own kept on the stack),
+; MapTileSourceOf finds the tile and its word, which is written to the
+; level's tiles.
+; Entry: M 16-bit, X 16-bit; X = the x; Y = the y; called by JSL. Exit: A
+; = the tile word; X = its offset; Y = its place in block_tile_words; D as
+; at entry, N and Z from it (PLD); scratch $0C-$14 as MapTileSourceOf
+; leaves it.
+%at($819A9C)
+MapTileRestore:
+    phd
+    lda.w #$0000
+    tcd
+    jsr.w MapTileSourceOf
+    lda.b [!block_tile_words],y
+    sta.l !tc_level_tiles,x
+    pld
+    rtl
+
+; @routine 81:9AAC MapTileRestoreShown
+; WHAT IT DOES: Puts back the level's own tile (as loaded) under point X,
+; Y in the level's map, and queues it for the screen. Nothing in the game
+; calls it.
+; HOW: With the direct page at 0 (its own kept on the stack),
+; MapTileSourceOf; then on into MapTileRestoreShownTail.
+; Entry: M 16-bit, X 16-bit; X = the x; Y = the y; called by JSL. Exit:
+; as MapTileRestoreShownTail.
+%at($819AAC)
+MapTileRestoreShown:
+    phd
+    lda.w #$0000
+    tcd
+    jsr.w MapTileSourceOf
+; @routine 81:9AB4 MapTileRestoreShownTail
+; WHAT IT DOES: The end of MapTileRestoreShown and MapTileRestoreAtOffset:
+; the tile's word written to the level's map and queued for the screen.
+; HOW: The word at block_tile_words + Y to the level's tiles at X;
+; MapTileBlockQueue; the caller's direct page pulled; RTL.
+; Entry: M 16-bit, X 16-bit; D = 0, the caller's D pushed above its JSL's
+; return; X = the tile's offset; Y = its place in block_tile_words; $0C,
+; $0E = the point; reached from MapTileRestoreShown and by a branch from
+; MapTileRestoreAtOffset. Exit: A = X = the new length of tile_blocks; D
+; as before, N and Z from it (PLD); C clear.
+%at($819AB4)
+MapTileRestoreShownTail:
+    lda.b [!block_tile_words],y
+    sta.l !tc_level_tiles,x
+    jsr.w MapTileBlockQueue
+    pld
+    rtl
+
+; @routine 81:9ABF MapTileSourceOf
+; WHAT IT DOES: MapTileAddress, then MapTileSourceAt: the tile under point
+; X, Y and where the level's own word for it is.
+; HOW: Calls MapTileAddress, then on into MapTileSourceAt.
+; Entry: M 16-bit, X 16-bit; D = 0; X = the x; Y = the y; called by JSR.
+; Exit: as MapTileSourceAt, with X = the tile's offset.
+%at($819ABF)
+MapTileSourceOf:
+    jsr.w MapTileAddress
+; @routine 81:9AC2 MapTileSourceAt
+; WHAT IT DOES: Where the level's own word (as loaded) for the tile at the
+; point in scratch $0C, $0E is, in block_tile_words.
+; HOW: The block's start from block_sources (Y's two bytes swapped are the
+; index), plus the tile's place in its block (x bits 5-7 and y bits 5-7)
+; indexes block_tiles; that word, plus 2 when x bit 4 is set and 4 when y
+; bit 4 is, is the place.
+; Entry: M 16-bit, X 16-bit; D = 0; Y = the y; $0C, $0E = the point;
+; called by JSR. Exit: Y = the place; A = $0010; $10 = the tile's place in
+; its block; $12 = the block's start; N, V, Z from the last BIT; C from
+; the ADC; X unchanged.
+%at($819AC2)
+MapTileSourceAt:
+    tya
+    xba
+    tay
+    lda.w !block_sources,y
+    sta.b !ms_block
+    lda.b !tm_x
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    and.w #$000E
+    sta.b !ms_place
+    lda.b !tm_y
+    lsr a
+    and.w #$0070
+    ora.b !ms_place
+    clc
+    adc.b !ms_block
+    tay
+    lda.b [!block_tiles],y
+    tay
+    lda.w #$0010
+    bit.b !tm_x
+    beq .x_even
+    iny
+    iny
+.x_even:
+    bit.b !tm_y
+    beq .done
+    iny
+    iny
+    iny
+    iny
+.done:
+    rts
+
+; @routine 81:9AF6 MapTileBlockQueue
+; WHAT IT DOES: Queues tile A for the screen at the point in scratch $0C,
+; $0E: its four tilemap words and its VRAM address as a record of
+; tile_blocks.
+; HOW: The four words from the level's tile quarters at A (level_quarters
+; + A, + 2, + 4, + 6) to the record at the queue's end; TilemapWordLong
+; for the point gives the address; the queue's length up by 10.
+; Entry: M 16-bit, X 16-bit; D = 0; A = the tile word; $0C, $0E = the
+; point; DB a bank whose $0000-$1FFF is work RAM; called by JSR. Exit: A =
+; X = the new length; Y = the y; C clear.
+%at($819AF6)
+MapTileBlockQueue:
+    tay
+    ldx.w !tile_blocks_length
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+2,x
+    iny
+    iny
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+4,x
+    iny
+    iny
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+6,x
+    iny
+    iny
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+8,x
+    iny
+    iny
+    ldy.b !tm_y
+    lda.b !tm_x
+    jsl.l TilemapWordLong
+    sta.w !tile_blocks,x
+    clc
+    txa
+    adc.w #$000A
+    sta.w !tile_blocks_length
+    rts
+
+; @routine 81:9B2A MapTileSetShown
+; WHAT IT DOES: Puts tile word A into the level's map under point X, Y,
+; as MapTileSet does, and queues it for the screen. Nothing in the game
+; calls it.
+; HOW: With the direct page at 0 (its own kept on the stack, and A),
+; MapTileAddress; A written to the level's tiles; then as MapTileBlockQueue,
+; written out in place.
+; Entry: M 16-bit, X 16-bit; A = the tile word; X = the x; Y = the y;
+; called by JSL. Exit: A = X = the new length of tile_blocks; Y = the y;
+; D as at entry, N and Z from it (PLD); C clear.
+%at($819B2A)
+MapTileSetShown:
+    phd
+    pha
+    lda.w #$0000
+    tcd
+    jsr.w MapTileAddress
+    pla
+    sta.l !tc_level_tiles,x
+    tay
+    ldx.w !tile_blocks_length
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+2,x
+    iny
+    iny
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+4,x
+    iny
+    iny
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+6,x
+    iny
+    iny
+    lda.b [!level_quarters],y
+    sta.w !tile_blocks+8,x
+    iny
+    iny
+    ldy.b !tm_y
+    lda.b !tm_x
+    jsl.l TilemapWordLong
+    sta.w !tile_blocks,x
+    clc
+    txa
+    adc.w #$000A
+    sta.w !tile_blocks_length
     pld
     rtl
 

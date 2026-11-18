@@ -278,6 +278,263 @@ void abi_MapTileAt(void)
     nz16_of(d);
 }
 
+/* MapTileSourceAt (D = 0): the long pointers it reads the level's tiles
+   through, its scratch; the level's tile quarters (MapQuarterAt's). */
+#define BLOCK_TILES_DP 0x54        /* per block, where its tiles' words start in block_tile_words (words) */
+#define BLOCK_TILE_WORDS_DP 0x57   /* the level's tile words, as loaded */
+#define MS_PLACE_DP 0x10           /* the tile's place in its block */
+#define MS_BLOCK_DP 0x12           /* the block's start, from block_sources */
+#define LEVEL_QUARTERS_DP 0x5A
+
+void abi_MapTileSourceAt(void);
+void abi_MapTileSourceOf(void);
+void abi_MapTileBlockQueue(void);
+void abi_MapTileRestoreShownTail(void);
+
+/*
+ * @routine 81:9A92 MapTileRestoreAtOffset
+ * WHAT IT DOES: Puts back the level's own tile (as loaded) at tile offset
+ * X of the level's map, for the point in scratch $0C, $0E, and queues it
+ * for the screen. Nothing in the game calls it.
+ * HOW: With the direct page at 0 (its own kept on the stack),
+ * MapTileSourceAt finds the tile's word; then on at
+ * MapTileRestoreShownTail.
+ * Entry: M 16-bit, X 16-bit; X = the tile's offset in the level's tiles;
+ * Y = the y; $0C, $0E = the point (rounded to the tile); called by JSL.
+ * Exit: as MapTileRestoreShownTail.
+ */
+void abi_MapTileRestoreAtOffset(void)
+{
+    phd();
+    lda16_v(0x0000);
+    tcd();
+    call_frame(0x9A99, abi_MapTileSourceAt);
+    abi_MapTileRestoreShownTail();
+}
+
+/*
+ * @routine 81:9A9C MapTileRestore
+ * WHAT IT DOES: Puts back the level's own tile (as loaded) under point X,
+ * Y in the level's map. Nothing in the game calls it.
+ * HOW: With the direct page at 0 (its own kept on the stack),
+ * MapTileSourceOf finds the tile and its word, which is written to the
+ * level's tiles.
+ * Entry: M 16-bit, X 16-bit; X = the x; Y = the y; called by JSL. Exit: A
+ * = the tile word; X = its offset; Y = its place in block_tile_words; D as
+ * at entry, N and Z from it (PLD); scratch $0C-$14 as MapTileSourceOf
+ * leaves it.
+ */
+void abi_MapTileRestore(void)
+{
+    phd();
+    lda16_v(0x0000);
+    tcd();
+    call_frame(0x9AA3, abi_MapTileSourceOf);
+    lda16(ea_dpily(BLOCK_TILE_WORDS_DP));
+    sta16(ea_longx(LEVEL_TILES));
+    pld();
+}
+
+/*
+ * @routine 81:9AAC MapTileRestoreShown
+ * WHAT IT DOES: Puts back the level's own tile (as loaded) under point X,
+ * Y in the level's map, and queues it for the screen. Nothing in the game
+ * calls it.
+ * HOW: With the direct page at 0 (its own kept on the stack),
+ * MapTileSourceOf; then on into MapTileRestoreShownTail.
+ * Entry: M 16-bit, X 16-bit; X = the x; Y = the y; called by JSL. Exit:
+ * as MapTileRestoreShownTail.
+ */
+void abi_MapTileRestoreShown(void)
+{
+    phd();
+    lda16_v(0x0000);
+    tcd();
+    call_frame(0x9AB3, abi_MapTileSourceOf);
+    abi_MapTileRestoreShownTail();
+}
+
+/*
+ * @routine 81:9AB4 MapTileRestoreShownTail
+ * WHAT IT DOES: The end of MapTileRestoreShown and MapTileRestoreAtOffset:
+ * the tile's word written to the level's map and queued for the screen.
+ * HOW: The word at block_tile_words + Y to the level's tiles at X;
+ * MapTileBlockQueue; the caller's direct page pulled; RTL.
+ * Entry: M 16-bit, X 16-bit; D = 0, the caller's D pushed above its JSL's
+ * return; X = the tile's offset; Y = its place in block_tile_words; $0C,
+ * $0E = the point; reached from MapTileRestoreShown and by a branch from
+ * MapTileRestoreAtOffset. Exit: A = X = the new length of tile_blocks; D
+ * as before, N and Z from it (PLD); C clear.
+ */
+void abi_MapTileRestoreShownTail(void)
+{
+    lda16(ea_dpily(BLOCK_TILE_WORDS_DP));
+    sta16(ea_longx(LEVEL_TILES));
+    call_frame(0x9ABC, abi_MapTileBlockQueue);
+    pld();
+}
+
+/*
+ * @routine 81:9ABF MapTileSourceOf
+ * WHAT IT DOES: MapTileAddress, then MapTileSourceAt: the tile under point
+ * X, Y and where the level's own word for it is.
+ * HOW: Calls MapTileAddress, then on into MapTileSourceAt.
+ * Entry: M 16-bit, X 16-bit; D = 0; X = the x; Y = the y; called by JSR.
+ * Exit: as MapTileSourceAt, with X = the tile's offset.
+ */
+void abi_MapTileSourceOf(void)
+{
+    call_frame(0x9AC1, abi_MapTileAddress);
+    abi_MapTileSourceAt();
+}
+
+/*
+ * @routine 81:9AC2 MapTileSourceAt
+ * WHAT IT DOES: Where the level's own word (as loaded) for the tile at the
+ * point in scratch $0C, $0E is, in block_tile_words.
+ * HOW: The block's start from block_sources (Y's two bytes swapped are the
+ * index), plus the tile's place in its block (x bits 5-7 and y bits 5-7)
+ * indexes block_tiles; that word, plus 2 when x bit 4 is set and 4 when y
+ * bit 4 is, is the place.
+ * Entry: M 16-bit, X 16-bit; D = 0; Y = the y; $0C, $0E = the point;
+ * called by JSR. Exit: Y = the place; A = $0010; $10 = the tile's place in
+ * its block; $12 = the block's start; N, V, Z from the last BIT; C from
+ * the ADC; X unchanged.
+ */
+void abi_MapTileSourceAt(void)
+{
+    tya16();
+    xba();
+    tay16();
+    lda16(ea_absy((uint16_t)BLOCK_SOURCES));
+    sta16(ea_dp(MS_BLOCK_DP));
+    lda16(ea_dp(0x0C));
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = lsr16_r(cpu.a);
+    and16_v(0x000E);
+    sta16(ea_dp(MS_PLACE_DP));
+    lda16(ea_dp(0x0E));
+    cpu.a = lsr16_r(cpu.a);
+    and16_v(0x0070);
+    ora16_v(rd16(ea_dp(MS_PLACE_DP)));
+    clc();
+    adc16_v(rd16(ea_dp(MS_BLOCK_DP)));
+    tay16();
+    lda16(ea_dpily(BLOCK_TILES_DP));
+    tay16();
+    lda16_v(0x0010);
+    bit16_v(rd16(ea_dp(0x0C)));
+    if (!IF_Z) {                          /* x bit 4: the tile on the right */
+        iny16();
+        iny16();
+    }
+    bit16_v(rd16(ea_dp(0x0E)));
+    if (!IF_Z) {                          /* y bit 4: the tile below */
+        iny16();
+        iny16();
+        iny16();
+        iny16();
+    }
+}
+
+/*
+ * @routine 81:9AF6 MapTileBlockQueue
+ * WHAT IT DOES: Queues tile A for the screen at the point in scratch $0C,
+ * $0E: its four tilemap words and its VRAM address as a record of
+ * tile_blocks.
+ * HOW: The four words from the level's tile quarters at A (level_quarters
+ * + A, + 2, + 4, + 6) to the record at the queue's end; TilemapWordLong
+ * for the point gives the address; the queue's length up by 10.
+ * Entry: M 16-bit, X 16-bit; D = 0; A = the tile word; $0C, $0E = the
+ * point; DB a bank whose $0000-$1FFF is work RAM; called by JSR. Exit: A =
+ * X = the new length; Y = the y; C clear.
+ */
+void abi_MapTileBlockQueue(void)
+{
+    tay16();
+    ldx16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH));
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 2)));
+    iny16();
+    iny16();
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 4)));
+    iny16();
+    iny16();
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 6)));
+    iny16();
+    iny16();
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 8)));
+    iny16();
+    iny16();
+    ldy16(ea_dp(0x0E));
+    lda16(ea_dp(0x0C));
+    jsl_frame(0x819B1Au);
+    abi_TilemapWordLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    sta16(ea_absx((uint16_t)TILE_BLOCKS));
+    clc();
+    txa16();
+    adc16_v(0x000A);
+    sta16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH));
+}
+
+/*
+ * @routine 81:9B2A MapTileSetShown
+ * WHAT IT DOES: Puts tile word A into the level's map under point X, Y,
+ * as MapTileSet does, and queues it for the screen. Nothing in the game
+ * calls it.
+ * HOW: With the direct page at 0 (its own kept on the stack, and A),
+ * MapTileAddress; A written to the level's tiles; then as MapTileBlockQueue,
+ * written out in place.
+ * Entry: M 16-bit, X 16-bit; A = the tile word; X = the x; Y = the y;
+ * called by JSL. Exit: A = X = the new length of tile_blocks; Y = the y;
+ * D as at entry, N and Z from it (PLD); C clear.
+ */
+void abi_MapTileSetShown(void)
+{
+    phd();
+    pha16();
+    lda16_v(0x0000);
+    tcd();
+    call_frame(0x9B32, abi_MapTileAddress);
+    pla16();
+    sta16(ea_longx(LEVEL_TILES));
+    tay16();
+    ldx16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH));
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 2)));
+    iny16();
+    iny16();
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 4)));
+    iny16();
+    iny16();
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 6)));
+    iny16();
+    iny16();
+    lda16(ea_dpily(LEVEL_QUARTERS_DP));
+    sta16(ea_absx((uint16_t)(TILE_BLOCKS + 8)));
+    iny16();
+    iny16();
+    ldy16(ea_dp(0x0E));
+    lda16(ea_dp(0x0C));
+    jsl_frame(0x819B5Cu);
+    abi_TilemapWordLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    sta16(ea_absx((uint16_t)TILE_BLOCKS));
+    clc();
+    txa16();
+    adc16_v(0x000A);
+    sta16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH));
+    pld();
+}
+
 /*
  * @routine 81:9B6D MapTileSet
  * WHAT IT DOES: Puts tile word A into the level's map under point X, Y.
