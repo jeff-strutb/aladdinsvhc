@@ -166,6 +166,18 @@ static int is_jump_op(uint8_t op)
 {
     return op == 0x4C || op == 0x5C || op == 0x6C || op == 0x7C || op == 0xDC || op == 0x80 || op == 0x82;
 }
+/* Where an actor's code (or a routine it called) that ends goes back into
+   the actor loop: ActorLoopBack or the player's re-entry, reached however
+   the code gets there; or ActorLoopNext ($83:94D3, the step to the next
+   record), which the loop's own code reaches by its branches (BEQ, BPL,
+   the BRA at $83:94CC) and an actor's code by a JMP or JML (the chain's
+   ChainPieceEnd, $84:8AF2). `via` is the opcode that reached pc. */
+#define ACTOR_LOOP_ON 0x8394D3u
+static int loop_entry_by(uint32_t pc, uint8_t via)
+{
+    return pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER
+           || (pc == ACTOR_LOOP_ON && (via == 0x4C || via == 0x5C || via == 0xDC));
+}
 /* Just after a BRK (S at its pushes): where the actor resumes and its S. */
 static uint32_t actor_resume_of(const uint8_t *w, uint16_t s, uint16_t *resume_s)
 {
@@ -885,7 +897,7 @@ static void on_insn(uint32_t pc)
        loop's JSR's, five bytes): every call whose exit level S has reached
        or passed is left, and the actor loop's own call is left where S is
        back at the loop's level, as at its hand-off. */
-    if (depth && (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op(prev_op)))) {
+    if (depth && (loop_entry_by(pc, prev_op) || (is_actor_entry(pc) && is_jump_op(prev_op)))) {
         if (!have) { core_regs(&r); have = 1; }
         while (depth && !ws[depth - 1]->actor && !ws[depth - 1]->in_irq
                && (r.s >= ws[depth - 1]->exit_s
@@ -903,7 +915,7 @@ static void on_insn(uint32_t pc)
        actor_loop_call, and parked until the loop's RTL is back at its
        return address. */
     if (depth && a5_loop_s && (prev_op == 0x40 || prev_op == 0x7C
-                               || ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && is_jump_op(prev_op)))) {
+                               || (loop_entry_by(pc, prev_op) && is_jump_op(prev_op)))) {
         if (!have) { core_regs(&r); have = 1; }
         uint16_t back_s = (uint16_t)(a5_loop_s + 3);
         int k = 0;
@@ -933,7 +945,7 @@ static void on_insn(uint32_t pc)
     /* An actor yields (just after its BRK) or leaves its code for the
        actor loop: the watches from its piece up are judged up to here and
        parked under its record, or dropped when it left. */
-    if (depth && (pc == ACTOR_BRK_AT || pc == ACTOR_COP_AT || pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER)) {
+    if (depth && (pc == ACTOR_BRK_AT || pc == ACTOR_COP_AT || loop_entry_by(pc, prev_op))) {
         int b = -1;
         /* the actor's own piece: the outermost actor watch (its code may
            jump on to more actor code, ActorEnd) */
@@ -1707,7 +1719,7 @@ static void ls_insn(uint32_t pc)
         if (!m.actor && !is_actor_loop(m_pc)) {
             uint8_t via = m.irq_resumed ? m.pre_irq_op : *core_opcode;
             int lv = -1;
-            if (via == 0x40 || via == 0x7C || ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && is_jump_op(via)))
+            if (via == 0x40 || via == 0x7C || (loop_entry_by(pc, via) && is_jump_op(via)))
                 for (int i = 0; i < m.depth; i++)
                     if (is_actor_loop(m.open_pc[i]) && r.s == (uint16_t)(m.open[i] - 2)) { lv = i; break; }
             if (lv >= 0) {
@@ -1737,7 +1749,7 @@ static void ls_insn(uint32_t pc)
         if (m.actor) {
             int yield = ((pc == ACTOR_BRK_AT && (m.irq_resumed ? m.pre_irq_op : *core_opcode) == 0x00) || (pc == ACTOR_COP_AT && (m.irq_resumed ? m.pre_irq_op : *core_opcode) == 0x02))
                         && r.s == (uint16_t)(m.entry_s - 4);
-            int leave = (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && r.s == m.entry_s;
+            int leave = loop_entry_by(pc, m.irq_resumed ? m.pre_irq_op : *core_opcode) && r.s == m.entry_s;
             if (yield || leave) {
                 int k = aopark_find(r.d);
                 if (k >= 0) aopark[k].valid = 0;
@@ -1759,7 +1771,7 @@ static void ls_insn(uint32_t pc)
                 if (yield && routine_at(pc) >= 0) goto not_active;
                 return;
             }
-        } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op((m.irq_resumed ? m.pre_irq_op : *core_opcode))))
+        } else if ((loop_entry_by(pc, (m.irq_resumed ? m.pre_irq_op : *core_opcode)) || (is_actor_entry(pc) && is_jump_op((m.irq_resumed ? m.pre_irq_op : *core_opcode))))
                    && (r.s >= m.exit_s || (is_jump_op((m.irq_resumed ? m.pre_irq_op : *core_opcode)) && loop_left(m_pc, r.s, m.exit_s)))) {
             /* A routine the actor's code called that ends the actor: it
                pulled its own return address (S back at the actor's level,
@@ -3408,7 +3420,7 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
                as on the original side */
             if (is_actor_entry(out.pc) || is_actor_loop(out.pc)) *core_opcode = 0x4C;
         }
-    } else if (c->status == 3 && (out.pc == ACTOR_LOOP_NEXT || out.pc == ACTOR_LOOP_PLAYER || is_actor_entry(out.pc))) {
+    } else if (c->status == 3 && (out.pc == ACTOR_LOOP_NEXT || out.pc == ACTOR_LOOP_PLAYER || out.pc == ACTOR_LOOP_ON || is_actor_entry(out.pc))) {
         /* a routine that ended its actor (actor_leave), or handed it on to
            more of its code (a jump to an actor entry): nothing resumes it */
         yields++;
