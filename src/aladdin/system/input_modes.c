@@ -24,7 +24,7 @@ static void demo_input(void)
 
     a8_load(before);
     pha8();
-    abi_JoypadRead();
+    call_frame(0xBD5B, abi_JoypadRead);          /* 81BD59 jsr */
     wr8(dba(JOY_HELD), 0);
     wr8(dba(JOY_PRESSED), 0);
     wr8(dba(JOY_HELD + 2), 0);
@@ -78,14 +78,15 @@ void abi_InputRead(void)
     phy8();
     if (mode == 0x02) {
         demo_input();
+        call_frame(0xBDA9, abi_ControlsRead);    /* 81BDA7 jsr (InputReadDemo's) */
     } else {
-        abi_JoypadRead();
+        call_frame(0xBDBC, abi_JoypadRead);      /* 81BDBA jsr */
         mode = rd8(dba(PLAY_MODE));
         a8_load((uint8_t)(mode - 1));
         if (mode == 0x01)                 /* play mode 1: the input recorded */
-            abi_InputRecord();
+            call_frame(0xBDC5, abi_InputRecord); /* 81BDC3 jsr */
+        call_frame(0xBDC8, abi_ControlsRead);    /* 81BDC6 jsr */
     }
-    abi_ControlsRead();
     ply8();
     plx8();
 }
