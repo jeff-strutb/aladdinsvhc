@@ -1,0 +1,9 @@
+# Kind $83's second state (Kind83Second, $83:92E1: JML ActorWaitGrabsPlayer),
+# which the actor loop jumps to for a kind $83 record in a state with bit 7
+# set (the table at $83:8EFD). Stage a2 s1 places three kind $83 actors
+# (records $0BAB, $0BFB, $0C4B, $09 = $D0: they can be hit); the first is
+# put in state $8C, as a shot that downs it does, and 60 frames run.
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+poke 000BAB 8C
+wait 60

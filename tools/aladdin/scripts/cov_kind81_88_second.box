@@ -1,0 +1,10 @@
+# Kinds $81 and $88 in their second state (Kind81Second, $83:92CB: JML
+# Kind82Show; Kind88Second, $83:9322: JML Kind89PlayerPriority), which the
+# actor loop jumps to for a record in a state with bit 7 set (the table at
+# $83:8EFD). Stage a5 s3 places a kind $81 (record $0B5B) and a kind $88
+# (record $0BAB); both are put in state $8C, and 60 frames run.
+load build/aladdin/states/stage_a5_s3.state
+wait 30
+poke 000B5B 8C
+poke 000BAB 8C
+wait 60

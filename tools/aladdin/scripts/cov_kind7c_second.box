@@ -1,0 +1,8 @@
+# Kind $7C's second state (Kind7CSecond, $83:9297: JML Kind7DKeepSpot),
+# which the actor loop jumps to for a kind $7C record in a state with bit 7
+# set (the table at $83:8DFD). Stage a4 s2 places a kind $7C (record
+# $0BAB); it is put in state $8C, and 60 frames run.
+load build/aladdin/states/stage_a4_s2.state
+wait 30
+poke 000BAB 8C
+wait 60
