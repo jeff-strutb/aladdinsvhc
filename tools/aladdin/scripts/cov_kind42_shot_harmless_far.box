@@ -1,0 +1,44 @@
+# An apple thrown at the pot (kind $42) that kind $20's guard with $07 bit 4
+# carries (as cov_kind20_carrier_hit.box: the first level, the guard at
+# $0BAB restarted with $07 $13, the pot at $0BFB): Aladdin put at x $00D0,
+# 27 pixels up (y $0195), throws right as he falls, so the apple (record
+# $09CB) flies at the pot's height, above the guard's box: the carried
+# pot's ActorDownedByHarmlessShot ($83:8208) is touched. The apple made harmless in
+# flight (its $11 = $80) and Aladdin's $2F ($090A) held at $0B: the pot is
+# turned the other way ($83:821B), and goes into state $8C.
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BB2 13
+poke 000BAB 0C
+wait 5
+poke 0008E7 D0,00
+poke 0008EA 95,01
+hold RIGHT 2
+press A
+poke 0009DC 80
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 1
+poke 00090A 0B
+wait 50
