@@ -26,12 +26,74 @@ arch 65816
 !V_0360 = $0360
 !state_0359 = $0359
 !game_begun = $036F             ; nonzero once a game has begun
+!demo_frames = $0341            ; the demo's frames left (word)
 ; Per demo: its pad stream's offset from $84:F700 (words); its progress
 ; sequence, stage and $0360 (bytes).
 !demo_inputs = $B724
 !demo_sequences = $B6FD
 !demo_stages = $B70A
 !demo_0360 = $B717
+
+; @routine 81:8000 BootTask
+; WHAT IT DOES: The first task (slot 0, made by PowerOn): the text
+; upload's VRAM address and size set, then the region check, the text
+; card, the sound sets, the logo screen, the NMI on, and on to the title.
+; HOW: text_upload_vram = $5C00, text_upload_size = $0800; DB = $80;
+; TaskWait a frame; RegionCheck; TextCardScreen; SoundSetsLoad;
+; LogoScreen; NmiEnable; then on at TitleStartTask (JML).
+; Entry: the task's start (M 8-bit, X 8-bit). Exit: none: it goes on as
+; the title's task.
+%at($818000)
+BootTask:
+    rep.b #$20
+    lda.w #$5C00
+    sta.w !text_upload_vram
+    lda.w #$0800
+    sta.w !text_upload_size
+    sep.b #$20
+    lda.b #$80
+    pha
+    plb
+    lda.b #$01
+    jsl.l TaskWait
+    jsl.l RegionCheck
+    jsr.w TextCardScreen
+    jsl.l SoundSetsLoad
+    jsl.l LogoScreen
+    jsl.l NmiEnable
+    jml.l TitleStartTask
+
+; @routine 81:8031 DemoTask
+; WHAT IT DOES: The demo's task: the screen darkened, the demo's state
+; set, the next demo's number for next time, the demo's length, then play
+; (DemoPlayStart).
+; HOW: TaskCreate (slot 1, parameter 4, BrightnessDownTask); TaskWait a
+; frame at a time until slot 1 is free; DemoStart; demo_number counted up,
+; back to 0 at 2; demo_frames = $04EC; then on at DemoPlayStart.
+; Entry: the task's start (M 8-bit, X 8-bit); DB a bank whose
+; $0000-$1FFF is work RAM. Exit: none: it goes on as play.
+%at($818031)
+DemoTask:
+    jsl.l TaskCreate
+    db 1*24, 4                  ; slot 1, parameter 4
+    dl BrightnessDownTask
+.dark:
+    lda.b #$01
+    jsl.l TaskWait
+    lda.w !task_state+(1*24)
+    bne .dark
+    jsr.w DemoStart
+    inc.w !demo_number
+    lda.w !demo_number
+    cmp.b #$02
+    bne .length
+    stz.w !demo_number
+.length:
+    rep.b #$20
+    lda.w #$04EC
+    sta.w !demo_frames
+    sep.b #$20
+    jmp.w DemoPlayStart
 
 ; @routine 81:8062 DemoStartLong
 ; WHAT IT DOES: Sets a demo up to play, for callers in other banks.
@@ -115,8 +177,13 @@ GameStartGoOn:
     stz.w !state_035a
     jsr.w PlayStartCounts
     jmp.w PlayLoopStart
-; The demo's start of play (the attract code jumps here, $81:805F): a new
-; game's state, PlayStartCounts, the play loop.
+; @routine 81:80D3 DemoPlayStart
+; WHAT IT DOES: The demo's start of play: a new game's state and its
+; counts, then the play loop.
+; HOW: NewGameState, PlayStartCounts, then on at PlayLoopStart.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+; reached by a jump from DemoTask ($81:805F). Exit: none: it goes on as
+; the play loop.
 DemoPlayStart:
     jsr.w NewGameState
     jsr.w PlayStartCounts

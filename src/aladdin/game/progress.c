@@ -10,6 +10,15 @@ void abi_GameStartTask(void);
 void abi_LevelPlayStartTask(void);
 void abi_NewGameState(void);
 void abi_LevelFromProgress(void);
+void abi_PlayLoopStart(void);
+void abi_DemoPlayStart(void);
+void abi_RegionCheck(void);
+void abi_TextCardScreen(void);
+void abi_SoundSetsLoad(void);
+void abi_LogoScreen(void);
+void abi_NmiEnable(void);
+void abi_TitleStartTask(void);
+void abi_LevelPlayStartTask(void);
 void abi_TaskExec(void);
 void abi_TaskCreate(void);
 void abi_TaskWait(void);
@@ -34,6 +43,71 @@ void abi_PlayStartCountsLong(void);
 #define LEVEL_BY_PROGRESS 0xB73Eu  /* by sequence its first entry's offset; then the levels (in the bank DB names) */
 
 /*
+ * @routine 81:8000 BootTask
+ * WHAT IT DOES: The first task (slot 0, made by PowerOn): the text
+ * upload's VRAM address and size set, then the region check, the text
+ * card, the sound sets, the logo screen, the NMI on, and on to the title.
+ * HOW: text_upload_vram = $5C00, text_upload_size = $0800; DB = $80;
+ * TaskWait a frame; RegionCheck; TextCardScreen; SoundSetsLoad;
+ * LogoScreen; NmiEnable; then on at TitleStartTask (JML).
+ * Entry: the task's start (M 8-bit, X 8-bit). Exit: none: it goes on as
+ * the title's task.
+ */
+void abi_BootTask(void)
+{
+    op_rep(0x20);
+    lda16_v(0x5C00);
+    sta16(ea_abs((uint16_t)TEXT_UPLOAD_VRAM));
+    lda16_v(0x0800);
+    sta16(ea_abs((uint16_t)TEXT_UPLOAD_SIZE));
+    op_sep(0x20);
+    lda8_v(0x80);
+    pha8();
+    plb();
+    lda8_v(0x01);
+    jsl_frame(0x818016u); abi_TaskWait();
+    jsl_frame(0x81801Au); abi_RegionCheck(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x8020, abi_TextCardScreen);
+    jsl_frame(0x818021u); abi_SoundSetsLoad(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x818025u); abi_LogoScreen(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x818029u); abi_NmiEnable(); cpu.s = (uint16_t)(cpu.s + 3);
+    abi_TitleStartTask();  /* 81802D jml */
+}
+
+/*
+ * @routine 81:8031 DemoTask
+ * WHAT IT DOES: The demo's task: the screen darkened, the demo's state
+ * set, the next demo's number for next time, the demo's length, then play
+ * (DemoPlayStart).
+ * HOW: TaskCreate (slot 1, parameter 4, BrightnessDownTask); TaskWait a
+ * frame at a time until slot 1 is free; DemoStart; demo_number counted up,
+ * back to 0 at 2; demo_frames = $04EC; then on at DemoPlayStart.
+ * Entry: the task's start (M 8-bit, X 8-bit); DB a bank whose
+ * $0000-$1FFF is work RAM. Exit: none: it goes on as play.
+ */
+void abi_DemoTask(void)
+{
+    /* BrightnessDownTask, slot 1, parameter 4 */
+    jsl_frame(0x818031u); abi_TaskCreate(); cpu.unwound = 0;
+    do {
+        lda8_v(0x01);
+        jsl_frame(0x81803Cu); abi_TaskWait();
+        lda8(ea_abs((uint16_t)(TASK_STATE + 1 * 24)));
+    } while (!IF_Z);
+    call_frame(0x8047, abi_DemoStart);
+    MEM8(inc, ea_abs((uint16_t)DEMO_NUMBER));
+    lda8(ea_abs((uint16_t)DEMO_NUMBER));
+    cmp8_v(0x02);
+    if (IF_Z)
+        stz8(ea_abs((uint16_t)DEMO_NUMBER));
+    op_rep(0x20);
+    lda16_v(0x04EC);
+    sta16(ea_abs(0x0341));  /* the demo's frames left */
+    op_sep(0x20);
+    abi_DemoPlayStart();  /* 81805F jmp */
+}
+
+/*
  * @routine 81:8062 DemoStartLong
  * WHAT IT DOES: Sets a demo up to play, for callers in other banks.
  * HOW: DemoStart.
@@ -46,6 +120,76 @@ void abi_DemoStartLong(void)
 }
 
 
+
+/*
+ * @routine 81:8095 GameStartTask
+ * WHAT IT DOES: The game task's start of play from the title: a new game
+ * when none has begun ($036F clear), else play goes on with the game's
+ * progress.
+ * HOW: $0347 cleared. None begun: NewGameState, $036F set, and on into
+ * LevelPlayStartTask. Else: LevelFromProgress, $0364 = $0362, $0347,
+ * $036B, $036E, $0359 and $035A cleared, PlayStartCounts, then the play
+ * loop's start ($81:8191).
+ * Entry: the task's turn (TaskExec from the title): M 8-bit, X 8-bit; DB
+ * = $80. Exit: none: it goes on as the play loop.
+ */
+void abi_GameStartTask(void)
+{
+    stz8(ea_abs(0x0347));  /* 818095 stz */
+    lda8(ea_abs(0x036F));  /* 818098 lda */
+    if (IF_Z) {
+        call_frame(0x809F, abi_NewGameState);  /* 81809D jsr */
+        MEM8(inc, ea_abs(0x036F));  /* 8180A0 inc */
+        abi_LevelPlayStartTask();  /* on into it */
+        return;
+    }
+    /* 8180B5: a game begun, play goes on from the progress */
+    call_frame(0x80B7, abi_LevelFromProgress);  /* 8180B5 jsr */
+    lda8(ea_abs(0x0362));  /* 8180B8 lda */
+    sta8(ea_abs(0x0364));  /* 8180BB sta */
+    stz8(ea_abs(0x0347));  /* 8180BE stz */
+    stz8(ea_abs(0x036B));  /* 8180C1 stz */
+    stz8(ea_abs(0x036E));  /* 8180C4 stz */
+    stz8(ea_abs(0x0359));  /* 8180C7 stz */
+    stz8(ea_abs(0x035A));  /* 8180CA stz */
+    call_frame(0x80CF, abi_PlayStartCounts);  /* 8180CD jsr */
+    abi_PlayLoopStart();  /* 8180D0 jmp */
+}
+
+/*
+ * @routine 81:80A3 LevelPlayStartTask
+ * WHAT IT DOES: The game task's start of play at the level the game's
+ * progress gives (also after a level ends).
+ * HOW: LevelFromProgress, PlayStartCounts, $0359, $035A and $036C
+ * cleared, then the play loop's start ($81:8191).
+ * Entry: the task's turn (TaskExec): M 8-bit, X 8-bit; DB = $80. Exit:
+ * none: it goes on as the play loop.
+ */
+void abi_LevelPlayStartTask(void)
+{
+    call_frame(0x80A5, abi_LevelFromProgress);  /* 8180A3 jsr */
+    call_frame(0x80A8, abi_PlayStartCounts);  /* 8180A6 jsr */
+    stz8(ea_abs(0x0359));  /* 8180A9 stz */
+    stz8(ea_abs(0x035A));  /* 8180AC stz */
+    stz8(ea_abs(0x036C));  /* 8180AF stz */
+    abi_PlayLoopStart();  /* 8180B2 jmp */
+}
+
+/*
+ * @routine 81:80D3 DemoPlayStart
+ * WHAT IT DOES: The demo's start of play: a new game's state and its
+ * counts, then the play loop.
+ * HOW: NewGameState, PlayStartCounts, then on at PlayLoopStart.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM;
+ * reached by a jump from DemoTask ($81:805F). Exit: none: it goes on as
+ * the play loop.
+ */
+void abi_DemoPlayStart(void)
+{
+    call_frame(0x80D5, abi_NewGameState);  /* 8180D3 jsr */
+    call_frame(0x80D8, abi_PlayStartCounts);  /* 8180D6 jsr */
+    abi_PlayLoopStart();  /* 8180D9 jmp */
+}
 
 /*
  * @routine 81:80DC PlayStartCountsLong
