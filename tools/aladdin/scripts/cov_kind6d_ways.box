@@ -1,0 +1,33 @@
+# Actor kind $6D's start (Kind6DStart, $83:ECD4) by the ways of its $07
+# (bits 2-4) no level's actors have, or past where play leaves them: in
+# stage a3 s0 the kind $6D in record $0B5B (x $00A0, the range point at
+# x $0080) put back to state $0C with each $07.
+# A. Way 5 ($07 $14), the spawner ($83:EF06): a child, $E0 frames, then
+# waiting while within $90 of the range point; at frame 270 its x set to
+# $0130, past it, so it spawns again ($83:EF40).
+load build/aladdin/states/stage_a3_s0.state
+wait 10
+poke 000B5B 0C
+poke 000B62 14
+wait 270
+poke 000B67 30,01
+wait 20
+# B. Way 7 ($07 $1C, $83:EF45): Kind6DWait sends that variant to its downed
+# state while $1B14 is set ($18 here), so $1B14 cleared: it falls, its
+# gravity cut at speed $0100, lands, hops again.
+load build/aladdin/states/stage_a3_s0.state
+wait 10
+poke 001B14 00
+poke 000B5B 0C
+poke 000B62 1C
+wait 160
+# C. Way 3 ($07 $0E: facing left, $83:EE43) put at x $0090, y $00B0, in
+# the air beside the solid block at x $0000-$007F, y $00A0-$00FF: its
+# probe 4 meets the block and it turns ($83:EE69).
+load build/aladdin/states/stage_a3_s0.state
+wait 10
+poke 000B67 90,00
+poke 000B6A B0,00
+poke 000B5B 0C
+poke 000B62 0E
+wait 60
