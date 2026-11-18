@@ -8,6 +8,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "actor.h"
 #include "wram.h"
 
@@ -77,6 +78,45 @@ void abi_ActorSpawnPlace(void)
     v = rd16(dp(ACTOR_Y + 1));
     cpu.a = op_adc16(v, rd16(abs_db((uint16_t)(SPAWN_OFFSET_Y + cpu.y))), &cpu.p);
     wr16(child(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M);
+}
+
+/*
+ * @routine 81:AAAE ActorPlaceAtRecord
+ * WHAT IT DOES: Places the actor at record X's spot plus its own spawn
+ * offset: the reverse of ActorSpawnPlace. No code refers to it.
+ * HOW: The actor's spawn offset index picks an offset across and one down;
+ * across is added to record X's x, or taken away when bit 0 of the actor's
+ * flip is set; down is added to X's y; the results are the actor's x and
+ * y.
+ * Entry: M 8-bit, X 16-bit; D = the actor; X = the other record; DB a
+ * bank whose $0000-$1FFF is work RAM and that holds the offsets ($80);
+ * called by JSL. Exit: M 8-bit; A = the actor's y (16 bits); Y = the
+ * index; N, V, Z, C from the y ADC; X unchanged.
+ */
+void abi_ActorPlaceAtRecord(void)
+{
+    lda8_v(0x00);
+    xba();
+    lda8(ea_dp(ACTOR_SPAWN_AT));
+    tay16();
+    op_rep(P_M);
+    lda16(ea_dp(ACTOR_FLIP));
+    and16_v(0x0001);
+    if (!IF_Z) {
+        sec();
+        lda16(ea_absx(ACTOR_X + 1));
+        sbc16_v(rd16(ea_absy(SPAWN_OFFSET_X)));
+    } else {
+        clc();
+        lda16(ea_absx(ACTOR_X + 1));
+        adc16_v(rd16(ea_absy(SPAWN_OFFSET_X)));
+    }
+    sta16(ea_dp(ACTOR_X + 1));
+    clc();
+    lda16(ea_absx(ACTOR_Y + 1));
+    adc16_v(rd16(ea_absy(SPAWN_OFFSET_Y)));
+    sta16(ea_dp(ACTOR_Y + 1));
     op_sep(P_M);
 }
 

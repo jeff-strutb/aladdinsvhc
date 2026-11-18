@@ -1,0 +1,15 @@
+# Unit calls of ActorPlaceAtRecord (81:AAAE), which no code refers to:
+# the actor placed at record X's spot plus its own spawn offset (index
+# $21: across from $DBBB, taken away when bit 0 of its flip $15 is set;
+# down from $DC51). By JSL in a level (stage_a0_s0), M 8-bit, X 16-bit,
+# DB $80 (the offsets' bank), the actor the record at $092B and X
+# Aladdin's ($08DB), its offset index ($094C) 2, the machine put back
+# after each: its flip ($0940) 0, then 1.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+set 00094C 02
+set 000940 00
+call 81AAAE long p=20 db=80 d=092B x=08DB
+set 00094C 02
+set 000940 01
+call 81AAAE long p=20 db=80 d=092B x=08DB

@@ -175,3 +175,42 @@ ActorSpawnPlace:
     sta.w !actor_y+1,x
     sep.b #$20
     rtl
+
+; @routine 81:AAAE ActorPlaceAtRecord
+; WHAT IT DOES: Places the actor at record X's spot plus its own spawn
+; offset: the reverse of ActorSpawnPlace. No code refers to it.
+; HOW: The actor's spawn offset index picks an offset across and one down;
+; across is added to record X's x, or taken away when bit 0 of the actor's
+; flip is set; down is added to X's y; the results are the actor's x and
+; y.
+; Entry: M 8-bit, X 16-bit; D = the actor; X = the other record; DB a
+; bank whose $0000-$1FFF is work RAM and that holds the offsets ($80);
+; called by JSL. Exit: M 8-bit; A = the actor's y (16 bits); Y = the
+; index; N, V, Z, C from the y ADC; X unchanged.
+%at($81AAAE)
+ActorPlaceAtRecord:
+    lda.b #0
+    xba
+    lda.b !actor_spawn_at
+    tay
+    rep.b #$20
+    lda.b !actor_flip
+    and.w #$0001
+    bne .left
+    clc
+    lda.w !actor_x+1,x
+    adc.w !spawn_offset_x,y
+    sta.b !actor_x+1
+    bra .down
+.left:
+    sec
+    lda.w !actor_x+1,x
+    sbc.w !spawn_offset_x,y
+    sta.b !actor_x+1
+.down:
+    clc
+    lda.w !actor_y+1,x
+    adc.w !spawn_offset_y,y
+    sta.b !actor_y+1
+    sep.b #$20
+    rtl
