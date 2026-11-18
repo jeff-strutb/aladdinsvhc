@@ -1,0 +1,85 @@
+# Aladdin's start (PlayerStart, $81:CB3B) by every $06 and $07 its tables
+# hold that no level uses ($81:CB5F, $81:CB63-$81:CB7E), and the scene
+# code they lead to. On the first level his record is put back to state
+# $0C with $06 and $07 set ($08E1), each from a fresh load:
+# $06 = 3, and $07 = 1: the carpet's start. $07 = 2, 3 (PlayerScenePlaceHigh)
+# and 4 (PlayerScenePlaceLow): placed, then PlayerSceneWaitWalk waits for
+# the first task's parameter ($0075, set to 1 after 30 frames) and walks
+# right. $07 = 8: PlayerSceneJumpIn. $07 = 11: PlayerSceneWalkRight. $07 =
+# 12: PlayerSceneCued, from the left (x $003A) and from the right (x set to
+# $00C0), its cues set in turn ($1B31, $1B32, LANDED $1428). $07 = 13:
+# PlayerSceneWalkOut, his x set to $0650 (the walk's end), its cue $00BE
+# set to $80; the fade's task, and the story's next part ($81:F61D). $07 =
+# 14: PlayerEndingRide.
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 03,00
+poke $0008DB 0C
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,01
+poke $0008DB 0C
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,02
+poke $0008DB 0C
+wait 30
+poke $000075 01
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,03
+poke $0008DB 0C
+wait 30
+poke $000075 01
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,04
+poke $0008DB 0C
+wait 30
+poke $000075 01
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,08
+poke $0008DB 0C
+wait 200
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,0B
+poke $0008DB 0C
+wait 120
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,0C
+poke $0008DB 0C
+wait 60
+poke $001B31 01
+wait 140
+poke $001B32 01
+wait 30
+poke $001428 01
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,0C
+poke $0008DB 0C
+poke $0008E7 C0,00
+wait 80
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,0D
+poke $0008DB 0C
+wait 2
+poke $0008E7 50,06
+wait 10
+poke $0000BE 80
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke $0008E1 00,0E
+poke $0008DB 0C
+wait 60
