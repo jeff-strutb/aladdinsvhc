@@ -22,6 +22,7 @@ arch 65816
 !dir_y_mid = $82D024
 !dir_y_hi = $82D42D
 !dir_by_facing = $BBB9            ; bank $81: a direction per entry, the facing added
+!divisor = $001A                  ; ActorMoveByVectorOver's divisor
 ; The spot an actor keeps (its record, the direct page).
 !actor_spot_x = $4C
 !actor_spot_y = $4E
@@ -66,6 +67,113 @@ ActorSpeedUpMove:
 .move:
     jmp.w ActorMove
 
+
+; @routine 81:A687 ActorMoveByVectorOver
+; WHAT IT DOES: Moves the actor by a vector from direction set X divided
+; by Y, the set's left vector when it faces left. No code refers to it.
+; HOW: The vector (a word at $BBB9 + X in the data bank, plus the facing)
+; to the step at $0C-$0E (x) and $10-$12 (y). For each part, its fraction
+; and pixels (16 bits) made positive by the high byte's sign, divided by
+; the divisor with the CPU's divider (eight NOPs while it works), the
+; quotient given the sign back, then added to the 24-bit position with the
+; high byte (the sign) as its top byte.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank with the vector sets
+; at $BBB9 and the CPU's registers at $4200; X = the set's byte offset;
+; Y = the divisor; called by JSL. Exit: M and X 8-bit; X = the vector's
+; low byte; Y = the y step's high byte; A low byte = the y position's high
+; byte; N, V, Z, C from its ADC; $1A the divisor; $0C-$12 the vector.
+%at($81A687)
+ActorMoveByVectorOver:
+    sty.w !divisor
+    rep.b #$30
+    clc
+    lda.b !actor_facing
+    and.w #$00FF
+    adc.w !dir_by_facing,x
+    tax
+    sep.b #$20
+    lda.l !dir_x_lo,x
+    sta.w !step_x
+    lda.l !dir_x_mid,x
+    sta.w !step_x+1
+    lda.l !dir_x_hi,x
+    sta.w !step_x+2
+    lda.l !dir_y_lo,x
+    sta.w !step_y
+    lda.l !dir_y_mid,x
+    sta.w !step_y+1
+    lda.l !dir_y_hi,x
+    sta.w !step_y+2
+    sep.b #$10
+    rep.b #$20
+    lda.w !step_x
+    ldy.w !step_x+2
+    bpl .x_divide
+    eor.w #$FFFF
+    inc
+.x_divide:
+    sta.w !WRDIVL
+    ldy.w !divisor
+    sty.w !WRDIVB
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    lda.w !RDDIVL
+    ldy.w !step_x+2
+    bpl .x_add
+    eor.w #$FFFF
+    inc
+.x_add:
+    sep.b #$20
+    clc
+    adc.b !actor_x
+    sta.b !actor_x
+    xba
+    adc.b !actor_x+1
+    sta.b !actor_x+1
+    tya
+    adc.b !actor_x+2
+    sta.b !actor_x+2
+    rep.b #$20
+    lda.w !step_y
+    ldy.w !step_y+2
+    bpl .y_divide
+    eor.w #$FFFF
+    inc
+.y_divide:
+    sta.w !WRDIVL
+    ldy.w !divisor
+    sty.w !WRDIVB
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    lda.w !RDDIVL
+    ldy.w !step_y+2
+    bpl .y_add
+    eor.w #$FFFF
+    inc
+.y_add:
+    sep.b #$20
+    clc
+    adc.b !actor_y
+    sta.b !actor_y
+    xba
+    adc.b !actor_y+1
+    sta.b !actor_y+1
+    tya
+    adc.b !actor_y+2
+    sta.b !actor_y+2
+    rtl
 
 ; @routine 81:A73D ActorMoveAlong
 ; WHAT IT DOES: Moves the actor along direction Y of the ROM's direction

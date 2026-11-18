@@ -16,6 +16,7 @@ void abi_ActorBobAnimate(void);
 void abi_AnimStep(void);
 void abi_ActorBob(void);
 void abi_ActorSpeedUpMove(void);
+void abi_ActorMoveByVectorOver(void);
 void abi_ActorMoveAlong(void);
 void abi_ActorMoveScaled(void);
 void abi_ActorKeepSpot(void);
@@ -86,6 +87,87 @@ void actor_scale_and_move(uint8_t speed)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     wr8(dpa(0x10), a);
     op_sep(0x30);
+}
+
+#define VECTOR_SETS 0xBBB9u   /* in the data bank: a set's first vector (word), the facing added */
+#define DIVISOR 0x001Au       /* ActorMoveByVectorOver's divisor */
+
+/* One part of ActorMoveByVectorOver: the step's fraction and pixels at
+   `step` made positive by its high byte's sign, divided by the divisor,
+   the sign given back, then added to the 24-bit position at `pos` (direct
+   page) with the high byte as its top byte. Entered M 16-bit, X 8-bit;
+   left M 8-bit. */
+static void vector_part_over(uint16_t step, uint8_t pos)
+{
+    op_rep(0x20);
+    lda16(ea_abs(step));
+    ldy8(ea_abs((uint16_t)(step + 2)));
+    if (IF_N) {
+        eor16_v(0xFFFF);
+        ACC16(inc);
+    }
+    sta16(ea_abs(WRDIVL & 0xFFFF));
+    ldy8(ea_abs(DIVISOR));
+    sty8(ea_abs(WRDIVB & 0xFFFF));
+    lda16(ea_abs(RDDIVL & 0xFFFF));  /* after eight NOPs in the original */
+    ldy8(ea_abs((uint16_t)(step + 2)));
+    if (IF_N) {
+        eor16_v(0xFFFF);
+        ACC16(inc);
+    }
+    op_sep(0x20);
+    clc();
+    adc8_v(rd8(ea_dp(pos)));
+    sta8(ea_dp(pos));
+    xba();
+    adc8_v(rd8(ea_dp((uint8_t)(pos + 1))));
+    sta8(ea_dp((uint8_t)(pos + 1)));
+    tya8();
+    adc8_v(rd8(ea_dp((uint8_t)(pos + 2))));
+    sta8(ea_dp((uint8_t)(pos + 2)));
+}
+
+/*
+ * @routine 81:A687 ActorMoveByVectorOver
+ * WHAT IT DOES: Moves the actor by a vector from direction set X divided
+ * by Y, the set's left vector when it faces left. No code refers to it.
+ * HOW: The vector (a word at $BBB9 + X in the data bank, plus the facing)
+ * to the step at $0C-$0E (x) and $10-$12 (y). For each part, its fraction
+ * and pixels (16 bits) made positive by the high byte's sign, divided by
+ * the divisor with the CPU's divider (eight NOPs while it works), the
+ * quotient given the sign back, then added to the 24-bit position with the
+ * high byte (the sign) as its top byte.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank with the vector sets
+ * at $BBB9 and the CPU's registers at $4200; X = the set's byte offset;
+ * Y = the divisor; called by JSL. Exit: M and X 8-bit; X = the vector's
+ * low byte; Y = the y step's high byte; A low byte = the y position's high
+ * byte; N, V, Z, C from its ADC; $1A the divisor; $0C-$12 the vector.
+ */
+void abi_ActorMoveByVectorOver(void)
+{
+    sty8(ea_abs(DIVISOR));
+    op_rep(0x30);
+    clc();
+    lda16(ea_dp(ACTOR_FACING));
+    and16_v(0x00FF);
+    adc16_v(rd16(ea_absx(VECTOR_SETS)));
+    tax16();
+    op_sep(0x20);
+    lda8(ea_longx(0x82C000u));
+    sta8(ea_abs(SCRATCH));
+    lda8(ea_longx(0x82C409u));
+    sta8(ea_abs(SCRATCH + 1));
+    lda8(ea_longx(0x82C812u));
+    sta8(ea_abs(SCRATCH + 2));
+    lda8(ea_longx(0x82CC1Bu));
+    sta8(ea_abs(SCRATCH + 4));
+    lda8(ea_longx(0x82D024u));
+    sta8(ea_abs(SCRATCH + 5));
+    lda8(ea_longx(0x82D42Du));
+    sta8(ea_abs(SCRATCH + 6));
+    op_sep(0x10);
+    vector_part_over(SCRATCH, ACTOR_X);
+    vector_part_over(SCRATCH + 4, ACTOR_Y);
 }
 
 /*

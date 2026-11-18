@@ -1,0 +1,13 @@
+# Unit calls of ActorMoveByVectorOver (81:A687), which no code refers to:
+# the actor moved by a vector from a direction set divided by Y. By JSL in
+# a level (stage_a0_s0), M and X 8-bit, DB $80 (its vector sets at
+# $80:BBB9 and the CPU's divider), the actor the record at $092B, the
+# machine put back after each. Set 0 facing 1 (its facing byte $093F):
+# both parts negative ($FFF74F, $FFFDAC), divided by 3. Set 4 ($04) facing
+# 0: both positive ($003556, $00288B), divided by 5.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+set 00093F 01
+call 81A687 long p=30 db=80 d=092B x=00 y=03
+set 00093F 00
+call 81A687 long p=30 db=80 d=092B x=04 y=05
