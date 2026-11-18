@@ -1,0 +1,61 @@
+# Actor kind $86's start (Kind86Start, $84:962D): the placed one on stage
+# a5 s0 at x $09A0 (record $0B5B, $07 0) put back in its start state ($0C)
+# with $07 = 1: its time below ($4A) is $14 frames, not $20 ($84:96B9),
+# and it runs its whole cycle: the drop, the time below, the rise back past
+# its start height, and on into the next drop ($84:975F, the JMP back to
+# $84:96A1). Set up as cov_kind86_wait: the view at x $0920, y $0080 and
+# Aladdin at x $09A0, where the placements start the pairs.
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 270
+poke 000B62 01
+poke 000B5B 0C
+wait 600
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 270
+poke 000B62 01
+poke 000B5B 0C
+wait 20
+poke 0008EA B0,00
+wait 300
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 270
+poke 000B62 01
+poke 000B5B 0C
+wait 20
+poke 0008EA C0,00
+wait 300
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 270
+poke 000B62 01
+poke 000B5B 0C
+wait 20
+poke 0008EA D0,00
+wait 300
