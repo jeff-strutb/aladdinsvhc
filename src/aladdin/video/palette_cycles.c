@@ -123,7 +123,7 @@ void abi_PaletteCycleLoad(void)
     dp16_set(PCYC_FRAMES, rd16(PALETTE_CYCLE_TABLE + script));   /* frames, colours */
     cpu.a = rd16(PALETTE_CYCLE_TABLE + 2 + script);              /* the palette offset */
     dp16_set(PCYC_AT, cpu.a);
-    inc16_at(dpa(PCYC_STEP));
+    MEM16(inc, dpa(PCYC_STEP));            /* INC dp with 16-bit A: high byte written first */
 }
 
 /*
@@ -163,7 +163,8 @@ void abi_PaletteCycleFrame(void)
         plx16();
         cpu.x = (uint16_t)(cpu.x + 2);
         cpu.y = (uint16_t)(cpu.y + 2);
-    } while (dec16_at(dba(SCRATCH)));
+        MEM16(dec, dba(SCRATCH));          /* DEC abs with 16-bit A: high byte written first */
+    } while (!IF_Z);
     dp16_set(PCYC_NEXT, cpu.x);
     op_sep(P_M);
     inc8_at(dpa(PCYC_STEP));
