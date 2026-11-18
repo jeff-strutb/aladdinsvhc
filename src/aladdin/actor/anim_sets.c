@@ -19,12 +19,6 @@ void abi_AnimSetsLoad(void);
 void abi_AnimSetsListEnd(void);
 void abi_AnimSetsPlaces(void);
 
-static void set_a8(uint8_t v)
-{
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | v);
-    cpu.p = nz8(cpu.p, v);
-}
-
 #define NO_SET 0xFF
 /* Each type's animation set, 256 bytes in bank $81; the first 32 types
    are present in every level. */
@@ -35,6 +29,22 @@ static void set_a8(uint8_t v)
 #define LEVEL_ACTORS 0x8A7Au
 #define LEVEL_ACTOR_SIZE 6
 
+/* AnimSetsLoad's banks and sources, and its direct page (D = the
+   caller's: 0); the lists as the data bank $7F sees them */
+#define SET_PICTURES 0x8000u        /* per set: its picture list's offset (word), then its bank less $A6 */
+#define SET_PICTURES_BANK 0xA6
+#define SET_TABLES 0xC000u          /* per set: its animation table's offset (word) */
+#define SET_TABLES_BANK 0xA5
+#define LEVEL_DATA_BANK 0x82
+#define WORK_BANK_HIGH 0x7F
+#define LOAD_SETS_LEFT 0x0C
+#define LOAD_LIST_AT 0x10
+#define LOAD_LEFT 0x16
+#define LOAD_SOURCE 0x18            /* long pointer (bank at $1A) */
+#define SET_OF_TYPE 0xF000u         /* ANIM_SET_OF_TYPE in bank $7F */
+#define SETS_USED 0xF100u           /* ANIM_SETS_USED in bank $7F */
+#define SET_PLACE_OF_TYPE 0xE000u   /* ANIM_SET_PLACE_OF_TYPE in bank $7F */
+
 /*
  * @routine 81:9D4C AnimSetsFill
  * WHAT IT DOES: Sets every actor type's animation set to A.
@@ -44,14 +54,11 @@ static void set_a8(uint8_t v)
  */
 void abi_AnimSetsFill(void)
 {
-    uint8_t x = 0;
-
-    do {
-        wr8(ANIM_SET_OF_TYPE + x, (uint8_t)cpu.a);
-        x--;
-    } while (x != 0);
-    cpu.x = 0;
-    cpu.p = nz8(cpu.p, 0);
+    ldx8_v(0x00);
+    do {                                  /* the first, then the last down */
+        sta8(ea_longx(ANIM_SET_OF_TYPE));
+        dex8();
+    } while (!IF_Z);
 }
 
 /*
@@ -63,8 +70,8 @@ void abi_AnimSetsFill(void)
  */
 void abi_AnimSetsClear(void)
 {
-    set_a8(NO_SET);
-    abi_AnimSetsFill();
+    lda8_v(NO_SET);
+    abi_AnimSetsFill();                   /* on into it */
 }
 
 /*
@@ -76,14 +83,12 @@ void abi_AnimSetsClear(void)
  */
 void abi_AnimSetsAlways(void)
 {
-    int x;
-
-    for (x = ALWAYS_TYPES - 1; x >= 0; x--) {
-        cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(TYPE_ANIM_SETS + x));
-        wr8(ANIM_SET_OF_TYPE + x, (uint8_t)cpu.a);
-    }
-    cpu.x = 0xFF;
-    cpu.p = nz8(cpu.p, 0xFF);
+    ldx8_v(ALWAYS_TYPES - 1);
+    do {
+        lda8(ea_longx(TYPE_ANIM_SETS));
+        sta8(ea_longx(ANIM_SET_OF_TYPE));
+        dex8();
+    } while (!IF_N);
 }
 
 /*
@@ -99,37 +104,38 @@ void abi_AnimSetsAlways(void)
  */
 void abi_AnimSetsOfLevel(void)
 {
-    const uint32_t bank = 0x820000u;
-    uint16_t y, n;
-
-    op_push8(cpu.db);                         /* PHB, then the data bank = $82 */
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x82);
-    op_push8(0x82);
-    cpu.db = op_pull8();
-    cpu.p = nz8(cpu.p, cpu.db);
-    op_rep(P_M | P_X);
-    y = (uint16_t)(rd16(bank | LEVEL) << 1);
-    y = rd16(bank + LEVEL_ACTORS + y);
-    cpu.a = (uint16_t)(rd16(bank + LEVEL_ACTORS + y) & 0x00FF);
-    if (cpu.a != 0) {
-        wr16(bank | SCRATCH, cpu.a);
-        y++;
-        do {
-            uint8_t type = (uint8_t)rd16(bank + LEVEL_ACTORS + y);
-
-            cpu.x = type;
-            wr8(ANIM_SET_OF_TYPE + type, rd8(TYPE_ANIM_SETS + type));
-            cpu.p &= (uint8_t)~P_C;
-            cpu.a = op_adc16(y, LEVEL_ACTOR_SIZE, &cpu.p);
-            y = cpu.a;
-            n = (uint16_t)(rd16_rmw(bank | SCRATCH) - 1);
-            wr16_rmw(bank | SCRATCH, n);
-        } while (n != 0);
+    phb();
+    lda8_v(LEVEL_DATA_BANK);
+    pha8();
+    plb();
+    op_rep(0x30);
+    lda16(ea_abs((uint16_t)LEVEL));
+    cpu.a = asl16_r(cpu.a);
+    tay16();
+    lda16(ea_absy(LEVEL_ACTORS));
+    tay16();
+    lda16(ea_absy(LEVEL_ACTORS));
+    and16_v(0x00FF);
+    if (!IF_Z) {
+        sta16(ea_abs(SCRATCH));
+        iny16();
+        do {                              /* each of the level's actors */
+            lda16(ea_absy(LEVEL_ACTORS));
+            and16_v(0x00FF);
+            tax16();
+            op_sep(0x20);
+            lda8(ea_longx(TYPE_ANIM_SETS));
+            sta8(ea_longx(ANIM_SET_OF_TYPE));
+            op_rep(0x20);
+            clc();
+            tya16();
+            adc16_v(LEVEL_ACTOR_SIZE);
+            tay16();
+            MEM16(dec, ea_abs(SCRATCH));
+        } while (!IF_Z);
     }
-    cpu.y = y;
-    op_sep(P_M | P_X);
-    cpu.db = op_pull8();                      /* PLB */
-    cpu.p = nz8(cpu.p, cpu.db);
+    op_sep(0x30);
+    plb();
 }
 
 /*
@@ -144,50 +150,45 @@ void abi_AnimSetsOfLevel(void)
  */
 void abi_AnimSetsList(void)
 {
-    const uint32_t bank = 0x7F0000u;
-    uint8_t x = 0, y = 0, a;
-
-    op_push8(cpu.db);                         /* PHB, then the data bank = $7F */
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x7F);
-    op_push8(0x7F);
-    cpu.db = op_pull8();
-    cpu.p = nz8(cpu.p, cpu.db);
-    a = NO_SET;
-    wr8(ANIM_SETS_USED, a);
-    do {
-        a = rd8(bank | (uint16_t)(ANIM_SET_OF_TYPE + x));
-        cpu.p = cmp8_flags(cpu.p, a, NO_SET);
-        if (a != NO_SET) {
-            y = 0;
-            for (;;) {
-                a = rd8(bank | (uint16_t)(ANIM_SET_OF_TYPE + x));
-                cpu.p = cmp8_flags(cpu.p, a, rd8(bank | (uint16_t)(ANIM_SETS_USED + y)));
-                if (cpu.p & P_Z)
+    phb();
+    lda8_v(WORK_BANK_HIGH);
+    pha8();
+    plb();
+    lda8_v(NO_SET);
+    sta8(ea_abs(SETS_USED));
+    ldx8_v(0x00);
+    do {                                  /* each actor type */
+        lda8(ea_absx(SET_OF_TYPE));
+        cmp8_v(NO_SET);
+        if (!IF_Z) {
+            ldy8_v(0x00);
+            for (;;) {                    /* already listed? */
+                lda8(ea_absx(SET_OF_TYPE));
+                cmp8_v(rd8(ea_absy(SETS_USED)));
+                if (IF_Z)
                     break;
-                a = rd8(bank | (uint16_t)(ANIM_SETS_USED + y));
-                y = (uint8_t)(y + 2);
-                cpu.p = cmp8_flags(cpu.p, a, NO_SET);
-                if (cpu.p & P_Z) {
-                    a = rd8(bank | (uint16_t)(ANIM_SET_OF_TYPE + x));
-                    y = (uint8_t)(y - 2);
-                    wr8(bank | (uint16_t)(ANIM_SETS_USED + y), a);
-                    y++;
-                    a = 0;
-                    wr8(bank | (uint16_t)(ANIM_SETS_USED + y), a);
-                    y++;
-                    a = NO_SET;
-                    wr8(bank | (uint16_t)(ANIM_SETS_USED + y), a);
+                lda8(ea_absy(SETS_USED));
+                iny8();
+                iny8();
+                cmp8_v(NO_SET);
+                if (IF_Z) {               /* the end: listed there */
+                    lda8(ea_absx(SET_OF_TYPE));
+                    dey8();
+                    dey8();
+                    sta8(ea_absy(SETS_USED));
+                    iny8();
+                    lda8_v(0x00);
+                    sta8(ea_absy(SETS_USED));
+                    iny8();
+                    lda8_v(NO_SET);
+                    sta8(ea_absy(SETS_USED));
                     break;
                 }
             }
         }
-        x++;
-    } while (x != 0);
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
-    cpu.x = 0;
-    cpu.y = y;
-    cpu.db = op_pull8();                      /* PLB */
-    cpu.p = nz8(cpu.p, cpu.db);
+        inx8();
+    } while (!IF_Z);
+    plb();
 }
 
 /*
@@ -200,15 +201,13 @@ void abi_AnimSetsList(void)
  */
 void abi_AnimSetsListEnd(void)
 {
-    uint8_t x = 0, a;
-
+    ldx8_v(0x00);
     do {
-        a = rd8(ANIM_SETS_USED + x);
-        x = (uint8_t)(x + 2);
-        cpu.p = cmp8_flags(cpu.p, a, NO_SET);
-    } while (a != NO_SET);
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
-    cpu.x = x;
+        lda8(ea_longx(ANIM_SETS_USED));
+        inx8();
+        inx8();
+        cmp8_v(NO_SET);
+    } while (!IF_Z);
 }
 
 /*
@@ -225,39 +224,40 @@ void abi_AnimSetsListEnd(void)
  */
 void abi_AnimSetsPlaces(void)
 {
-    uint8_t db = cpu.db, left, x = 0, y = 0, a;
-
-    cpu.db = 0x7F;
-    a8_load(0x7F);
-    abi_AnimSetsListEnd();
-    a = (uint8_t)(((uint8_t)cpu.x >> 1) - 1);
-    wr8(dba(SCRATCH), a);
-    do {
-        /* type Y: its set's place in the list, 4 when not there */
-        left = rd8(dba(SCRATCH));
-        wr8(dba(SCRATCH + 2), left);
-        wr8(dba((uint16_t)(ANIM_SET_PLACE_OF_TYPE + y)), 0x04);
-        x = 0;
+    phb();
+    lda8_v(WORK_BANK_HIGH);
+    pha8();
+    plb();
+    call_frame(0x908D, abi_AnimSetsListEnd);
+    txa8();
+    set_al(lsr8_r(al()));
+    set_al(dec8_r(al()));
+    sta8(ea_abs(SCRATCH));                /* the sets listed ($7F:000C) */
+    ldy8_v(0x00);
+    do {                                  /* each actor type */
+        lda8(ea_abs(SCRATCH));
+        sta8(ea_abs(SCRATCH + 2));
+        lda8_v(0x04);
+        sta8(ea_absy(SET_PLACE_OF_TYPE));
+        ldx8_v(0x00);
         for (;;) {
-            a = rd8(dba((uint16_t)(ANIM_SET_OF_TYPE + y)));
-            cmp8_of(a, rd8(dba((uint16_t)(ANIM_SETS_USED + x))));
-            if (a == rd8(dba((uint16_t)(ANIM_SETS_USED + x)))) {
-                flag_set(P_C, x & 1);
-                a = (uint8_t)(x >> 1);
-                wr8(dba((uint16_t)(ANIM_SET_PLACE_OF_TYPE + y)), a);
+            lda8(ea_absy(SET_OF_TYPE));
+            cmp8_v(rd8(ea_absx(SETS_USED)));
+            if (IF_Z) {
+                txa8();
+                set_al(lsr8_r(al()));
+                sta8(ea_absy(SET_PLACE_OF_TYPE));
                 break;
             }
-            x = (uint8_t)(x + 2);
-            wr8(dba(SCRATCH + 2), --left);
-            if (!left)
+            inx8();
+            inx8();
+            MEM8(dec, ea_abs(SCRATCH + 2));
+            if (IF_Z)
                 break;
         }
-    } while (++y);
-    cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
-    cpu.x = x;
-    cpu.y = 0;
-    cpu.db = db;
-    nz8_of(db);
+        iny8();
+    } while (!IF_Z);
+    plb();
 }
 
 /*
@@ -281,86 +281,131 @@ void abi_AnimSetsPlaces(void)
  */
 void abi_AnimSetsLoad(void)
 {
-    uint8_t db = cpu.db, p;
-    uint16_t sets, i, x, y, n, set, from;
-
     op_sep(0x30);
-    p = cpu.p;
-    cpu.db = 0xA6;
-    a8_load(0xA6);
-    abi_AnimSetsClear();
-    abi_AnimSetsOfLevel();
-    abi_AnimSetsAlways();
-    abi_AnimSetsList();
-    abi_AnimSetsListEnd();
+    phb();
+    php();
+    lda8_v(SET_PICTURES_BANK);
+    pha8();
+    plb();
+    jsl_frame(0x818F4Fu); abi_AnimSetsClear(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x818F53u); abi_AnimSetsOfLevel(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x8F59, abi_AnimSetsAlways);
+    call_frame(0x8F5C, abi_AnimSetsList);
+    call_frame(0x8F5F, abi_AnimSetsListEnd);
+    txa8();
     op_rep(0x30);
-    /* each set's picture list: from its entry at $A6:8000 (set * 3: the
-       offset from $8000, the bank from $A6), a byte count then the bytes,
-       going on at $8000 of the next bank past $FFFF */
-    sets = (uint16_t)(((cpu.x & 0xFF) >> 1) - 1);
-    dp16_set(0x0C, sets);
-    i = 0;
-    x = 0;
-    do {
-        wr16(ANIM_SET_GFX + i, x);
-        set = rd16(ANIM_SETS_USED + i);
-        i += 2;
-        dp16_set(0x10, i);
-        y = (uint16_t)(set * 3);
-        from = rd16(0xA68000u + y);
-        dp16_set(0x18, 0);
-        dp16_set(0x1A, (uint16_t)((rd16(0xA68000u + y + 2) & 0x00FF) + 0xA6));
-        y = (uint16_t)(from + 0x8000);
-        n = rd16(((uint32_t)dp16(0x1A) << 16) + y);
-        y += 2;
-        if (y < 0x8000) {
-            y += 0x8000;
-            dp16_set(0x1A, (uint16_t)(dp16(0x1A) + 1));
+    and16_v(0x00FF);
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = dec16_r(cpu.a);
+    sta16(ea_dp(LOAD_SETS_LEFT));
+    stz16(ea_dp(LOAD_LIST_AT));
+    ldx16_v(0x0000);
+    do {                                  /* each set's picture list */
+        phx16();
+        txa16();
+        ldx16(ea_dp(LOAD_LIST_AT));
+        MEM16(inc, ea_dp(LOAD_LIST_AT));
+        MEM16(inc, ea_dp(LOAD_LIST_AT));
+        sta16(ea_longx(ANIM_SET_GFX));
+        lda16(ea_longx(ANIM_SETS_USED));
+        cpu.a = asl16_r(cpu.a);
+        clc();
+        adc16_v(rd16(ea_longx(ANIM_SETS_USED)));
+        tay16();
+        plx16();
+        lda16(ea_absy(SET_PICTURES));
+        pha16();
+        iny16();
+        iny16();
+        stz16(ea_dp(LOAD_SOURCE));
+        lda16(ea_absy(SET_PICTURES));
+        and16_v(0x00FF);
+        clc();
+        adc16_v(SET_PICTURES_BANK);
+        sta16(ea_dp(LOAD_SOURCE + 2));
+        pla16();
+        clc();
+        adc16_v(0x8000);
+        tay16();
+        lda16(ea_dpily(LOAD_SOURCE));
+        sta16(ea_dp(LOAD_LEFT));
+        iny16();
+        iny16();
+        clc();
+        cpy16_v(0x8000);
+        if (!IF_C) {                      /* past $FFFF: on at $8000 of the next bank */
+            tya16();
+            clc();
+            adc16_v(0x8000);
+            tay16();
+            MEM16(inc, ea_dp(LOAD_SOURCE + 2));
         }
-        do {
-            cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(((uint32_t)dp16(0x1A) << 16) + y));
-            wr8(PICTURE_LIST + x, (uint8_t)cpu.a);
-            x++;
-            y++;
-            if (y < 0x8000) {
-                y += 0x8000;
-                dp16_set(0x1A, (uint16_t)(dp16(0x1A) + 1));
+        do {                              /* its bytes */
+            op_sep(0x20);
+            lda8(ea_dpily(LOAD_SOURCE));
+            sta8(ea_longx(PICTURE_LIST));
+            inx16();
+            iny16();
+            clc();
+            cpy16_v(0x8000);
+            if (!IF_C) {
+                op_rep(0x20);
+                tya16();
+                clc();
+                adc16_v(0x8000);
+                tay16();
+                MEM16(inc, ea_dp(LOAD_SOURCE + 2));
             }
-            dp16_set(0x16, --n);
-        } while (n);
-        dp16_set(0x0C, --sets);
-    } while (sets);
-    /* each set's animation table: from its offset at $A5:C000 (set * 2),
-       a byte size then the words */
+            op_rep(0x20);
+            MEM16(dec, ea_dp(LOAD_LEFT));
+        } while (!IF_Z);
+        MEM16(dec, ea_dp(LOAD_SETS_LEFT));
+    } while (!IF_Z);
     op_sep(0x30);
-    cpu.db = 0xA5;
-    cpu.y = y & 0xFF;
-    abi_AnimSetsListEnd();
+    lda8_v(SET_TABLES_BANK);
+    pha8();
+    plb();
+    call_frame(0x8FE1, abi_AnimSetsListEnd);
     op_rep(0x30);
-    sets = (uint16_t)(((cpu.x & 0xFF) >> 1) - 1);
-    dp16_set(0x0C, sets);
-    i = 0;
-    x = 0;
-    do {
-        wr16(ANIM_SET_TABLE + i, x);
-        y = (uint16_t)(rd16(ANIM_SETS_USED + i) << 1);
-        i += 2;
-        dp16_set(0x10, i);
-        y = rd16(0xA5C000u + y);
-        n = (uint16_t)((rd16(0xA5C000u + y) >> 1) + 1);
-        y += 2;
-        do {
-            cpu.a = rd16(0xA5C000u + y);
-            wr16(ANIM_DATA + x, cpu.a);
-            y += 2;
-            x += 2;
-            dp16_set(0x16, --n);
-        } while (n);
-        dp16_set(0x0C, --sets);
-    } while (sets);
+    txa16();
+    and16_v(0x00FF);
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = dec16_r(cpu.a);
+    sta16(ea_dp(LOAD_SETS_LEFT));
+    stz16(ea_dp(LOAD_LIST_AT));
+    ldx16_v(0x0000);
+    do {                                  /* each set's animation table */
+        phx16();
+        txa16();
+        ldx16(ea_dp(LOAD_LIST_AT));
+        MEM16(inc, ea_dp(LOAD_LIST_AT));
+        MEM16(inc, ea_dp(LOAD_LIST_AT));
+        sta16(ea_longx(ANIM_SET_TABLE));
+        lda16(ea_longx(ANIM_SETS_USED));
+        cpu.a = asl16_r(cpu.a);
+        tay16();
+        plx16();
+        lda16(ea_absy(SET_TABLES));
+        tay16();
+        lda16(ea_absy(SET_TABLES));
+        cpu.a = lsr16_r(cpu.a);
+        cpu.a = inc16_r(cpu.a);
+        sta16(ea_dp(LOAD_LEFT));
+        iny16();
+        iny16();
+        do {                              /* its words */
+            lda16(ea_absy(SET_TABLES));
+            sta16(ea_longx(ANIM_DATA));
+            iny16();
+            iny16();
+            inx16();
+            inx16();
+            MEM16(dec, ea_dp(LOAD_LEFT));
+        } while (!IF_Z);
+        MEM16(dec, ea_dp(LOAD_SETS_LEFT));
+    } while (!IF_Z);
     op_sep(0x30);
-    abi_AnimSetsPlaces();
-    cpu.p = p;
-    cpu.db = db;
-    nz8_of(db);
+    call_frame(0x9028, abi_AnimSetsPlaces);
+    plp();
+    plb();
 }
