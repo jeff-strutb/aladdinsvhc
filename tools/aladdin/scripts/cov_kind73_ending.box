@@ -1,0 +1,131 @@
+# The scene after kind $73's chain is beaten in level $11 ($84:8B08 on, in
+# the last piece, $40 = 8): the pieces' children and tasks started, the
+# fade waited on, the head moved off and the closing lists, then TaskExec
+# to what follows. Each pass plays cov_kind73_defeat.box's second pass
+# (the head's health, $11 at $0C0C, set to 0 before the strike).
+# Pass 1 waits through the whole scene to TaskExec $80:AF42 ($005D 0).
+# Pass 2 sets the player's health ($0367) to 0 twenty frames after the
+# strike: the piece then waits in the $84:8B4A loop (measured from frame
+# 20 to 660 after the strike, $0087 clear by 680), so its read at $84:8B64
+# finds 0 and it stays for good ($84:8B69).
+# Not covered: $84:8CA1 (TaskExec $84:AFCC, 7 bytes), taken only with
+# $005D nonzero, which RegionCheck ($84:AFAE) sets only on a PAL console
+# (STAT78 bit 4); this board is NTSC.
+load build/aladdin/states/stage_a5_s3.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+poke 000C0C 00
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 82
+hold B 69
+hold L 10
+hold UP+B 54
+hold R 17
+hold R 11
+hold B+RIGHT 60
+hold Y+RIGHT 80
+wait 3000
+load build/aladdin/states/stage_a5_s3.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+poke 000C0C 00
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 82
+hold B 69
+hold L 10
+hold UP+B 54
+hold R 17
+hold R 11
+hold B+RIGHT 60
+hold Y+RIGHT 80
+wait 20
+poke 000367 00
+wait 900

@@ -378,7 +378,7 @@ void abi_ActorsFollowIf8(void)
     a8_load(when);
     cmp8_of(when, 0x08);
     if (when == 0x08) {
-        abi_ActorsFollowSteps();
+        call_frame(0x8CCDu, abi_ActorsFollowSteps);   /* its JSR at $84:8CCB: the C pushes */
         abi_ActorPriorityByHeight();
     }
 }
