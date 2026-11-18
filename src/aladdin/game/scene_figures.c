@@ -33,6 +33,8 @@ void abi_ActorEndPlaced(void);
 void abi_ActorSnapToGround(void);
 void abi_ActorMoveY(void);
 void abi_ActorOutOfGround(void);
+void abi_TaskCreate(void);
+void abi_TaskExec(void);
 
 #define SCENE_CUE_C2 0x00C2u  /* counted up by a scripted actor when it has waited; this one waits for it */
 #define FIGURE_29 0x29u  /* word: its picture list ($891F, $8907) */
@@ -50,7 +52,11 @@ void abi_ActorOutOfGround(void);
 /* The player started with $07 = 9 */
 #define CUE_BE 0x0000BEu      /* the camera trigger task's second cue: cleared as it starts */
 /* Not yet filed (no script reaches it): the player's part after the cue. */
-#define SCENE_LAND_CUED 0x81DFEFu
+#define SCENE_STEP_A 0x00BDu    /* nonzero: the walk-off figure goes on */
+#define V_035D 0x035Du
+#define V_147B 0x147Bu
+#define V_036C 0x036Cu          /* nonzero: on at $81:CC31, not to the next part */
+#define TASK2_STATE 0x009Fu     /* task slot 2's state: 0 when free */
 
 /* Kind $72's own fields and tables */
 #define ALONG_16 0x16u        /* word: $D6B5 */
@@ -343,9 +349,12 @@ void abi_Kind72RideAlong(void)
  * standing. Else PlayerMoveStart $0E, vertical speed $0300 (3 pixels),
  * each frame (BRK first) ActorMoveY and ActorOutOfGround until it leaves
  * Z clear. Standing: V_145B 4, PlayerMoveStart 0; each frame (BRK first)
- * until CUE_BE is nonzero; then on at SCENE_LAND_CUED, which no script
- * reaches yet: its C is not written, and it runs as the original's
- * (jump_routine).
+ * until CUE_BE is nonzero. Cued ($81:DFEF): the flip up for $80 frames
+ * (COP) and back for $80, SCENE_STEP_A up, PlayerMoveStart 3, speed across
+ * $0200 and $80 frames of ActorMoveX; V_035D and V_147B up; V_036C nonzero:
+ * on at $81:CC31 (code with no C yet: no script takes it); else TaskCreate
+ * (slot 2, parameter 4, BrightnessDownTask), ActorMoveX each frame while
+ * slot 2's task runs, then TaskExec NextPartTask.
  * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
  * the jump through the player's start table by $07 at $81:CB61 (81:CB56).
  * Exit: never returns.
@@ -354,25 +363,25 @@ void abi_PlayerSceneLand(void)
 {
     wr8(dpa(ACTOR_FACING), 0);
     wr8(dpa(ACTOR_FLIP), 0);
-    abi_ActorSnapToGround();
+    jsl_frame(0x81DFBFu); abi_ActorSnapToGround(); cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_Z) {
         /* no ground under him: he falls 3 pixels a frame till he is in it */
         a8_load(0x0E);
-        abi_PlayerMoveStart();
+        call_frame(0xDFC9, abi_PlayerMoveStart);
         a8_load(0x03);
         wr8(dpa(ACTOR_SPEED_Y + 1), 0x03);
         wr8(dpa(ACTOR_SPEED_Y), 0);
         wr8(dpa(ACTOR_SPEED_Y + 2), 0);
         do {
             actor_yield(0x81DFD2u);
-            abi_ActorMoveY();
-            abi_ActorOutOfGround();
+            jsl_frame(0x81DFD4u); abi_ActorMoveY(); cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x81DFD8u); abi_ActorOutOfGround(); cpu.s = (uint16_t)(cpu.s + 3);
         } while (cpu.p & P_Z);
     }
     a8_load(0x04);
     wr8(dba(V_145B), 0x04);
     a8_load(0x00);
-    abi_PlayerMoveStart();
+    call_frame(0xDFE7, abi_PlayerMoveStart);
     for (;;) {
         actor_yield(0x81DFE8u);
         uint8_t cue = rd8(dba(CUE_BE));
@@ -380,5 +389,41 @@ void abi_PlayerSceneLand(void)
         if (cue)
             break;
     }
-    jump_routine(SCENE_LAND_CUED);
+    /* cued ($81:DFEF): he turns for $80 frames and back for $80, then
+       walks off right at 2 pixels a frame for $80 frames */
+    MEM8(inc, ea_dp(ACTOR_FLIP));
+    lda8_v(0x80);
+    actor_wait(0x81DFF3u);
+    stz8(ea_dp(ACTOR_FLIP));
+    lda8_v(0x80);
+    actor_wait(0x81DFF9u);
+    MEM8(inc, ea_abs(SCENE_STEP_A));
+    lda8_v(0x03);
+    call_frame(0xE002, abi_PlayerMoveStart);
+    lda8_v(0x02);
+    sta8(ea_dp(ACTOR_SPEED_X + 1));
+    stz8(ea_dp(ACTOR_SPEED_X));
+    stz8(ea_dp(ACTOR_SPEED_X + 2));
+    lda8_v(0x80);
+    sta8(ea_dp(ACTOR_40));
+    do {
+        actor_yield(0x81E00Fu);
+        jsl_frame(0x81E011u); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+        MEM8(dec, ea_dp(ACTOR_40));
+    } while (!IF_Z);
+    MEM8(inc, ea_abs(V_035D));
+    MEM8(inc, ea_abs(V_147B));
+    lda8(ea_abs(V_036C));
+    if (!IF_Z) {
+        jump_routine(0x81CC31u);                 /* 81E024 jmp: code with no C yet */
+        return;
+    }
+    /* BrightnessDownTask in slot 2 (parameter 4); he walks on while it runs */
+    jsl_frame(0x81E027u); abi_TaskCreate(); cpu.unwound = 0;
+    do {
+        actor_yield(0x81E030u);
+        jsl_frame(0x81E032u); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+        lda8(ea_abs(TASK2_STATE));
+    } while (!IF_Z);
+    jsl_frame(0x81E03Bu); abi_TaskExec();        /* to NextPartTask: never returns */
 }

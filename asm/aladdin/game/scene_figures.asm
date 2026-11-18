@@ -32,6 +32,12 @@ arch 65816
 !ENDING_RIDE_ON = $81E315
 
 ; The player started with $07 = 9.
+!SCENE_STEP_A = $00BD           ; nonzero: the walk-off figure goes on
+!V_035D = $035D
+!V_147B = $147B
+!V_036C = $036C                 ; nonzero: on at $81:CC31, not to the next part
+!TASK2_STATE = $009F            ; task slot 2's state: 0 when free
+!LAND_ON_CC31 = $CC31           ; code no routine owns yet (by $81:CC1A)
 !CUE_BE = $00BE                 ; the camera trigger task's second cue: cleared as it starts
 
 ; Kind $72's own fields and tables.
@@ -307,8 +313,12 @@ Kind72RideAlong:
 ; standing. Else PlayerMoveStart $0E, vertical speed $0300 (3 pixels),
 ; each frame (BRK first) ActorMoveY and ActorOutOfGround until it leaves
 ; Z clear. Standing: V_145B 4, PlayerMoveStart 0; each frame (BRK first)
-; until CUE_BE is nonzero; then on at $81:DFEF, which no script reaches
-; yet: those bytes are left in the intake.
+; until CUE_BE is nonzero. Cued: the flip up for $80 frames (COP) and
+; back for $80, SCENE_STEP_A up, PlayerMoveStart 3, speed across $0200 and
+; $80 frames of ActorMoveX; V_035D and V_147B up; V_036C nonzero: on at
+; $81:CC31 (no script takes it); else TaskCreate (slot 2, parameter 4,
+; BrightnessDownTask), ActorMoveX each frame while slot 2's task runs,
+; then TaskExec NextPartTask.
 ; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
 ; the jump through the player's start table by $07 at $81:CB61 (81:CB56).
 ; Exit: never returns.
@@ -338,3 +348,39 @@ PlayerSceneLand:
     brk.b #$00
     lda.w !CUE_BE
     beq .wait
+    inc.b !actor_flip              ; cued: turned for $80 frames, then back
+    lda.b #$80
+    cop.b #$00
+    stz.b !actor_flip
+    lda.b #$80
+    cop.b #$00
+    inc.w !SCENE_STEP_A
+    lda.b #$03
+    jsr.w PlayerMoveStart
+    lda.b #$02                     ; then off right, 2 pixels a frame, $80 frames
+    sta.b !actor_speed_x+1
+    stz.b !actor_speed_x
+    stz.b !actor_speed_x+2
+    lda.b #$80
+    sta.b !actor_40
+.walk_off:
+    brk.b #$00
+    jsl.l ActorMoveX
+    dec.b !actor_40
+    bne .walk_off
+    inc.w !V_035D
+    inc.w !V_147B
+    lda.w !V_036C
+    beq .next_part
+    jmp.w !LAND_ON_CC31
+.next_part:
+    jsl.l TaskCreate
+    db 2*24, 4                     ; slot 2, parameter 4
+    dl BrightnessDownTask
+.dimming:
+    brk.b #$00
+    jsl.l ActorMoveX
+    lda.w !TASK2_STATE
+    bne .dimming
+    jsl.l TaskExec
+    dl NextPartTask
