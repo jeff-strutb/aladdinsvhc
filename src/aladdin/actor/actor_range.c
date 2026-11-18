@@ -169,8 +169,10 @@ void abi_ActorEndOutOfRangeLong(void)
     pla8();
     pla8();
     pla8();
-    /* BRA into ActorEndPlaced, at the actor loop's stack level */
-    abi_ActorEndPlaced();
+    /* BRA into ActorEndPlaced, at the actor loop's stack level: this call
+       ends there, past its exit level, as the original's does, and
+       ActorEndPlaced runs as its own (as KindA1Touch's end) */
+    actor_leave(ACTOR_END_PLACED);
 }
 
 /*
