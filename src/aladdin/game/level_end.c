@@ -127,7 +127,7 @@ void abi_LevelEndBlanks(void)
     cpu.y = 0x001E;
     do {                                  /* the 16 blocks of the table */
         a16_load(rd16(dba(END_BLANK_BLOCKS) + cpu.y));
-        abi_TileBlockBlank();
+        call_frame(0xF965, abi_TileBlockBlank);  /* 81F963 jsr */
         cpu.y = (uint16_t)(cpu.y - 2);
         nz16_of(cpu.y);
     } while (!(cpu.y & 0x8000));
@@ -205,12 +205,12 @@ void abi_LevelEndTask(void)
 L_81F626:
     lda8(ea_abs(LEVEL_035C));  /* 81F626 lda */
     sta8(ea_abs(0x0005));  /* 81F629 sta */
-    abi_KeptOptionsSeal();  /* 81F62C jsl */
-    abi_NmiDisable();  /* 81F630 jsl */
-    abi_ScreenBlank();  /* 81F634 jsl */
-    abi_ScrollStateClear();  /* 81F638 jsl */
+    jsl_frame(0x81F62Cu); abi_KeptOptionsSeal(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F62C jsl */
+    jsl_frame(0x81F630u); abi_NmiDisable(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F630 jsl */
+    jsl_frame(0x81F634u); abi_ScreenBlank(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F634 jsl */
+    jsl_frame(0x81F638u); abi_ScrollStateClear(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F638 jsl */
     jsl_frame(0x81F63Cu); abi_OamBufferClear(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F63C jsl */
-    abi_DisplayDefaults();  /* 81F640 jsl */
+    jsl_frame(0x81F640u); abi_DisplayDefaults(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F640 jsl */
     stz8(ea_dp(0xAD));  /* 81F644 stz */
     stz8(ea_dp(0xAE));  /* 81F646 stz */
     lda8(ea_abs(0x0376));  /* 81F648 lda */
@@ -219,7 +219,7 @@ L_81F626:
     sta8(ea_abs(0x0376));  /* 81F64F sta */
     lda8_v(0x24);  /* 81F652 lda */
     sta8(ea_abs(LEVEL));  /* 81F654 sta */
-    abi_LevelRamSetupLong();  /* 81F657 jsl */
+    jsl_frame(0x81F657u); abi_LevelRamSetupLong(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F657 jsl */
     lda8_v(0x0E);  /* 81F65B lda */
     jsl_frame(0x81F65Du); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F65D jsl */
     ldx8_v(0x7E);  /* 81F661 ldx */
@@ -249,19 +249,19 @@ L_81F626:
     op_rep(0x10);  /* 81F6A9 rep */
     ldx16_v(0x4000);  /* 81F6AB ldx */
     ldy16_v(0x0000);  /* 81F6AE ldy */
-    abi_VramFillMap();  /* 81F6B1 jsl */
+    jsl_frame(0x81F6B1u); abi_VramFillMap(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F6B1 jsl */
     op_sep(0x10);  /* 81F6B5 sep */
-    abi_LevelEndBlanks();  /* 81F6B7 jsr */
-    abi_NmiEnable();  /* 81F6BA jsl */
+    call_frame(0xF6B9, abi_LevelEndBlanks);  /* 81F6B7 jsr */
+    jsl_frame(0x81F6BAu); abi_NmiEnable(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F6BA jsl */
     lda8_v(0x01);  /* 81F6BE lda */
     jsl_frame(0x81F6C0u); abi_TaskWait();  /* 81F6C0 jsl */
-    abi_NmiDisable();  /* 81F6C4 jsl */
+    jsl_frame(0x81F6C4u); abi_NmiDisable(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F6C4 jsl */
     ldx8_v(0x00);  /* 81F6C8 ldx */
     lda8_v(0x20);  /* 81F6CA lda */
-    abi_PaletteCycleStart();  /* 81F6CC jsr */
+    call_frame(0xF6CE, abi_PaletteCycleStart);  /* 81F6CC jsr */
     ldx8_v(0x0E);  /* 81F6CF ldx */
     lda8_v(0x21);  /* 81F6D1 lda */
-    abi_PaletteCycleStart();  /* 81F6D3 jsr */
+    call_frame(0xF6D5, abi_PaletteCycleStart);  /* 81F6D3 jsr */
     lda8_v(0x01);  /* 81F6D6 lda */
     sta8(ea_abs(0x0405));  /* 81F6D8 sta */
     lda8_v(0x19);  /* 81F6DB lda */
@@ -270,32 +270,32 @@ L_81F626:
     jsl_frame(0x81F6E3u); abi_VramCopy(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F6E3 jsl */
     lda8_v(0x3D);  /* 81F6E7 lda */
     jsl_frame(0x81F6E9u); abi_PaletteLoad(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F6E9 jsl */
-    abi_NmiEnable();  /* 81F6ED jsl */
+    jsl_frame(0x81F6EDu); abi_NmiEnable(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F6ED jsl */
     ldx8(ea_abs(LEVEL_035C));  /* 81F6F1 ldx */
     cpx8_v(0x05);  /* 81F6F4 cpx */
     if (!IF_Z) goto L_81F746;  /* 81F6F6 bne */
     op_rep(0x30);  /* 81F6F8 rep: level 5's tiles */
     ldy16_v(0x0435);  /* 81F6FA ldy */
     lda16_v(0x488C);  /* 81F6FD lda */
-    abi_TileBlockQueueOne();  /* 81F700 jsl */
+    jsl_frame(0x81F700u); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F700 jsl */
     op_rep(0x30);  /* 81F704 rep */
     ldy16_v(0x043B);  /* 81F706 ldy */
     lda16_v(0x4886);  /* 81F709 lda */
-    abi_TileBlockQueueOne();  /* 81F70C jsl */
+    jsl_frame(0x81F70Cu); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F70C jsl */
     op_rep(0x30);  /* 81F710 rep */
     ldy16_v(0x0454);  /* 81F712 ldy */
     lda16_v(0x4888);  /* 81F715 lda */
-    abi_TileBlockQueueOne();  /* 81F718 jsl */
+    jsl_frame(0x81F718u); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F718 jsl */
     lda8_v(0x01);  /* 81F71C lda */
     jsl_frame(0x81F71Eu); abi_TaskWait();  /* 81F71E jsl */
     op_rep(0x30);  /* 81F722 rep */
     ldy16_v(0x0572);  /* 81F724 ldy */
     lda16_v(0x488A);  /* 81F727 lda */
-    abi_TileBlockQueueOne();  /* 81F72A jsl */
+    jsl_frame(0x81F72Au); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F72A jsl */
     op_rep(0x30);  /* 81F72E rep */
     ldy16_v(0x0570);  /* 81F730 ldy */
     lda16_v(0x4884);  /* 81F733 lda */
-    abi_TileBlockQueueOne();  /* 81F736 jsl */
+    jsl_frame(0x81F736u); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F736 jsl */
     lda8_v(0x01);  /* 81F73A lda */
     jsl_frame(0x81F73Cu); abi_TaskWait();  /* 81F73C jsl */
     jsl_frame(0x81F740u); abi_FrameStepLong(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F740 jsl: FrameStep waits in the actor loop with this return on the stack */
@@ -307,11 +307,11 @@ L_81F746:
     adc16_v(0x04C0);  /* 81F74E adc */
     tay16();  /* 81F751 tay */
     lda16_v(0x488F);  /* 81F752 lda */
-    abi_TileBlockQueueRun();  /* 81F755 jsl */
+    jsl_frame(0x81F755u); abi_TileBlockQueueRun(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F755 jsl */
 L_81F759:
-    abi_NmiDisable();  /* 81F759 jsl */
+    jsl_frame(0x81F759u); abi_NmiDisable(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F759 jsl */
     lda8_v(0x6A);  /* 81F75D lda */
-    abi_TextLayoutShow();  /* 81F75F jsl */
+    jsl_frame(0x81F75Fu); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F75F jsl */
     stz8(ea_abs(0x000E));  /* 81F763 stz */
     ldx8_v(0x00);  /* 81F766 ldx */
 L_81F768:
@@ -336,7 +336,7 @@ L_81F768:
     sta8(PALETTE_BUFFER);  /* 81F794 sta */
     lda8_v(0x18);  /* 81F798 lda */
     sta8(0x7EFD01u);  /* 81F79A sta */
-    abi_NmiEnable();  /* 81F79E jsl */
+    jsl_frame(0x81F79Eu); abi_NmiEnable(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F79E jsl */
     lda8_v(0x01);  /* 81F7A2 lda */
     jsl_frame(0x81F7A4u); abi_TaskWait();  /* 81F7A4 jsl */
     jsl_frame(0x81F7A8u); abi_TaskCreate(); cpu.unwound = 0;  /* 81F7A8 jsl */
@@ -378,7 +378,7 @@ L_81F7E2:
     tay16();  /* 81F7FB tay */
     pla16();  /* 81F7FC pla */
     adc16_v(0x4AE4);  /* 81F7FD adc */
-    abi_TileBlockQueueRun();  /* 81F800 jsl */
+    jsl_frame(0x81F800u); abi_TileBlockQueueRun(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F800 jsl */
     MEM8(inc, ea_dp(0xA8));  /* 81F804 inc */
     goto L_81F7CB;  /* 81F806 bra */
 L_81F808:
@@ -407,47 +407,47 @@ L_81F82D:
     cmp8_v(0x00);  /* 81F837 cmp */
     if (!IF_Z) goto L_81F84D;  /* 81F839 bne */
     ldy8_v(0x00);  /* 81F83B ldy */
-    abi_LevelEndColumnPlace();  /* 81F83D jsr */
-    abi_LevelEndColumnTile();  /* 81F840 jsr */
+    call_frame(0xF83F, abi_LevelEndColumnPlace);  /* 81F83D jsr */
+    call_frame(0xF842, abi_LevelEndColumnTile);  /* 81F840 jsr */
     tay16();  /* 81F843 tay */
     lda16(ea_abs(0x000E));  /* 81F844 lda */
-    abi_TileBlockQueueOne();  /* 81F847 jsl */
+    jsl_frame(0x81F847u); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F847 jsl */
     goto L_81F89B;  /* 81F84B bra */
 L_81F84D:
     cmp8_v(0x02);  /* 81F84D cmp */
     if (!IF_Z) goto L_81F867;  /* 81F84F bne */
     ldy8_v(0x02);  /* 81F851 ldy */
-    abi_LevelEndColumnPlace();  /* 81F853 jsr */
-    abi_LevelEndColumnTile();  /* 81F856 jsr */
+    call_frame(0xF855, abi_LevelEndColumnPlace);  /* 81F853 jsr */
+    call_frame(0xF858, abi_LevelEndColumnTile);  /* 81F856 jsr */
     clc();  /* 81F859 clc */
     adc16_v(0x0006);  /* 81F85A adc */
     tay16();  /* 81F85D tay */
     lda16(ea_abs(0x000E));  /* 81F85E lda */
-    abi_TileBlockQueueOne();  /* 81F861 jsl */
+    jsl_frame(0x81F861u); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F861 jsl */
     goto L_81F89B;  /* 81F865 bra */
 L_81F867:
     cmp8_v(0x04);  /* 81F867 cmp */
     if (!IF_Z) goto L_81F881;  /* 81F869 bne */
     ldy8_v(0x04);  /* 81F86B ldy */
-    abi_LevelEndColumnPlace();  /* 81F86D jsr */
-    abi_LevelEndColumnTile();  /* 81F870 jsr */
+    call_frame(0xF86F, abi_LevelEndColumnPlace);  /* 81F86D jsr */
+    call_frame(0xF872, abi_LevelEndColumnTile);  /* 81F870 jsr */
     clc();  /* 81F873 clc */
     adc16_v(0x0002);  /* 81F874 adc */
     tay16();  /* 81F877 tay */
     lda16(ea_abs(0x000E));  /* 81F878 lda */
-    abi_TileBlockQueueOne();  /* 81F87B jsl */
+    jsl_frame(0x81F87Bu); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F87B jsl */
     goto L_81F89B;  /* 81F87F bra */
 L_81F881:
     cmp8_v(0x06);  /* 81F881 cmp */
     if (!IF_Z) goto L_81F89B;  /* 81F883 bne */
     ldy8_v(0x06);  /* 81F885 ldy */
-    abi_LevelEndColumnPlace();  /* 81F887 jsr */
-    abi_LevelEndColumnTile();  /* 81F88A jsr */
+    call_frame(0xF889, abi_LevelEndColumnPlace);  /* 81F887 jsr */
+    call_frame(0xF88C, abi_LevelEndColumnTile);  /* 81F88A jsr */
     clc();  /* 81F88D clc */
     adc16_v(0x0004);  /* 81F88E adc */
     tay16();  /* 81F891 tay */
     lda16(ea_abs(0x000E));  /* 81F892 lda */
-    abi_TileBlockQueueOne();  /* 81F895 jsl */
+    jsl_frame(0x81F895u); abi_TileBlockQueueOne(); cpu.s = (uint16_t)(cpu.s + 3);  /* 81F895 jsl */
     goto L_81F89B;  /* 81F899 bra */
 L_81F89B:
     ldx8(ea_abs(SCRATCH));  /* 81F89B ldx */

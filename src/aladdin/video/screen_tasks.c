@@ -55,7 +55,8 @@ void abi_TextLayerCopyWords(void)
         if (!repeat)
             cpu.y = (uint16_t)(cpu.y + 2);
         cpu.x = (uint16_t)(cpu.x + 2);
-    } while (dec16_at(dba(SCRATCH)));
+        MEM16(dec, ea_abs(SCRATCH));    /* DEC: the high byte written first */
+    } while (!IF_Z);
 }
 
 /*
@@ -78,7 +79,8 @@ void abi_TextLayerBlankWords(void)
         if (!repeat)
             cpu.y = (uint16_t)(cpu.y + 2);
         cpu.x = (uint16_t)(cpu.x + 2);
-    } while (dec16_at(dba(SCRATCH)));
+        MEM16(dec, ea_abs(SCRATCH));    /* DEC: the high byte written first */
+    } while (!IF_Z);
 }
 
 /* TextLayoutDrawBig's scratch: the run's high byte, the tile, the rows
@@ -222,7 +224,7 @@ void abi_RandomFromList(void)
  */
 void abi_TextLayoutShowFirst(void)
 {
-    abi_TextLayoutDraw();
+    call_frame(0x971A, abi_TextLayoutDraw);
     inc8_at(dba((uint16_t)(TEXT_PARTS_PENDING)));
 }
 
@@ -237,7 +239,7 @@ void abi_TextLayoutShowFirst(void)
  */
 void abi_TextLayoutShowSecond(void)
 {
-    abi_TextLayoutDraw();
+    call_frame(0x9721, abi_TextLayoutDraw);
     inc8_at(dba((uint16_t)(TEXT_PARTS_PENDING + 1)));
 }
 
@@ -252,7 +254,7 @@ void abi_TextLayoutShowSecond(void)
  */
 void abi_TextLayoutShowThird(void)
 {
-    abi_TextLayoutDraw();
+    call_frame(0x9728, abi_TextLayoutDraw);
     inc8_at(dba((uint16_t)(TEXT_PARTS_PENDING + 2)));
 }
 
@@ -267,7 +269,7 @@ void abi_TextLayoutShowThird(void)
  */
 void abi_TextLayoutShow(void)
 {
-    abi_TextLayoutDraw();
+    call_frame(0x972F, abi_TextLayoutDraw);
     inc8_at(dba((uint16_t)TEXT_TILEMAP_UPLOAD));
 }
 
@@ -315,9 +317,9 @@ void abi_TextLayoutDraw(void)
         cpu.y = (uint16_t)(cpu.y + 2);
         a16_load(rd16(dba(SCRATCH + 2)));
         if (cpu.a & 0x8000)
-            abi_TextLayerBlankWords();
+            call_frame(0x9764, abi_TextLayerBlankWords);
         else
-            abi_TextLayerCopyWords();
+            call_frame(0x9769, abi_TextLayerCopyWords);
         if (cpu.p & P_C)
             cpu.y = (uint16_t)(cpu.y + 2);
     }
@@ -359,14 +361,14 @@ void abi_TextBlinkTask(void)
     do {
         a8_load((uint8_t)cpu.x);
         phx8();
-        abi_TextLayoutShowThird();
+        jsl_frame(0x819E4Cu); abi_TextLayoutShowThird(); cpu.s = (uint16_t)(cpu.s + 3);
         plx8();
         a8_load(0x1E);
         jsl_frame(0x819E53u);
         abi_TaskWait();
         a8_load((uint8_t)(cpu.x | 0x80));
         phx8();
-        abi_TextLayoutShowThird();
+        jsl_frame(0x819E5Bu); abi_TextLayoutShowThird(); cpu.s = (uint16_t)(cpu.s + 3);
         plx8();
         a8_load(0x1E);
         jsl_frame(0x819E62u);
