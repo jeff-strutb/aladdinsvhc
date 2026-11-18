@@ -8,6 +8,8 @@
 #include "ops65.h"
 #include "wram.h"
 
+void abi_ActorMapAtOffset(void);
+
 void abi_ActorFreePlacedAtY(void);
 
 /* Not yet filed: the class of the map tile at the actor's position offset
@@ -38,7 +40,7 @@ void abi_ActorTileAheadIs70(void)
     a8_load(TILE_BELOW);
     wr8(dba(SCRATCH + 2), TILE_BELOW);
     wr8(dba(SCRATCH + 3), 0);
-    call_routine(TILE_AHEAD, 0);
+    call_frame(0x99FB, abi_ActorMapAtOffset);   /* its JSR's return on the stack */
     class = (uint8_t)cpu.a & CLASS_70;
     a8_load(class);
     cmp8_of(class, CLASS_70);

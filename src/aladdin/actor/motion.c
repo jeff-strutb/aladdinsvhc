@@ -367,7 +367,7 @@ void abi_ActorMoveXNear(void)
  */
 void abi_ActorMoveX(void)
 {
-    abi_ActorMoveXNear();
+    call_frame(0xA5A9, abi_ActorMoveXNear);   /* its JSR's return on the stack */
 }
 
 /*

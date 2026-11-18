@@ -16,6 +16,10 @@
 #include "ops65.h"
 #include "wram.h"
 #include "actor.h"
+#include "native.h"
+
+/* A JSL at `site`, its return address on the stack while the callee runs. */
+#define JSL(site, fn) do { jsl_frame(site); fn(); cpu.s = (uint16_t)(cpu.s + 3); } while (0)
 
 void abi_Actor44SetBy07(void);
 void abi_Actor44Set40And80(void);
@@ -73,13 +77,13 @@ static int charge_on(void)
         if (!IF_Z) {
             sta8(ea_dp(TURNS));
             lda8_v(0x13);
-            abi_SoundQueueAdd();
+            JSL(0x83999Eu, abi_SoundQueueAdd);
         }
     }
     lda8(ea_dp(COUNT));
     if (!IF_Z) {
         MEM8(dec, ea_dp(COUNT));
-        abi_ActorSideOfPlayer();
+        JSL(0x8399A8u, abi_ActorSideOfPlayer);
         cmp8_v(rd8(ea_dp(ACTOR_FACING)));
         if (IF_Z)
             return 1;
@@ -91,7 +95,7 @@ static int charge_on(void)
         sta8(ea_dp(COUNT));
         return 1;
     }
-    abi_ActorDecelerateX();
+    JSL(0x8399C3u, abi_ActorDecelerateX);
     lda8(ea_dp(SPED_UP));
     if (IF_Z) {
         op_rep(0x20);
@@ -101,7 +105,7 @@ static int charge_on(void)
         if (!IF_C) {
             MEM8(inc, ea_dp(SPED_UP));
             lda8_v(0x02);
-            abi_AnimStart();
+            JSL(0x8399DAu, abi_AnimStart);
         }
     }
     MEM8(inc, ea_dp(CHARGE_FRAMES));
@@ -120,9 +124,9 @@ static int airborne(void)
 {
     do {
         actor_yield(0x83997Cu);
-        abi_ActorFly();
-        abi_ActorOutOfWallProbe4();
-        abi_ActorOutOfGround();
+        JSL(0x83997Eu, abi_ActorFly);
+        JSL(0x839982u, abi_ActorOutOfWallProbe4);
+        JSL(0x839986u, abi_ActorOutOfGround);
     } while (IF_Z);
     return charge_on();
 }
@@ -133,17 +137,17 @@ static int airborne(void)
    into Kind20Halt (halt_after). */
 static int charge_frame(void)
 {
-    abi_ActorSnapToGround();
+    JSL(0x839906u, abi_ActorSnapToGround);
     lda8(ea_abs(V_0013));
     cmp8_v(0x0F);
     if (IF_Z) {
         /* on a ledge (no script runs this): the lower probe instead */
-        abi_ActorMapAhead7Down36();
+        call_frame(0x9913, abi_ActorMapAhead7Down36);
         if (!IF_Z)
             goto ahead;
         goto beyond;
     }
-    abi_ActorMapAhead7Down28();
+    call_frame(0x991A, abi_ActorMapAhead7Down28);
     if (!IF_Z)
         goto ahead;
 beyond:
@@ -152,7 +156,7 @@ beyond:
     lda8_v(0x2B);
     sta8(ea_abs(SCRATCH + 2));
     stz8(ea_abs(SCRATCH + 3));
-    abi_ActorMapAtOffset();
+    call_frame(0x992A, abi_ActorMapAtOffset);
     if (IF_Z)
         return 0;
     /* there is (no script runs this): it runs off, falling */
@@ -163,7 +167,7 @@ beyond:
     sta8(ea_dp(ACTOR_ACCEL_Y));
     return airborne();
 ahead:
-    abi_ActorTileAheadIs70();
+    call_frame(0x993B, abi_ActorTileAheadIs70);
     if (!IF_Z)
         return charge_on();
     /* a wall: only the faster guard, not yet up to speed, may leap it
@@ -178,7 +182,7 @@ ahead:
     stz8(ea_abs(SCRATCH));
     stz8(ea_abs(SCRATCH + 2));
     stz8(ea_abs(SCRATCH + 3));
-    abi_ActorMapAtOffset();
+    call_frame(0x9953, abi_ActorMapAtOffset);
     if (!IF_Z)
         return 0;
     lda8_v(0x60);
@@ -233,7 +237,7 @@ void abi_Kind20Start(void)
     cmp8_v(0x1F);
     if (IF_Z) {
         lda8_v(0x00);
-        abi_AnimStart();
+        JSL(0x8397CDu, abi_AnimStart);
         lda8_v(0x20);
         actor_wait(0x8397D3u);
         lda8_v(0x03);
@@ -245,7 +249,7 @@ void abi_Kind20Start(void)
         jump_routine(CARRIER);
         return;
     }
-    abi_Actor44SetBy07();
+    call_frame(0x97E4, abi_Actor44SetBy07);
     abi_Kind20StartWalk();      /* runs on into it */
 }
 
@@ -263,13 +267,13 @@ void abi_Kind20Start(void)
 void abi_Kind20StartWalk(void)
 {
     lda8_v(0x02);
-    abi_AnimStart();
+    JSL(0x8397E7u, abi_AnimStart);
     lda8(ea_dp(PLACE));
     and8_v(0x01);
     sta8(ea_dp(ACTOR_FACING));
     sta8(ea_dp(ACTOR_FLIP));
-    abi_ActorXTo40();
-    abi_ActorSpeedXSet1();
+    call_frame(0x97F5, abi_ActorXTo40);
+    call_frame(0x97F8, abi_ActorSpeedXSet1);
     abi_Kind20Patrol();         /* on into its BRK */
 }
 
@@ -292,30 +296,30 @@ void abi_Kind20Patrol(void)
 {
 L_patrol:
     actor_yield(0x8397F9u);
-    abi_ActorSeesPlayer();
+    call_frame(0x97FD, abi_ActorSeesPlayer);
     if (!IF_C) {
         jump_routine(0x839894u);
         return;
     }
-    abi_ActorMoveX();
-    abi_ActorSnapToGround();
+    JSL(0x839803u, abi_ActorMoveX);
+    JSL(0x839807u, abi_ActorSnapToGround);
     lda8(ea_abs(V_0013));
     cmp8_v(0x0F);
     if (IF_Z) {
-        abi_ActorMapAhead7Down36();
+        call_frame(0x9814, abi_ActorMapAhead7Down36);
         if (IF_Z) {
             jump_routine(0x839832u);
             return;
         }
         goto L_wall;
     }
-    abi_ActorMapAhead7Down28();
+    call_frame(0x981B, abi_ActorMapAhead7Down28);
     if (IF_Z) {
         jump_routine(0x839832u);
         return;
     }
 L_wall:
-    abi_ActorTileAheadIs70();
+    call_frame(0x9820, abi_ActorTileAheadIs70);
     if (IF_Z) {
         jump_routine(0x839832u);
         return;
@@ -347,14 +351,14 @@ L_wall:
  */
 void abi_Kind20LookAbout(void)
 {
-    abi_ActorOutOfWallProbe4();
+    JSL(0x839832u, abi_ActorOutOfWallProbe4);
     lda8_v(0x00);
-    abi_AnimStart();
+    JSL(0x839838u, abi_AnimStart);
     lda8_v(0x10);
     sta8(ea_dp(COUNT));
     do {
         actor_yield(0x839840u);
-        abi_ActorSeesPlayer();
+        call_frame(0x9844, abi_ActorSeesPlayer);
         if (!IF_C) {
             jump_routine(0x839894u);
             return;
@@ -362,14 +366,14 @@ void abi_Kind20LookAbout(void)
         MEM8(dec, ea_dp(COUNT));
     } while (!IF_Z);
     lda8_v(0x01);
-    abi_AnimStart();
+    JSL(0x83984Du, abi_AnimStart);
     lda8_v(0x40);
     sta8(ea_dp(COUNT));
     lda8_v(0x11);
     sta8(ea_dp(TURNS));
     do {
         actor_yield(0x839859u);
-        abi_ActorSeesPlayer();
+        call_frame(0x985D, abi_ActorSeesPlayer);
         if (!IF_C) {
             jump_routine(0x839894u);
             return;
@@ -385,12 +389,12 @@ void abi_Kind20LookAbout(void)
         MEM8(dec, ea_dp(COUNT));
     } while (!IF_Z);
     lda8_v(0x00);
-    abi_AnimStart();
+    JSL(0x839874u, abi_AnimStart);
     lda8_v(0x10);
     sta8(ea_dp(COUNT));
     do {
         actor_yield(0x83987Cu);
-        abi_ActorSeesPlayer();
+        call_frame(0x9880, abi_ActorSeesPlayer);
         if (!IF_C) {
             jump_routine(0x839894u);
             return;
@@ -398,7 +402,7 @@ void abi_Kind20LookAbout(void)
         MEM8(dec, ea_dp(COUNT));
     } while (!IF_Z);
     lda8_v(0x02);
-    abi_AnimStart();
+    JSL(0x839889u, abi_AnimStart);
     lda8(ea_dp(ACTOR_FACING));
     sta8(ea_dp(ACTOR_FLIP));
     jump_routine(0x8397F9u);
@@ -436,29 +440,29 @@ void abi_Kind20Spotted(void)
             return;
         }
     }
-    abi_ActorTileAheadIs70();
+    call_frame(0x98B0, abi_ActorTileAheadIs70);
     if (IF_Z) {
         jump_routine(0x839956u);
         return;
     }
-    abi_ActorMapAhead7Down28();
+    call_frame(0x98B8, abi_ActorMapAhead7Down28);
     if (IF_Z) {
         stz8(ea_abs(SCRATCH));
         lda8_v(0x2B);
         sta8(ea_abs(SCRATCH + 2));
         stz8(ea_abs(SCRATCH + 3));
-        abi_ActorMapAtOffset();
+        call_frame(0x98C8, abi_ActorMapAtOffset);
         if (IF_Z) {
             jump_routine(0x839956u);
             return;
         }
     }
     lda8_v(0x00);
-    abi_AnimStart();
+    JSL(0x8398D0u, abi_AnimStart);
     lda8_v(0x0C);
     actor_wait(0x8398D6u);
     lda8_v(0x03);
-    abi_AnimStart();
+    JSL(0x8398DAu, abi_AnimStart);
     lda8_v(0x04);
     actor_wait(0x8398E0u);
     ldy8_v(0x20);
@@ -508,7 +512,7 @@ void abi_Kind20Charge(void)
 
     do {
         actor_yield(0x839900u);
-        abi_ActorMoveX();
+        JSL(0x839902u, abi_ActorMoveX);
         on = charge_frame();
     } while (on == 1);
     halt_after(on);
@@ -529,11 +533,11 @@ void abi_Kind20Charge(void)
 void abi_Kind20Halt(void)
 {
     lda8_v(0x00);
-    abi_AnimStart();
+    JSL(0x839958u, abi_AnimStart);
     lda8_v(0x18);
     actor_wait(0x83995Eu);
-    abi_ActorSpeedXSet1();
-    abi_ActorXTo40();
-    abi_Actor44Set40And80();
+    call_frame(0x9962, abi_ActorSpeedXSet1);
+    call_frame(0x9965, abi_ActorXTo40);
+    call_frame(0x9968, abi_Actor44Set40And80);
     jump_routine(0x839832u);
 }

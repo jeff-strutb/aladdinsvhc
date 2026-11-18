@@ -136,8 +136,8 @@ void abi_PlayerInFrontBox(void)
     flag_set(P_C, 1);
     d = op_sbc16(d, rd16(dba(PLAYER + ACTOR_Y + 1)), &cpu.p);
     cpu.a = d;
-    cmp16_of(d, rd16(dba(SCRATCH + 2)));
-    if (d < rd16(dba(SCRATCH + 2))) {
+    cmp16_of(d, rd16(dba(SCRATCH + 2)));   /* one read, as the CMP's */
+    if (!(cpu.p & P_C)) {
         /* across, on the side it faces */
         cpu.y = (uint8_t)(cpu.y - 1);
         nz8_of((uint8_t)cpu.y);

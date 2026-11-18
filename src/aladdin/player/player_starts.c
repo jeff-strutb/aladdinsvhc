@@ -175,8 +175,12 @@ static void level_start(void)
     abi_ActorSpeedXSet();
     do {
         actor_yield(0x81CBC3u);
+        jsl_frame(0x81CBC5u);           /* the JSLs' returns on the stack */
         abi_ActorMoveX();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x81CBC9u);
         abi_ActorSnapToGround();
+        cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(WALK_FRAMES)));
     abi_PlayerStartTasks();
 }

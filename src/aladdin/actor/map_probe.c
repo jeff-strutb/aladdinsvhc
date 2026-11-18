@@ -29,7 +29,7 @@ void abi_PlayerInFrontBox(void);
 
 /* The point (x from the table entry, y SCRATCH + 2 pixels below) to
    scratch, then the tile there (TileAtProbeLong). */
-static void map_at(uint32_t ahead)
+static void map_at(uint32_t ahead, uint32_t site)
 {
     uint16_t v;
 
@@ -41,7 +41,9 @@ static void map_at(uint32_t ahead)
     v = dp16(ACTOR_Y + 1);
     cpu.a = op_adc16(v, rd16(dba(SCRATCH + 2)), &cpu.p);
     wr16(dba(SCRATCH + 2), cpu.a);
+    jsl_frame(site);                      /* the JSL's return on the stack */
     abi_TileAtProbeLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -64,7 +66,7 @@ void abi_ActorMapAtOffset(void)
     /* the entry for its facing (the ASL's carry goes into the add) */
     flag_set(P_C, facing & 0x80);
     cpu.x = op_adc8((uint8_t)(facing << 1), rd8(dba(SCRATCH)), &cpu.p);
-    map_at(dba(AHEAD_OFFSETS) + cpu.x);
+    map_at(dba(AHEAD_OFFSETS) + cpu.x, 0x839A2Fu);
 }
 
 static void ahead7(uint8_t down);
@@ -124,7 +126,7 @@ void abi_ActorMapAhead5Down12(void)
     wr8(dba(SCRATCH + 2), 0x0C);
     wr8(dba(SCRATCH + 3), 0);
     cpu.x = (uint8_t)(rd8(dpa(ACTOR_FACING)) << 1);
-    map_at(dba(AHEAD_5) + cpu.x);
+    map_at(dba(AHEAD_5) + cpu.x, 0x83B615u);
 }
 
 
@@ -147,7 +149,9 @@ void abi_ActorMapAhead5Down12(void)
    seen (C set), M back to 8-bit. */
 static void sees_turn(void)
 {
+    jsl_frame(0x839AAAu);
     abi_ActorSideOfPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
     wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
     flag_set(P_C, 0);
@@ -165,7 +169,9 @@ void abi_ActorSeesPlayer(void)
     uint8_t v;
 
     x8_load(0x00);
+    jsl_frame(0x839A48u);
     abi_PlayerInFrontBox();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C) {
         sees_not();
         return;
@@ -235,7 +241,9 @@ void abi_ActorSeesPlayerLine(void)
             cpu.a = op_adc16(dp16(ACTOR_Y + 1), 0x000C, &cpu.p);
             wr16(dba(SCRATCH + 2), cpu.a);
         }
+        jsl_frame(0x839AA0u);
         abi_TileAtProbeLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_Z)) {
             sees_not();
             return;
