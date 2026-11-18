@@ -133,11 +133,12 @@ void abi_HudCount2Show(void)
  */
 void abi_HudDigitRefresh(void)
 {
-    uint8_t value = rd8(dba(HUD_VALUE)), digit;
+    uint8_t value = rd8(dba(HUD_VALUE)), shown, digit;
 
     a8_load(value);
-    cmp8_of(value, rd8(dba(HUD_VALUE_SHOWN)));
-    if (value == rd8(dba(HUD_VALUE_SHOWN)))
+    shown = rd8(dba(HUD_VALUE_SHOWN));    /* CMP: one read, as the original */
+    cmp8_of(value, shown);
+    if (value == shown)
         return;
     wr8(dba(HUD_VALUE_SHOWN), value);
     a8_load(rd8(dba(HUD_VALUE_SHOWN)));
@@ -234,11 +235,11 @@ void abi_HudRefresh(void)
     uint8_t shown, place;
 
     if (differs(HUD_MARK_VALUE, HUD_MARK_SHOWN))
-        abi_HudMarkRefresh();
+        call_frame(0xF460, abi_HudMarkRefresh);   /* JSR at 81:F45E */
     if (differs(HUD_COUNT_1, HUD_COUNT_1_SHOWN))
-        abi_HudCount1Show();
+        call_frame(0xF46B, abi_HudCount1Show);    /* JSR at 81:F469 */
     if (differs(HUD_COUNT_2, HUD_COUNT_2_SHOWN))
-        abi_HudCount2Show();
+        call_frame(0xF476, abi_HudCount2Show);    /* JSR at 81:F474 */
     if (!differs(HEALTH_SHOWN, HEALTH)) {
         abi_HudDigitRefresh();
         return;
