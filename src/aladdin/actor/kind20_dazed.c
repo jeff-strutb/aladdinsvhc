@@ -9,6 +9,9 @@
 #include "ops65.h"
 #include "actor.h"
 
+/* A JSL at `site`, its return address on the stack while the callee runs. */
+#define JSL(site, fn) do { jsl_frame(site); fn(); cpu.s = (uint16_t)(cpu.s + 3); } while (0)
+
 void abi_Actor44Set40And80(void);
 void abi_ActorAccelerateY(void);
 void abi_ActorBouncesPlayer(void);
@@ -64,8 +67,8 @@ static void bounced(void)
 void abi_Kind20Dazed(void)
 {
 again:
-    abi_ActorXTo40();
-    abi_Actor44Set40And80();
+    call_frame(0x9C4B, abi_ActorXTo40);
+    call_frame(0x9C4E, abi_Actor44Set40And80);
     lda8(ea_dp(ACTOR_FLIP));
     sta8(ea_dp(ACTOR_FACING));
     lda8_v(0x80);
@@ -74,38 +77,38 @@ again:
     and8_v(0x10);
     if (!IF_Z) {
         ldy8_v(0x05);
-        abi_ActorPaletteFromRom();
+        JSL(0x839C5Fu, abi_ActorPaletteFromRom);
     }
     lda8_v(0x05);
-    abi_AnimStart();
-    abi_ActorPictureSend();
+    JSL(0x839C65u, abi_AnimStart);
+    JSL(0x839C69u, abi_ActorPictureSend);
     ldy8_v(0x02);
-    abi_ActorMotionPreset();
+    JSL(0x839C6Fu, abi_ActorMotionPreset);
     for (;;) {                            /* falls to the ground */
-        abi_ActorOutOfGround();
+        JSL(0x839C73u, abi_ActorOutOfGround);
         if (!IF_Z)
             break;
         actor_yield(0x839C79u);
-        abi_ActorBouncesPlayer();
+        call_frame(0x9C7D, abi_ActorBouncesPlayer);
         if (!IF_Z)
             bounced();
-        abi_ActorHitByShotCC();
-        abi_AnimStep();
-        abi_ActorPictureSend();
-        abi_ActorStepY();
-        abi_ActorAccelerateY();
+        call_frame(0x9C8A, abi_ActorHitByShotCC);
+        JSL(0x839C8Bu, abi_AnimStep);
+        JSL(0x839C8Fu, abi_ActorPictureSend);
+        JSL(0x839C93u, abi_ActorStepY);
+        JSL(0x839C97u, abi_ActorAccelerateY);
     }
     lda8_v(0x60);
     sta8(ea_dp(DAZE_FRAMES));
     do {
         actor_yield(0x839CA1u);
-        abi_ActorBouncesPlayer();
+        call_frame(0x9CA5, abi_ActorBouncesPlayer);
         if (!IF_Z) {
             bounced();
             abi_Kind20Hit();
             return;
         }
-        abi_ActorHitByShotCC();
+        call_frame(0x9CB5, abi_ActorHitByShotCC);
         if (!IF_C) {
             lda8(ea_dp(ACTOR_FACING));
             if (!IF_N)
@@ -113,8 +116,8 @@ again:
             abi_Kind20Hit();
             return;
         }
-        abi_AnimStep();
-        abi_ActorPictureSend();
+        JSL(0x839CBFu, abi_AnimStep);
+        JSL(0x839CC3u, abi_ActorPictureSend);
         MEM8(dec, ea_dp(DAZE_FRAMES));
     } while (!IF_Z);
     lda8_v(0x80);

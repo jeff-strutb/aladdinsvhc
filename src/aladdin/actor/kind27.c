@@ -47,21 +47,30 @@ void abi_TaskCreate(void);
 #define CHILD_40 0x0040u
 #define CHILD_LOOK 0x002Bu
 
-/* `n` frames (BRK at brk_at first) of Kind27Trail and `step`. */
-static void trail_frames(uint8_t n, uint32_t brk_at, void (*step)(void))
+/* A JSL at `site`, its return address on the stack while the callee runs. */
+#define JSL(site, fn) do { jsl_frame(site); fn(); cpu.s = (uint16_t)(cpu.s + 3); } while (0)
+
+static void vector_1a(void) { ldx8_v(0x1A); JSL(0x839EBCu, abi_ActorMoveByVector); }
+static void vector_16(void) { ldx8_v(0x16); JSL(0x839F90u, abi_ActorMoveByVector); }
+
+/* `n` frames (BRK at brk_at first) of Kind27Trail (its JSR right after the
+   BRK) and `step` (its JSL at step_at). */
+static void trail_frames(uint8_t n, uint32_t brk_at, void (*step)(void), uint32_t step_at)
 {
     lda8_v(n);
     sta8(ea_dp(K27_FRAMES));
     do {
         actor_yield(brk_at);
-        abi_Kind27Trail();
-        step();
+        call_frame((uint16_t)(brk_at + 4), abi_Kind27Trail);
+        if (step == vector_1a || step == vector_16) {
+            step();                       /* LDX, then its JSL at step_at */
+        } else {
+            JSL(step_at, step);
+        }
         MEM8(dec, ea_dp(K27_FRAMES));
     } while (!IF_Z);
 }
 
-static void vector_1a(void) { ldx8_v(0x1A); abi_ActorMoveByVector(); }
-static void vector_16(void) { ldx8_v(0x16); abi_ActorMoveByVector(); }
 
 /* The figure of bit 3. */
 static void crosser(void)
@@ -81,18 +90,18 @@ static void crosser(void)
     sta16(ea_dp(ACTOR_Y + 1));
     op_sep(P_M);
     lda8_v(0x0C);
-    abi_AnimStart();
+    JSL(0x839E79u, abi_AnimStart);
     ldy8_v(0x2A);
-    abi_ActorSpeedXSet();
+    JSL(0x839E7Fu, abi_ActorSpeedXSet);
     lda8_v(0x38);
     sta8(ea_dp(ACTOR_ACCEL_Y));
-    abi_ActorSpeedYClear();
+    JSL(0x839E87u, abi_ActorSpeedYClear);
     lda8_v(0x18);
     sta8(ea_dp(K27_FRAMES));
     do {                                  /* flies down */
         actor_yield(0x839E8Fu);
-        abi_Kind27Trail();
-        abi_ActorFly();
+        call_frame(0x9E93, abi_Kind27Trail);
+        JSL(0x839E94u, abi_ActorFly);
         op_rep(P_M);
         lda16_v(0x0300);
         cmp16_v(rd16(ea_dp(ACTOR_SPEED_Y)));
@@ -107,22 +116,22 @@ static void crosser(void)
     lda8_v(0x00);
     do {                                  /* circles */
         sta8(ea_dp(ACTOR_FACING));
-        trail_frames(0x03, 0x839EB5u, vector_1a);
+        trail_frames(0x03, 0x839EB5u, vector_1a, 0x839EBCu);
         lda8(ea_dp(ACTOR_FACING));
         ACC8(dec);
         and8_v(0x0F);
     } while (!IF_Z);
     stz8(ea_dp(ACTOR_FACING));
-    trail_frames(0x0C, 0x839ED1u, abi_ActorMove);
+    trail_frames(0x0C, 0x839ED1u, abi_ActorMove, 0x839ED6u);
     stz8(ea_dp(ACTOR_SPAWN_AT));
     lda8_v(0x85);
-    abi_ActorCreateChild8();
+    JSL(0x839EE2u, abi_ActorCreateChild8);
     lda8_v(0x20);
     actor_wait(0x839EE8u);
-    abi_LevelTablesClear();
+    JSL(0x839EEAu, abi_LevelTablesClear);
     lda8_v(0x00);
     ldy8_v(0x10);
-    abi_PaletteSave();
+    JSL(0x839EF2u, abi_PaletteSave);
     lda8_v(0x1F);
     sta8(ea_dp(K27_FRAMES));
     stz8(ea_dp(K27_STEP));
@@ -130,7 +139,7 @@ static void crosser(void)
         actor_yield(0x839EFCu);
         lda8(ea_dp(K27_STEP));
         ldy8_v(0x10);
-        abi_PaletteFadeStep();
+        JSL(0x839F02u, abi_PaletteFadeStep);
         MEM8(inc, ea_dp(K27_STEP));
         MEM8(dec, ea_dp(K27_FRAMES));
     } while (!IF_Z);
@@ -193,7 +202,7 @@ void abi_Kind27Start(void)
     lda8_v(0x01);
     tsb8(ea_dp(ACTOR_08));
     lda8_v(0x0D);
-    abi_AnimStart();
+    JSL(0x839F23u, abi_AnimStart);
     lda8(ea_dp(K27_FRAMES));
     actor_wait(0x839F29u);
     abi_ActorEndPlaced();
@@ -251,10 +260,10 @@ void abi_Kind27Waiter(void)
     lda8_v(0x08);
     tsb8(ea_dp(ACTOR_08));
     lda8_v(0x0C);
-    abi_AnimStart();
+    JSL(0x839F60u, abi_AnimStart);
     ldy8_v(0x51);
-    abi_ActorSpeedYSet();
-    trail_frames(0x30, 0x839F6Eu, abi_ActorMoveY);
+    JSL(0x839F66u, abi_ActorSpeedYSet);
+    trail_frames(0x30, 0x839F6Eu, abi_ActorMoveY, 0x839F73u);
     MEM8(inc, ea_dp(K27_OPEN));
     lda8_v(0x03);
     sta8(ea_dp(K27_ROUNDS));
@@ -262,7 +271,7 @@ void abi_Kind27Waiter(void)
         lda8_v(0x04);
         do {                              /* circles in five steps */
             sta8(ea_dp(ACTOR_FACING));
-            trail_frames(0x08, 0x839F89u, vector_16);
+            trail_frames(0x08, 0x839F89u, vector_16, 0x839F90u);
             lda8(ea_dp(ACTOR_FACING));
             ACC8(dec);
             and8_v(0x07);
@@ -270,24 +279,24 @@ void abi_Kind27Waiter(void)
         } while (!IF_Z);
         stz8(ea_dp(ACTOR_FACING));
         ldy8_v(0x81);
-        abi_ActorMotionPreset();
+        JSL(0x839FA5u, abi_ActorMotionPreset);
         lda8_v(0x18);
         sta8(ea_dp(ACTOR_ACCEL_X));
         do {
             actor_yield(0x839FADu);
-            abi_Kind27Trail();
-            abi_ActorAccelerateX();
-            abi_ActorFlyAgainst();
+            call_frame(0x9FB1, abi_Kind27Trail);
+            JSL(0x839FB2u, abi_ActorAccelerateX);
+            JSL(0x839FB6u, abi_ActorFlyAgainst);
             lda8(ea_dp(ACTOR_SPEED_Y + 2));
         } while (!IF_N);
         for (;;) {
             actor_yield(0x839FBEu);
-            abi_Kind27Trail();
-            abi_ActorFlyAgainst();
+            call_frame(0x9FC2, abi_Kind27Trail);
+            JSL(0x839FC3u, abi_ActorFlyAgainst);
             lda8(ea_dp(K27_ROUNDS));
             if (IF_Z)
                 continue;
-            abi_ActorDecelerateX();
+            JSL(0x839FCBu, abi_ActorDecelerateX);
             clc();
             lda8(ea_dp(ACTOR_SPEED_X));
             adc8_v(rd8(ea_dp(ACTOR_SPEED_X + 1)));
@@ -324,12 +333,12 @@ void abi_Kind27Trail(void)
         bit8_i(0x40);
         if (!IF_Z) {
             lda8_v(0x37);
-            abi_SoundQueueAdd();
+            JSL(0x839FEDu, abi_SoundQueueAdd);
         }
     }
     stz8(ea_dp(ACTOR_SPAWN_AT));
     lda8(ea_dp(ACTOR_06));
-    abi_ActorSpawn();
+    JSL(0x839FF5u, abi_ActorSpawn);
     if (IF_N)
         return;
     lda8_v(0x10);

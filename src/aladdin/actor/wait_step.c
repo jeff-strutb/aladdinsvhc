@@ -307,13 +307,17 @@ void abi_ActorWaitHoldPlayer(void)
 {
     uint8_t v;
 
+    jsl_frame(0x839E0Au);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_42)));
     if (!(uint8_t)cpu.a) {
         a8_load(rd8(dpa(ACTOR_44)));
         if ((uint8_t)cpu.a) {
             a8_load(0x05);
+            jsl_frame(0x839E35u);
             abi_PlayerToActorBelow();
+            cpu.s = (uint16_t)(cpu.s + 3);
         }
         return;
     }
@@ -346,10 +350,14 @@ void abi_ActorWaitHoldPlayer(void)
  */
 void abi_ActorWaitTurnAnim08(void)
 {
-    abi_ActorStompOrHurt();
-    abi_ActorHitByShotCC();
+    call_frame(0x9C08, abi_ActorStompOrHurt);
+    call_frame(0x9C0B, abi_ActorHitByShotCC);
+    jsl_frame(0x839C0Cu);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x839C10u);
     abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x08);
     abi_ActorEndOutOfRange();
 }
