@@ -1,0 +1,23 @@
+# Actor kind $6B (83:EC2C) cued: act 1 stage 0's end, placed as in
+# cov_level_ends.box's first pass (player and camera poked to points the
+# walk passes, then to the boss), run on past the scene's cue $00BF (frame
+# 657, set by PlayerSceneWalkOff) and its cue $00BE: kind $6B moves on,
+# waits, starts the song $31, walks off right, pauses, walks on and ends
+# (83:EC64-ECCE).
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+wait 1600
