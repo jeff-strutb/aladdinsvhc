@@ -5,6 +5,7 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "actor.h"
 #include "wram.h"
 
@@ -59,6 +60,12 @@ void abi_TileSlotFill(void)
     op_and16(0x0E00);
     op_xba();
     x = rd16(SLOT_PLACES + cpu.a);
+    op_sep(P_M);
+    phb();                                      /* PHB; DB = the source's bank */
+    lda8_v((uint8_t)(TILE_SOURCE >> 16));
+    pha8();
+    plb();
+    op_rep(P_M);
     do {
         cpu.a = rd16(TILE_SOURCE + y);
         wr16(TILE_COPY + x, cpu.a);
@@ -72,7 +79,7 @@ void abi_TileSlotFill(void)
     op_sep(P_M | P_X);
     a = (uint8_t)(rd8_rmw(TILE_SLOT_UPLOADS) + 1);
     wr8(TILE_SLOT_UPLOADS, a);
-    cpu.p = nz8(cpu.p, cpu.db);
+    plb();                                      /* PLB: DB back, N and Z from it */
 }
 
 /*

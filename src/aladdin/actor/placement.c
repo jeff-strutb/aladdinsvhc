@@ -287,7 +287,7 @@ void abi_ActorCreateIn(void)
     else
         wr16(dba((uint16_t)(ACTOR_06 + x)), cpu.a);
     wr16(dba(0x0020), x);
-    abi_ActorKindSetup();
+    call_frame(0xAA43, abi_ActorKindSetup);    /* JSR at 82:AA41 */
     if (cpu.p & P_C) {
         op_sep(0x31);
         a8_load(0x01);
@@ -313,41 +313,43 @@ void abi_ActorCreateIn(void)
  */
 void abi_ActorKindSetup(void)
 {
-    uint8_t kind, db = cpu.db;
-
     op_sep(0x30);
-    kind = (uint8_t)cpu.a;
-    y8_load(kind);
-    wr8(dba(0x0022), (uint8_t)(kind << 1));
-    wr8(dba(0x0023), kind >> 7);
-    nz8_of(kind >> 7);
-    flag_set(P_C, 0);
-    /* the kind's set-up routine, by its class at $82:B000 */
-    cpu.db = 0x82;
-    a8_load(0x82);
-    x8_load(rd8(dba((uint16_t)(0xB000 + kind))));
+    tay8();
+    sta8(ea_abs(0x0022));                       /* the kind, then doubled in place */
+    stz8(ea_abs(0x0023));
+    MEM8(asl, ea_abs(0x0022));
+    MEM8(rol, ea_abs(0x0023));
+    phb();                                      /* PHB; DB = $82 */
+    lda8_v(0x82);
+    pha8();
+    plb();
+    /* the kind's set-up routine, by its class at $82:B000: JSR ($AA81,X) */
+    ldx8(ea_absy(0xB000));
+    op_push8(0xAA);                             /* its return address, $AA7A */
+    op_push8(0x7A);
     call_routine(0x820000u | rd16(0x820000u | (uint16_t)(0xAA81 + cpu.x)), 0);
-    cpu.db = db;
-    nz8_of(db);
+    cpu.s = (uint16_t)(cpu.s + 2);
+    plb();
     op_sep(P_M);
     op_rep(P_X);
 }
 
 /* A tile slot (or run of 2 or 3) by the kind's extra slots; C set when
-   none was free. */
-static void claim_by_size(void)
+   none was free. Each claim by JSR, with the return address its caller's
+   JSR pushes (`ret1` one slot, `ret2` two, `ret3` three). */
+static void claim_by_size(uint16_t ret1, uint16_t ret2, uint16_t ret3)
 {
     cpu.x = db16(0x001C);
     a8_load(rd8(CELL_EXTRA_SLOTS + cpu.x));
     if (!(uint8_t)cpu.a) {
-        abi_TileSlotClaim();
+        call_frame(ret1, abi_TileSlotClaim);
         return;
     }
     a8_load((uint8_t)(cpu.a - 1));
     if (!(uint8_t)cpu.a)
-        abi_TileSlotsClaim2();
+        call_frame(ret2, abi_TileSlotsClaim2);
     else
-        abi_TileSlotsClaim3();
+        call_frame(ret3, abi_TileSlotsClaim3);
 }
 
 /*
@@ -371,10 +373,10 @@ void abi_ActorKindTilesShared(void)
     cpu.x = x = db16(0x0022);
     a8_load(rd8(0x7FE701u + x));
     if (!((uint8_t)cpu.a & 0x80)) {
-        claim_by_size();
+        claim_by_size(0xAAB3, 0xAAAC, 0xAAA5);  /* JSRs at 82:AAB1, AAAA, AAA3 */
         if (cpu.p & P_C)
             return;
-        abi_ActorKindTilesQueue();
+        call_frame(0xAAB8, abi_ActorKindTilesQueue);    /* JSR at 82:AAB6 */
         flag_set(P_C, 0);
         return;
     }
@@ -410,7 +412,7 @@ void abi_ActorKindTilesQueue(void)
     cmp16_of(x, 0x0066);
     if (x == 0x0066) {
         op_sep(0x30);
-        abi_TileSlotFill();
+        call_frame(0xAB39, abi_TileSlotFill);    /* JSR at 82:AB37 */
         return;
     }
     /* a VRAM queue entry: the slot's VRAM address, the graphics' place in
@@ -433,7 +435,7 @@ void abi_ActorKindTilesQueue(void)
     op_sep(P_X);
     inc8_at(dba((uint16_t)VRAM_QUEUE_COUNT));
     inc8_at(dba(0x0403));
-    abi_TileSlotFill();
+    call_frame(0xAB39, abi_TileSlotFill);    /* JSR at 82:AB37 */
 }
 
 /*
@@ -447,12 +449,30 @@ void abi_ActorKindTilesQueue(void)
  */
 void abi_ActorKindTiles(void)
 {
+    uint16_t fill_ret;
+
     op_rep(P_X);
     cpu.y = db16(0x0020);
-    claim_by_size();
+    /* the claim by the kind's extra slots, then TileSlotFill: each claim
+       has its own JSR to it after (82:AB69, AB5F, AB55) */
+    cpu.x = db16(0x001C);
+    a8_load(rd8(CELL_EXTRA_SLOTS + cpu.x));
+    if (!(uint8_t)cpu.a) {
+        call_frame(0xAB66, abi_TileSlotClaim);      /* JSR at 82:AB64 */
+        fill_ret = 0xAB6B;
+    } else {
+        a8_load((uint8_t)(cpu.a - 1));
+        if (!(uint8_t)cpu.a) {
+            call_frame(0xAB5C, abi_TileSlotsClaim2);    /* JSR at 82:AB5A */
+            fill_ret = 0xAB61;
+        } else {
+            call_frame(0xAB52, abi_TileSlotsClaim3);    /* JSR at 82:AB50 */
+            fill_ret = 0xAB57;
+        }
+    }
     if (cpu.p & P_C)
         return;
-    abi_TileSlotFill();
+    call_frame(fill_ret, abi_TileSlotFill);
     flag_set(P_C, 0);
 }
 
