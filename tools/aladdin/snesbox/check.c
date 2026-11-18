@@ -242,6 +242,37 @@ static int task_entry_at(uint8_t via, uint16_t s)
 }
 #define TASK_SCHEDULER 0x81BC7Fu
 #define TASK_SCHEDULER_S 0x0326u
+/* The scheduler's call (docs/aladdin/TASKS.md): it opens at $81:BC7F
+   reached by a jump (TaskToScheduler's: a task waits, exits or restarts
+   elsewhere), or at $81:BC6D by a long jump (PowerOn's), with S at the
+   scheduler's stack. Its own code reaches those two only by its fall-through
+   to $81:BC7F and its JMP or BNE back to $81:BC6D: no call opens there. It
+   ends at its RTL into a task (S then on the task's stack, below the
+   scheduler's: task_hand_off), or at that JMP or BNE back to $81:BC6D,
+   where the scan starts over (no task ready): the original's scan goes on
+   from there as original code on both sides, so the NMI the game waits for
+   lands where it does in the original. */
+#define TASK_SCHEDULER_START 0x81BC6Du
+#define TASK_SCHEDULER_FLOOR 0x0300u   /* below the scheduler's stack: the tasks' */
+static int sched_entered(uint32_t pc, uint8_t via, uint16_t s)
+{
+    if (s != TASK_SCHEDULER_S) return 0;
+    return (pc == TASK_SCHEDULER && is_jump_op(via)) || (pc == TASK_SCHEDULER_START && via == 0x5C);
+}
+/* The scheduler's own code at its two entries (its scan's fall-through,
+   its jump back to its start): no call opens there, by any rule. */
+static int sched_own(uint32_t pc, uint8_t via, uint16_t s)
+{
+    return (pc == TASK_SCHEDULER || pc == TASK_SCHEDULER_START) && !sched_entered(pc, via, s);
+}
+/* The scheduler's call, entered at entry and gone on past it (moved),
+   ends here: just after its RTL into a task, or at its jump back to its
+   start. */
+static int sched_ends(uint32_t pc, uint8_t prev, uint16_t s, int moved)
+{
+    if (prev == 0x6B && s < TASK_SCHEDULER_FLOOR) return 1;
+    return moved && pc == TASK_SCHEDULER_START && s == TASK_SCHEDULER_S && (prev == 0x4C || prev == 0xD0);
+}
 
 
 /* Where a task waiting in slot `slot` (byte offset of its record) resumes:
@@ -366,6 +397,7 @@ typedef struct {
     int resumed;             /* this piece starts where the task resumed */
     int abandoned;           /* the C stopped at code with no C, not where it waits: no later piece of the call runs it */
     int actor;               /* a piece of an actor's code (docs/aladdin/ACTORS.md) */
+    int sched, sched_moved;  /* the scheduler's call (sched_entered), gone on past its entry */
     int jumped;              /* entered by a jump (a tail jump, or code reached only by jumps) */
     int exit_calls;          /* calls it made from its exit level (after its own return was pulled), not yet returned */
     uint16_t live_s;         /* stack above this is live (scratch below it) */
@@ -521,6 +553,10 @@ static int is_scratch(Watch *w, uint32_t n)
 {
     if (n >> 24 != R_WRAM) return 0;
     uint32_t off = n & 0xFFFFFF;
+    /* The scheduler's call leaves its own stack for the task's at its RTL
+       (task_hand_off): its stack at and below its S at entry is free once
+       it has, as a task's below its saved S is at its wait. */
+    if (w->sched && off >= TASK_SCHEDULER_FLOOR && off <= w->exit_s) return 1;
     return off <= w->live_s && off + 0x100 > w->live_s;
 }
 
@@ -743,8 +779,9 @@ static void finish_piece(Watch *w, int waited)
     /* The original set S (TXS, TCS: the game's start resetting the
        stack) and left the call's frame that way; the C goes on past where
        the original's call was taken as ended, so only lockstep's frames
-       can judge it. */
-    int reset_left = w->stack_reset && !cpu.unwound && out.s != w->exit_s;
+       can judge it. Not the scheduler's: its TCS is its hand-off to the
+       task, where its C stops too (S and PC judged above). */
+    int reset_left = w->stack_reset && !w->sched && !cpu.unwound && out.s != w->exit_s;
     int unsure = w->interrupted || w->dma || w->gsu || w->needs_asm || reset_left;
     if (unsure) st->inconclusive++; else st->diff++;
     if (st->shown < 8) {
@@ -966,10 +1003,23 @@ static void on_insn(uint32_t pc)
             break;
         }
     }
+    /* The scheduler's call ends at its RTL into a task, or at its jump
+       back to its start: judged up to here, as a C that stopped in
+       task_hand_off. */
+    if (depth && ws[depth - 1]->sched && !ws[depth - 1]->in_irq) {
+        Watch *t = ws[depth - 1];
+        if (!have) { core_regs(&r); have = 1; }
+        if (sched_ends(pc, prev_op, r.s, t->sched_moved)) {
+            finish_piece(t, 2);
+            a5_drop(t);
+            depth--;
+        } else if (pc != routines[t->idx].addr) t->sched_moved = 1;
+    }
     /* The running task waits: every open watch is the task's; each is
        judged up to here and parked under the task's slot, or dropped when
-       the task does not wait (it exited or starts again elsewhere). */
-    if (depth && pc == TASK_SCHEDULER) {
+       the task does not wait (it exited or starts again elsewhere). Not
+       inside the scheduler's call, whose scan passes here. */
+    if (depth && pc == TASK_SCHEDULER && !ws[depth - 1]->sched) {
         if (!have) { core_regs(&r); have = 1; }
         if (r.s == TASK_SCHEDULER_S) {
             uint8_t slot = wram[TASK_CURRENT];
@@ -1050,7 +1100,8 @@ static void on_insn(uint32_t pc)
            scheduler), where its C leaves (cpu.unwound), as on lockstep's
            side. */
         if (t->noreturn && t->stack_reset) {
-            if (is_jump_op(prev_op) && is_catalog_entry(pc) && !(has_c[pc >> 3] >> (pc & 7) & 1)) { finish(t); depth--; continue; }
+            if (is_jump_op(prev_op) && is_catalog_entry(pc)
+                && (!(has_c[pc >> 3] >> (pc & 7) & 1) || sched_entered(pc, prev_op, r.s))) { finish(t); depth--; continue; }
             break;
         }
         if ((pc == t->ret_pc && r.s == t->exit_s)
@@ -1096,11 +1147,13 @@ static void on_insn(uint32_t pc)
     if (!have) { core_regs(&r); have = 1; }
     uint8_t via = prev_op;
     uint32_t sp = r.s;
+    if (sched_own(pc, via, (uint16_t)sp)) return;
     if (sp + 3 >= wram_n || r.e || depth == DEPTH) { stats[idx].skipped++; return; }
     if (!ws[depth] && !(ws[depth] = calloc(1, sizeof(Watch)))) abort();
     Watch *w = ws[depth];
     uint16_t word = (uint16_t)(wram[(sp + 1) & 0xFFFF] | wram[(sp + 2) & 0xFFFF] << 8);
     w->actor = 0;
+    w->sched = w->sched_moved = 0;
     w->exit_calls = 0;
     w->noreturn = pc == a5_noreturn_pc;
     if (w->noreturn) a5_noreturn_pc = 0xFFFFFFFFu;
@@ -1114,6 +1167,10 @@ static void on_insn(uint32_t pc)
         w->ret_pc = 0xFFFFFFFFu;
         w->exit_s = (uint16_t)sp;
         w->actor = 1;
+    } else if (sched_entered(pc, via, (uint16_t)sp)) {
+        w->ret_pc = 0xFFFFFFFFu;
+        w->exit_s = (uint16_t)sp;
+        w->sched = 1;
     } else if (task_entry_at(via, (uint16_t)sp)) {
         w->ret_pc = 0xFFFFFFFFu;
         w->exit_s = (uint16_t)sp;
@@ -1467,6 +1524,7 @@ static struct {
     uint32_t open_pc[64];    /* and their entries */
     uint16_t entry_s;        /* S at the call's own entry */
     int actor;               /* a piece of an actor's code: no return; ends at its yield or its leave */
+    int sched, sched_moved;  /* the scheduler's call (sched_entered), gone on past its entry */
     int exit_calls;          /* calls it made from its exit level, not yet returned */
     int irq;                 /* entered with an interrupt's frame (@interrupt): it returns by RTI */
     uint32_t ret[0x10000];   /* by S at a callee's entry: 1 << 24 | its return address */
@@ -1747,9 +1805,27 @@ static void ls_insn(uint32_t pc)
             m.irq_resumed = 0;
             goto not_active;
         }
+        /* The scheduler's call ends at its RTL into a task (the task's
+           parked record goes on there, or its code's record opens) or at
+           its jump back to its start (the scan goes on as original code). */
+        if (m.sched) {
+            uint8_t prev = m.irq_resumed ? m.pre_irq_op : *core_opcode;
+            if (sched_ends(pc, prev, r.s, m.sched_moved)) {
+                if (calls_from >= 0 && cur_frame >= calls_from)
+                    fprintf(stderr, "OSCHED frame %ld call %llu to %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+                STORE(sh->calls[m.call % CALLRING].done, 1);
+                m.active = 0;
+                m.irq_resumed = 0;
+                if (prev == 0x6B) goto not_active;
+                return;
+            }
+            if (pc != m_pc) m.sched_moved = 1;
+        }
         /* The call's task waits: the call ends here, at the scheduler, and
-           is parked for the task's next turn. */
-        if (pc == TASK_SCHEDULER && r.s == TASK_SCHEDULER_S) {
+           is parked for the task's next turn; the scheduler's call opens at
+           this same jump. Not the scheduler's own call, whose scan passes
+           here. */
+        if (!m.sched && pc == TASK_SCHEDULER && r.s == TASK_SCHEDULER_S) {
             uint8_t slot = wram[TASK_CURRENT];
             uint16_t rs = 0;
             uint32_t res = task_resume_of(slot, &rs);
@@ -1767,7 +1843,7 @@ static void ls_insn(uint32_t pc)
                 memcpy(opark[k].open, m.open, sizeof m.open);
                 memcpy(opark[k].open_pc, m.open_pc, sizeof m.open_pc);
             }
-            return;
+            goto not_active;
         }
         /* Inside the call, the entry into any routine the catalog knows is
            marked (op 9: its address, op A: S), and so is its return, the
@@ -1799,6 +1875,16 @@ static void ls_insn(uint32_t pc)
             m.active = 0;
             m.irq_resumed = 0;
             return;
+        }
+        /* (or into the scheduler, which has C: its call opens at this same
+           jump when its C runs) */
+        if (m.noreturn && m.stack_reset && sched_entered(pc, prev, r.s)) {
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "ODONE frame %ld call %llu at %06X S=%04X (noreturn: jump to the scheduler)\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
+            goto not_active;
         }
         /* A noreturn unit call whose own return lands elsewhere (its code
            overwrote the return address on the stack: WindowEdgesFillOnes'
@@ -1873,6 +1959,8 @@ static void ls_insn(uint32_t pc)
         /* Entries of routines with C count too: an @alias address (a work
            RAM routine run from its ROM copy) is not in the catalog. */
         int with_c = has_c[pc >> 3] >> (pc & 7) & 1;
+        /* (the scheduler's own entries inside its call are its loop) */
+        if (m.sched && (pc == TASK_SCHEDULER || pc == TASK_SCHEDULER_START)) again = 1;
         if ((computed || is_catalog_entry(pc) || with_c) && !again && m.depth < 64) {
             ls_op(0x90, pc);
             ls_op(0xA0, r.s);
@@ -1948,6 +2036,7 @@ not_active:
        interrupt taken just before it (a record that ended here after the
        handler's RTI), as the hybrid enters its C there by that jump. */
     uint8_t via = o_via_set ? o_via : *core_opcode;
+    if (sched_own(pc, via, r.s)) return;
     /* Entered with an interrupt's frame on the stack (@interrupt): its
        return is the frame's (irq_entered). */
     if (!r.e && irq_entered(pc, via, taken)) {
@@ -1960,6 +2049,12 @@ not_active:
     if (actor_enters(pc, via)) {
         o_open(pc, &r);
         m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.actor = 1;
+        return;
+    }
+    /* The scheduler's call (sched_entered). */
+    if (sched_entered(pc, via, r.s)) {
+        o_open(pc, &r);
+        m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.sched = 1;
         return;
     }
     /* A task's start, where the scheduler's RTL lands: its first piece,
@@ -1994,6 +2089,7 @@ static void o_open(uint32_t pc, struct SnesboxRegs *rp)
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(stderr, "OCALL frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)k, pc, r.s);
     m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0; m.actor = 0; m.exit_calls = 0; m.irq = 0;
+    m.sched = m.sched_moved = 0;
     m.noreturn = ls_noreturn_pc == pc;
     ls_noreturn_pc = (uint32_t)-1;
     m_pc = pc;
@@ -3181,11 +3277,12 @@ static int ls_exec(uint32_t pc)
     int idx = routine_at(pc);
     if (idx < 0) return 0;
     core_regs(&r);
+    if (sched_own(pc, *core_opcode, r.s)) return 0;
     uint32_t ret; uint16_t exit_s;
     int irq = !r.e && irq_entered(pc, *core_opcode, taken && (uint16_t)(r.s + 4) == taken_s);
     int actor = !irq && actor_enters(pc, *core_opcode);
     if (irq) irq_return(r.s, wram, &ret, &exit_s);
-    else if (actor || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
+    else if (actor || sched_entered(pc, *core_opcode, r.s) || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
     else if (jump_entered(pc, *core_opcode)) jump_return(pc, r.s, wram, &ret, &exit_s);
     else if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
     ls_cur_name = routines[idx].name;
@@ -3279,7 +3376,10 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
     } else if (c->status == 3 && hand_via) {
         /* The actor loop handed control to an actor (actor_hand_off): its
            call ended at the RTI or JMP (table,X); the actor's code goes on
-           from there, entered by that instruction. */
+           from there, entered by that instruction. Or the scheduler's call
+           ended (task_hand_off): at its RTL into a task, whose parked C or
+           code goes on there; or at its jump back to its start, where its
+           scan goes on as original code. */
         yields++;
         ctx_abandon(c);
         *core_opcode = hand_via;
@@ -3331,9 +3431,15 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
             c->resume = resume; c->resume_s = rs;
             parked[slot / 0x18] = c;
         } else ctx_abandon(c);
+        /* into the scheduler by TaskToScheduler's JMP: its C (if it has
+           C) is entered by that jump, as on the original side */
+        if (out.pc == TASK_SCHEDULER) *core_opcode = 0x4C;
     } else {
         c->next = ctx_free;
         ctx_free = c;
+        /* left by PowerOn's JML into the scheduler (cpu.unwound): its C
+           is entered by that jump */
+        if (cpu.unwound && out.pc == TASK_SCHEDULER_START) *core_opcode = 0x5C;
     }
     return 1;
 }
@@ -3406,6 +3512,17 @@ void actor_hand_off(uint32_t pc, uint8_t via)
     if (machine_live) hand_via = via;
     task_yield();
     loop_call_back();
+    for (;;) {}   /* never resumed */
+}
+
+/* machine.h: the scheduler's call ends at pc: its RTL into a task there,
+   or its jump back to its start ($81:BC6D), where the original's scan goes
+   on. */
+void task_hand_off(uint32_t pc)
+{
+    cpu.pc = pc;
+    if (machine_live) hand_via = pc == TASK_SCHEDULER_START ? 0x4C : 0x6B;
+    task_yield();
     for (;;) {}   /* never resumed */
 }
 

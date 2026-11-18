@@ -84,6 +84,23 @@ Oracle work:
   "dead stack" rule widens from the running stack to every slot's stack
   below its saved S.
 
+### The scheduler's C, as the oracles judge it
+
+The scheduler (src/aladdin/system/task_scheduler.c) never returns. Its C
+ends in `task_hand_off(pc)` (machine.h) where the original leaves its
+code: at its RTL into a task ($81:BCB7), with S on the task's stack; or at
+its JMP or BNE back to $81:BC6D, where the scan starts over because no task
+is ready. A call of it opens at $81:BC7F reached by a jump
+(TaskToScheduler's, when a task waits, exits or starts again elsewhere) or
+at $81:BC6D by PowerOn's JML, with S = $0326; never at its own fall-through
+or jump back. A5 and A7 end the call at the hand-off and judge S and PC
+there. After the RTL, a task's C parked at that resume point goes on, or
+the task's code starts there, as after the original's RTL. A scan that
+starts over runs as original code on both sides, so the NMI that makes a
+task ready lands where it does in the game. Once the call has moved to the
+task's stack, its own stack ($0300 up to $0326) is dead, as a task's is
+below its saved S.
+
 ## Option B: split task code at its waits
 
 Each resume address becomes a routine of its own, and C ends where the
