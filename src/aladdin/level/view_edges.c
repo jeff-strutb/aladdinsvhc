@@ -80,9 +80,13 @@ void abi_ViewEdgePush(void)
             goto out;
     }
     op_sep(P_M);
+    jsl_frame(0x81E9E7u);                 /* the JSLs' returns on the stack: the tests' PHD sits below them */
     abi_PlayerOnFirmGroundProbe8();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_C)) {
+        jsl_frame(0x81E9EDu);
         abi_PlayerOnFirmGroundProbe4();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C)) {             /* off firm ground: pushed back */
             abi_PlayerKeepOnScreenX();
             goto out;
