@@ -28,10 +28,19 @@ void abi_AnimStart(void);
 #define SF_PLAYER_07 (PLAYER + ACTOR_07) /* the player's $07 */
 #define SF_COUNT 0x42u          /* frames left of a walk */
 
-static void anim(uint8_t a)
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+static void anim(uint8_t a, uint32_t site)
 {
     a8_load(a);
-    abi_AnimStart();
+    jsl_call(site, abi_AnimStart);
 }
 
 static void wait_frames(uint8_t frames, uint32_t cop_at)
@@ -53,7 +62,7 @@ static void walk(uint8_t frames, uint32_t brk_at)
     wr8(dpa(SF_COUNT), frames);
     do {
         actor_yield(brk_at);
-        abi_ActorMoveX();
+        jsl_call(brk_at + 2, abi_ActorMoveX);       /* BRK (2 bytes), then the JSL */
     } while (dec8_at(dpa(SF_COUNT)));
 }
 
@@ -87,46 +96,46 @@ void abi_PlayerSceneDropIn(void)
 {
     /* dropped to the ground */
     for (;;) {
-        abi_ActorFall();
-        abi_ActorOutOfGround();
+        jsl_call(0xA5ED0Fu, abi_ActorFall);
+        jsl_call(0xA5ED13u, abi_ActorOutOfGround);
         if (!(cpu.p & P_Z))
             break;
         actor_yield(0xA5ED19u);
-        abi_ActorAnimRiseFall();
+        call_frame(0xED1Du, abi_ActorAnimRiseFall);
     }
-    anim(0x00);
+    anim(0x00, 0xA5ED22u);
     wait_frames(0x80, 0xA5ED28u);
 
     /* put at its spot, and leaps in */
     x8_load(0x24);
-    abi_ActorPlaceAtSpot();
+    call_frame(0xED2Eu, abi_ActorPlaceAtSpot);
     wr8(dpa(ACTOR_FACING), 0x00);
     wr8(dpa(ACTOR_FLIP), 0x00);
     low_bits_08(0x03);
-    anim(0x0C);
+    anim(0x0C, 0xA5ED3Du);
     y8_load(0x86);
-    abi_ActorMotionPreset();
+    jsl_call(0xA5ED43u, abi_ActorMotionPreset);
     do {
         actor_yield(0xA5ED47u);
-        abi_ActorAnimRiseFall();
-        abi_ActorFly();
-        abi_ActorOutOfGround();
+        call_frame(0xED4Bu, abi_ActorAnimRiseFall);
+        jsl_call(0xA5ED4Cu, abi_ActorFly);
+        jsl_call(0xA5ED50u, abi_ActorOutOfGround);
     } while (cpu.p & P_Z);
-    anim(0x00);
+    anim(0x00, 0xA5ED58u);
     wait_frames(0x30, 0xA5ED5Eu);
 
     /* posed until cue $BD: $18 while the player is hurt, else $17 */
-    anim(0x17);
+    anim(0x17, 0xA5ED71u);
     for (;;) {
         actor_yield(0xA5ED75u);
         a8_load(rd8(dba(SF_HURT_COUNT)));
         if ((uint8_t)cpu.a) {
-            anim(0x18);
+            anim(0x18, 0xA5ED64u);
             do {
                 actor_yield(0xA5ED68u);
                 a8_load(rd8(dba(SF_HURT_COUNT)));
             } while ((uint8_t)cpu.a);
-            anim(0x17);
+            anim(0x17, 0xA5ED71u);
             continue;
         }
         a8_load(rd8(dba(SF_SCENE_CUE)));
@@ -140,52 +149,52 @@ void abi_PlayerSceneDropIn(void)
     wr8(dpa(ACTOR_FACING), 0x00);
     wr8(dpa(ACTOR_FLIP), 0x00);
     y8_load(0x7B);
-    abi_ActorMotionPreset();
+    jsl_call(0xA5ED8Cu, abi_ActorMotionPreset);
     do {
         actor_yield(0xA5ED90u);
-        abi_ActorAnimRiseFall();
-        abi_ActorFly();
+        call_frame(0xED94u, abi_ActorAnimRiseFall);
+        jsl_call(0xA5ED95u, abi_ActorFly);
         a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
     } while (cpu.a & 0x80);
     low_bits_08(0x01);
     do {
         actor_yield(0xA5EDA5u);
-        abi_ActorAnimRiseFall();
-        abi_ActorFly();
-        abi_ActorOutOfGround();
+        call_frame(0xEDA9u, abi_ActorAnimRiseFall);
+        jsl_call(0xA5EDAAu, abi_ActorFly);
+        jsl_call(0xA5EDAEu, abi_ActorOutOfGround);
     } while (cpu.p & P_Z);
-    anim(0x19);
+    anim(0x19, 0xA5EDB6u);
     wait_frames(0x50, 0xA5EDBCu);
 
     /* until the player's $07 is $0D, then a short walk */
-    anim(0x00);
+    anim(0x00, 0xA5EDC0u);
     do {
         actor_yield(0xA5EDC4u);
         a8_load(rd8(dba(SF_PLAYER_07)));
         cmp8_of((uint8_t)cpu.a, 0x0D);
     } while ((uint8_t)cpu.a != 0x0D);
-    anim(0x01);
+    anim(0x01, 0xA5EDCFu);
     y8_load(0x00);
-    abi_ActorSpeedXFromA5();
+    call_frame(0xEDD7u, abi_ActorSpeedXFromA5);
     walk(0x40, 0xA5EDDCu);
 
     /* posed until cue $BE, then off */
-    anim(0x00);
+    anim(0x00, 0xA5EDE8u);
     do {
         actor_yield(0xA5EDECu);
         a8_load(rd8(dba(SF_CUE_BE)));
     } while (!(cpu.a & 0x80));
-    anim(0x1A);
+    anim(0x1A, 0xA5EDF5u);
     wait_frames(0x80, 0xA5EDFBu);
     y8_load(0x0F);
-    abi_ActorSpeedXFromA5();
-    anim(0x02);
+    call_frame(0xEE01u, abi_ActorSpeedXFromA5);
+    anim(0x02, 0xA5EE04u);
     walk(0x28, 0xA5EE0Cu);
     y8_load(0x0C);
-    abi_ActorSpeedXFromA5();
-    anim(0x01);
+    call_frame(0xEE1Au, abi_ActorSpeedXFromA5);
+    anim(0x01, 0xA5EE1Du);
     for (;;) {
         actor_yield(0xA5EE21u);
-        abi_ActorMoveX();
+        jsl_call(0xA5EE23u, abi_ActorMoveX);
     }
 }

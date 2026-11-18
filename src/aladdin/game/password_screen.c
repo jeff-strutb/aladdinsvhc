@@ -43,6 +43,15 @@ void abi_TextLayoutShow(void);
 #define PICTURE_ROW_BITS 0xFE22u  /* by row, the tilemap bits (words, in the bank DB names) */
 #define PICTURE_TILES 0xFE2Eu     /* by column, the picture's first tile (words) */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine 84:AF52 PasswordPictureDraw
  * WHAT IT DOES: Shows picture $000F in password slot $000E: its tiles in
@@ -66,10 +75,10 @@ void abi_PasswordPictureDraw(void)
     bits = (uint16_t)((bits << 2) | 0x1000 | rd16(dba(PICTURE_ROW_BITS) + cpu.y));
     cpu.y = bits;
     a16_load(rd16(dba(PICTURE_TILES) + cpu.x));
-    abi_TileBlockQueue();
-    a8_load(row);
-    x8_load(col);
-    abi_PaletteFromRom();
+    jsl_call(0x84AF70u, abi_TileBlockQueue);
+    a8_load(rd8(dba(SCRATCH + 3)));              /* LDA picture, LDX slot: read again */
+    x8_load(rd8(dba(SCRATCH + 2)));
+    jsl_call(0x84AF7Au, abi_PaletteFromRom);
 }
 
 /*
@@ -162,30 +171,30 @@ L_84AFC8:
  */
 void abi_PasswordScreen(void)
 {
-    abi_NmiDisable();  /* 84AD50 jsl */
-    abi_ScreenBlank();  /* 84AD54 jsl */
-    abi_ScrollStateClear();  /* 84AD58 jsl */
-    abi_OamBufferClear();  /* 84AD5C jsl */
-    abi_DisplayDefaults();  /* 84AD60 jsl */
+    jsl_call(0x84AD50u, abi_NmiDisable);  /* 84AD50 jsl */
+    jsl_call(0x84AD54u, abi_ScreenBlank);  /* 84AD54 jsl */
+    jsl_call(0x84AD58u, abi_ScrollStateClear);  /* 84AD58 jsl */
+    jsl_call(0x84AD5Cu, abi_OamBufferClear);  /* 84AD5C jsl */
+    jsl_call(0x84AD60u, abi_DisplayDefaults);  /* 84AD60 jsl */
     lda8_v(0x0D);  /* 84AD64 lda */
-    abi_UnpackSet();  /* 84AD66 jsl */
+    jsl_call(0x84AD66u, abi_UnpackSet);  /* 84AD66 jsl */
     ldx8_v(0x70);  /* 84AD6A ldx */
-    abi_VramCopy();  /* 84AD6C jsl */
+    jsl_call(0x84AD6Cu, abi_VramCopy);  /* 84AD6C jsl */
     lda8_v(0x23);  /* 84AD70 lda */
-    abi_UnpackSet();  /* 84AD72 jsl */
+    jsl_call(0x84AD72u, abi_UnpackSet);  /* 84AD72 jsl */
     ldx8_v(0x85);  /* 84AD76 ldx */
-    abi_VramCopy();  /* 84AD78 jsl */
+    jsl_call(0x84AD78u, abi_VramCopy);  /* 84AD78 jsl */
     ldx8_v(0x5B);  /* 84AD7C ldx */
-    abi_VramCopy2();  /* 84AD7E jsl */
+    jsl_call(0x84AD7Eu, abi_VramCopy2);  /* 84AD7E jsl */
     lda8_v(0x06);  /* 84AD82 lda */
-    abi_UnpackSet();  /* 84AD84 jsl */
+    jsl_call(0x84AD84u, abi_UnpackSet);  /* 84AD84 jsl */
     ldx8_v(0x77);  /* 84AD88 ldx */
-    abi_VramCopy();  /* 84AD8A jsl */
+    jsl_call(0x84AD8Au, abi_VramCopy);  /* 84AD8A jsl */
     lda8_v(0x2C);  /* 84AD8E lda */
     sta8(ea_abs(LEVEL));  /* 84AD90 sta */
-    abi_LevelRamSetupLong();  /* 84AD93 jsl */
+    jsl_call(0x84AD93u, abi_LevelRamSetupLong);  /* 84AD93 jsl */
     lda8_v(0x4D);  /* 84AD97 lda */
-    abi_PaletteLoad();  /* 84AD99 jsl */
+    jsl_call(0x84AD99u, abi_PaletteLoad);  /* 84AD99 jsl */
     lda8_v(0x00);  /* 84AD9D lda */
     ACC8(asl);  /* 84AD9F asl */
     ACC8(asl);  /* 84ADA0 asl */
@@ -201,7 +210,7 @@ L_84ADA7:
     lda8(ea_absy(0xFDD1));  /* 84ADB3 lda */
     sta8(ea_dpx(0xA6));  /* 84ADB6 sta */
     sta8(ea_abs(0x000F));  /* 84ADB8 sta */
-    abi_PasswordPictureDraw();  /* 84ADBB jsr */
+    call_frame(0xADBDu, abi_PasswordPictureDraw);  /* 84ADBB jsr */
     MEM8(inc, ea_abs(0x000E));  /* 84ADBE inc */
     lda8(ea_abs(0x000E));  /* 84ADC1 lda */
     cmp8_v(0x04);  /* 84ADC4 cmp */
@@ -209,11 +218,11 @@ L_84ADA7:
     lda8_v(0x03);  /* 84ADC8 lda */
     sta8(ea_dp(0xA5));  /* 84ADCA sta */
     stz8(ea_dp(0xAC));  /* 84ADCC stz */
-    abi_NmiEnable();  /* 84ADCE jsl */
+    jsl_call(0x84ADCEu, abi_NmiEnable);  /* 84ADCE jsl */
     lda8_v(0x01);  /* 84ADD2 lda */
     jsl_frame(0x84ADD4u); abi_TaskWait();  /* 84ADD4 jsl */
     lda8_v(0x2D);  /* 84ADD8 lda */
-    abi_SongPlay();  /* 84ADDA jsl */
+    jsl_call(0x84ADDAu, abi_SongPlay);  /* 84ADDA jsl */
     lda8_v(0x1F);  /* 84ADDE lda */
     sta8(ea_abs(0x0399));  /* 84ADE0 sta */
     sta8(ea_abs(0x039A));  /* 84ADE3 sta */
@@ -267,7 +276,7 @@ L_84AE45:
     sta8(ea_abs(0x0005));  /* 84AE51 sta */
     sta8(ea_abs(LEVEL_035C));  /* 84AE54 sta */
     stz8(ea_abs(0x035D));  /* 84AE57 stz */
-    abi_KeptOptionsSeal();  /* 84AE5A jsl */
+    jsl_call(0x84AE5Au, abi_KeptOptionsSeal);  /* 84AE5A jsl */
     goto L_84AEB1;  /* 84AE5E jmp */
 L_84AE61:
     bit8_i(0x08);  /* 84AE61 bit */
@@ -291,9 +300,9 @@ L_84AE81:
     sta8(ea_dpx(0xA6));  /* 84AE81 sta */
     sta8(ea_abs(0x000F));  /* 84AE83 sta */
     stx8(ea_abs(0x000E));  /* 84AE86 stx */
-    abi_PasswordPictureDraw();  /* 84AE89 jsr */
+    call_frame(0xAE8Bu, abi_PasswordPictureDraw);  /* 84AE89 jsr */
     lda8_v(0x0C);  /* 84AE8C lda */
-    abi_SoundQueueAdd();  /* 84AE8E jsl */
+    jsl_call(0x84AE8Eu, abi_SoundQueueAdd);  /* 84AE8E jsl */
     goto L_84AEAE;  /* 84AE92 bra */
 L_84AE94:
     bit8_i(0x02);  /* 84AE94 bit */
@@ -309,17 +318,17 @@ L_84AEA2:
     and8_v(0x03);  /* 84AEA4 and */
     sta8(ea_dp(0xA5));  /* 84AEA6 sta */
     lda8_v(0x0C);  /* 84AEA8 lda */
-    abi_SoundQueueAdd();  /* 84AEAA jsl */
+    jsl_call(0x84AEAAu, abi_SoundQueueAdd);  /* 84AEAA jsl */
 L_84AEAE:
     goto L_84AE03;  /* 84AEAE jmp */
 L_84AEB1:
     MEM8(inc, ea_dp(0xAC));  /* 84AEB1 inc */
     lda8_v(0x64);  /* 84AEB3 lda */
-    abi_TextLayoutShow();  /* 84AEB5 jsl */
+    jsl_call(0x84AEB5u, abi_TextLayoutShow);  /* 84AEB5 jsl */
     goto L_84AEC1;  /* 84AEB9 bra */
 L_84AEBB:
     lda8_v(0x62);  /* 84AEBB lda */
-    abi_TextLayoutShow();  /* 84AEBD jsl */
+    jsl_call(0x84AEBDu, abi_TextLayoutShow);  /* 84AEBD jsl */
 L_84AEC1:
     lda8_v(0x80);  /* 84AEC1 lda */
     sta8(ea_dp(0xAD));  /* 84AEC3 sta */
@@ -329,7 +338,7 @@ L_84AEC5:
     jsl_frame(0x84AECBu); abi_FrameStepLong(); cpu.s = (uint16_t)(cpu.s + 3);  /* 84AECB jsl */
     MEM8(dec, ea_dp(0xAD));  /* 84AECF dec */
     if (!IF_Z) goto L_84AEC5;  /* 84AED1 bne */
-    abi_SoundQueueF6With1();  /* 84AED3 jsl */
+    jsl_call(0x84AED3u, abi_SoundQueueF6With1);  /* 84AED3 jsl */
     jsl_frame(0x84AED7u); abi_TaskCreate(); cpu.unwound = 0;  /* 84AED7 jsl */
 L_84AEE0:
     lda8_v(0x01);  /* 84AEE0 lda */

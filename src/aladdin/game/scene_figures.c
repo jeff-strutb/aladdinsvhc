@@ -66,6 +66,15 @@ void abi_TaskExec(void);
 #define KIND_7A 0x7A          /* the child it starts as it flies off */
 #define ALONG_FLY_MOTION 0x54 /* the motion preset it flies off on */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine A5:F3F0 Kind93WalkIn
  * @actor
@@ -96,23 +105,23 @@ void abi_Kind93WalkIn(void)
     wr8(dpa(ACTOR_FACING), 0x01);
     wr8(dpa(ACTOR_FLIP), 0x01);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0xA5F40Du, abi_AnimStart);
     do {                                  /* until the scene's cue */
         actor_yield(0xA5F411u);
         v = rd8(dba(SCENE_CUE_C2));
         a8_load(v);
     } while (!v);
     y8_load(0x72);
-    abi_ActorSpeedXSet();
+    jsl_call(0xA5F41Au, abi_ActorSpeedXSet);
     do {                                  /* left to x 162 */
         actor_yield(0xA5F41Eu);
-        abi_ActorMoveX();
+        jsl_call(0xA5F420u, abi_ActorMoveX);
         v = rd8(dpa(ACTOR_X + 1));
         a8_load(v);
         cmp8_of(v, 0xA2);
     } while (v >= 0xA2);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_call(0xA5F42Cu, abi_AnimStart);
     for (;;)
         actor_yield(0xA5F430u);
 }

@@ -33,6 +33,15 @@ void abi_EscortStaySpot18(void);
 #define SCENE_MARK_X 0x0F68u           /* the walk-off figure's mark */
 
 /* Each frame (BRK at `brk_at` first) until the scene's cue is given. */
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 static void wait_cue(uint32_t brk_at)
 {
     uint8_t cue;
@@ -63,36 +72,36 @@ void abi_PlayerSceneLeap(void)
     uint8_t cue;
 
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0xA5EC47u, abi_AnimStart);
     a8_load(0x20);
     actor_wait(0xA5EC4Du);
     /* runs till he is off the ground */
     a8_load(0x02);
-    abi_AnimStart();
+    jsl_call(0xA5EC51u, abi_AnimStart);
     y8_load(0x0F);
-    abi_ActorSpeedXFromA5();
+    call_frame(0xEC59u, abi_ActorSpeedXFromA5);
     do {
         actor_yield(0xA5EC5Au);
-        abi_ActorMoveX();
-        abi_ActorSnapToGround();
+        jsl_call(0xA5EC5Cu, abi_ActorMoveX);
+        jsl_call(0xA5EC60u, abi_ActorSnapToGround);
     } while (!(cpu.p & P_Z));
     /* leaps, until the cue */
     wr8(dba(SCENE_CUE), 0);
     a8_load(0x0C);
-    abi_AnimStart();
+    jsl_call(0xA5EC6Bu, abi_AnimStart);
     a8_load(0x38);
     wr8(dpa(ACTOR_ACCEL_Y), 0x38);
     y8_load(0x12);
-    abi_ActorSpeedYFromA5();
+    call_frame(0xEC77u, abi_ActorSpeedYFromA5);
     do {
         actor_yield(0xA5EC78u);
-        abi_ActorFly();
+        jsl_call(0xA5EC7Au, abi_ActorFly);
         cue = rd8(dba(SCENE_CUE));
         a8_load(cue);
     } while (!cue);
     wr8(dba(SCENE_CUE), 0);
     a8_load(0x0D);
-    abi_AnimStart();
+    jsl_call(0xA5EC88u, abi_AnimStart);
     wait_cue(0xA5EC8Cu);
     a8_load(0x80);
     trb_at(dpa(ACTOR_09), 0x80);
@@ -104,12 +113,12 @@ void abi_PlayerSceneLeap(void)
 
 
 /* Each frame (BRK at `brk_at` first) falling until he is in the ground. */
-static void fall_to_ground(uint32_t brk_at)
+static void fall_to_ground(uint32_t brk_at, uint32_t fall_at, uint32_t ground_at)
 {
     do {
         actor_yield(brk_at);
-        abi_ActorFall();
-        abi_ActorOutOfGround();
+        jsl_call(fall_at, abi_ActorFall);
+        jsl_call(ground_at, abi_ActorOutOfGround);
     } while (cpu.p & P_Z);
 }
 
@@ -138,37 +147,37 @@ void abi_PlayerSceneHops(void)
     a8_load(0x38);
     wr8(dpa(ACTOR_ACCEL_Y), 0x38);
     y8_load(0x06);
-    abi_ActorSpeedYFromA5();
-    fall_to_ground(0xA5ECB0u);
+    call_frame(0xECAFu, abi_ActorSpeedYFromA5);
+    fall_to_ground(0xA5ECB0u, 0xA5ECB2u, 0xA5ECB6u);
     for (;;) {                            /* a hop left, a pause, again */
         y8_load(0x06);
-        abi_ActorSpeedYFromA5();
+        call_frame(0xECC0u, abi_ActorSpeedYFromA5);
         y8_load(0x0C);
-        abi_ActorSpeedXFromA5();
+        call_frame(0xECC5u, abi_ActorSpeedXFromA5);
         a8_load(0x01);
-        abi_AnimStart();
+        jsl_call(0xA5ECC8u, abi_AnimStart);
         a8_load(0x30);
         wr8(dpa(HOP_TIME), 0x30);
         do {
             actor_yield(0xA5ECD0u);
-            abi_ActorMoveX();
-            abi_ActorSnapToGround();
+            jsl_call(0xA5ECD2u, abi_ActorMoveX);
+            jsl_call(0xA5ECD6u, abi_ActorSnapToGround);
         } while (dec8_at(dpa(HOP_TIME)));
         a8_load(0x00);
-        abi_AnimStart();
+        jsl_call(0xA5ECE0u, abi_AnimStart);
         a8_load(0x30);
         actor_wait(0xA5ECE6u);
         a8_load(0x0A);
-        abi_AnimStart();
+        jsl_call(0xA5ECEAu, abi_AnimStart);
         a8_load(0x10);
         actor_wait(0xA5ECF0u);
         a8_load(0x00);
-        abi_AnimStart();
+        jsl_call(0xA5ECF4u, abi_AnimStart);
         a8_load(0x38);
         wr8(dpa(ACTOR_ACCEL_Y), 0x38);
         y8_load(0x0C);
-        abi_ActorSpeedYFromA5();
-        fall_to_ground(0xA5ED01u);
+        call_frame(0xED00u, abi_ActorSpeedYFromA5);
+        fall_to_ground(0xA5ED01u, 0xA5ED03u, 0xA5ED07u);
     }
 }
 
@@ -176,8 +185,8 @@ void abi_PlayerSceneHops(void)
 static void walk_step(uint32_t brk_at)
 {
     actor_yield(brk_at);
-    abi_ActorMoveX();
-    abi_ActorSnapToGround();
+    jsl_call(brk_at + 2, abi_ActorMoveX);          /* BRK (2 bytes), JSL, JSL */
+    jsl_call(brk_at + 6, abi_ActorSnapToGround);
 }
 
 /*
@@ -217,18 +226,18 @@ void abi_PlayerSceneWalkOff(void)
         return;
     }
     for (;;) {
-        abi_ActorOutOfGround();
+        jsl_call(0xA5EE39u, abi_ActorOutOfGround);
         if (!(cpu.p & P_Z))
             break;
         actor_yield(0xA5EE3Fu);
-        abi_ActorFly();
+        jsl_call(0xA5EE41u, abi_ActorFly);
     }
     wr8(dpa(ACTOR_FACING), 0x00);
     wr8(dpa(ACTOR_FLIP), 0x00);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_call(0xA5EE4Du, abi_AnimStart);
     y8_load(0x00);
-    abi_ActorSpeedXFromA5();
+    call_frame(0xEE55u, abi_ActorSpeedXFromA5);
     do {
         walk_step(0xA5EE56u);
         op_rep(0x20);
@@ -239,17 +248,17 @@ void abi_PlayerSceneWalkOff(void)
     } while (x < SCENE_MARK_X);
     (void)inc8_at(dba(SCENE_STEP_C));
     a8_load(0x06);
-    abi_AnimStart();
+    jsl_call(0xA5EE70u, abi_AnimStart);
     a8_load(0x30);
     actor_wait(0xA5EE76u);
     a8_load(0x1E);
-    abi_AnimStart();
+    jsl_call(0xA5EE7Au, abi_AnimStart);
     a8_load(0x20);
     actor_wait(0xA5EE80u);
     a8_load(0x02);
-    abi_AnimStart();
+    jsl_call(0xA5EE84u, abi_AnimStart);
     y8_load(0x12);
-    abi_ActorSpeedXFromA5();
+    call_frame(0xEE8Cu, abi_ActorSpeedXFromA5);
     do {
         walk_step(0xA5EE8Du);
         op_rep(0x20);
@@ -262,14 +271,14 @@ void abi_PlayerSceneWalkOff(void)
     } while (reach >= x);
     (void)inc8_at(dba(SCENE_STEP_B));
     a8_load(0x04);
-    abi_AnimStart();
+    jsl_call(0xA5EEABu, abi_AnimStart);
     a8_load(0x01);
     wr8(dpa(ACTOR_FLIP), 0x01);
     a8_load(0x80);
     actor_wait(0xA5EEB5u);
     wr8(dpa(ACTOR_FLIP), 0x00);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0xA5EEBBu, abi_AnimStart);
     do {
         actor_yield(0xA5EEBFu);
         a8_load(rd8(dba(SCENE_STEP_A)));
@@ -277,9 +286,9 @@ void abi_PlayerSceneWalkOff(void)
     a8_load(0x10);
     actor_wait(0xA5EEC8u);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_call(0xA5EECCu, abi_AnimStart);
     y8_load(0x00);
-    abi_ActorSpeedXFromA5();
+    call_frame(0xEED4u, abi_ActorSpeedXFromA5);
     for (;;)
         walk_step(0xA5EED5u);
 }

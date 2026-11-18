@@ -31,22 +31,31 @@ void abi_GuardRestart(void);
 #define SCENE_TILE 0x0012u              /* PointInGround's tile behaviour: bit 5 an edge */
 #define PLAYER_X_AT (PLAYER + ACTOR_X + 1)
 
-static void anim(uint8_t a)
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+static void anim(uint8_t a, uint32_t site)
 {
     a8_load(a);
-    abi_AnimStart();
+    jsl_call(site, abi_AnimStart);
 }
 
-static void speed_x(uint8_t y)
+static void speed_x(uint8_t y, uint16_t ret)
 {
     y8_load(y);
-    abi_ActorSpeedXFromA5();
+    call_frame(ret, abi_ActorSpeedXFromA5);
 }
 
-static void speed_y(uint8_t y)
+static void speed_y(uint8_t y, uint16_t ret)
 {
     y8_load(y);
-    abi_ActorSpeedYFromA5();
+    call_frame(ret, abi_ActorSpeedYFromA5);
 }
 
 /*
@@ -81,25 +90,25 @@ void abi_PlayerSceneRuns(void)
     uint16_t reach, x;
     uint8_t tile;
 
-    anim(0x00);
+    anim(0x00, 0xA5EB33u);
     a8_load(0x40);
     actor_wait(0xA5EB39u);
     for (;;) {
         /* the run */
-        anim(0x02);
-        speed_x(0x15);
-        speed_y(0x06);
+        anim(0x02, 0xA5EB3Du);
+        speed_x(0x15, 0xEB45);
+        speed_y(0x06, 0xEB4A);
         for (;;) {
             actor_yield(0xA5EB4Bu);
-            abi_ActorMoveX();
-            abi_ActorSnapToGround();
+            jsl_call(0xA5EB4Du, abi_ActorMoveX);
+            jsl_call(0xA5EB51u, abi_ActorSnapToGround);
             if (cpu.p & P_Z)
                 break;                           /* off the ground */
             tile = rd8(dba(SCENE_TILE));
             a8_load(tile);
             if (tile & 0x20)
                 break;                           /* at an edge */
-            abi_ActorAnimByTile();
+            call_frame(0xEB60u, abi_ActorAnimByTile);
             op_rep(0x20);
             flag_set(P_C, 0);
             reach = op_adc16(rd16(dba(PLAYER_X_AT)), 0x00C0, &cpu.p);
@@ -113,20 +122,20 @@ void abi_PlayerSceneRuns(void)
         /* the drop */
         a8_load(0x38);
         wr8(dpa(ACTOR_ACCEL_Y), 0x38);
-        speed_y(0x09);
+        speed_y(0x09, 0xEB8D);
         do {
             actor_yield(0xA5EB8Eu);
-            abi_ActorAnimRiseFall();
-            abi_ActorFly();
-            abi_ActorOutOfGround();
+            call_frame(0xEB92u, abi_ActorAnimRiseFall);
+            jsl_call(0xA5EB93u, abi_ActorFly);
+            jsl_call(0xA5EB97u, abi_ActorOutOfGround);
         } while (cpu.p & P_Z);
     }
 
 ahead:
     x8_load(0x1C);
-    abi_ActorPlaceAtSpot();
+    call_frame(0xEB74u, abi_ActorPlaceAtSpot);
     op_sep(0x20);
-    anim(0x00);
+    anim(0x00, 0xA5EB79u);
     a8_load(0x01);
     wr8(dpa(ACTOR_FACING), 0x01);
     wr8(dpa(ACTOR_FLIP), 0x01);
@@ -141,23 +150,23 @@ ahead:
     wr8(dpa(ACTOR_FLIP), 0x00);
     a8_load(0x48);
     wr8(dpa(HOP_TIME), 0x48);
-    anim(0x01);
-    speed_x(0x0C);
+    anim(0x01, 0xA5EBB6u);
+    speed_x(0x0C, 0xEBBE);
     do {
         actor_yield(0xA5EBBFu);
-        abi_ActorMoveX();
-        abi_ActorSnapToGround();
+        jsl_call(0xA5EBC1u, abi_ActorMoveX);
+        jsl_call(0xA5EBC5u, abi_ActorSnapToGround);
     } while (dec8_at(dpa(HOP_TIME)));
 
     /* rears and jumps */
     (void)inc8_at(dpa(SCENE_LEAPS));
-    anim(0x11);
+    anim(0x11, 0xA5EBD1u);
     a8_load(0x40);
     actor_wait(0xA5EBD7u);
-    anim(0x12);
+    anim(0x12, 0xA5EBDBu);
     a8_load(0x08);
     wr8(dpa(ACTOR_ACCEL_Y), 0x08);
-    speed_y(0x0F);
+    speed_y(0x0F, 0xEBE7);
     do {
         a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
         if (!(cpu.a & 0x80)) {
@@ -165,12 +174,12 @@ ahead:
             wr8(dpa(ACTOR_ACCEL_Y), 0x18);
         }
         actor_yield(0xA5EBF0u);
-        abi_ActorFall();
-        abi_ActorOutOfGround();
+        jsl_call(0xA5EBF2u, abi_ActorFall);
+        jsl_call(0xA5EBF6u, abi_ActorOutOfGround);
     } while (cpu.p & P_Z);
 
     /* waits for the player to pass */
-    anim(0x13);
+    anim(0x13, 0xA5EBFEu);
     do {
         actor_yield(0xA5EC02u);
         op_rep(0x20);
@@ -183,19 +192,19 @@ ahead:
     } while (reach >= x);
 
     /* the leap */
-    anim(0x0C);
+    anim(0x0C, 0xA5EC15u);
     a8_load(0x38);
     wr8(dpa(ACTOR_ACCEL_Y), 0x38);
-    speed_x(0x03);
-    speed_y(0x0C);
+    speed_x(0x03, 0xEC21);
+    speed_y(0x0C, 0xEC26);
     do {
         actor_yield(0xA5EC27u);
-        abi_ActorAnimRiseFall();
-        abi_ActorFlyFallCapped();
-        abi_ActorOutOfWall8();
-        abi_ActorOutOfGround();
+        call_frame(0xEC2Bu, abi_ActorAnimRiseFall);
+        call_frame(0xEC2Eu, abi_ActorFlyFallCapped);
+        call_frame(0xEC31u, abi_ActorOutOfWall8);
+        jsl_call(0xA5EC32u, abi_ActorOutOfGround);
     } while (cpu.p & P_Z);
-    anim(0x00);
+    anim(0x00, 0xA5EC3Au);
     actor_yield(0xA5EC3Eu);
     wr8(dpa(ACTOR_07), 0);
     abi_GuardRestart();
@@ -215,15 +224,15 @@ ahead:
 void abi_PlayerSceneFallPose(void)
 {
     op_sep(0x30);
-    anim(0x1C);
+    anim(0x1C, 0xA5EEE5u);
     do {
         actor_yield(0xA5EEE9u);
-        abi_ActorFall();
-        abi_ActorOutOfGround();
+        jsl_call(0xA5EEEBu, abi_ActorFall);
+        jsl_call(0xA5EEEFu, abi_ActorOutOfGround);
     } while (cpu.p & P_Z);
     a8_load(0xC0);
     actor_wait(0xA5EEF7u);
-    anim(0x1D);
+    anim(0x1D, 0xA5EEFBu);
     a8_load(0x90);
     actor_wait(0xA5EF01u);
     a8_load(0x80);

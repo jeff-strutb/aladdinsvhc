@@ -27,6 +27,15 @@ void abi_VramCopy(void);
 #define SHINE_SLOT_STATE (TASK_STATE + 2 * 24)   /* slot 2's state: PaletteSequenceTask runs there */
 #define LOGO_KEYS 0x002Cu           /* scratch: pad 1's A, X, L and R held, as the high nibble */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /*
  * @routine A5:E000 LogoScreen
  * WHAT IT DOES: The logo screen at power on: the logo shown with its tune,
@@ -46,25 +55,25 @@ void abi_VramCopy(void);
  */
 void abi_LogoScreen(void)
 {
-    abi_NmiDisable();  /* A5E000 jsl */
-    abi_ScreenBlank();  /* A5E004 jsl */
-    abi_ScrollStateClear();  /* A5E008 jsl */
-    abi_OamBufferClear();  /* A5E00C jsl */
-    abi_DisplayDefaults();  /* A5E010 jsl */
+    jsl_call(0xA5E000u, abi_NmiDisable);  /* A5E000 jsl */
+    jsl_call(0xA5E004u, abi_ScreenBlank);  /* A5E004 jsl */
+    jsl_call(0xA5E008u, abi_ScrollStateClear);  /* A5E008 jsl */
+    jsl_call(0xA5E00Cu, abi_OamBufferClear);  /* A5E00C jsl */
+    jsl_call(0xA5E010u, abi_DisplayDefaults);  /* A5E010 jsl */
     lda8_v(0x03);  /* A5E014 lda */
-    abi_UnpackSet();  /* A5E016 jsl */
+    jsl_call(0xA5E016u, abi_UnpackSet);  /* A5E016 jsl */
     ldx8_v(0x07);  /* A5E01A ldx */
-    abi_VramCopy();  /* A5E01C jsl */
+    jsl_call(0xA5E01Cu, abi_VramCopy);  /* A5E01C jsl */
     ldx8_v(0x0E);  /* A5E020 ldx */
-    abi_VramCopy();  /* A5E022 jsl */
+    jsl_call(0xA5E022u, abi_VramCopy);  /* A5E022 jsl */
     lda8_v(0x01);  /* A5E026 lda */
     sta8(ea_abs(TM_SHADOW));  /* A5E028 sta */
     sta8(ea_abs(TS_SHADOW));  /* A5E02B sta */
     lda8_v(0x03);  /* A5E02E lda */
-    abi_PaletteLoad();  /* A5E030 jsl */
-    abi_NmiEnable();  /* A5E034 jsl */
+    jsl_call(0xA5E030u, abi_PaletteLoad);  /* A5E030 jsl */
+    jsl_call(0xA5E034u, abi_NmiEnable);  /* A5E034 jsl */
     lda8_v(0x10);  /* A5E038 lda */
-    abi_SongPlay();  /* A5E03A jsl */
+    jsl_call(0xA5E03Au, abi_SongPlay);  /* A5E03A jsl */
     lda8_v(0x3C);  /* A5E03E lda */
     jsl_frame(0xA5E040u); abi_TaskWait();  /* A5E040 jsl */
     /* ColourFadeInTask, slot 1, parameter 2 */
