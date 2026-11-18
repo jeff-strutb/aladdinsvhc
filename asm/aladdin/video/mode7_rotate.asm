@@ -172,3 +172,37 @@ RotateSine:
     lsr a
     lsr a
     rts
+
+; Mode7RotateByTable: the angle, and the turn's sines and cosines built
+; in bank $7F (mode7.asm): 64 words a turn each.
+!rotate_angle = $002C
+!turn_sines = $7F4F00
+!turn_cosines = $7F4F80
+
+; @routine 81:B0FB Mode7RotateByTable
+; WHAT IT DOES: Sets mode 7's matrix to a rotation by the angle at $2C
+; (64 to a turn) from the turn's sine and cosine tables in bank $7F: A
+; and D the cosine, B the sine and C its negative. No code refers to it.
+; HOW: With P kept and 16-bit registers, the angle's low 6 bits index both
+; tables (words).
+; Entry: any widths; DB a bank whose $0000-$1FFF is work RAM; called by
+; JSL. Exit: P as at entry; A = C's value (16 bits); X = the angle's
+; byte offset.
+%at($81B0FB)
+Mode7RotateByTable:
+    php
+    rep.b #$30
+    lda.w !rotate_angle
+    and.w #$003F
+    asl a
+    tax
+    lda.l !turn_cosines,x
+    sta.w !m7a_shadow
+    sta.w !m7d_shadow
+    lda.l !turn_sines,x
+    sta.w !m7b_shadow
+    eor.w #$FFFF
+    inc a
+    sta.w !m7c_shadow
+    plp
+    rtl

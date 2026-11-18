@@ -1,0 +1,9 @@
+# A unit call of Mode7RotateByTable (81:B0FB), which no code refers to:
+# mode 7's matrix shadows set for angle $2C (its low 6 bits) from the
+# 64-entry sine and cosine tables at $7F:4F00 and $7F:4F80. By JSL in a
+# level (stage_a0_s0), M and X 8-bit, DB $80, angle $15, the machine put
+# back after.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+set 00002C 15,00
+call 81B0FB long p=30 db=80

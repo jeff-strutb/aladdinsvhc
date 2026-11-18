@@ -7,6 +7,7 @@
 #include "cpu_ops.h"
 #include "ops65.h"
 void abi_Mode7Rotate(void);
+void abi_Mode7RotateByTable(void);
 void abi_RotateSine(void);
 void abi_Mode7ZoomInTask(void);
 void abi_TaskWait(void);
@@ -189,4 +190,40 @@ void abi_Mode7ZoomInTask(void)
     a8_load(0x80);
     wr8(dba(V_146B), 0x80);
     abi_TaskExit();
+}
+
+/* Mode7RotateByTable: the angle, and the turn's sines and cosines built
+   in bank $7F (mode7.c): 64 words a turn each. */
+#define ROTATE_ANGLE 0x002Cu
+#define TURN_SINES 0x7F4F00u
+#define TURN_COSINES 0x7F4F80u
+
+/*
+ * @routine 81:B0FB Mode7RotateByTable
+ * WHAT IT DOES: Sets mode 7's matrix to a rotation by the angle at $2C
+ * (64 to a turn) from the turn's sine and cosine tables in bank $7F: A
+ * and D the cosine, B the sine and C its negative. No code refers to it.
+ * HOW: With P kept and 16-bit registers, the angle's low 6 bits index both
+ * tables (words).
+ * Entry: any widths; DB a bank whose $0000-$1FFF is work RAM; called by
+ * JSL. Exit: P as at entry; A = C's value (16 bits); X = the angle's
+ * byte offset.
+ */
+void abi_Mode7RotateByTable(void)
+{
+    php();
+    op_rep(0x30);
+    lda16(ea_abs(ROTATE_ANGLE));
+    and16_v(0x003F);
+    ACC16(asl);
+    tax16();
+    lda16(ea_longx(TURN_COSINES));
+    sta16(ea_abs(M7A_SHADOW));
+    sta16(ea_abs(M7D_SHADOW));
+    lda16(ea_longx(TURN_SINES));
+    sta16(ea_abs(M7B_SHADOW));
+    eor16_v(0xFFFF);
+    ACC16(inc);
+    sta16(ea_abs(M7C_SHADOW));
+    plp();
 }
