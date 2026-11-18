@@ -1,0 +1,21 @@
+# Window effect 6 (HdmaEffect6, $82:819A) in the title's demo, where kind
+# $2E starts it in task slot 6 (direct page $00FF) about 2200 frames after
+# the title state:
+# - WindowEffectTask ($82:8000) waits a frame and tries again while its
+#   effect cannot start ($82:800F); in play a channel is always free.
+#   HDMA_RESERVED ($03B5, which only the effects' channel search reads)
+#   set to $F0 from frame 2190 to 2220, so channels 4-7 read as taken,
+#   then back to 0, as it is throughout the demo.
+# - After the opening the half-height ($09, here $0108) goes up by one per
+#   pair of the shape and is held at $80 ($82:8207); the shape at
+#   $82:BBAE has 95 pairs past $0100, so from its start of 4 it reaches 99
+#   at most and never $80. It is set to $7F at frame 2320, during the
+#   pairs.
+load build/aladdin/states/title.state
+wait 2190
+poke 0003B5 F0
+wait 30
+poke 0003B5 00
+wait 100
+poke 000108 7F
+wait 60

@@ -3,7 +3,7 @@
 # shadow ORed with HDMA_RESERVED, $03B5, is $F0) and returns C set;
 # HdmaStart returns at once ($82:8749) and each effect returns from its
 # start ($82:80EB, $82:8107, $82:82EC, $82:81AB, $82:8391, $82:84DC, $82:861C,
-# $82:86D8). In play a level never runs more than its channels allow.
+# $82:8684, $82:86D8). In play a level never runs more than its channels allow.
 # From the first level's state; HDMA_RESERVED set before each call (a set
 # applies to the next call only); each effect is entered by JSR with
 # DB = $82, as from WindowEffectTask.
@@ -30,6 +30,9 @@ call 8284CB db=82 p=30
 # HdmaEffect11 ($82:860B)
 set 0003B5 F0
 call 82860B db=82 p=30
+# HdmaEffect9 ($82:867B), by HdmaStartAtBase
+set 0003B5 F0
+call 82867B db=82 p=30
 # HdmaEffect12 ($82:86CF)
 set 0003B5 F0
 call 8286CF db=82 p=30

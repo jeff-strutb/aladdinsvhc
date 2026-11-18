@@ -1,0 +1,58 @@
+# Window effect 9 (HdmaEffect9, $82:867B), which level $12 starts: its
+# window starts $0200 less the layer's y ($1777) lines down; with the
+# layer's y at or past $0200 the window is off the screen and the
+# table's count is 0 ($82:86C5). Play keeps that level's camera at y 0.
+# Level $12 started as in cov_level12_start.box (so the effect's task
+# starts in the script); then the layer's y set to $0300 before each of
+# four frames.
+load build/aladdin/states/title.state
+press DOWN
+wait 30
+press START
+wait 150
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press RIGHT
+wait 8
+press RIGHT
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+press START
+repeat 600
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+press START
+repeat 900
+poke $00035C 06
+poke $00035D 00
+wait 1
+end
+wait 30
+poke 001777 00,03
+wait 1
+poke 001777 00,03
+wait 1
+poke 001777 00,03
+wait 1
+poke 001777 00,03
+wait 1
+wait 20
