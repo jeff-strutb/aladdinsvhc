@@ -1,0 +1,12 @@
+# Kind $8C's wait (ActorKind8CWait, $83:933B: JSL Kind8CWaitWork), which the actor loop
+# runs each frame a record of the kind waits (not the last) with bit 7 of
+# its $09 set (the table at $83:904F). No record of kind $8C lives where a
+# script goes, so at frame 30 of stage a5 s1 the waiting kind $97 record
+# $0BAB is made kind $8C, its $09 $C0 and its wait 3 frames: the loop
+# runs kind $8C's wait for 2 frames.
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 8C
+poke 000BB4 C0
+poke 000BAC 03
+wait 10

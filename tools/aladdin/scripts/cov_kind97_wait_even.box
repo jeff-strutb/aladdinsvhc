@@ -1,0 +1,10 @@
+# Kind $97's wait (ActorKind97Wait, $83:93B9: JSL Kind97WaitWork) with
+# the record's $07 bit 0 clear: Kind97WaitWork's RTS at $84:A001. As
+# cov_kind97_wait.box (stage a5 s1, the kind $97 record $0BAB at frame 30
+# given $09 $C0 and a wait of 3 frames), with its $07 made $80.
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB2 80
+poke 000BB4 C0
+poke 000BAC 03
+wait 10

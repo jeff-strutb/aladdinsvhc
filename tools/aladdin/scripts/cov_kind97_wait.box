@@ -1,0 +1,14 @@
+# Kind $97's wait (ActorKind97Wait, $83:93B9: JSL Kind97WaitWork), which the actor loop
+# runs each frame a record of the kind waits (not the last) with bit 7 of
+# its $09 set (the table at $83:904F). Stage a5 s1 places a kind $97 (record
+# $0BAB, $09 = $40: nothing sets its bit 7); at frame 30, while it waits,
+# its $09 is made $C0 and its wait 3 frames, so the loop runs the wait for
+# 2 frames. Its $07 ($81, a sender) has bit 0 set: Kind97WaitWork's RTS at
+# $84:A002 (cov_kind97_wait_even runs the other, $84:A001). Either RTS
+# pulls two of the stub's JSL's three bytes, so the machine goes on at
+# $84:93BD, not at the stub's own RTS ($83:93BD), which nothing runs.
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB4 C0
+poke 000BAC 03
+wait 10
