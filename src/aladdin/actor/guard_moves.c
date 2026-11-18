@@ -2,7 +2,7 @@
  * guard_moves.c: helpers of the bank $A5 guard's (actor kind $08) moves:
  * a fall held to a top speed and a snap to a tile's centre. The moves
  * themselves, and the running guard's look ahead, are in
- * guard_moves.c.held.
+ * guard_pieces.c.
  */
 #include "machine.h"
 #include "native.h"

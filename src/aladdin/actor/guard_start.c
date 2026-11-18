@@ -1,6 +1,5 @@
-/* heldc: keep (GuardStart and GuardPlacedHold go on into GuardStop (A5:E5B6), whose C is held in guard_moves.c.held; Kind08Enter only jumps to GuardStart) */
 /*
- * guard_start.c.held: the start of bank $A5's actors of kind $08 (the
+ * guard_start.c: the start of bank $A5's actors of kind $08 (the
  * guard and the scripted figures that share its kind): its record set up
  * at the player's place, a count kept in cartridge RAM, and the start its
  * $07 names; the guard's own start (a short walk, then stopped).
@@ -25,7 +24,7 @@ void abi_EscortWaitSpot0C(void);
 void abi_EscortWaitSpot10(void);
 void abi_GuardPlacedHold(void);
 void abi_GuardStart(void);
-void guard_start_restart(void);
+void abi_GuardRestart(void);
 void abi_GuardStop(void);
 void abi_PlayerSceneDropIn(void);
 void abi_PlayerSceneHops(void);
@@ -73,7 +72,7 @@ static void guard(void)
     a8_load(0x01);
     abi_AnimStart();
     do {
-        actor_yield(0xA5E59Bu);
+        actor_yield(0xA5E59Eu);
         abi_ActorMoveX();
         abi_ActorSnapToGround();
     } while (dec8_at(dpa(G_LANDING)));
@@ -95,9 +94,8 @@ static void guard(void)
  * HOW: G_KIND_TIMES2 = X; ACTOR_08 bit 0, ACTOR_09 bits $90 set; $28
  * $FF; facing and flip 0; $16 $CF8F, $29 $8909; its x = the player's, y =
  * his + $10; 8-bit: the byte of G_CART_COUNTS by X, plus 1, to G_COUNT
- * and back; G_SHOWN, $40, G_STATE, G_MOVING, G_IN_AIR, G_GONE, G_BACK_OFF,
- * G_CODE_SET and G_146F cleared; JMP through the table at $A5:E56D by
- * $07. $07 12 ($A5:E587): G_SHOWN 1, then as 0 ($A5:E58B): G_STATE 1,
+ * and back; G_SHOWN cleared; on into GuardRestart ($A5:E554), its fields
+ * cleared and the table at $A5:E56D by $07. $07 12 ($A5:E587): G_SHOWN 1, then as 0 ($A5:E58B): G_STATE 1,
  * G_LANDING $28, ActorSpeedXFromA5 6, AnimStart 1; each frame (BRK)
  * ActorMoveX and ActorSnapToGround until G_LANDING runs out; AnimStart 0,
  * ActorSpeedXClear, and on into GuardStop.
@@ -134,13 +132,21 @@ void abi_GuardStart(void)
     wr8(dba(G_COUNT), n);
     wr8(G_CART_COUNTS + (uint8_t)cpu.x, n);
     wr8(dpa(G_SHOWN), 0x00);
-    guard_start_restart();
+    abi_GuardRestart();
 }
 
-/* GuardStart past its setting up ($A5:E554): its fields cleared and on by
-   its $07; where PlayerSceneRuns and PlayerSceneFallPose go on (their
-   $07 set to 0 first). */
-void guard_start_restart(void)
+/*
+ * @routine A5:E554 GuardRestart
+ * @actor
+ * WHAT IT DOES: GuardStart past its setting up: the kind $08 actor's
+ * fields cleared and on by its $07 (GuardStart falls into it;
+ * PlayerSceneRuns and PlayerSceneFallPose jump to it with $07 set to 0).
+ * HOW: $40, G_STATE, G_MOVING, G_IN_AIR, G_GONE, G_BACK_OFF, G_CODE_SET
+ * and G_146F cleared; JMP through the table at $A5:E56D by $07 (doubled).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $A5. Exit: never
+ * returns: as the start its $07 names.
+ */
+void abi_GuardRestart(void)
 {
     uint8_t v07;
 
@@ -192,7 +198,7 @@ void guard_start_restart(void)
         wr8(dpa(G_SHOWN), 0x01);
         guard();
         return;
-    default:                                    /* 1 and 6 (their C held: they go on at this start's restart), and past the table's 13 words */
+    default:                                    /* 1 and 6 (PlayerSceneRuns, PlayerSceneFallPose: they go on at this restart), and past the table's 13 words */
         jump_routine(0xA50000u | rd16(0xA50000u | (uint16_t)(STARTS + cpu.x)));
         return;
     }

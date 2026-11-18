@@ -1,6 +1,5 @@
-/* heldc: keep (each piece is resumed at a code word the guard's wait rewrites in its record ($03); the checker does not yet open a piece where the actor loop's RTI lands on an @actor entry with no matching park, nor drop that record's stale park); GuardStepAhead (A5:EAE6) too: released as pull16 and actor_leave(A5:E6A0), cov_title_demo_skip, IDENTICAL at 894df13, differs from frame 528 ($0329 01/06) with 5 fewer calls swapped */
 /*
- * guard_moves.c.held: the bank $A5 guard's (actor kind $08) moves: the
+ * guard_pieces.c: the bank $A5 guard's (actor kind $08) moves: the
  * pieces its code word sends it to (stop, run, jump, give up, walk), the
  * run's throw of up to three kind $90 children, its climb of a wall and
  * its landing.
@@ -202,7 +201,9 @@ static void run_down(void)
     }
     for (;;) {
         actor_yield(0xA5E669u);
-        seen = (uint8_t)(rd8(dba(G_SLOTS)) | rd8(dba(G_SLOTS + 1)) | rd8(dba(G_SLOTS + 2)));
+        seen = rd8(dba(G_SLOTS));
+        seen |= rd8(dba(G_SLOTS + 1));
+        seen |= rd8(dba(G_SLOTS + 2));
         a8_load(seen);
         if (!seen) {
             y8_load(G_PRESET_NONE);
@@ -336,7 +337,8 @@ fall:
         actor_yield(0xA5E71Du);
         op_rep(0x20);
         flag_set(P_C, 1);
-        d = op_sbc16(rd16(dba(PLAYER_X_AT)), dp16(ACTOR_X + 1), &cpu.p);
+        d = rd16(dba(PLAYER_X_AT));
+        d = op_sbc16(d, dp16(ACTOR_X + 1), &cpu.p);
         flag_set(P_C, 0);
         d = op_adc16(d, 0x0030, &cpu.p);
         a16_load(d);
@@ -423,7 +425,9 @@ void abi_GuardGiveUp(void)
     a8_load(0x08);
     trb_at(dpa(ACTOR_08), 0x08);
     for (;;) {
-        a8_load((uint8_t)(rd8(dba(G_HIDE_A)) | rd8(dba(G_HIDE_B))));
+        uint8_t hide = rd8(dba(G_HIDE_A));
+        hide |= rd8(dba(G_HIDE_B));
+        a8_load(hide);
         if (!(uint8_t)cpu.a)
             break;
         actor_yield(0xA5E7A4u);
@@ -501,16 +505,20 @@ void abi_GuardWalk(void)
 static uint32_t guard_step_ahead(void)
 {
     uint8_t x;
+    uint16_t at;
 
-    x = (uint8_t)(((rd8(dpa(ACTOR_SPEED_X + 1)) << 1) ^ rd8(dpa(ACTOR_FACING))) << 1);
+    x = (uint8_t)(rd8(dpa(ACTOR_SPEED_X + 1)) << 1);
+    x = (uint8_t)((x ^ rd8(dpa(ACTOR_FACING))) << 1);
     a8_load(x);
     x8_load(x);
     op_rep(0x20);
     flag_set(P_C, 0);
-    a16_load(op_adc16(rd16(dba((uint16_t)(G_STEP_AHEAD_X + x))), dp16(ACTOR_X + 1), &cpu.p));
+    at = rd16(dba((uint16_t)(G_STEP_AHEAD_X + x)));
+    a16_load(op_adc16(at, dp16(ACTOR_X + 1), &cpu.p));
     wr16(dba(G_POINT_X), cpu.a);
     flag_set(P_C, 0);
-    a16_load(op_adc16(rd16(dba((uint16_t)(G_STEP_AHEAD_Y + x))), dp16(ACTOR_Y + 1), &cpu.p));
+    at = rd16(dba((uint16_t)(G_STEP_AHEAD_Y + x)));
+    a16_load(op_adc16(at, dp16(ACTOR_Y + 1), &cpu.p));
     wr16(dba(G_POINT_Y), cpu.a);
     abi_PointInGroundLong();                     /* leaves M 8-bit */
     a8_load((uint8_t)(rd8(dba(G_TILE)) & 0x07));

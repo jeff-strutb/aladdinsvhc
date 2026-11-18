@@ -164,7 +164,7 @@ PlayerSceneHops:
 ; BRK until its x + $20 is below the player's; animation $0C, gravity
 ; $38, ActorSpeedXFromA5 3, ActorSpeedYFromA5 $0C; each frame
 ; ActorAnimRiseFall, ActorFlyFallCapped, ActorOutOfWall8 until
-; ActorOutOfGround; animation 0, BRK; $07 0 and on at GuardStart's restart ($A5:E554, past its setting up).
+; ActorOutOfGround; animation 0, BRK; $07 0 and on at GuardRestart ($A5:E554).
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $A5; reached by
 ; the jump through the table at $A5:E56D for $07 = 1. Exit: never returns.
 %at($A5EB31)
@@ -289,7 +289,7 @@ PlayerSceneRuns:
     jsl.l AnimStart
     brk.b #$00
     stz.b !actor_07
-    jmp.w GuardStart_restart
+    jmp.w GuardRestart
 assert pc() <= $A5EC45
 
 ; @routine A5:EE29 PlayerSceneWalkOff
@@ -399,7 +399,7 @@ assert pc() <= $A5EEE1
 ; ground, holds there, poses $1D, and after a while starts over as way 0.
 ; HOW: M and X 8-bit; animation $1C; each frame (BRK) ActorFall until
 ; ActorOutOfGround; COP $C0; animation $1D; COP $90, COP $80; $07 0 and
-; on at GuardStart's restart ($A5:E554, past its setting up).
+; on at GuardRestart ($A5:E554).
 ; Entry: D = the actor's record; DB = $A5; reached by the jump through
 ; the table at $A5:E56D for $07 = 6. Exit: never returns.
 %at($A5EEE1)
@@ -421,5 +421,5 @@ PlayerSceneFallPose:
     lda.b #$80
     cop.b #$00
     stz.b !actor_07
-    jmp.w GuardStart_restart
+    jmp.w GuardRestart
 assert pc() <= $A5EF0C

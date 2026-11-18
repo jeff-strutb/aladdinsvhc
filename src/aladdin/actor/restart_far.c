@@ -37,13 +37,14 @@ static void escort_spot10_restart(void);
    restart point less one (the caller's RTS then lands on it). */
 static int restart_far(void)
 {
-    uint16_t sum;
+    uint16_t sum, ax;
 
     op_rep(0x20);
     sum = op_adc16(rd16(dba((uint16_t)PLAYER_X_AT)), FAR_LEFT, &cpu.p);
     cpu.a = sum;
-    cmp16_of(sum, dp16(ACTOR_X + 1));
-    if (sum < dp16(ACTOR_X + 1)) {
+    ax = dp16(ACTOR_X + 1);                      /* one read: its CMP */
+    cmp16_of(sum, ax);
+    if (sum < ax) {
         a16_load(pull16());                      /* PLA: its return */
         a16_load(dp16(ACTOR_RESTART));
         a16_load((uint16_t)(cpu.a - 1));

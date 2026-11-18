@@ -2,8 +2,7 @@
 ; and the scripted figures that share its kind): its record set up at the
 ; player's place, a count kept in cartridge RAM, and the start its $07
 ; names; the guard's own start (a short walk, then stopped).
-; C: src/aladdin/actor/guard_start.c.held (held with the guard's pieces,
-; GuardStop above all, which its start goes on into).
+; C: src/aladdin/actor/guard_start.c.
 
 incsrc "../include/macros.inc"
 incsrc "../include/actor.inc"
@@ -46,9 +45,8 @@ Kind08Enter:
 ; HOW: G_KIND_TIMES2 = X; ACTOR_08 bit 0, ACTOR_09 bits $90 set; $28
 ; $FF; facing and flip 0; $16 $CF8F, $29 $8909; its x = the player's, y =
 ; his + $10; 8-bit: the byte of G_CART_COUNTS by X, plus 1, to G_COUNT
-; and back; G_SHOWN, $40, G_STATE, G_MOVING, G_IN_AIR, G_GONE, G_BACK_OFF,
-; G_CODE_SET and G_146F cleared; JMP through the table at $A5:E56D by
-; $07. $07 12 ($A5:E587): G_SHOWN 1, then as 0 ($A5:E58B): G_STATE 1,
+; and back; G_SHOWN cleared; on into GuardRestart ($A5:E554), its fields
+; cleared and the table at $A5:E56D by $07. $07 12 ($A5:E587): G_SHOWN 1, then as 0 ($A5:E58B): G_STATE 1,
 ; G_LANDING $28, ActorSpeedXFromA5 6, AnimStart 1; each frame (BRK)
 ; ActorMoveX and ActorSnapToGround until G_LANDING runs out; AnimStart 0,
 ; ActorSpeedXClear, and on into GuardStop.
@@ -84,7 +82,18 @@ GuardStart:
     sta.w !G_COUNT
     sta.l !G_CART_COUNTS,x
     stz.b !G_SHOWN
-.restart:
+
+; @routine A5:E554 GuardRestart
+; @actor
+; WHAT IT DOES: GuardStart past its setting up: the kind $08 actor's
+; fields cleared and on by its $07 (GuardStart falls into it;
+; PlayerSceneRuns and PlayerSceneFallPose jump to it with $07 set to 0).
+; HOW: $40, G_STATE, G_MOVING, G_IN_AIR, G_GONE, G_BACK_OFF, G_CODE_SET
+; and G_146F cleared; JMP through the table at $A5:E56D by $07 (doubled).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $A5. Exit: never
+; returns: as the start its $07 names.
+%at($A5E554)
+GuardRestart:
     stz.b !actor_40
     stz.b !G_STATE
     stz.b !G_MOVING

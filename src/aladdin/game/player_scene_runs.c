@@ -1,7 +1,6 @@
-/* heldc: keep (they go on at GuardStart's restart, A5:E554, whose C is held with GuardStop in guard_start.c.held) */
 /*
- * player_scene_moves.c.held: the scripted figures of Aladdin (bank $A5)
- * whose ways end by starting over as way 0 at GuardStart's restart: the
+ * player_scene_runs.c: the scripted figures of Aladdin (bank $A5)
+ * whose ways end by starting over as way 0 at GuardRestart ($A5:E554): the
  * figure that runs, waits and leaps, and the one that falls and poses.
  */
 #include "machine.h"
@@ -25,7 +24,7 @@ void abi_ActorSnapToGround(void);
 void abi_ActorSpeedXFromA5(void);
 void abi_ActorSpeedYFromA5(void);
 void abi_AnimStart(void);
-void guard_start_restart(void);
+void abi_GuardRestart(void);
 
 #define HOP_TIME 0x42u                  /* frames left of its run */
 #define SCENE_LEAPS 0x49u               /* counted up as the running figure rears to leap */
@@ -199,7 +198,7 @@ ahead:
     anim(0x00);
     actor_yield(0xA5EC3Eu);
     wr8(dpa(ACTOR_07), 0);
-    guard_start_restart();
+    abi_GuardRestart();
 }
 
 /*
@@ -230,5 +229,5 @@ void abi_PlayerSceneFallPose(void)
     a8_load(0x80);
     actor_wait(0xA5EF05u);
     wr8(dpa(ACTOR_07), 0);
-    guard_start_restart();
+    abi_GuardRestart();
 }

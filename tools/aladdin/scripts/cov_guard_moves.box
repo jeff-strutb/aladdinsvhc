@@ -1,0 +1,84 @@
+# The bank $A5 guard's (kind $08) pieces no play reaches, from the first
+# level's state, where record $092B is the guard (stopped, $07 0, code
+# word $E5B8).
+# GuardPlacedHold ($A5:F00E), GuardStart's start for $07 = 11: the
+# record put back to state $0C (+0) with $07 = $0B (+7); the actor loop
+# starts it again by its kind's table.
+load build/aladdin/states/level1.state
+wait 10
+poke 00092B 0C
+poke 000932 0B
+wait 60
+# GuardGiveUp ($A5:E794): its code word ($03) set to $E794, as GuardChase
+# sets it when the player is far off; the actor loop resumes it there.
+load build/aladdin/states/level1.state
+wait 10
+poke 00092E 94,E7
+wait 180
+# Again with $141C set for its first frames (it waits while that or
+# $1427 is set), then cleared: it is put where the player is, and waits
+# while ACTOR_09 bit 6 is set; its x then set to $0700, off the view, so
+# that bit clears and it comes back facing the player and leaps.
+load build/aladdin/states/level1.state
+wait 10
+poke 00141C 01
+poke 00092E 94,E7
+wait 8
+poke 00141C 00
+wait 4
+poke 000937 00,07
+wait 120
+# PlayerSceneRuns ($A5:EB31) past its hold: in stage a1 s0 the figure
+# ($092B, $07 1, x $0B40) stands at spot $1C waiting for the player's x
+# to reach $0B00, which play from that state does not do. The player's x
+# set to $0B10 with the play field's scroll x ($1773) at $0A80 (the
+# player is kept within 16-240 pixels of it). The figure runs on 72
+# frames, rears and jumps, then waits for its x + $20 to be below the
+# player's: at frame 450 the player's x set to $0BC0 and the scroll to
+# $0B00. It leaps, lands and starts over as way 0 (GuardRestart, then
+# the guard's own walk of 40 frames and GuardStop).
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 80,0A
+poke 0008E7 10,0B
+wait 420
+poke 001773 00,0B
+poke 0008E7 C0,0B
+wait 300
+# GuardRestart's table for $07 = 4 (PlayerSceneDropIn) and 12 (shown at
+# once, then the guard's own walk): the level-1 guard put back to state
+# $0C with each.
+# The walk's frames after its first BRK ($A5:E5A0) run only when the
+# loop does not call the guard's wait routine after that BRK: GuardWait
+# (state 1, $146B cleared by the restart) always sends it on at once.
+# The loop calls it only with ACTOR_09 bit 7 set, which GuardStart sets.
+# So the guard is resumed at GuardRestart by its code word ($E554, as
+# kind $69's end sends the escort) with $07 0 and ACTOR_09 $50 (bit 7
+# clear, as GuardGiveUp leaves it): it walks its 40 frames, then stops.
+load build/aladdin/states/level1.state
+wait 10
+poke 000932 00
+poke 000934 50
+poke 00092E 54,E5
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 00092B 0C
+poke 000932 04
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 00092B 0C
+poke 000932 0C
+wait 60
+# GuardStop ($A5:E5B6) at an edge (the tile's behaviour bit 5: pose
+# $16): no guard stops on one in play. In stage a1 s0 the tiles at x
+# $0090-$00B0, y $01B0 have behaviour $23; the figure there ($092B) is
+# put at x $00A0, y $01A8 (standing on them) and resumed at GuardStop by
+# its code word ($E5B6, as GuardChase sends a guard).
+load build/aladdin/states/stage_a1_s0.state
+wait 10
+poke 000937 A0,00
+poke 00093A A8,01
+poke 00092E B6,E5
+wait 20
