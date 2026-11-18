@@ -666,6 +666,39 @@ GroundInFrontLong:
 !soft_kinds = $81BF1A
 !y_saved = !scratch+30          ; scratch $2A: the actor's y kept
 
+; @routine 81:B437 ActorSnapToGroundHere
+; WHAT IT DOES: When there is ground at the actor's y, stands it on that
+; ground: C set. Else leaves it where it was. No code refers to it.
+; HOW: Keeps the actor's y, then ActorSnapToGround's ground test from
+; there.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM and that holds the probe list and the tile kinds; called by
+; JSL. Exit: as ActorSnapToGround.
+%at($81B437)
+ActorSnapToGroundHere:
+    rep.b #$20
+    lda.b !actor_y+1
+    sta.w !y_saved
+    bra ActorSnapToGround_test
+
+; @routine 81:B440 ActorSnapToGround5
+; WHAT IT DOES: When there is ground just under the actor (within 5
+; pixels), stands it on that ground: C set. Else leaves it where it was.
+; No code refers to it.
+; HOW: Keeps the actor's y and moves it 5 down, then ActorSnapToGround's
+; ground test.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM and that holds the probe list and the tile kinds; called by
+; JSL. Exit: as ActorSnapToGround.
+ActorSnapToGround5:
+    rep.b #$20
+    clc
+    lda.b !actor_y+1
+    sta.w !y_saved
+    adc.w #5
+    sta.b !actor_y+1
+    bra ActorSnapToGround_test
+
 ; @routine 81:B44F ActorSnapToGround
 ; WHAT IT DOES: When there is ground just under the actor (within 3
 ; pixels), stands it on that ground: C set. Else leaves it where it was.
@@ -685,6 +718,11 @@ ActorSnapToGround:
     sta.w !y_saved
     adc.w #3
     sta.b !actor_y+1
+
+; The ground test, from the actor's y as the entry left it; also
+; reached by BRA from ActorSnapToGroundHere and ActorSnapToGround5. With
+; none found the kept y ($2A) comes back.
+.test:
     sep.b #$20
     stz.b !actor_probe_at
     jsr.w ProbeAtActor

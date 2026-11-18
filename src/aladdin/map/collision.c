@@ -895,29 +895,12 @@ static uint16_t onto_surface(void)
     return op_adc16(v, rd16(dp(ACTOR_Y + 1)), &cpu.p);
 }
 
-/*
- * @routine 81:B44F ActorSnapToGround
- * WHAT IT DOES: When there is ground just under the actor (within 3
- * pixels), stands it on that ground: C set. Else leaves it where it was.
- * HOW: Keeps the actor's y and moves it 3 down; tests probe 0 at the
- * actor's x (the tile above for a solid tile), then to its left and right
- * (a solid tile flat at its top); the first ground found moves the y by
- * the surface less the point's y. With none, the kept y comes back.
- * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
- * Exit: M and X 8-bit; on ground: C set, A = the new y (16 bits), N, V, Z
- * from its ADC; none: Z set, A = the kept y (16 bits), N as it, C as the
- * last test left it.
- */
-void abi_ActorSnapToGround(void)
+/* ActorSnapToGround's ground test (its code from $81:B45C), from the
+   actor's y as the entry left it; ActorSnapToGroundHere and
+   ActorSnapToGround5 branch to it. Entered M 16-bit: ground found stands
+   the actor on it (C set); else the kept y comes back. */
+static void snap_test(void)
 {
-    uint16_t v;
-
-    op_rep(P_M);
-    cpu.p &= (uint8_t)~P_C;
-    v = rd16(dp(ACTOR_Y + 1));
-    wr16(abs_db(Y_SAVED), v);
-    cpu.a = op_adc16(v, 0x0003, &cpu.p);
-    wr16(dp(ACTOR_Y + 1), cpu.a);
     op_sep(P_M);
     wr8(dp(ACTOR_PROBE_AT), 0);
     if (ground_at(abi_ProbeAtActor, 0, abi_SurfaceHeightOver) == 1
@@ -934,6 +917,75 @@ void abi_ActorSnapToGround(void)
     cpu.p = nz16(cpu.p, cpu.a);
     wr16(dp(ACTOR_Y + 1), cpu.a);
     op_sep(P_M | P_X | P_Z);
+}
+
+/* The two entries that move the actor down first: its y kept, then
+   `down` pixels added (C clear before the ADC). */
+static void snap_from_below(uint16_t down)
+{
+    uint16_t v;
+
+    op_rep(P_M);
+    cpu.p &= (uint8_t)~P_C;
+    v = rd16(dp(ACTOR_Y + 1));
+    wr16(abs_db(Y_SAVED), v);
+    cpu.a = op_adc16(v, down, &cpu.p);
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+}
+
+/*
+ * @routine 81:B44F ActorSnapToGround
+ * WHAT IT DOES: When there is ground just under the actor (within 3
+ * pixels), stands it on that ground: C set. Else leaves it where it was.
+ * HOW: Keeps the actor's y and moves it 3 down; tests probe 0 at the
+ * actor's x (the tile above for a solid tile), then to its left and right
+ * (a solid tile flat at its top); the first ground found moves the y by
+ * the surface less the point's y. With none, the kept y comes back.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $81; called by JSL.
+ * Exit: M and X 8-bit; on ground: C set, A = the new y (16 bits), N, V, Z
+ * from its ADC; none: Z set, A = the kept y (16 bits), N as it, C as the
+ * last test left it.
+ */
+void abi_ActorSnapToGround(void)
+{
+    snap_from_below(0x0003);
+    snap_test();
+}
+
+/*
+ * @routine 81:B440 ActorSnapToGround5
+ * WHAT IT DOES: When there is ground just under the actor (within 5
+ * pixels), stands it on that ground: C set. Else leaves it where it was.
+ * No code refers to it.
+ * HOW: Keeps the actor's y and moves it 5 down, then ActorSnapToGround's
+ * ground test.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM and that holds the probe list and the tile kinds; called by
+ * JSL. Exit: as ActorSnapToGround.
+ */
+void abi_ActorSnapToGround5(void)
+{
+    snap_from_below(0x0005);
+    snap_test();
+}
+
+/*
+ * @routine 81:B437 ActorSnapToGroundHere
+ * WHAT IT DOES: When there is ground at the actor's y, stands it on that
+ * ground: C set. Else leaves it where it was. No code refers to it.
+ * HOW: Keeps the actor's y, then ActorSnapToGround's ground test from
+ * there.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM and that holds the probe list and the tile kinds; called by
+ * JSL. Exit: as ActorSnapToGround.
+ */
+void abi_ActorSnapToGroundHere(void)
+{
+    op_rep(P_M);
+    cpu.a = rd16(dp(ACTOR_Y + 1));
+    cpu.p = nz16(cpu.p, cpu.a);
+    wr16(abs_db(Y_SAVED), cpu.a);
+    snap_test();
 }
 
 /*

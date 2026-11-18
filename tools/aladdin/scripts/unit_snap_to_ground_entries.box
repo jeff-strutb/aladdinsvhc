@@ -1,0 +1,17 @@
+# Unit calls of ActorSnapToGround's two other entries, which no code
+# refers to: ActorSnapToGroundHere (81:B437, the y kept as it is) and
+# ActorSnapToGround5 (81:B440, 5 pixels down), each on into
+# ActorSnapToGroundTest (81:B45C). In level 4 (stage a1 s0) by JSL on
+# Aladdin's record (M and X 8-bit, DB $80), the view's y ($1777) $0060 so
+# his points are on the view, his x and y ($08E7, $08EA) $04C8, $00E6 as
+# in unit_surface_solid, the machine put back after each.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008E7 C8,04
+set $0008EA E6,00
+call 81B437 long d=08DB db=80 p=30
+set $001777 60,00
+set $0008E7 C8,04
+set $0008EA E6,00
+call 81B440 long d=08DB db=80 p=30
