@@ -191,3 +191,70 @@ CircleWipePlot:
     lda.w !span_x
     sta.l !circle_window_edges,x
     rts
+
+; LineRows: a line's ends and working words.
+!line_x = $002C                 ; the x stepped along, from the first end (word)
+!line_y = $002E                 ; its row, from the first end's (word)
+!line_end_x = $0030             ; the second end (word)
+!line_end_y = $0032
+!line_dx = $000C                ; end x - x (word)
+!line_dy = $000E                ; end y - y (word)
+!line_keep = $0010              ; 2 dy: the term's step when y stays (word)
+!line_term = $0012              ; 2 dy - dx, then stepped (word)
+!line_move = $0014              ; 2 dy - 2 dx: the term's step when y moves (word)
+!line_rows = $7F5200            ; per row (a byte offset), the x stored (word)
+
+; @routine 81:B38E LineRows
+; WHAT IT DOES: Steps a line from ($2C, $2E) to ($30, $32) by Bresenham's
+; method, x by one each step, storing each x as a word at $7F:5200 + its
+; y. No code refers to it.
+; HOW: dx and dy from the ends; the term 2 dy - dx; while x is not past
+; the end's x: the word at $7F:5200 + y = x; the term negative: it grows by
+; 2 dy; else y goes on by one and the term grows by 2 dy - 2 dx; x on by
+; one.
+; Entry: any widths; $2C, $2E the first end, $30, $32 the second (words,
+; x the lesser, the line no steeper than 1); DB a bank whose $0000-$1FFF is
+; work RAM; called by JSL. Exit: M 16-bit, X 16-bit; A = the end's x, C
+; clear; X = the last row stored; $2C = the end's x + 1, $2E the row
+; reached; $0C-$14 the working words.
+%at($81B38E)
+LineRows:
+    rep.b #$30
+    sec
+    lda.w !line_end_x
+    sbc.w !line_x
+    sta.w !line_dx
+    sec
+    lda.w !line_end_y
+    sbc.w !line_y
+    sta.w !line_dy
+    asl a
+    sta.w !line_keep
+    sec
+    sbc.w !line_dx
+    sta.w !line_term
+    sec
+    sbc.w !line_dx
+    sta.w !line_move
+.step:
+    lda.w !line_end_x
+    cmp.w !line_x
+    bcc .done
+    ldx.w !line_y
+    lda.w !line_x
+    sta.l !line_rows,x
+    lda.w !line_term
+    bmi .keep
+    inc.w !line_y
+    lda.w !line_move
+    bra .term
+.keep:
+    lda.w !line_keep
+.term:
+    clc
+    adc.w !line_term
+    sta.w !line_term
+    inc.w !line_x
+    bra .step
+.done:
+    rtl

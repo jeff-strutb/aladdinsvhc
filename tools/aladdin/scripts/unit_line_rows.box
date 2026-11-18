@@ -1,0 +1,11 @@
+# A unit call of LineRows (81:B38E), which no code refers to: a line from
+# ($2C, $2E) to ($30, $32) stepped Bresenham's way, each x stored as a word
+# at $7F:5200 + its y. By JSL in a level (stage_a0_s0), DB $80, the
+# machine put back after. From (0, 0) to (4, 2): the term starts at 0, so
+# the first step moves y (term not negative) and the next keeps it; the
+# loop ends past x 4.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+set 00002C 00,00,00,00
+set 000030 04,00,02,00
+call 81B38E long p=30 db=80

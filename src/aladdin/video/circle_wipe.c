@@ -10,6 +10,7 @@
 #include "native.h"
 void abi_CircleWipeStep(void);
 void abi_CircleWipePlot(void);
+void abi_LineRows(void);
 
 /* The circle, drawn by the midpoint method an octant at a time. */
 #define CIRCLE_X 0x00002Cu         /* the octant's x, from the radius down (word) */
@@ -148,5 +149,73 @@ void abi_CircleWipeStep(void)
         term = op_adc16(step, term, &cpu.p);
         wr16(dba(CIRCLE_TERM), term);
         wr16(dba(CIRCLE_X), (uint16_t)(x + 1));
+    }
+}
+
+/* LineRows: a line's ends and working words. */
+#define LINE_X 0x002Cu             /* the x stepped along, from the first end (word) */
+#define LINE_Y 0x002Eu             /* its row, from the first end's (word) */
+#define LINE_END_X 0x0030u         /* the second end (word) */
+#define LINE_END_Y 0x0032u
+#define LINE_DX 0x000Cu            /* end x - x (word) */
+#define LINE_DY 0x000Eu            /* end y - y (word) */
+#define LINE_KEEP 0x0010u          /* 2 dy: the term's step when y stays (word) */
+#define LINE_TERM 0x0012u          /* 2 dy - dx, then stepped (word) */
+#define LINE_MOVE 0x0014u          /* 2 dy - 2 dx: the term's step when y moves (word) */
+#define LINE_ROWS 0x7F5200u        /* per row (a byte offset), the x stored (word) */
+
+/*
+ * @routine 81:B38E LineRows
+ * WHAT IT DOES: Steps a line from ($2C, $2E) to ($30, $32) by Bresenham's
+ * method, x by one each step, storing each x as a word at $7F:5200 + its
+ * y. No code refers to it.
+ * HOW: dx and dy from the ends; the term 2 dy - dx; while x is not past
+ * the end's x: the word at $7F:5200 + y = x; the term negative: it grows by
+ * 2 dy; else y goes on by one and the term grows by 2 dy - 2 dx; x on by
+ * one.
+ * Entry: any widths; $2C, $2E the first end, $30, $32 the second (words,
+ * x the lesser, the line no steeper than 1); DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSL. Exit: M 16-bit, X 16-bit; A = the end's x, C
+ * clear; X = the last row stored; $2C = the end's x + 1, $2E the row
+ * reached; $0C-$14 the working words.
+ */
+void abi_LineRows(void)
+{
+    op_rep(0x30);
+    sec();
+    lda16(ea_abs(LINE_END_X));
+    sbc16_v(rd16(ea_abs(LINE_X)));
+    sta16(ea_abs(LINE_DX));
+    sec();
+    lda16(ea_abs(LINE_END_Y));
+    sbc16_v(rd16(ea_abs(LINE_Y)));
+    sta16(ea_abs(LINE_DY));
+    ACC16(asl);
+    sta16(ea_abs(LINE_KEEP));
+    sec();
+    sbc16_v(rd16(ea_abs(LINE_DX)));
+    sta16(ea_abs(LINE_TERM));
+    sec();
+    sbc16_v(rd16(ea_abs(LINE_DX)));
+    sta16(ea_abs(LINE_MOVE));
+    for (;;) {
+        lda16(ea_abs(LINE_END_X));
+        cmp16_v(rd16(ea_abs(LINE_X)));
+        if (!IF_C)
+            return;  /* rtl */
+        ldx16(ea_abs(LINE_Y));
+        lda16(ea_abs(LINE_X));
+        sta16(ea_longx(LINE_ROWS));
+        lda16(ea_abs(LINE_TERM));
+        if (IF_N) {
+            lda16(ea_abs(LINE_KEEP));
+        } else {
+            MEM16(inc, ea_abs(LINE_Y));
+            lda16(ea_abs(LINE_MOVE));
+        }
+        clc();
+        adc16_v(rd16(ea_abs(LINE_TERM)));
+        sta16(ea_abs(LINE_TERM));
+        MEM16(inc, ea_abs(LINE_X));
     }
 }
