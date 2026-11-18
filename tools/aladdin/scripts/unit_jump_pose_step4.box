@@ -1,0 +1,11 @@
+# The jump pose's steps 4 and 5 (PlayerJumpPoseStep, $81:D1F5: their
+# table words at $81:D204 and the shared code at $81:D245: the hurt
+# sound, move 9, 16 frames, step on), which no jump reaches. Unit calls by
+# JSR on Aladdin's record on the first level (M and X 8-bit, DB $80), his
+# POSE_STEP ($091B) set to 4, then 5, the machine put back after each.
+load build/aladdin/states/level1.state
+wait 10
+set $00091B 04
+call 81D1F5 d=08DB db=80 p=30
+set $00091B 05
+call 81D1F5 d=08DB db=80 p=30
