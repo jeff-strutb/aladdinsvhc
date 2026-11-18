@@ -1,0 +1,17 @@
+# Kind $66's second state (Kind66Second, $83:9453: JML Kind73Start), which
+# the actor loop jumps to for a kind $66 record in a state with bit 7 set
+# (the table at $83:8DFD). Stage a1 s1 places kind $66 actors at x $0640
+# and $0670; with the view put at x $0600, y $0180 and Aladdin at x $0640,
+# y $01A0 they are created, record $11EB ($07 = 4) among them. 40 frames
+# on it is put in state $8C, and 60 frames run.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0011EB 8C
+wait 60
