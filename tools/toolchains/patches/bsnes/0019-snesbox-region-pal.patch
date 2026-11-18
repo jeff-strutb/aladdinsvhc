@@ -1,0 +1,61 @@
+--- a/bsnes/emulator/snesbox.hpp
++++ b/bsnes/emulator/snesbox.hpp
+@@ -21,6 +21,10 @@ extern int snesbox_cpu_irq;
+ // script's cartram): open bus otherwise, as the board has none. Its bytes
+ // are not in saved states. The harness reads them as the cartram view.
+ extern int snesbox_cart_ram_on;
++// Set: STAT78 ($213F) reads bit 4 as 1, the PAL console's region bit, with
++// the NTSC timing kept (a script's region pal: test input like poke). Not in
++// saved states.
++extern int snesbox_region_pal;
+ extern uint8_t snesbox_cart_ram[0x8000];
+ void snesbox_cpu_rom(uint32_t offset);
+ void snesbox_cpu_insn(uint32_t pc, int m, int x, int e, int db, int d);
+--- a/bsnes/sfc/ppu-fast/io.cpp
++++ b/bsnes/sfc/ppu-fast/io.cpp
+@@ -174,7 +174,7 @@ auto PPU::readIO(uint address, uint8 data) -> uint8 {
+     latch.hcounter = 0;
+     latch.vcounter = 0;
+     latch.ppu2.mdr &= 1 << 5;
+-    latch.ppu2.mdr |= 0x03 | Region::PAL() << 4 | field() << 7;
++    latch.ppu2.mdr |= 0x03 | (Region::PAL() | (snesbox_region_pal != 0)) << 4 | field() << 7;
+     if(!(cpu.pio() & 0x80)) {
+       latch.ppu2.mdr |= 1 << 6;
+     } else {
+--- a/bsnes/sfc/ppu-fast/ppu.cpp
++++ b/bsnes/sfc/ppu-fast/ppu.cpp
+@@ -1,4 +1,5 @@
+ #include <sfc/sfc.hpp>
++#include <emulator/snesbox.hpp>
+ 
+ namespace SuperFamicom {
+ 
+--- a/bsnes/sfc/ppu/io.cpp
++++ b/bsnes/sfc/ppu/io.cpp
+@@ -181,7 +181,7 @@ auto PPU::readIO(uint addr, uint8 data) -> uint8 {
+     latch.vcounter = 0;
+     ppu2.mdr &= 1 << 5;
+     ppu2.mdr |= ppu2.version;
+-    ppu2.mdr |= Region::PAL() << 4;  //0 = NTSC, 1 = PAL
++    ppu2.mdr |= (Region::PAL() | (snesbox_region_pal != 0)) << 4;  //0 = NTSC, 1 = PAL
+     if(!(cpu.pio() & 0x80)) {
+       ppu2.mdr |= 1 << 6;
+     } else {
+--- a/bsnes/sfc/ppu/ppu.cpp
++++ b/bsnes/sfc/ppu/ppu.cpp
+@@ -1,4 +1,5 @@
+ #include <sfc/sfc.hpp>
++#include <emulator/snesbox.hpp>
+ 
+ namespace SuperFamicom {
+ 
+--- a/bsnes/target-libretro/snesbox.cpp
++++ b/bsnes/target-libretro/snesbox.cpp
+@@ -13,6 +13,7 @@ uint32_t snesbox_cpu_fetch_end = 0;
+ uint8_t snesbox_cpu_opcode = 0;
+ int snesbox_cpu_irq = 0;
+ int snesbox_cart_ram_on = 0;
++int snesbox_region_pal = 0;
+ uint8_t snesbox_cart_ram[0x8000] = {};
+ int (*snesbox_cpu_exec)(uint32_t pc) = nullptr;
+ void (*snesbox_dsp_sample)(int16_t left, int16_t right) = nullptr;

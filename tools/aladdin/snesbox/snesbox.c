@@ -57,6 +57,9 @@
  *                        runs original code only then
  *   apuport PORT BYTE    set the S-CPU's side of APU port PORT (0-3), as
  *                        an S-CPU write there would, between frames
+ *   region pal|ntsc      from now on STAT78 ($213F) reads bit 4 as a PAL
+ *                        console's (pal) or as this NTSC board's (ntsc,
+ *                        the default); the timing stays NTSC
  *   repeat N ... end     run the enclosed lines N times (nests)
  * Buttons: B Y SELECT START UP DOWN LEFT RIGHT A X L R, player 1; prefix
  * with 2. for player 2 (2.START). Joined with +.
@@ -362,6 +365,21 @@ static void cartram(const char *line, int lineno) {
     int *on = dlsym(core, "snesbox_cart_ram_on");
     if (!on) die("%s:%d: cartram: the core has no copier RAM (patch 0017)", script_path, lineno);
     *on = !strcmp(v, "on");
+}
+
+/* region pal|ntsc: the region bit of STAT78 ($213F bit 4), which the game
+   reads to tell a PAL console (RegionCheck, 84:AFAE): ntsc (this board's,
+   the default) unless a script sets pal, as test input like poke (core
+   patch 0019; the timing stays NTSC). Both lockstep processes run the
+   script, so both sides have it alike. Not in saved states: a load leaves
+   it as it was. */
+static void region(const char *line, int lineno) {
+    char v[16];
+    if (sscanf(line, "%*s %15s", v) != 1 || (strcmp(v, "pal") && strcmp(v, "ntsc")))
+        die("%s:%d: region pal|ntsc", script_path, lineno);
+    int *pal = dlsym(core, "snesbox_region_pal");
+    if (!pal) die("%s:%d: region: the core has no snesbox_region_pal (patch 0019)", script_path, lineno);
+    *pal = !strcmp(v, "pal");
 }
 
 /* apuport PORT BYTE: the S-CPU's side of APU port PORT (0-3), which the
@@ -715,6 +733,7 @@ static void exec_range(int from, int to) {
         else if (!strcmp(a, "cartram") && k >= 2) cartram(lines[i], i + 1);
         else if (!strcmp(a, "call") && k >= 2) call(lines[i], i + 1);
         else if (!strcmp(a, "apuport") && k >= 3) apuport(lines[i], i + 1);
+        else if (!strcmp(a, "region") && k >= 2) region(lines[i], i + 1);
         else if (!strcmp(a, "spcset") && k >= 3) spcset(lines[i], i + 1);
         else if (!strcmp(a, "spccall") && k >= 2) spccall(lines[i], i + 1);
         else if (!strcmp(a, "set") && k >= 3) {

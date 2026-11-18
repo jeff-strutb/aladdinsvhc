@@ -1,0 +1,10 @@
+# RegionCheck ($84:AFAE) as unit calls, as the game's start calls it
+# ($81:801A, JSL, DB = $80). On this NTSC board STAT78 bit 4 is clear and
+# it only clears $005D. With region pal (a PAL console's STAT78) it looks
+# the cartridge's region byte ($80:FFD9 = $01) up in the list at $80:FE54
+# ($0D, then $01: found at the second) and sets $005D.
+load build/aladdin/states/title.state
+call 84AFAE long db=80 p=30
+region pal
+call 84AFAE long db=80 p=30
+region ntsc
