@@ -1,0 +1,58 @@
+# Unit calls of routines with C that no script runs, in a level
+# (stage_a0_s0, 120 frames in, Aladdin standing), each by JSR or JSL with
+# M and X 8-bit and DB $80 unless said, the machine put back after each.
+# ActorPlayerBelow on the record at $092B, Aladdin's y ($08EA) put below
+# and above its y ($093A). PlayerHurtTimeEnd and its long entry on
+# Aladdin's record. MenuCursorMove and its long entry with the choice
+# ($0849) 1, the old one ($084A) 0. HudSixDigitsShow, and HudDigitPut
+# alone (X 16-bit, digit 5 at offset $40). SoundQueueF5With4,
+# SoundQueueF1. ActorSpawnSharedB (DB $81) from the record at $092B with
+# hit box 3. ViewEdgePush (D Aladdin's record) with the view's left edge
+# ($1773) and his x ($08E7): inside both edges, past the left edge in the
+# air (his y $08EA 0) and past the right edge in the air (its firm-ground
+# part needs a level whose ground is not soft: not yet).
+# Then SwingTask (81:EE8B, which nothing creates) created in its slot 2
+# (record $009F, stack top $01D2) the way TaskCreate does, and run its 48
+# frames; and the scroll kind ($083D) put to $10 for a frame, the kind no
+# level has (ScrollUpdate's bare RTS), then back to 0.
+load build/aladdin/states/stage_a0_s0.state
+wait 120
+set 0008EA 00,02
+set 00093A 00,01
+call 81AB62 long p=30 db=80 d=092B
+set 0008EA 00,01
+set 00093A 00,02
+call 81AB62 long p=30 db=80 d=092B
+call 81E951 long p=30 db=80 d=08DB
+call 81E955 p=30 db=80 d=08DB
+set 000849 01
+set 00084A 00
+call 81EE21 long p=30 db=80
+set 000849 02
+set 00084A 01
+call 81EE25 p=30 db=80
+call 81F597 p=30 db=80
+call 81F5CC p=20 db=80 a=05 x=0040
+call 81F9E1 long p=30 db=80
+call 81F9FE long p=30 db=80
+call 81EA52 long p=30 db=81 d=092B a=03
+set 001773 00,01
+set 0008E7 80,01
+call 81E9CD p=30 db=80 d=08DB
+set 001773 00,01
+set 0008E7 05,01
+set 0008EA 00,00
+call 81E9CD p=30 db=80 d=08DB
+set 001773 00,01
+set 0008E7 F8,01
+set 0008EA 00,00
+call 81E9CD p=30 db=80 d=08DB
+poke $0001D3 8A,EE,81
+poke $0000A1 D2,01
+poke $0000A5 00
+poke $00009F 0C
+wait 60
+poke $00083D 10
+wait 1
+poke $00083D 00
+wait 2
