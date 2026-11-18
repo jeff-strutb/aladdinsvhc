@@ -1,0 +1,13 @@
+# ActorKnockedAway's fall in levels 2 and $0D ($83:957A): stage a4 s2
+# (level $0D), the camera put at x $0200 so the kind $2D thrower at x
+# $0260 (record $0D8B) is placed, then put in its hit state ($8C): it is
+# knocked away (Kind2DHit, then ActorKnockedAway) and, once it falls,
+# its sprite priority bits are cleared.
+load build/aladdin/states/stage_a4_s2.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 0008E7 40,02
+wait 30
+poke 000D8B 8C
+wait 120
