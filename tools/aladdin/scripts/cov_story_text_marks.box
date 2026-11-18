@@ -1,0 +1,19 @@
+# The story's text typer for set 1 (StoryTextTask1, $81:F344) putting a
+# mark on the row above ($81:F410: characters $BA and $B7), which no text
+# in the game has. The task's parameter picks its text's offset from the
+# set's list in bank $80 ($FD8D + $10 + 2 * parameter, 8-bit); parameter
+# $2E reads the word $1C18 at $80:FDC9, past the list, and $A5:1C18 is
+# work RAM. In the story scene of stage a0 s0, where $1C18-$1C21 stays 0
+# (dumped every 60 frames for 480), a text is put there: place $0080
+# (code $FB), characters $41, $BA, $B7, $41, then the end (0). The task
+# is created in the free slot 3 (record $00B7, stack top $020A) the way
+# TaskCreate does: its entry less one and bank at the stack's top, its
+# saved S, its parameter, its state new ($0C).
+load build/aladdin/states/stage_a0_s0.state
+wait 60
+poke $001C18 FB,80,00,41,BA,B7,41,00
+poke $00020B 43,F3,81
+poke $0000B9 0A,02
+poke $0000BD 2E
+poke $0000B7 0C
+wait 40
