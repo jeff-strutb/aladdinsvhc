@@ -137,6 +137,15 @@ void actor_leave(uint32_t loop_at);
    original's registers at that instruction; the actor's own code (its C or
    the original) goes on from it. Never returns. */
 void actor_hand_off(uint32_t pc, uint8_t via);
+/* The task scheduler's RTL (at $81:BCB7) lands in the task it runs, at
+   pc, with `cpu` as the original's registers after it (S on the task's
+   stack, a waiting task's P, Y, X, D, B pulled): the scheduler's call
+   ends there. A task's C stopped where that task waits goes on from pc;
+   else the task's code (its C, or the original) starts at pc. At pc =
+   $81:BC6D the scheduler starts its scan over (its JMP or BNE there):
+   the call ends at that jump, and the original's scan goes on. Never
+   returns. */
+void task_hand_off(uint32_t pc);
 /* A JSL at `site` into the actor loop's C `loop` (PlayerLoop, ActorLoop),
    from C: the JSL's return address is pushed as the JSL pushes it. When
    the loop hands control to an actor (or a wait routine it called ends
