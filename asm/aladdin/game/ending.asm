@@ -21,7 +21,6 @@ arch 65816
 !dp_0a = $0A  ; direct page
 !routine_8181a3 = $8181A3  ; not yet filed
 !routine_81830d = $81830D  ; not yet filed
-!routine_82b501 = $82B501  ; not yet filed
 !t_e0ae = $E0AE  ; data bank
 !t_e433 = $E433  ; data bank
 !v_0000 = $0000
@@ -437,7 +436,7 @@ EndingStagesTask:
     jsr.w StageCountdownSet
 .lB353:
     sep.b #$20
-    jsr.w !routine_82b501
+    jsr.w EndingFrameEnd
     rep.b #$20
     inc.w !v_0080
     dec.w !v_0343
@@ -522,7 +521,7 @@ EndingStagesTask:
     sta.w !v_0007,x
     sep.b #$10
 .lB430:
-    jsr.w !routine_82b501
+    jsr.w EndingFrameEnd
     bra .lB430
 .lB435:
     stz.w !v_0080
@@ -581,6 +580,23 @@ EndingWipeLeftStep:
     sep.b #$20
     lda.w !WIPE_LEFT_PIXELS
     sta.w !WINDOW_LEFT
+    rts
+
+; @routine 82:B501 EndingFrameEnd
+; WHAT IT DOES: Ends a frame of the ending's stages task: the frame's
+; update, then the wait for the next frame, again while the VRAM queue is
+; still waiting.
+; HOW: FrameStepLong; TaskWait with A = 1 until VRAM_QUEUE_PENDING is 0.
+; Entry: M 8-bit, X 8-bit; called by JSR from the ending's stages task; DB
+; a bank whose $0000-$1FFF is work RAM. Exit: Y = 0, Z set; A low = 1.
+%at($82B501)
+EndingFrameEnd:
+    jsl.l FrameStepLong
+.wait:
+    lda.b #$01
+    jsl.l TaskWait
+    ldy.w !vram_queue_pending
+    bne .wait
     rts
 
 ; @routine 82:B511 EndingStageFrame

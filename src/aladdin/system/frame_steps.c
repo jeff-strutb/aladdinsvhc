@@ -42,3 +42,27 @@ void abi_FrameEnd(void)
     jsl_frame(0x80AEA0u);
     abi_TaskWait();
 }
+
+/*
+ * @routine 80:B2D3 FrameEndTimes
+ * WHAT IT DOES: Lets X frames go by, with the frame's update after each.
+ * HOW: X kept on the stack across a frame's wait (TaskWait, A = 1) and
+ * the update at $81:830D, then counted down.
+ * Entry: M 8-bit, X 8-bit; X = the frames (0: 256); called by JSR from a
+ * task; DB a bank whose $0000-$1FFF is work RAM. Exit: X = 0, Z set, N
+ * clear; A, Y and the other flags as the last update leaves them.
+ */
+void abi_FrameEndTimes(void)
+{
+    do {
+        phx8();
+        lda8_v(0x01);
+        jsl_frame(0x80B2D6u);
+        abi_TaskWait();
+        jsl_frame(0x80B2DAu);
+        abi_FrameStepLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        plx8();
+        dex8();
+    } while (!IF_Z);
+}

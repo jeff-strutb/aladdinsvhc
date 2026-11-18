@@ -30,7 +30,6 @@ FrameEnd:
 ; Entry: M 8-bit, X 8-bit; X = the frames (0: 256); called by JSR from a
 ; task; DB a bank whose $0000-$1FFF is work RAM. Exit: X = 0, Z set, N
 ; clear; A, Y and the other flags as the last update leaves them.
-; (No C yet: A5 cannot judge it while $81:830D has no C.)
 %at($80B2D3)
 FrameEndTimes:
     phx
