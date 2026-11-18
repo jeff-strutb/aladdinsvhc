@@ -12,6 +12,11 @@ spccall 045E a=FD at=02F5
 wait 2
 spccall 045E a=F5 at=02F5
 wait 2
+# Command $FC's handler ($05B1) by a call of its own: play and the call
+# above reach it only by the command table's jump, which no check counts
+# as its call.
+spccall 05B1 at=02F5
+wait 2
 # Command $F6 with $C6 = 2: the fade's step doubled, still running
 # ($0632). The driver clears its input ports after every command, so the
 # parameter (port 3) exists only while the game's own $F6 is taken: $C6 is
