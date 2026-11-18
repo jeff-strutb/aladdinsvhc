@@ -419,6 +419,10 @@ typedef struct {
 static void watch_free(Watch *w)
 {
     map_free(&w->undo); map_free(&w->orig); map_free(&w->cw);
+    /* its hardware and access-order logs too: left allocated, they grew a
+       long script's check past 4 GB (cov_kind73_ending, exit 137) */
+    free(w->oread.e); free(w->owrite.e); free(w->cwrite.e);
+    free(w->oseq.e); free(w->cseq.e);
     free(w);
 }
 
