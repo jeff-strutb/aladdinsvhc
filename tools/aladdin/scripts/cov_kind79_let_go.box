@@ -1,0 +1,18 @@
+# Actor kind $79 let go while it carries Aladdin: Kind79Held ($83:F610)
+# finding his box wanted outside $07-$0F ($83:F625: animation 0, no longer
+# taken, nothing holds him, 16 frames before it can be taken again) and
+# the carry loop's way back to the rise ($83:F5FB). As cov_kind79.box
+# part A, it takes him up (rand_stage_a3_s1, seed 7, to frame 100; his x
+# $00F0, y $00C0 inside its zone); from frame 35 it carries him, and with
+# his pose ($2F) 4 or more, B (the jump action, $0387) makes his held code
+# ($81:D76E) jump him off it.
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 0008E7 F0,00
+poke 0008EA C0,00
+wait 41
+press B
+wait 30
