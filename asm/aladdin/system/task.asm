@@ -15,6 +15,7 @@ arch 65816
 
 !TASK_FREE = 0
 !TASK_WAITING = 1
+!TASK_READY = 4
 !TASK_NEW = $0C
 
 ; The return address on the stack, as a long pointer on the direct page
@@ -26,6 +27,85 @@ arch 65816
 !TASK_TOP_ENTRY = 1
 !TASK_TOP_BANK = 3
 !CREATE_ARG_BYTES = 5
+
+; The scheduler's own bytes in work RAM.
+!SCAN_AGAIN = $032A             ; set (by the NMI's code): the scan starts over before a task runs
+!SLOTS_LEFT = $0329             ; slots the scan has still to look at
+!SCANS_AT_FIRST = $032D         ; counted up each time slot 0's task is to run
+!TASK_RUNNING = 8
+
+; @routine 81:BC6D TaskScheduler
+; WHAT IT DOES: Runs the next task that is ready or new, scanning the slots
+; from the first: it switches to that task's stack and gives it control,
+; new at its entry, waiting where its wait was called. With none ready it
+; scans again until one is (the NMI counts the waits down).
+; HOW: SCAN_AGAIN 0, SLOTS_LEFT = the slot count, Y = 0; on into
+; TaskSchedulerNext's test of slot Y.
+; Entry: any widths (M and X 8-bit in the game); S = the scheduler's stack
+; ($0326); reached by a jump (the game's start, and the scan's own
+; restart). Exit: never returns: at the task, by RTL.
+%at($81BC6D)
+TaskScheduler:
+    stz.w !SCAN_AGAIN
+    lda.w !task_slot_count
+    sta.w !SLOTS_LEFT
+    ldy.b #$00
+.test:
+    ldx.w !task_state,y
+    cpx.b #!TASK_READY
+    bcs TaskSchedulerNext_found
+
+; @routine 81:BC7F TaskSchedulerNext
+; WHAT IT DOES: The scheduler's scan from the slot after Y: the next task
+; that is ready (state 4) or new ($0C) runs; past the last slot the scan
+; starts over at TaskScheduler.
+; HOW: Y on by a slot ($18), SLOTS_LEFT down: not 0, the slot's state 4
+; or more is found; else on at TaskScheduler. Found: SCAN_AGAIN set, the
+; scan starts over; else TASK_CURRENT = Y; slot 0 counts SCANS_AT_FIRST
+; up and reads the pad (InputRead); the state becomes running (8); S =
+; its saved S, D = 0; a waiting task's P, Y, X (at the pulled width), D,
+; B pulled; RTL into the task (its wait call's return, or its entry less
+; one for a new task).
+; Entry: M and X 8-bit; Y = the slot just looked at; S = the scheduler's
+; stack ($0326); reached by a jump from TaskToScheduler (a task waits,
+; exits or starts again elsewhere) and by the scan's fall-through. Exit:
+; never returns: at the task, by RTL, with P, X, Y, D, B as the task left
+; them (a new task: X = its state $0C, Y = its slot, D = 0, M 8-bit).
+%at($81BC7F)
+TaskSchedulerNext:
+    clc
+    tya
+    adc.b #$18
+    tay
+    dec.w !SLOTS_LEFT
+    bne TaskScheduler_test
+    jmp.w TaskScheduler
+.found:
+    lda.w !SCAN_AGAIN
+    bne TaskScheduler
+    sty.w !task_current
+    tya
+    bne .run
+    inc.w !SCANS_AT_FIRST
+    jsr.w InputRead
+.run:
+    lda.b #!TASK_RUNNING
+    sta.w !task_state,y
+    rep.b #$20
+    lda.w !task_saved_s,y
+    tcs
+    lda.w #$0000
+    tcd
+    sep.b #$20
+    cpx.b #!TASK_NEW
+    beq .enter
+    plp
+    ply
+    plx
+    pld
+    plb
+.enter:
+    rtl
 
 ; @routine 81:BCB8 TaskCreate
 ; WHAT IT DOES: Starts a new task in a slot: it runs from its entry at its
