@@ -1,0 +1,49 @@
+--- a/bsnes/emulator/snesbox.hpp
++++ b/bsnes/emulator/snesbox.hpp
+@@ -16,6 +16,12 @@
+ extern uint32_t snesbox_cpu_fetch_end;
+ extern uint8_t snesbox_cpu_opcode;
+ extern int snesbox_cpu_irq;
++// Work RAM at $70-$7D and $F0-$FF:0000-7FFF for a cartridge with no save
++// RAM (a copier's), answering only while snesbox_cart_ram_on is set (a
++// script's cartram): open bus otherwise, as the board has none. Its bytes
++// are not in saved states. The harness reads them as the cartram view.
++extern int snesbox_cart_ram_on;
++extern uint8_t snesbox_cart_ram[0x8000];
+ void snesbox_cpu_rom(uint32_t offset);
+ void snesbox_cpu_insn(uint32_t pc, int m, int x, int e, int db, int d);
+ extern int (*snesbox_cpu_exec)(uint32_t pc);
+--- a/bsnes/target-libretro/snesbox.cpp
++++ b/bsnes/target-libretro/snesbox.cpp
+@@ -12,6 +12,8 @@
+ uint32_t snesbox_cpu_fetch_end = 0;
+ uint8_t snesbox_cpu_opcode = 0;
+ int snesbox_cpu_irq = 0;
++int snesbox_cart_ram_on = 0;
++uint8_t snesbox_cart_ram[0x8000] = {};
+ int (*snesbox_cpu_exec)(uint32_t pc) = nullptr;
+ void (*snesbox_dsp_sample)(int16_t left, int16_t right) = nullptr;
+ void (*snesbox_apu_write)(uint16_t address, uint8_t data, int dsp_phase) = nullptr;
+@@ -298,6 +300,7 @@
+   if(!strcmp(name, "gsuram")) return snesbox_core_memory(1, size);
+   if(!strcmp(name, "rom")) return snesbox_core_memory(2, size);
+   if(!strcmp(name, "apuram")) return snesbox_core_memory(3, size);
++  if(!strcmp(name, "cartram")) { *size = sizeof snesbox_cart_ram; return snesbox_cart_ram; }
+   *size = 0;
+   return nullptr;
+ }
+--- a/bsnes/sfc/cartridge/load.cpp
++++ b/bsnes/sfc/cartridge/load.cpp
+@@ -50,6 +50,12 @@
+   if(auto node = board["memory(type=ROM,content=Program)"]) loadROM(node);
+   if(auto node = board["memory(type=ROM,content=Expansion)"]) loadROM(node);  //todo: handle this better
+   if(auto node = board["memory(type=RAM,content=Save)"]) loadRAM(node);
++  //snesbox: a board with no save RAM and no coprocessor gets the copier RAM
++  //(emulator/snesbox.hpp) a script may switch on (cartram): open bus while off
++  else if(!board["processor"]) bus.map(
++    [&](uint addr, uint8 data) -> uint8 { return snesbox_cart_ram_on ? snesbox_cart_ram[addr & 0x7fff] : data; },
++    [&](uint addr, uint8 data) -> void { if(snesbox_cart_ram_on) snesbox_cart_ram[addr & 0x7fff] = data; },
++    "70-7d,f0-ff:0000-7fff", 0, 0, 0);
+   if(auto node = board["processor(identifier=ICD)"]) loadICD(node);
+   if(auto node = board["processor(identifier=MCC)"]) loadMCC(node);
+   if(auto node = board["slot(type=BSMemory)"]) loadBSMemory(node);

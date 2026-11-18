@@ -44,6 +44,12 @@ static void (*core_regs)(struct SnesboxRegs *);
 static uint8_t *core_opcode;
 static uint8_t *wram, *gsuram, *rom;
 static size_t wram_n, gsuram_n, rom_n;
+/* The copier RAM a script switches on (snesbox's cartram; the core's
+   snesbox_cart_ram): work RAM at $70-$7D and $F0-$FF:0000-7FFF while
+   *cart_on, open bus otherwise. */
+static uint8_t *cartram;
+static size_t cartram_n;
+static int *cart_on;
 
 typedef struct { uint32_t addr; void (*abi)(void); const char *name; } Routine;
 static const Routine *routines;
@@ -146,7 +152,7 @@ static uint8_t *watched;  /* 16M-entry bitmap of routine entry points */
 static uint8_t *has_c;    /* the same for every routine with C in the library */
 
 /* Normalised address: region in the top byte, offset below. */
-enum { R_NONE = 0, R_WRAM = 1, R_GSURAM = 2, R_IO = 3, R_ROM = 4 };
+enum { R_NONE = 0, R_WRAM = 1, R_GSURAM = 2, R_IO = 3, R_ROM = 4, R_CART = 5 };
 
 /* The cartridge's ROM offset of a bus address, as the core's Bus::mirror
    folds an offset past a ROM whose size is not a power of two (Aladdin's
@@ -164,7 +170,8 @@ static uint32_t rom_mirror(uint32_t addr, uint32_t size)
 }
 
 /* The LOROM board: ROM at $00-$7D and $80-$FF, $8000-$FFFF; no cartridge
-   RAM, so $6000-$7FFF and the low halves of banks $40 up are open bus. */
+   RAM, so $6000-$7FFF and the low halves of banks $40 up are open bus,
+   but for the copier RAM while a script has it on (cartram). */
 static uint32_t norm(uint32_t a)
 {
     uint32_t bank = a >> 16 & 0xFF, lo = a & 0xFFFF;
@@ -174,6 +181,8 @@ static uint32_t norm(uint32_t a)
         if (lo < 0x2000) return R_WRAM << 24 | lo;
         if (lo < 0x6000) return R_IO << 24 | lo;
     }
+    if (cart_on && *cart_on && cartram && ((bank >= 0x70 && bank <= 0x7D) || bank >= 0xF0))
+        return R_CART << 24 | (lo & 0x7FFF);
     return R_NONE << 24 | a;
 }
 
@@ -187,6 +196,7 @@ static uint8_t *phys(uint32_t n)
     switch (n >> 24) {
     case R_WRAM: return off < wram_n ? &wram[off] : NULL;
     case R_GSURAM: return off < gsuram_n ? &gsuram[off] : NULL;
+    case R_CART: return off < cartram_n ? &cartram[off] : NULL;
     case R_ROM: return off < rom_n ? &rom[off] : NULL;
     }
     return NULL;
@@ -427,7 +437,7 @@ void wr8(uint32_t addr, uint8_t value)
         return;
     }
     if (seq_on && n >> 24 == R_WRAM) io_add(&cur->cseq, (n & 0xFFFFFF) | 1u << 24, 0);
-    if (n >> 24 == R_WRAM || n >> 24 == R_GSURAM) {
+    if (n >> 24 == R_WRAM || n >> 24 == R_GSURAM || n >> 24 == R_CART) {
         if (!map_put(&cur->cw, n, value, 0)) cur->overflow = 1;
     }
     /* A write to the open bus (no RAM there on this board, as the
@@ -1040,7 +1050,7 @@ static void on_write(uint32_t addr, uint8_t data, int kind)
     if (norm(addr) >> 24 == R_GSURAM) gsu_check_foreign(0x700000u | (norm(addr) & 0xFFFFFF));
     if (!depth) return;
     uint32_t n = norm(addr);
-    int ram = n >> 24 == R_WRAM || n >> 24 == R_GSURAM;
+    int ram = n >> 24 == R_WRAM || n >> 24 == R_GSURAM || n >> 24 == R_CART;
     uint8_t *p = ram ? phys(n) : NULL;
     for (int i = 0; i < depth; i++) {
         Watch *w = ws[i];
@@ -1151,6 +1161,8 @@ static int load_routines(void *core, const char *lib, const char *only)
     core_opcode = dlsym(core, "snesbox_cpu_opcode");
     if (!table || !count || !mem || !core_regs || !core_opcode) { fprintf(stderr, "check: missing symbols\n"); return -1; }
     wram = mem("wram", &wram_n); gsuram = mem("gsuram", &gsuram_n); rom = mem("rom", &rom_n);
+    cartram = mem("cartram", &cartram_n);
+    cart_on = dlsym(core, "snesbox_cart_ram_on");
     static Routine sel[4096];
     for (int i = 0; i < *count && nroutines < 4096; i++) {
         if (only) {
@@ -1256,7 +1268,10 @@ void check_end(void)
 #define NSLOT 128
 #define CALLRING (1 << 18)
 #define OPRING (1u << 24)
-#define SNAP (0x20000 + 0x10000 + 0x10000 + 544 + 512 + 0x10000)
+/* A frame's memory: the core's snapshot (work RAM, the Super FX's RAM
+   slot, VRAM, OAM, CGRAM, APU RAM), then the copier RAM (cartram). */
+#define SNAP_CART (0x20000 + 0x10000 + 0x10000 + 544 + 512 + 0x10000)
+#define SNAP (SNAP_CART + 0x8000)
 
 typedef struct { long frame; uint64_t opoff; uint32_t opn; int done, cut; } CallRec;
 typedef struct {
@@ -3476,13 +3491,21 @@ static int stack_dead(const uint8_t *w, uint32_t i, uint32_t s, uint32_t lo)
 
 static uint8_t inflight[SNAP];
 
+static void snapshot_all(uint8_t *out)
+{
+    core_snapshot(out);
+    if (cartram && cartram_n >= 0x8000) memcpy(out + SNAP_CART, cartram, 0x8000);
+    else memset(out + SNAP_CART, 0, 0x8000);
+}
+
 static void compare(long f)
 {
     static const struct { const char *name; uint32_t off, len; } reg[] = {
         {"wram", 0, 0x20000}, {"gsuram", 0x20000, 0x10000}, {"vram", 0x30000, 0x10000},
-        {"oam", 0x40000, 544}, {"cgram", 0x40000 + 544, 512}, {"apuram", 0x40000 + 544 + 512, 0x10000}};
+        {"oam", 0x40000, 544}, {"cgram", 0x40000 + 544, 512}, {"apuram", 0x40000 + 544 + 512, 0x10000},
+        {"cartram", SNAP_CART, 0x8000}};
     FrameSlot *sl = &sh->fs[f % NSLOT];
-    core_snapshot(mysnap);
+    snapshot_all(mysnap);
     uint32_t s = sl->s, lo = s > 0x200 ? s - 0x200 : 0;
     int bad = 0;
     char buf[1024]; buf[0] = 0;
@@ -3553,7 +3576,7 @@ void lockstep_after_frame(long f)
             fprintf(stderr, "MIDCALL frame %ld ends inside call %llu at %06X\n", f, (unsigned long long)m.call, m_pc);
         sl->clock = core_clock();
         sl->regs = r;
-        core_snapshot(sl->snap);
+        snapshot_all(sl->snap);
         STORE(sh->o_frames, f + 1);
     } else if (role == 2) {
         if (!past_end && !gsu_lockstep_is_past_end()) compare(f);

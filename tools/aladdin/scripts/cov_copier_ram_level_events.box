@@ -1,0 +1,26 @@
+# Actor starts that test for a copier's cartridge RAM at bank $70, run with
+# the copier RAM on (cartram), as cov_level_events.box: kind $54's start
+# finds it and keeps that in $4F (83:D6E6, used at $83:D75F), kind $6D's
+# wipes its own record ($83:ECE3), and kind $6E's second test passes
+# ($83:F0CA).
+load build/aladdin/states/stage_a2_s0.state
+cartram on
+wait 30
+poke 001773 00,07
+poke 0019E5 00,07
+poke 0008E7 80,07
+wait 120
+load build/aladdin/states/pw5.state
+cartram on
+wait 30
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 60
+load build/aladdin/states/stage_a2_s1.state
+cartram on
+wait 30
+poke 001773 00,1A
+poke 0019E5 00,1A
+poke 0008E7 80,1A
+wait 200

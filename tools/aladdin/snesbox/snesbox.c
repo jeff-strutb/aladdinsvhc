@@ -348,6 +348,20 @@ static void poke(const char *line, int lineno) {
     }
 }
 
+/* cartram on|off: the copier RAM at $70-$7D and $F0-$FF:0000-7FFF (the
+   core's snesbox_cart_ram), which this board does not have: off (open bus)
+   unless a script turns it on, as test input like poke. Both lockstep
+   processes run the script, so both sides have it alike. Its bytes are
+   not in saved states: a load leaves them as they were. */
+static void cartram(const char *line, int lineno) {
+    char v[16] = "";
+    if (sscanf(line, "%*s %15s", v) != 1 || (strcmp(v, "on") && strcmp(v, "off")))
+        die("%s:%d: cartram on|off", script_path, lineno);
+    int *on = dlsym(core, "snesbox_cart_ram_on");
+    if (!on) die("%s:%d: cartram: the core has no copier RAM (patch 0017)", script_path, lineno);
+    *on = !strcmp(v, "on");
+}
+
 /* spcset APU BYTE[,BYTE...]: stage SPC700 RAM bytes for the next spccall.
    spccall APU [a=..] [x=..] [y=..] [psw=..] [at=APU]: call the SPC700
    routine at APU the next time the SPC700 reaches the instruction at `at`
@@ -680,6 +694,7 @@ static void exec_range(int from, int to) {
             write_file(b, ".state", p, n); free(p);
         }
         else if (!strcmp(a, "poke") && k >= 3) poke(lines[i], i + 1);
+        else if (!strcmp(a, "cartram") && k >= 2) cartram(lines[i], i + 1);
         else if (!strcmp(a, "call") && k >= 2) call(lines[i], i + 1);
         else if (!strcmp(a, "spcset") && k >= 3) spcset(lines[i], i + 1);
         else if (!strcmp(a, "spccall") && k >= 2) spccall(lines[i], i + 1);
