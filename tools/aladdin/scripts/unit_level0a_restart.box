@@ -1,0 +1,9 @@
+# Level $0A's screen set-up (Level0AScreenSetup, $81:8AE5) started from a
+# restart point ($0360 = 1), which no script does: $7F:F043 = $FE
+# ($81:8B15). A unit call by JSR in level $0A (stage a5 s2), M and X
+# 8-bit, DB $80, D 0, the machine put back after it.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+set 000360 01
+call 818AE5 p=30 db=80 d=0
+wait 2
