@@ -29,6 +29,15 @@ arch 65816
 !block_tile_words = $57          ; the level's tile words, as loaded
 !ms_place = $10                  ; the tile's place in its block
 !ms_block = $12                  ; the block's start, from block_sources
+; TileRectQueue: the rectangle (work RAM and the direct page at 0), the view.
+!rect_x = $2C                    ; the top left point (words)
+!rect_y = $2E
+!rect_tiles = $30                ; the next tile's words (word)
+!rect_size = $32                 ; columns, then rows (bytes)
+!rect_rows = $34                 ; rows left (word)
+!rect_columns = $36              ; columns left in the row (word)
+!play_view_x = $1773             ; the view's left edge (pixels, word)
+!play_view_y = $1777             ; the view's top edge (pixels, word)
 
 ; @routine 81:9A64 TileChangeQueueQuarter
 ; WHAT IT DOES: Queues one 8x8 quarter of a changed map tile for the NMI
@@ -57,6 +66,104 @@ TileChangeQueueQuarter:
     inx
     rts
 
+
+; @routine 81:9BAE TileRectQueue
+; WHAT IT DOES: Queues a rectangle of tiles for the screen: each tile in
+; view (four tilemap words from the data bank's X) as a record of
+; tile_blocks at its VRAM address, the queue then marked ready. Nothing in
+; the game calls it.
+; HOW: A low byte = the columns, A high byte = the rows; X = the tiles'
+; words (8 bytes a tile, row by row); $2C, $2E = the top left point. With
+; no room (tile_blocks_length over $78) it returns with C clear. Else,
+; with the direct page at 0 (its own kept on the stack): for each row
+; (16 pixels down each) and column (16 across), a tile in view (x past
+; the view's left edge less 16 and up to 256 past it, y up to 224 below
+; its top edge and past it less 16) gets its four words and
+; TilemapWordLong's address queued; the source steps 8 bytes for every
+; tile; then tile_blocks_pending counted up.
+; Entry: M 16-bit, X 16-bit; A = rows * 256 + columns (each nonzero); X =
+; the tiles' words; $2C, $2E = the point; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSL. Exit: C clear with no room (A = $78 less the
+; length, X, D unchanged); else C set; D as at entry, N and Z from it
+; (PLD); $0C, $0E past the last tile; $30-$37 used.
+%at($819BAE)
+TileRectQueue:
+    sta.w !rect_size
+    xba
+    and.w #$00FF
+    sta.w !rect_rows
+    stx.w !rect_tiles
+    sec
+    lda.w #$0078
+    sbc.w !tile_blocks_length
+    bcs .room
+    rtl
+.room:
+    phd
+    lda.w #$0000
+    tcd
+    lda.b !rect_y
+    sta.b !tm_y
+.row:
+    lda.b !rect_size
+    and.w #$00FF
+    sta.b !rect_columns
+    lda.b !rect_x
+    sta.b !tm_x
+.tile:
+    clc
+    lda.w !play_view_x
+    adc.w #$0100
+    sec
+    sbc.b !tm_x
+    cmp.w #$0110
+    bcs .next
+    clc
+    lda.w !play_view_y
+    adc.w #$00E0
+    sec
+    sbc.b !tm_y
+    cmp.w #$00F0
+    bcs .next
+    ldx.w !tile_blocks_length
+    ldy.w !rect_tiles
+    lda.w 0,y
+    sta.w !tile_blocks+2,x
+    lda.w 2,y
+    sta.w !tile_blocks+4,x
+    lda.w 4,y
+    sta.w !tile_blocks+6,x
+    lda.w 6,y
+    sta.w !tile_blocks+8,x
+    ldy.b !tm_y
+    lda.b !tm_x
+    jsl.l TilemapWordLong
+    sta.w !tile_blocks,x
+    clc
+    txa
+    adc.w #$000A
+    sta.w !tile_blocks_length
+.next:
+    clc
+    lda.w !rect_tiles
+    adc.w #$0008
+    sta.w !rect_tiles
+    clc
+    lda.b !tm_x
+    adc.w #$0010
+    sta.b !tm_x
+    dec.b !rect_columns
+    bne .tile
+    clc
+    lda.b !tm_y
+    adc.w #$0010
+    sta.b !tm_y
+    dec.b !rect_rows
+    bne .row
+    inc.w !tile_blocks_pending
+    pld
+    sec
+    rtl
 
 ; @routine 81:9C50 MapTileAddress
 ; WHAT IT DOES: The place of the map tile under point X, Y in the level's

@@ -54,6 +54,119 @@ void abi_TileChangeQueueQuarter(void)
     cpu.y = y;
 }
 
+/* TileRectQueue: the rectangle (work RAM and the direct page at 0), the view. */
+#define RECT_X 0x2Cu                /* the top left point (words) */
+#define RECT_Y 0x2Eu
+#define RECT_TILES 0x30u            /* the next tile's words (word) */
+#define RECT_SIZE 0x32u             /* columns, then rows (bytes) */
+#define RECT_ROWS 0x34u             /* rows left (word) */
+#define RECT_COLUMNS 0x36u          /* columns left in the row (word) */
+#define VIEW_X 0x1773u              /* the view's left edge (pixels, word) */
+#define VIEW_Y 0x1777u              /* the view's top edge (pixels, word) */
+
+/*
+ * @routine 81:9BAE TileRectQueue
+ * WHAT IT DOES: Queues a rectangle of tiles for the screen: each tile in
+ * view (four tilemap words from the data bank's X) as a record of
+ * tile_blocks at its VRAM address, the queue then marked ready. Nothing in
+ * the game calls it.
+ * HOW: A low byte = the columns, A high byte = the rows; X = the tiles'
+ * words (8 bytes a tile, row by row); $2C, $2E = the top left point. With
+ * no room (tile_blocks_length over $78) it returns with C clear. Else,
+ * with the direct page at 0 (its own kept on the stack): for each row
+ * (16 pixels down each) and column (16 across), a tile in view (x past
+ * the view's left edge less 16 and up to 256 past it, y up to 224 below
+ * its top edge and past it less 16) gets its four words and
+ * TilemapWordLong's address queued; the source steps 8 bytes for every
+ * tile; then tile_blocks_pending counted up.
+ * Entry: M 16-bit, X 16-bit; A = rows * 256 + columns (each nonzero); X =
+ * the tiles' words; $2C, $2E = the point; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSL. Exit: C clear with no room (A = $78 less the
+ * length, X, D unchanged); else C set; D as at entry, N and Z from it
+ * (PLD); $0C, $0E past the last tile; $30-$37 used.
+ */
+void abi_TileRectQueue(void)
+{
+    sta16(ea_abs(RECT_SIZE));
+    xba();
+    and16_v(0x00FF);
+    sta16(ea_abs(RECT_ROWS));
+    stx16(ea_abs(RECT_TILES));
+    sec();
+    lda16_v(0x0078);
+    sbc16_v(rd16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH)));
+    if (!IF_C)
+        return;                           /* no room */
+    phd();
+    lda16_v(0x0000);
+    tcd();
+    lda16(ea_dp(RECT_Y));
+    sta16(ea_dp(0x0E));
+    do {                                  /* each row */
+        lda16(ea_dp(RECT_SIZE));
+        and16_v(0x00FF);
+        sta16(ea_dp(RECT_COLUMNS));
+        lda16(ea_dp(RECT_X));
+        sta16(ea_dp(0x0C));
+        do {                              /* each tile in it */
+            clc();
+            lda16(ea_abs(VIEW_X));
+            adc16_v(0x0100);
+            sec();
+            sbc16_v(rd16(ea_dp(0x0C)));
+            cmp16_v(0x0110);
+            if (IF_C)
+                goto next;
+            clc();
+            lda16(ea_abs(VIEW_Y));
+            adc16_v(0x00E0);
+            sec();
+            sbc16_v(rd16(ea_dp(0x0E)));
+            cmp16_v(0x00F0);
+            if (IF_C)
+                goto next;
+            ldx16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH));
+            ldy16(ea_abs(RECT_TILES));
+            lda16(ea_absy(0));
+            sta16(ea_absx((uint16_t)(TILE_BLOCKS + 2)));
+            lda16(ea_absy(2));
+            sta16(ea_absx((uint16_t)(TILE_BLOCKS + 4)));
+            lda16(ea_absy(4));
+            sta16(ea_absx((uint16_t)(TILE_BLOCKS + 6)));
+            lda16(ea_absy(6));
+            sta16(ea_absx((uint16_t)(TILE_BLOCKS + 8)));
+            ldy16(ea_dp(0x0E));
+            lda16(ea_dp(0x0C));
+            jsl_frame(0x819C19u);
+            abi_TilemapWordLong();
+            cpu.s = (uint16_t)(cpu.s + 3);
+            sta16(ea_absx((uint16_t)TILE_BLOCKS));
+            clc();
+            txa16();
+            adc16_v(0x000A);
+            sta16(ea_abs((uint16_t)TILE_BLOCKS_LENGTH));
+next:
+            clc();
+            lda16(ea_abs(RECT_TILES));
+            adc16_v(0x0008);
+            sta16(ea_abs(RECT_TILES));
+            clc();
+            lda16(ea_dp(0x0C));
+            adc16_v(0x0010);
+            sta16(ea_dp(0x0C));
+            MEM16(dec, ea_dp(RECT_COLUMNS));
+        } while (!IF_Z);
+        clc();
+        lda16(ea_dp(0x0E));
+        adc16_v(0x0010);
+        sta16(ea_dp(0x0E));
+        MEM16(dec, ea_dp(RECT_ROWS));
+    } while (!IF_Z);
+    MEM16(inc, ea_abs((uint16_t)TILE_BLOCKS_PENDING));
+    pld();
+    sec();
+}
+
 /*
  * @routine 81:9C50 MapTileAddress
  * WHAT IT DOES: The place of the map tile under point X, Y in the level's
