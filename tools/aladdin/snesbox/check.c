@@ -3608,6 +3608,29 @@ long lockstep_unit_end(long f)
     }
     return f;
 }
+/* Hybrid side: a parked C goes on at this instruction (ls_exec's
+   conditions): an actor the loop resumes by its RTI (or the C loop's hand
+   off), a task the scheduler's RTL resumes, a caller of the actor loop its
+   RTL is back at. The original side opens that call's record here, before
+   a unit call may start, so neither side may start one here. */
+static int h_resumes_at(uint32_t pc)
+{
+    struct SnesboxRegs r;
+    core_regs(&r);
+    if (*core_opcode == 0x40)
+        for (int k = 0; k < ACTOR_PARKS; k++)
+            if (aparked[k] && aparked[k]->d == r.d && pc == aparked[k]->resume && r.s == aparked[k]->resume_s) return 1;
+    if (*core_opcode == 0x6B) {
+        uint8_t slot = wram[TASK_CURRENT];
+        if (slot % 0x18 == 0 && slot / 0x18 < TASK_SLOTS) {
+            Ctx *c = parked[slot / 0x18];
+            if (c && pc == c->resume && r.s == c->resume_s) return 1;
+        }
+        if (lparked && pc == lparked->resume && r.s == lparked->resume_s) return 1;
+    }
+    return 0;
+}
+
 int lockstep_call_ok(uint32_t pc)
 {
     /* Asked at every instruction while a unit call waits for a place to
@@ -3615,7 +3638,7 @@ int lockstep_call_ok(uint32_t pc)
     static unsigned asked;
     if (!role) return 1;
     if (!(++asked & 0xFFFF) && PARENT_GONE()) _exit(6);
-    return !m.active && !machine_live && routine_at(pc) < 0;
+    return !m.active && !machine_live && routine_at(pc) < 0 && !(role == 2 && h_resumes_at(pc));
 }
 
 void lockstep_before_frame(long f)

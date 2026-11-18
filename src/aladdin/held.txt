@@ -2,6 +2,5 @@
 # out of its routine table, with every routine whose C calls it, so the
 # original runs in its place. The gate runner adds lines; a writer removes
 # one in the commit that fixes the C. Format: BB:AAAA Name  # why
-83:94A4 ActorLoop  # A5 DIVERGENT at 8eb6980
-83:94BF ActorLoopBack  # A5 DIVERGENT at 8eb6980
-83:94D3 ActorLoopNext  # A5 DIVERGENT at 8eb6980
+81:8311 FrameStep  # A7 DIVERGENT with the actor loop's C released (25 scripts, cov_title_idle from frame 451: its record's interrupts placed off, $0329)
+81:830D FrameStepLong  # calls FrameStep: held with it
