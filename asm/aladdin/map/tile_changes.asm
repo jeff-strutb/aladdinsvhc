@@ -214,6 +214,35 @@ MapTileAddress:
     ply
     rts
 
+; @routine 81:9C8D PointOffsetAt
+; WHAT IT DOES: A point moved by the offsets at the data bank's $BA62+X:
+; Y = the direct page's $0F plus the value at $BA64+X; X = its $0C plus
+; the value at $BA62+X, or less it when bit 0 of its $15 is set. Nothing
+; in the game calls it.
+; HOW: CLC, LDA $0F, ADC $BA64,X, TAY; bit 0 of $15 to C (LSR); LDA $0C,
+; then ADC or (SEC) SBC $BA62,X; TAX. Bytes or words as M is set (X and Y
+; as X is).
+; Entry: any widths; D, DB and X as above; called by JSL. Exit: X, Y as
+; above; A = X's value; N, V, Z, C from the last ADC or SBC.
+%at($819C8D)
+PointOffsetAt:
+    clc
+    lda.b $0F
+    adc.w $BA64,x
+    tay
+    lda.b $15
+    lsr a
+    lda.b $0C
+    bcs .back
+    adc.w $BA62,x
+    tax
+    rtl
+.back:
+    sec
+    sbc.w $BA62,x
+    tax
+    rtl
+
 !tile_changes_count = $0719      ; changes queued (word)
 !tile_changes_end = $071B       ; byte offset past the last change queued (word)
 !tile_changes = $071D            ; per change, 8 bytes: x, y, new tile (words)

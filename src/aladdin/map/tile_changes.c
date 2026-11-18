@@ -222,6 +222,61 @@ void abi_MapTileAddress(void)
     ply16();
 }
 
+/*
+ * @routine 81:9C8D PointOffsetAt
+ * WHAT IT DOES: A point moved by the offsets at the data bank's $BA62+X:
+ * Y = the direct page's $0F plus the value at $BA64+X; X = its $0C plus
+ * the value at $BA62+X, or less it when bit 0 of its $15 is set. Nothing
+ * in the game calls it.
+ * HOW: CLC, LDA $0F, ADC $BA64,X, TAY; bit 0 of $15 to C (LSR); LDA $0C,
+ * then ADC or (SEC) SBC $BA62,X; TAX. Bytes or words as M is set (X and Y
+ * as X is).
+ * Entry: any widths; D, DB and X as above; called by JSL. Exit: X, Y as
+ * above; A = X's value; N, V, Z, C from the last ADC or SBC.
+ */
+void abi_PointOffsetAt(void)
+{
+    int m8 = (cpu.p & P_M) != 0, x8 = (cpu.p & P_X) != 0;
+
+    clc();
+    if (m8) {
+        lda8(ea_dp(0x0F));
+        adc8_v(rd8(ea_absx(0xBA64)));
+    } else {
+        lda16(ea_dp(0x0F));
+        adc16_v(rd16(ea_absx(0xBA64)));
+    }
+    if (x8)
+        tay8();
+    else
+        tay16();
+    if (m8) {
+        lda8(ea_dp(0x15));
+        set_al(lsr8_r(al()));
+        lda8(ea_dp(0x0C));
+    } else {
+        lda16(ea_dp(0x15));
+        cpu.a = lsr16_r(cpu.a);
+        lda16(ea_dp(0x0C));
+    }
+    if (!IF_C) {
+        if (m8)
+            adc8_v(rd8(ea_absx(0xBA62)));
+        else
+            adc16_v(rd16(ea_absx(0xBA62)));
+    } else {                              /* bit 0 of $15: the other way */
+        sec();
+        if (m8)
+            sbc8_v(rd8(ea_absx(0xBA62)));
+        else
+            sbc16_v(rd16(ea_absx(0xBA62)));
+    }
+    if (x8)
+        tax8();
+    else
+        tax16();
+}
+
 /* The view's span on one axis from the camera at `camera` ($28 its start
    less 8): its size (in `size`), half of it (`half`) and its middle
    (`mid`). */

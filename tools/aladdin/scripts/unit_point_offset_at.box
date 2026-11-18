@@ -1,0 +1,14 @@
+# A point moved by the offsets at $BA62+X ($81:9C8D, PointOffsetAt):
+# nothing in the game calls it, so no screen runs it. Unit calls by JSL on
+# the first level's state with D = 0 and DB = $81 (the words read there
+# serve as the offsets): once with M and X 8-bit and bit 0 of $15 clear
+# (added), once with them 16-bit and the bit set (taken off). (The machine
+# is put back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+set $00000C 40,00,00,20,00
+set $000015 00
+call 819C8D long x=02 d=0000 db=81 p=30
+set $00000C 40,01,00,20,01
+set $000015 01,00
+call 819C8D long x=0004 d=0000 db=81 p=00
