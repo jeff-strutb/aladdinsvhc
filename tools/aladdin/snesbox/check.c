@@ -338,6 +338,7 @@ typedef struct {
     jmp_buf abort;
     int c_state;             /* 0 none, 1 returned, 2 waiting in task_yield */
     int resumed;             /* this piece starts where the task resumed */
+    int abandoned;           /* the C stopped at code with no C, not where it waits: no later piece of the call runs it */
     int actor;               /* a piece of an actor's code (docs/aladdin/ACTORS.md) */
     int jumped;              /* entered by a jump (a tail jump, or code reached only by jumps) */
     int exit_calls;          /* calls it made from its exit level (after its own return was pulled), not yet returned */
@@ -626,6 +627,19 @@ static void finish_piece(Watch *w, int waited)
     struct SnesboxRegs out;
     core_regs(&out);
     st->calls++;
+    /* The C of an earlier piece of this call stopped at code with no C
+       (call_routine, jump_routine), not where it waits: it cannot go on
+       from there, and started afresh it would run against this piece's
+       memory, not the call's. Judged by lockstep only, as that piece. */
+    if (w->abandoned) {
+        st->inconclusive++;
+        if (waited == 2) w->live_s = out.s;
+        else if (waited) {
+            uint8_t slot = wram[TASK_CURRENT];
+            w->live_s = (uint16_t)(wram[0x71 + slot] | wram[0x72 + slot] << 8);
+        }
+        return;
+    }
 
     cpu.a = w->entry.a; cpu.x = w->entry.x; cpu.y = w->entry.y; cpu.s = w->entry.s; cpu.d = w->entry.d;
     cpu.db = w->entry.db; cpu.p = w->entry.p; cpu.e = w->entry.e; cpu.pc = w->entry.pc; cpu.unwound = 0;
@@ -636,6 +650,7 @@ static void finish_piece(Watch *w, int waited)
     if (w->c_state != 2) w->c_state = 0;
     a5_run(w);
     c_running = 0;
+    if (w->needs_asm && w->c_state != 2) w->abandoned = 1;
     /* At a wait, the stack above the task's saved S is live (the pushes);
        at an actor's yield or leave, the stack above S there. */
     if (waited == 2) w->live_s = out.s;
@@ -1043,7 +1058,7 @@ static void on_insn(uint32_t pc)
         w->ret_pc = (uint32_t)wram[(sp + 3) & 0xFFFF] << 16 | (uint16_t)(word + 1);
         w->exit_s = (uint16_t)(sp + 3);
     } else { stats[idx].skipped++; return; }
-    w->idx = idx; w->entry = r; w->live_s = r.s; w->resumed = 0;
+    w->idx = idx; w->entry = r; w->live_s = r.s; w->resumed = 0; w->abandoned = 0;
     w->jumped = is_jump_op(via);
     if (w->c_state == 2) a5_drop(w);
     w->in_irq = w->interrupted = w->dma = w->gsu = w->needs_asm = w->overflow = 0;
