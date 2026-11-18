@@ -1,0 +1,22 @@
+# Kind $2D's thrower on the first level (level 0): the one at x $0758, y
+# $00B0 (record $0C9B), the camera put at x $06C0, y $0040 so it is
+# placed, then put back in its start state ($0C) with $07 = 0, Aladdin
+# held at x $0720, y $00D8 in its reach: it waits 32 frames before each
+# throw ($83:A8E2), and its thrown copies, in level 0, take sprite
+# priority $10 ($83:A9A8).
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 C0,06
+poke 0019E5 C0,06
+poke 001777 40,00
+poke 0019E9 40,00
+poke 0008E7 E0,06
+poke 0008EA 00,00
+wait 60
+poke 000C9B 0C
+poke 000CA2 00
+repeat 240
+poke 0008E7 20,07
+poke 0008EA D8,00
+wait 1
+end

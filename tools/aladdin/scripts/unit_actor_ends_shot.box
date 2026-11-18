@@ -1,0 +1,28 @@
+# ActorEndsShot ($83:81CF), and ActorEndsShotLong ($83:81CB) by JSL, when
+# a shot touches the actor, which no play
+# gives it ($83:81D4: kind $13 marks the hit, the shot's code goes on at
+# its end). Stage a1 s1 as cov_kind2a_harmless_shot.box: Aladdin held at
+# x $0260, y $01A8 throws an apple right; in the 5 frames after, while
+# the apple (record $09CB) is still at his hand, unit calls of
+# ActorEndsShot on his own record (D = $08DB), each put back after.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 20
+repeat 4
+poke 0008E7 60,02
+poke 0008EA A8,01
+hold RIGHT+A 1
+end
+repeat 5
+call 8381CF p=30 d=08DB db=80
+call 8381CB long p=30 d=08DB db=80
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 1
+end

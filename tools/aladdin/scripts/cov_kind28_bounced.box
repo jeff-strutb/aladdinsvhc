@@ -1,0 +1,20 @@
+# Kind $28 bounced on before it rises: its wait's ActorBouncesPlayer
+# (Kind28Wait, $83:A1D8) sends it into state $8C, and its downed state
+# (Kind28Second) plays sound $29 first when it never waited facing right
+# ($83:A19A). On pw4.state the kind $28 at record $0BFB (x $0120, y $01B8)
+# is held facing $80 with its $46 at 0 (crafted: the facing it counts by
+# is never negative in play), the camera at x $0080, while Aladdin is
+# dropped onto it from x $0120, y $0170.
+load build/aladdin/states/pw4.state
+hold R 5
+wait 60
+poke 001773 80,00
+poke 0019E5 80,00
+poke 0008E7 20,01
+poke 0008EA 70,01
+repeat 40
+poke 000C0F 80
+poke 000C41 00
+wait 1
+end
+wait 60

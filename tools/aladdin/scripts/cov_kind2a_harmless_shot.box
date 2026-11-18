@@ -1,0 +1,109 @@
+# Kind $2A downed by a harmless shot. Stage a1 s1, the camera at x $0200,
+# y $0100; Aladdin held at x $0260, y $01A8 throws an apple right at the
+# kind $2A at record $128B (near x $0292), and the apple (record $09CB)
+# is made harmless in flight (its $11 = $80): its wait's
+# ActorDownedByShot takes the harmless path ($83:8114, $83:A45A) and
+# turns it with bit 7 set, so Kind2ASecond starts facing negative
+# ($83:A391). Twice: the second time with the copier RAM on, so its fall
+# also pushes Aladdin right each frame ($83:A404). Before them, a plain
+# apple ($83:A45E); after them, the harmless one again with Aladdin's $2F
+# ($090A) held at $0B, so the turn takes his other side ($83:8114); and on
+# stage a5 s2 the same for kind $2D's stunned state (record $0BFB in state
+# $CC, as cov_kind2d_stunned), through ActorHitByShotCC ($83:814D).
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 20
+repeat 4
+poke 0008E7 60,02
+poke 0008EA A8,01
+hold RIGHT+A 1
+end
+repeat 60
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 1
+end
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 20
+repeat 4
+poke 0008E7 60,02
+poke 0008EA A8,01
+hold RIGHT+A 1
+end
+poke 0009DC 80
+repeat 60
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 1
+end
+load build/aladdin/states/stage_a1_s1.state
+cartram on
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 20
+repeat 4
+poke 0008E7 60,02
+poke 0008EA A8,01
+hold RIGHT+A 1
+end
+poke 0009DC 80
+repeat 60
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 1
+end
+cartram off
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA A8,01
+wait 20
+repeat 4
+poke 0008E7 60,02
+poke 0008EA A8,01
+hold RIGHT+A 1
+end
+poke 0009DC 80
+repeat 60
+poke 0008E7 60,02
+poke 0008EA A8,01
+poke 00090A 0B
+wait 1
+end
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000C10 80
+poke 000BFB CC
+wait 2
+poke 0008E7 D0,00
+hold RIGHT 2
+press A
+poke 0009DC 80
+repeat 60
+poke 00090A 0B
+wait 1
+end

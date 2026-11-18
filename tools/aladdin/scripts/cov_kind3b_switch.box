@@ -1,0 +1,25 @@
+# Kind $3B's switch ($07 bit 4, Kind3BStart's switch part, $83:BFC0 on):
+# Aladdin in the air in its zone pulls it down (his code sent to $D9C5,
+# PlayerSpotBelowActor), it toggles its level flag and comes back up.
+# Stage a5 s2, the camera at x $0B40, y 0, so the switch at x $0BA0, y
+# $0004 ($07 = $10, record $0CEB) is placed; Aladdin held below it in the
+# air (x $0BA0, y $0014) for 30 frames, then let go; he hangs from it
+# ($1427 set); 100 frames on $1427 is cleared, and it comes back up
+# ($83:BFC7).
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 40,0B
+poke 0019E5 40,0B
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 20,0B
+poke 0008EA 30,00
+wait 60
+repeat 30
+poke 0008E7 A0,0B
+poke 0008EA 14,00
+wait 1
+end
+wait 100
+poke 001427 00
+wait 100
