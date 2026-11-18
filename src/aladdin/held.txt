@@ -5,8 +5,3 @@
 83:94A4 ActorLoop  # A5 DIVERGENT at 8eb6980
 83:94BF ActorLoopBack  # A5 DIVERGENT at 8eb6980
 83:94D3 ActorLoopNext  # A5 DIVERGENT at 8eb6980
-81:B7CF PointInGroundLong  # A7 cov_guard_moves red at 8eeecd3
-83:91F8 ActorKind00Wait  # A7 cov_guard_moves red at 8eeecd3
-83:948B PlayerLoopBack  # A7 cov_guard_moves red at 8eeecd3
-83:99EE ActorTileAheadIs70  # A7 cov_guard_moves red at 8eeecd3
-83:FBA6 ActorTestByX  # A7 cov_guard_moves red at 8eeecd3
