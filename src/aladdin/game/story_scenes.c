@@ -40,6 +40,27 @@ static void task_create(uint32_t site)
 #define PLACE_Y 0x002Eu
 
 /*
+ * @routine 80:B09E StoryScene1Start
+ * WHAT IT DOES: Sets up the story's first scene: song $32, and the scene's
+ * task at $81:F344 started.
+ * HOW: SongPlay $32; the task created in slot 4 with parameter 0.
+ * Entry: M 8-bit, X 8-bit; called by JSR (through the table at
+ * $80:B092); DB a bank whose $0000-$1FFF is work RAM. Exit: as
+ * TaskCreate leaves them.
+ */
+void abi_StoryScene1Start(void)
+{
+    a8_load(0x32);
+    jsl_frame(0x80B0A0u);           /* SongPlay pushes D and calls on: its JSL's return under them */
+    abi_SongPlay();
+    (void)rd8((uint16_t)(cpu.s + 1)); /* its RTL pulls the return: low, high, bank */
+    (void)rd8((uint16_t)(cpu.s + 2));
+    (void)rd8((uint16_t)(cpu.s + 3));
+    cpu.s = (uint16_t)(cpu.s + 3);
+    task_create(0x80B0A4u);
+}
+
+/*
  * @routine 80:B0AE StoryScene2Start
  * WHAT IT DOES: Sets up the story's second scene: sound command $F6 with
  * parameter 2 to be queued as it ends, then a wait of 64 frames, and the

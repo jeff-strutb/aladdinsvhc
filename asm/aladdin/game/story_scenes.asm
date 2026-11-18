@@ -19,6 +19,21 @@ arch 65816
 !STORY_FADE_IN_TASK = $819E8E   ; the screen's fade in, a task
 !STORY_FADE_OUT_TASK = $819EB9  ; its fade out
 
+; @routine 80:B09E StoryScene1Start
+; WHAT IT DOES: Sets up the story's first scene: song $32, and the scene's
+; task at $81:F344 started.
+; HOW: SongPlay $32; the task created in slot 4 with parameter 0.
+; Entry: M 8-bit, X 8-bit; called by JSR (through the table at
+; $80:B092); DB a bank whose $0000-$1FFF is work RAM. Exit: as the C states.
+%at($80B09E)
+StoryScene1Start:
+    lda.b #$32
+    jsl.l SongPlay
+    jsl.l TaskCreate
+    db 4*24, 0                  ; slot 4, parameter 0
+    dl !STORY_SCENE_TASK
+    rts
+
 ; @routine 80:B0AE StoryScene2Start
 ; WHAT IT DOES: Sets up the story's second scene: sound command $F6 with
 ; parameter 2 to be queued as it ends, then a wait of 64 frames, and the
