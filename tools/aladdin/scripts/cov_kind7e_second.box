@@ -1,0 +1,17 @@
+# Kind $7E's second state (Kind7ESecond, $83:92B1: JML Kind7FDrift), which
+# the actor loop jumps to for a kind $7E record in a state with bit 7 set
+# (the table at $83:8DFD). Stage a4 s1 with the view at x $0480, y 0 and
+# Aladdin at x $04C4 (as cov_kind7e_ways.box): the placements there make
+# record $0C9B a kind $7E; 45 frames on it is put in state $8C, and 60
+# frames run.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000C9B 8C
+wait 60
