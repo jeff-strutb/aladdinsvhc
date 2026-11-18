@@ -1,0 +1,67 @@
+# The routines at $81:946F-$9490 and $81:959A-$95B4 that nothing in the
+# game reaches, and the second part of a picture sent by
+# ActorPictureSendFromKind (no actor's picture list has one there).
+# Unit calls by JSL on the first level's state, DB $81 (work RAM through
+# it), M and X 8-bit unless set: Compare2FStep26 ($946F) with A equal to
+# $2F and not; ActorPictureQueueAltOnce ($947B) out at each of its three
+# tests, then through ActorPictureQueueNew and ActorPictureQueueParts;
+# ActorPictureQueueAltParts ($95B0); ActorPictureSendFromKind ($9527)
+# with a two-part picture. The actor is made at $1D00: bit 6 of $09 set,
+# picture 1 in $27 and $2F, $28 (the last sent) 0, its picture list at
+# $1D40 -> $1D50, picture 1's parts at $1D60 (source $8000, size $40, bank
+# $7E, step $10; then source $9000, size $40, bank $7E, the $FF).
+# (The machine is put back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+set $00002F 34,12
+call 81946F long a=34 d=0000 db=80 p=30
+set $00002F 34,12
+call 81946F long a=1235 x=0000 d=0000 db=80 p=00
+set $000843 01
+call 81947B long x=00 d=1D00 db=81 p=30
+set $001D06 00
+set $001D09 40
+set $001D27 01,00,40,1D,00,00
+set $001D2F 01
+set $001D40 50,1D
+set $001D50 00,00,60,1D
+set $001D60 00,80,40,00,7E,10,00,00,90,40,00,7E,FF
+set $000843 00
+set $001D09 00
+call 81947B long x=00 d=1D00 db=81 p=30
+set $001D06 00
+set $001D09 40
+set $001D27 01,00,40,1D,00,00
+set $001D2F 01
+set $001D40 50,1D
+set $001D50 00,00,60,1D
+set $001D60 00,80,40,00,7E,10,00,00,90,40,00,7E,FF
+set $000843 00
+set $001D2F 00
+call 81947B long x=00 d=1D00 db=81 p=30
+set $001D06 00
+set $001D09 40
+set $001D27 01,00,40,1D,00,00
+set $001D2F 01
+set $001D40 50,1D
+set $001D50 00,00,60,1D
+set $001D60 00,80,40,00,7E,10,00,00,90,40,00,7E,FF
+set $000843 00
+call 81947B long x=00 d=1D00 db=81 p=30
+set $001D06 00
+set $001D09 40
+set $001D27 01,00,40,1D,00,00
+set $001D2F 01
+set $001D40 50,1D
+set $001D50 00,00,60,1D
+set $001D60 00,80,40,00,7E,10,00,00,90,40,00,7E,FF
+set $00000C 02,00
+call 8195B0 long d=1D00 db=81 p=30
+set $001D06 00
+set $001D09 40
+set $001D27 01,00,40,1D,00,00
+set $001D2F 01
+set $001D40 50,1D
+set $001D50 00,00,60,1D
+set $001D60 00,80,40,00,7E,10,00,00,90,40,00,7E,FF
+call 819527 long d=1D00 db=81 p=30
