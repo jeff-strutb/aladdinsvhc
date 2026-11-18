@@ -19,6 +19,18 @@ void abi_AnimStep(void);
 void abi_SoundQueueAdd(void);
 void abi_ActorBouncesPlayerLong(void);
 void abi_ActorEndPlaced(void);
+void abi_ActorEndsShotLong(void);
+void abi_ActorHitsTestBoxIfActiveLong(void);
+void abi_PlayerEnter8CFacingLong(void);
+void abi_ActorSideOfPlayer(void);
+void abi_PlayerPushAsideLong(void);
+void abi_ActorFreeOutOfRangeLong(void);
+
+#define K66_HELD 0x4Bu               /* nonzero: no touch or shot tests; purpose not yet established */
+#define K66_TOUCHED 0x1435u          /* set while the player touches a kind $66 (cleared by the player's frame work) */
+#define K66_TEST_BOX_Y 0x1486u       /* the test box's centre y (word) */
+#define K66_TEST_BOX_HALF_W 0x1488u  /* its half-width (word) */
+#define K66_TEST_BOX_HALF_H 0x148Au  /* its half-height (word) */
 
 #define K7E_BOUNCE 0x42u        /* frames left of a bounce (the player held on it) */
 #define K7E_STAYS 0x47u         /* nonzero: never freed out of range */
@@ -35,6 +47,70 @@ void abi_ActorEndPlaced(void);
  */
 void abi_Kind81WaitWork(void)
 {
+}
+
+/*
+ * @routine 84:85DC Kind66WaitWork
+ * WHAT IT DOES: What actors of kind $66 do each frame they wait: unless
+ * their $4B is set, a shot may end them, and the player touching one is
+ * pressed down when his box is below its middle, else pushed aside (with
+ * his box a pixel narrower when he is to its side); not touching (or $4B
+ * set), they end out of range.
+ * HOW: $4B nonzero: K66_TOUCHED cleared, ActorFreeOutOfRangeLong with X =
+ * 0. Else ActorEndsShotLong; ActorHitsTestBoxIfActiveLong; no touch: as
+ * above. Touch: 16-bit, its y pixels + $20 in SCRATCH; TEST_BOX_Y less
+ * TEST_BOX_HALF_H, not below it: JML PlayerEnter8CFacingLong. Else
+ * K66_TOUCHED = 1; ActorSideOfPlayer: zero, JML PlayerPushAsideLong; else
+ * TEST_BOX_HALF_W down one around PlayerPushAsideLong, RTL.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM, the hit boxes' bank; called by JSL from
+ * ActorKind66Wait. Exit: as the last call leaves them.
+ */
+void abi_Kind66WaitWork(void)
+{
+    lda8(ea_dp(K66_HELD));
+    if (IF_Z) {
+        jsl_frame(0x8485E0u);
+        abi_ActorEndsShotLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x8485E4u);
+        abi_ActorHitsTestBoxIfActiveLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        if (!IF_C) {
+            /* touching: below its middle, pressed down; else pushed aside */
+            op_rep(0x31);
+            lda16(ea_dp(ACTOR_Y + 1));
+            adc16_v(0x0020);
+            sta16(ea_abs(SCRATCH));
+            lda16(ea_abs(K66_TEST_BOX_Y));
+            sec();
+            sbc16_v(rd16(ea_abs(K66_TEST_BOX_HALF_H)));
+            cmp16_v(rd16(ea_abs(SCRATCH)));
+            op_sep(0x30);
+            if (IF_C) {
+                abi_PlayerEnter8CFacingLong();   /* JML */
+                return;
+            }
+            lda8_v(0x01);
+            sta8(ea_abs(K66_TOUCHED));
+            jsl_frame(0x84860Bu);
+            abi_ActorSideOfPlayer();
+            cpu.s = (uint16_t)(cpu.s + 3);
+            if (IF_Z) {
+                abi_PlayerPushAsideLong();       /* JML */
+                return;
+            }
+            MEM8(dec, ea_abs(K66_TEST_BOX_HALF_W));
+            jsl_frame(0x848614u);
+            abi_PlayerPushAsideLong();
+            cpu.s = (uint16_t)(cpu.s + 3);
+            MEM8(inc, ea_abs(K66_TEST_BOX_HALF_W));
+            return;
+        }
+    }
+    stz8(ea_abs(K66_TOUCHED));
+    ldx8_v(0x00);
+    abi_ActorFreeOutOfRangeLong();               /* JML */
 }
 
 /*

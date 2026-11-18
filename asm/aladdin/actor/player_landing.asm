@@ -227,6 +227,15 @@ LandingPad:
     sta.w !PLAYER_LANDED
     bra .frame
 
+; @routine 83:80B5 PlayerPushAsideLong
+; WHAT IT DOES: PlayerPushAside for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as PlayerPushAside; called by JSL. Exit: as PlayerPushAside.
+%at($8380B5)
+PlayerPushAsideLong:
+    jsr.w PlayerPushAside
+    rtl
+
 ; @routine 83:80C3 PlayerPushAside
 ; WHAT IT DOES: Puts Aladdin beside the actor, just out of its box: on
 ; its left when he is left of it (or at its x), else on its right.

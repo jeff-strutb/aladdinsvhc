@@ -6,6 +6,13 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/actor.inc"
+incsrc "../include/wram.inc"
+
+!K66_HELD = $4B                 ; nonzero: no touch or shot tests; purpose not yet established
+!K66_TOUCHED = $1435            ; set while the player touches a kind $66 (cleared by the player's frame work)
+!K66_TEST_BOX_Y = $1486         ; the test box's centre y (word)
+!K66_TEST_BOX_HALF_W = $1488    ; its half-width (word)
+!K66_TEST_BOX_HALF_H = $148A    ; its half-height (word)
 
 !K9A_BOUNCES = $41             ; nonzero: Aladdin bounces off it (else touching it hurts him)
 !K7E_BOUNCE = $42              ; frames left of a bounce (the player held on it)
@@ -23,6 +30,55 @@ arch 65816
 %at($84951C)
 Kind81WaitWork:
     rtl
+
+; @routine 84:85DC Kind66WaitWork
+; WHAT IT DOES: What actors of kind $66 do each frame they wait: unless
+; their $4B is set, a shot may end them, and the player touching one is
+; pressed down when his box is below its middle, else pushed aside (with
+; his box a pixel narrower when he is to its side); not touching (or $4B
+; set), they end out of range.
+; HOW: $4B nonzero: K66_TOUCHED cleared, ActorFreeOutOfRangeLong with X =
+; 0. Else ActorEndsShotLong; ActorHitsTestBoxIfActiveLong; no touch: as
+; above. Touch: 16-bit, its y pixels + $20 in SCRATCH; TEST_BOX_Y less
+; TEST_BOX_HALF_H, not below it: JML PlayerEnter8CFacingLong. Else
+; K66_TOUCHED = 1; ActorSideOfPlayer: zero, JML PlayerPushAsideLong; else
+; TEST_BOX_HALF_W down one around PlayerPushAsideLong, RTL.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM, the hit boxes' bank; called by JSL from
+; ActorKind66Wait. Exit: as the last call leaves them.
+%at($8485DC)
+Kind66WaitWork:
+    lda.b !K66_HELD
+    bne .out
+    jsl.l ActorEndsShotLong
+    jsl.l ActorHitsTestBoxIfActiveLong
+    bcs .out
+    rep.b #$31
+    lda.b !actor_y+1
+    adc.w #$0020
+    sta.w !scratch
+    lda.w !K66_TEST_BOX_Y
+    sec
+    sbc.w !K66_TEST_BOX_HALF_H
+    cmp.w !scratch
+    sep.b #$30
+    bcc .beside
+    jml.l PlayerEnter8CFacingLong
+.beside:
+    lda.b #$01
+    sta.w !K66_TOUCHED
+    jsl.l ActorSideOfPlayer
+    beq .push
+    dec.w !K66_TEST_BOX_HALF_W
+    jsl.l PlayerPushAsideLong
+    inc.w !K66_TEST_BOX_HALF_W
+    rtl
+.push:
+    jml.l PlayerPushAsideLong
+.out:
+    stz.w !K66_TOUCHED
+    ldx.b #$00
+    jml.l ActorFreeOutOfRangeLong
 
 ; @routine 84:95E3 Kind84Start
 ; @actor

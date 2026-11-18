@@ -7,6 +7,7 @@
  */
 #include "machine.h"
 #include "ops65.h"
+void abi_Kind66WaitWork(void);
 
 void abi_ShotFly(void);
 void abi_KindA0Start(void);
@@ -926,6 +927,21 @@ void abi_Kind7DSecond(void)
 void abi_Kind84Second(void)
 {
     abi_Kind84WaitWork();
+}
+
+/*
+ * @routine 83:944E ActorKind66Wait
+ * WHAT IT DOES: What actors of kind $66 do each frame they wait, when bit
+ * 7 of their byte at $09 is set: Kind66WaitWork.
+ * HOW: JSL Kind66WaitWork ($84:85DC), then RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR through
+ * the actor loop's wait table. Exit: as Kind66WaitWork.
+ */
+void abi_ActorKind66Wait(void)
+{
+    jsl_frame(0x83944Eu);
+    abi_Kind66WaitWork();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*

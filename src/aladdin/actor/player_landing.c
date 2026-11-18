@@ -12,6 +12,7 @@
 #include "wram.h"
 #include "actor_anim.h"
 
+void abi_PlayerPushAside(void);
 void abi_ActorHitsTestBoxIfActive(void);
 void abi_ScratchBelowBy10(void);
 void abi_ActorAllocBLong(void);
@@ -296,6 +297,17 @@ void abi_LandingPad(void)
         wr8(dba(PLAYER_LANDED), landed);
     }
     jump_routine(PAD_FROM_SIDE);
+}
+
+/*
+ * @routine 83:80B5 PlayerPushAsideLong
+ * WHAT IT DOES: PlayerPushAside for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as PlayerPushAside; called by JSL. Exit: as PlayerPushAside.
+ */
+void abi_PlayerPushAsideLong(void)
+{
+    call_frame(0x80B7, abi_PlayerPushAside);
 }
 
 /*

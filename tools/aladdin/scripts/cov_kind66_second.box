@@ -15,3 +15,63 @@ poke 0008EA A0,01
 wait 40
 poke 0011EB 8C
 wait 60
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0008E7 70,06
+poke 0008EA E0,01
+wait 30
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0008E7 60,06
+poke 0008EA 08,02
+wait 30
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0008E7 80,06
+poke 0008EA 08,02
+wait 30
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0008E7 70,06
+poke 0008EA 08,02
+wait 30
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0008E7 70,06
+poke 0008EA 35,02
+wait 30

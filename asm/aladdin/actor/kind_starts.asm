@@ -687,6 +687,17 @@ Kind7DSecond:
 Kind84Second:
     jml.l Kind84WaitWork
 
+; @routine 83:944E ActorKind66Wait
+; WHAT IT DOES: What actors of kind $66 do each frame they wait, when bit
+; 7 of their byte at $09 is set: Kind66WaitWork.
+; HOW: JSL Kind66WaitWork ($84:85DC), then RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; called by JSR through
+; the actor loop's wait table. Exit: as Kind66WaitWork.
+%at($83944E)
+ActorKind66Wait:
+    jsl.l Kind66WaitWork
+    rts
+
 ; @routine 83:9453 Kind66Second
 ; @actor
 ; WHAT IT DOES: Where actors of kind $66 go on from the actor loop in
