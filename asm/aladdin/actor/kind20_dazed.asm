@@ -94,3 +94,32 @@ Kind20Dazed:
     lda.b #$80
     tsb.b !actor_09
     jmp.w Kind20Halt
+
+; @routine 83:9CD2 Kind22Start
+; @actor
+; WHAT IT DOES: Actor kind $22's start: it stays where it was placed for
+; good, its wait (Kind22Wait: Aladdin touching it is hurt; its end out of
+; range) run each frame.
+; HOW: ACTOR_08 0; ACTOR_09 bit 7 set (LDA, ORA, STA); each frame BRK, for
+; good.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the actor
+; loop's jump for kind $22 (the table at $83:8CAB). Exit: never returns.
+Kind22Start:
+    stz.b !actor_08
+    lda.b !actor_09
+    ora.b #$80
+    sta.b !actor_09
+.still:
+    brk.b #$00
+    bra .still
+
+; @routine 83:9CDE Kind22Second
+; @actor
+; WHAT IT DOES: Where actors of kind $22 go on from the actor loop in a
+; state with bit 7 set (the table at $83:8DFD): ActorEndPlaced.
+; HOW: JML to ActorEndPlaced ($83:96CA).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as ActorEndPlaced.
+Kind22Second:
+    jml.l ActorEndPlaced
+%ends_at($839CE2)

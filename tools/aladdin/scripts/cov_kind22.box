@@ -1,0 +1,17 @@
+# Actor kind $22 (Kind22Start $83:9CD2, Kind22Wait 9CE2, Kind22Second
+# 9CDE), which no play reaches: stage a1 s1 places one at x $0876,
+# y $02A0. With the view put at x $07F6, y $0220 and Aladdin at x $0876,
+# y $0280, it is created (record $0BAB) and stays, its wait run each
+# frame; 60 frames on its record is put in state $8C, so the loop runs its
+# second-state entry (ActorEndPlaced).
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 F6,07
+poke 0019E5 F6,07
+poke 001777 20,02
+poke 0019E9 20,02
+poke 0008E7 76,08
+poke 0008EA 80,02
+wait 60
+poke 000BAB 8C
+wait 20

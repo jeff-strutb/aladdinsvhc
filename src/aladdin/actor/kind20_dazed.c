@@ -23,6 +23,7 @@ void abi_AnimStart(void);
 void abi_AnimStep(void);
 void abi_Kind20Halt(void);
 void abi_Kind20Hit(void);
+void abi_ActorEndPlaced(void);
 
 #define DAZE_PLACE 0x07u          /* its place's byte: bit 4, the palette from ROM */
 #define DAZE_FRAMES 0x42u         /* frames of the daze left */
@@ -119,4 +120,39 @@ again:
     lda8_v(0x80);
     tsb8(ea_dp(ACTOR_09));
     abi_Kind20Halt();
+}
+
+/*
+ * @routine 83:9CD2 Kind22Start
+ * @actor
+ * WHAT IT DOES: Actor kind $22's start: it stays where it was placed for
+ * good, its wait (Kind22Wait: Aladdin touching it is hurt; its end out of
+ * range) run each frame.
+ * HOW: ACTOR_08 0; ACTOR_09 bit 7 set (LDA, ORA, STA); each frame BRK, for
+ * good.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the actor
+ * loop's jump for kind $22 (the table at $83:8CAB). Exit: never returns.
+ */
+void abi_Kind22Start(void)
+{
+    stz8(ea_dp(ACTOR_08));
+    lda8(ea_dp(ACTOR_09));
+    ora8_v(0x80);
+    sta8(ea_dp(ACTOR_09));
+    for (;;)
+        actor_yield(0x839CDAu);
+}
+
+/*
+ * @routine 83:9CDE Kind22Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $22 go on from the actor loop in a
+ * state with bit 7 set (the table at $83:8DFD): ActorEndPlaced.
+ * HOW: JML to ActorEndPlaced ($83:96CA).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as ActorEndPlaced.
+ */
+void abi_Kind22Second(void)
+{
+    abi_ActorEndPlaced();
 }
