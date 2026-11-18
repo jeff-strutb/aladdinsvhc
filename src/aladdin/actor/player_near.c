@@ -31,6 +31,7 @@ static uint32_t dp(uint8_t off)
 #define NEAR_POINT_X (SCRATCH + 8)  /* ActorNearPoint's point (words) */
 #define NEAR_POINT_Y (SCRATCH + 10)
 #define NEAR_SPAN_TABLE 0xBC7Bu    /* half-width: 2 bytes an entry */
+#define NEAR_SPAN_Y_TABLE 0xBC85u  /* ActorNearPlayerY's half-height: 2 bytes an entry, bank DB */
 
 /*
  * @routine 81:AB62 ActorPlayerBelow
@@ -146,6 +147,26 @@ void abi_ActorNearPlayerX(void)
     op_rep(P_M);
     half_and_span(NEAR_SPAN_TABLE, SCRATCH);
     within(ACTOR_X + 1, PLAYER_X_PIXEL, SCRATCH, SCRATCH + 2);
+    op_sep(P_M);
+}
+
+/*
+ * @routine 81:ADA4 ActorNearPlayerY
+ * WHAT IT DOES: Says whether the player is within a half-height of the
+ * actor up or down, whatever the distance across.
+ * HOW: Takes span Y's half-height (the table at $BC85 in bank DB) and
+ * keeps it and its double in scratch; y - player's y + half-height is
+ * below the height (unsigned) when within.
+ * Entry: M 8-bit; D = the actor; DB the table's bank ($80 from kind $2B);
+ * Y = the span's byte offset; called by JSL (83:A591, 83:DA2D). Exit: C
+ * clear when within; A = the sum (16 bits); N, Z, C from its compare;
+ * scratch $0C-$0F = half-height, height; M 8-bit; X, Y, V unchanged.
+ */
+void abi_ActorNearPlayerY(void)
+{
+    op_rep(P_M);
+    half_and_span(NEAR_SPAN_Y_TABLE, SCRATCH);
+    within(ACTOR_Y + 1, PLAYER_Y_PIXEL, SCRATCH, SCRATCH + 2);
     op_sep(P_M);
 }
 

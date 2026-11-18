@@ -129,6 +129,32 @@ ActorNearPlayerX:
     sep.b #$20
     rtl
 
+; @routine 81:ADA4 ActorNearPlayerY
+; WHAT IT DOES: Says whether the player is within a half-height of the
+; actor up or down, whatever the distance across.
+; HOW: Takes span Y's half-height (the table at $BC85 in bank DB) and
+; keeps it and its double in scratch; y - player's y + half-height is
+; below the height (unsigned) when within.
+; Entry: M 8-bit; D = the actor; DB the table's bank ($80 from kind $2B);
+; Y = the span's byte offset; called by JSL (83:A591, 83:DA2D). Exit: C
+; clear when within; A = the sum (16 bits); N, Z, C from its compare;
+; scratch $0C-$0F = half-height, height; M 8-bit; X, Y, V unchanged.
+%at($81ADA4)
+ActorNearPlayerY:
+    rep.b #$20
+    lda.w $BC85,y
+    sta.w !scratch
+    asl a
+    sta.w !scratch+2
+    sec
+    lda.b !actor_y+1
+    sbc.w !player+!actor_y+1
+    clc
+    adc.w !scratch
+    cmp.w !scratch+2
+    sep.b #$20
+    rtl
+
 ; @routine 81:AD17 ActorNearPoint
 ; WHAT IT DOES: Says whether the actor is inside a box round the point
 ; in scratch $14, $16: within a half-width across and a half-height up or

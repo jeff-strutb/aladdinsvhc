@@ -1,0 +1,60 @@
+# Actor kind $2B's drops (its start $83:A467), which no level the scripts
+# reach places: the first level's record $092B made one (kind byte $2B,
+# state $0C). Way $08 with Aladdin held below it (y $01D0): its drop onto
+# him ($83:A5AA-$83:A5E4, $83:A54D), then as a walker on the ground (way
+# 1) its test of his height (81:ADA4). Way $10 with Aladdin held below it
+# at its x: its shake and fall ($83:A628-$83:A65E). Its $4B and its
+# partner ($49, a record its maker sets) are crafted: no code the scripts
+# run sets them, and its wait clears $4B each frame. The partner is the
+# free record $13CB: its x $0030 (right of the actor's), its $13 and $16
+# 0. With $4B set during the fall it walks back and forth within $1E of
+# the partner's x (83:CD47); with the partner's $13 3 it jumps, its $4B
+# set again, and with the partner's $16 set it ends ($83:A660-$83:A6F2).
+# Last, way 0 with the random word ($032B) 0, which stays 0 when stepped:
+# RandomNext's result not negative, its other way round ($83:A484).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 08
+poke 00092B 0C
+wait 20
+repeat 20
+poke 0008EA D0,01
+wait 1
+end
+wait 200
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 10
+poke 00092B 0C
+poke 0013D7 30,00
+poke 0013DE 00
+poke 0013E1 00
+poke 000974 CB,13
+repeat 30
+poke 0008E7 15,00
+poke 0008EA D0,01
+wait 2
+end
+wait 10
+poke 000976 01
+wait 1
+wait 100
+poke 0013DE 03
+wait 1
+wait 20
+poke 0013DE 00
+poke 000976 01
+wait 1
+wait 6
+poke 0013E1 01
+wait 1
+wait 20
+load build/aladdin/states/level1.state
+wait 10
+poke 00032B 00,00
+poke 000931 2B
+poke 000932 00
+poke 00092B 0C
+wait 60
