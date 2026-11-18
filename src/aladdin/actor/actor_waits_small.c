@@ -71,9 +71,6 @@ void abi_PlayerToActorBelow(void);
 #define KIND69_FRAMES 0x40u                    /* frames left of each of its two poses */
 #define KIND3C_16 0x16u                        /* word: $D282 */
 #define KIND3C_LEG 0x40u                       /* frames left before its vertical speed turns */
-/* Not yet filed (no script reaches it): kind $3C's frames after its
-   first, each ActorMoveY, its vertical speed turned every $55. */
-#define KIND3C_DRIFT 0x83B0FFu
 #define KIND69_RIDING 0x42u                    /* nonzero: kind $69 rides on the escort */
 #define V_00BD 0x0000BDu                       /* counted up as each such end finishes; a camera trigger task clears it */
 
@@ -241,10 +238,8 @@ void abi_Kind69EscortEnd(void)
  * vertical speed turns every $55 frames.
  * HOW: ACTOR_08 bit 1 and ACTOR_09 bits $90 set; KIND3C_16 = $D282;
  * facing and flip 0; animation 0; ActorSpeedXSet $15, ActorSpeedYSet $42;
- * KIND3C_LEG $55 and ActorSpeedYTurn, then a yield. What it does after
- * that (each frame ActorMoveY, the count down, at 0 again from $55 and a
- * turn) is at KIND3C_DRIFT, which no script reaches: its C is not
- * written, and it runs as the original's (jump_routine).
+ * then over and over: KIND3C_LEG $55 and ActorSpeedYTurn; each frame a
+ * yield, ActorMoveY and the count down, until it is 0.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
  * the actor loop's jump for kind $3C in state $0C (the table at
  * $83:8CAB). Exit: never returns.
@@ -263,11 +258,15 @@ void abi_Kind3CDrift(void)
     abi_ActorSpeedXSet();
     y8_load(0x42);
     abi_ActorSpeedYSet();
-    a8_load(0x55);
-    wr8(dpa(KIND3C_LEG), 0x55);
-    abi_ActorSpeedYTurn();
-    actor_yield(0x83B0FDu);
-    jump_routine(KIND3C_DRIFT);
+    for (;;) {
+        a8_load(0x55);
+        wr8(dpa(KIND3C_LEG), 0x55);
+        abi_ActorSpeedYTurn();
+        do {
+            actor_yield(0x83B0FDu);
+            abi_ActorMoveY();
+        } while (dec8_at(dpa(KIND3C_LEG)));
+    }
 }
 
 /*

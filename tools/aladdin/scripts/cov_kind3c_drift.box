@@ -1,0 +1,31 @@
+# Actor kind $3C (its start Kind3CDrift $83:B0CB, its wait Kind3CWait
+# $83:B11C), which no level the scripts reach places: the first level's
+# record $092B made one (kind byte $3C, state $0C). First left alone 300
+# frames: its drift, each frame ActorMoveY, its vertical speed turned each
+# time its count of $55 frames runs out ($83:B0FF-$83:B108). Then with
+# $032D even (its turn, $83:B123) and Aladdin falling onto it while it
+# rises (its bounce, sound $12 and its rise turned, $83:B133).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3C
+poke 000932 00
+poke 00092B 0C
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3C
+poke 000932 00
+poke 00092B 0C
+wait 5
+poke 00032D 00
+wait 2
+repeat 6
+poke 000937 3A,00
+poke 00093A C0,01
+poke 0008EA 90,01
+poke 0008EE 00,00
+poke 00141C 01
+poke 00141B 00
+wait 1
+end
+wait 30

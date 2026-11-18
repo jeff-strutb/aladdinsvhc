@@ -197,10 +197,8 @@ Kind69EscortEnd:
 ; vertical speed turns every $55 frames.
 ; HOW: actor_08 bit 1 and actor_09 bits $90 set; KIND3C_16 = $D282;
 ; facing and flip 0; animation 0; ActorSpeedXSet $15, ActorSpeedYSet $42;
-; KIND3C_LEG $55 and ActorSpeedYTurn, then a yield. What it does after
-; that (each frame ActorMoveY, the count down, at 0 again from $55 and a
-; turn) is at $83:B0FF, which no script reaches: those bytes are left in
-; the intake.
+; then over and over: KIND3C_LEG $55 and ActorSpeedYTurn; each frame a
+; yield, ActorMoveY and the count down, until it is 0.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
 ; the actor loop's jump for kind $3C in state $0C (the table at
 ; $83:8CAB). Exit: never returns.
@@ -224,10 +222,16 @@ Kind3CDrift:
     jsl.l ActorSpeedXSet
     ldy.b #$42
     jsl.l ActorSpeedYSet
+.leg:
     lda.b #$55
     sta.b !KIND3C_LEG
     jsr.w ActorSpeedYTurn
+.frame:
     brk.b #$00
+    jsl.l ActorMoveY
+    dec.b !KIND3C_LEG
+    bne .frame
+    bra .leg
 
 ; @routine 83:EB24 Kind69Wait
 ; WHAT IT DOES: What actor kind $69 runs each frame it waits: its
