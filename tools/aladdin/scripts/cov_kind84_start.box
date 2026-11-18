@@ -1,0 +1,11 @@
+# Actor kind $84's start (Kind84Start, $84:95E3), which no level the
+# scripts reach places (GrabberStart, $83:C86F, spawns it): the first
+# level's record $092B made one (kind byte +6 $84, state $0C). It starts
+# animation 0, waits 16 frames (COP; Kind84WaitWork, $84:95FD, each
+# frame) and ends (ActorEndPlaced).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 84
+poke 000932 00
+poke 00092B 0C
+wait 40

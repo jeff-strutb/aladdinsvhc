@@ -8,6 +8,7 @@
 #include "native.h"
 #include "actor.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "wram.h"
 
 void abi_ActorFreeOutOfRangeLong(void);
@@ -17,6 +18,7 @@ void abi_AnimStart(void);
 void abi_AnimStep(void);
 void abi_SoundQueueAdd(void);
 void abi_ActorBouncesPlayerLong(void);
+void abi_ActorEndPlaced(void);
 
 #define K7E_BOUNCE 0x42u        /* frames left of a bounce (the player held on it) */
 #define K7E_STAYS 0x47u         /* nonzero: never freed out of range */
@@ -33,6 +35,33 @@ void abi_ActorBouncesPlayerLong(void);
  */
 void abi_Kind81WaitWork(void)
 {
+}
+
+/*
+ * @routine 84:95E3 Kind84Start
+ * @actor
+ * WHAT IT DOES: Kind $84's start (GrabberStart spawns it): shows its first
+ * animation for 16 frames, then ends.
+ * HOW: Bit 1 of $08 and bits $90 of $09 set; AnimStart 0; a wait of 16
+ * frames (COP, Kind84WaitWork each frame); JML ActorEndPlaced.
+ * Entry: D = the actor's record; M 8-bit, X 8-bit; reached by JML from
+ * kind $84's start entry ($83:92E5). Exit: never returns: as
+ * ActorEndPlaced. */
+void abi_Kind84Start(void)
+{
+    lda8(ea_dp(ACTOR_08));
+    ora8_v(0x02);
+    sta8(ea_dp(ACTOR_08));
+    lda8(ea_dp(ACTOR_09));
+    ora8_v(0x90);
+    sta8(ea_dp(ACTOR_09));
+    lda8_v(0x00);
+    jsl_frame(0x8495F1u);
+    abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    lda8_v(0x10);
+    actor_wait(0x8495F7u);
+    abi_ActorEndPlaced();
 }
 
 /*

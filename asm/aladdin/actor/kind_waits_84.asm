@@ -24,6 +24,29 @@ arch 65816
 Kind81WaitWork:
     rtl
 
+; @routine 84:95E3 Kind84Start
+; @actor
+; WHAT IT DOES: Kind $84's start (GrabberStart spawns it): shows its first
+; animation for 16 frames, then ends.
+; HOW: Bit 1 of $08 and bits $90 of $09 set; AnimStart 0; a wait of 16
+; frames (COP, Kind84WaitWork each frame); JML ActorEndPlaced.
+; Entry: D = the actor's record; M 8-bit, X 8-bit; reached by JML from
+; kind $84's start entry ($83:92E5). Exit: never returns: as
+; ActorEndPlaced.
+%at($8495E3)
+Kind84Start:
+    lda.b !actor_08
+    ora.b #$02
+    sta.b !actor_08
+    lda.b !actor_09
+    ora.b #$90
+    sta.b !actor_09
+    lda.b #$00
+    jsl.l AnimStart
+    lda.b #$10
+    cop.b #$00
+    jml.l ActorEndPlaced
+
 ; @routine 84:95FD Kind84WaitWork
 ; WHAT IT DOES: What actors of kind $84 do each frame they wait: their
 ; animation steps.
