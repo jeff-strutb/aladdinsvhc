@@ -1,0 +1,53 @@
+# The screen between acts (LevelEndTask, $81:F61D) for parts no play
+# reaches it in: part 7's next task ($81:F951, TaskExec $81:8181), part
+# 5's own tile blocks ($81:F6F8), and the copier RAM's count kept
+# ($81:F926: the part set back by $0003, to 1 or to 6). Played as
+# cov_level_end_press.box (act 1 stage 1's end; the screen starts 1030-1040
+# frames in), the part (LEVEL_035C, $035C) set: 1. to 7 at frame 1300, on
+# the screen; 2. to 5 at frame 1010, with the copier RAM (cartram)
+# switched on (it stays on for the rest); 3. to 1 at frame 1300 with $0003
+# set to 7. Then START on the screen.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1260
+poke $00035C 07
+wait 500
+press START
+wait 300
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 970
+poke $00035C 05
+cartram on
+wait 790
+press START
+wait 300
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1260
+poke $00035C 01
+poke $000003 07
+wait 500
+press START
+wait 300
