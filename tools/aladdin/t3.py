@@ -216,7 +216,12 @@ def affected_since(rev, harness=True):
             continue
         if not p.startswith(TREE + '/'):
             continue
-        if p.endswith(('.c', '.c.held')):
+        if p.endswith('.c'):
+            # By compiled code, as for headers: a routine whose own compiled C
+            # is unchanged keeps its results, whatever else its file gained
+            # (Jeff, 2026-11-18: test what needs testing).
+            headers = True
+        elif p.endswith('.c.held'):
             out |= tags_in(rev, p) | tags_in(REV, p)
         elif p == TREE + '/held.txt':
             # A hold or release: the routines left out at one revision only.
@@ -714,6 +719,18 @@ def contains(rev, path):
     return bool(last) and is_ancestor(last, rev)
 
 
+def holds(rev, addr, path):
+    """True when a result for routine `addr` measured on committed `rev`
+    holds for REV: `rev` has the last change to its file, or `rev` is an
+    ancestor of REV and the routine's compiled C (and the held C, headers)
+    did not change since (stale())."""
+    if contains(rev, path):
+        return True
+    if not rev or rev.endswith('+dirty') or not is_ancestor(rev, REV):
+        return False
+    return not stale(rev, addr)
+
+
 def merged_map():
     sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
     import codemap
@@ -813,7 +830,7 @@ def assess(addrs, image_ok=None):
         # interrupt overlapped it, or it reached code without C) has no call
         # A5 can judge; with no divergent call it is left to A7.
         a5ok = bool(lr) and (lr['verdict'] == 'IDENTICAL' or (lr['verdict'] == 'UNVERIFIED' and int(lr['diff']) == 0))
-        g5 = a5ok and contains(lr['source'], cpath) and not dirty(cpath)
+        g5 = a5ok and holds(lr['source'], key, cpath) and not dirty(cpath)
         why5 = ('%s on %s' % (lr['verdict'], lr['source']) if lr else 'never run')
         # A routine that never returns (it stops or restarts the game) gives
         # A5 no call to compare. Its unit calls marked noreturn run as
@@ -824,7 +841,7 @@ def assess(addrs, image_ok=None):
             sm = re.search(r'@spc\s+([0-9A-Fa-f]{4})', h)
             scripts = noreturn_scripts(addr, int(sm.group(1), 16) if sm else None)
             rows = {r['script']: r for r in image_rows}
-            if scripts and all(n in rows and rows[n]['verdict'] == 'IDENTICAL' and contains(rows[n]['source'], cpath)
+            if scripts and all(n in rows and rows[n]['verdict'] == 'IDENTICAL' and holds(rows[n]['source'], key, cpath)
                                for n in scripts):
                 g5 = True
                 why5 = 'never returns; its noreturn unit calls IDENTICAL in A7 (%s)' % ', '.join(scripts)
@@ -834,7 +851,7 @@ def assess(addrs, image_ok=None):
         rows = {r['script']: r for r in image_rows}
         judged = sorted(reaching([key]))
         miss = [n for n in judged if n not in rows or rows[n]['verdict'] != 'IDENTICAL'
-                or not contains(rows[n]['source'], cpath)]
+                or not holds(rows[n]['source'], key, cpath)]
         g7 = bool(judged) and not miss and not dirty(cpath)
         why7 = 'no script reaches it' if not judged else '%d of %d scripts reaching it IDENTICAL on its C' % (
             len(judged) - len(miss), len(judged))
