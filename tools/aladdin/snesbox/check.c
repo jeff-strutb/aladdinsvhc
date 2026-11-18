@@ -1002,6 +1002,14 @@ static void on_insn(uint32_t pc)
             a5_loop_s = 0;
         }
     }
+    /* The actor loop's call returned (its RTL back at S = a5_loop_s + 3)
+       with nothing parked: no loop call runs now, so an RTI or JMP
+       (table,X) at that level later is not its hand-off (BandScrolls'
+       dispatch, $81:C952, at the same depth of the ending's stages task). */
+    if (a5_loop_s && prev_op == 0x6B) {
+        if (!have) { core_regs(&r); have = 1; }
+        if (r.s == (uint16_t)(a5_loop_s + 3)) a5_loop_s = 0;
+    }
     if (!(watched[pc >> 3] >> (pc & 7) & 1)) return;
     int idx = -1;
     for (int i = 0; i < nroutines; i++) if (routines[i].addr == pc) { idx = i; break; }
