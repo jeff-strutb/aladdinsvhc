@@ -185,6 +185,10 @@ void abi_ActorPictureQueueParts(void)
     wr16(dba(VRAM_QUEUE) + cpu.x, cpu.a);
     for (;;) {
         phx16();
+        lda16(ea_dp(ACTOR_06));                  /* read, then X pulled back over it */
+        and16_v(0x00FF);
+        cpu.a = asl16_r(cpu.a);
+        tax16();
         plx16();
         flag_set(P_C, 0);
         cpu.a = rd16(dba(0) + cpu.y);
