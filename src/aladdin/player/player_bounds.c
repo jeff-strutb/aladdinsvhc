@@ -58,9 +58,7 @@ void abi_PlayerFallenTest(void)
 }
 
 
-/* From $81:E966, PlayerHurtCountdown's end of the time: bit 4 of the
-   player's $08, bit 7 of the record's $08 and bit 2 of $0347 cleared; A
-   low the new $0347, N and Z from it. */
+/* PlayerHurtTimeOut's work: its entry, PlayerHurtTimeEnd and PlayerHurtCountdown call it. */
 static void hurt_time_out(void)
 {
     a8_load((uint8_t)(rd8(dba(PLAYER + ACTOR_08)) & 0xEF));
@@ -72,11 +70,26 @@ static void hurt_time_out(void)
 }
 
 /*
+ * @routine 81:E966 PlayerHurtTimeOut
+ * WHAT IT DOES: The time the player cannot be hurt is over: he can be hit
+ * again.
+ * HOW: Bit 4 of the player's $08, bit 7 of the record's $08 and bit 2 of
+ * $0347 cleared.
+ * Entry: M 8-bit; D = the player's record; DB a bank whose $0000-$1FFF is
+ * work RAM; reached from PlayerHurtCountdown and called by JSR from
+ * PlayerHurtTimeEnd. Exit: M 8-bit; A low = the new $0347, N and Z from it.
+ */
+void abi_PlayerHurtTimeOut(void)
+{
+    hurt_time_out();
+}
+
+/*
  * @routine 81:E955 PlayerHurtTimeEnd
  * WHAT IT DOES: Ends the time the player cannot be hurt, at once: he can
  * be hit again.
- * HOW: PLAYER_HURT_TIME cleared, then JSR to PlayerHurtCountdown's end of
- * the time ($81:E966). No script runs it: written from its bytes.
+ * HOW: PLAYER_HURT_TIME cleared, then JSR to PlayerHurtTimeOut. No script
+ * runs it: written from its bytes.
  * Entry: M 8-bit; D = the player's record; DB a bank whose $0000-$1FFF is
  * work RAM; called by JSR. Exit: M 8-bit; A low = the new $0347, N and Z
  * from it.
@@ -102,11 +115,10 @@ void abi_PlayerHurtTimeEndLong(void)
  * @routine 81:E95C PlayerHurtCountdown
  * WHAT IT DOES: Counts down the time the player cannot be hurt; when it
  * runs out, the player can be hit again.
- * HOW: PLAYER_HURT_TIME, when nonzero, steps down; at 0, bit 4 of the
- * player's $08, bit 7 of the actor's $08 and bit 2 of $0347 are cleared.
+ * HOW: PLAYER_HURT_TIME, when nonzero, steps down; at 0, on into
+ * PlayerHurtTimeOut.
  * Entry: M 8-bit; D = the player's record; called by JSR. Exit: M 8-bit;
- * ran out: A low = the new $0347, N and Z from it; else A low = the count
- * before its step.
+ * ran out: as PlayerHurtTimeOut; else A low = the count before its step.
  */
 void abi_PlayerHurtCountdown(void)
 {
