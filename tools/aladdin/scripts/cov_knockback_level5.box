@@ -1,0 +1,33 @@
+# Aladdin knocked back on level 5 (PlayerKnockback, $81:DADD): falling,
+# it tests the ground behind him for behaviour bit 4 ($81:DB68) and, on
+# it, sets V_1A10 and V_1A12 ($81:DB72). No script is hurt on level 5.
+# Stage a1 s1 (level 5) as rand_stage_a1_s1's first 9 lines, then walking
+# right off the ledge into the fall, where PlayerAir finds that ground
+# from y $01DC down. 1. 30 frames into the fall (y $01BE) his code is set
+# to PlayerKnockback's entry (the record's P, PC: $30, $DADD), as the
+# actor loop resumes it: thrown back onto the ledge, the test finds no bit
+# 4. 2. 45 frames in (y $0208): he falls back through that ground.
+load build/aladdin/states/stage_a1_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 30
+poke $0008DD 30,DD,DA
+wait 60
+load build/aladdin/states/stage_a1_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 45
+poke $0008DD 30,DD,DA
+wait 60
