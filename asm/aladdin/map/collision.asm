@@ -762,6 +762,25 @@ ActorSnapToGround:
     sep.b #$32
     rtl
 
+; @routine 81:B4E4 ActorOutOfGroundAtActor
+; WHAT IT DOES: ActorOutOfGround at the actor's own x only, with the probe
+; as its record has it: when the actor is in the ground there, raises it
+; onto the surface (as far as 15 pixels higher allows). No code refers to
+; it.
+; HOW: ProbeAtActor, TileAtProbe: no tile, or a kind with bit 7, gives up
+; with Z set; else SurfaceHeightOver, then ActorOutOfGround's steps from
+; its tile.
+; Entry: X 8-bit; D = the actor; $18 = the probe's offset; DB = $80;
+; called by JSL. Exit: as ActorOutOfGround.
+%at($81B4E4)
+ActorOutOfGroundAtActor:
+    jsr.w ProbeAtActor
+    jsr.w TileAtProbe
+    beq ActorOutOfGround_none
+    bmi ActorOutOfGround_none
+    jsr.w SurfaceHeightOver
+    bra ActorOutOfGround_tile
+
 ; @routine 81:B4F3 ActorOutOfGround
 ; WHAT IT DOES: When the actor is in the ground at its probes, raises it
 ; onto the surface, unless that would leave it in the ground 15 pixels
@@ -797,6 +816,7 @@ ActorOutOfGround:
     beq .done
     bmi .none
     jsr.w SurfaceHeightSolid
+; From here also reached by BRA from ActorOutOfGroundAtActor.
 .tile:
     rep.b #$30
     lda.w !point_y

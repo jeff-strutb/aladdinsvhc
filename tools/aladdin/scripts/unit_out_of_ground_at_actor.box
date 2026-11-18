@@ -1,0 +1,14 @@
+# A unit call of ActorOutOfGroundAtActor (81:B4E4), which no code refers
+# to: ActorOutOfGround at the actor's own x only, with the probe its
+# record has. In level 4 (stage a1 s0) by JSL on Aladdin's record (M and
+# X 8-bit, DB $80), the view's y ($1777) $0060 so his point is on the
+# view, his probe ($08F3) 0 (24 down), his x and y ($08E7, $08EA) $0474,
+# $00AC: the point ($0474, $00C4) is in the solid tile at $0470, $00C0
+# (read from the level's map in a WRAM dump). The machine put back after.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008F3 00
+set $0008E7 74,04
+set $0008EA AC,00
+call 81B4E4 long d=08DB db=80 p=30

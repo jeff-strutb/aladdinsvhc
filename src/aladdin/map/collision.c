@@ -988,48 +988,21 @@ void abi_ActorSnapToGroundHere(void)
     snap_test();
 }
 
-/*
- * @routine 81:B4F3 ActorOutOfGround
- * WHAT IT DOES: When the actor is in the ground at its probes, raises it
- * onto the surface, unless that would leave it in the ground 15 pixels
- * higher too, where it goes as far as that allows.
- * HOW: Probe 0 at the actor's x (the tile above for a solid tile), then to
- * its left and right (a solid tile flat at its top), stopping at the
- * first tile; with none, Z set. When the point is at or below the surface
- * the raised y is kept in scratch $2A, and the actor tested at 15 pixels
- * above it: ground there with its surface above the point lowers the kept
- * y by the difference. The actor takes the kept y.
- * Entry: X 8-bit; D = the actor; DB = $80; called by JSL. Exit: M and X
- * 8-bit; no tile, or the point above the surface: Z set; raised: A = the
- * new y (16 bits), N, Z from it, C as the last test left it.
- */
-void abi_ActorOutOfGround(void)
+/* ActorOutOfGround from its tile on ($81:B520, also reached by BRA from
+   ActorOutOfGroundAtActor), the surface found: when the point is at or
+   below it the raised y is kept, the actor tested 15 pixels above, and
+   the kept y taken. Else Z set and the actor left where it is. */
+static void out_of_ground_tile(void)
 {
     uint16_t v;
-    int r;
 
-    if (cpu.p & P_M)
-        wr8(dp(ACTOR_PROBE_AT), 0);
-    else
-        wr16(dp(ACTOR_PROBE_AT), 0);
-    r = ground_at(abi_ProbeAtActor, 1, abi_SurfaceHeightOver);
-    if (r < 0) {
-        r = ground_at(abi_ProbeLeft, 1, abi_SurfaceHeightSolid);
-        if (r < 0) {
-            abi_ProbeRight();
-            abi_TileAtProbe();
-            if (cpu.p & P_Z)
-                return;
-            if (cpu.p & P_N)
-                goto none;
-            abi_SurfaceHeightSolid();
-        }
-    }
     op_rep(P_M | P_X);
     cpu.a = rd16(abs_db(POINT_Y));
     op_cmp16(rd16(abs_db(SURFACE_Y)));
-    if (!(cpu.p & P_C))
-        goto none;
+    if (!(cpu.p & P_C)) {
+        op_sep(P_M | P_X | P_Z);
+        return;
+    }
     v = onto_surface();
     wr16(abs_db(Y_SAVED), v);
     cpu.p &= (uint8_t)~P_C;
@@ -1053,9 +1026,68 @@ void abi_ActorOutOfGround(void)
     cpu.p = nz16(cpu.p, cpu.a);
     wr16(dp(ACTOR_Y + 1), cpu.a);
     op_sep(P_M | P_X);
-    return;
-none:
-    op_sep(P_M | P_X | P_Z);
+}
+
+/*
+ * @routine 81:B4F3 ActorOutOfGround
+ * WHAT IT DOES: When the actor is in the ground at its probes, raises it
+ * onto the surface, unless that would leave it in the ground 15 pixels
+ * higher too, where it goes as far as that allows.
+ * HOW: Probe 0 at the actor's x (the tile above for a solid tile), then to
+ * its left and right (a solid tile flat at its top), stopping at the
+ * first tile; with none, Z set. When the point is at or below the surface
+ * the raised y is kept in scratch $2A, and the actor tested at 15 pixels
+ * above it: ground there with its surface above the point lowers the kept
+ * y by the difference. The actor takes the kept y.
+ * Entry: X 8-bit; D = the actor; DB = $80; called by JSL. Exit: M and X
+ * 8-bit; no tile, or the point above the surface: Z set; raised: A = the
+ * new y (16 bits), N, Z from it, C as the last test left it.
+ */
+void abi_ActorOutOfGround(void)
+{
+    int r;
+
+    if (cpu.p & P_M)
+        wr8(dp(ACTOR_PROBE_AT), 0);
+    else
+        wr16(dp(ACTOR_PROBE_AT), 0);
+    r = ground_at(abi_ProbeAtActor, 1, abi_SurfaceHeightOver);
+    if (r < 0) {
+        r = ground_at(abi_ProbeLeft, 1, abi_SurfaceHeightSolid);
+        if (r < 0) {
+            abi_ProbeRight();
+            abi_TileAtProbe();
+            if (cpu.p & P_Z)
+                return;
+            if (cpu.p & P_N) {
+                op_sep(P_M | P_X | P_Z);
+                return;
+            }
+            abi_SurfaceHeightSolid();
+        }
+    }
+    out_of_ground_tile();
+}
+
+/*
+ * @routine 81:B4E4 ActorOutOfGroundAtActor
+ * WHAT IT DOES: ActorOutOfGround at the actor's own x only, with the probe
+ * as its record has it: when the actor is in the ground there, raises it
+ * onto the surface (as far as 15 pixels higher allows). No code refers to
+ * it.
+ * HOW: ProbeAtActor, TileAtProbe: no tile, or a kind with bit 7, gives up
+ * with Z set; else SurfaceHeightOver, then ActorOutOfGround's steps from
+ * its tile.
+ * Entry: X 8-bit; D = the actor; $18 = the probe's offset; DB = $80;
+ * called by JSL. Exit: as ActorOutOfGround.
+ */
+void abi_ActorOutOfGroundAtActor(void)
+{
+    if (ground_at(abi_ProbeAtActor, 1, abi_SurfaceHeightOver) < 0) {
+        op_sep(P_M | P_X | P_Z);
+        return;
+    }
+    out_of_ground_tile();
 }
 
 /*
