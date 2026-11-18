@@ -560,6 +560,8 @@ ActorOutOfWall:
     and.w #$000F
     bit.w #$0008
     bne .right
+; From here also reached by BRA from ActorOutOfWallByFlip.
+.left:
     inc a
     bra .move
 .right:
@@ -576,6 +578,36 @@ ActorOutOfWall:
 .none:
     clc
     rts
+
+; @routine 81:B647 ActorOutOfWallByFlip
+; WHAT IT DOES: As ActorOutOfWall, but the side the actor moves to is
+; the way bit 0 of its flip says, not the half of the tile its point is
+; in: C set when it was moved. Nothing but ActorOutOfWallsByFlip calls it.
+; HOW: ActorOutOfWall's tests at probe A; a wall moves the actor's x on by
+; 16 - (x in tile) when bit 0 of its flip is set, else back by (x in
+; tile) + 1 (ActorOutOfWall's own steps from there).
+; Entry: M 8-bit; D = the actor; A low byte = the probe's offset; DB =
+; $80; called by JSR. Exit: as ActorOutOfWall.
+%at($81B647)
+ActorOutOfWallByFlip:
+    sta.b !actor_probe_at
+    jsr.w GroundInFront
+    bcc ActorOutOfWall_none
+    lda.w !tile_behaviour_byte
+    and.b #$07
+    tax
+    lda.w !wall_kinds,x
+    beq ActorOutOfWall_none
+    lda.b #!BEHAVIOUR_THROUGH
+    bit.w !tile_behaviour_byte
+    bne ActorOutOfWall_none
+    rep.b #$20
+    lda.b !actor_flip
+    lsr a
+    lda.w !point_x
+    and.w #$000F
+    bcs ActorOutOfWall_right
+    bra ActorOutOfWall_left
 
 ; @routine 81:B673 ActorSettleOnFloor
 ; WHAT IT DOES: When a floor tile is under the actor's left or right
@@ -1078,4 +1110,23 @@ GroundBehindKind7:
     rtl
 .found:
     lda.b #1
+    rtl
+
+; @routine 81:B566 ActorOutOfWallsByFlip
+; WHAT IT DOES: Moves the actor out of the walls in front of it at probe
+; 4, again while it moves, then the same at probe $0C, each time the way
+; bit 0 of its flip says. No code refers to it.
+; HOW: ActorOutOfWallByFlip at probe 4 until it moves the actor no more,
+; then at probe $0C until it moves it no more.
+; Entry: M 8-bit; D = the actor; DB = $80; called by JSL. Exit: M 8-bit;
+; C clear; A, N, Z as the last test left them.
+%at($81B566)
+ActorOutOfWallsByFlip:
+    lda.b #4
+    jsr.w ActorOutOfWallByFlip
+    bcs ActorOutOfWallsByFlip
+.probe_0c:
+    lda.b #$0C
+    jsr.w ActorOutOfWallByFlip
+    bcs .probe_0c
     rtl

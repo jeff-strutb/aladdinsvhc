@@ -1,0 +1,30 @@
+# Unit calls of ActorOutOfWallsByFlip (81:B566), which no code refers
+# to, and so of ActorOutOfWallByFlip (81:B647, by JSR): the actor moved
+# out of a wall in front at probe 4 while it moves, then at probe $0C, the
+# way bit 0 of its flip says. In level 4 (stage a1 s0) by JSL on Aladdin's
+# record (M and X 8-bit, DB $80), the view's y ($1777) $0060, facing right
+# ($08EF 0) with flip bit 0 set ($08F0 1), his x and y ($08E7, $08EA)
+# $0474, $00C8: probe 4 (5 across, 2 up; $0479, $00C6) is in the last
+# solid tile of the row at $00C0 (read from the level's map in a WRAM
+# dump), so he moves 7 right to $047B; there probe 4 is clear, and probe
+# $0C (4 across, 16 down; $047F, $00D8) finds no wall. Then facing left
+# ($08EF 1) with flip bit 0 clear, at $04C8, $00F8: probe 4 ($04C3,
+# $00F6) finds no wall, and probe $0C ($04C4, $0108) is in the solid tiles
+# at $04C0 and $04B0 of the row at $0100, so he moves left twice (5, then
+# 16 pixels) until it is clear. Seven calls of ActorOutOfWallByFlip in
+# all (the trace's JSR counts: 3 at probe 4, 4 at probe $0C). The machine
+# put back after each.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008EF 00
+set $0008F0 01
+set $0008E7 74,04
+set $0008EA C8,00
+call 81B566 long d=08DB db=80 p=30
+set $001777 60,00
+set $0008EF 01
+set $0008F0 00
+set $0008E7 C8,04
+set $0008EA F8,00
+call 81B566 long d=08DB db=80 p=30

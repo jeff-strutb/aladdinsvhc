@@ -614,22 +614,12 @@ void abi_GroundBehindBit3(void)
     }
 }
 
-/*
- * @routine 81:B60C ActorOutOfWall
- * WHAT IT DOES: When the probe in front of the actor is in a wall, moves
- * the actor out of it: C set when it was moved.
- * HOW: GroundInFront at probe A; a tile whose kind is a wall and that the
- * actor cannot pass through moves the actor's x by the point's distance
- * past the tile's near edge: back by (x in tile) + 1 in its left half,
- * on by 16 - (x in tile) in its right half.
- * Entry: M 8-bit; D = the actor; A low byte = the probe's offset; DB =
- * $81; called by JSR. Exit: moved: M 8-bit, C set; A = the new x (16
- * bits); N, Z from its ADC. Not: C clear; A, N, Z as the tests left them.
- */
-void abi_ActorOutOfWall(void)
+/* ActorOutOfWall's tests (and ActorOutOfWallByFlip's): GroundInFront at
+   probe A, then the tile a wall kind the actor cannot pass through.
+   None: C clear, 0. */
+static int wall_in_front(void)
 {
     uint8_t b;
-    uint16_t a;
 
     wr8(dp(ACTOR_PROBE_AT), (uint8_t)cpu.a);
     abi_GroundInFront();
@@ -647,9 +637,17 @@ void abi_ActorOutOfWall(void)
     cpu.p = (uint8_t)((cpu.p & ~(P_N | P_V | P_Z)) | (b & (P_N | P_V)) | ((b & BEHAVIOUR_THROUGH) ? 0 : P_Z));
     if (b & BEHAVIOUR_THROUGH)
         goto none;
-    op_rep(P_M);
-    a = (uint16_t)(rd16(abs_db(POINT_X)) & 0x000F);
-    if (!(a & 0x0008)) {
+    return 1;
+none:
+    cpu.p &= (uint8_t)~P_C;
+    return 0;
+}
+
+/* ActorOutOfWall's move ($81:B632 on, M 16-bit), the point's x in its
+   tile in `a`: back by a + 1, or (`right`) on by 16 - a; C set after. */
+static void wall_push(uint16_t a, int right)
+{
+    if (!right) {
         a++;
     } else {
         cpu.p |= P_C;
@@ -660,9 +658,75 @@ void abi_ActorOutOfWall(void)
     cpu.a = op_adc16(a, rd16(dp(ACTOR_X + 1)), &cpu.p);
     wr16(dp(ACTOR_X + 1), cpu.a);
     op_sep(P_M | P_C);
-    return;
-none:
-    cpu.p &= (uint8_t)~P_C;
+}
+
+/*
+ * @routine 81:B60C ActorOutOfWall
+ * WHAT IT DOES: When the probe in front of the actor is in a wall, moves
+ * the actor out of it: C set when it was moved.
+ * HOW: GroundInFront at probe A; a tile whose kind is a wall and that the
+ * actor cannot pass through moves the actor's x by the point's distance
+ * past the tile's near edge: back by (x in tile) + 1 in its left half,
+ * on by 16 - (x in tile) in its right half.
+ * Entry: M 8-bit; D = the actor; A low byte = the probe's offset; DB =
+ * $81; called by JSR. Exit: moved: M 8-bit, C set; A = the new x (16
+ * bits); N, Z from its ADC. Not: C clear; A, N, Z as the tests left them.
+ */
+void abi_ActorOutOfWall(void)
+{
+    uint16_t a;
+
+    if (!wall_in_front())
+        return;
+    op_rep(P_M);
+    a = (uint16_t)(rd16(abs_db(POINT_X)) & 0x000F);
+    wall_push(a, a & 0x0008);
+}
+
+/*
+ * @routine 81:B647 ActorOutOfWallByFlip
+ * WHAT IT DOES: As ActorOutOfWall, but the side the actor moves to is
+ * the way bit 0 of its flip says, not the half of the tile its point is
+ * in: C set when it was moved. Nothing but ActorOutOfWallsByFlip calls it.
+ * HOW: ActorOutOfWall's tests at probe A; a wall moves the actor's x on by
+ * 16 - (x in tile) when bit 0 of its flip is set, else back by (x in
+ * tile) + 1 (ActorOutOfWall's own steps from there).
+ * Entry: M 8-bit; D = the actor; A low byte = the probe's offset; DB =
+ * $80; called by JSR. Exit: as ActorOutOfWall.
+ */
+void abi_ActorOutOfWallByFlip(void)
+{
+    uint16_t a, f;
+
+    if (!wall_in_front())
+        return;
+    op_rep(P_M);
+    f = rd16(dp(ACTOR_FLIP));
+    cpu.p = (uint8_t)((cpu.p & ~P_C) | (f & 1));
+    a = (uint16_t)(rd16(abs_db(POINT_X)) & 0x000F);
+    wall_push(a, f & 1);
+}
+
+/*
+ * @routine 81:B566 ActorOutOfWallsByFlip
+ * WHAT IT DOES: Moves the actor out of the walls in front of it at probe
+ * 4, again while it moves, then the same at probe $0C, each time the way
+ * bit 0 of its flip says. No code refers to it.
+ * HOW: ActorOutOfWallByFlip at probe 4 until it moves the actor no more,
+ * then at probe $0C until it moves it no more.
+ * Entry: M 8-bit; D = the actor; DB = $80; called by JSL. Exit: M 8-bit;
+ * C clear; A, N, Z as the last test left them.
+ */
+void abi_ActorOutOfWallsByFlip(void)
+{
+    do {
+        lda8_v(0x04);
+        abi_ActorOutOfWallByFlip();
+    } while (cpu.p & P_C);
+    do {
+        lda8_v(0x0C);
+        abi_ActorOutOfWallByFlip();
+    } while (cpu.p & P_C);
 }
 
 /*
