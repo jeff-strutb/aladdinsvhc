@@ -53,6 +53,30 @@ ActorInRange:
 .out:
     rts
 
+; @routine 83:9659 ActorEndOutOfRangeLong
+; WHAT IT DOES: Ends the actor for good when it is out of range of the
+; camera's point by box X; otherwise returns to it. For callers in other
+; banks.
+; HOW: ActorInRange (JSR); in range: SEP #$30, RTL. Out of range: SEP
+; #$30, the JSL's three return bytes pulled, on into ActorEndPlaced.
+; Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
+; boxes' bank, whose $0000-$1FFF is work RAM; called by JSL from the
+; actor's code at its own level (84:9235, 84:849B). Exit: in range: as
+; ActorInRange, M and X 8-bit. Out of range: never returns; as
+; ActorEndPlaced.
+%at($839659)
+ActorEndOutOfRangeLong:
+    jsr.w ActorInRange
+    bcs .out
+    sep.b #$30
+    rtl
+.out:
+    sep.b #$30
+    pla
+    pla
+    pla
+    bra ActorEndPlaced
+
 ; @routine 83:9668 ActorFreeOutOfRangeLong
 ; WHAT IT DOES: ActorFreeOutOfRange for callers in other banks.
 ; HOW: JSR to it, then RTL.

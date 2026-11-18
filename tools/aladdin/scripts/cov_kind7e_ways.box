@@ -1,0 +1,120 @@
+# Actor kind $7E (84:91A5, through the stub at $83:92A8): the bouncing
+# platforms of stage a4 s1 ($07 0-6 placed from x $04C4), which no play
+# reaches (the walk right stops at a wall, x $01FB, far below them). The
+# view put at x $0480, y 0 and Aladdin at x $04C4: the placements there
+# make records $0C9B and $0D8B ($07 0).
+# A. Aladdin dropped onto the first from y $0020: it bounces him (its wait,
+# Kind7EWaitWork $84:931C, through ActorBouncesPlayerLong $83:840B, sound
+# $12) and holds him above it for 8 frames.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 0008EA 20,00
+wait 120
+# B. Record $0C9B put back to state $0C with $07 1 to 6 in turn (its start
+# table at $84:91AE): 1-4 make three or two children of kind $7E ($07 7
+# or 8) that circle its place (Kind7ERing), and wait unseen until out of
+# range (ActorEndOutOfRangeLong, $83:9659); 5 and 6 rise and fall aslant,
+# rightward or leftward first.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 01
+poke 000C9B 0C
+wait 200
+# $07 2.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 02
+poke 000C9B 0C
+wait 200
+# $07 3.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 03
+poke 000C9B 0C
+wait 200
+# $07 4.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 04
+poke 000C9B 0C
+wait 200
+# $07 5.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 05
+poke 000C9B 0C
+wait 200
+# $07 6.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 06
+poke 000C9B 0C
+wait 200
+# C. As B with $07 1, then the view and Aladdin put at x $0800: the parent
+# is freed out of range, and each child, finding its parent's record free,
+# ends ($84:92B6).
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 80,04
+poke 0019E5 80,04
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C4,04
+poke 0008EA 60,00
+wait 45
+poke 000CA2 01
+poke 000C9B 0C
+wait 100
+poke 001773 00,08
+poke 0019E5 00,08
+poke 0008E7 60,08
+wait 30

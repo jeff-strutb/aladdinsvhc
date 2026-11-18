@@ -132,6 +132,32 @@ out:
 }
 
 /*
+ * @routine 83:9659 ActorEndOutOfRangeLong
+ * WHAT IT DOES: Ends the actor for good when it is out of range of the
+ * camera's point by box X; otherwise returns to it. For callers in other
+ * banks.
+ * HOW: ActorInRange (JSR); in range: SEP #$30, RTL. Out of range: SEP
+ * #$30, the JSL's three return bytes pulled, on into ActorEndPlaced.
+ * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
+ * boxes' bank, whose $0000-$1FFF is work RAM; called by JSL from the
+ * actor's code at its own level (84:9235, 84:849B), the JSL's return
+ * address on the stack (jsl_frame). Exit: in range: as ActorInRange, M
+ * and X 8-bit. Out of range: never returns; as ActorEndPlaced.
+ */
+void abi_ActorEndOutOfRangeLong(void)
+{
+    abi_ActorInRange();
+    op_sep(0x30);
+    if (!IF_C)
+        return;
+    pla8();
+    pla8();
+    pla8();
+    /* BRA into ActorEndPlaced, at the actor loop's stack level */
+    abi_ActorEndPlaced();
+}
+
+/*
  * @routine 83:96C6 ActorEndDropReturn
  * WHAT IT DOES: Ends the actor for good from a routine its code called:
  * the call's return address dropped, then as ActorEndPlaced.

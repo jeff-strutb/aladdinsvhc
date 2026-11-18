@@ -59,7 +59,7 @@ Kind97Enter:
 ; K97_PAIR_B: ActorFreeListTake with A = 2, C set: K97_TAKEN = Y,
 ; CarrierPairSend (JSR); BRK, 16-bit X, until K97_CHILD's state is 0;
 ; K97_BUSY 0, X 8-bit; again.
-; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $84; reached by
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; Kind97Enter's JML. Exit: never returns.
 %at($849F4F)
 Kind97Start:
