@@ -77,48 +77,45 @@ void abi_SequencesStep(void)
     cpu.a = cpu.d = SEQUENCES;
     nz16_of(SEQUENCES);
     do {                                  /* each sequence record */
-        uint8_t active = rd8(dpa(SEQ_ACTIVE));
-
-        a8_load(active);
-        if (active) {
-            a8_load(rd8(dpa(SEQ_STARTED)));
-            if (!(uint8_t)cpu.a)
+        lda8(ea_dp(SEQ_ACTIVE));
+        if (!IF_Z) {
+            lda8(ea_dp(SEQ_STARTED));
+            if (IF_Z)
                 call_frame(0xEC34, abi_SequenceStart);
-            if (!dec8_at(dpa(SEQ_WAIT))) {
+            MEM8(dec, ea_dp(SEQ_WAIT));
+            if (IF_Z) {
                 /* its wait done: the next entry (3 bytes: frames, word),
                    from the first after the last */
-                uint32_t list = dba(dp16(SEQ_LIST));
-                uint8_t at, wait;
-
-                flag_set(P_C, 0);
-                at = op_adc8(rd8(dpa(SEQ_INDEX)), 0x03, &cpu.p);
-                a8_load(at);
-                cmp8_of(at, rd8(dpa(SEQ_LENGTH)));
-                if (at >= rd8(dpa(SEQ_LENGTH))) {
-                    at = 0;
-                    a8_load(0);
-                }
-                wr8(dpa(SEQ_INDEX), at);
-                cpu.y = at;
-                wait = rd8(list + at);
-                a8_load(wait);
-                wr8(dpa(SEQ_WAIT), wait);
-                if (wait & 0x80) {        /* the end: it stops */
-                    wr8(dpa(SEQ_ACTIVE), 0);
+                lda8(ea_dp(SEQ_INDEX));
+                clc();
+                adc8_v(0x03);
+                cmp8_v(rd8(ea_dp(SEQ_LENGTH)));
+                if (IF_C)
+                    lda8_v(0x00);
+                sta8(ea_dp(SEQ_INDEX));
+                tay8();
+                lda8(ea_dpiy(SEQ_LIST));
+                sta8(ea_dp(SEQ_WAIT));
+                if (IF_N) {               /* the end: it stops */
+                    stz8(ea_dp(SEQ_ACTIVE));
                 } else {
-                    cpu.y = (uint8_t)(at + 1);
-                    dp16_set(SEQ_WORD, rd16(list + cpu.y));
-                    a8_load(0x02);
-                    wr8(dpa(SEQ_NEW), 0x02);
+                    iny8();
+                    op_rep(0x20);
+                    lda16(ea_dpiy(SEQ_LIST));
+                    sta16(ea_dp(SEQ_WORD));
+                    op_sep(0x20);
+                    lda8_v(0x02);
+                    sta8(ea_dp(SEQ_NEW));
                 }
             }
         }
-        op_rep(P_M);
-        flag_set(P_C, 0);
-        cpu.a = op_adc16(cpu.d, SEQUENCE_SIZE, &cpu.p);
-        cpu.d = cpu.a;
-        cmp16_of(cpu.a, SEQUENCES_END);
-        op_sep(P_M);
-    } while (cpu.d != SEQUENCES_END);
+        op_rep(0x20);
+        tdc();
+        clc();
+        adc16_v(SEQUENCE_SIZE);
+        tcd();
+        cmp16_v(SEQUENCES_END);
+        op_sep(0x20);
+    } while (!IF_Z);
     pld();
 }
