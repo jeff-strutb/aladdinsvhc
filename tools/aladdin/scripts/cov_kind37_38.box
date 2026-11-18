@@ -1,0 +1,100 @@
+# Kinds $37 and $38 (Kind38Start $83:BE01, their wait Kind37Wait $83:BD22,
+# their second state Kind37Second $83:BD72), which no level the scripts
+# reach places: the first level's record $092B made a kind $38 (kind byte
+# $38, state $0C).
+# 1. Its own with $45 0, its maker and partner its own record, far off at x
+#    $1000: the partner freed and the maker's $4B counted down ($83:BD61).
+# 2. Kind $37: a kind $38 running, its kind byte then set to $37 (Kind37Wait
+#    as kind $37's wait; the table entry that starts a kind $37 is Kind37Wait
+#    too, so a kind $37 made in state $0C runs it as a start and returns into
+#    nothing): out of range by box 0 ($83:BD4D).
+# 3. As placed (x $0015): its probe in front meets ground at once, a wall
+#    ($83:BE68).
+# 4. Restarted at x $0100, y $01B0, where it rolls free (from the record's
+#    x $0015, or from $0080 or $0140, its probe in front meets ground at
+#    once), held there with the random word ($032B) 0, which stays 0 when
+#    stepped, and Aladdin right of it, within its $60 (his x is kept on
+#    the screen, at most the camera's + $F0: he is held at $0120 for 20
+#    frames first, the camera following him to about $0107, then the
+#    actor restarted): RandomFromList's
+#    list 3 gives its first entry, 0, and it rolls on for $10 more checks
+#    ($83:BE5C).
+# 5. Downed by an apple (Aladdin's throw, the actor in its path at x $0058,
+#    y $01A8: $83:BD3F, KIND38_HIT 2): its second state's fall away
+#    ($83:BDCE).
+# 6. Aladdin falling onto it from above (y $0180): it bounces him and is
+#    downed (state $8C, KIND38_HIT 1, $83:BD2E): its second state's drop
+#    ($83:BD83). The runs with sounds come last.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 5
+poke 000970 00
+poke 000977 2B,09
+poke 000979 2B,09
+poke 000937 00,10
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 5
+poke 000931 37
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 00032B 00,00
+repeat 20
+poke 0008E7 20,01
+wait 1
+end
+poke 000931 38
+poke 000932 00
+poke 000937 00,01
+poke 00093A B0,01
+poke 00092B 0C
+repeat 25
+poke 000937 00,01
+poke 00093A B0,01
+poke 0008E7 20,01
+wait 1
+end
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 5
+press A
+repeat 8
+poke 000937 58,00
+poke 00093A A8,01
+wait 1
+end
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 5
+repeat 6
+poke 000937 3A,00
+poke 00093A C0,01
+poke 0008EA 80,01
+poke 0008EE 00,00
+poke 00141C 01
+poke 00141B 00
+wait 1
+end
+wait 150

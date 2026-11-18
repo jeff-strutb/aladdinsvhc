@@ -1,6 +1,7 @@
 ; kind38.asm: actor kind $38, which rolls along until Aladdin is close,
 ; then turns to him and flies up at him. Its wait is Kind37Wait
-; (actor_waits_small.asm), shared with kind $37.
+; (actor_waits_small.asm), shared with kind $37, as is its second state,
+; Kind37Second (here).
 ; C: src/aladdin/actor/kind38.c.
 
 incsrc "../include/macros.inc"
@@ -118,3 +119,73 @@ Kind38Start:
     jsl.l ActorFlyAgainst
     bra .lBE98
 
+; @routine 83:BD72 Kind37Second
+; @actor
+; WHAT IT DOES: The second state of kinds $37 and $38 (the table at
+; $83:8DFD), once Kind37Wait has downed one: animation 3 and sound $F;
+; bounced on (KIND38_HIT 1), it shows itself $0A frames, rises $10
+; frames, pauses $10 frames and drops away; else (downed by a shot) it
+; flies off; either way it is ended out of range (box 0).
+; HOW: AnimStart 3, SoundQueueAdd $F. KIND38_HIT 1: $0A frames of
+; AnimStep (BRK); ActorMotionPresetY $26, $10 frames of AnimStep and
+; ActorFallAgainst; $10 frames of AnimStep; ActorSpeedYSet $27; then
+; each frame AnimStep, ActorMoveY and ActorEndOutOfRange with X = 0.
+; Else ActorMotionPreset $1F, $0A frames (COP); then each frame
+; AnimStep, ActorFly and ActorEndOutOfRange with X = 0.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's jump for kinds $37 and $38 in state $8C. Exit: never
+; returns (ended out of range).
+%at($83BD72)
+Kind37Second:
+    lda.b #$03
+    jsl.l AnimStart
+    lda.b #$0F
+    jsl.l SoundQueueAdd
+    lda.b !KIND38_HIT
+    dec a
+    bne .shot
+    lda.b #$0A
+    sta.b !KIND38_FRAMES
+.show:
+    brk.b #$00
+    jsl.l AnimStep
+    dec.b !KIND38_FRAMES
+    bne .show
+    lda.b #$10
+    sta.b !KIND38_FRAMES
+    ldy.b #$26
+    jsl.l ActorMotionPresetY
+.rise:
+    brk.b #$00
+    jsl.l AnimStep
+    jsl.l ActorFallAgainst
+    dec.b !KIND38_FRAMES
+    bne .rise
+    lda.b #$10
+    sta.b !KIND38_FRAMES
+.pause:
+    brk.b #$00
+    jsl.l AnimStep
+    dec.b !KIND38_FRAMES
+    bne .pause
+    ldy.b #$27
+    jsl.l ActorSpeedYSet
+.drop:
+    brk.b #$00
+    jsl.l AnimStep
+    jsl.l ActorMoveY
+    ldx.b #$00
+    jsr.w ActorEndOutOfRange
+    bra .drop
+.shot:
+    ldy.b #$1F
+    jsl.l ActorMotionPreset
+    lda.b #$0A
+    cop.b #$00
+.fly:
+    brk.b #$00
+    jsl.l AnimStep
+    jsl.l ActorFly
+    ldx.b #$00
+    jsr.w ActorEndOutOfRange
+    bra .fly

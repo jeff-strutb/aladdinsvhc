@@ -4,19 +4,28 @@
  * (actor_waits_small.c), shared with kind $37.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
+void abi_ActorEndOutOfRange(void);
+void abi_ActorFallAgainst(void);
+void abi_ActorFly(void);
 void abi_ActorFlyAgainst(void);
 void abi_ActorMotionPreset(void);
+void abi_ActorMotionPresetY(void);
 void abi_ActorMoveX(void);
+void abi_ActorMoveY(void);
 void abi_ActorNearPlayerX(void);
 void abi_ActorOutOfWallProbe4(void);
 void abi_ActorSideOfPlayer(void);
 void abi_ActorSpeedXSet(void);
+void abi_ActorSpeedYSet(void);
 void abi_ActorYByFrame47(void);
 void abi_AnimStart(void);
+void abi_AnimStep(void);
 void abi_RandomFromList(void);
+void abi_SoundQueueAdd(void);
 
 #define KIND38_16 0x16u        /* word: $D1D6 */
 #define KIND38_47 0x47u        /* ActorYByFrame47's frame kept */
@@ -132,3 +141,76 @@ L_83BE98:
     goto L_83BE98;  /* 83BE9E bra */
 }
 
+/*
+ * @routine 83:BD72 Kind37Second
+ * @actor
+ * WHAT IT DOES: The second state of kinds $37 and $38 (the table at
+ * $83:8DFD), once Kind37Wait has downed one: animation 3 and sound $F;
+ * bounced on (KIND38_HIT 1), it shows itself $0A frames, rises $10
+ * frames, pauses $10 frames and drops away; else (downed by a shot) it
+ * flies off; either way it is ended out of range (box 0).
+ * HOW: AnimStart 3, SoundQueueAdd $F. KIND38_HIT 1: $0A frames of
+ * AnimStep (BRK); ActorMotionPresetY $26, $10 frames of AnimStep and
+ * ActorFallAgainst; $10 frames of AnimStep; ActorSpeedYSet $27; then
+ * each frame AnimStep, ActorMoveY and ActorEndOutOfRange with X = 0.
+ * Else ActorMotionPreset $1F, $0A frames (COP); then each frame
+ * AnimStep, ActorFly and ActorEndOutOfRange with X = 0.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's jump for kinds $37 and $38 in state $8C. Exit: never
+ * returns (ended out of range).
+ */
+void abi_Kind37Second(void)
+{
+    lda8_v(0x03);
+    abi_AnimStart();
+    lda8_v(0x0F);
+    abi_SoundQueueAdd();
+    lda8(ea_dp(KIND38_HIT));
+    ACC8(dec);
+    if (!IF_Z) goto shot;
+    lda8_v(0x0A);
+    sta8(ea_dp(KIND38_FRAMES));
+    do {
+        actor_yield(0x83BD87u);
+        abi_AnimStep();
+        MEM8(dec, ea_dp(KIND38_FRAMES));
+    } while (!IF_Z);
+    lda8_v(0x10);
+    sta8(ea_dp(KIND38_FRAMES));
+    ldy8_v(0x26);
+    abi_ActorMotionPresetY();
+    do {
+        actor_yield(0x83BD9Bu);
+        abi_AnimStep();
+        abi_ActorFallAgainst();
+        MEM8(dec, ea_dp(KIND38_FRAMES));
+    } while (!IF_Z);
+    lda8_v(0x10);
+    sta8(ea_dp(KIND38_FRAMES));
+    do {
+        actor_yield(0x83BDADu);
+        abi_AnimStep();
+        MEM8(dec, ea_dp(KIND38_FRAMES));
+    } while (!IF_Z);
+    ldy8_v(0x27);
+    abi_ActorSpeedYSet();
+    for (;;) {
+        actor_yield(0x83BDBDu);
+        abi_AnimStep();
+        abi_ActorMoveY();
+        ldx8_v(0x00);
+        call_frame(0xBDCB, abi_ActorEndOutOfRange);    /* JSR at 83:BDC9 */
+    }
+shot:
+    ldy8_v(0x1F);
+    abi_ActorMotionPreset();
+    lda8_v(0x0A);
+    actor_wait(0x83BDD6u);
+    for (;;) {
+        actor_yield(0x83BDD8u);
+        abi_AnimStep();
+        abi_ActorFly();
+        ldx8_v(0x00);
+        call_frame(0xBDE6, abi_ActorEndOutOfRange);    /* JSR at 83:BDE4 */
+    }
+}
