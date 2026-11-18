@@ -240,7 +240,15 @@ void abi_ActorKeepSpot(void)
  */
 void abi_SignExtend(void)
 {
-    a16_load(cpu.a & 0x0080 ? (uint16_t)(cpu.a | 0xFF00) : (uint16_t)(cpu.a & 0x00FF));
+    pha16();
+    and16_v(0x0080);
+    if (!IF_Z) {
+        pla16();
+        ora16_v(0xFF00);
+    } else {
+        pla16();
+        and16_v(0x00FF);
+    }
 }
 
 /*

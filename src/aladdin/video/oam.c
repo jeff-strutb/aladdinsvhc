@@ -8,6 +8,7 @@
 #include "machine.h"
 #include "native.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "wram.h"
 #include "wram_video.h"
 #include "actor.h"
@@ -103,109 +104,126 @@ void abi_OamBuildBegin(void)
 
 void abi_SignExtend(void);
 
-static uint32_t abs_y(uint16_t off)
+/* OamDrawActor's pieces from Y (past the count) to the sprites from X,
+   with D = 0 (.piece); mirrored (.mirrored): each piece's x from its
+   second byte, and its flip across turned over. */
+static void pieces_normal(void)
 {
-    return (((uint32_t)cpu.db << 16 | off) + cpu.y) & 0xFFFFFFu;
-}
-
-static uint32_t abs_x(uint16_t off)
-{
-    return (((uint32_t)cpu.db << 16 | off) + cpu.x) & 0xFFFFFFu;
-}
-
-/* A 16-bit shift of a direct-page word, the carry in and out as the CPU's. */
-static void lsr_at(uint8_t off)
-{
-    uint16_t v = rd16(dp(off));
-
-    flag_set(P_C, v & 1);
-    v >>= 1;
-    wr16(dp(off), v);
-    nz16_of(v);
-}
-
-static void ror_at(uint8_t off)
-{
-    uint16_t v = rd16(dp(off)), c = (uint16_t)(cpu.p & P_C);
-
-    flag_set(P_C, v & 1);
-    v = (uint16_t)(v >> 1 | c << 15);
-    wr16(dp(off), v);
-    nz16_of(v);
-}
-
-static void asl_at(uint8_t off)
-{
-    uint16_t v = rd16(dp(off));
-
-    flag_set(P_C, v & 0x8000);
-    v = (uint16_t)(v << 1);
-    wr16(dp(off), v);
-    nz16_of(v);
-}
-
-/* The pieces from Y (past the count) to the sprites from X; mirrored:
-   each piece's x from its second byte, and its flip across turned over. */
-static void pieces(int mirrored)
-{
-    uint16_t v, t;
-
     do {
-        op_rep(P_M);
-        cpu.a = rd16(abs_y(mirrored ? 1 : 0));
-        abi_SignExtend();
-        flag_set(P_C, 0);
-        v = op_adc16(cpu.a, rd16(dp(SCREEN_X)), &cpu.p);
-        wr16(abs_x(0xFA80), v);
-        wr16(dp(PIECE_X), v);
-        if (mirrored)
-            flag_set(P_C, 0);
-        cpu.a = rd16(abs_y(2));
-        abi_SignExtend();
-        if (!mirrored)
-            flag_set(P_C, 0);
-        v = op_adc16(cpu.a, rd16(dp(SCREEN_Y)), &cpu.p);
-        wr16(abs_x(0xFA81), v);
-        flag_set(P_C, 0);
-        cpu.a = op_adc16(v, 0x0020, &cpu.p);
-        op_cmp16(0x0100);
-        if (!(cpu.p & P_C)) {
-            /* on the screen: its tile word, then its two high-table bits */
-            t = rd16(abs_y(3));
-            wr16(dp(PIECE_WORD), t);
-            v = op_adc16(t, rd16(dp(TILE_BASE)), &cpu.p);
-            v = (uint16_t)((v & 0xCFFF) | rd16(dp(FLIP_BITS)));
-            if (mirrored)
-                v ^= 0x4000;
-            v |= rd16(dp(PALETTE_BITS));
-            cpu.a = v;
-            nz16_of(v);
-            wr16(abs_x(0xFA82), v);
-            lsr_at(PIECE_X + 1);
-            ror_at(OAM_HIGH_BITS);
-            asl_at(PIECE_WORD);
-            asl_at(PIECE_WORD);
-            asl_at(PIECE_WORD);
-            asl_at(PIECE_WORD);
-            ror_at(OAM_HIGH_BITS);
-            if (dec16_at(dp(OAM_HIGH_COUNT)) == 0) {
-                op_lda16_imm(0x0008);
-                wr16(dp(OAM_HIGH_COUNT), 0x0008);
-                v = rd16(abs_db(OAM_HIGH_NEXT & 0xFFFF));
-                op_lda16(dp(OAM_HIGH_BITS));
-                wr16(((uint32_t)cpu.db << 16 | 0xFC80) + v, cpu.a);
-                (void)inc16_at(abs_db(OAM_HIGH_NEXT & 0xFFFF));
-                (void)inc16_at(abs_db(OAM_HIGH_NEXT & 0xFFFF));
+        op_rep(0x20);
+        lda16(ea_absy(0));
+        call_frame(0x9387, abi_SignExtend);
+        clc();
+        adc16_v(rd16(ea_dp(SCREEN_X)));
+        sta16(ea_absx(0xFA80));
+        sta16(ea_dp(PIECE_X));
+        lda16(ea_absy(2));
+        call_frame(0x9395, abi_SignExtend);
+        clc();
+        adc16_v(rd16(ea_dp(SCREEN_Y)));
+        sta16(ea_absx(0xFA81));
+        clc();
+        adc16_v(0x0020);
+        cmp16_v(0x0100);
+        if (!IF_C) {                      /* on the screen */
+            lda16(ea_absy(3));
+            sta16(ea_dp(PIECE_WORD));
+            adc16_v(rd16(ea_dp(TILE_BASE)));
+            and16_v(0xCFFF);
+            ora16_v(rd16(ea_dp(FLIP_BITS)));
+            ora16_v(rd16(ea_dp(PALETTE_BITS)));
+            sta16(ea_absx(0xFA82));
+            MEM16(lsr, ea_dp(PIECE_X + 1));   /* x bit 8, then the size bit */
+            MEM16(ror, ea_dp(OAM_HIGH_BITS));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(ror, ea_dp(OAM_HIGH_BITS));
+            MEM16(dec, ea_dp(OAM_HIGH_COUNT));
+            if (IF_Z) {                   /* a high-table word full */
+                lda16_v(0x0008);
+                sta16(ea_dp(OAM_HIGH_COUNT));
+                phy16();
+                ldy16(ea_abs((uint16_t)OAM_HIGH_NEXT));
+                lda16(ea_dp(OAM_HIGH_BITS));
+                sta16(ea_absy(0xFC80));
+                MEM16(inc, ea_abs((uint16_t)OAM_HIGH_NEXT));
+                MEM16(inc, ea_abs((uint16_t)OAM_HIGH_NEXT));
+                ply16();
             }
-            cpu.x = (uint16_t)(cpu.x + 4);
-            nz16_of(cpu.x);
+            inx16();
+            inx16();
+            inx16();
+            inx16();
         }
-        flag_set(P_C, 0);
-        cpu.a = op_adc16(cpu.y, 0x0005, &cpu.p);
-        cpu.y = cpu.a;
-        nz16_of(cpu.y);
-    } while (dec16_at(dp(PIECES_LEFT)) != 0);
-    op_sep(P_M);
+        clc();
+        tya16();
+        adc16_v(0x0005);
+        tay16();
+        MEM16(dec, ea_dp(PIECES_LEFT));
+    } while (!IF_Z);
+    op_sep(0x20);
+}
+
+static void pieces_mirrored(void)
+{
+    do {
+        op_rep(0x20);
+        lda16(ea_absy(1));
+        call_frame(0x93F5, abi_SignExtend);
+        clc();
+        adc16_v(rd16(ea_dp(SCREEN_X)));
+        sta16(ea_absx(0xFA80));
+        sta16(ea_dp(PIECE_X));
+        clc();
+        lda16(ea_absy(2));
+        call_frame(0x9404, abi_SignExtend);
+        adc16_v(rd16(ea_dp(SCREEN_Y)));
+        sta16(ea_absx(0xFA81));
+        clc();
+        adc16_v(0x0020);
+        cmp16_v(0x0100);
+        if (!IF_C) {                      /* on the screen */
+            lda16(ea_absy(3));
+            sta16(ea_dp(PIECE_WORD));
+            adc16_v(rd16(ea_dp(TILE_BASE)));
+            and16_v(0xCFFF);
+            ora16_v(rd16(ea_dp(FLIP_BITS)));
+            eor16_v(0x4000);
+            ora16_v(rd16(ea_dp(PALETTE_BITS)));
+            sta16(ea_absx(0xFA82));
+            MEM16(lsr, ea_dp(PIECE_X + 1));   /* x bit 8, then the size bit */
+            MEM16(ror, ea_dp(OAM_HIGH_BITS));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(asl, ea_dp(PIECE_WORD));
+            MEM16(ror, ea_dp(OAM_HIGH_BITS));
+            MEM16(dec, ea_dp(OAM_HIGH_COUNT));
+            if (IF_Z) {                   /* a high-table word full */
+                lda16_v(0x0008);
+                sta16(ea_dp(OAM_HIGH_COUNT));
+                phy16();
+                ldy16(ea_abs((uint16_t)OAM_HIGH_NEXT));
+                lda16(ea_dp(OAM_HIGH_BITS));
+                sta16(ea_absy(0xFC80));
+                MEM16(inc, ea_abs((uint16_t)OAM_HIGH_NEXT));
+                MEM16(inc, ea_abs((uint16_t)OAM_HIGH_NEXT));
+                ply16();
+            }
+            inx16();
+            inx16();
+            inx16();
+            inx16();
+        }
+        clc();
+        tya16();
+        adc16_v(0x0005);
+        tay16();
+        MEM16(dec, ea_dp(PIECES_LEFT));
+    } while (!IF_Z);
+    op_sep(0x20);
 }
 
 /*
@@ -231,78 +249,69 @@ static void pieces(int mirrored)
  */
 void abi_OamDrawActor(void)
 {
-    uint8_t f;
-    uint16_t at, n, left, pos;
-
-    f = rd8(dp(ACTOR_08));
-    a8_load(f);
-    flag_set(P_Z, !(f & 0x10));
-    if (f & 0x10) {
-        a8_load((uint8_t)(rd8(abs_db(V_032D)) & 0x01));
-        if (cpu.a & 0x01)
+    lda8(ea_dp(ACTOR_08));
+    bit8_i(0x10);
+    if (!IF_Z) {                          /* flicker */
+        lda8(ea_abs(V_032D));
+        and8_v(0x01);
+        if (!IF_Z)
             return;
     }
-    at = cpu.x;
-    flag_set(P_C, 0);
-    a8_load(f);
-    flag_set(P_Z, !(f & 0x20));
-    if (f & 0x20) {
-        a8_load((uint8_t)(rd8(abs_db(V_032D)) & 0x02));
-        if (cpu.a & 0x02)
-            flag_set(P_C, 1);
+    phx16();
+    clc();
+    lda8(ea_dp(ACTOR_08));
+    bit8_i(0x20);
+    if (!IF_Z) {                          /* flash (no script runs it) */
+        lda8(ea_abs(V_032D));
+        and8_v(0x02);
+        if (!IF_Z)
+            sec();
     }
-    op_rep(P_M);
-    a16_load(rd16(dp(ACTOR_LOOK)) & 0x0E00);
-    if (cpu.p & P_C)
-        a16_load(FLASH_PALETTE);
-    wr16(abs_db(PALETTE_BITS), cpu.a);
-    cpu.x = at;
-    nz16_of(at);
-    cpu.y = rd16(dp(ACTOR_PIECES));
-    nz16_of(cpu.y);
-    n = rd16(abs_y(0)) & 0x00FF;
-    a16_load(n);
-    left = rd16(abs_db(OAM_FREE & 0xFFFF));
-    cmp16_of(n, left);
-    if (n >= left) {
-        op_sep(P_M);
+    op_rep(0x20);
+    lda16(ea_dp(ACTOR_LOOK));
+    and16_v(0x0E00);
+    if (IF_C)
+        lda16_v(FLASH_PALETTE);
+    sta16(ea_abs(PALETTE_BITS));
+    plx16();
+    lda16(ea_dp(ACTOR_PIECES));
+    tay16();
+    lda16(ea_absy(0));
+    and16_v(0x00FF);
+    cmp16_v(rd16(ea_abs((uint16_t)OAM_FREE)));
+    if (IF_C) {                           /* too many pieces: not drawn */
+        op_sep(0x20);
         return;
     }
-    wr16(abs_db(PIECES_LEFT), n);
-    flag_set(P_C, 1);
-    wr16(abs_db(OAM_FREE & 0xFFFF), op_adc16((uint16_t)~n, left, &cpu.p));
-    cpu.y++;
-    flag_set(P_C, 1);
-    pos = rd16(dp(ACTOR_X + 1));
-    wr16(abs_db(SCREEN_X), op_sbc16(pos, rd16(abs_db(SPRITE_ORIGIN_X)), &cpu.p));
-    flag_set(P_C, 1);
-    pos = rd16(dp(ACTOR_Y + 1));
-    wr16(abs_db(SCREEN_Y), op_sbc16(pos, rd16(abs_db(SPRITE_ORIGIN_Y)), &cpu.p));
-    wr16(abs_db(TILE_BASE), rd16(dp(ACTOR_LOOK)) & 0x01FF);
-    wr16(abs_db(FLIP_BITS), (rd16(dp(ACTOR_08)) ^ 0x3000) & 0x3000);
-    flag_set(P_C, rd16(dp(ACTOR_FLIP)) & 1);
-    a16_load(0);
-    cpu.d = 0;
-    pieces(cpu.p & P_C);
-}
-
-/* OamDrawList from 81:92EE: A records of the list at DRAW_LISTS + Y. */
-static void draw_list(uint16_t y)
-{
-    cpu.y = y;
-    nz16_of(y);
-    wr8(abs_db(LIST_LEFT), (uint8_t)cpu.a);
-    do {
-        cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(abs_y(DRAW_LISTS + 1)));
-        op_xba();
-        cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(abs_y(DRAW_LISTS)));
-        cpu.d = cpu.a;
-        nz16_of(cpu.d);
-        y = cpu.y;
-        abi_OamDrawActor();
-        cpu.y = (uint16_t)(y + 2);
-        nz16_of(cpu.y);
-    } while (dec8_at(abs_db(LIST_LEFT)) != 0);
+    sta16(ea_abs(PIECES_LEFT));
+    eor16_v(0xFFFF);
+    sec();
+    adc16_v(rd16(ea_abs((uint16_t)OAM_FREE)));
+    sta16(ea_abs((uint16_t)OAM_FREE));
+    iny16();
+    sec();
+    lda16(ea_dp(ACTOR_X + 1));
+    sbc16_v(rd16(ea_abs(SPRITE_ORIGIN_X)));
+    sta16(ea_abs(SCREEN_X));
+    sec();
+    lda16(ea_dp(ACTOR_Y + 1));
+    sbc16_v(rd16(ea_abs(SPRITE_ORIGIN_Y)));
+    sta16(ea_abs(SCREEN_Y));
+    lda16(ea_dp(ACTOR_LOOK));
+    and16_v(0x01FF);
+    sta16(ea_abs(TILE_BASE));
+    lda16(ea_dp(ACTOR_08));
+    eor16_v(0x3000);
+    and16_v(0x3000);
+    sta16(ea_abs(FLIP_BITS));
+    lda16(ea_dp(ACTOR_FLIP));
+    cpu.a = lsr16_r(cpu.a);
+    lda16_v(0x0000);
+    tcd();
+    if (IF_C)
+        pieces_mirrored();
+    else
+        pieces_normal();
 }
 
 /*
@@ -316,7 +325,19 @@ static void draw_list(uint16_t y)
  */
 void abi_OamDrawList(void)
 {
-    draw_list(cpu.y);
+    sta8(ea_abs(LIST_LEFT));
+    do {
+        lda8(ea_absy(DRAW_LISTS + 1));
+        xba();
+        lda8(ea_absy(DRAW_LISTS));
+        tcd();
+        phy16();
+        call_frame(0x92FC, abi_OamDrawActor);
+        ply16();
+        iny16();
+        iny16();
+        MEM8(dec, ea_abs(LIST_LEFT));
+    } while (!IF_Z);
 }
 
 /*
@@ -337,76 +358,82 @@ void abi_OamDrawList(void)
  */
 void abi_OamDrawActors(void)
 {
-    static const uint16_t list_at[LIST_COUNT] = { 0x00, 0x40, 0x80, 0xC0 };
-    uint8_t db = cpu.db;
-    uint16_t d = cpu.d, s, i, n, scroll;
-
-    op_sep(P_M);
-    s = rd8(abs_db(SPRITE_SHIFT_AT));
-    x8_load((uint8_t)s);
-    op_rep(P_M | P_X);
-    flag_set(P_C, 0);
-    scroll = rd16(abs_db(LAYER0 + LAYER_SCROLL_X));
-    cpu.a = op_adc16(scroll, rd16(abs_db((uint16_t)(SPRITE_SHIFT_X + s))), &cpu.p);
-    wr16(abs_db(SPRITE_ORIGIN_X), cpu.a);
-    flag_set(P_C, 0);
-    scroll = rd16(abs_db(LAYER0 + LAYER_SCROLL_Y));
-    cpu.a = op_adc16(scroll, rd16(abs_db((uint16_t)(SPRITE_SHIFT_Y + s))), &cpu.p);
-    wr16(abs_db(SPRITE_ORIGIN_Y), cpu.a);
-    op_sep(P_M);
-    cpu.x = rd16(abs_db(OAM_NEXT & 0xFFFF));
-    nz16_of(cpu.x);
-    cpu.db = 0x7E;
-    for (i = 0; i < LIST_COUNT; i++) {
-        if (i == 2) {
-            a8_load(rd8(abs_db(PLAYER & 0xFFFF)));
-            if (cpu.a & 0xFF) {
-                a8_load((uint8_t)(rd8(abs_db((PLAYER + ACTOR_08) & 0xFFFF)) & 0x08));
-                if (cpu.a & 0xFF) {
-                    a8_load((uint8_t)(PLAYER >> 8));
-                    op_xba();
-                    a8_load((uint8_t)PLAYER);
-                    cpu.d = cpu.a;
-                    nz16_of(cpu.d);
-                    abi_OamDrawActor();
-                }
-            }
-        }
-        a8_load(rd8(abs_db((uint16_t)(DRAW_COUNTS + 2 * i))));
-        if (cpu.a & 0xFF) {
-            cpu.y = list_at[i];
-            nz16_of(cpu.y);
-            draw_list(list_at[i]);
+    op_sep(0x20);
+    ldx8(ea_abs(SPRITE_SHIFT_AT));
+    op_rep(0x30);
+    clc();
+    lda16(ea_abs((uint16_t)(LAYER0 + LAYER_SCROLL_X)));
+    adc16_v(rd16(ea_absx(SPRITE_SHIFT_X)));
+    sta16(ea_abs(SPRITE_ORIGIN_X));
+    clc();
+    lda16(ea_abs((uint16_t)(LAYER0 + LAYER_SCROLL_Y)));
+    adc16_v(rd16(ea_absx(SPRITE_SHIFT_Y)));
+    sta16(ea_abs(SPRITE_ORIGIN_Y));
+    op_sep(0x20);
+    ldx16(ea_abs((uint16_t)OAM_NEXT));
+    phb();
+    lda8_v(0x7E);
+    pha8();
+    plb();
+    phd();
+    lda8(ea_abs(DRAW_COUNTS));
+    if (!IF_Z) {
+        ldy16_v(0);
+        call_frame(0x9288, abi_OamDrawList);
+    }
+    lda8(ea_abs(DRAW_COUNTS + 2));
+    if (!IF_Z) {
+        ldy16_v(64);
+        call_frame(0x9293, abi_OamDrawList);
+    }
+    lda8(ea_abs((uint16_t)PLAYER));
+    if (!IF_Z) {                          /* Aladdin, between lists 1 and 2 */
+        lda8(ea_abs((uint16_t)(PLAYER + ACTOR_08)));
+        and8_v(0x08);
+        if (!IF_Z) {
+            lda8_v((uint8_t)(PLAYER >> 8));
+            xba();
+            lda8_v((uint8_t)PLAYER);
+            tcd();
+            call_frame(0x92A8, abi_OamDrawActor);
         }
     }
-    wr16(abs_db(OAM_NEXT & 0xFFFF), cpu.x);
-    cpu.d = d;
-    nz16_of(d);
-    op_rep(P_M);
-    a16_load(rd16(dp(OAM_HIGH_COUNT)) & 0x0007);
-    if (cpu.a != 0) {
-        n = cpu.a;
-        cpu.y = n;
-        a16_load(rd16(dp(OAM_HIGH_BITS)));
+    lda8(ea_abs(DRAW_COUNTS + 4));
+    if (!IF_Z) {
+        ldy16_v(128);
+        call_frame(0x92B3, abi_OamDrawList);
+    }
+    lda8(ea_abs(DRAW_COUNTS + 6));
+    if (!IF_Z) {
+        ldy16_v(192);
+        call_frame(0x92BE, abi_OamDrawList);
+    }
+    stx16(ea_abs((uint16_t)OAM_NEXT));
+    pld();
+    op_rep(0x20);
+    lda16(ea_dp(OAM_HIGH_COUNT));         /* the high table's last bits into place */
+    and16_v(0x0007);
+    if (!IF_Z) {
+        tay16();
+        lda16(ea_dp(OAM_HIGH_BITS));
         do {
-            op_lsr16();
-            op_lsr16();
-            cpu.y--;
-            nz16_of(cpu.y);
-        } while (cpu.y != 0);
-        cpu.y = rd16(abs_db(OAM_HIGH_NEXT & 0xFFFF));
-        nz16_of(cpu.y);
-        wr16(abs_y(0xFC80), cpu.a);
+            cpu.a = lsr16_r(cpu.a);
+            cpu.a = lsr16_r(cpu.a);
+            dey16();
+        } while (!IF_Z);
+        ldy16(ea_abs((uint16_t)OAM_HIGH_NEXT));
+        sta16(ea_absy(0xFC80));
     }
-    op_sep(P_M);
-    a8_load(0xE1);
+    op_sep(0x20);                         /* the sprites left off the screen */
+    lda8_v(0xE1);
     do {
-        wr8(abs_x(0xFA81), 0xE1);
-        cpu.x = (uint16_t)(cpu.x + 4);
-        nz16_of(cpu.x);
-        cmp16_of(cpu.x, 0x0200);
-    } while (cpu.x < 0x0200);
-    op_sep(P_X);
-    cpu.db = db;
-    nz8_of(db);
+        sta8(ea_absx(0xFA81));
+        inx16();
+        inx16();
+        inx16();
+        inx16();
+        cpx16_v(0x0200);
+    } while (!IF_C);
+    op_sep(0x10);
+    plb();
 }
