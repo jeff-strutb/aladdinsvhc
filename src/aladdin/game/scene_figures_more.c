@@ -107,23 +107,23 @@ void abi_PlayerSceneDropIn(void)
     y8_load(0x86);
     abi_ActorMotionPreset();
     do {
-        actor_yield(0xA5ED48u);
+        actor_yield(0xA5ED47u);
         abi_ActorAnimRiseFall();
         abi_ActorFly();
         abi_ActorOutOfGround();
     } while (cpu.p & P_Z);
     anim(0x00);
-    wait_frames(0x30, 0xA5ED5Fu);
+    wait_frames(0x30, 0xA5ED5Eu);
 
     /* posed until cue $BD: $18 while the player is hurt, else $17 */
     anim(0x17);
     for (;;) {
-        actor_yield(0xA5ED76u);
+        actor_yield(0xA5ED75u);
         a8_load(rd8(dba(SF_HURT_COUNT)));
         if ((uint8_t)cpu.a) {
             anim(0x18);
             do {
-                actor_yield(0xA5ED69u);
+                actor_yield(0xA5ED68u);
                 a8_load(rd8(dba(SF_HURT_COUNT)));
             } while ((uint8_t)cpu.a);
             anim(0x17);
@@ -142,50 +142,50 @@ void abi_PlayerSceneDropIn(void)
     y8_load(0x7B);
     abi_ActorMotionPreset();
     do {
-        actor_yield(0xA5ED91u);
+        actor_yield(0xA5ED90u);
         abi_ActorAnimRiseFall();
         abi_ActorFly();
         a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
     } while (cpu.a & 0x80);
     low_bits_08(0x01);
     do {
-        actor_yield(0xA5EDA6u);
+        actor_yield(0xA5EDA5u);
         abi_ActorAnimRiseFall();
         abi_ActorFly();
         abi_ActorOutOfGround();
     } while (cpu.p & P_Z);
     anim(0x19);
-    wait_frames(0x50, 0xA5EDBDu);
+    wait_frames(0x50, 0xA5EDBCu);
 
     /* until the player's $07 is $0D, then a short walk */
     anim(0x00);
     do {
-        actor_yield(0xA5EDC5u);
+        actor_yield(0xA5EDC4u);
         a8_load(rd8(dba(SF_PLAYER_07)));
         cmp8_of((uint8_t)cpu.a, 0x0D);
     } while ((uint8_t)cpu.a != 0x0D);
     anim(0x01);
     y8_load(0x00);
     abi_ActorSpeedXFromA5();
-    walk(0x40, 0xA5EDDDu);
+    walk(0x40, 0xA5EDDCu);
 
     /* posed until cue $BE, then off */
     anim(0x00);
     do {
-        actor_yield(0xA5EDEDu);
+        actor_yield(0xA5EDECu);
         a8_load(rd8(dba(SF_CUE_BE)));
     } while (!(cpu.a & 0x80));
     anim(0x1A);
-    wait_frames(0x80, 0xA5EDFCu);
+    wait_frames(0x80, 0xA5EDFBu);
     y8_load(0x0F);
     abi_ActorSpeedXFromA5();
     anim(0x02);
-    walk(0x28, 0xA5EE0Du);
+    walk(0x28, 0xA5EE0Cu);
     y8_load(0x0C);
     abi_ActorSpeedXFromA5();
     anim(0x01);
     for (;;) {
-        actor_yield(0xA5EE22u);
+        actor_yield(0xA5EE21u);
         abi_ActorMoveX();
     }
 }

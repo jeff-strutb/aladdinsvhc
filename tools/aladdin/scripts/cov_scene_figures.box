@@ -1,0 +1,55 @@
+# Bank $A5's scripted figures (kind $08) through the scenes no play
+# reaches, on the first level with the guard's record ($092B) in state 0
+# ($4D, so GuardWait leaves its code word alone) and each cue poked once
+# the figure waits on it.
+# A. PlayerSceneDropIn ($A5:ED0F, way 4), resumed by its code word with
+# its y at $0180 and gravity $38 ($20, 0 in its record) so it falls first; 128 frames, placed at spot $24, its
+# leap, 48 frames, then waiting on the cues: the hurt count ($141B) set
+# for 5 frames (its hurt pose), cue $BD set (its leap and fall), the
+# player's $07 at $0D for a frame, cue $BE bit 7, and it runs and walks
+# off.
+load build/aladdin/states/level1.state
+wait 10
+poke 000978 00
+poke 00093A 80,01
+poke 00094B 38
+poke 00092E 0F,ED
+wait 300
+poke 00141B 01
+wait 5
+poke 00141B 00
+wait 5
+poke 0000BD 01
+wait 200
+poke 0008E2 0D
+wait 1
+poke 0008E2 00
+wait 80
+poke 0000BE 80
+wait 250
+# B. PlayerSceneWalkOff ($A5:EE29, way 5) started with the copier RAM on:
+# GuardStart's count ($1475) less 1 then differs from the cartridge RAM's
+# byte, so it goes on at EscortStaySpot18 ($A5:EE36).
+load build/aladdin/states/level1.state
+cartram on
+wait 10
+poke 00092B 0C
+poke 000932 05
+wait 10
+# C. PlayerSceneWalkOff resumed by its code word with its y at $0180 and
+# gravity $38: it
+# falls ($A5:EE3F), lands and walks; its x then set to $0F60, near its
+# mark ($0F68): its poses, the run (it is past the player at once), 128
+# frames facing left, cue $BD, and it walks on.
+load build/aladdin/states/level1.state
+cartram off
+wait 10
+poke 000978 00
+poke 00093A 80,01
+poke 00094B 38
+poke 00092E 29,EE
+wait 40
+poke 000937 60,0F
+wait 300
+poke 0000BD 01
+wait 40
