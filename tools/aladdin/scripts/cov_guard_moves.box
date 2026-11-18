@@ -82,3 +82,58 @@ poke 000937 A0,00
 poke 00093A A8,01
 poke 00092E B6,E5
 wait 20
+# GuardRun ($A5:E5E8) into a wall ($A5:E60B: on at GuardClimb): no guard
+# runs at one in play. In stage a1 s0 the floor at y $01A0 meets a wall
+# from x $03E0; the figure ($092B) put at x $03D9.80, y $0198, facing
+# right (facing 0, flip 1), and resumed at GuardRun by its code word
+# ($E5E8, as GuardChase sends a guard). Its first step ($1.80) takes it to
+# x $03DB, where ActorOutOfWall8's probe meets the wall (from farther
+# back, GuardStepAhead jumps it first).
+load build/aladdin/states/stage_a1_s0.state
+wait 10
+poke 000936 80,D9,03
+poke 00093A 98,01
+poke 00093F 00,01
+poke 00092E E8,E5
+wait 120
+# The same wall met in the air with G_BACK_OFF ($46) set ($A5:E6E6: on at
+# GuardFlip): from x $03C8 GuardStepAhead jumps it into the wall.
+load build/aladdin/states/stage_a1_s0.state
+wait 10
+poke 000937 C8,03
+poke 00093A 98,01
+poke 00093F 00,01
+poke 000971 01
+poke 00092E E8,E5
+wait 60
+# GuardJump rising with ActorSettleOnFloor meeting a tile whose behaviour
+# has bit 3 (a slope's side) ($A5:E6C0: faced by it, on at GuardLand): in
+# stage a1 s0 the tile at x $05B0, y $0180 has behaviour $0A; the figure
+# put at x $05BE, y $018A, rising 2 pixels a frame (vertical speed
+# $FFFE00) and moving left 3, and resumed at GuardJump by its code word
+# ($E6A0): its probe 8 (5 to the side, 6 up) and its own x then fall in
+# that tile.
+load build/aladdin/states/stage_a1_s0.state
+wait 10
+poke 000937 BE,05
+poke 00093A 8A,01
+poke 000948 00,FE,FF
+poke 00092E A0,E6
+wait 60
+# GuardRun's throw with no record free for its children ($A5:E698: none
+# report, so the preset with none seen): from x $03C8 in stage a1 s0 the
+# figure jumps, climbs the wall, turns back and runs off the edge; at
+# frame 15 it waits at the throw's BRK. The free list's head ($15E4,
+# $34 then) set negative for the next frame, when its three ActorSpawn
+# calls all fail, then put back.
+load build/aladdin/states/stage_a1_s0.state
+wait 10
+poke 000937 C8,03
+poke 00093A 98,01
+poke 00093F 00,01
+poke 00092E E8,E5
+wait 15
+poke 0015E4 FE
+wait 1
+poke 0015E4 34
+wait 30
