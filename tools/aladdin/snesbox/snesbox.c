@@ -478,6 +478,7 @@ static int call_php;           /* php: (JSR) the entry P pushed above the return
 static int call_phb;           /* phb: (JSL) the entry DB pushed above the return */
 static int call_vblank;        /* vblank: may start in the vertical blank (NMI off) */
 static int call_noreturn;     /* noreturn: told to lockstep when the call starts */
+static long call_s = -1;      /* s=: the stack pointer the call starts with (else the game's) */
 static uint32_t call_target;
 
 /* set: bytes staged for the next call, written when it starts (after the
@@ -501,37 +502,38 @@ static int call_exec(uint32_t pc)
     if (call_state == 1 && lockstep_call_ok(pc)
         && (call_vblank || !(snesbox_core_bus_read_p(0x004212) & 0x80))) {
         snesbox_core_regs_p(&call_from);
+        uint16_t cs = call_s >= 0 ? (uint16_t)call_s : call_from.s;
         if (getenv("SNESBOX_CALL_DEBUG"))
             fprintf(stderr, "call starts (side %d) frame %ld at %06X S=%04X clock %u\n", lockstep ? lockstep_role() : 0, frames, call_from.pc, call_from.s, lockstep_clock());
         if (getenv("SNESBOX_CALL_DEBUG") && lockstep) lockstep_debug_state();
-        if (checklib_on) check_unit_call(call_from.pc, call_from.s);
+        if (checklib_on) check_unit_call(call_from.pc, cs);
         /* Entered by a JML from the trampoline: the checker is told where
            the call starts (S after the return and the frame) and ends. */
         if (call_noreturn && lockstep) lockstep_unit_noreturn(call_target);
         if (call_noreturn && checklib_on) check_unit_noreturn(call_target);
         if (call_frame >= 0 && call_frame_long) {
-            if (checklib_on) check_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 5));
-            if (lockstep) lockstep_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 5));
+            if (checklib_on) check_unit_entry(call_target, call_loop, cs, (uint16_t)(cs - 5));
+            if (lockstep) lockstep_unit_entry(call_target, call_loop, cs, (uint16_t)(cs - 5));
         }
         if (call_frame >= 0 && !call_frame_long) {
-            if (checklib_on) check_unit_entry(call_target, call_stub + 3, call_from.s, (uint16_t)(call_from.s - 4));
-            if (lockstep) lockstep_unit_entry(call_target, call_stub + 3, call_from.s, (uint16_t)(call_from.s - 4));
+            if (checklib_on) check_unit_entry(call_target, call_stub + 3, cs, (uint16_t)(cs - 4));
+            if (lockstep) lockstep_unit_entry(call_target, call_stub + 3, cs, (uint16_t)(cs - 4));
         }
         if (call_rti >= 0) {
-            if (checklib_on) check_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 4));
-            if (lockstep) lockstep_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 4));
+            if (checklib_on) check_unit_entry(call_target, call_loop, cs, (uint16_t)(cs - 4));
+            if (lockstep) lockstep_unit_entry(call_target, call_loop, cs, (uint16_t)(cs - 4));
         }
         if (call_phb) {
-            if (checklib_on) check_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 4));
-            if (lockstep) lockstep_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 4));
+            if (checklib_on) check_unit_entry(call_target, call_loop, cs, (uint16_t)(cs - 4));
+            if (lockstep) lockstep_unit_entry(call_target, call_loop, cs, (uint16_t)(cs - 4));
         }
         if (call_php) {
-            if (checklib_on) check_unit_entry(call_target, call_stub + 3, call_from.s, (uint16_t)(call_from.s - 3));
-            if (lockstep) lockstep_unit_entry(call_target, call_stub + 3, call_from.s, (uint16_t)(call_from.s - 3));
+            if (checklib_on) check_unit_entry(call_target, call_stub + 3, cs, (uint16_t)(cs - 3));
+            if (lockstep) lockstep_unit_entry(call_target, call_stub + 3, cs, (uint16_t)(cs - 3));
         }
         for (int i = 0; i < nstaged; i++) poke(staged[i], staged_line[i]);
         struct SnesboxRegs r = call_regs;
-        r.s = call_from.s; r.e = 0; r.pc = call_stub;
+        r.s = cs; r.e = 0; r.pc = call_stub;
         snesbox_core_set_regs_p(&r);
         call_state = 2;
         return 1;
@@ -550,7 +552,7 @@ static void call(const char *line, int lineno) {
     char tok[16][64]; int k = sscanf(line, "%*s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s %63s",
                                      tok[0], tok[1], tok[2], tok[3], tok[4], tok[5], tok[6], tok[7], tok[8], tok[9], tok[10], tok[11],
                                      tok[12], tok[13], tok[14], tok[15]);
-    if (k < 1) die("%s:%d: call ADDR [long] [keep] [noreturn] [a=] [x=] [y=] [p=] [db=] [d=] [frames=] [press=B@F]", script_path, lineno);
+    if (k < 1) die("%s:%d: call ADDR [long] [keep] [noreturn] [a=] [x=] [y=] [p=] [db=] [d=] [s=] [frames=] [press=B@F]", script_path, lineno);
     char ab[64]; int j = 0;
     for (const char *c = tok[0]; *c; c++) if (*c != '$' && *c != ':') ab[j++] = *c;
     ab[j] = 0;
@@ -571,6 +573,7 @@ static void call(const char *line, int lineno) {
         else if (!strncmp(tok[i], "p=", 2)) call_regs.p = (uint8_t)v;
         else if (!strncmp(tok[i], "db=", 3)) call_regs.db = (uint8_t)v;
         else if (!strncmp(tok[i], "d=", 2)) call_regs.d = (uint16_t)v;
+        else if (!strncmp(tok[i], "s=", 2)) call_s = (long)(v & 0xFFFF);
         else if (!strncmp(tok[i], "frames=", 7)) frames_max = strtol(tok[i] + 7, NULL, 10);
         else if (!strncmp(tok[i], "frame=", 6)) call_frame = (long)(v & 0xFFFF);
         else if (!strncmp(tok[i], "rti=", 4)) call_rti = (long)(v & 0xFF);
@@ -688,6 +691,7 @@ static void call(const char *line, int lineno) {
     if (call_state && !noreturn) die("%s:%d: call %06X did not return in %ld frames", script_path, lineno, addr, frames_max);
     call_state = 0;
     call_frame = -1;
+    call_s = -1;
     call_rti = -1;
     call_php = 0;
     call_phb = 0;
