@@ -989,3 +989,35 @@ ActorOutOfWallsMovePlayer:
 .done:
     sep.b #$20
     rtl
+
+; @routine 81:B5D0 GroundBehindKind7
+; WHAT IT DOES: Says whether the tile behind the actor at probe $20, or
+; else at probe $24, has behaviour low bits 7: A = 1 when one has, else
+; 0. No code refers to it, and no level's map has such a tile.
+; HOW: GroundBehind at probe $20, its tile's behaviour byte's low 3 bits
+; against 7; else the same at probe $24.
+; Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM
+; and that holds the probe list and the tile kinds ($80); called by JSL.
+; Exit: M and X 8-bit; A low byte = the answer; N, Z from it; C from the
+; last compare.
+%at($81B5D0)
+GroundBehindKind7:
+    lda.b #$20
+    sta.b !actor_probe_at
+    jsr.w GroundBehind
+    lda.w !tile_behaviour_byte
+    and.b #$07
+    cmp.b #$07
+    beq .found
+    lda.b #$24
+    sta.b !actor_probe_at
+    jsr.w GroundBehind
+    lda.w !tile_behaviour_byte
+    and.b #$07
+    cmp.b #$07
+    beq .found
+    lda.b #0
+    rtl
+.found:
+    lda.b #1
+    rtl

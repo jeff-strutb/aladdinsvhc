@@ -1,0 +1,23 @@
+# Unit calls of GroundBehindKind7 (81:B5D0), which no code refers to:
+# whether the tile behind the actor at probe $20, or else at $24, has
+# behaviour low bits 7 (1), else 0. No level's map has such a tile (all
+# 29 stage states' maps read from WRAM dumps), so the second call crafts
+# one. In level 4 (stage a1 s0) on Aladdin's record (M and X 8-bit, DB
+# $80, his flip $08F0 0 so behind is to the right; probe $20 is 8 across
+# and 22 up, $24 10 across and 4 down), the view's y ($1777) $0060, the
+# machine put back after each. At $0440, $00D8 neither tile has it; then
+# the same with the behaviour of tile $13 (under probe $20, at $0448,
+# $00C2; $7E:C813, $02) set to $07.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008E7 40,04
+set $0008EA D8,00
+set $0008F0 00
+call 81B5D0 long d=08DB db=80 p=30
+set $001777 60,00
+set $0008E7 40,04
+set $0008EA D8,00
+set $0008F0 00
+set $7EC813 07
+call 81B5D0 long d=08DB db=80 p=30

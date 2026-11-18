@@ -1273,3 +1273,35 @@ void abi_ActorOutOfWallsMovePlayer(void)
     sec();
     op_sep(0x20);
 }
+
+/*
+ * @routine 81:B5D0 GroundBehindKind7
+ * WHAT IT DOES: Says whether the tile behind the actor at probe $20, or
+ * else at probe $24, has behaviour low bits 7: A = 1 when one has, else
+ * 0. No code refers to it, and no level's map has such a tile.
+ * HOW: GroundBehind at probe $20, its tile's behaviour byte's low 3 bits
+ * against 7; else the same at probe $24.
+ * Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM
+ * and that holds the probe list and the tile kinds ($80); called by JSL.
+ * Exit: M and X 8-bit; A low byte = the answer; N, Z from it; C from the
+ * last compare.
+ */
+void abi_GroundBehindKind7(void)
+{
+    static const uint8_t probes[2] = { 0x20, 0x24 };
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        lda8_v(probes[i]);
+        wr8(dp(ACTOR_PROBE_AT), probes[i]);
+        abi_GroundBehind();
+        lda8(abs_db(TILE_BEHAVIOUR_BYTE));
+        and8_v(0x07);
+        cmp8_v(0x07);
+        if (IF_Z) {
+            lda8_v(0x01);
+            return;
+        }
+    }
+    lda8_v(0x00);
+}
