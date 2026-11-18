@@ -15,13 +15,11 @@ the last one done), the runner:
      changed, held or released, headers by compiled code, and the routines a
      new or changed script reaches) with t3.py --qualify --run, which runs
      A5 on their calls and A7 on the scripts reaching them only;
-  4. holds the C that failed: a routine whose A5 diverged, and for each
-     script red in A7, the routine(s) of the batch it reaches that turn it
-     red, found by bisection (each test reruns that script alone with a set
-     of routines held, on a commit object no branch names); a red the batch's
-     routines do not cause (still red with all of them held) holds nothing.
-     Holds are lines in src/aladdin/held.txt, committed by the runner alone;
-     the next pass reruns the scripts reaching what the hold changed.
+  4. reports, holding nothing: each A5 divergence and each script red in
+     A7 (with the batch's routines it reaches) is logged and appended to
+     reds.txt, for the coordinator to send to the writer who fixes the C.
+     (Holds are not made: C reaches some routines only by runtime jumps no
+     static check sees, so a hold can leave C jumping into code with no C.)
   5. a batch that changed the harness (the checker, core patches,
      hybrid.py) qualifies only the routines it changed, like any other;
      the whole game is checked again off the critical path: a full A7 on
@@ -51,6 +49,7 @@ LAND = os.environ.get('ALADDIN_LAND_LOCK')
 HELD = os.path.join(ROOT, 'src', 'aladdin', 'held.txt')
 LEDGERS = ['config/aladdin/t3_live.csv', 'config/aladdin/whole_image.csv', 'README.md', 'docs/aladdin/progress-map.svg']
 BISECT_OUT = 'runner-bisect'
+REDS = os.path.join(D, 'reds.txt')
 REGRESS_IDLE = 900
 # Paths whose change needs no gate run (the runner's own outputs).
 QUIET = tuple(LEDGERS) + ('docs/',)
@@ -295,43 +294,25 @@ def batch(state, head):
         log('%s: qualify gave no verdicts (rc %d), see %s' % (short, rc, out))
         return False
     rc, text = job(LIGHT, 'python3 tools/aladdin/t3.py --failures %s' % ' '.join(addrs), env={'ALADDIN_GATE_REV': head}, out=out)
-    why = {}
+    # Report, don't hold (Jeff, 2026-11-18): a hold can't be made safe, since
+    # C reaches some routines only by a runtime jump (actor waits, tasks) that
+    # no static check of the C sees, and holding one leaves that C jumping
+    # into code with no C. Each failure goes to its writer to fix: A5
+    # divergences and red A7 scripts with the batch's routines they reach,
+    # logged and appended to REDS.
+    a5 = []
     for l in text.splitlines():
         w = l.split()
         if w and w[0] == 'a5':
-            for a in w[1:]:
-                why[a] = 'A5 DIVERGENT at %s' % short
-    reds = {l.split()[1]: set(l.split()[2:]) for l in text.splitlines() if l.split()[:1] == ['red']}
-    base = set(why)
-    cleared = {}
-    if base and reds:
-        # Do the A5 holds alone turn them green? One test for all of them.
-        try:
-            cleared = green_many(head, reds, base, out)
-        except RuntimeError as e:
-            log('%s: %s' % (short, e))
-        for sc in sorted(s for s, ok in cleared.items() if ok):
-            log('%s: %s green with the A5 holds' % (short, sc))
-    for script in sorted(reds):
-        if cleared.get(script):
-            continue
-        cands = reds[script] - set(why)
-        base = set(why)
-        if not cands:
-            log('%s: %s red, no routine of the batch left to blame' % (short, script))
-            continue
-        try:
-            got = culprits(head, script, base, cands, out)
-        except RuntimeError as e:
-            log('%s: %s' % (short, e))
-            continue
-        if got is None:
-            log('%s: %s red with all %d of the batch\'s routines held: not their C' % (short, script, len(cands)))
-            continue
-        for a in got:
-            why[a] = 'A7 %s red at %s' % (script, short)
-    if why:
-        hold(head, why, out)
+            a5 += w[1:]
+    reds = {l.split()[1]: sorted(l.split()[2:]) for l in text.splitlines() if l.split()[:1] == ['red']}
+    lines = ['%s A5 DIVERGENT %s' % (short, a) for a in a5]
+    lines += ['%s A7 red %s reaching %s' % (short, sc, ' '.join(rs)) for sc, rs in sorted(reds.items())]
+    for l in lines:
+        log(l)
+    if lines:
+        with open(REDS, 'a') as f:
+            f.write(''.join(l + '\n' for l in lines))
     return True
 
 
