@@ -2002,12 +2002,20 @@ static void ls_insn(uint32_t pc)
         }
         return;
     }
-not_active:
-    if (lopark.valid && *core_opcode == 0x6B && pc == lopark.resume) {
+not_active:;
+    /* The opcode that reached this instruction: the one before an
+       interrupt taken just before it, when a record ended here after the
+       handler's RTI (o_via). The scheduler's record ends at its RTL into a
+       task; an NMI taken right at that landing leaves the core's last
+       opcode the handler's RTI, and the task's parked record still goes on
+       here, as the hybrid's parked C does (ls_finish gives the core the
+       RTL). */
+    uint8_t landed = o_via_set ? o_via : *core_opcode;
+    if (lopark.valid && landed == 0x6B && pc == lopark.resume) {
         struct SnesboxRegs r; core_regs(&r);
         if (r.s == lopark.resume_s) { lopark_resume(pc, &r); return; }
     }
-    if (*core_opcode == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS
+    if (landed == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS
         && opark[wram[TASK_CURRENT] / 0x18].valid && pc == opark[wram[TASK_CURRENT] / 0x18].resume) {
         struct SnesboxRegs r; core_regs(&r);
         int t = wram[TASK_CURRENT] / 0x18;
