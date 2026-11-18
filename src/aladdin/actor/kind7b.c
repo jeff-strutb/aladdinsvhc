@@ -14,6 +14,7 @@
 void abi_ActorHitsTestBoxLong(void);
 void abi_AnimStart(void);
 void abi_SoundQueueAdd(void);
+void abi_ActorEndPlaced(void);
 
 #define K7B_PLAYER_1F (PLAYER + 0x1Fu)        /* bit 7 set: the player is not taken */
 #define K7B_PLAYER_RESUME (PLAYER + ACTOR_03) /* the player's resume address (word) */
@@ -35,8 +36,8 @@ void abi_SoundQueueAdd(void);
  * $8C, AnimStart 0, again. Else, his y pixels + 16 less its y pixels
  * below 0 (he is above it): AnimStart 1, his resume address ($03-$04) =
  * $DA14, COP $20, SoundQueueAdd $41, COP $10, again; otherwise again. No
- * script runs past the first BRK: written from its bytes. The JML to
- * ActorEndPlaced after it (at $83:C5D1) is never reached.
+ * script runs past the first BRK: written from its bytes. Its state
+ * $8C sends it, in the loop, to Kind7BSecond ($83:C5D1), which follows.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
  * $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $7B
  * in state $0C (the table at $83:8CAB). Exit: never returns.
@@ -92,4 +93,19 @@ void abi_Kind7BStart(void)
             actor_wait(0x83C5CDu);
         }
     }
+}
+
+/*
+ * @routine 83:C5D1 Kind7BSecond
+ * @actor
+ * WHAT IT DOES: Where actors of kind $7B go on from the actor loop in a
+ * state with bit 7 set (the table at $83:8DFD): ActorEndPlaced, the
+ * actor ended.
+ * HOW: JML to ActorEndPlaced ($83:96CA).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as ActorEndPlaced.
+ */
+void abi_Kind7BSecond(void)
+{
+    abi_ActorEndPlaced();
 }

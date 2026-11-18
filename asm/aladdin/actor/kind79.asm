@@ -1,6 +1,6 @@
 ; kind79.asm: actor kind $79, which starts below the point actors are
 ; kept in range of and rises until it is taken up (its $42 set), then
-; carries the player (code not yet reached by any script).
+; carries the player while he holds on.
 ; C: src/aladdin/actor/kind79.c.
 
 incsrc "../include/macros.inc"
@@ -24,6 +24,13 @@ arch 65816
 !PLAYER_RESUME = $08DE          ; the player's resume address (its record's $03, word)
 !KIND79_ZONE = $80              ; the zone it is taken up by
 !KIND79_RISE = $6F              ; its vertical speed's entry in the speed table
+!KIND79_HOLD_CODE = $D6F8       ; the player's code while an actor holds him
+!KIND79_HOLD_AT = $145D         ; where the player is held: x, y (words)
+!KIND79_BOX_WANTED = $1448      ; the player's box wanted: $07-$0F while he holds on
+!KIND79_HOLDER = $0912          ; the player's record's $37: the record of what holds him (word)
+!KIND79_DIP = $6C               ; its vertical speed's entry as it dips with him
+!KIND79_DIP_GRAVITY = $04       ; its gravity as it dips
+!KIND79_LET_GO_WAIT = $10       ; frames before it can be taken up again
 
 ; @routine 83:F541 Kind79Rise
 ; @actor
@@ -35,8 +42,13 @@ arch 65816
 ; $20, actor_09 = $90, actor_12 = 8. Odd: its y RANGE_Y plus $70. Then
 ; actor_08 = 2, animation 0, ActorSpeedYSet $6F, $41, KIND79_TAKEN,
 ; KIND79_43 and actor_49 cleared; each frame (BRK first)
-; ActorStepYBack, until KIND79_TAKEN is set; then on at $83:F593, which
-; no script reaches yet: those bytes are left in the intake.
+; ActorStepYBack, until KIND79_TAKEN is set. Taken: the player's code
+; KIND79_HOLD_CODE, KIND79_HOLD_AT its x and its y + $2B; BRK; animation
+; 2, Kind79PlayerToIt, ActorSpeedYSetGravity (A 4, Y $6C). Each frame
+; (BRK) ActorFallAgainst and Kind79Held (C set: Kind79PlayerToIt) while
+; it falls or rises faster than $FFA0; ActorSpeedYSet $6F; KIND79_TAKEN
+; cleared (let go): the rise again. Else each frame (BRK) ActorStepYBack
+; and Kind79Held: C set, Kind79PlayerToIt; clear (let go), the rise again.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
 ; the actor loop's jump for kind $79 in state $0C (the table at
 ; $83:8CAB). Exit: never returns.
@@ -82,6 +94,109 @@ Kind79Rise:
     jsl.l ActorStepYBack
     lda.b !KIND79_TAKEN
     beq .rise
+    lda.b #!KIND79_HOLD_CODE&255
+    sta.w !PLAYER_RESUME
+    lda.b #!KIND79_HOLD_CODE>>8
+    sta.w !PLAYER_RESUME+1
+    rep.b #$21
+    lda.b !actor_x+1
+    sta.w !KIND79_HOLD_AT
+    lda.b !actor_y+1
+    clc
+    adc.w #$002B
+    sta.w !KIND79_HOLD_AT+2
+    sep.b #$20
+    brk.b #$00
+    lda.b #$02
+    jsl.l AnimStart
+    jsr.w Kind79PlayerToIt
+    lda.b #!KIND79_DIP_GRAVITY
+    ldy.b #!KIND79_DIP
+    jsl.l ActorSpeedYSetGravity
+.dip:
+    sep.b #$20
+.dipping:
+    brk.b #$00
+    jsl.l ActorFallAgainst
+    jsr.w Kind79Held
+    bcc .dipped
+    jsr.w Kind79PlayerToIt
+.dipped:
+    lda.b !actor_speed_y+2
+    bpl .dip
+    rep.b #$20
+    lda.b !actor_speed_y+1
+    cmp.w #$FFA0
+    sep.b #$20
+    bcc .dipping
+    ldy.b #!KIND79_RISE
+    jsl.l ActorSpeedYSet
+    lda.b !KIND79_TAKEN
+    beq .rise
+.carry:
+    brk.b #$00
+    jsl.l ActorStepYBack
+    jsr.w Kind79Held
+    bcc .let_go
+    jsr.w Kind79PlayerToIt
+    bra .carry
+.let_go:
+    bra .rise
+
+; @routine 83:F5FD Kind79PlayerToIt
+; WHAT IT DOES: Puts Aladdin at actor kind $79's place: its x, and its y
+; plus $2B.
+; HOW: 16-bit (C clear): the actor's x pixels to the player's; its y
+; pixels + $2B to the player's.
+; Entry: M 8-bit; D = the actor's record; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSR. Exit: M 8-bit; A = the player's new y (16
+; bits); N, V, Z, C from the addition.
+%at($83F5FD)
+Kind79PlayerToIt:
+    rep.b #$21
+    lda.b !actor_x+1
+    sta.w !player+!actor_x+1
+    lda.b !actor_y+1
+    clc
+    adc.w #$002B
+    sta.w !player+!actor_y+1
+    sep.b #$20
+    rts
+
+; @routine 83:F610 Kind79Held
+; WHAT IT DOES: Tells whether Aladdin still holds on to actor kind $79
+; (his box wanted $07-$0F): if so it is marked as what holds him; if not
+; it lets him go: animation 0, no longer taken, nothing holds him, and 16
+; frames before it can be taken again.
+; HOW: KIND79_BOX_WANTED from $07 to $0F: KIND79_HOLDER = D, C set. Else
+; AnimStart 0, KIND79_TAKEN 0, KIND79_HOLDER 0 (byte by byte),
+; KIND79_WAIT $10, C clear.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSR. Exit: M 8-bit, X 8-bit; C set
+; while he holds on.
+%at($83F610)
+Kind79Held:
+    ldx.w !KIND79_BOX_WANTED
+    cpx.b #$07
+    bcc .let_go
+    cpx.b #$10
+    bcs .let_go
+    rep.b #$20
+    tdc
+    sta.w !KIND79_HOLDER
+    sep.b #$20
+    sec
+    rts
+.let_go:
+    lda.b #$00
+    jsl.l AnimStart
+    stz.b !KIND79_TAKEN
+    stz.w !KIND79_HOLDER
+    stz.w !KIND79_HOLDER+1
+    lda.b #!KIND79_LET_GO_WAIT
+    sta.b !KIND79_WAIT
+    clc
+    rts
 
 ; @routine 83:F639 Kind79InRange
 ; WHAT IT DOES: Keeps actor kind $79 near the point actors are kept in

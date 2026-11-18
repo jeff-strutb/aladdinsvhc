@@ -27,8 +27,8 @@ arch 65816
 ; $8C, AnimStart 0, again. Else, his y pixels + 16 less its y pixels
 ; below 0 (he is above it): AnimStart 1, his resume address ($03-$04) =
 ; $DA14, COP $20, SoundQueueAdd $41, COP $10, again; otherwise again. No
-; script runs past the first BRK: written from its bytes. The JML to
-; ActorEndPlaced after it (at $83:C5D1) is never reached.
+; script runs past the first BRK: written from its bytes. Its state
+; $8C sends it, in the loop, to Kind7BSecond ($83:C5D1), which follows.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
 ; $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $7B
 ; in state $0C (the table at $83:8CAB). Exit: never returns.
@@ -78,4 +78,16 @@ Kind7BStart:
     lda.b #$10
     cop.b #$00
     bra .frame
+    jml.l ActorEndPlaced
+
+; @routine 83:C5D1 Kind7BSecond
+; @actor
+; WHAT IT DOES: Where actors of kind $7B go on from the actor loop in a
+; state with bit 7 set (the table at $83:8DFD): ActorEndPlaced, the
+; actor ended.
+; HOW: JML to ActorEndPlaced ($83:96CA).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as ActorEndPlaced.
+%at($83C5D1)
+Kind7BSecond:
     jml.l ActorEndPlaced

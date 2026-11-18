@@ -35,9 +35,79 @@ void abi_Kind79SlotClear(void);
 #define PLAYER_RESUME 0x08DEu /* the player's resume address (its record's $03, word) */
 #define KIND79_ZONE 0x80     /* the zone it is taken up by */
 #define KIND79_RISE 0x6F     /* its vertical speed's entry in the speed table */
-/* Not yet filed (no script reaches it): the part after it is taken up,
-   which carries the player. */
-#define KIND79_TAKEN_ON 0x83F593u
+#define KIND79_HOLD_CODE 0xD6F8u /* the player's code while an actor holds him */
+#define KIND79_HOLD_AT 0x145Du   /* where the player is held: x, y (words) */
+#define KIND79_BOX_WANTED 0x1448u /* the player's box wanted: $07-$0F while he holds on */
+#define KIND79_HOLDER 0x0912u    /* the player's record's $37: the record of what holds him (word) */
+#define KIND79_DIP 0x6C          /* its vertical speed's entry as it dips with him */
+#define KIND79_DIP_GRAVITY 0x04  /* its gravity as it dips */
+#define KIND79_LET_GO_WAIT 0x10  /* frames before it can be taken up again */
+
+void abi_ActorFallAgainst(void);
+void abi_ActorSpeedYSetGravity(void);
+void abi_Kind79Held(void);
+void abi_Kind79PlayerToIt(void);
+
+/* Kind79Rise once taken ($83:F593): the player held at it while it dips
+   and comes back up, then carried as it rises; back to the rise (the
+   caller's loop) when it is let go. */
+static void kind79_taken(void)
+{
+    uint8_t hi;
+    uint16_t v;
+
+    a8_load(KIND79_HOLD_CODE & 0xFF);
+    wr8(dba(PLAYER_RESUME), KIND79_HOLD_CODE & 0xFF);
+    a8_load(KIND79_HOLD_CODE >> 8);
+    wr8(dba((uint16_t)(PLAYER_RESUME + 1)), KIND79_HOLD_CODE >> 8);
+    op_rep(0x21);
+    a16_load(dp16(ACTOR_X + 1));
+    wr16(dba(KIND79_HOLD_AT), cpu.a);
+    a16_load(dp16(ACTOR_Y + 1));
+    flag_set(P_C, 0);
+    a16_load(op_adc16(cpu.a, 0x002B, &cpu.p));
+    wr16(dba((uint16_t)(KIND79_HOLD_AT + 2)), cpu.a);
+    op_sep(0x20);
+    actor_yield(0x83F5AFu);
+    a8_load(0x02);
+    abi_AnimStart();
+    abi_Kind79PlayerToIt();
+    a8_load(KIND79_DIP_GRAVITY);
+    y8_load(KIND79_DIP);
+    abi_ActorSpeedYSetGravity();
+dip:
+    op_sep(0x20);
+dipping:
+    actor_yield(0x83F5C4u);
+    abi_ActorFallAgainst();
+    abi_Kind79Held();
+    if (cpu.p & P_C)
+        abi_Kind79PlayerToIt();
+    hi = rd8(dpa(ACTOR_SPEED_Y + 2));
+    a8_load(hi);
+    if (!(hi & 0x80))
+        goto dip;
+    op_rep(0x20);
+    v = dp16(ACTOR_SPEED_Y + 1);
+    a16_load(v);
+    cmp16_of(v, 0xFFA0);
+    op_sep(0x20);
+    if (v < 0xFFA0)
+        goto dipping;
+    y8_load(KIND79_RISE);
+    abi_ActorSpeedYSet();
+    a8_load(rd8(dpa(KIND79_TAKEN)));
+    if (!(uint8_t)cpu.a)
+        return;
+    for (;;) {
+        actor_yield(0x83F5EBu);
+        abi_ActorStepYBack();
+        abi_Kind79Held();
+        if (!(cpu.p & P_C))
+            return;
+        abi_Kind79PlayerToIt();
+    }
+}
 
 /*
  * @routine 83:F541 Kind79Rise
@@ -50,9 +120,13 @@ void abi_Kind79SlotClear(void);
  * $20, ACTOR_09 = $90, ACTOR_12 = 8. Odd: its y RANGE_Y plus $70. Then
  * ACTOR_08 = 2, animation 0, ActorSpeedYSet $6F, $41, KIND79_TAKEN,
  * KIND79_43 and ACTOR_49 cleared; each frame (BRK first)
- * ActorStepYBack, until KIND79_TAKEN is set; then on at KIND79_TAKEN_ON,
- * which no script reaches yet: its C is not written, and it runs as the
- * original's (jump_routine).
+ * ActorStepYBack, until KIND79_TAKEN is set. Taken: the player's code
+ * KIND79_HOLD_CODE, KIND79_HOLD_AT its x and its y + $2B; BRK; animation
+ * 2, Kind79PlayerToIt, ActorSpeedYSetGravity (A 4, Y $6C). Each frame
+ * (BRK) ActorFallAgainst and Kind79Held (C set: Kind79PlayerToIt) while
+ * it falls or rises faster than $FFA0; ActorSpeedYSet $6F; KIND79_TAKEN
+ * cleared (let go): the rise again. Else each frame (BRK) ActorStepYBack
+ * and Kind79Held: C set, Kind79PlayerToIt; clear (let go), the rise again.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
  * the actor loop's jump for kind $79 in state $0C (the table at
  * $83:8CAB). Exit: never returns.
@@ -92,9 +166,70 @@ void abi_Kind79Rise(void)
         uint8_t taken = rd8(dpa(KIND79_TAKEN));
         a8_load(taken);
         if (taken)
-            break;
+            kind79_taken();
     }
-    jump_routine(KIND79_TAKEN_ON);
+}
+
+/*
+ * @routine 83:F5FD Kind79PlayerToIt
+ * WHAT IT DOES: Puts Aladdin at actor kind $79's place: its x, and its y
+ * plus $2B.
+ * HOW: 16-bit (C clear): the actor's x pixels to the player's; its y
+ * pixels + $2B to the player's.
+ * Entry: M 8-bit; D = the actor's record; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSR. Exit: M 8-bit; A = the player's new y (16
+ * bits); N, V, Z, C from the addition.
+ */
+void abi_Kind79PlayerToIt(void)
+{
+    op_rep(0x21);
+    a16_load(dp16(ACTOR_X + 1));
+    wr16(dba(PLAYER + ACTOR_X + 1), cpu.a);
+    a16_load(dp16(ACTOR_Y + 1));
+    flag_set(P_C, 0);
+    a16_load(op_adc16(cpu.a, 0x002B, &cpu.p));
+    wr16(dba(PLAYER + ACTOR_Y + 1), cpu.a);
+    op_sep(0x20);
+}
+
+/*
+ * @routine 83:F610 Kind79Held
+ * WHAT IT DOES: Tells whether Aladdin still holds on to actor kind $79
+ * (his box wanted $07-$0F): if so it is marked as what holds him; if not
+ * it lets him go: animation 0, no longer taken, nothing holds him, and 16
+ * frames before it can be taken again.
+ * HOW: KIND79_BOX_WANTED from $07 to $0F: KIND79_HOLDER = D, C set. Else
+ * AnimStart 0, KIND79_TAKEN 0, KIND79_HOLDER 0 (byte by byte),
+ * KIND79_WAIT $10, C clear.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSR. Exit: M 8-bit, X 8-bit; C set
+ * while he holds on.
+ */
+void abi_Kind79Held(void)
+{
+    uint8_t box = rd8(dba(KIND79_BOX_WANTED));
+
+    x8_load(box);
+    cmp8_of(box, 0x07);
+    if (box >= 0x07) {
+        cmp8_of(box, 0x10);
+        if (box < 0x10) {
+            op_rep(0x20);
+            a16_load(cpu.d);                    /* TDC */
+            wr16(dba(KIND79_HOLDER), cpu.a);
+            op_sep(0x20);
+            flag_set(P_C, 1);
+            return;
+        }
+    }
+    a8_load(0x00);
+    abi_AnimStart();
+    wr8(dpa(KIND79_TAKEN), 0x00);
+    wr8(dba(KIND79_HOLDER), 0x00);
+    wr8(dba((uint16_t)(KIND79_HOLDER + 1)), 0x00);
+    a8_load(KIND79_LET_GO_WAIT);
+    wr8(dpa(KIND79_WAIT), KIND79_LET_GO_WAIT);
+    flag_set(P_C, 0);
 }
 
 /*
