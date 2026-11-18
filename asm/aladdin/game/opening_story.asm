@@ -174,8 +174,6 @@ OpeningStory:
 ; DB = $80, whose $0000-$1FFF is work RAM. Exit: M 8-bit, X 8-bit. Ran
 ; out: Z set from the count; A, X, Y as the last FrameEnd leaves them.
 ; Start: A low = $80, N set, Z clear.
-; (No C yet: A5 cannot judge it while $81:830D, which FrameEnd calls,
-; has no C.)
 OpeningSceneRun:
     lda.w !SCENE
     asl a

@@ -6,6 +6,10 @@
 #include "ops65.h"
 #include "native.h"
 #include "cpu_ops.h"
+void abi_LevelLoadLong(void);
+void abi_EndingStageScroll(void);
+void abi_EndingStageFrameBands(void);
+void abi_FrameStepLong(void);
 void abi_OamBuildBegin(void);
 void abi_LayersScrollLong(void);
 void abi_ActorsInView(void);

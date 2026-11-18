@@ -26,7 +26,6 @@ arch 65816
 !V_0360 = $0360
 !state_0359 = $0359
 !game_begun = $036F             ; nonzero once a game has begun
-!play_loop = $818191            ; the game task's play loop, from its start (not yet filed)
 ; Per demo: its pad stream's offset from $84:F700 (words); its progress
 ; sequence, stage and $0360 (bytes).
 !demo_inputs = $B724
@@ -103,7 +102,7 @@ LevelPlayStartTask:
     stz.w !state_0359
     stz.w !state_035a
     stz.w !state_036a+2
-    jmp.w !play_loop
+    jmp.w PlayLoopStart
 ; GameStartTask with a game begun: play goes on from the progress.
 GameStartGoOn:
     jsr.w LevelFromProgress
@@ -115,13 +114,13 @@ GameStartGoOn:
     stz.w !state_0359
     stz.w !state_035a
     jsr.w PlayStartCounts
-    jmp.w !play_loop
+    jmp.w PlayLoopStart
 ; The demo's start of play (the attract code jumps here, $81:805F): a new
 ; game's state, PlayStartCounts, the play loop.
 DemoPlayStart:
     jsr.w NewGameState
     jsr.w PlayStartCounts
-    jmp.w !play_loop
+    jmp.w PlayLoopStart
 
 ; @routine 81:80DC PlayStartCountsLong
 ; WHAT IT DOES: Sets what play starts with, for callers in other banks.
@@ -261,4 +260,4 @@ NextPartTask:
     stz.w !state_0359
     stz.w !state_035a
     jsl.l TaskExec
-    dl !play_loop
+    dl PlayLoopStart

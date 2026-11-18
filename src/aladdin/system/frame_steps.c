@@ -6,6 +6,7 @@
 #include "ops65.h"
 
 void abi_TaskWait(void);
+void abi_FrameStepLong(void);
 
 /* Not yet filed: the frame's update (the player's position kept, the
    sprites and blocks for the NMI). */
@@ -22,3 +23,22 @@ void abi_TaskWait(void);
 
 
 
+
+/*
+ * @routine 80:AE9A FrameEnd
+ * WHAT IT DOES: Ends a task's frame: the frame's update, then the wait
+ * for the next frame.
+ * HOW: The update at $81:830D, then TaskWait with A = 1.
+ * Entry: M 8-bit, X 8-bit; called by JSR from a task; DB a bank whose
+ * $0000-$1FFF is work RAM. Exit: when the task resumes, the registers as
+ * the wait restores them (A low = 1).
+ */
+void abi_FrameEnd(void)
+{
+    jsl_frame(0x80AE9Au);
+    abi_FrameStepLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    lda8_v(0x01);
+    jsl_frame(0x80AEA0u);
+    abi_TaskWait();
+}
