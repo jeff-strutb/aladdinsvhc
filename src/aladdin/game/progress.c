@@ -11,6 +11,10 @@ void abi_LevelPlayStartTask(void);
 void abi_NewGameState(void);
 void abi_LevelFromProgress(void);
 void abi_TaskExec(void);
+void abi_TaskCreate(void);
+void abi_TaskWait(void);
+void abi_SoundQueueF1(void);
+void abi_NextPartTask(void);
 void abi_LevelCountersClear(void);
 void abi_DemoStart(void);
 void abi_PlayStartCounts(void);
@@ -182,6 +186,31 @@ void abi_LevelFromProgress(void)
     level = rd8(dba(LEVEL_BY_PROGRESS) + at);
     a8_load(level);
     wr8(dba(LEVEL), level);
+}
+
+/*
+ * @routine 81:8169 NextPartFadeTask
+ * WHAT IT DOES: The game task's next part of play after a fade: the sound
+ * faded (SoundQueueF1), the screen darkened by BrightnessDownTask in slot
+ * 1, and once that has ended, on into NextPartTask. Nothing in the game
+ * starts it.
+ * HOW: SoundQueueF1; TaskCreate (slot 1, parameter 4, BrightnessDownTask);
+ * TaskWait a frame at a time until slot 1's state is 0; then on into
+ * NextPartTask.
+ * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM; the
+ * game task's code. Exit: never returns.
+ */
+void abi_NextPartFadeTask(void)
+{
+    jsl_frame(0x818169u); abi_SoundQueueF1(); cpu.s = (uint16_t)(cpu.s + 3);
+    /* BrightnessDownTask, slot 1, parameter 4 */
+    jsl_frame(0x81816Du); abi_TaskCreate(); cpu.unwound = 0;
+    do {
+        lda8_v(0x01);
+        jsl_frame(0x818178u); abi_TaskWait();
+        lda8(ea_abs((uint16_t)(TASK_STATE + 1 * 24)));
+    } while (!IF_Z);
+    abi_NextPartTask();
 }
 
 /*

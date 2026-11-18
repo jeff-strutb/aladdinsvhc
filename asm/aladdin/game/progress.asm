@@ -225,6 +225,28 @@ LevelFromProgress:
     sta.w !level
     rts
 
+; @routine 81:8169 NextPartFadeTask
+; WHAT IT DOES: The game task's next part of play after a fade: the sound
+; faded (SoundQueueF1), the screen darkened by BrightnessDownTask in slot
+; 1, and once that has ended, on into NextPartTask. Nothing in the game
+; starts it.
+; HOW: SoundQueueF1; TaskCreate (slot 1, parameter 4, BrightnessDownTask);
+; TaskWait a frame at a time until slot 1's state is 0; then on into
+; NextPartTask.
+; Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM; the
+; game task's code. Exit: never returns.
+%at($818169)
+NextPartFadeTask:
+    jsl.l SoundQueueF1
+    jsl.l TaskCreate
+    db 1*24, 4                  ; slot 1, parameter 4
+    dl BrightnessDownTask
+.faded:
+    lda.b #$01
+    jsl.l TaskWait
+    lda.w !task_state+(1*24)
+    bne .faded
+
 ; @routine 81:8181 NextPartTask
 ; WHAT IT DOES: The game task's start of the next part of play (the story
 ; card's TaskExec, $81:F2D3): the level from the game's progress, then the

@@ -1,0 +1,10 @@
+# The game task's next part after a fade ($81:8169, NextPartFadeTask):
+# nothing in the game starts it, so no screen runs it. A unit call by JSL
+# in the task running at the title (as unit_task_exit): the sound faded,
+# BrightnessDownTask in slot 1 darkens the screen, the task waits until it
+# has ended, then goes on into NextPartTask, which starts play at the
+# level the progress gives (noreturn; the frames after it are compared in
+# lockstep).
+load build/aladdin/states/title.state
+wait 10
+call 818169 long noreturn frames=300
