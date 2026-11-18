@@ -1,0 +1,15 @@
+# The copier check's end (MirrorCheckTask, $81:A37A): caught, it waits 30
+# times 63 frames, then sets V_03FB to $3F every 255 frames for ever
+# ($81:A3BC). The scripts that run it with the copier RAM on (cartram) end
+# before the 1890 frames, or lose the level (and the task) first. On the
+# first level, with the copier RAM on, the task is created again in its
+# slot 7 (record $0117, stack top $02EA) the way the level's load does
+# (TaskCreate: its entry less one and bank at the stack's top, its saved
+# S, state new), and left for 2300 frames, Aladdin standing.
+load build/aladdin/states/level1.state
+cartram on
+wait 10
+poke $0002EB 79,A3,81
+poke $000119 EA,02
+poke $000117 0C
+wait 2300
