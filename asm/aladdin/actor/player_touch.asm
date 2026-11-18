@@ -4,6 +4,7 @@
 ; C: src/aladdin/actor/player_touch.c.
 
 incsrc "../include/macros.inc"
+incsrc "../include/wram.inc"
 incsrc "../include/actor.inc"
 
 arch 65816
@@ -108,11 +109,11 @@ ActorStompOrHurt16:
     jsr.w ActorHitsTestBoxIfActive
     bcs ActorStompOrHurt_none
     rep.b #$20
-    sta.w $0014
+    sta.w !scratch+8
     sec
-    lda.w $0012
+    lda.w !scratch+6
     sbc.w #$0010
-    cmp.w $0014
+    cmp.w !scratch+8
     bcc ActorStompOrHurt_above
     bra ActorStompOrHurt_hurt
 

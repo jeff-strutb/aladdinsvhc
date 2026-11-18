@@ -28,6 +28,7 @@ arch 65816
 !KWR_K50_FACING = $14          ; negative: it faces left
 !KWR_K50_DOWNED = $45          ; counted up each time a shot downs it facing right
 !KWR_K42_PARENT = $40          ; the record (word) whose $4F it sets
+!KWR_K42_PARENT_MARK = $004F   ; with X that record: its $4F, set to 1 when it is hurt
 !KWR_V_03F5 = $03F5            ; nonzero: no mark on the parent
 !KWR_K57_FIRST_X = $0937       ; the first record's x (word)
 !KWR_K57_RIGHT_OF = $146C      ; 1: the first record is at or right of it
@@ -473,10 +474,10 @@ Kind42Wait:
     bne .anim
     rep #$10
     ldx.b !KWR_K42_PARENT
-    lda.w $004F,x
+    lda.w !KWR_K42_PARENT_MARK,x
     bne .set
     lda.b #$01
-    sta.w $004F,x
+    sta.w !KWR_K42_PARENT_MARK,x
 .set:
     sep #$10
 .anim:

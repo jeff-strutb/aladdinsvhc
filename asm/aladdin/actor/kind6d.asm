@@ -16,6 +16,8 @@ arch 65816
 !K6D_SOUND = $0F                ; the sound of its fall
 !K6D_CHECK = $703000            ; the copier check's bytes: work RAM on a copier, none on the cartridge
 !K6D_PROBES = $D667             ; its probe list
+!ACTOR_PROBES = $16             ; its probe list's address (word)
+!K6D_RECORD = $00               ; its record's start: with X $40 down to 1, bytes $01-$40 set to $AA
 !K6D_TURNS = $41                ; the homing way's turns left; then its turn step
 !K6D_SPAWN_SLOT = $21           ; the slot byte its children are made with
 !K6D_STEP = $47                 ; the spawner's own $07 kept while a child is made
@@ -70,7 +72,7 @@ Kind6DStart:
     ldx.b #$40
     lda.b #$AA
 .wipe:
-    sta.b $00,x
+    sta.b !K6D_RECORD,x
     dex
     bne .wipe
     stz.b !actor_06
@@ -81,7 +83,7 @@ Kind6DStart:
     sta.b !actor_09
     rep.b #$20
     lda.w #!K6D_PROBES
-    sta.b $16
+    sta.b !ACTOR_PROBES
     sep.b #$20
     jsl.l ActorStopX
     jsl.l ActorStopY
