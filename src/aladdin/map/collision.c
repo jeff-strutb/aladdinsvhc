@@ -1136,3 +1136,57 @@ void abi_PlayerOnFirmGroundProbe4(void)
     x8_load(0x04);
     firm_ground_at_x();
 }
+
+/* ActorSettleOnGround: the tile at the probe point is ground to stand on:
+   not empty, not negative, not passed through. The flags as the tests
+   leave them. */
+static int ground_at_probe(void)
+{
+    abi_TileAtProbe();
+    if (cpu.p & (P_Z | P_N))
+        return 0;
+    lda8_v(BEHAVIOUR_THROUGH);
+    bit8_v(rd8(abs_db(TILE_BEHAVIOUR_BYTE)));
+    return (cpu.p & P_Z) != 0;
+}
+
+/*
+ * @routine 81:B6E7 ActorSettleOnGround
+ * WHAT IT DOES: When ground is at the actor's probe 8 to the left, or else
+ * to the right, stops its fall and stands it on that tile's top. No code
+ * refers to it.
+ * HOW: ProbeLeft at probe 8, then TileAtProbe: a kind that is not empty,
+ * not negative and not passed through goes on to the settling; else the
+ * same at ProbeRight, which gives up otherwise. Settling: the vertical
+ * speed cleared and y moved down to the next tile boundary (16 less the
+ * point's y in the tile), as ActorSettleOnFloor.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM and that holds the probe list and the tile kinds ($80); called
+ * by JSL. Exit: M and X 8-bit. Settled: A = the new y (16 bits); N,
+ * V, Z, C from its ADC. Else: A low byte and the flags as
+ * the last test left them.
+ */
+void abi_ActorSettleOnGround(void)
+{
+    lda8_v(0x08);
+    wr8(dp(ACTOR_PROBE_AT), 0x08);
+    abi_ProbeLeft();
+    if (!ground_at_probe()) {
+        abi_ProbeRight();
+        if (!ground_at_probe())
+            return;
+    }
+    wr8(dp(ACTOR_SPEED_Y + 2), 0);
+    op_rep(P_M);
+    wr16(dp(ACTOR_SPEED_Y), 0);
+    lda16(abs_db(POINT_Y));
+    and16_v(0x000F);
+    eor16_v(0xFFFF);
+    ACC16(inc);
+    clc();
+    adc16_v(0x0010);
+    clc();
+    adc16_v(rd16(dp(ACTOR_Y + 1)));
+    wr16(dp(ACTOR_Y + 1), cpu.a);
+    op_sep(P_M);
+}

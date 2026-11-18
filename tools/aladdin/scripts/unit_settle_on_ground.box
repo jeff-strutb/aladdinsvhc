@@ -1,0 +1,19 @@
+# Unit calls of ActorSettleOnGround (81:B6E7), which no code refers to:
+# ground at the actor's probe 8 to the left, else to the right, stands it
+# on that tile's top. In level 4 (stage a1 s0) on Aladdin's record (M and
+# X 8-bit, DB $80, his probe 8 is 5 pixels across and 16 up), the view's y
+# ($1777) set to $0060 so his points are on the view, the machine put back
+# after each. His x, y ($08E7, $08EA) $0478, $00D0: the left point
+# ($0473, $00C0) is in a solid tile. Then $04BC, $0100: the left point
+# ($04B7, $00F0) is in an empty tile, the right ($04C1, $00F0) in a solid
+# one.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008E7 78,04
+set $0008EA D0,00
+call 81B6E7 long d=08DB db=80 p=30
+set $001777 60,00
+set $0008E7 BC,04
+set $0008EA 00,01
+call 81B6E7 long d=08DB db=80 p=30

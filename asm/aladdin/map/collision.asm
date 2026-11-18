@@ -863,3 +863,53 @@ PlayerOnFirmGroundAtX:
     pld
     clc
     rtl
+
+; @routine 81:B6E7 ActorSettleOnGround
+; WHAT IT DOES: When ground is at the actor's probe 8 to the left, or else
+; to the right, stops its fall and stands it on that tile's top. No code
+; refers to it.
+; HOW: ProbeLeft at probe 8, then TileAtProbe: a kind that is not empty,
+; not negative and not passed through goes on to the settling; else the
+; same at ProbeRight, which gives up otherwise. Settling: the vertical
+; speed cleared and y moved down to the next tile boundary (16 less the
+; point's y in the tile), as ActorSettleOnFloor.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM and that holds the probe list and the tile kinds ($80); called
+; by JSL. Exit: M and X 8-bit. Settled: A = the new y (16 bits); N,
+; V, Z, C from its ADC. Else: A low byte and the flags as
+; the last test left them.
+%at($81B6E7)
+ActorSettleOnGround:
+    lda.b #8
+    sta.b !actor_probe_at
+    jsr.w ProbeLeft
+    jsr.w TileAtProbe
+    beq .right
+    bmi .right
+    lda.b #!BEHAVIOUR_THROUGH
+    bit.w !tile_behaviour_byte
+    beq .settle
+.right:
+    jsr.w ProbeRight
+    jsr.w TileAtProbe
+    beq .done
+    bmi .done
+    lda.b #!BEHAVIOUR_THROUGH
+    bit.w !tile_behaviour_byte
+    bne .done
+.settle:
+    stz.b !actor_speed_y+2
+    rep.b #$20
+    stz.b !actor_speed_y
+    lda.w !point_y
+    and.w #$000F
+    eor.w #$FFFF
+    inc a
+    clc
+    adc.w #16
+    clc
+    adc.b !actor_y+1
+    sta.b !actor_y+1
+    sep.b #$20
+.done:
+    rtl
