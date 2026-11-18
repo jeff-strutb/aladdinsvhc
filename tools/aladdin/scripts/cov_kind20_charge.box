@@ -1,0 +1,53 @@
+# Kind $20's guard spotting Aladdin, charging and halting on crafted
+# ground, on the first level with the guard at record $0BAB (x $0125,
+# y $01B0, by the block at x $0130), the camera put at x $0080. The map
+# cells poked are level tile words at $7F0000: $1140 an empty tile, $27A8
+# a tile of kind $0F (behaviour $84: low bits 4), which this level's map
+# has none of.
+# 1. Its place byte $07 given bit 4 (it sees past the map), Aladdin at
+#    x $0170 beyond the block: it turns to him with the block ahead and
+#    halts at once (Kind20Spotted, $83:98B3).
+# 2. A pit 48 pixels wide in the floor (x $00C0-$00EF, the floor row at
+#    y $01C0 emptied), $07 = $0B (bit 3, the faster charge) and Aladdin at
+#    x $00A0: it charges at speed $80 ($83:98EA), runs off the pit's edge
+#    with the floor below further on ($83:992D, its fall at $83:997C),
+#    and at the pit's far side, the wall with nothing above it, leaps
+#    ($83:9944, $83:996C); at the block at x $0060 it halts.
+# 3. A kind $0F tile in the floor at x $0100 on its beat: walking over it
+#    it takes the ledge's probe ($83:9812, ActorMapAhead7Down36 $83:9A11).
+# 4. The same tile, the floor just left of it (x $00F0, rows $01C0 and
+#    $01D0) emptied, and Aladdin at x $00A0: charging over the tile, the
+#    ledge's probe finds nothing below ($83:9911).
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BB2 13
+poke 0008E7 70,01
+poke 0008EA B0,01
+wait 60
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 7F2198 40,11
+poke 7F219A 40,11
+poke 7F219C 40,11
+poke 000BB2 0B
+poke 0008E7 A0,00
+poke 0008EA B0,01
+wait 200
+load build/aladdin/states/level1.state
+wait 30
+poke 7F2380 A8,27
+wait 200
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 7F2380 A8,27
+poke 7F219E 40,11
+poke 7F21BE 40,11
+poke 0008E7 A0,00
+poke 0008EA B0,01
+wait 200

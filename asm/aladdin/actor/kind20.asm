@@ -306,13 +306,15 @@ Kind20Charge:
     beq .leap
 
 ; @routine 83:9956 Kind20Halt
+; @actor
 ; WHAT IT DOES: The guard halts: stands 24 frames, then takes up its beat
 ; again from here and looks about.
 ; HOW: AnimStart 0, COP $18; ActorSpeedXSet1, ActorXTo40,
 ; Actor44Set40And80; Kind20LookAbout.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
-; $0000-$1FFF is work RAM; reached by the jumps of Kind20Spotted and
-; Kind20Charge. Exit: never returns.
+; $0000-$1FFF is work RAM; reached by the JMPs of Kind20Spotted,
+; Kind20Charge and Kind20Dazed, Kind20Charge's branches and its running on
+; at 83:9956; never by a call. Exit: never returns.
 Kind20Halt:
     lda.b #$00
     jsl.l AnimStart

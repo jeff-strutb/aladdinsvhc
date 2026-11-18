@@ -52,11 +52,17 @@ void abi_SoundQueueAdd(void);
 #define COPIER_TEST 0x700023u      /* cartridge RAM, which a retail cartridge has none of */
 #define NO_PATROL 0x839AC9u        /* its code for bit 4 of PLACE, which no script reaches */
 
+/* How a charging frame stopped: 0 by a branch into Kind20Halt (or running
+   on into it), HALT_BY_JMP by a JMP to it. */
+#define HALT_BY_JMP 2
+
+void abi_Kind20Halt(void);
+
 /* From 83:998C: while charging,
    the charge's sound on surfaces 9 and $0C, then: slowing down when
    COUNT is out; else on, turned to face the player again within 16
-   frames. Returns 1 to go on charging (the JMP back to 83:9900), 0 when
-   the charge stops (to Kind20Halt). */
+   frames. Returns 1 to go on charging (the JMP back to 83:9900),
+   HALT_BY_JMP when the charge stops (its JMP to Kind20Halt). */
 static int charge_on(void)
 {
     lda8(ea_dp(SURFACE));
@@ -104,7 +110,7 @@ static int charge_on(void)
     lda8(ea_dp(ACTOR_SPEED_X + 1));
     if (!IF_Z)
         return 1;
-    return 0;
+    return HALT_BY_JMP;
 }
 
 /* From 83:997C (no script runs it): in the air, a frame at a time
@@ -121,7 +127,9 @@ static int airborne(void)
 }
 
 /* From 83:9906: a charging frame's ground and probes; 1 to go on
-   charging, 0 when it stops (the jump to Kind20Halt is the caller's). */
+   charging, 0 when it stops by a branch into Kind20Halt (or running on
+   into it at 83:9956), HALT_BY_JMP by the JMP to it; the caller goes on
+   into Kind20Halt (halt_after). */
 static int charge_frame(void)
 {
     abi_ActorSnapToGround();
@@ -181,6 +189,18 @@ ahead:
     lda8_v(0x10);
     sta8(ea_dp(ACTOR_ACCEL_Y));
     return airborne();
+}
+
+/* On into Kind20Halt once a charging frame stopped: by the JMP
+   (HALT_BY_JMP) as a jump to it, which opens its piece (@actor) as the
+   original's does; by a branch, or running on at 83:9956, its C goes on
+   here as the original's code does, with no jump. */
+static void halt_after(int on)
+{
+    if (on == HALT_BY_JMP)
+        jump_routine(0x839956u);
+    else
+        abi_Kind20Halt();
 }
 
 /*
@@ -442,10 +462,10 @@ void abi_Kind20Spotted(void)
     /* on into Kind20Charge past its BRK and move; its JMP back to
        Kind20Charge goes on in this same piece of the actor */
     on = charge_frame();
-    if (on > 0)
+    if (on == 1)
         jump_routine(0x839900u);
-    else if (on == 0)
-        jump_routine(0x839956u);
+    else
+        halt_after(on);
 }
 
 /*
@@ -474,20 +494,21 @@ void abi_Kind20Charge(void)
         actor_yield(0x839900u);
         abi_ActorMoveX();
         on = charge_frame();
-    } while (on > 0);
-    if (on == 0)
-        jump_routine(0x839956u);
+    } while (on == 1);
+    halt_after(on);
 }
 
 /*
  * @routine 83:9956 Kind20Halt
+ * @actor
  * WHAT IT DOES: The guard halts: stands 24 frames, then takes up its beat
  * again from here and looks about.
  * HOW: AnimStart 0, COP $18; ActorSpeedXSet1, ActorXTo40,
  * Actor44Set40And80; Kind20LookAbout.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
- * $0000-$1FFF is work RAM; reached by the jumps of Kind20Spotted and
- * Kind20Charge. Exit: never returns.
+ * $0000-$1FFF is work RAM; reached by the JMPs of Kind20Spotted,
+ * Kind20Charge and Kind20Dazed, Kind20Charge's branches and its running on
+ * at 83:9956; never by a call. Exit: never returns.
  */
 void abi_Kind20Halt(void)
 {
