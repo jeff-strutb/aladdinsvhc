@@ -1,0 +1,38 @@
+# Actor kind $97 (Kind97Start, $84:9F4F) in its other ways. Stage a5 s1
+# places one kind $97 (record $0BAB) with $07 = $01, a sender, which no
+# play meets from its start: the state was saved after it started.
+# A. Its record put back to state $0C with $07 = $00, a dropper: after 30
+# frames, once the range point (the view's x + $80) is within $0300-$08D5
+# on the walk right (frame 574 here), it drops a kind $37 child from $50
+# above that point (Kind97DropChild) and waits for the child's record to
+# be free. A kind $37 started there stops the game: its start entry
+# ($83:8CAB) is its wait routine Kind37Wait ($83:BD22), entered by the
+# loop's JMP though it returns as a JSR'd routine (no level places a
+# dropper, so no play meets this). So the free list's top entry ($15C8,
+# then $0CEB) is made $0B0B, a record before the dropper's: the child is
+# made there after the loop has passed it, and its state is cleared before
+# it would start. The dropper then sees its child's record free, and goes
+# back to its timer ($78 frames); the part ends before its next drop.
+load build/aladdin/states/stage_a5_s1.state
+poke 000BB2 00
+poke 000BAB 0C
+hold RIGHT 300
+hold RIGHT 272
+poke 0015C8 0B,0B
+hold RIGHT 2
+poke 000B0B 00
+hold RIGHT 12
+# B. Put back to state $0C with $07 = $01: the sender's start. Then $07
+# made $00 while it waits to send: its window is then the second one
+# ($0110-$0410), and the pair goes out on the walk right.
+load build/aladdin/states/stage_a5_s1.state
+poke 000BB2 01
+poke 000BAB 0C
+wait 4
+poke 000BB2 00
+hold RIGHT 300
+# C. As placed (a sender, already started): on the walk right it sends a
+# pair in its first window ($0120-$0300) and waits until it is gone.
+load build/aladdin/states/stage_a5_s1.state
+hold RIGHT 300
+hold RIGHT 300

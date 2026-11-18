@@ -1,0 +1,10 @@
+# Kind $81's wait (ActorKind81Wait $83:92C6, Kind81WaitWork $84:951C), run
+# by the actor loop only for a record waiting more than its last frame with
+# bit 7 of its $09 set. Kind $81 (Kind81Scene) waits one frame at a time
+# with $09 = $40, so no play runs it. On stage a5 s3 its record ($0B5B)
+# is given $09 = $C0 and a wait of 3 frames ($01): the loop runs the wait
+# for 2 frames, then the scene's actor goes on as before.
+load build/aladdin/states/stage_a5_s3.state
+poke 000B64 C0
+poke 000B5C 03
+wait 6
