@@ -55,6 +55,8 @@
  *                        lets the call start in the vertical blank, for a
  *                        screen that runs with the NMI off and whose loop
  *                        runs original code only then
+ *   apuport PORT BYTE    set the S-CPU's side of APU port PORT (0-3), as
+ *                        an S-CPU write there would, between frames
  *   repeat N ... end     run the enclosed lines N times (nests)
  * Buttons: B Y SELECT START UP DOWN LEFT RIGHT A X L R, player 1; prefix
  * with 2. for player 2 (2.START). Joined with +.
@@ -360,6 +362,21 @@ static void cartram(const char *line, int lineno) {
     int *on = dlsym(core, "snesbox_cart_ram_on");
     if (!on) die("%s:%d: cartram: the core has no copier RAM (patch 0017)", script_path, lineno);
     *on = !strcmp(v, "on");
+}
+
+/* apuport PORT BYTE: the S-CPU's side of APU port PORT (0-3), which the
+   SPC700 reads at $F4-$F7, set between frames as an S-CPU write there
+   sets it (core patch 0018): test input like poke, for driver paths no
+   value the game writes reaches. Both lockstep processes run the script,
+   so both sides have it alike. The driver's port clears ($F1) and the
+   game's own writes replace it as they would a write of the game's. */
+static void apuport(const char *line, int lineno) {
+    unsigned port, v;
+    if (sscanf(line, "%*s %u %x", &port, &v) != 2 || port > 3 || v > 0xFF)
+        die("%s:%d: apuport PORT(0-3) BYTE", script_path, lineno);
+    void (*set)(int, uint8_t) = (void (*)(int, uint8_t))dlsym(core, "snesbox_apu_port_set");
+    if (!set) die("%s:%d: apuport: the core has no snesbox_apu_port_set (patch 0018)", script_path, lineno);
+    set((int)port, (uint8_t)v);
 }
 
 /* spcset APU BYTE[,BYTE...]: stage SPC700 RAM bytes for the next spccall.
@@ -696,6 +713,7 @@ static void exec_range(int from, int to) {
         else if (!strcmp(a, "poke") && k >= 3) poke(lines[i], i + 1);
         else if (!strcmp(a, "cartram") && k >= 2) cartram(lines[i], i + 1);
         else if (!strcmp(a, "call") && k >= 2) call(lines[i], i + 1);
+        else if (!strcmp(a, "apuport") && k >= 3) apuport(lines[i], i + 1);
         else if (!strcmp(a, "spcset") && k >= 3) spcset(lines[i], i + 1);
         else if (!strcmp(a, "spccall") && k >= 2) spccall(lines[i], i + 1);
         else if (!strcmp(a, "set") && k >= 3) {

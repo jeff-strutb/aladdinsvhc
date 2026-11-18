@@ -1,0 +1,27 @@
+--- a/bsnes/emulator/snesbox.hpp
++++ b/bsnes/emulator/snesbox.hpp
+@@ -73,6 +73,10 @@
+ void snesbox_smp_time(uint32_t clocks);
+ // One SPC700 data access made now, without time (read when write == 0).
+ uint8_t snesbox_smp_bus(int write, uint16_t addr, uint8_t data);
++// The S-CPU's side of APU port PORT (0-3), what the SPC700 reads at $F4-$F7,
++// set as an S-CPU write there would set it, between frames: a script's apuport
++// (test input like poke). Nothing is synchronized or run.
++void snesbox_apu_port_set(int port, uint8_t data);
+ void snesbox_gsu_operand(uint32_t addr);
+ void snesbox_gsu_data(uint32_t addr);
+ // Per-access events for the call oracle (kind: 0 S-CPU write, 2 DMA write).
+--- a/bsnes/sfc/smp/smp.cpp
++++ b/bsnes/sfc/smp/smp.cpp
+@@ -59,6 +59,11 @@
+   return smp.snesboxBus(write, addr, data);
+ }
+ 
++extern "C" void snesbox_apu_port_set(int port, uint8_t data) {
++  using namespace SuperFamicom;
++  smp.portWrite(port & 3, data);
++}
++
+ namespace SuperFamicom {
+ 
+ auto SMP::load() -> bool {

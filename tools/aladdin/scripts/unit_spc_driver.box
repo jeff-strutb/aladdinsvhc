@@ -17,6 +17,14 @@ wait 2
 # as its call.
 spccall 05B1 at=02F5
 wait 2
+# The same with port 1 negative ($80): the tempo offset negated ($05B7,
+# $05CC). The game writes port 1 only in SpcUpload, 0 or 1 (each upload
+# ends with 0), so play never sends it a negative value; set here as an
+# S-CPU write would set it (apuport).
+apuport 1 80
+spccall 05B1 at=02F5
+wait 2
+apuport 1 00
 # Command $F6 with $C6 = 2: the fade's step doubled, still running
 # ($0632). The driver clears its input ports after every command, so the
 # parameter (port 3) exists only while the game's own $F6 is taken: $C6 is
