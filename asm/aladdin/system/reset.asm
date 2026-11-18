@@ -35,6 +35,24 @@ TaskSlotsFree1To6:
     stz.w !task_state+(!TASK_SLOT_SIZE*6)
     rtl
 
+; @routine 81:9639 LowRamClear
+; WHAT IT DOES: Clears work RAM from $000C to $03F4 (the task slots and
+; stacks among it). Nothing in the game calls it.
+; HOW: With X 16-bit, STZ to $000C+X for X from $03E8 down to 0.
+; Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; S outside
+; $000C-$03F4 (its own return would be cleared); called by JSL. Exit: X
+; 8-bit, X = $FF; N set, Z clear (DEX); A, Y unchanged.
+%at($819639)
+LowRamClear:
+    rep.b #$10
+    ldx.w #$03E8
+.clear:
+    stz.w $000C,x
+    dex
+    bpl .clear
+    sep.b #$10
+    rtl
+
 ; @routine 81:9647 LevelCountersClear
 ; WHAT IT DOES: Clears the four level counters at $03F5.
 ; HOW: Four byte stores, last to first.

@@ -39,6 +39,27 @@ void abi_TaskSlotsFree1To6(void)
 }
 
 /*
+ * @routine 81:9639 LowRamClear
+ * WHAT IT DOES: Clears work RAM from $000C to $03F4 (the task slots and
+ * stacks among it). Nothing in the game calls it.
+ * HOW: With X 16-bit, STZ to $000C+X for X from $03E8 down to 0.
+ * Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; S outside
+ * $000C-$03F4 (its own return would be cleared); called by JSL. Exit: X
+ * 8-bit, X = $FF; N set, Z clear (DEX); A, Y unchanged.
+ */
+void abi_LowRamClear(void)
+{
+    int x;
+
+    op_rep(P_X);
+    for (x = 0x03E8; x >= 0; x--)
+        wr8(abs_db((uint16_t)(0x000C + x)), 0);
+    cpu.x = 0xFFFF;
+    cpu.p = nz16(cpu.p, 0xFFFF);
+    op_sep(P_X);
+}
+
+/*
  * @routine 81:9647 LevelCountersClear
  * WHAT IT DOES: Clears the four level counters at $03F5.
  * HOW: Four byte stores, last to first.

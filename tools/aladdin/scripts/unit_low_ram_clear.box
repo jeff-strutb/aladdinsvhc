@@ -1,0 +1,8 @@
+# Work RAM $000C-$03F4 cleared ($81:9639, LowRamClear): nothing in the
+# game calls it, so no screen runs it. A unit call by JSL on the first
+# level's state (M and X 8-bit, DB $80), with S at $1EFF: every stack the
+# game uses lies in the range it clears, and the call's own return must
+# not. (The machine is put back after the call.)
+load build/aladdin/states/level1.state
+wait 10
+call 819639 long db=80 p=30 s=1EFF
