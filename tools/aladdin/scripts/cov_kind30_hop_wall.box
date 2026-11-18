@@ -1,0 +1,16 @@
+# Kind $30 ($83:B684) hopping into a wall: the hop of a pickup a shot
+# has hit (K30_SHOT, $43) turns it round when ActorOutOfWallProbe4 moves
+# it out of a wall ($83:B91F). On pw4.state the open space under the
+# ledge runs from x $80 to $FF, solid from x $7F down (a WRAM dump,
+# TileAt by kind). The kind $30 at record $0BAB is written back whole in
+# its start state ($0C) as type 6 waiting in place ($07 = $16), at x $88
+# facing left, Aladdin kept at x $40; three frames on, its $43 is set and
+# it hops left into the wall at x $7F.
+load build/aladdin/states/pw4.state
+hold R 5
+wait 60
+poke 0008E7 40,00
+poke 000BAB 0C,00,31,11,B7,83,30,16,0B,D0,00,00,88,00,00,E8,00,00,00,00,01,00,7A,D1,00,00,00,00,00,00,00,00,00,00,50,56,B0,05,3B,01,FF,00,00,00,04,02,00,00,01,06,36,02,02,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+wait 3
+poke 000BEE 01
+wait 90
