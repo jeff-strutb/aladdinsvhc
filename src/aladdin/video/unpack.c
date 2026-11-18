@@ -21,6 +21,9 @@ void abi_UnpackGroup(void);
 void abi_UnpackSet(void);
 void abi_AnimSetGraphicsUnpack(void);
 void abi_LevelGraphicsLoad(void);
+void abi_UnpackTask(void);
+void abi_TaskWait(void);
+void abi_TaskExit(void);
 #include "wram.h"
 #include "wram_video.h"
 #include "hw.h"
@@ -352,4 +355,71 @@ L_81BB00:
     plb();  /* 81BB01 plb */
     pld();  /* 81BB02 pld */
     return;  /* 81BB03 rtl */
+}
+
+#define UNPACK_TASK_ENTRIES 0xBF2Au /* bank $80: per entry, 7 bytes: destination, source offset, bank, length (word); three, then zeros */
+
+/*
+ * @routine 81:BC16 UnpackTask
+ * WHAT IT DOES: A task that unpacks an entry of the table at $80:BF2A
+ * into bank $7F a group at a time, waiting a frame whenever the beam has
+ * reached line $F0; then ends. Nothing found creates it.
+ * HOW: D, DB and P kept on the stack; Y = the task's parameter (the entry's
+ * byte offset); with 16-bit registers and D = 0 the source pointer at $65
+ * = the entry's bank (+4) with offset 0, $69 = its length (+5) rounded up
+ * to 8-byte groups, X = its destination (+0); then the source offset (+2)
+ * into UnpackBegin. While groups are left, UnpackGroup; after each, the
+ * counters latched (SLHV) and the vertical one read (OPVCT, low byte): at
+ * $F0 or past, TaskWait 1 with DB = 0. At the end P, DB and D pulled and
+ * on to TaskExit.
+ * Entry: a new task (M and X 8-bit, Y = its slot, D = 0); DB = $80.
+ * Exit: never returns (TaskExit).
+ */
+void abi_UnpackTask(void)
+{
+    phd();
+    phb();
+    php();
+    lda8(ea_absy((uint16_t)TASK_PARAM));
+    tay8();
+    op_rep(0x30);
+    lda16_v(0x0000);
+    tcd();
+    lda16(ea_absy(UNPACK_TASK_ENTRIES + 4));
+    stz16(ea_dp(UNPACK_SOURCE));
+    sta16(ea_dp(UNPACK_SOURCE + 2));
+    lda16(ea_absy(UNPACK_TASK_ENTRIES + 5));
+    clc();
+    adc16_v(0x0007);
+    and16_v(0xFFF8);
+    ACC16(lsr);
+    ACC16(lsr);
+    ACC16(lsr);
+    sta16(ea_dp(UNPACK_GROUPS));
+    lda16(ea_absy(UNPACK_TASK_ENTRIES + 2));
+    ldx16(ea_absy(UNPACK_TASK_ENTRIES));
+    ldx16(ea_absy(UNPACK_TASK_ENTRIES));
+    abi_UnpackBegin();
+    if (IF_Z) goto done;
+group:
+    abi_UnpackGroup();
+    if (IF_Z) goto done;
+    lda8(ea_long(SLHV));
+    lda8(ea_long(OPVCT));
+    cmp8_v(0xF0);
+    if (!IF_C) goto group;
+    phb();
+    lda8_v(0x00);
+    pha8();
+    plb();
+    lda8_v(0x01);
+    jsl_frame(0x81BC5Fu);
+    abi_TaskWait();
+    plb();
+    goto group;
+done:
+    plp();
+    plb();
+    pld();
+    abi_TaskExit();  /* 81BC69 jml */
 }

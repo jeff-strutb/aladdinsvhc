@@ -1,0 +1,20 @@
+# UnpackTask (81:BC16), a task nothing creates: unpacks entry Y of the
+# table at $80:BF2A into bank $7F a group at a time, waiting a frame each
+# time the beam passes line $F0. In a level (stage_a0_s0) it is created
+# in slot 2 (record $009F, stack top $01D2) the way TaskCreate does: its
+# entry less one ($81:BC15) at $01D3, saved S $01D2, the parameter ($A5),
+# state new ($0C). Parameter 0: $1000 bytes from $A0:8000 to $7F:B000,
+# over several frames. Parameter $15: an entry of length 0, so it ends at
+# once. The task frees its slot (TaskExit) each time.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+poke $0001D3 15,BC,81
+poke $0000A1 D2,01
+poke $0000A5 00
+poke $00009F 0C
+wait 30
+poke $0001D3 15,BC,81
+poke $0000A1 D2,01
+poke $0000A5 15
+poke $00009F 0C
+wait 5

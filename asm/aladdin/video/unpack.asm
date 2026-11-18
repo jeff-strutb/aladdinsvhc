@@ -443,3 +443,68 @@ UnpackGroup:
     dec.b !unpack_groups
     sep.b #$20
     rts
+
+; Bank $80: per entry, 7 bytes: destination, source offset, bank, length
+; (word), as unpack_sets; three entries, then zeros.
+!unpack_task_entries = $BF2A
+
+; @routine 81:BC16 UnpackTask
+; WHAT IT DOES: A task that unpacks an entry of the table at $80:BF2A
+; into bank $7F a group at a time, waiting a frame whenever the beam has
+; reached line $F0; then ends. Nothing found creates it.
+; HOW: D, DB and P kept on the stack; Y = the task's parameter (the entry's
+; byte offset); with 16-bit registers and D = 0 the source pointer at $65
+; = the entry's bank (+4) with offset 0, $69 = its length (+5) rounded up
+; to 8-byte groups, X = its destination (+0); then the source offset (+2)
+; into UnpackBegin. While groups are left, UnpackGroup; after each, the
+; counters latched (SLHV) and the vertical one read (OPVCT, low byte): at
+; $F0 or past, TaskWait 1 with DB = 0. At the end P, DB and D pulled and
+; on to TaskExit.
+; Entry: a new task (M and X 8-bit, Y = its slot, D = 0); DB = $80.
+; Exit: never returns (TaskExit).
+%at($81BC16)
+UnpackTask:
+    phd
+    phb
+    php
+    lda.w !task_param,y
+    tay
+    rep.b #$30
+    lda.w #$0000
+    tcd
+    lda.w !unpack_task_entries+4,y
+    stz.b !unpack_source
+    sta.b !unpack_source+2
+    lda.w !unpack_task_entries+5,y
+    clc
+    adc.w #$0007
+    and.w #$FFF8
+    lsr a
+    lsr a
+    lsr a
+    sta.b !unpack_groups
+    lda.w !unpack_task_entries+2,y
+    ldx.w !unpack_task_entries,y
+    ldx.w !unpack_task_entries,y
+    jsr.w UnpackBegin
+    beq .done
+.group:
+    jsr.w UnpackGroup
+    beq .done
+    lda.l !SLHV
+    lda.l !OPVCT
+    cmp.b #$F0
+    bcc .group
+    phb
+    lda.b #$00
+    pha
+    plb
+    lda.b #$01
+    jsl.l TaskWait
+    plb
+    bra .group
+.done:
+    plp
+    plb
+    pld
+    jml.l TaskExit
