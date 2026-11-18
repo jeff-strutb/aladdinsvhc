@@ -48,7 +48,8 @@ static uint16_t db16(uint16_t addr) { return rd16(dba(addr)); }
    placements were last brought in (`last`); `last` moves 32 that way, the
    two bands (`near`, `far`) a band, and the band coming into view is
    brought in by `bring`. */
-static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t far, void (*bring)(void))
+static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t far, void (*bring)(void),
+                        uint16_t ret_back, uint16_t ret_ahead)
 {
     uint16_t d, v, x = 0;
     uint8_t step, band;
@@ -81,9 +82,12 @@ static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t 
     wr8(dba(far), band);
     x8_load(band);
     a8_load(rd8(dpa(0x2A)));
-    if (!(uint8_t)cpu.a)
-        x8_load(rd8(dba(near)));
-    bring();
+    if ((uint8_t)cpu.a) {
+        call_frame(ret_back, bring);
+        return;
+    }
+    x8_load(rd8(dba(near)));
+    call_frame(ret_ahead, bring);
 }
 
 /*
@@ -100,16 +104,15 @@ static void scroll_axis(uint16_t camera, uint16_t last, uint16_t near, uint16_t 
  */
 void abi_PlacementsScroll(void)
 {
-    uint8_t db = cpu.db;
-
     op_sep(P_M);
-    cpu.db = 0x82;
+    phb();                                       /* DB kept on the stack throughout */
     a8_load(0x82);
-    scroll_axis(0x1773, 0x1BEF, 0x1BEB, 0x1BED, abi_PlacementsDown);
-    scroll_axis(0x1777, 0x1BF1, 0x1BE9, 0x1BE7, abi_PlacementsAcross);
+    pha8();
+    plb();
+    scroll_axis(0x1773, 0x1BEF, 0x1BEB, 0x1BED, abi_PlacementsDown, 0xA7E5, 0xA7ED);
+    scroll_axis(0x1777, 0x1BF1, 0x1BE9, 0x1BE7, abi_PlacementsAcross, 0xA830, 0xA838);
     op_sep(0x30);
-    cpu.db = db;
-    nz8_of(db);
+    plb();
 }
 
 /* A placement's offset in the list ($6D on, 6 bytes each) for entry
@@ -120,10 +123,15 @@ static uint16_t entry_at(uint16_t n)
     return op_adc16((uint16_t)(n * 6), dp16(0x6D), &cpu.p);
 }
 
-/* The placement at `at` (its kind at $8A7A) created and placed, unless
-   its flags ($7E:C600 by number) say it is gone or its position (at
-   `pos`) is more than $40 outside the view from `camera`. */
-static void bring_one(uint16_t at, uint16_t pos, uint16_t camera, int kind_byte)
+/* The placement whose offset is at direct page `at_dp` (its kind at
+   $8A7A) created and placed, unless its flags ($7E:C600 by number) say it
+   is gone or its position (at `pos`) is more than $40 outside the view
+   from `camera`. The offset is read where the original's LDY reads it
+   (after the flags, again for the kind when it is a byte, and for
+   ActorPlace); ActorCreate by JSL at `jsl_site`, ActorPlace by JSR with
+   its return address `jsr_ret`. */
+static void bring_one(uint8_t at_dp, uint16_t pos, uint16_t camera, int kind_byte,
+                      uint32_t jsl_site, uint16_t jsr_ret)
 {
     uint16_t d;
 
@@ -133,8 +141,8 @@ static void bring_one(uint16_t at, uint16_t pos, uint16_t camera, int kind_byte)
     if ((uint8_t)cpu.a)
         return;
     op_rep(0x31);
-    cpu.y = at;
-    d = op_adc16(db16((uint16_t)(pos + at)), 0x0040, &cpu.p);
+    cpu.y = dp16(at_dp);
+    d = op_adc16(db16((uint16_t)(pos + cpu.y)), 0x0040, &cpu.p);
     flag_set(P_C, 1);
     d = op_sbc16(d, db16(camera), &cpu.p);
     cpu.a = d;
@@ -143,16 +151,19 @@ static void bring_one(uint16_t at, uint16_t pos, uint16_t camera, int kind_byte)
         return;
     if (kind_byte) {
         op_sep(P_M);
-        a8_load(rd8(dba((uint16_t)(0x8A7A + at))));
+        cpu.y = dp16(at_dp);
+        a8_load(rd8(dba((uint16_t)(0x8A7A + cpu.y))));
     } else {
-        a16_load(db16((uint16_t)(0x8A7A + at)));
+        a16_load(db16((uint16_t)(0x8A7A + cpu.y)));
     }
     op_sep(P_X);
+    jsl_frame(jsl_site);
     abi_ActorCreate();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C)
         return;
-    cpu.y = at;
-    abi_ActorPlace();
+    cpu.y = dp16(at_dp);
+    call_frame(jsr_ret, abi_ActorPlace);
 }
 
 /*
@@ -183,7 +194,7 @@ void abi_PlacementsAcross(void)
         dp16_set(0x0E, cpu.a);
         inc16_at(dpa(0x12));
         op_sep(P_M);
-        bring_one(dp16(0x0E), 0x8A7C, 0x1BEF, 0);
+        bring_one(0x0E, 0x8A7C, 0x1BEF, 0, 0x82A887u, 0xA891);
         op_sep(0x30);
         inc8_at(dpa(0x0D));
     } while (dec8_at(dpa(0x0C)));
@@ -215,7 +226,7 @@ void abi_PlacementsDown(void)
     dp16_set(0x10, entry_at(dp16(0x12)));
     inc16_at(dpa(0x12));
     do {
-        bring_one(dp16(0x10), 0x8A7E, 0x1BF1, 1);
+        bring_one(0x10, 0x8A7E, 0x1BF1, 1, 0x82A8E4u, 0xA8EE);
         op_rep(0x21);
         cpu.a = op_adc16(dp16(0x10), 0x0006, &cpu.p);
         dp16_set(0x10, cpu.a);
