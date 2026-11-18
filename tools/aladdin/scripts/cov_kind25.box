@@ -1,0 +1,8 @@
+# Actor kind $25's start (Kind25Start, $83:9D4B): stage a5 s1's kind $25
+# (record $0B5B) started before the state was saved, so its first
+# instruction never ran. Put back in its start state ($0C) at frame 30;
+# 320 frames run (one sound $3E, at frame 291 of the wait).
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000B5B 0C
+wait 320

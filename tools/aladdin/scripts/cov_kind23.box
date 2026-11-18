@@ -1,0 +1,12 @@
+# Actor kind $23 (Kind23Start $83:9CEB, Kind23Second 9D43), which no play
+# makes: its one placement (stage a5 s2) is at x and y $3FFF, which no view
+# reaches. On stage a5 s2 at frame 30 the kind $2D record $0BFB is made
+# kind $23 with $07 0 and put in its start state ($0C): it makes four
+# children of its kind and ends; each shows itself for $1A frames, makes a
+# kind $6D and ends. 80 frames run.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 000C01 23
+poke 000C02 00
+poke 000BFB 0C
+wait 80
