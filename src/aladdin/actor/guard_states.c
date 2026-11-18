@@ -39,6 +39,24 @@ void abi_GuardRunOff(void);
 #define CHASE_SPEED_UP 0xF127u  /* GuardChase's speed-up step */
 #define CHASE_CLOSE 0xF172u     /* GuardChase's close step */
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+/* GuardChase from step `at` by the JSR whose last byte is `ret`: its return
+   address on the stack while it runs, as the original's. */
+static void chase_from_at(uint16_t at, uint16_t ret)
+{
+    push16(ret);
+    guard_chase_from(at);
+    cpu.s = (uint16_t)(cpu.s + 2);
+}
+
 /* GUARD_CODE_SET's bits 0-6 cleared (the guard held). */
 static void held(void)
 {
@@ -105,8 +123,8 @@ void abi_GuardWait(void)
     a16_load(dp16(ACTOR_Y + 1));
     wr16(dba(GUARD_Y_KEPT), cpu.a);
     op_sep(0x20);
-    abi_AnimStep();
-    abi_ActorPictureSend();
+    jsl_call(0xA5F02Eu, abi_AnimStep);
+    jsl_call(0xA5F032u, abi_ActorPictureSend);
     state = rd8(dpa(GUARD_STATE));
     a8_load((uint8_t)(state << 1));             /* ASL */
     flag_set(P_C, state & 0x80);
@@ -143,16 +161,20 @@ void abi_GuardWait(void)
    else it goes calm. */
 static void hold(int right)
 {
-    uint16_t px = rd16(dba(PLAYER_X_AT)), x = dp16(ACTOR_X + 1);
+    uint16_t px, x;
     int level;
 
     op_rep(0x20);
-    if (right) {
+    if (right) {                                 /* LDA $0C, CMP $08E7: its x first */
+        x = dp16(ACTOR_X + 1);
         a16_load(x);
+        px = rd16(dba(PLAYER_X_AT));
         cmp16_of(x, px);
         level = x >= px;
-    } else {
+    } else {                                     /* LDA $08E7, CMP $0C: the player's first */
+        px = rd16(dba(PLAYER_X_AT));
         a16_load(px);
+        x = dp16(ACTOR_X + 1);
         cmp16_of(px, x);
         level = px >= x;
     }
@@ -171,7 +193,7 @@ static void hold(int right)
     }
     a16_load(dp16(GUARD_HELD));
     if (!cpu.a)
-        guard_chase_from(CHASE_CLOSE);
+        chase_from_at(CHASE_CLOSE, right ? 0xF0B8 : 0xF093);
     op_sep(0x20);
 }
 
@@ -237,7 +259,7 @@ void abi_GuardRunOff(void)
     reach = op_adc16(rd16(dba(PLAYER_X_AT)), 0x00C0, &cpu.p);
     a16_load(reach);
     cmp16_of(reach, dp16(ACTOR_X + 1));
-    if (reach < dp16(ACTOR_X + 1)) {
+    if (!IF_C) {                                 /* BCC on the CMP's carry: one read */
         op_sep(0x20);
         (void)inc8_at(dpa(GUARD_GONE));
         wr8(dpa(GUARD_STATE), 0x00);
@@ -246,7 +268,7 @@ void abi_GuardRunOff(void)
         wr8(dpa(ACTOR_Y + 2), 0x3F);
         return;
     }
-    guard_chase_from(CHASE_SPEED_UP);           /* leaves M 8-bit */
+    chase_from_at(CHASE_SPEED_UP, 0xF0D7);      /* leaves M 8-bit */
     a8_load(0x05);
     wr8(dpa(ACTOR_SPEED_X + 1), 0x05);
     wr8(dpa(ACTOR_FACING), 0x00);
