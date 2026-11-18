@@ -1,0 +1,11 @@
+# Kind $21's part 2 (Kind21Start's $07 = 2, $A5:F3D1): pose 0 facing left,
+# then standing. Every kind $21 actor met so far starts with $07 0 or 1.
+# The title's story, left alone from the title state, has one in record
+# $0BAB from about frame 1800 on ($07 0); at frame 1920 it is put back to
+# state $0C (+0) with $07 = 2 (+7), and the actor loop starts it again by
+# its kind's table, now at part 2.
+load build/aladdin/states/title.state
+wait 1920
+poke 000BAB 0C
+poke 000BB2 02
+wait 60

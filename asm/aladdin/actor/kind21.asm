@@ -1,5 +1,5 @@
 ; kind21.asm: actor kind $21's start: by its $07, one of two figures that
-; play out a little scene, or a third part no script runs.
+; play out a little scene, or a third that stands facing left.
 ; C: src/aladdin/actor/kind21.c.
 
 incsrc "../include/macros.inc"
@@ -13,7 +13,6 @@ arch 65816
 !KIND21_16 = $16                ; word: $D06A
 !KIND21_29 = $29                ; word: $8909
 !FRAMES = $40                   ; frames left of a step
-!KIND21_PART2 = $F3D1           ; part 2's code (no script runs it)
 
 ; @routine A5:F309 Kind21Start
 ; @actor
@@ -21,14 +20,16 @@ arch 65816
 ; left for 128, poses (3) for 128, counts V_146B up, turns right (pose
 ; $1E) for 16 frames, then walks right faster (2) for 128 and stays; part 1
 ; watches Aladdin's x: pose $0F while its bit 7 is clear, pose 4 while it
-; is set, checking every 8 frames.
+; is set, checking every 8 frames; part 2 takes pose 0 facing left and
+; stays.
 ; HOW: actor_08 bit 1 and actor_09 bits $90 set; KIND21_28 = $FF, its
 ; sprite attributes $0220, KIND21_16 = $D06A, KIND21_29 = $8909; then by
 ; $07 through .parts. Part 0: V_146B 0, AnimStart 1, facing and flip 1,
 ; speed bytes 0, 1, 0 ($19-$1B), frame counts in FRAMES with BRK each frame and
 ; ActorMoveX while walking; the second walk with $1A = 3. Part 1: facing
 ; and flip 0; AnimStart $0F, COP 8 until bit 7 of the player's x's low
-; byte is set; AnimStart 4, COP 8 until it is clear; again.
+; byte is set; AnimStart 4, COP 8 until it is clear; again. Part 2:
+; AnimStart 0, FRAMES 0, facing and flip 1, BRK each frame.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
 ; $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $21
 ; in state $0C (the table at $83:8CAB, through the stub at $83:9226).
@@ -56,7 +57,7 @@ Kind21Start:
     tax
     jmp.w (.parts,x)
 .parts:
-    dw .part0, .part1, !KIND21_PART2
+    dw .part0, .part1, .part2
 .part0:
     stz.w !V_146B
     lda.b #$01
@@ -135,3 +136,13 @@ Kind21Start:
     lda.b #$08
     cop.b #$00
     bra .near_wait
+.part2:
+    lda.b #$00
+    jsl.l AnimStart
+    stz.b !FRAMES
+    lda.b #$01
+    sta.b !actor_facing
+    sta.b !actor_flip
+.part2_stay:
+    brk.b #$00
+    bra .part2_stay
