@@ -113,8 +113,8 @@ static void end_if_left_behind(void)
     edge = op_sbc16(rd16(dba(V_1773)), 0x001F, &cpu.p);
     cpu.a = edge;
     if (!(edge & 0x8000)) {
-        cmp16_of(edge, dp16(ACTOR_X + 1));
-        if (edge >= dp16(ACTOR_X + 1)) {
+        cmp16_of(edge, dp16(ACTOR_X + 1));   /* one read, as the CMP's */
+        if (cpu.p & P_C) {
             op_sep(0x30);
             pla8();
             pla8();
@@ -142,7 +142,6 @@ static void end_if_left_behind(void)
 void abi_ActorWaitAnimEnd10(void)
 {
     uint8_t level;
-    uint16_t edge;
 
     abi_AnimStep();
     level = rd8(dba(LEVEL_035C));
@@ -153,22 +152,9 @@ void abi_ActorWaitAnimEnd10(void)
         abi_ActorEndOutOfRange();
         return;
     }
-    /* the tail at $83:9738: ended once the camera's x less 32 is past it */
-    op_rep(0x21);
-    edge = op_sbc16(rd16(dba(V_1773)), 0x001F, &cpu.p);
-    cpu.a = edge;
-    if (!(edge & 0x8000)) {
-        cmp16_of(edge, dp16(ACTOR_X + 1));
-        if (edge >= dp16(ACTOR_X + 1)) {
-            op_sep(0x30);                 /* $83:96C6 */
-            pla8();
-            pla8();
-            abi_ActorFreePlaced();
-            actor_leave(ACTOR_LOOP_NEXT);
-            return;
-        }
-    }
-    op_sep(P_M);
+    /* its jump to the tail at $83:9738: ended once the camera's x less 32
+       is past it */
+    end_if_left_behind();
 }
 
 
