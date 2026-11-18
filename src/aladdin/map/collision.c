@@ -1190,3 +1190,86 @@ void abi_ActorSettleOnGround(void)
     wr16(dp(ACTOR_Y + 1), cpu.a);
     op_sep(P_M);
 }
+
+#define GROUND_COUNT 0x002Bu       /* ActorGroundCount: the points in the ground */
+#define WALL_X_BEFORE 0x002Au      /* ActorOutOfWallsMovePlayer: the actor's x before (word) */
+#define PLAYER_X 0x08E7u           /* the player's x (pixels, word) */
+
+/*
+ * @routine 81:B72D ActorGroundCount
+ * WHAT IT DOES: Counts how many of the actor's two probe-8 points, right
+ * and left, are in the ground (0 to 2). Nothing but ActorGroundCountLong
+ * calls it.
+ * HOW: The count at $2B from 0; ProbeRight at probe 8, then PointInGround:
+ * in the ground, the count up; the same with ProbeLeft.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM and that holds the probe list and the tile kinds ($80); called
+ * by JSR. Exit: M and X 8-bit; A low byte = the count; N, Z from it; C as
+ * the last PointInGround left it.
+ */
+void abi_ActorGroundCount(void)
+{
+    lda8_v(0x08);
+    wr8(dp(ACTOR_PROBE_AT), 0x08);
+    stz8(ea_abs(GROUND_COUNT));
+    abi_ProbeRight();
+    abi_PointInGround();
+    if (IF_C)
+        MEM8(inc, ea_abs(GROUND_COUNT));
+    abi_ProbeLeft();
+    abi_PointInGround();
+    if (IF_C)
+        MEM8(inc, ea_abs(GROUND_COUNT));
+    lda8(ea_abs(GROUND_COUNT));
+}
+
+/*
+ * @routine 81:B729 ActorGroundCountLong
+ * WHAT IT DOES: ActorGroundCount for callers in other banks. No code
+ * refers to it.
+ * HOW: ActorGroundCount.
+ * Entry: as ActorGroundCount; called by JSL. Exit: as ActorGroundCount.
+ */
+void abi_ActorGroundCountLong(void)
+{
+    abi_ActorGroundCount();
+}
+
+/*
+ * @routine 81:B575 ActorOutOfWallsMovePlayer
+ * WHAT IT DOES: Moves the actor out of a wall in front of it at probe 4,
+ * or else at probe 8, and the player across by as much (an actor that
+ * carries him). C set when it was moved. No code refers to it.
+ * HOW: The actor's x pixels kept at $2A; ActorOutOfWall at probe 4, and
+ * when not moved at probe 8; moved: the new x less the kept one added to
+ * the player's x.
+ * Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM
+ * and that holds the probe list and the tile kinds ($80); called by JSL.
+ * Exit: M 8-bit; moved: C set, A = the player's new x (16 bits), N, Z
+ * from its ADC. Not: C clear; A, N, Z as ActorOutOfWall left them.
+ */
+void abi_ActorOutOfWallsMovePlayer(void)
+{
+    lda8(ea_dp(ACTOR_X + 1));
+    sta8(ea_abs(WALL_X_BEFORE));
+    lda8(ea_dp(ACTOR_X + 2));
+    sta8(ea_abs(WALL_X_BEFORE + 1));
+    lda8_v(0x04);
+    abi_ActorOutOfWall();
+    if (!IF_C) {
+        lda8_v(0x08);
+        abi_ActorOutOfWall();
+        if (!IF_C) {
+            op_sep(0x20);
+            return;
+        }
+    }
+    op_rep(0x20);
+    lda16(ea_dp(ACTOR_X + 1));
+    sbc16_v(rd16(ea_abs(WALL_X_BEFORE)));
+    clc();
+    adc16_v(rd16(ea_abs(PLAYER_X)));
+    sta16(ea_abs(PLAYER_X));
+    sec();
+    op_sep(0x20);
+}

@@ -1,0 +1,23 @@
+# Unit calls of two collision tests no code refers to, in level 4 (stage
+# a1 s0) on Aladdin's record (M and X 8-bit, DB $80), the view's y
+# ($1777) set to $0060 so his points are on the view, the machine put back
+# after each. Tiles read from the level's map in a WRAM dump; his probe 4
+# is 5 across and 2 up, probe 8 5 across and 16 up.
+# ActorGroundCountLong (81:B729, by JSL into ActorGroundCount 81:B72D):
+# at x, y ($08E7, $08EA) $0440, $00D0 both points of probe 8 ($043B and
+# $0445, $00C0) are in solid tiles, so both counts are taken.
+# ActorOutOfWallsMovePlayer (81:B575): at $0440, $00D8 facing right
+# ($08EF 0), probe 4 ($0445, $00D6) is in an empty tile and probe 8
+# ($0445, $00C8) in a solid one, so the actor is moved out of it and the
+# player's x by as much.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008E7 40,04
+set $0008EA D0,00
+call 81B729 long d=08DB db=80 p=30
+set $001777 60,00
+set $0008E7 40,04
+set $0008EA D8,00
+set $0008EF 00
+call 81B575 long d=08DB db=80 p=30

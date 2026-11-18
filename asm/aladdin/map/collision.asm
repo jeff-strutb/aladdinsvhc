@@ -913,3 +913,79 @@ ActorSettleOnGround:
     sep.b #$20
 .done:
     rtl
+
+!ground_count = $002B           ; ActorGroundCount: the points in the ground
+!wall_x_before = $002A          ; ActorOutOfWallsMovePlayer: the actor's x before (word)
+!player_x = $08E7               ; the player's x (pixels, word)
+
+; @routine 81:B729 ActorGroundCountLong
+; WHAT IT DOES: ActorGroundCount for callers in other banks. No code
+; refers to it.
+; HOW: ActorGroundCount.
+; Entry: as ActorGroundCount; called by JSL. Exit: as ActorGroundCount.
+%at($81B729)
+ActorGroundCountLong:
+    jsr.w ActorGroundCount
+    rtl
+
+; @routine 81:B72D ActorGroundCount
+; WHAT IT DOES: Counts how many of the actor's two probe-8 points, right
+; and left, are in the ground (0 to 2). Nothing but ActorGroundCountLong
+; calls it.
+; HOW: The count at $2B from 0; ProbeRight at probe 8, then PointInGround:
+; in the ground, the count up; the same with ProbeLeft.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+; work RAM and that holds the probe list and the tile kinds ($80); called
+; by JSR. Exit: M and X 8-bit; A low byte = the count; N, Z from it; C as
+; the last PointInGround left it.
+ActorGroundCount:
+    lda.b #8
+    sta.b !actor_probe_at
+    stz.w !ground_count
+    jsr.w ProbeRight
+    jsr.w PointInGround
+    bcc .left
+    inc.w !ground_count
+.left:
+    jsr.w ProbeLeft
+    jsr.w PointInGround
+    bcc .count
+    inc.w !ground_count
+.count:
+    lda.w !ground_count
+    rts
+
+; @routine 81:B575 ActorOutOfWallsMovePlayer
+; WHAT IT DOES: Moves the actor out of a wall in front of it at probe 4,
+; or else at probe 8, and the player across by as much (an actor that
+; carries him). C set when it was moved. No code refers to it.
+; HOW: The actor's x pixels kept at $2A; ActorOutOfWall at probe 4, and
+; when not moved at probe 8; moved: the new x less the kept one added to
+; the player's x.
+; Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM
+; and that holds the probe list and the tile kinds ($80); called by JSL.
+; Exit: M 8-bit; moved: C set, A = the player's new x (16 bits), N, Z
+; from its ADC. Not: C clear; A, N, Z as ActorOutOfWall left them.
+%at($81B575)
+ActorOutOfWallsMovePlayer:
+    lda.b !actor_x+1
+    sta.w !wall_x_before
+    lda.b !actor_x+2
+    sta.w !wall_x_before+1
+    lda.b #4
+    jsr.w ActorOutOfWall
+    bcs .moved
+    lda.b #8
+    jsr.w ActorOutOfWall
+    bcc .done
+.moved:
+    rep.b #$20
+    lda.b !actor_x+1
+    sbc.w !wall_x_before
+    clc
+    adc.w !player_x
+    sta.w !player_x
+    sec
+.done:
+    sep.b #$20
+    rtl
