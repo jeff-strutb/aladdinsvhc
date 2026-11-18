@@ -1,0 +1,16 @@
+# Actor kinds $9A and $99 (kind9a.asm) on stage a5 s2, which play from the
+# stage's start never brings this far: the view put at x $1200, y 0 and
+# Aladdin at x $1240, near the kind $98 placed at x $1280. It flies at him
+# and drops a kind $9A, which falls to the ground and bursts into 32 kind
+# $99 ($07 0-31): the two that run off along the ground and the rest that
+# flash out in a spread. Run on for the kind $9A's two waits of $80
+# frames after the burst, to its end.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+wait 900
