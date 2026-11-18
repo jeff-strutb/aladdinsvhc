@@ -59,6 +59,15 @@ void abi_Kind08Enter(void)
     abi_GuardStart();
 }
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 /* The guard's own start ($A5:E58B): state 1, a walk of 40 frames, then
    stopped (on into GuardStop). */
 static void guard(void)
@@ -68,17 +77,17 @@ static void guard(void)
     a8_load(0x28);
     wr8(dpa(G_LANDING), 0x28);
     y8_load(0x06);
-    abi_ActorSpeedXFromA5();
+    call_frame(0xE597, abi_ActorSpeedXFromA5);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_call(0xA5E59Au, abi_AnimStart);
     do {
         actor_yield(0xA5E59Eu);
-        abi_ActorMoveX();
-        abi_ActorSnapToGround();
+        jsl_call(0xA5E5A0u, abi_ActorMoveX);
+        jsl_call(0xA5E5A4u, abi_ActorSnapToGround);
     } while (dec8_at(dpa(G_LANDING)));
     a8_load(0x00);
-    abi_AnimStart();
-    abi_ActorSpeedXClear();
+    jsl_call(0xA5E5AEu, abi_AnimStart);
+    jsl_call(0xA5E5B2u, abi_ActorSpeedXClear);
     abi_GuardStop();
 }
 
@@ -221,8 +230,8 @@ void abi_GuardPlacedHold(void)
     a8_load(0x04);
     wr8(dpa(G_STATE), 0x04);
     x8_load(0x20);
-    abi_ActorPlaceAtSpot();
+    call_frame(0xF016, abi_ActorPlaceAtSpot);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_call(0xA5F019u, abi_AnimStart);
     abi_GuardStop();
 }

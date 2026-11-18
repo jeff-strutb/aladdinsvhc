@@ -60,12 +60,6 @@ void abi_GuardLand(void);
 void abi_GuardRunDown(void);
 static void jump_air(void);
 
-static void anim(uint8_t a)
-{
-    a8_load(a);
-    abi_ActorAnimChange();
-}
-
 /* A JSL at `site` to fn, its return address on the stack while fn runs, as
    the original's (frame_step.c's model). */
 static void jsl_call(uint32_t site, void (*fn)(void))
@@ -80,18 +74,6 @@ static void anim_at(uint8_t a, uint16_t ret)
 {
     a8_load(a);
     call_frame(ret, abi_ActorAnimChange);
-}
-
-static void speed_x(uint8_t y)
-{
-    y8_load(y);
-    abi_ActorSpeedXFromA5();
-}
-
-static void speed_y(uint8_t y)
-{
-    y8_load(y);
-    abi_ActorSpeedYFromA5();
 }
 
 /*
@@ -214,7 +196,7 @@ void abi_GuardRunDown(void)
 
     wr8(dpa(G_IN_AIR), 0x00);
     (void)inc8_at(dpa(G_MOVING));
-    abi_ActorLedgeAhead();
+    call_frame(0xE61E, abi_ActorLedgeAhead);
     if (!(cpu.p & P_C)) {
         y8_load(G_PRESET_NO_LEDGE);
         goto preset;
@@ -224,8 +206,9 @@ void abi_GuardRunDown(void)
     for (i = 0; i < 3; i++)
         wr8(dba(slot[i]), 0x00);
     for (i = 0; i < 3; i++) {
+        static const uint32_t site[3] = { 0xA5E635u, 0xA5E647u, 0xA5E659u };
         a8_load(0x90);
-        abi_ActorSpawn();
+        jsl_call(site[i], abi_ActorSpawn);
         if (cpu.p & P_N)
             break;
         a8_load(i);
@@ -260,7 +243,7 @@ void abi_GuardRunDown(void)
     }
     y8_load(G_PRESET_NONE);
 preset:
-    abi_ActorMotionPreset();
+    jsl_call(0xA5E69Au, abi_ActorMotionPreset);
     jump_air();
 }
 
@@ -301,12 +284,12 @@ static void jump_air(void)
 
     for (;;) {
         actor_yield(0xA5E6A6u);
-        abi_ActorAnimRiseFall();
-        abi_ActorFly();
+        call_frame(0xE6AA, abi_ActorAnimRiseFall);
+        jsl_call(0xA5E6ABu, abi_ActorFly);
         up = rd8(dpa(ACTOR_SPEED_Y + 2));
         a8_load(up);
         if (up & 0x80) {
-            abi_ActorSettleOnFloor();
+            jsl_call(0xA5E6B3u, abi_ActorSettleOnFloor);
             if (!(cpu.p & P_Z)) {
                 tile = rd8(dba(G_TILE));
                 a8_load(tile);
@@ -322,7 +305,7 @@ static void jump_air(void)
                 }
             }
         }
-        abi_ActorOutOfWall8();
+        call_frame(0xE6CF, abi_ActorOutOfWall8);
         if (cpu.p & P_C) {
             tile = rd8(dba(G_TILE));
             a8_load(tile);
@@ -339,7 +322,7 @@ static void jump_air(void)
                 return;
             }
         }
-        abi_GroundBehindBit3();
+        jsl_call(0xA5E6F9u, abi_GroundBehindBit3);
         if (cpu.p & P_Z)
             goto fall;
 slope:
@@ -357,17 +340,17 @@ fall:
         a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
         if (cpu.a & 0x80)
             continue;
-        abi_ActorOutOfGround();
+        jsl_call(0xA5E703u, abi_ActorOutOfGround);
         if (!(cpu.p & P_Z))
             break;
     }
     /* landed */
     a8_load(0x0A);
     wr8(dpa(G_LANDING), 0x0A);
-    anim(0x0A);
-    abi_ActorSpeedXClear();
+    anim_at(0x0A, 0xE714);
+    jsl_call(0xA5E715u, abi_ActorSpeedXClear);
     do {
-        abi_ActorSnapToGround();
+        jsl_call(0xA5E719u, abi_ActorSnapToGround);
         actor_yield(0xA5E71Du);
         op_rep(0x20);
         flag_set(P_C, 1);
@@ -402,14 +385,16 @@ fall:
 void abi_GuardClimb(void)
 {
     (void)inc8_at(dpa(G_MOVING));
-    anim(0x0B);
-    speed_x(0x00);
-    speed_y(0x00);
+    anim_at(0x0B, 0xE741);
+    y8_load(0x00);
+    call_frame(0xE746, abi_ActorSpeedXFromA5);
+    y8_load(0x00);
+    call_frame(0xE74B, abi_ActorSpeedYFromA5);
     for (;;) {
         actor_yield(0xA5E74Cu);
-        abi_ActorMoveY();
-        abi_ActorMoveX();
-        abi_ActorOutOfWallProbe4();
+        jsl_call(0xA5E74Eu, abi_ActorMoveY);
+        jsl_call(0xA5E752u, abi_ActorMoveX);
+        jsl_call(0xA5E756u, abi_ActorOutOfWallProbe4);
         if (!(cpu.p & P_C))
             break;
         op_rep(0x20);
@@ -418,7 +403,7 @@ void abi_GuardClimb(void)
         flag_set(P_C, 0);
         a16_load(op_adc16(dp16(ACTOR_Y + 1), 0xFFE8, &cpu.p));
         wr16(dba(G_POINT_Y), cpu.a);
-        abi_PointInGroundLong();                 /* leaves M 8-bit */
+        jsl_call(0xA5E76Cu, abi_PointInGroundLong);   /* leaves M 8-bit */
         if (cpu.p & P_C) {
             abi_GuardFlip();
             return;
@@ -426,8 +411,10 @@ void abi_GuardClimb(void)
     }
     /* over the top */
     wr8(dpa(G_MOVING), 0x00);
-    speed_x(0x03);
-    speed_y(0x03);
+    y8_load(0x03);
+    call_frame(0xE78B, abi_ActorSpeedXFromA5);
+    y8_load(0x03);
+    call_frame(0xE790, abi_ActorSpeedYFromA5);
     abi_GuardJump();
 }
 
@@ -449,7 +436,7 @@ void abi_GuardFlip(void)
     wr8(dpa(ACTOR_FACING), f);
     wr8(dpa(ACTOR_FLIP), f);
     a8_load(0x08);
-    abi_AnimStart();
+    jsl_call(0xA5E77Eu, abi_AnimStart);
     abi_GuardRunDown();
 }
 
@@ -513,8 +500,10 @@ void abi_GuardGiveUp(void)
     wr8(dpa(ACTOR_FACING), side);
     wr8(dpa(ACTOR_FLIP), side);
     wr8(dpa(G_MOVING), 0x00);
-    speed_x(0x03);
-    speed_y(0x03);
+    y8_load(0x03);
+    call_frame(0xE7E2, abi_ActorSpeedXFromA5);
+    y8_load(0x03);
+    call_frame(0xE7E7, abi_ActorSpeedYFromA5);
     abi_GuardJump();
 }
 
@@ -532,12 +521,13 @@ void abi_GuardGiveUp(void)
 void abi_GuardLand(void)
 {
     (void)inc8_at(dpa(G_MOVING));
-    abi_GuardSnapToTile();
-    anim(0x07);
+    call_frame(0xE7EF, abi_GuardSnapToTile);
+    anim_at(0x07, 0xE7F4);
     a8_load(0x20);
     actor_wait(0xA5E7F7u);
-    abi_ActorSpeedXClear();
-    speed_y(0x06);
+    jsl_call(0xA5E7F9u, abi_ActorSpeedXClear);
+    y8_load(0x06);
+    call_frame(0xE801, abi_ActorSpeedYFromA5);
     wr8(dpa(G_MOVING), 0x00);
     abi_GuardStop();
 }
@@ -554,7 +544,7 @@ void abi_GuardLand(void)
 void abi_GuardWalk(void)
 {
     (void)inc8_at(dpa(G_MOVING));
-    anim(0x04);
+    anim_at(0x04, 0xE80D);
     for (;;)
         actor_yield(0xA5E80Eu);
 }
@@ -581,13 +571,13 @@ static uint32_t guard_step_ahead(void)
     at = rd16(dba((uint16_t)(G_STEP_AHEAD_Y + x)));
     a16_load(op_adc16(at, dp16(ACTOR_Y + 1), &cpu.p));
     wr16(dba(G_POINT_Y), cpu.a);
-    abi_PointInGroundLong();                     /* leaves M 8-bit */
+    jsl_call(0xA5EB01u, abi_PointInGroundLong);   /* leaves M 8-bit */
     a8_load((uint8_t)(rd8(dba(G_TILE)) & 0x07));
     if (!(uint8_t)cpu.a)
         return 0;
     a8_load((uint8_t)(pull16() >> 8));           /* PLA, PLA: its JSR's return; A its high byte */
     y8_load(0x09);
-    abi_ActorSpeedYFromA5();
+    call_frame(0xEB13, abi_ActorSpeedYFromA5);
     return 0xA5E6A0u;
 }
 
