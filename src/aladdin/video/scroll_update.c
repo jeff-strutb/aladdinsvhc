@@ -48,6 +48,16 @@ void abi_CameraStopAcross(void);
 void abi_CameraStopUpDown(void);
 void abi_ParallaxUpdate(void);
 
+/* INC of a word, as the CPU makes it: the low byte and the high read,
+   then the high byte written first and the low after. */
+static void inc16_rmw(uint32_t addr)
+{
+    uint16_t v = (uint16_t)(rd16_rmw(addr) + 1);
+
+    wr16_rmw(addr, v);
+    cpu.p = nz16(cpu.p, v);
+}
+
 /* A 24-bit add to the scroll X, from its fraction byte: low word, then the
    high word with the carry. */
 static void scroll_x_add(uint16_t low, uint16_t high)
@@ -97,10 +107,10 @@ static void tail(void)
     }
     op_lda16(SCROLL_X_HELD);
     if (cpu.a == 0)
-        abi_CameraStopAcross();
+        call_frame(0xC769, abi_CameraStopAcross);      /* 81C767 jsr */
     op_lda16(SCROLL_Y_HELD);
     if (cpu.a == 0)
-        abi_CameraStopUpDown();
+        call_frame(0xC771, abi_CameraStopUpDown);      /* 81C76F jsr */
     abi_ParallaxUpdate();
 }
 
@@ -158,7 +168,7 @@ static void follow_across(uint16_t w)
     op_cmp16(rd16(dba((uint16_t)(CAMERA_WINDOWS + WINDOW_X_WIDTH + w))));
     if (!(cpu.p & P_C))
         return;
-    op_inc16_mem(CAMERA_PUSH);
+    inc16_rmw(CAMERA_PUSH);
     cpu.y = d;
     nz16_of(d);
     if (!(d & 0x8000)) {
@@ -168,7 +178,7 @@ static void follow_across(uint16_t w)
         if (cpu.p & P_C)
             op_lda16_imm(0x0003);
     } else {
-        op_inc16_mem(CAMERA_PUSH);
+        inc16_rmw(CAMERA_PUSH);
         cpu.a = d;
         op_cmp16(0xFFFD);
         if (!(cpu.p & P_C))

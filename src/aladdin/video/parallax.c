@@ -180,7 +180,10 @@ void abi_ParallaxUpdate(void)
 {
     cpu.x = rd16(dba(PARALLAX_KIND));
     nz16_of(cpu.x);
+    op_push8(0xC7);                             /* 81C775 jsr (abs,x): its return */
+    op_push8(0x77);
     call_routine(0x810000u | rd16(0x810000u | (uint16_t)(PARALLAX_HANDLERS + cpu.x)), 0);
+    cpu.s = (uint16_t)(cpu.s + 2);
     op_sep(0x30);
 }
 
@@ -194,7 +197,7 @@ void abi_ParallaxUpdate(void)
 void abi_ParallaxUpdateLong(void)
 {
     op_rep(0x30);
-    abi_ParallaxUpdate();
+    call_frame(0xC77F, abi_ParallaxUpdate);     /* 81C77D jsr */
 }
 
 /* One band set's scrolls, SBAND_SCROLLS by band, top first (bank DB = $7E).
