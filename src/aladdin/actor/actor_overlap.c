@@ -12,6 +12,8 @@
 #include "actor.h"
 #include "wram.h"
 
+void abi_ActorZoneHurtsPlayer(void);
+
 #define SECOND_POOL 0x09CBu        /* the five records of the second free list, $50 apart */
 #define SECOND_POOL_LEFT 0x001490u /* the records left to test, less one (word) */
 /* In the bank DB names: actors' half-width and half-height (words) by
@@ -220,6 +222,18 @@ void abi_ActorZoneHasTestBox(void)
         within(v, w, s, db16(SCRATCH + 10));
     }
     op_sep(P_M);
+}
+
+/*
+ * @routine 83:873F ActorZoneHurtsPlayerLong
+ * WHAT IT DOES: ActorZoneHurtsPlayer for callers in other banks.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorZoneHurtsPlayer; called by JSL (84:9776). Exit: as
+ * ActorZoneHurtsPlayer.
+ */
+void abi_ActorZoneHurtsPlayerLong(void)
+{
+    abi_ActorZoneHurtsPlayer();
 }
 
 /*

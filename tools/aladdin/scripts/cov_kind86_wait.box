@@ -1,0 +1,37 @@
+# Actor kind $86's wait (ActorKind86Wait $83:9303, Kind86WaitWork $84:9766):
+# the pairs placed on stage a5 s0 at x $09A0 and $0A20 (a placed one, $07
+# 0, and its child, $07 4, $2B above it) that drop and rise again. Play
+# from the stage's start never comes this far. The view put at x $0920,
+# y $0080 and Aladdin at x $09A0: the placements there start both pairs.
+# A. Aladdin held at y $0150 under the first while it drops: its zone ($5C)
+# hurts him (ActorZoneHurtsPlayerLong, $83:873F, C clear: $4A = 1).
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 60
+repeat 120
+poke 0008EA 50,01
+wait 1
+end
+wait 30
+# B. As A without the hurt, then the view and Aladdin put at x $0400:
+# out of its range ($84:97EE), the placed one frees its child
+# (ActorFreePlacedAtYLong) and sets its state bits $8C.
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 75
+poke 001773 00,04
+poke 0019E5 00,04
+poke 0008E7 40,04
+wait 10

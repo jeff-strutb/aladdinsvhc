@@ -176,6 +176,16 @@ ActorZoneHasTestPoint:
     sep.b #$31
     rts
 
+; @routine 83:873F ActorZoneHurtsPlayerLong
+; WHAT IT DOES: ActorZoneHurtsPlayer for callers in other banks.
+; HOW: JSR to it, then RTL.
+; Entry: as ActorZoneHurtsPlayer; called by JSL (84:9776). Exit: as
+; ActorZoneHurtsPlayer.
+%at($83873F)
+ActorZoneHurtsPlayerLong:
+    jsr.w ActorZoneHurtsPlayer
+    rtl
+
 ; @routine 83:8743 ActorZoneHurtsPlayer
 ; WHAT IT DOES: When the test box overlaps zone Y beside the actor, the
 ; player is hurt (PlayerEnter8CFacing).
