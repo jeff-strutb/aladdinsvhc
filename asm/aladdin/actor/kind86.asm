@@ -370,3 +370,22 @@ Kind86OutOfView:
 Kind86End:
     jml.l ActorEndPlaced
 %ends_at($849813)
+
+; @routine 84:968E Kind86Unused
+; @actor
+; WHAT IT DOES: Sets the actor's state bits $8C and waits for good. Code
+; that nothing reaches (2026-11-18): it follows Kind86Start's BRA at
+; 84:968C, and no JMP, JSR, JML, JSL, branch, or word $968E or $968D (a
+; table entry or a pushed return address) in the ROM leads to it; no
+; script's trace runs it. Filed with C as all code is.
+; HOW: X 8-bit; state bits $8C set (TSB); each frame (BRK) nothing.
+; Entry: D = the actor's record. Exit: never returns.
+%at($84968E)
+Kind86Unused:
+    sep.b #$10
+    lda.b #$8C
+    tsb.b !actor_state
+.wait:
+    brk.b #$00
+    bra .wait
+%ends_at($849698)
