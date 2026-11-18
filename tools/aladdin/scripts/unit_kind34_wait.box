@@ -1,0 +1,7 @@
+# Kind34Wait ($83:BBF1), kind $34's wait: an RTS no script reaches (kind
+# $34 never sets bit 7 of its $09, which sends the actor loop to the wait
+# table). From the first level's state, entered by JSR as from the wait
+# table, D = the guard's record.
+load build/aladdin/states/level1.state
+wait 10
+call 83BBF1 d=092B db=80 p=30

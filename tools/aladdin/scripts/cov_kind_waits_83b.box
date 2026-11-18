@@ -1,0 +1,95 @@
+# The waits of actor kinds no level the scripts reach places (Kind3AWait
+# $83:BF7E, Kind34Part0 $83:BBBF, Kind34Part2 $83:BBED, Kind33Wait $83:BB91,
+# Kind44Wait $83:B488, Kind3EWait $83:B190, Kind2CWait $83:A818): in each
+# run the first level's record $092B is made one of the kind (kind byte
+# +6, state $0C, $07 the variant), so the actor loop starts it by its
+# kind's table and then runs its wait. Kind $2C with its $44 and $43 set
+# (its sound every 6 frames) runs last: a state load while that sound's
+# echo is in APU RAM gave lockstep two differing bytes at the frame before
+# the load ($F68C), with each run alone and the runs before it identical.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3A
+poke 000932 00
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3A
+poke 000932 01
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 33
+poke 000932 00
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 33
+poke 000932 01
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 44
+poke 000932 00
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 44
+poke 000932 01
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3E
+poke 000932 00
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3E
+poke 000932 01
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 34
+poke 000932 00
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 34
+poke 000932 01
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 34
+poke 000932 02
+poke 00092B 0C
+wait 5
+wait 300
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2C
+poke 000932 00
+poke 00092B 0C
+wait 5
+poke 00096F 01
+poke 00096E 01
+wait 60

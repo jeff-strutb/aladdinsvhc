@@ -1,0 +1,88 @@
+# Kind41Wait ($83:B303), the wait of actor kind $41, which no level the
+# scripts reach places: the first level's record $092B made one (kind byte
+# $41, state $0C), its fields crafted after its start: its frames before
+# standing again (+$43); Aladdin falling onto it from above (y $0190, $141C
+# set, his vertical speed 0: stood on, sound $12); y $0300 (gone); $07 $10
+# and $18 inactive, its x past the range point; $07 0 inactive; its y limit
+# (+$4A) $FFFF with side (+$14) 1 (stays), then with side 0 last (a state
+# load after it gave lockstep two differing APU RAM bytes, $ECEE).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 08
+poke 00092B 0C
+wait 5
+poke 00096D 01
+poke 00096E 05
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 08
+poke 00092B 0C
+wait 5
+poke 00096D 01
+poke 00096E 00
+repeat 6
+poke 000937 3A,00
+poke 00093A C0,01
+poke 0008EA 90,01
+poke 0008EE 00,00
+poke 00141C 01
+poke 00141B 00
+wait 1
+end
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 08
+poke 00092B 0C
+wait 5
+poke 00096D 01
+poke 00093A 00,03
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 08
+poke 00092B 0C
+wait 5
+poke 00096D 01
+poke 000975 FF,FF
+poke 00093F 01
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 10
+poke 00092B 0C
+wait 5
+poke 00096D 00
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 18
+poke 00092B 0C
+wait 5
+poke 00096D 00
+poke 000937 00,10
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 00
+poke 00092B 0C
+wait 5
+poke 00096D 00
+wait 30
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 41
+poke 000932 08
+poke 00092B 0C
+wait 5
+poke 00096D 01
+poke 000975 FF,FF
+wait 30
