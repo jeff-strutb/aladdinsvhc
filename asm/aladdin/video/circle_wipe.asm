@@ -99,6 +99,7 @@ CircleWipeStep:
 .done:
     rtl
 
+; @routine 81:B2D9 CircleWipePlot
 ; WHAT IT DOES: Puts one step of the circle into the window table: its
 ; eight symmetric points as the left and right edges of four scanlines.
 ; HOW: Clamps centre x -/+ x and -/+ y to 0..$FF, and the scanlines centre
@@ -109,6 +110,7 @@ CircleWipeStep:
 ; (CircleWipeStep). Exit: M 16-bit, X 16-bit; A = the -/+ x span (word),
 ; X = scanline centre + y's offset; N and Z from the last load; C as the
 ; last clamp left it.
+%at($81B2D9)
 CircleWipePlot:
     sep.b #$30
     sec
