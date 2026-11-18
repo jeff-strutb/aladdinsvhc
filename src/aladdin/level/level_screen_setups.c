@@ -130,6 +130,17 @@ void abi_Level0BScreenSetup(void)
 
 
 /*
+ * @routine 81:88C4 Level01ScreenSetup
+ * WHAT IT DOES: Level 1's screen set-up: nothing (an RTS).
+ * HOW: RTS.
+ * Entry: reached by the jump through the table by level at $81:8802
+ * (81:87FF). Exit: every register and flag unchanged.
+ */
+void abi_Level01ScreenSetup(void)
+{
+}
+
+/*
  * @routine 81:88C5 Level02ScreenSetup
  * WHAT IT DOES: Level 2's (and level $15's) screen set-up: layer set-up
  * mode $0E, layer 2 following $40, and HDMA channel 4 writing layer 2's
