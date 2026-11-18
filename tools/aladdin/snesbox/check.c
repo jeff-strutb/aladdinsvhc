@@ -348,6 +348,7 @@ static void io_add(IoLog *l, uint32_t addr, uint8_t v)
 typedef struct {
     int idx, in_irq, interrupted, dma, gsu, needs_asm, overflow;
     int stack_reset;         /* a TXS or TCS ran inside the call */
+    int noreturn;            /* a unit call marked noreturn (snesbox call noreturn) */
     uint32_t ret_pc, irq_pc;
     uint16_t exit_s, irq_s;
     struct SnesboxRegs entry;
@@ -767,6 +768,15 @@ static int nirqs;
    and S) and where it ends, given since no JSR or JSL says. */
 static struct { int set; uint32_t pc, ret; uint16_t exit_s, entry_s; } ue;
 
+/* The routine a unit call marked noreturn enters (snesbox call noreturn):
+   its watch is that call's. */
+static uint32_t a5_noreturn_pc = 0xFFFFFFFFu;
+
+void check_unit_noreturn(uint32_t pc)
+{
+    a5_noreturn_pc = pc;
+}
+
 void check_unit_entry(uint32_t pc, uint32_t ret, uint16_t exit_s, uint16_t entry_s)
 {
     ue.set = 1; ue.pc = pc; ue.ret = ret; ue.exit_s = exit_s; ue.entry_s = entry_s;
@@ -1033,6 +1043,16 @@ static void on_insn(uint32_t pc)
         if (t->ret_pc == 0xFFFFFFFFu && !t->actor && r.s == t->exit_s && prev_op == 0x60 && pushes_return(routines[t->idx].addr))
             t->ret_pc = (routines[t->idx].addr & 0xFF0000)
                         | (uint16_t)((wram[(uint16_t)(r.s - 1)] | wram[r.s] << 8) + 1);
+        /* A unit call marked noreturn that set S itself (the game's start
+           resetting the stack) has left every frame below it: a return
+           above its exit level after that is its own code's, not its end;
+           it ends at its jump into a catalogued routine with no C (the
+           scheduler), where its C leaves (cpu.unwound), as on lockstep's
+           side. */
+        if (t->noreturn && t->stack_reset) {
+            if (is_jump_op(prev_op) && is_catalog_entry(pc) && !(has_c[pc >> 3] >> (pc & 7) & 1)) { finish(t); depth--; continue; }
+            break;
+        }
         if ((pc == t->ret_pc && r.s == t->exit_s)
             || ((r.s > t->exit_s || (r.s == t->exit_s && !t->actor)) && (prev_op == 0x60 || prev_op == 0x6B))) { finish(t); depth--; }
         else break;
@@ -1082,6 +1102,8 @@ static void on_insn(uint32_t pc)
     uint16_t word = (uint16_t)(wram[(sp + 1) & 0xFFFF] | wram[(sp + 2) & 0xFFFF] << 8);
     w->actor = 0;
     w->exit_calls = 0;
+    w->noreturn = pc == a5_noreturn_pc;
+    if (w->noreturn) a5_noreturn_pc = 0xFFFFFFFFu;
     if (ue.set && pc == ue.pc && r.s == ue.entry_s) {
         w->ret_pc = ue.ret;
         w->exit_s = ue.exit_s;
@@ -1767,6 +1789,17 @@ static void ls_insn(uint32_t pc)
            hybrid's original code does: leave_frame.) */
         if (m.noreturn && (prev == 0x9A || prev == 0x1B))
             m.stack_reset = 1;
+        /* ...and it ends at its jump into a catalogued routine with no C
+           (the scheduler), where its C leaves (cpu.unwound): what runs on
+           is original code on both sides. */
+        if (m.noreturn && m.stack_reset && is_jump_op(prev) && is_catalog_entry(pc) && !(has_c[pc >> 3] >> (pc & 7) & 1)) {
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "ODONE frame %ld call %llu at %06X S=%04X (noreturn: jump to code with no C)\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
+            return;
+        }
         /* A noreturn unit call whose own return lands elsewhere (its code
            overwrote the return address on the stack: WindowEdgesFillOnes'
            fill runs into the stack) ends at that return too: S is back at

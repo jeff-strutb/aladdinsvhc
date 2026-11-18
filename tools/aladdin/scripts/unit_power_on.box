@@ -1,0 +1,15 @@
+# The game's start (PowerOn, $80:8000) as a unit call: entered by a JSR from
+# the stub at $00:8000, as the reset vector enters it, it clears the
+# hardware and work RAM, resets S and starts the game anew under the
+# scheduler (noreturn; the frames after it are compared in lockstep).
+# From the first level's state the RAM's signature ($0000 = $0123) and the
+# kept options' sum are as the game left them: the warm path ($80:80AF,
+# KeptOptionsSum compared with $0006), which only a reset with the power
+# kept on runs. Then again with the signature cleared: the cold path.
+load build/aladdin/states/level1.state
+wait 10
+call 808000 noreturn frames=300
+load build/aladdin/states/level1.state
+wait 10
+set 000000 00,00
+call 808000 noreturn frames=300

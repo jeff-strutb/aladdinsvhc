@@ -490,6 +490,7 @@ static int call_exec(uint32_t pc)
         /* Entered by a JML from the trampoline: the checker is told where
            the call starts (S after the return and the frame) and ends. */
         if (call_noreturn && lockstep) lockstep_unit_noreturn(call_target);
+        if (call_noreturn && checklib_on) check_unit_noreturn(call_target);
         if (call_frame >= 0 && call_frame_long) {
             if (checklib_on) check_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 5));
             if (lockstep) lockstep_unit_entry(call_target, call_loop, call_from.s, (uint16_t)(call_from.s - 5));
