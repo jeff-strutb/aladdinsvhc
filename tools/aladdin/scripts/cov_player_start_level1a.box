@@ -1,0 +1,14 @@
+# Aladdin's start on level $1A (PlayerStartTasks' path for levels $14 up,
+# $81:CBF1: ActorSpawnShared $60 on level $1A), which no script plays. On
+# the first level ($0360 0) his record is put back to state $0C with $06
+# and $07 0 (the level's own start) and the level ($035E) set to $1A for
+# one frame, then back to 0: the start takes the late path, spawns shared
+# actor $60 and stands him.
+load build/aladdin/states/level1.state
+wait 10
+poke $00035E 1A
+poke $0008E1 00,00
+poke $0008DB 0C
+wait 1
+poke $00035E 00
+wait 30
