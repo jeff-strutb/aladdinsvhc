@@ -108,4 +108,4 @@ Kind64Pad:
 .aside:
     jsr.w PlayerPushAside
     bra .frame
-assert pc() == $83E55E
+%ends_at($83E55E)

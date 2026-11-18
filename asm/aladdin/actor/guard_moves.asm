@@ -444,7 +444,7 @@ GuardWalk:
 .idle:
     brk.b #$00
     bra .idle
-assert pc() <= $A5E812
+%ends_by($A5E812)
 
 ; @routine A5:EAB3 ActorFlyFallCapped
 ; WHAT IT DOES: ActorFly, with the fall held to G_FALL_MAX at most.
@@ -526,4 +526,4 @@ GuardStepAhead:
     ldy.b #$09
     jsr.w ActorSpeedYFromA5
     jmp.w GuardJump
-assert pc() <= $A5EB17
+%ends_by($A5EB17)

@@ -16,24 +16,24 @@ arch 65816
 ; actor loop's jump for kind $44 in state $0C. Exit: never returns.
 %at($83B45B)
 Kind44Start:
-    lda.b $08
+    lda.b !actor_08
     ora.b #$02
-    sta.b $08
-    lda.b $09
+    sta.b !actor_08
+    lda.b !actor_09
     ora.b #$90
-    sta.b $09
+    sta.b !actor_09
     rep.b #$20
     lda.w #$0600
-    sta.b $2B
+    sta.b !actor_look
     sep.b #$20
-    stz.b $14
-    stz.b $15
+    stz.b !actor_facing
+    stz.b !actor_flip
     lda.b #$20
-    sta.b $40
+    sta.b !actor_40
     lda.b #$04
     jsl.l AnimStart
 .frame:
     brk.b #$00
-    dec.b $40
+    dec.b !actor_40
     bne .frame
     jml.l ActorEndPlaced

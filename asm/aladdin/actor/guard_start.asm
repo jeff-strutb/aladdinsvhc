@@ -22,6 +22,9 @@ arch 65816
 !G_BACK_OFF = $46
 !G_CODE_SET = $146B
 !G_146F = $146F
+!ACTOR_PROBES = $16             ; its probe list's address (word)
+!G_28 = $28                     ; $FF
+!G_29 = $29                     ; word: $8909
 
 ; @routine 83:9205 Kind08Enter
 ; @actor
@@ -62,14 +65,14 @@ GuardStart:
     ora.b #$90
     sta.b !actor_09
     lda.b #$FF
-    sta.b $28
+    sta.b !G_28
     stz.b !actor_facing
     stz.b !actor_flip
     rep.b #$20
     lda.w #$CF8F
-    sta.b $16
+    sta.b !ACTOR_PROBES
     lda.w #$8909
-    sta.b $29
+    sta.b !G_29
     lda.w !player+!actor_x+1
     sta.b !actor_x+1
     clc
@@ -130,4 +133,4 @@ GuardRestart:
     lda.b #$00
     jsl.l AnimStart
     jsl.l ActorSpeedXClear
-assert pc() == $A5E5B6
+%ends_at($A5E5B6)

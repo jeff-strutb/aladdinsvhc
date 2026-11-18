@@ -1085,7 +1085,7 @@ LayerCopyToVram:
     sta.w !VMADDL
     tdc
     clc
-    adc.w #!LAYER_COLUMN_BUF+$40
+    adc.w #!LAYER_COLUMN_BUF+64
     sta.w !A1T0L
     ldx.b #0
     stx.w !A1B0
@@ -1120,7 +1120,7 @@ LayerCopyToVram:
     sta.w !VMADDL
     tdc
     clc
-    adc.w #!LAYER_ROW_BUF+$40
+    adc.w #!LAYER_ROW_BUF+64
     sta.w !A1T0L
     ldx.b #0
     stx.w !A1B0

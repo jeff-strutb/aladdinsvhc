@@ -24,6 +24,7 @@ arch 65816
 !shape_right = $002D            ; its right edge
 !shape_middle = $002E           ; its middle
 !window_shape = $BBAE           ; data bank $82: the offset of its last pair (word), then left, right pairs
+!window_shape_long = $82BBAE    ; window_shape read by long address
 !window_edges = $7EF800         ; the window's edges per line, left then right (the RAM band_pos names)
 
 ; HalfSineBuild's table, and the sines it takes the high bytes of.
@@ -36,6 +37,8 @@ arch 65816
 !box_across = $002C             ; its left less the scroll (word)
 !box_down = $002E               ; its top less the scroll (word)
 !box_table = $7F5600            ; the HDMA table being built: count, then left and right
+!box_bank = $7F                 ; box_table's bank, the source of its copy
+!hdma_bank = $7E                ; the HDMA tables' bank ($7E:F400 on)
 ; The box's off exits go to WindowBoxAt-2: SEC, RTS at the end of $82:8388.
 !scroll_x = !layer0+!LAYER_SCROLL_X
 !scroll_y = !layer0+!LAYER_SCROLL_Y
@@ -601,7 +604,7 @@ HdmaEffect8:
     ldx.w #$5600
     ldy.b !dp_07
     lda.w #$000F
-    mvn $7E,$7F
+    mvn !hdma_bank,!box_bank
     plb
     lda.b !dp_07
     eor.w #$0010
@@ -656,7 +659,7 @@ HdmaEffect10:
     txa
     ldx.w #$F500
     ldy.w #$F520
-    mvn $7E,$7E
+    mvn !hdma_bank,!hdma_bank
     sep.b #$10
     plb
 .l8514:
@@ -972,7 +975,7 @@ WindowWavesLoop:
     lda.b #$01
     xba
     lda.b #$FF
-    ldx.w #!window_edges&$FFFF
+    ldx.w #!window_edges&65535
     ldy.w #!waves_table
     mvn !build_bank,!window_bank
     plb
@@ -994,11 +997,11 @@ WindowWavesLoop:
 .pair:
     clc
     lda.w !wave_sines,y
-    adc.l !window_shape|$820000,x
+    adc.l !window_shape_long,x
     sta.w !waves_table,x
     clc
     lda.w !wave_sines,y
-    adc.l (!window_shape+1)|$820000,x
+    adc.l !window_shape_long+1,x
     sta.w !waves_table+1,x
     cpx.w #$0060
     bcc .same
@@ -1021,7 +1024,7 @@ WindowWavesLoop:
     xba
     lda.b #$FF
     ldx.w #!waves_table
-    ldy.w #!window_edges&$FFFF
+    ldy.w #!window_edges&65535
     mvn !window_bank,!build_bank
     plb
     bra .frame

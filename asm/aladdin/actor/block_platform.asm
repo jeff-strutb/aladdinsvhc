@@ -219,7 +219,7 @@ Kind68Start:
     dec.b !K68_WAIT
     bne .pause
     bra .move
-assert pc() == $83E7DE
+%ends_at($83E7DE)
 
 ; @routine 83:E7DE BlockPointInBounds
 ; WHAT IT DOES: Tells whether the platform's block point is in the part

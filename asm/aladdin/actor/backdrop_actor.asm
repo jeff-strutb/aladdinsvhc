@@ -39,6 +39,10 @@ arch 65816
 !K6E_0834 = $0834               ; set to 1 by the spawner
 !K6E_083D = $083D               ; set to $10 when a copier was found
 !K6E_CHECK = $700020            ; the copier check's bytes ($70:0020, $70:0040): none on the cartridge
+!K6E_CHECK_FIRST = $0000        ; with DB $70 and X $20: K6E_CHECK's first byte ($70:0020)
+!K6E_CHECK_SECOND = $0020       ; its second ($70:0040)
+!K6E_ROM_PROBE = $A000          ; two ROM bytes read in banks $80 and $00: a copier that maps them apart is found
+!K6E_SCROLL_X = $1773           ; the play field's scroll x (word)
 
 ; @routine 83:F049 Kind6EStart
 ; @actor
@@ -90,7 +94,7 @@ Kind6EStart:
 .next:
     brk.b #$00
     ldx.b !K6E_STEP
-    lda.w $1773
+    lda.w !K6E_SCROLL_X
     cmp.w !K6E_SPAWNS,x
     bcc .next
     lda.w !RANGE_X
@@ -119,14 +123,14 @@ Kind6EStart:
     lda.b #$80
     pha
     plb
-    ldy.w $A000
-    ldx.w $A001
+    ldy.w !K6E_ROM_PROBE
+    ldx.w !K6E_ROM_PROBE+1
     lda.b #$00
     pha
     plb
-    cpy.w $A000
+    cpy.w !K6E_ROM_PROBE
     bne .copier
-    cpx.w $A001
+    cpx.w !K6E_ROM_PROBE+1
     bne .copier
     ldx.b #$20
     sec
@@ -135,12 +139,12 @@ Kind6EStart:
     pha
     plb
     lda.b #$23
-    sta.w $0000,x
-    cmp.w $0000,x
+    sta.w !K6E_CHECK_FIRST,x
+    cmp.w !K6E_CHECK_FIRST,x
     bne .cart
     lda.b #$23
-    sta.w $0020,x
-    cmp.w $0020,x
+    sta.w !K6E_CHECK_SECOND,x
+    cmp.w !K6E_CHECK_SECOND,x
     bne .cart
 .copier:
     plb
@@ -264,7 +268,7 @@ Kind6EStart:
     lda.b #$23
     jsl.l SoundQueueAdd
     jmp.w ActorEndPlaced
-assert pc() == $83F1D5
+%ends_at($83F1D5)
 
 ; @routine 83:F211 ActorStepRight3
 ; WHAT IT DOES: Moves the actor 3 pixels to the right.

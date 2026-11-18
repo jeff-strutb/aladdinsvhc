@@ -407,7 +407,7 @@ Kind6DStart:
     lda.b #$08
     cop.b #$00
     bra .hop7_again
-assert pc() == $83EF92
+%ends_at($83EF92)
 
 ; @routine 83:EFF0 Kind6DSecond
 ; @actor

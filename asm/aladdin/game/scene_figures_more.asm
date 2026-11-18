@@ -167,7 +167,7 @@ PlayerSceneDropIn:
     brk.b #$00
     jsl.l ActorMoveX
     bra .off
-assert pc() <= $A5EE29
+%ends_by($A5EE29)
 
 ; @routine A5:F00E GuardPlacedHold
 ; @actor
@@ -188,4 +188,4 @@ GuardPlacedHold:
     lda.b #$00
     jsl.l AnimStart
     jmp.w GuardStop
-assert pc() <= $A5F020
+%ends_by($A5F020)

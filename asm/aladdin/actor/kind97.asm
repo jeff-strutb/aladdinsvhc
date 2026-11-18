@@ -225,4 +225,4 @@ Kind97DropChild:
     lda.b #!K97_KIND
     sta.b !actor_06
     rts
-assert pc() == $84A056
+%ends_at($84A056)

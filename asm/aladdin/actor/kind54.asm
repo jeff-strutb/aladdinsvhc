@@ -168,7 +168,7 @@ Kind54Drop:
     dec.b !K54_FRAMES
     bne .fall
     bra Kind54End
-assert pc() == $83D7C9
+%ends_at($83D7C9)
 
 ; The drop's end, after Kind54Wait.
 %at($83D7F7)
@@ -302,4 +302,4 @@ Kind55Start:
     sta.b !actor_y+1
     sep.b #$20
     jmp.w .leap
-assert pc() == $83D8CE
+%ends_at($83D8CE)

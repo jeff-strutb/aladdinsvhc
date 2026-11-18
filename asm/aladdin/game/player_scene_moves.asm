@@ -290,7 +290,7 @@ PlayerSceneRuns:
     brk.b #$00
     stz.b !actor_07
     jmp.w GuardRestart
-assert pc() <= $A5EC45
+%ends_by($A5EC45)
 
 ; @routine A5:EE29 PlayerSceneWalkOff
 ; @actor
@@ -391,7 +391,7 @@ PlayerSceneWalkOff:
     jsl.l ActorMoveX
     jsl.l ActorSnapToGround
     bra .on
-assert pc() <= $A5EEE1
+%ends_by($A5EEE1)
 
 ; @routine A5:EEE1 PlayerSceneFallPose
 ; @actor
@@ -422,4 +422,4 @@ PlayerSceneFallPose:
     cop.b #$00
     stz.b !actor_07
     jmp.w GuardRestart
-assert pc() <= $A5EF0C
+%ends_by($A5EF0C)

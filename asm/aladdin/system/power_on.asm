@@ -23,6 +23,8 @@ arch 65816
 !pon_header = $FFC0              ; ROM: the cartridge header's title
 !pon_first_task = $818000        ; the first task (slot 0)
 !pon_scheduler = $81BC6D         ; the task scheduler
+!pon_ram_high = $1FFF            ; with DB $7E and X from $E000 down to 1: $7E:2000-$7E:FFFF cleared
+!pon_ram_low = $0000             ; X from $1FFF down to $000C: $00:000C-$00:1FFF cleared
 
 ; @routine 80:8000 PowerOn
 ; WHAT IT DOES: The game's start, from the reset vector: the S-CPU into
@@ -94,13 +96,13 @@ PowerOn:
     rep.b #$10
     ldx.w #$E000
 .clear_high:
-    stz.w $1FFF,x
+    stz.w !pon_ram_high,x
     dex
     bne .clear_high
     plb
     ldx.w #$1FFF
 .clear_low:
-    stz.w $0000,x
+    stz.w !pon_ram_low,x
     dex
     cpx.w #$000B
     bne .clear_low

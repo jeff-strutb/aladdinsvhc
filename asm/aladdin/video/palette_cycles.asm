@@ -68,7 +68,7 @@ PaletteCyclesStep:
     phd
     lda.b #!PALETTE_CYCLES>>8
     xba
-    lda.b #!PALETTE_CYCLES&$FF
+    lda.b #!PALETTE_CYCLES&255
     tcd
 .record:
     lda.b !PCYC_ACTIVE

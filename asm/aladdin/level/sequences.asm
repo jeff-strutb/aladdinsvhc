@@ -45,7 +45,7 @@ SequencesStep:
     phd
     lda.b #!SEQUENCES>>8
     xba
-    lda.b #!SEQUENCES&$FF
+    lda.b #!SEQUENCES&255
     tcd
 .record:
     lda.b !SEQ_ACTIVE

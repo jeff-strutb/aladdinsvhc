@@ -13,6 +13,8 @@ arch 65816
 !WIPE_RADIUS = $45  ; the circle's radius, one up each step (word)
 !LAYER0_X = $1773  ; layer 0's x pixels (word)
 !LAYER0_Y = $1777  ; layer 0's y pixels (word)
+!SHAPE_BANK = $7F  ; where CircleWipeStep draws the window table ($7F:5000)
+!HDMA_BANK = $7E  ; where the HDMA reads it ($7E:F500)
 
 ; @routine 83:EAAF ActorCircleWipeStep
 ; WHAT IT DOES: One step of a circle wipe round the actor: the radius
@@ -45,7 +47,7 @@ ActorCircleWipeStep:
     ldx.w #$5000
     ldy.w #$F500
     lda.w #$01FF
-    mvn $7E,$7F
+    mvn !HDMA_BANK,!SHAPE_BANK
     plb
     sep.b #$30
     rts

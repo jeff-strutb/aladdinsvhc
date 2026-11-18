@@ -159,4 +159,4 @@ Kind7DStep:
     stz.b !K7D_STATE
 .done:
     rts
-assert pc() == $8491A5
+%ends_at($8491A5)

@@ -381,11 +381,11 @@ Kind79Second:
     ldy.b #!KIND79_DIP
     jsl.l ActorSpeedYSetGravity
     lda.b #$08
-    sta.b $40
+    sta.b !actor_40
 .sink:
     brk.b #$00
     jsl.l ActorFallAgainst
-    dec.b $40
+    dec.b !actor_40
     bne .sink
 .pose:
     lda.b #$03
@@ -400,4 +400,4 @@ Kind79Second:
     brk.b #$00
     jsl.l ActorFall
     bra .fall
-assert pc() == $83F757
+%ends_at($83F757)

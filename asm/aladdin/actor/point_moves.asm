@@ -22,6 +22,11 @@ arch 65816
 !RISE_SPEED = $1D               ; the rise's speed, 16ths (word; $1F its third byte)
 !RISE_STEP = $20                ; added to the speed each frame
 !RISE_LIMIT = $45               ; the speed's top (word)
+!SPAWN_LOOK = $4D               ; the look ActorSpawnLookWait spawns
+!HOP_TABLE = $D9BF              ; 5 bytes an entry: $20, vertical speed (2), horizontal speed (2)
+!PROBE_X = !scratch             ; PointInGroundLong's point (words)
+!PROBE_Y = !scratch+2
+!PROBE_FLAGS = !scratch+6       ; its result: bits 0-2 set in the ground
 
 ; @routine 83:FB15 Kind94Wait
 ; WHAT IT DOES: What actors of kind $94 do each frame they wait: animate.
@@ -166,9 +171,9 @@ ActorRiseWhenInReach:
 ActorSpawnLookWait:
     rep.b #$20
     pla
-    sta.b $4E
+    sta.b !GOTO_BACK
     sep.b #$20
-    lda.b $4D
+    lda.b !SPAWN_LOOK
     jsl.l ActorSpawnSameLook
     db $30,$03                  ; bmi to $83:FC1F (BRK, BRA $FC14), no record free
     jmp.w ActorBackToCaller
@@ -189,27 +194,27 @@ ActorSpawnLookWait:
 ActorHopFromTable:
     rep.b #$20
     pla
-    sta.b $4E
+    sta.b !GOTO_BACK
     sep.b #$20
-    lda.w $D9BF,x
-    sta.b $20
-    lda.w $D9C0,x
-    sta.b $1D
-    lda.w $D9C1,x
-    sta.b $1E
+    lda.w !HOP_TABLE,x
+    sta.b !actor_accel_y
+    lda.w !HOP_TABLE+1,x
+    sta.b !actor_speed_y
+    lda.w !HOP_TABLE+2,x
+    sta.b !actor_speed_y+1
     lda.b #$FF
-    sta.b $1F
-    lda.w $D9C2,x
-    sta.b $19
-    lda.w $D9C3,x
-    sta.b $1A
-    stz.b $1B
+    sta.b !actor_speed_y+2
+    lda.w !HOP_TABLE+3,x
+    sta.b !actor_speed_x
+    lda.w !HOP_TABLE+4,x
+    sta.b !actor_speed_x+1
+    stz.b !actor_speed_x+2
 .frame:
     brk.b #$00
     jsl.l ActorMoveX
     jsl.l ActorFall
     jsl.l ActorOutOfWallProbe4
-    lda.b $1F
+    lda.b !actor_speed_y+2
     bmi .frame
     jsl.l ActorOutOfGround
     beq .frame
@@ -229,32 +234,32 @@ ActorHopFromTable:
 ActorProbeAheadInGround:
     rep.b #$20
     txa
-    ldx.b $14
+    ldx.b !actor_facing
     beq .ahead
     eor.w #$FFFF
     inc a
 .ahead:
     clc
-    adc.b $0C
-    sta.w $000C
+    adc.b !actor_x+1
+    sta.w !PROBE_X
     tya
     eor.w #$FFFF
     inc a
     clc
-    adc.b $0F
-    sta.w $000E
+    adc.b !actor_y+1
+    sta.w !PROBE_Y
     php
     jsl.l PointInGroundLong
     plp
-    lda.w $0012
+    lda.w !PROBE_FLAGS
     bit.w #$0007
     db $D0,$17                  ; bne to $83:FDAE (SEP #$20, SEC, RTS): in the ground
-    lda.b $0C
-    sta.w $000C
+    lda.b !actor_x+1
+    sta.w !PROBE_X
     php
     jsl.l PointInGroundLong
     plp
-    lda.w $0012
+    lda.w !PROBE_FLAGS
     bit.w #$0007
     db $D0,$04                  ; bne to $83:FDAE
     sep.b #$20

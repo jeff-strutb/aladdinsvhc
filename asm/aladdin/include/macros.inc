@@ -10,6 +10,17 @@ macro at(addr)
     base <addr>
 endmacro
 
+; %ends_at(addr): the code before it ends at S-CPU address `addr`, where
+; the next code starts; the assembly fails if it does not.
+macro ends_at(addr)
+    assert pc() == <addr>
+endmacro
+
+; %ends_by(addr): the code before it ends at or before `addr`.
+macro ends_by(addr)
+    assert pc() <= <addr>
+endmacro
+
 ; %spc(apu, addr): place SPC700 code that the S-CPU uploads to the sound
 ; CPU's RAM. It sits at the ROM byte of S-CPU address `addr`; labels resolve
 ; to its APU RAM address `apu`. %spc_end() goes back to 65816 code.

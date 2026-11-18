@@ -100,7 +100,7 @@ PaletteFromRom:
     sta.w !scratch
 .l9961:
     lda.w !rom_palettes,y
-    sta.l !palette_buffer+$80,x
+    sta.l !palette_buffer+128,x
     inx
     inx
     iny

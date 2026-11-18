@@ -191,7 +191,7 @@ GuardRunOff:
     lda.b #$7F
     trb.w !GUARD_CODE_SET
     rtl
-assert pc() <= $A5F0F4
+%ends_by($A5F0F4)
 
 ; @routine A5:F2E5 GuardFaceView
 ; WHAT IT DOES: The guard's state 2: it faces toward the point actors are
@@ -231,4 +231,4 @@ GuardFaceView:
 %at($A5F308)
 GuardIdle:
     rtl
-assert pc() <= $A5F309
+%ends_by($A5F309)

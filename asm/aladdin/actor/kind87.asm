@@ -30,6 +30,8 @@ arch 65816
 !K87_145A = $145A               ; negative: no catching
 !K87_141B = $141B               ; nonzero while Aladdin is hurt (state $8C)
 !K87_HOLD_AT = $145D            ; where Aladdin is held: x, y (words)
+!ACTOR_PROBES = $16             ; its probe list's address (word)
+!K87_26 = $26                   ; set with K87_FRAMES as it blinks out
 
 ; @routine 83:F77F Kind87Start
 ; @actor
@@ -76,9 +78,9 @@ Kind87Start:
 .catcher:
     stz.b !K87_DONE
     lda.b #!K87_PROBES
-    sta.b $16
+    sta.b !ACTOR_PROBES
     lda.b #!K87_PROBES>>8
-    sta.b $17
+    sta.b !ACTOR_PROBES+1
     lda.b #$03
     jsl.l AnimStart
 .watch:
@@ -188,7 +190,7 @@ Kind87Start:
     trb.b !actor_09
     lda.b #$0B
     sta.b !K87_FRAMES
-    sta.b $26
+    sta.b !K87_26
 .blink:
     brk.b #$00
     lda.b !actor_08
@@ -200,9 +202,9 @@ Kind87Start:
 .child:
     stz.b !K87_CHILD
     lda.b #!K87_CHILD_PROBES
-    sta.b $16
+    sta.b !ACTOR_PROBES
     lda.b #!K87_CHILD_PROBES>>8
-    sta.b $17
+    sta.b !ACTOR_PROBES+1
 .down:
     jsl.l ActorOutOfGround
     bne .grounded
@@ -272,4 +274,4 @@ Kind87HoldAtIt:
     sta.w !K87_HOLD_AT+2
     sep.b #$20
     rts
-assert pc() == $83F908
+%ends_at($83F908)
