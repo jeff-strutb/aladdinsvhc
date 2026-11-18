@@ -1,0 +1,318 @@
+# Actor kind $31's start ($83:ABEA) for each variant ($07 bits 0-2, by the
+# level: table $83:AC17 below level 2, $83:AC36 from level 2), which the
+# levels place with only a few: each variant restarts the live kind $31
+# actor (record $0C4B, at x $0B30, as unit_actor31_turn.box brings it in
+# from stage a5 s2) with its state set to $0C and $07 the variant; for
+# the first table the level ($035C, 5 here) reads 0 for that frame. The
+# player is then held where the variant waits for him (each wait compares
+# his x, $08E7, with the actor's) so its sequence runs on.
+# variant 1, first table, player at x $0AE0
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 01
+poke 00035C 00
+wait 1
+poke 00035C 05
+repeat 150
+poke 0008E7 E0,0A
+wait 1
+end
+wait 300
+# variant 2, first table, player at x $0AE0
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 02
+poke 00035C 00
+wait 1
+poke 00035C 05
+repeat 150
+poke 0008E7 E0,0A
+wait 1
+end
+wait 300
+# variant 3, first table, player at x $0AE0
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 03
+poke 00035C 00
+wait 1
+poke 00035C 05
+repeat 150
+poke 0008E7 E0,0A
+wait 1
+end
+wait 300
+# variant 4, first table, player at x $0B60
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 04
+poke 00035C 00
+wait 1
+poke 00035C 05
+repeat 150
+poke 0008E7 60,0B
+wait 1
+end
+wait 300
+# variant 7, first table
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 07
+poke 00035C 00
+wait 1
+poke 00035C 05
+wait 300
+# variant 1, second table, player at x $0AD0
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 01
+wait 1
+repeat 150
+poke 0008E7 D0,0A
+wait 1
+end
+wait 300
+# variant 2, second table, player at x $0B10
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 02
+wait 1
+repeat 150
+poke 0008E7 10,0B
+wait 1
+end
+wait 300
+# variant 3, second table, player at x $0B40
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 03
+wait 1
+repeat 150
+poke 0008E7 40,0B
+wait 1
+end
+wait 300
+# variant 4, second table, player at x $0B40
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 04
+wait 1
+repeat 150
+poke 0008E7 40,0B
+wait 1
+end
+wait 300
+# variant 5, second table, player at x $0B40
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 05
+wait 1
+repeat 150
+poke 0008E7 40,0B
+wait 1
+end
+wait 300
+# variant 6, second table, player at x $0A80
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 06
+wait 1
+repeat 150
+poke 0008E7 80,0A
+wait 1
+end
+wait 300
+# variant 7, second table
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 07
+wait 1
+wait 300
+# variant 0, first table
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 00
+poke 00035C 00
+wait 1
+poke 00035C 05
+wait 300
+# variant 5, first table, player at x $0B60
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 05
+poke 00035C 00
+wait 1
+poke 00035C 05
+repeat 150
+poke 0008E7 60,0B
+wait 1
+end
+wait 300
+# variant 6, first table, player at x $0B60
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 06
+poke 00035C 00
+wait 1
+poke 00035C 05
+repeat 150
+poke 0008E7 60,0B
+wait 1
+end
+wait 300
+# variant 4, second table: the player out of its reach for 30 frames first ($83:AD73), then in
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 04
+wait 1
+repeat 30
+poke 0008E7 00,0A
+wait 1
+end
+repeat 150
+poke 0008E7 40,0B
+wait 1
+end
+wait 300
+# variant $11 (bits 3-4 = 2: the third entry of $83:ADC9), second table, then a long walk
+# (its turn at an edge or a wall, $83:ADE7-$83:AE18), the player kept far off
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 11
+wait 1
+repeat 150
+poke 0008E7 D0,0A
+wait 1
+end
+repeat 1200
+poke 0008E7 00,08
+wait 1
+end
+# variant 1, second table, walking: the actor lifted $20 for a frame (no
+# ground under it: its turn, $83:ADE7), then $10 into the floor for a frame
+# (the wall probe: $83:ADF1-$83:AE18)
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 01
+wait 1
+repeat 150
+poke 0008E7 D0,0A
+wait 1
+end
+wait 20
+poke 000C5A 98,00
+wait 1
+wait 30
+poke 000C5A C8,00
+wait 1
+wait 120
+# variant 1, second table, walking, then facing left ($14 = 1) as it is
+# sunk $10 into the floor: the wall probe's left-facing step ($83:FD74)
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 98
+poke 000C4B 0C
+poke 000C52 01
+wait 1
+repeat 150
+poke 0008E7 D0,0A
+wait 1
+end
+wait 20
+poke 000C5F 01
+poke 000C5A C8,00
+wait 1
+wait 120

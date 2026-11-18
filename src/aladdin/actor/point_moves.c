@@ -18,6 +18,11 @@ void abi_AnimStep(void);
 void abi_PlayerInReach(void);
 void abi_ActorMoveY(void);
 void abi_ActorOutOfGround(void);
+void abi_ActorFall(void);
+void abi_ActorMoveX(void);
+void abi_ActorOutOfWallProbe4(void);
+void abi_ActorSpawnSameLook(void);
+void abi_PointInGroundLong(void);
 
 #define GOTO_X 0x48u            /* the point it goes to (words) */
 #define GOTO_Y 0x4Au
@@ -31,6 +36,20 @@ void abi_ActorOutOfGround(void);
 #define RISE_SPEED 0x1Du        /* the rise's speed, 16ths (word; $1F its third byte) */
 #define RISE_STEP 0x20u         /* added to the speed each frame */
 #define RISE_LIMIT 0x45u        /* the speed's top (word) */
+#define SPAWN_LOOK 0x4Du        /* the look ActorSpawnLookWait spawns */
+#define HOP_TABLE 0xD9BFu       /* 5 bytes an entry: $20, vertical speed (2), horizontal speed (2) */
+#define PROBE_X SCRATCH         /* PointInGroundLong's point (words) */
+#define PROBE_Y (SCRATCH + 2)
+#define PROBE_FLAGS (SCRATCH + 6) /* its result: bits 0-2 set in the ground */
+
+/* A JSL at `site` to a routine whose C uses the stack: its return address
+   on the stack while the callee runs, as the original's. */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
 
 /*
  * @routine 83:FC5D ActorGoToPoint
@@ -171,4 +190,130 @@ void abi_ActorRiseWhenInReach(void)
     } while (IF_Z);
     clc();
     abi_ActorBackToCaller();
+}
+
+/*
+ * @routine 83:FC0D ActorSpawnLookWait
+ * @actor
+ * WHAT IT DOES: Spawns an actor of the look in $4D next to the actor,
+ * waiting a frame and trying again while no record is free; then back to
+ * its caller.
+ * HOW: Its return address pulled into GOTO_BACK ($4E); ActorSpawnSameLook
+ * with A = $4D; N clear: on into ActorBackToCaller. N set (no record): BRK
+ * ($83:FC1F) and again ($83:FC14); no script runs that.
+ * Entry: M 8-bit; D = the actor's record; called by JSR ($83:ACAC).
+ * Exit: as ActorBackToCaller.
+ */
+void abi_ActorSpawnLookWait(void)
+{
+    op_rep(0x20);
+    pla16();
+    sta16(ea_dp(GOTO_BACK));
+    op_sep(0x20);
+    for (;;) {
+        lda8(ea_dp(SPAWN_LOOK));
+        abi_ActorSpawnSameLook();
+        if (!IF_N)
+            break;
+        actor_yield(0x83FC1Fu);         /* no record free: a frame, again */
+    }
+    abi_ActorBackToCaller();
+}
+
+/*
+ * @routine 83:FD2C ActorHopFromTable
+ * @actor
+ * WHAT IT DOES: A hop by entry X of the hop table at $83:D9BF: the actor
+ * moves and falls each frame until it is back on the ground; then back to
+ * its caller.
+ * HOW: Its return address pulled into GOTO_BACK ($4E); from the entry: $20,
+ * the vertical speed $1D-$1E ($1F $FF: up), the horizontal speed $19-$1A
+ * ($1B 0). Each frame: BRK; ActorMoveX, ActorFall, ActorOutOfWallProbe4;
+ * again while $1F is negative or ActorOutOfGround says Z. Then on into
+ * ActorBackToCaller.
+ * Entry: M 8-bit, X 8-bit; X = the entry's offset; D = the actor's record;
+ * DB = $80; called by JSR. Exit: as ActorBackToCaller.
+ */
+void abi_ActorHopFromTable(void)
+{
+    op_rep(0x20);
+    pla16();
+    sta16(ea_dp(GOTO_BACK));
+    op_sep(0x20);
+    lda8(ea_absx(HOP_TABLE));
+    sta8(ea_dp(0x20));
+    lda8(ea_absx(HOP_TABLE + 1));
+    sta8(ea_dp(0x1D));
+    lda8(ea_absx(HOP_TABLE + 2));
+    sta8(ea_dp(0x1E));
+    lda8_v(0xFF);
+    sta8(ea_dp(0x1F));
+    lda8(ea_absx(HOP_TABLE + 3));
+    sta8(ea_dp(0x19));
+    lda8(ea_absx(HOP_TABLE + 4));
+    sta8(ea_dp(0x1A));
+    stz8(ea_dp(0x1B));
+    do {
+        do {
+            actor_yield(0x83FD52u);
+            abi_ActorMoveX();
+            abi_ActorFall();
+            jsl_call(0x83FD5Cu, abi_ActorOutOfWallProbe4);
+            lda8(ea_dp(0x1F));
+        } while (IF_N);
+        jsl_call(0x83FD64u, abi_ActorOutOfGround);
+    } while (IF_Z);
+    abi_ActorBackToCaller();
+}
+
+/*
+ * @routine 83:FD6D ActorProbeAheadInGround
+ * WHAT IT DOES: Tests two points for ground: X ahead of the actor (by its
+ * facing) and Y above it, then Y above its own x: C set when either is in
+ * the ground.
+ * HOW: 16-bit: X negated when $14 is set; scratch $0C = it + the actor's x,
+ * $0E = its y - Y; PointInGroundLong (P kept); $0012 AND 7 nonzero: C set
+ * ($83:FDAE, no script runs that). Then $0C = its x; again. Both clear: M
+ * 8-bit, C clear.
+ * Entry: M 8-bit, X 8-bit; X, Y the offsets; D = the actor's record;
+ * called by JSR ($83:ADF5). Exit: M 8-bit; C as above.
+ */
+void abi_ActorProbeAheadInGround(void)
+{
+    op_rep(0x20);
+    txa16();
+    ldx8(ea_dp(ACTOR_FACING));
+    if (!IF_Z) {
+        eor16_v(0xFFFF);
+        ACC16(inc);
+    }
+    clc();
+    adc16_v(rd16(ea_dp(0x0C)));
+    sta16(ea_abs(PROBE_X));
+    tya16();
+    eor16_v(0xFFFF);
+    ACC16(inc);
+    clc();
+    adc16_v(rd16(ea_dp(0x0F)));
+    sta16(ea_abs(PROBE_Y));
+    php();
+    jsl_call(0x83FD8Au, abi_PointInGroundLong);
+    plp();
+    lda16(ea_abs(PROBE_FLAGS));
+    bit16_i(0x0007);
+    if (!IF_Z) goto ground;
+    lda16(ea_dp(0x0C));
+    sta16(ea_abs(PROBE_X));
+    php();
+    jsl_call(0x83FD9Du, abi_PointInGroundLong);
+    plp();
+    lda16(ea_abs(PROBE_FLAGS));
+    bit16_i(0x0007);
+    if (!IF_Z) goto ground;
+    op_sep(0x20);
+    clc();
+    return;
+ground:
+    op_sep(0x20);
+    sec();
 }

@@ -151,3 +151,112 @@ ActorRiseWhenInReach:
 .out:
     sep.b #$20
     rts
+
+; @routine 83:FC0D ActorSpawnLookWait
+; @actor
+; WHAT IT DOES: Spawns an actor of the look in $4D next to the actor,
+; waiting a frame and trying again while no record is free; then back to
+; its caller.
+; HOW: Its return address pulled into GOTO_BACK ($4E); ActorSpawnSameLook
+; with A = $4D; N clear: on into ActorBackToCaller. N set (no record): BRK
+; ($83:FC1F) and again ($83:FC14); no script runs that.
+; Entry: M 8-bit; D = the actor's record; called by JSR ($83:ACAC).
+; Exit: as ActorBackToCaller.
+%at($83FC0D)
+ActorSpawnLookWait:
+    rep.b #$20
+    pla
+    sta.b $4E
+    sep.b #$20
+    lda.b $4D
+    jsl.l ActorSpawnSameLook
+    db $30,$03                  ; bmi to $83:FC1F (BRK, BRA $FC14), no record free
+    jmp.w ActorBackToCaller
+
+; @routine 83:FD2C ActorHopFromTable
+; @actor
+; WHAT IT DOES: A hop by entry X of the hop table at $83:D9BF: the actor
+; moves and falls each frame until it is back on the ground; then back to
+; its caller.
+; HOW: Its return address pulled into GOTO_BACK ($4E); from the entry: $20,
+; the vertical speed $1D-$1E ($1F $FF: up), the horizontal speed $19-$1A
+; ($1B 0). Each frame: BRK; ActorMoveX, ActorFall, ActorOutOfWallProbe4;
+; again while $1F is negative or ActorOutOfGround says Z. Then on into
+; ActorBackToCaller.
+; Entry: M 8-bit, X 8-bit; X = the entry's offset; D = the actor's record;
+; DB = $80; called by JSR. Exit: as ActorBackToCaller.
+%at($83FD2C)
+ActorHopFromTable:
+    rep.b #$20
+    pla
+    sta.b $4E
+    sep.b #$20
+    lda.w $D9BF,x
+    sta.b $20
+    lda.w $D9C0,x
+    sta.b $1D
+    lda.w $D9C1,x
+    sta.b $1E
+    lda.b #$FF
+    sta.b $1F
+    lda.w $D9C2,x
+    sta.b $19
+    lda.w $D9C3,x
+    sta.b $1A
+    stz.b $1B
+.frame:
+    brk.b #$00
+    jsl.l ActorMoveX
+    jsl.l ActorFall
+    jsl.l ActorOutOfWallProbe4
+    lda.b $1F
+    bmi .frame
+    jsl.l ActorOutOfGround
+    beq .frame
+    jmp.w ActorBackToCaller
+
+; @routine 83:FD6D ActorProbeAheadInGround
+; WHAT IT DOES: Tests two points for ground: X ahead of the actor (by its
+; facing) and Y above it, then Y above its own x: C set when either is in
+; the ground.
+; HOW: 16-bit: X negated when $14 is set; scratch $0C = it + the actor's x,
+; $0E = its y - Y; PointInGroundLong (P kept); $0012 AND 7 nonzero: C set
+; ($83:FDAE, no script runs that). Then $0C = its x; again. Both clear: M
+; 8-bit, C clear.
+; Entry: M 8-bit, X 8-bit; X, Y the offsets; D = the actor's record;
+; called by JSR ($83:ADF5). Exit: M 8-bit; C as above.
+%at($83FD6D)
+ActorProbeAheadInGround:
+    rep.b #$20
+    txa
+    ldx.b $14
+    beq .ahead
+    eor.w #$FFFF
+    inc a
+.ahead:
+    clc
+    adc.b $0C
+    sta.w $000C
+    tya
+    eor.w #$FFFF
+    inc a
+    clc
+    adc.b $0F
+    sta.w $000E
+    php
+    jsl.l PointInGroundLong
+    plp
+    lda.w $0012
+    bit.w #$0007
+    db $D0,$17                  ; bne to $83:FDAE (SEP #$20, SEC, RTS): in the ground
+    lda.b $0C
+    sta.w $000C
+    php
+    jsl.l PointInGroundLong
+    plp
+    lda.w $0012
+    bit.w #$0007
+    db $D0,$04                  ; bne to $83:FDAE
+    sep.b #$20
+    clc
+    rts
