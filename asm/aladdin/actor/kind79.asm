@@ -334,3 +334,70 @@ Kind79Wait:
 .step:
     jsl.l AnimStep
     jmp.w Kind79InRange
+
+; @routine 83:F6F2 Kind79Second
+; @actor
+; WHAT IT DOES: Actor kind $79 in a state with bit 7 set (landed on, or
+; hit): no longer taken up; landed on (not shot, not up past $0032) it
+; sinks a little with a sound; shot while it carried Aladdin with health
+; left, his code goes on at $CDD2; then it is hit (ACTOR_09 bit 7), poses,
+; sounds $2D, and after 6 frames falls away for good.
+; HOW: $41 up. KIND79_LOW and KIND79_43 both zero: SoundQueueAdd $0F,
+; animation 1, ActorSpeedYSetGravity (A 4, Y $6C), 8 frames (BRK) of
+; ActorFallAgainst. Else KIND79_TAKEN and HEALTH nonzero:
+; PLAYER_RESUME $CDD2, KIND79_TAKEN 0; ACTOR_09 bit 7 set. Then animation
+; 3, SoundQueueAdd $2D, COP 6, ActorMotionReset $30, ActorFall each frame
+; (BRK) for good.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's jump for kind $79 in a state with bit 7 set (the table
+; at $83:8DFD). Exit: never returns.
+%at($83F6F2)
+Kind79Second:
+    inc.b !actor_41
+    lda.b !KIND79_LOW
+    bne .shot
+    lda.b !KIND79_43
+    beq .landed_on
+.shot:
+    lda.b !KIND79_TAKEN
+    beq .hit
+    lda.w !HEALTH
+    beq .hit
+    lda.b #$D2
+    sta.w !PLAYER_RESUME
+    lda.b #$CD
+    sta.w !PLAYER_RESUME+1
+    stz.b !KIND79_TAKEN
+.hit:
+    lda.b #$80
+    tsb.b !actor_09
+    bra .pose
+.landed_on:
+    lda.b #$0F
+    jsl.l SoundQueueAdd
+    lda.b #$01
+    jsl.l AnimStart
+    lda.b #!KIND79_DIP_GRAVITY
+    ldy.b #!KIND79_DIP
+    jsl.l ActorSpeedYSetGravity
+    lda.b #$08
+    sta.b $40
+.sink:
+    brk.b #$00
+    jsl.l ActorFallAgainst
+    dec.b $40
+    bne .sink
+.pose:
+    lda.b #$03
+    jsl.l AnimStart
+    lda.b #$2D
+    jsl.l SoundQueueAdd
+    lda.b #$06
+    cop.b #$00
+    lda.b #$30
+    jsl.l ActorMotionReset
+.fall:
+    brk.b #$00
+    jsl.l ActorFall
+    bra .fall
+assert pc() == $83F757

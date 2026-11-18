@@ -10,6 +10,9 @@
 #include "actor_anim.h"
 
 void abi_AnimStart(void);
+void abi_ActorFall(void);
+void abi_ActorMotionReset(void);
+void abi_SoundQueueAdd(void);
 void abi_AnimStep(void);
 void abi_ActorSpeedYSet(void);
 void abi_ActorStepYBack(void);
@@ -380,4 +383,80 @@ void abi_Kind79SlotClear(void)
     x8_load(rd8(dpa(KIND79_SLOT)));
     wr8(dba((uint16_t)(SLOT_WORDS + cpu.x)), 0);
     wr8(dba((uint16_t)(SLOT_WORDS + 1 + cpu.x)), 0);
+}
+
+/*
+ * @routine 83:F6F2 Kind79Second
+ * @actor
+ * WHAT IT DOES: Actor kind $79 in a state with bit 7 set (landed on, or
+ * hit): no longer taken up; landed on (not shot, not up past $0032) it
+ * sinks a little with a sound; shot while it carried Aladdin with health
+ * left, his code goes on at $CDD2; then it is hit (ACTOR_09 bit 7), poses,
+ * sounds $2D, and after 6 frames falls away for good.
+ * HOW: $41 up. KIND79_LOW and KIND79_43 both zero: SoundQueueAdd $0F,
+ * animation 1, ActorSpeedYSetGravity (A 4, Y $6C), 8 frames (BRK) of
+ * ActorFallAgainst. Else KIND79_TAKEN and HEALTH nonzero:
+ * PLAYER_RESUME $CDD2, KIND79_TAKEN 0; ACTOR_09 bit 7 set. Then animation
+ * 3, SoundQueueAdd $2D, COP 6, ActorMotionReset $30, ActorFall each frame
+ * (BRK) for good.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's jump for kind $79 in a state with bit 7 set (the table
+ * at $83:8DFD). Exit: never returns.
+ */
+void abi_Kind79Second(void)
+{
+    uint8_t v;
+
+    (void)inc8_at(dpa(ACTOR_41));
+    v = rd8(dpa(KIND79_LOW));
+    a8_load(v);
+    if (!v) {
+        v = rd8(dpa(KIND79_43));
+        a8_load(v);
+        if (!v) {
+            /* landed on: a sound, and it sinks 8 frames */
+            a8_load(0x0F);
+            abi_SoundQueueAdd();
+            a8_load(0x01);
+            abi_AnimStart();
+            a8_load(KIND79_DIP_GRAVITY);
+            y8_load(KIND79_DIP);
+            abi_ActorSpeedYSetGravity();
+            a8_load(0x08);
+            wr8(dpa(0x40), 0x08);
+            do {
+                actor_yield(0x83F72Fu);
+                abi_ActorFallAgainst();
+            } while (dec8_at(dpa(0x40)));
+            goto pose;
+        }
+    }
+    v = rd8(dpa(KIND79_TAKEN));
+    a8_load(v);
+    if (v) {
+        v = rd8(dba(HEALTH));
+        a8_load(v);
+        if (v) {
+            a8_load(0xD2);
+            wr8(dba(PLAYER_RESUME), 0xD2);
+            a8_load(0xCD);
+            wr8(dba((uint16_t)(PLAYER_RESUME + 1)), 0xCD);
+            wr8(dpa(KIND79_TAKEN), 0x00);
+        }
+    }
+    a8_load(0x80);
+    tsb_at(dpa(ACTOR_09), 0x80);
+pose:
+    a8_load(0x03);
+    abi_AnimStart();
+    a8_load(0x2D);
+    abi_SoundQueueAdd();
+    a8_load(0x06);
+    actor_wait(0x83F747u);
+    a8_load(0x30);
+    abi_ActorMotionReset();
+    for (;;) {
+        actor_yield(0x83F74Fu);
+        abi_ActorFall();
+    }
 }

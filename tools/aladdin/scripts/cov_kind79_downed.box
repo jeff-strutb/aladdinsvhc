@@ -1,0 +1,37 @@
+# Actor kind $79 downed (Kind79Second, $83:F6F2: its state with bit 7 set),
+# each way in: as cov_kind79.box, rand_stage_a3_s1 (seed 7) to frame 100
+# with the kind $79 in record $0B5B rising; then its fields set and its
+# state set to $8C, as Kind79Wait does.
+# A. Landed on: KIND79_LOW ($49) and its shot count ($43) 0: a sound and
+# it sinks 8 frames ($83:F717), then poses and falls away.
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 000BA4 00
+poke 000B9E 00
+poke 000B5B 8C
+wait 40
+# B. Shot while taken up, Aladdin with health left: his code goes on at
+# $CDD2 and it is no longer taken ($83:F700); KIND79_LOW set.
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 000BA4 01
+poke 000B9D 01
+poke 000B5B 8C
+wait 40
+# C. Shot, not taken: only its hit flag ($83:F6F8: KIND79_LOW 0, one shot).
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 000BA4 00
+poke 000B9E 01
+poke 000B9D 00
+poke 000B5B 8C
+wait 40
