@@ -83,7 +83,7 @@ void abi_SequencesStep(void)
         if (active) {
             a8_load(rd8(dpa(SEQ_STARTED)));
             if (!(uint8_t)cpu.a)
-                abi_SequenceStart();
+                call_frame(0xEC34, abi_SequenceStart);
             if (!dec8_at(dpa(SEQ_WAIT))) {
                 /* its wait done: the next entry (3 bytes: frames, word),
                    from the first after the last */

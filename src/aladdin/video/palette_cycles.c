@@ -84,7 +84,12 @@ void abi_PaletteCyclesStep(void)
             flag_set(P_C, step & 0x80);
             a8_load((uint8_t)(step << 1));
             cpu.x = (uint8_t)cpu.a;
+            /* JSR ($ECBB,X) at $81:ECA7: its return address on the stack
+               while the step runs, as the original's */
+            op_push8(0xEC);
+            op_push8(0xA9);
             call_routine(0x810000u | rd16(0x810000u | (uint16_t)(PALETTE_CYCLE_STEPS + cpu.x)), 0);
+            cpu.s = (uint16_t)(cpu.s + 2);
         }
         op_rep(P_M);
         flag_set(P_C, 0);
