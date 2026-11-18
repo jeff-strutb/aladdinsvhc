@@ -21,31 +21,6 @@ void abi_ActorsInView(void);
 #define RANGE_Y 0x1A46u
 #define ACTOR_RECORD_SIZE 0x0050u
 
-/* The actor's box (by its $12) round the range point: C clear when the
-   point is within it in both x and y. */
-static int box_holds_range_point(void)
-{
-    uint32_t box = dba(VIEW_BOXES) + cpu.x;
-    uint16_t d, v;
-
-    flag_set(P_C, 1);
-    v = rd16(dba(RANGE_X));
-    d = op_sbc16(v, dp16(ACTOR_X + 1), &cpu.p);
-    flag_set(P_C, 0);
-    d = op_adc16(d, rd16(box), &cpu.p);
-    cpu.a = d;
-    cmp16_of(d, rd16(box + 2));
-    if (d >= rd16(box + 2))
-        return 0;
-    flag_set(P_C, 1);
-    v = rd16(dba(RANGE_Y));
-    d = op_sbc16(v, dp16(ACTOR_Y + 1), &cpu.p);
-    flag_set(P_C, 0);
-    d = op_adc16(d, rd16(box + 4), &cpu.p);
-    cpu.a = d;
-    cmp16_of(d, rd16(box + 6));
-    return d < rd16(box + 6);
-}
 
 /*
  * @routine 81:9198 ActorsInView
@@ -66,52 +41,74 @@ void abi_ActorsInView(void)
     php();
     phd();
     op_rep(0x30);
-    for (int i = 0; i < 4; i++)
-        wr16(dba((uint16_t)(VIEW_COUNTS + 2 * i)), 0);
-    for (int i = 0; i < 4; i++)
-        wr16(dba((uint16_t)(VIEW_LIST_NEXT + 2 * i)), rd16(dba((uint16_t)(VIEW_LIST_STARTS + 2 * i))));
+    stz16(ea_abs(VIEW_COUNTS));
+    stz16(ea_abs(VIEW_COUNTS + 2));
+    stz16(ea_abs(VIEW_COUNTS + 4));
+    stz16(ea_abs(VIEW_COUNTS + 6));
+    for (int i = 0; i < 4; i++) {
+        lda16(ea_abs((uint16_t)(VIEW_LIST_STARTS + 2 * i)));
+        sta16(ea_abs((uint16_t)(VIEW_LIST_NEXT + 2 * i)));
+    }
     /* each of the 35 records from the escort's */
-    cpu.y = 0x0023;
-    cpu.a = cpu.d = ACTOR_ESCORT;
+    ldy16_v(0x0023);
+    lda16_v(ACTOR_ESCORT);
+    tcd();
     do {
-        uint16_t flags;
-
-        cpu.a = dp16(ACTOR_STATE) & 0x00FF;
-        if (cpu.a) {
-            cpu.x = dp16(ACTOR_12) & 0x00FF;
-            if (box_holds_range_point()) {
+        lda16(ea_dp(ACTOR_STATE));
+        and16_v(0x00FF);
+        if (!IF_Z) {
+            lda16(ea_dp(ACTOR_12));
+            and16_v(0x00FF);
+            tax16();
+            /* the range point within the box (by $12): in view */
+            sec();
+            lda16(ea_abs(RANGE_X));
+            sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
+            clc();
+            adc16_v(rd16(ea_absx(VIEW_BOXES)));
+            cmp16_v(rd16(ea_absx(VIEW_BOXES + 2)));
+            if (!IF_C) {
+                sec();
+                lda16(ea_abs(RANGE_Y));
+                sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));
+                clc();
+                adc16_v(rd16(ea_absx(VIEW_BOXES + 4)));
+                cmp16_v(rd16(ea_absx(VIEW_BOXES + 6)));
+            }
+            if (!IF_C) {
                 /* in view: bit 14 of $08; listed when bit 3 is set */
-                flags = (uint16_t)(dp16(ACTOR_08) | 0x4000);
-                dp16_set(ACTOR_08, flags);
-                cpu.a = flags;
-                nz16_of(flags);
-                flag_set(P_Z, !(flags & 0x0008));
-                if (flags & 0x0008) {
+                lda16(ea_dp(ACTOR_08));
+                ora16_v(0x4000);
+                sta16(ea_dp(ACTOR_08));
+                lda16(ea_dp(ACTOR_08));
+                bit16_i(0x0008);
+                if (!IF_Z) {
                     phy16();
-                    cpu.x = (uint16_t)((flags & 0x0003) << 1);
-                    flag_set(P_C, 0);
-                    cpu.y = rd16(dba(VIEW_LIST_NEXT) + cpu.x);
-                    cpu.a = cpu.d;
-                    wr16(dba(VIEW_LISTS) + cpu.y, cpu.d);
-                    inc16_at(dba(VIEW_LIST_NEXT) + cpu.x);
-                    inc16_at(dba(VIEW_LIST_NEXT) + cpu.x);
-                    cpu.y = cpu.x;
-                    cpu.x = rd16(dba(VIEW_GROUP_OF) + cpu.y);
-                    inc16_at(dba(VIEW_COUNTS) + cpu.x);
+                    and16_v(0x0003);
+                    cpu.a = asl16_r(cpu.a);
+                    tax16();
+                    ldy16(ea_absx(VIEW_LIST_NEXT));
+                    tdc();
+                    sta16(ea_absy(VIEW_LISTS));
+                    MEM16(inc, ea_absx(VIEW_LIST_NEXT));
+                    MEM16(inc, ea_absx(VIEW_LIST_NEXT));
+                    txy16();
+                    ldx16(ea_absy(VIEW_GROUP_OF));
+                    MEM16(inc, ea_absx(VIEW_COUNTS));
                     ply16();
                 }
             } else {
-                flags = (uint16_t)(dp16(ACTOR_08) & 0xBFFF);
-                dp16_set(ACTOR_08, flags);
-                a16_load(flags);
+                lda16(ea_dp(ACTOR_08));
+                and16_v(0xBFFF);
+                sta16(ea_dp(ACTOR_08));
             }
         }
-        flag_set(P_C, 0);
-        cpu.a = op_adc16(cpu.d, ACTOR_RECORD_SIZE, &cpu.p);
-        cpu.d = cpu.a;
-        cpu.y = (uint16_t)(cpu.y - 1);
-        nz16_of(cpu.y);
-    } while (cpu.y);
+        clc();
+        tdc();
+        adc16_v(ACTOR_RECORD_SIZE);
+        tcd();
+        dey16();
+    } while (!IF_Z);
     pld();
     plp();
 }
