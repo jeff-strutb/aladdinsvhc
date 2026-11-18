@@ -21,7 +21,6 @@ arch 65816
 !routine_81830d = $81830D  ; not yet filed
 !routine_8196b1 = $8196B1  ; not yet filed
 !routine_819dcd = $819DCD  ; not yet filed
-!routine_838979 = $838979  ; not yet filed
 !v_0000 = $0000
 !v_002b = $002B
 !v_0076 = $0076
@@ -443,7 +442,7 @@ TitleTask_l9C9D:
     cmp.b #$02
     bne .lA03A
     jsl.l TaskExec
-    dl !routine_838979
+    dl OptionsTask
 .lA03A:
     lda.w !v_0849
     cmp.b #$01
