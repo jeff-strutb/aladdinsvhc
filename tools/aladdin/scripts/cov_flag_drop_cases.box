@@ -1,0 +1,33 @@
+# ActorFlagOnce's cases 1 and 2 (FlagDropAlways $83:CF42, FlagDropFour
+# $83:CF51), by bits 3-4 of a kind $4D actor's $07, which no placement
+# gives (level 0's two have $07 = $01 and $18, cases 0 and 3). The first
+# level played as level1_walk.box (with no copier RAM) until both kind
+# $4D records ($0C9B, $0B5B) have started; then each restarted (state
+# $0C) with $07 = $0D (case 1, flag 5) and $16 (case 2, flag 6), flags no
+# script sets in $0359, and 5 frames on its K4D_HITS ($42) set to 1, as a
+# hit sets it: each leaps, falls, and drops its children once.
+load build/aladdin/states/level1.state
+hold RIGHT 120
+press B
+hold B+RIGHT 30
+hold RIGHT 60
+press A
+wait 30
+hold Y+RIGHT 90
+hold B+R 60
+hold DOWN 30
+hold DOWN+A 20
+hold UP 40
+press START
+wait 60
+press START
+hold RIGHT 95
+hold RIGHT 135
+poke 000C9B 0C
+poke 000CA2 0D
+poke 000B5B 0C
+poke 000B62 16
+wait 5
+poke 000CDD 01
+poke 000B9D 01
+wait 200
