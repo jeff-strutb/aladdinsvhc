@@ -9,6 +9,7 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
+incsrc "../include/wram_video.inc"
 
 arch 65816
 
@@ -102,3 +103,86 @@ ShakeDown:
     dey
     bne .frame
     rts
+
+; A task no code creates: it runs only where cov_unused_tasks.box creates
+; it.
+!WOBBLES = $BA76                 ; (bank $80) per wobble, 4 bytes: x step, y step, frames a swing, frames in all
+!WOBBLE_DX = $07                 ; (its record) the x step (word)
+!WOBBLE_DY = $09                 ; the y step (word)
+!WOBBLE_SWING = $0B              ; frames a swing
+!WOBBLE_LEFT = $0C               ; frames left of this swing
+!WOBBLE_ALL = $0D                ; frames left in all
+
+; @routine 81:9F98 Bg1WobbleTask
+; WHAT IT DOES: A task that wobbles layer 1: its x and y shifts move by a
+; step each frame, turning back after each swing, for the frames the
+; wobble its parameter picks lasts; then the shifts are 0 again and it
+; ends. No code creates it.
+; HOW: D = its slot's record ($6F + Y, the old D pushed); from WOBBLES at
+; the parameter: the x step to $07 (word), the y step to $09 (word), the
+; frames a swing to $0B and $0C, the frames in all to $0D. Each frame:
+; TaskWait 1, BG1_X_SHIFT and BG1_Y_SHIFT plus the steps; the frames in
+; all down (at 0 the shifts cleared, D pulled, TaskExit); the swing's
+; frames down, and at 0 the steps negated and the swing begun again.
+; Entry: the task's start: M 8-bit, X 8-bit; Y = the task's slot; its
+; parameter = the wobble's offset in WOBBLES; DB = $80. Exit: none: the
+; task ends.
+%at($819F98)
+Bg1WobbleTask:
+    rep.b #$20
+    phd
+    clc
+    tya
+    adc.w #!task_state
+    tcd
+    sep.b #$20
+    ldx.b !task_param-!task_state
+    lda.w !WOBBLES,x
+    sta.b !WOBBLE_DX
+    stz.b !WOBBLE_DX+1
+    lda.w !WOBBLES+1,x
+    sta.b !WOBBLE_DY
+    stz.b !WOBBLE_DY+1
+    lda.w !WOBBLES+2,x
+    sta.b !WOBBLE_SWING
+    lda.w !WOBBLES+3,x
+    sta.b !WOBBLE_ALL
+.swing:
+    lda.b !WOBBLE_SWING
+    sta.b !WOBBLE_LEFT
+.frame:
+    lda.b #$01
+    jsl.l TaskWait
+    rep.b #$20
+    clc
+    lda.b !WOBBLE_DX
+    adc.w !bg1_x_shift
+    sta.w !bg1_x_shift
+    clc
+    lda.b !WOBBLE_DY
+    adc.w !bg1_x_shift+4
+    sta.w !bg1_x_shift+4
+    sep.b #$20
+    dec.b !WOBBLE_ALL
+    beq .done
+    dec.b !WOBBLE_LEFT
+    bne .frame
+    rep.b #$20
+    lda.b !WOBBLE_DX
+    eor.w #$FFFF
+    inc a
+    sta.b !WOBBLE_DX
+    lda.b !WOBBLE_DY
+    eor.w #$FFFF
+    inc a
+    sta.b !WOBBLE_DY
+    sep.b #$20
+    bra .swing
+.done:
+    stz.w !bg1_x_shift
+    stz.w !bg1_x_shift+1
+    stz.w !bg1_x_shift+4
+    stz.w !bg1_x_shift+5
+    pld
+    jml.l TaskExit
+

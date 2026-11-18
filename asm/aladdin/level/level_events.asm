@@ -249,3 +249,68 @@ ClimbTopTask:
     lda.b #$FE
     sta.l !block_map+67
     jml.l TaskExit
+
+; Tasks no code creates: each runs only where cov_unused_tasks.box creates
+; it.
+!RISER_SEND = $1B1A              ; nonzero: send kind $88's riser (rise_steps.asm)
+!RISER_COURSE = $1B1B            ; the course to send it on
+
+; @routine 81:A1C0 SoundWhileSlot1Task
+; WHAT IT DOES: A task that plays sound $4A every 88 frames for as long as
+; the task in slot 1 (a fade's) runs, then ends. No code creates it.
+; HOW: SoundQueueAdd $4A; TaskWait $58; again while slot 1's state is not
+; 0; then TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF
+; is work RAM. Exit: none: the task ends.
+%at($81A1C0)
+SoundWhileSlot1Task:
+    lda.b #$4A
+    jsl.l SoundQueueAdd
+    lda.b #$58
+    jsl.l TaskWait
+    lda.w !task_state+(1*24)
+    bne SoundWhileSlot1Task
+    jml.l TaskExit
+
+; @routine 81:A2D1 RiserCoursesTask
+; WHAT IT DOES: A task that sends kind $88's riser on course 2, after 127
+; frames on course 1, after 126 more on course 0, and stops sending it
+; once the task in slot 1 (a fade's) has ended. No code creates it.
+; HOW: RISER_SEND 1, RISER_COURSE 2; TaskWait $7F, RISER_COURSE down;
+; TaskWait $7E, RISER_COURSE down; TaskWait 1 while slot 1's state is not
+; 0; RISER_SEND 0; TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF
+; is work RAM. Exit: none: the task ends.
+%at($81A2D1)
+RiserCoursesTask:
+    lda.b #$01
+    sta.w !RISER_SEND
+    lda.b #$02
+    sta.w !RISER_COURSE
+    lda.b #$7F
+    jsl.l TaskWait
+    dec.w !RISER_COURSE
+    lda.b #$7E
+    jsl.l TaskWait
+    dec.w !RISER_COURSE
+.wait:
+    lda.b #$01
+    jsl.l TaskWait
+    lda.w !task_state+(1*24)
+    bne .wait
+    stz.w !RISER_SEND
+    jml.l TaskExit
+
+; @routine 81:A2FF SoundLaterTask
+; WHAT IT DOES: A task that waits 192 frames, queues sound command $F6
+; (SoundQueueF6With1, with A as the wait leaves it) and ends. No code
+; creates it.
+; HOW: TaskWait $C0, SoundQueueF6With1, TaskExit.
+; Entry: the task's start: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF
+; is work RAM. Exit: none: the task ends.
+SoundLaterTask:
+    lda.b #$C0
+    jsl.l TaskWait
+    jsl.l SoundQueueF6With1
+    jml.l TaskExit
+

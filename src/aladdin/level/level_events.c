@@ -16,6 +16,8 @@ void abi_PaletteRedDown(void);
 void abi_ClimbTopTask(void);
 void abi_TaskWait(void);
 void abi_TaskExit(void);
+void abi_SoundQueueAdd(void);
+void abi_SoundQueueF6With1(void);
 #include "wram.h"
 #include "wram_video.h"
 
@@ -249,5 +251,76 @@ void abi_ClimbTopTask(void)
     } while (v != 0x01);
     a8_load(0xFE);
     wr8(0x7FF043u, 0xFE);
+    abi_TaskExit();
+}
+
+/* Tasks no code creates: each runs only where cov_unused_tasks.box
+   creates it. */
+#define FADE_SLOT_STATE (TASK_STATE + 1 * 24)   /* slot 1's state: the fades run there */
+#define RISER_SEND 0x1B1Au          /* nonzero: send kind $88's riser (rise_steps.c) */
+#define RISER_COURSE 0x1B1Bu        /* the course to send it on */
+
+/*
+ * @routine 81:A1C0 SoundWhileSlot1Task
+ * WHAT IT DOES: A task that plays sound $4A every 88 frames for as long as
+ * the task in slot 1 (a fade's) runs, then ends. No code creates it.
+ * HOW: SoundQueueAdd $4A; TaskWait $58; again while slot 1's state is not
+ * 0; then TaskExit.
+ * Entry: the task's start: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF
+ * is work RAM. Exit: none: the task ends.
+ */
+void abi_SoundWhileSlot1Task(void)
+{
+    do {
+        a8_load(0x4A);
+        abi_SoundQueueAdd();
+        next_frame(0x81A1C8u, 0x58);
+        a8_load(rd8(dba((uint16_t)FADE_SLOT_STATE)));
+    } while (cpu.a & 0xFF);
+    abi_TaskExit();
+}
+
+/*
+ * @routine 81:A2D1 RiserCoursesTask
+ * WHAT IT DOES: A task that sends kind $88's riser on course 2, after 127
+ * frames on course 1, after 126 more on course 0, and stops sending it
+ * once the task in slot 1 (a fade's) has ended. No code creates it.
+ * HOW: RISER_SEND 1, RISER_COURSE 2; TaskWait $7F, RISER_COURSE down;
+ * TaskWait $7E, RISER_COURSE down; TaskWait 1 while slot 1's state is not
+ * 0; RISER_SEND 0; TaskExit.
+ * Entry: the task's start: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF
+ * is work RAM. Exit: none: the task ends.
+ */
+void abi_RiserCoursesTask(void)
+{
+    a8_load(0x01);
+    wr8(dba(RISER_SEND), 0x01);
+    a8_load(0x02);
+    wr8(dba(RISER_COURSE), 0x02);
+    next_frame(0x81A2DDu, 0x7F);
+    (void)dec8_at(dba(RISER_COURSE));
+    next_frame(0x81A2E6u, 0x7E);
+    (void)dec8_at(dba(RISER_COURSE));
+    do {
+        next_frame(0x81A2EFu, 0x01);
+        a8_load(rd8(dba((uint16_t)FADE_SLOT_STATE)));
+    } while (cpu.a & 0xFF);
+    wr8(dba(RISER_SEND), 0x00);
+    abi_TaskExit();
+}
+
+/*
+ * @routine 81:A2FF SoundLaterTask
+ * WHAT IT DOES: A task that waits 192 frames, queues sound command $F6
+ * (SoundQueueF6With1, with A as the wait leaves it) and ends. No code
+ * creates it.
+ * HOW: TaskWait $C0, SoundQueueF6With1, TaskExit.
+ * Entry: the task's start: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF
+ * is work RAM. Exit: none: the task ends.
+ */
+void abi_SoundLaterTask(void)
+{
+    next_frame(0x81A301u, 0xC0);
+    abi_SoundQueueF6With1();
     abi_TaskExit();
 }

@@ -1,0 +1,99 @@
+# The colour fade tasks no code creates (81:9EDD-81:9F4B: fades in and out
+# on the sprites, layer 1, 2 or 3 alone, layer 1 and the sprites, layer 1
+# with forced blank cleared, and with colour math as it is), each created
+# in a level (stage_a0_s0) as TaskCreate creates a task: task slot 7 (its
+# record at $0117, free there) put in the new state ($0C) with parameter 2,
+# its saved S its stack top ($02EA), and the entry less one and its bank
+# at the top. The scheduler starts it at its next turn; each ends by
+# TaskExit within 80 frames, freeing the slot for the next. Then the layer 1
+# wobble task (81:9F98) the same way, with wobbles 0 and 4 of $80:BA76,
+# and the level-event tasks 81:A1C0 (a sound while slot 1 runs; it is
+# free here, so once), 81:A2D1 (the riser's courses) and 81:A2FF (a sound
+# after 192 frames).
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+poke $0002EB DC,9E,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB E3,9E,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB E7,9E,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB EB,9E,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB EF,9E,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB F3,9E,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 29,9F,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 2E,9F,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 35,9F,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 3C,9F,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 43,9F,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 4A,9F,81
+poke $000119 EA,02
+poke $00011D 02
+poke $000117 0C
+wait 80
+poke $0002EB 97,9F,81
+poke $000119 EA,02
+poke $00011D 00
+poke $000117 0C
+wait 60
+poke $0002EB 97,9F,81
+poke $000119 EA,02
+poke $00011D 04
+poke $000117 0C
+wait 60
+poke $0002EB BF,A1,81
+poke $000119 EA,02
+poke $00011D 00
+poke $000117 0C
+wait 120
+poke $0002EB D0,A2,81
+poke $000119 EA,02
+poke $00011D 00
+poke $000117 0C
+wait 300
+poke $0002EB FE,A2,81
+poke $000119 EA,02
+poke $00011D 00
+poke $000117 0C
+wait 230
