@@ -1,0 +1,7 @@
+# Kind $85's second state (Kind85Second, $83:92FB: JML KindAnimate9628), which the actor
+# loop jumps to for a kind $85 record in a state with bit 7 set (the table at
+# $83:8EFD). Power-on left alone (as cov_kind85_sound.box): at frame 3600 the
+# kind $85 at record $0C9B is put in state $8C, and 60 frames run.
+wait 3600
+poke $000C9B 8C
+wait 60

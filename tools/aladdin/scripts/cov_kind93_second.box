@@ -1,0 +1,18 @@
+# Kind $93's second state (Kind93Second, $83:9392: JML Kind93AnimateSend), which the actor
+# loop jumps to for a kind $93 record in a state with bit 7 set (the table at
+# $83:8EFD). Played as cov_kinda8_items.box (act 1 stage 1's end): 400 frames
+# after the player and camera are placed a kind $93 is live at record
+# $0C9B; it is put in state $8C, and 60 frames run.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 000375 FF
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 400
+poke 000C9B 8C
+wait 60

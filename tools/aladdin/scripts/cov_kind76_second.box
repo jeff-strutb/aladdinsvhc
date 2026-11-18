@@ -1,0 +1,33 @@
+# Kind $76's second state (Kind76Second, $83:928A: JML BackdropMover), which the actor
+# loop jumps to for a kind $76 record in a state with bit 7 set (the table at
+# $83:8DFD). Played as rand_stage_a5_s3.box for its first 25 holds and waits,
+# when a kind $76 is live at record $0BFB; then it is put in state $8C,
+# and 60 frames run.
+load build/aladdin/states/stage_a5_s3.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+poke 000BFB 8C
+wait 60
