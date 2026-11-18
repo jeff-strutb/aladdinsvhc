@@ -93,7 +93,7 @@ void abi_ShotFly(void)
     a8_load(0x50);
     wr8(dpa(ACTOR_09), 0x50);
     a8_load(0x07);
-    abi_AnimStart();
+    jsl_frame(0x81EAC4u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x04);
     wr8(dpa(ACTOR_2C), 0x04);
     y8_load(rd8(dpa(ACTOR_07)));           /* its course */
@@ -112,7 +112,7 @@ void abi_ShotFly(void)
         actor_yield(0x81EAEBu);
         if (shot_gone())
             break;
-        abi_AnimStep();
+        jsl_frame(0x81EB13u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         abi_ActorMove();
         a8_load(rd8(dpa(SHOT_LAUNCH)));
         if ((uint8_t)cpu.a) {

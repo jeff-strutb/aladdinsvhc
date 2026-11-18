@@ -83,8 +83,8 @@ void abi_PlayerMoveKeepFrame(void)
     wr8(dba(PLAYER_MOVE), move);
     a8_load(rd8(dpa(ACTOR_FRAME)));
     pha8();                               /* the frame, kept across the change */
-    abi_AnimOfMove();
-    abi_AnimResume();
+    call_frame(0xDC8A, abi_AnimOfMove);   /* 81DC88 jsr */
+    jsl_frame(0x81DC8Bu); abi_AnimResume(); cpu.s = (uint16_t)(cpu.s + 3);
     pla8();
     wr8(dpa(ACTOR_FRAME), (uint8_t)cpu.a);
 }

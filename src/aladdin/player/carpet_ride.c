@@ -271,7 +271,7 @@ void abi_PlayerCarpet(void)
 
     for (;;) {
         actor_yield(0x81E49Cu);
-        abi_AnimStep();
+        jsl_frame(0x81E49Eu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         if (first_ride()) {
             v = ldd(ACTOR_X + 2);
             cmp8_of(v, 0x1E);

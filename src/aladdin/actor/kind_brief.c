@@ -45,14 +45,14 @@ void abi_ActorBriefAnim8(void)
     set_a8((uint8_t)cpu.a | 0x10);
     wr8(dp(ACTOR_09), (uint8_t)cpu.a);
     set_a8(0x08);
-    abi_AnimStart();
+    jsl_frame(0x81EB98u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     set_a8(0x04);
     wr8(dp(ACTOR_2C), 0x04);
     set_a8(0x08);
     wr8(dp(ACTOR_40), 0x08);
     do {
         actor_yield(0x81EBA4);
-        abi_AnimStep();
+        jsl_frame(0x81EBA6u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         n = (uint8_t)(rd8_rmw(dp(ACTOR_40)) - 1);
         wr8(dp(ACTOR_40), n);
         cpu.p = nz8(cpu.p, n);
@@ -82,13 +82,13 @@ void abi_ActorBriefAnimB(void)
     wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x01));
     wr8(dpa(ACTOR_09), 0x10);
     a8_load(0x0B);
-    abi_AnimStart();
+    jsl_frame(0x81EBC4u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_2C), 0x04);
     a8_load(0x06);
     wr8(dpa(ACTOR_40), 0x06);
     do {
         actor_yield(0x81EBD0);
-        abi_AnimStep();
+        jsl_frame(0x81EBD2u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         frames = (uint8_t)(rd8(dpa(ACTOR_40)) - 1);
         wr8(dpa(ACTOR_40), frames);
         nz8_of(frames);
