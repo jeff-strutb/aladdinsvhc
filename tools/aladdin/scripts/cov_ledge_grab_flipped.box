@@ -1,0 +1,12 @@
+# Aladdin's ledge grab (PlayerLedgeGrab, $81:D470) with a ledge tile not
+# mirrored and his ACTOR_FLIP set ($81:D47B: no grab, on at
+# PlayerAirLand), which no catch meets. On the first level, at a frame's
+# end, TILE_MIRRORED ($001A) set to 0, his ACTOR_FLIP ($08F0) to 1 and his
+# code to PlayerLedgeGrab's entry (the record's P, PC: $30, $D470), as
+# the actor loop resumes it.
+load build/aladdin/states/level1.state
+wait 10
+poke $00001A 00
+poke $0008F0 01
+poke $0008DD 30,70,D4
+wait 30

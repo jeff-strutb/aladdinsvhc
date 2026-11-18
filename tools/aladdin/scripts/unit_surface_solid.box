@@ -1,0 +1,22 @@
+# The surface of a solid tile (kind 1) in the ground tests, which no play
+# meets where these paths run: SurfaceHeightOver ($81:B8B6) for a solid
+# tile in a screen's top row, whose tile above is in the screen above
+# ($81:B8D5), and SurfaceHeightSolid ($81:B8AD) for a solid tile at the
+# left probe ($81:B8B1). Level 4 (stage a1 s0) has a solid tile at x $04C0,
+# y $0100 (a slope above it) and one at $0470, $00C0 with an empty tile to
+# its right. Unit calls by JSL of ActorSnapToGround ($81:B44F) on Aladdin's
+# record (M and X 8-bit, DB $80), the view's y ($1777) set to $0060 so the
+# points are on the view, and his x and y ($08E7, $08EA) set so that his
+# probe 0 (y+24, after the routine's 3 down) is in the first tile, then
+# (x $0481) in the empty tile with the left probe (x-4) in the second;
+# the machine put back after each.
+load build/aladdin/states/stage_a1_s0.state
+wait 5
+set $001777 60,00
+set $0008E7 C8,04
+set $0008EA E6,00
+call 81B44F long d=08DB db=80 p=30
+set $001777 60,00
+set $0008E7 81,04
+set $0008EA A9,00
+call 81B44F long d=08DB db=80 p=30
