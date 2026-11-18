@@ -1,0 +1,17 @@
+# Aladdin landing on ground that hurts (PlayerLandOrHurt, $81:DD72-$81:DD7D:
+# state $8C, the two calls' returns dropped, the knockback), through
+# PlayerAirStep, which no play reaches: the settle needs his test box's
+# probe 8 (5, -16) in a floor tile, 40 pixels below where his feet stop.
+# Level 4 (rand_stage_a1_s0's first 3 lines, then 50 frames left and 120
+# standing, past the time his first hurt there keeps him from harm), whose
+# pit at x $0090-$00AF, y $01B0 hurts (behaviour $23): a jump to the right
+# from x $0074, and 29 frames in (x $0097, falling) his y ($08EA) set to
+# $01C2, so probe 8 is in the pit's floor tile.
+load build/aladdin/states/stage_a1_s0.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+wait 120
+hold B+RIGHT 29
+poke $0008EA C2,01
+wait 60
