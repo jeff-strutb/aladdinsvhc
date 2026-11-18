@@ -78,7 +78,7 @@ void abi_PauseCheck(void)
     op_sep(P_M);
     inc8_at(dba(PAUSED));
     a8_load(TEXT_PAUSED);
-    abi_TextLayoutShow();
+    jsl_frame(0x8183C7u); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x01);
     wr8(dba(V_03F9), 0x01);
     v = rd8(dba((uint16_t)LEVEL));
@@ -86,10 +86,10 @@ void abi_PauseCheck(void)
     cmp8_of(v, LEVEL_NO_PAUSE_SOUND);
     if (v != LEVEL_NO_PAUSE_SOUND) {
         a8_load(SOUND_PAUSE);
-        abi_SoundQueueAdd();
+        jsl_frame(0x8183D9u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     }
     a8_load(SOUND_MUSIC_PAUSE);
-    abi_SoundQueueAdd();
+    jsl_frame(0x8183DFu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     cpu.x = 7 * TASK_SLOT;
     do {                                  /* slots 7 down to 1: kept on the stack, frozen */
         a8_load(rd8(dba((uint16_t)(TASK_STATE + cpu.x))));
@@ -103,20 +103,19 @@ void abi_PauseCheck(void)
     } while (cpu.x);
     do {
         a8_load(0x01);
-        jsl_frame(0x8183F7u);
-        abi_TaskWait();
+        jsl_frame(0x8183F7u); abi_TaskWait();
         v = rd8(dba(V_0382));
         a8_load(v);
         flag_set(P_Z, !(v & PAD_START));
     } while (!(v & PAD_START));
     a8_load(TEXT_PAUSED | 0x80);
-    abi_TextLayoutShow();
+    jsl_frame(0x818404u); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dba(V_03F9), 0);
     wr8(dba(PAUSED), 0);
     a8_load(0x10);
     wr8(dba(PAUSE_COOLDOWN), 0x10);
     a8_load(SOUND_MUSIC_GO_ON);
-    abi_SoundQueueAdd();
+    jsl_frame(0x818415u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     cpu.x = TASK_SLOT;
     do {                                  /* slots 1 up to 7: their states back */
         pla8();
@@ -128,8 +127,7 @@ void abi_PauseCheck(void)
         cmp8_of((uint8_t)cpu.x, 8 * TASK_SLOT);
     } while (cpu.x != 8 * TASK_SLOT);
     a8_load(0x01);
-    jsl_frame(0x81842Au);
-    abi_TaskWait();
+    jsl_frame(0x81842Au); abi_TaskWait();
     op_rep(P_M);
     a16_load(0x0160);
     wr16(dba((uint16_t)TEXT_UPLOAD_SIZE), 0x0160);

@@ -48,11 +48,10 @@ void abi_OptionExitStep(void)
  */
 void abi_OptionsLeave(void)
 {
-    abi_SoundQueueF2();
+    jsl_frame(0x838BCFu); abi_SoundQueueF2(); cpu.s = (uint16_t)(cpu.s + 3);
     /* TaskExec at $83:8BD3: its frame, as the JSL pushes it; the three
        bytes after the JSL are the task's new entry. It never returns. */
-    jsl_frame(0x838BD3u);
-    abi_TaskExec();
+    jsl_frame(0x838BD3u); abi_TaskExec();
 }
 
 /*
@@ -102,7 +101,7 @@ void abi_OptionStereoToggle(void)
 
     a8_load(out);
     wr8(dba(SOUND_OUTPUT), out);
-    abi_KeptOptionsSeal();
+    jsl_frame(0x838BB0u); abi_KeptOptionsSeal(); cpu.s = (uint16_t)(cpu.s + 3);
     abi_OptionStereoShow();
 }
 
@@ -126,9 +125,9 @@ void abi_OptionStereoShow(void)
 
     cpu.y = out;
     a8_load((out & 0x80) ? TEXT_STEREO : TEXT_MONAURAL);
-    abi_TextLayoutShow();
+    jsl_frame(0x838BBDu); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
     out = rd8(dba(SOUND_OUTPUT));
     cpu.y = out;
     a8_load((out & 0x80) ? SOUND_CMD_STEREO : SOUND_CMD_STEREO + 1);
-    abi_SoundQueueAdd();
+    jsl_frame(0x838BC9u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
 }

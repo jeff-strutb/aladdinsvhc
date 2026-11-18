@@ -4,6 +4,7 @@
  * its own. Drafted by cdraft.py; named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 #include "actor_anim.h"
@@ -72,7 +73,7 @@ void abi_LevelLoad(void);
  */
 void abi_LevelGraphicsLoadAllLong(void)
 {
-    abi_LevelGraphicsLoadAll();
+    call_frame(0x8666, abi_LevelGraphicsLoadAll);
     return;
 }
 
@@ -89,17 +90,17 @@ void abi_LevelGraphicsLoadAllLong(void)
 void abi_LevelGraphicsLoadAll(void)
 {
     lda8_v(0x01);
-    abi_UnpackSet();
+    jsl_frame(0x81866Au); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x00);
-    abi_VramCopy();
+    jsl_frame(0x818670u); abi_VramCopy(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x0C);
-    abi_UnpackSet();
+    jsl_frame(0x818676u); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x1C);
-    abi_VramCopy();
+    jsl_frame(0x81867Cu); abi_VramCopy(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x2D);
-    abi_UnpackSet();
+    jsl_frame(0x818682u); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x62);
-    abi_VramCopy2();
+    jsl_frame(0x818688u); abi_VramCopy2(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_abs(LEVEL));
     sec();
     cmp8_v(0x1F);
@@ -107,18 +108,18 @@ void abi_LevelGraphicsLoadAll(void)
     tax8();
     lda8(ea_absx(LEVEL_SET_A));
     if (IF_N) goto L_8186B6;
-    abi_UnpackSet();
+    jsl_frame(0x81869Au); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x23);
-    abi_VramCopy();
+    jsl_frame(0x8186A0u); abi_VramCopy(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8(ea_abs(LEVEL));
     lda8(ea_absx(LEVEL_SET_B));
     if (IF_N) goto L_8186B6;
-    abi_UnpackSet();
+    jsl_frame(0x8186ACu); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x2A);
-    abi_VramCopy();
+    jsl_frame(0x8186B2u); abi_VramCopy(); cpu.s = (uint16_t)(cpu.s + 3);
 L_8186B6:
-    abi_LevelGraphicsLoad();
-    abi_LevelActorGraphicsLoad();
+    jsl_frame(0x8186B6u); abi_LevelGraphicsLoad(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x8186BAu); abi_LevelActorGraphicsLoad(); cpu.s = (uint16_t)(cpu.s + 3);
     return;
 }
 
@@ -130,7 +131,7 @@ L_8186B6:
  */
 void abi_LevelRamSetupLong(void)
 {
-    abi_LevelRamSetup();
+    call_frame(0x825D, abi_LevelRamSetup);
     return;
 }
 
@@ -150,8 +151,8 @@ void abi_LevelRamSetupLong(void)
  */
 void abi_LevelRamSetup(void)
 {
-    abi_GameRamClear();
-    abi_TaskSlotsFree1To6();
+    jsl_frame(0x81825Fu); abi_GameRamClear(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x818263u); abi_TaskSlotsFree1To6(); cpu.s = (uint16_t)(cpu.s + 3);
     sec();
     lda8(ea_abs(LEVEL));
     cmp8_v(0x14);
@@ -174,24 +175,24 @@ L_81828C:
     sta8(ea_longx(KIND_COUNT));
     inx8();
     if (!IF_Z) goto L_81828C;
-    abi_DisplayDefaults();
-    abi_AnimSetsLoad();
-    abi_LevelGraphicsLoadAll();
-    abi_ActorRecordsInit();
+    jsl_frame(0x818293u); abi_DisplayDefaults(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x818297u); abi_AnimSetsLoad(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x829D, abi_LevelGraphicsLoadAll);
+    jsl_frame(0x81829Eu); abi_ActorRecordsInit(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x02);
-    abi_PaletteLoad();
+    jsl_frame(0x8182A4u); abi_PaletteLoad(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x00);
-    abi_PaletteLoad();
+    jsl_frame(0x8182AAu); abi_PaletteLoad(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x0C);
-    abi_PaletteLoad();
+    jsl_frame(0x8182B0u); abi_PaletteLoad(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x09);
-    abi_PaletteLoad();
-    abi_TextLayerClear();
-    abi_LevelScrollLimits();
+    jsl_frame(0x8182B6u); abi_PaletteLoad(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x8182BAu); abi_TextLayerClear(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x82C0, abi_LevelScrollLimits);
     stz8(ea_abs(V_083F));
-    abi_LevelStartPlace();
-    abi_PlacementsStart();
-    abi_LevelPalettesLoad();
+    call_frame(0x82C6, abi_LevelStartPlace);
+    jsl_frame(0x8182C7u); abi_PlacementsStart(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x82CD, abi_LevelPalettesLoad);
     return;
 }
 
@@ -259,31 +260,31 @@ L_8181CB:
     sta16(ea_abs(COLOUR_WINDOWS + 6));
 L_8181EB:
     op_sep(0x20);
-    abi_TextLayerClearFront();
+    jsl_frame(0x8181EDu); abi_TextLayerClearFront(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x01);
     jsl_frame(0x8181F3u); abi_TaskWait();
-    abi_NmiDisable();
-    abi_ScreenBlank();
-    abi_LevelRamSetup();
+    jsl_frame(0x8181F7u); abi_NmiDisable(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x8181FBu); abi_ScreenBlank(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x8201, abi_LevelRamSetup);
     stz8(ea_abs(V_03E9));
-    abi_DisplayDefaults();
+    jsl_frame(0x818205u); abi_DisplayDefaults(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_abs(LEVEL));
     cmp8_v(0x14);
     if (IF_C) goto L_818213;
-    abi_HudRedrawAll();
+    call_frame(0x8212, abi_HudRedrawAll);
 L_818213:
-    abi_LevelMapBuild();
-    abi_LevelScreenSetup();
-    abi_LayersFill();
-    abi_LevelSpotsSet();
-    abi_TileBehaviourLoad();
-    abi_LevelBackdropStart();
-    abi_NmiEnable();
+    call_frame(0x8215, abi_LevelMapBuild);
+    call_frame(0x8218, abi_LevelScreenSetup);
+    call_frame(0x821B, abi_LayersFill);
+    call_frame(0x821E, abi_LevelSpotsSet);
+    call_frame(0x8221, abi_TileBehaviourLoad);
+    call_frame(0x8224, abi_LevelBackdropStart);
+    jsl_frame(0x818225u); abi_NmiEnable(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_abs(PLAY_MODE));
     if (!IF_Z) goto L_818237;
     lda8_v(0x01);
     jsl_frame(0x818230u); abi_TaskWait();
-    abi_LevelSongPlay();
+    call_frame(0x8236, abi_LevelSongPlay);
 L_818237:
     lda8_v(0x0C);
     sta8(ea_abs((uint16_t)PLAYER));
@@ -292,8 +293,8 @@ L_818237:
     sta8(ea_abs((uint16_t)(PLAYER + ACTOR_06)));
     lda8(ea_absx(LEVEL_PLAYER_07));
     sta8(ea_abs((uint16_t)(PLAYER + ACTOR_07)));
-    abi_EscortStart();
-    abi_LevelCompanionStart();
+    call_frame(0x824D, abi_EscortStart);
+    call_frame(0x8250, abi_LevelCompanionStart);
     jsl_frame(0x818251u); abi_TaskCreate(); cpu.unwound = 0;
     return;
 }
@@ -314,24 +315,24 @@ L_818237:
  */
 void abi_TextCardScreen(void)
 {
-    abi_NmiDisable();
-    abi_ScreenBlank();
-    abi_ScrollStateClear();
-    abi_TextLayerClear();
-    abi_OamBufferClear();
-    abi_DisplayDefaults();
+    jsl_frame(0x81ED33u); abi_NmiDisable(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81ED37u); abi_ScreenBlank(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81ED3Bu); abi_ScrollStateClear(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81ED3Fu); abi_TextLayerClear(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81ED43u); abi_OamBufferClear(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81ED47u); abi_DisplayDefaults(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x01);
-    abi_UnpackSet();
+    jsl_frame(0x81ED4Du); abi_UnpackSet(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x00);
-    abi_VramCopy();
+    jsl_frame(0x81ED53u); abi_VramCopy(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x02);
-    abi_PaletteLoad();
+    jsl_frame(0x81ED59u); abi_PaletteLoad(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x04);
     sta8(ea_abs(TM_SHADOW));
     sta8(ea_abs(TS_SHADOW));
     lda8_v(0x06);
-    abi_TextLayoutShow();
-    abi_NmiEnable();
+    jsl_frame(0x81ED67u); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81ED6Bu); abi_NmiEnable(); cpu.s = (uint16_t)(cpu.s + 3);
     jsl_frame(0x81ED6Fu); abi_TaskCreate(); cpu.unwound = 0;
 L_81ED78:
     lda8_v(0x01);
@@ -346,7 +347,7 @@ L_81ED92:
     jsl_frame(0x81ED94u); abi_TaskWait();
     lda8(ea_abs(FADE_BUSY));
     if (!IF_Z) goto L_81ED92;
-    abi_TextLayerClear();
+    jsl_frame(0x81ED9Du); abi_TextLayerClear(); cpu.s = (uint16_t)(cpu.s + 3);
     return;
 }
 
