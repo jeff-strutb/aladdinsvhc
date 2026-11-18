@@ -1,0 +1,43 @@
+# Actor kind $52's start ($83:D359) with its $07 zero, as the third level
+# end places it (record $0BAB at x $0C70): it waits for Aladdin to come
+# near, rises, then by his distance strikes or waits. Played as
+# cov_level_ends.box until the actor is about to start; then the view,
+# the range point ($1A44, which follows the view only a frame later) and
+# Aladdin are put near it, Aladdin $60 pixels right: it rises and waits
+# in its first pose. Aladdin moved within $20: it comes back from that
+# wait and strikes; its $42 (counted down each frame, which no reached
+# code sets) set to 5 meanwhile. Aladdin moved $90 away as the strike
+# ends: it rests, then waits in both poses; moved back within $20 in the
+# second pose's wait: it comes back from that one and strikes. The run
+# ends at frame 390, before the scene's figure cues kind $6B (frame 657),
+# whose cued path at $83:EC64 has no C yet.
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+wait 70
+poke 001773 00,0C
+poke 0019E5 00,0C
+poke 001A44 80,0C,80,03
+poke 0008E7 D0,0C
+wait 60
+poke 0008E7 90,0C
+wait 40
+poke 000BED 05
+wait 75
+poke 0008E7 00,0D
+wait 50
+poke 0008E7 90,0C
+wait 45
