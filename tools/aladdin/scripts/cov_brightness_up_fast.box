@@ -1,0 +1,14 @@
+# The brightness raised a step every frame (BrightnessUpTask, $81:9E8E):
+# a parameter of 0 or 1 halves to 0 and is made 1 ($81:9EA0), which no
+# script reaches. On the first level the brightness shadow
+# ($03B8) is set to 14 and the task created in the free slot 7 (record
+# $0117, stack top $02EA) the way TaskCreate does, with parameter 1: one
+# step back to 15, then it ends.
+load build/aladdin/states/level1.state
+wait 10
+poke $0003B8 0E
+poke $0002EB 8D,9E,81
+poke $000119 EA,02
+poke $00011D 01
+poke $000117 0C
+wait 10
