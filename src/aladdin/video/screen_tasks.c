@@ -193,24 +193,24 @@ void abi_TextLayoutDrawBig(void)
  */
 void abi_RandomFromList(void)
 {
-    uint8_t mask;
-    uint16_t pick;
-
     op_rep(0x30);
-    cpu.y = rd16(dba(0xDCE7) + cpu.x);   /* the list: its mask, then its entries */
-    op_sep(P_M);
-    mask = rd8(dba(0xDCE7) + cpu.y);
-    a8_load(mask);
-    wr8(dba(0x001C), mask);
-    abi_RandomNext();
-    pick = (uint8_t)((uint8_t)cpu.a & rd8(dba(0x001C)));
-    cpu.a = pick;
-    wr16(dba(0x001C), pick);
-    flag_set(P_C, 0);
-    cpu.y = op_adc16(cpu.y, pick, &cpu.p);
-    a16_load(rd16(dba(0xDCE8) + cpu.y));
+    lda16(ea_absx(0xDCE7));                      /* the list: its mask, then its entries */
+    tay16();
+    op_sep(0x20);
+    lda8(ea_absy(0xDCE7));
+    sta8(ea_abs(0x001C));
+    jsl_frame(0x81AE98u); abi_RandomNext(); cpu.s = (uint16_t)(cpu.s + 3);
+    and8_v(rd8(ea_abs(0x001C)));
+    op_rep(0x20);
+    and16_v(0x00FF);
+    sta16(ea_abs(0x001C));
+    tya16();
+    clc();
+    adc16_v(rd16(ea_abs(0x001C)));
+    tay16();
+    lda16(ea_absy(0xDCE8));
     op_sep(0x30);
-    y8_load((uint8_t)cpu.a);
+    tay8();
 }
 
 /*
