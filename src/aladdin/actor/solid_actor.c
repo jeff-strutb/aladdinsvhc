@@ -44,7 +44,7 @@ static int inside(uint16_t mine, uint16_t his, uint16_t half, uint16_t whole, in
  */
 void abi_ActorSolidForPlayerLong(void)
 {
-    abi_ActorSolidForPlayer();
+    call_frame(0x8659, abi_ActorSolidForPlayer);   /* JSR at $83:8657 (20 5E 86) */
 }
 
 /*
@@ -116,7 +116,7 @@ void abi_ActorSolidForPlayer(void)
     ay = dp16(ACTOR_Y + 1);
     cpu.a = ay;
     cmp16_of(ay, rd16(dba(PLAYER_Y_PIXELS)));
-    if (ay >= rd16(dba(PLAYER_Y_PIXELS)))
+    if (IF_C)                             /* BCS on the CMP's carry: one read */
         goto top;
     /* below its middle: he bumps his head when rising */
     v = rd8(dba(V_141C));
@@ -174,7 +174,7 @@ sides:
     ax = dp16(ACTOR_X + 1);
     cpu.a = ax;
     cmp16_of(ax, rd16(dba(PLAYER_X_PIXELS)));
-    if (ax >= rd16(dba(PLAYER_X_PIXELS))) {
+    if (IF_C) {                           /* BCC on the CMP's carry: one read */
         cpu.a = op_sbc16(ax, rd16(dba(SCRATCH)), &cpu.p);
     } else {
         flag_set(P_C, 0);
