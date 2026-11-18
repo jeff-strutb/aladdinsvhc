@@ -29,10 +29,19 @@ void abi_PointInGroundLong(void);
  * Entry: M 8-bit; D = the actor; DB = $80; called by JSR. Exit: as
  * ActorOutOfWall.
  */
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's. */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 void abi_ActorOutOfWall8(void)
 {
     a8_load(0x08);
-    abi_ActorOutOfWallLong();
+    jsl_call(0xA5EB19u, abi_ActorOutOfWallLong);
 }
 
 /* The point a probe up from the last (16 pixels) */
@@ -46,12 +55,12 @@ static void probe_up(void)
 
 /* PointInGroundLong at the point (P kept across it), then whether its
    tile is ground (the kind's low 3 bits). */
-static int ground_at_point(void)
+static int ground_at_point(uint32_t site)
 {
     uint8_t kind;
 
     php();
-    abi_PointInGroundLong();
+    jsl_call(site, abi_PointInGroundLong);
     plp();
     op_sep(0x30);
     kind = rd8(dba(V_0012)) & 0x07;
@@ -92,14 +101,14 @@ void abi_ActorLedgeAhead(void)
     wr16(dba(SCRATCH + 2), cpu.a);
     a16_load(0x0004);
     wr16(dba(PROBES_LEFT), 0x0004);
-    while (!ground_at_point()) {
+    while (!ground_at_point(0xA5EA4Eu)) {
         if (!dec8_at(dba(PROBES_LEFT)))
             goto none;
         probe_up();
     }
     do {
         probe_up();
-        if (!ground_at_point()) {
+        if (!ground_at_point(0xA5EA7Cu)) {
             flag_set(P_C, 0);
             return;
         }
@@ -134,15 +143,16 @@ void abi_ActorProbeUpTowardPlayer(void)
     /* across: Y pixels the player's way */
     px = rd16(dba(PLAYER + ACTOR_X + 1));
     cmp16_of(px, dp16(ACTOR_X + 1));
+    int left = !IF_C;                     /* BCS on the CMP's carry: no second read */
     offset = cpu.y;
     nz16_of(offset);
-    if (px < dp16(ACTOR_X + 1))
+    if (left)
         offset = (uint16_t)((offset ^ 0xFFFF) + 1);
     flag_set(P_C, 0);
     cpu.a = op_adc16(offset, dp16(ACTOR_X + 1), &cpu.p);
     wr16(dba(SCRATCH), cpu.a);
     for (;;) {                            /* up 16 a probe till one meets a wall */
-        abi_PointInGroundLong();
+        jsl_call(0xA5F260u, abi_PointInGroundLong);
         op_sep(0x30);
         kind = rd8(dba(V_0012));
         a8_load(kind);

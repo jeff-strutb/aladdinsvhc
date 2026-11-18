@@ -66,6 +66,22 @@ static void anim(uint8_t a)
     abi_ActorAnimChange();
 }
 
+/* A JSL at `site` to fn, its return address on the stack while fn runs, as
+   the original's (frame_step.c's model). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+/* ActorAnimChange with A = a by the JSR whose last byte is `ret`. */
+static void anim_at(uint8_t a, uint16_t ret)
+{
+    a8_load(a);
+    call_frame(ret, abi_ActorAnimChange);
+}
+
 static void speed_x(uint8_t y)
 {
     y8_load(y);
@@ -97,11 +113,11 @@ void abi_GuardStop(void)
 
     for (;;) {
         actor_yield(0xA5E5B6u);
-        abi_ActorSnapToGround();
+        jsl_call(0xA5E5B8u, abi_ActorSnapToGround);
         tile = rd8(dba(G_TILE));
         a8_load(tile);
         if (tile & 0x20) {
-            anim(0x16);
+            anim_at(0x16, 0xE5E5);
             continue;
         }
         op_rep(0x10);
@@ -115,7 +131,10 @@ void abi_GuardStop(void)
         a8_load(side);
         flag_set(P_C, 0);
         a8_load((uint8_t)(side ^ rd8(dpa(ACTOR_FLIP))));
-        anim((uint8_t)cpu.a ? 0x06 : 0x00);
+        if ((uint8_t)cpu.a)
+            anim_at(0x06, 0xE5DE);
+        else
+            anim_at(0x00, 0xE5D7);
     }
 }
 
@@ -142,20 +161,21 @@ void abi_GuardStop(void)
  */
 void abi_GuardRun(void)
 {
-    speed_x(0x09);
-    anim(0x01);
+    y8_load(0x09);
+    call_frame(0xE5EC, abi_ActorSpeedXFromA5);
+    anim_at(0x01, 0xE5F1);
     for (;;) {
         actor_yield(0xA5E5F2u);
-        abi_ActorMoveX();
-        abi_ActorOutOfWall8();
+        jsl_call(0xA5E5F4u, abi_ActorMoveX);
+        call_frame(0xE5FA, abi_ActorOutOfWall8);
         if (cpu.p & P_C) {
             abi_GuardClimb();
             return;
         }
-        abi_ActorSnapToGround();
+        jsl_call(0xA5E5FDu, abi_ActorSnapToGround);
         if (cpu.p & P_Z)
             break;
-        abi_ActorAnimByTile();
+        call_frame(0xE605, abi_ActorAnimByTile);
         push16(0xE608);                          /* JSR GuardStepAhead */
         if (guard_step_ahead()) {
             abi_GuardJump();                     /* its JMP: the piece goes on */
@@ -165,7 +185,7 @@ void abi_GuardRun(void)
     }
     /* off the edge */
     a8_load(0x0A);
-    abi_AnimStart();
+    jsl_call(0xA5E610u, abi_AnimStart);
     (void)inc8_at(dpa(G_IN_AIR));
     actor_yield(0xA5E616u);
     abi_GuardRunDown();
