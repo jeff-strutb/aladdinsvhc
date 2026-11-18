@@ -1,0 +1,39 @@
+# Actor kind $43's carrying ways (Kind43Start $83:B393, ways 0-2), which no
+# level the scripts reach places: the first level's record $092B made one
+# (kind byte $43, state $0C), way 0 then way 1, and Aladdin falling onto it
+# from above (y $0190, $141C set, his vertical speed 0), as in
+# cov_kind41_wait.box. Once he is on it ($43 set by its carry test): its
+# $18 frames, sound $1A, its $15 frames and its pieces, 3 (way 0) or 2
+# (way 1), each an actor of kind $43 way 3 ($83:B3D7-$83:B425).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 43
+poke 000932 00
+poke 00092B 0C
+wait 5
+repeat 6
+poke 000937 3A,00
+poke 00093A C0,01
+poke 0008EA 90,01
+poke 0008EE 00,00
+poke 00141C 01
+poke 00141B 00
+wait 1
+end
+wait 120
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 43
+poke 000932 01
+poke 00092B 0C
+wait 5
+repeat 6
+poke 000937 3A,00
+poke 00093A C0,01
+poke 0008EA 90,01
+poke 0008EE 00,00
+poke 00141C 01
+poke 00141B 00
+wait 1
+end
+wait 120
