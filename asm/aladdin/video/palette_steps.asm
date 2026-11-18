@@ -113,6 +113,29 @@ PaletteFromRom:
     rtl
 
 
+; @routine 81:9CC8 PaletteBlinkStep
+; WHAT IT DOES: One step of a palette's blink: with the direct page's $4F
+; counting down, palette A white when the count left is odd, and back to
+; its kept colours when even; nothing once the count is 0. Nothing in the
+; game calls it.
+; HOW: $4F 0: out (the RTL at $81:9CF0). Else A kept, $4F down by one,
+; its bit 0 to C (LSR), A back; C set: on at PaletteWhite; clear: on at
+; PaletteRestoreReversed.
+; Entry: any widths; A = the palette (low 4 bits); D with the count at
+; $4F; DB = $00-$3F or $80-$BF; called by JSL. Exit: count 0: X = 0, Z
+; set; else as PaletteWhite or PaletteRestoreReversed.
+%at($819CC8)
+PaletteBlinkStep:
+    ldx.b $4F
+    beq PaletteWhite_out
+    pha
+    dec.b $4F
+    lda.b $4F
+    lsr a
+    pla
+    bcs PaletteWhite
+    bra PaletteRestoreReversed
+
 ; @routine 81:9CD7 PaletteWhite
 ; WHAT IT DOES: Sets palette A to white and has the NMI upload the
 ; palettes.
@@ -134,6 +157,7 @@ PaletteWhite:
     bpl .l9CE2
     sep.b #$30
     inc.w !palette_upload
+.out:
     rtl
 
 

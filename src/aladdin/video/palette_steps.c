@@ -87,6 +87,48 @@ void abi_PaletteFromRom(void)
 }
 
 /*
+ * @routine 81:9CC8 PaletteBlinkStep
+ * WHAT IT DOES: One step of a palette's blink: with the direct page's $4F
+ * counting down, palette A white when the count left is odd, and back to
+ * its kept colours when even; nothing once the count is 0. Nothing in the
+ * game calls it.
+ * HOW: $4F 0: out (the RTL at $81:9CF0). Else A kept, $4F down by one,
+ * its bit 0 to C (LSR), A back; C set: on at PaletteWhite; clear: on at
+ * PaletteRestoreReversed.
+ * Entry: any widths; A = the palette (low 4 bits); D with the count at
+ * $4F; DB = $00-$3F or $80-$BF; called by JSL. Exit: count 0: X = 0, Z
+ * set; else as PaletteWhite or PaletteRestoreReversed.
+ */
+void abi_PaletteBlinkStep(void)
+{
+    int m8 = (cpu.p & P_M) != 0;
+
+    if (cpu.p & P_X)
+        ldx8(ea_dp(0x4F));
+    else
+        ldx16(ea_dp(0x4F));
+    if (IF_Z)
+        return;                           /* the RTL at $81:9CF0 */
+    if (m8) {
+        pha8();
+        MEM8(dec, ea_dp(0x4F));
+        lda8(ea_dp(0x4F));
+        set_al(lsr8_r(al()));
+        pla8();
+    } else {
+        pha16();
+        MEM16(dec, ea_dp(0x4F));
+        lda16(ea_dp(0x4F));
+        cpu.a = lsr16_r(cpu.a);
+        pla16();
+    }
+    if (IF_C)                             /* odd: white */
+        abi_PaletteWhite();
+    else
+        abi_PaletteRestoreReversed();
+}
+
+/*
  * @routine 81:9CD7 PaletteWhite
  * WHAT IT DOES: Sets palette A to white and has the NMI upload the
  * palettes.
