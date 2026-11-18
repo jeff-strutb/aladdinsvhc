@@ -1,0 +1,12 @@
+# An actor's frame with more pieces than sprites left (OamDrawActor's
+# exit at $81:9306, inside OamDrawList's bytes): it is not drawn. No
+# frame of any script runs out of the 128 sprites. On the first level
+# Aladdin's frame pointer (ACTOR_PIECES, $08FD; $30CF standing) is set to
+# $08E4, his ACTOR_08 high byte ($D0), so the frame reads as 208 pieces,
+# for one frame, then put back.
+load build/aladdin/states/level1.state
+wait 10
+poke $0008FD E4,08
+wait 1
+poke $0008FD CF,30
+wait 10
