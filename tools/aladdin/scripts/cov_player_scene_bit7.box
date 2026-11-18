@@ -1,0 +1,12 @@
+# The player's frame work while a scene moves him with bit 7 of PFW_SCENE
+# ($1430) set (PlayerFrameWork's scene path, $81:E84D, its read of
+# PFW_081E at $81:E84F: the bytes follow PlayerCarpetCrash's), which no
+# scene sets. On the first level ($1430 and $081E 0) $1430 is set to $80
+# for one frame, then back to 0: with $081E 0 his animation is not
+# stepped.
+load build/aladdin/states/level1.state
+wait 10
+poke $001430 80
+wait 1
+poke $001430 00
+wait 5
