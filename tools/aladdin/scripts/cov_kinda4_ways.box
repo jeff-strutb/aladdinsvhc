@@ -1,0 +1,65 @@
+# Actor kind $A4 (KindA4Start, $84:AA24) in each of its ways. The kind
+# that spawns it, $59 (83:DD10), is placed on no saved stage and made by no
+# spawn found in the ROM, so each part makes a kind
+# $A4 on the first level (ActorCreate, $82:AA2B, as a unit call that the
+# game goes on from: record $0BFB), puts it at x $0080, y $0150 with its
+# $07 and starts it (state $0C).
+# A. $07 0: with the cue ($00AE) set it shows, steady 127 frames, then
+# blinks every 32 ($08 bit 3 flipped); the cue cleared, bit 3 is cleared
+# and it waits again.
+load build/aladdin/states/level1.state
+wait 2
+call 82AA2B long db=82 p=30 a=A4 keep
+poke 000C07 80,00
+poke 000C0A 50,01
+poke 000C02 00
+poke 000BFB 0C
+wait 5
+poke 0000AE 01
+wait 250
+poke 0000AE 00
+wait 5
+# B. $07 2: the step ($00B5) made 2: it moves with its pull reversed,
+# shakes the scene's y ($00B0, from the table at $80:D972) and ends.
+load build/aladdin/states/level1.state
+wait 2
+call 82AA2B long db=82 p=30 a=A4 keep
+poke 000C07 80,00
+poke 000C0A 50,01
+poke 000C02 02
+poke 000BFB 0C
+wait 5
+poke 0000B5 02
+wait 200
+# C. $07 4: the step made negative: it poses, flies and leaves a child of
+# its kind with $07 $10 (the last way), and ends; so does the child.
+load build/aladdin/states/level1.state
+wait 2
+call 82AA2B long db=82 p=30 a=A4 keep
+poke 000C07 80,00
+poke 000C0A 50,01
+poke 000C02 04
+poke 000BFB 0C
+wait 5
+poke 0000B5 80
+wait 250
+# D. $07 6: it poses once and ends.
+load build/aladdin/states/level1.state
+wait 2
+call 82AA2B long db=82 p=30 a=A4 keep
+poke 000C07 80,00
+poke 000C0A 50,01
+poke 000C02 06
+poke 000BFB 0C
+wait 5
+wait 60
+# E. $07 $12: its low 4 bits kept, the last way: it poses once and ends.
+load build/aladdin/states/level1.state
+wait 2
+call 82AA2B long db=82 p=30 a=A4 keep
+poke 000C07 80,00
+poke 000C0A 50,01
+poke 000C02 12
+poke 000BFB 0C
+wait 5
+wait 60
