@@ -5,3 +5,5 @@
 83:94A4 ActorLoop  # A5 DIVERGENT at 8eb6980
 83:94BF ActorLoopBack  # A5 DIVERGENT at 8eb6980
 83:94D3 ActorLoopNext  # A5 DIVERGENT at 8eb6980
+83:848D PlayerLandsOnActor  # A5 DIVERGENT at f3fffed
+83:D2A2 ActorWaitWake  # A5 DIVERGENT at f3fffed
