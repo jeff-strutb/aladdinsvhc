@@ -74,12 +74,16 @@ void abi_SoundCommandSend(void)
     if (cmd != SOUND_CMD_PARAM_A)
         cpu.p = cmp8_flags(cpu.p, cmd, SOUND_CMD_PARAM_B);
     if (cmd == SOUND_CMD_PARAM_A || cmd == SOUND_CMD_PARAM_B) {
+        cpu.a = (uint16_t)((cpu.a & 0xFF00) | cmd);
+        op_push8(cmd);                          /* PHA: the command kept while A fetches its parameter */
         x = (uint8_t)((x + 1) & 0x1F);
         wr8(SOUND_QUEUE_READ, x);
         cpu.x = x;
         param = rd8(SOUND_QUEUE + x);
         wr8(APUIO2, 0);
         wr8(APUIO3, param);
+        cmd = op_pull8();                       /* PLA */
+        cpu.p = nz8(cpu.p, cmd);
     }
     wr8(APUIO0, cmd);
     a = (uint8_t)((x + 1) & 0x1F);

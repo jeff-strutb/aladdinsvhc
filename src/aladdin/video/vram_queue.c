@@ -5,6 +5,8 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "native.h"
+#include "ops65.h"
 #include "wram.h"
 #include "hw.h"
 #include "wram_video.h"
@@ -87,10 +89,10 @@ void abi_TextBufferPartsUpload(void)
 {
     cpu.x = 0;
     cpu.p = nz8(cpu.p, 0);
-    abi_TextBufferPartUpload();
+    call_frame(0x84A2, abi_TextBufferPartUpload);    /* JSR at 80:84A0 */
     cpu.x = 1;
     cpu.p = nz8(cpu.p, 1);
-    abi_TextBufferPartUpload();
+    call_frame(0x84A7, abi_TextBufferPartUpload);    /* JSR at 80:84A5 */
     cpu.x = 2;
     cpu.p = nz8(cpu.p, 2);
     abi_TextBufferPartUpload();
@@ -171,8 +173,14 @@ void abi_VramQueueFlush(void)
             wr16(A1B0, rd16(VRAM_QUEUE + 4 + x));
             op_lda16(VRAM_QUEUE + 5 + x);
             wr16(DAS0L, cpu.a);
-            wr8(VMAIN, rd8(VRAM_QUEUE + 7 + x));
+            cpu.y = y;
+            phy8();                             /* PHY: the count kept while Y carries VMAIN */
+            ldy8(VRAM_QUEUE + 7 + x);
+            wr8(VMAIN, (uint8_t)cpu.y);
+            ldy8_v(0x01);
             wr8(MDMAEN, 1);
+            ply8();
+            y = (uint8_t)cpu.y;
             cpu.a = x;
             op_add16(8);
             x = (uint8_t)cpu.a;
@@ -220,10 +228,12 @@ void abi_TileBlockQueueFlush(void)
         op_rep(P_M);
         do {
             vram = rd16(TILE_BLOCKS + x);
+            cpu.a = vram;
+            pha16();                            /* PHA: the address kept on the stack */
             wr16(VMADDL, vram);
             wr16(VMDATAL, rd16(TILE_BLOCKS + 2 + x));
             wr16(VMDATAL, rd16(TILE_BLOCKS + 4 + x));
-            cpu.a = vram;
+            pla16();
             op_add16(32);
             wr16(VMADDL, cpu.a);
             wr16(VMDATAL, rd16(TILE_BLOCKS + 6 + x));
@@ -321,8 +331,10 @@ void abi_VramListsUpload(void)
     cpu.y = 0x90;
     cpu.p = nz8(cpu.p, 0x90);
     do {
-        a = (uint8_t)cpu.y;
-        abi_VramListUpload();
+        phy8();                                 /* PHY: the slot kept on the stack */
+        call_frame(0x8890, abi_VramListUpload);  /* JSR at 80:888E */
+        pla8();                                 /* PLA: the slot back, in A */
+        a = (uint8_t)cpu.a;
         cpu.p |= P_C;
         a = op_sbc8(a, 0x10, &cpu.p);
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);

@@ -1226,18 +1226,16 @@ void abi_LayerCopyToVram(void)
  */
 void abi_LayersCopyToVram(void)
 {
-    uint16_t d = cpu.d;
-
+    phd();                                      /* PHD: D kept on the stack */
     op_rep(0x20);
     op_lda16_imm(LAYER0);
     cpu.d = cpu.a;
-    abi_LayerCopyToVram();
+    call_frame(0x836F, abi_LayerCopyToVram);    /* JSR at 80:836D */
     op_lda16_imm(LAYER1);
     cpu.d = cpu.a;
-    abi_LayerCopyToVram();
+    call_frame(0x8376, abi_LayerCopyToVram);    /* JSR at 80:8374 */
     op_sep(0x30);
-    cpu.d = d;
-    cpu.p = nz16(cpu.p, d);
+    pld();                                      /* PLD: D back, N and Z from it */
 }
 
 /*

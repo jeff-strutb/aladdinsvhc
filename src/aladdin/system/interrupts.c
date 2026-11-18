@@ -8,6 +8,7 @@
  * says.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "hw.h"
 #include "wram.h"
@@ -36,6 +37,15 @@ void abi_VramQueueFlush(void);
 void abi_VramUploadByNumber(void);
 void abi_VramWordsUpload(void);
 void abi_WramMovesRun(void);
+
+/* A JSL at `site`: its return address on the stack while the callee runs,
+   as the original's. */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
 
 #define V_0008 0x0008u              /* cleared at each NMI; purpose not yet established */
 #define V_032A 0x032Au              /* counted up at each NMI (a second frame count) */
@@ -168,13 +178,13 @@ void abi_NmiHandler(void)
     plb();  /* 808125 plb */
     MEM8(inc, ea_abs(FRAME_COUNT));  /* 808126 inc */
     stz8(ea_abs(HDMAEN));  /* 808129 stz */
-    abi_NmiDisable();  /* 80812C jsl */
+    jsl_call(0x80812Cu, abi_NmiDisable);  /* 80812C jsl */
     lda8_v(0x80);  /* 808130 lda */
     sta8(ea_abs(INIDISP));  /* 808132 sta */
     MEM8(inc, ea_abs(V_032A));  /* 808135 inc */
     lda8(ea_abs(RDNMI));  /* 808138 lda */
-    abi_ScrollRegistersWrite();  /* 80813B jsr */
-    abi_WramMovesRun();  /* 80813E jsr */
+    call_frame(0x813D, abi_ScrollRegistersWrite);  /* 80813B jsr */
+    call_frame(0x8140, abi_WramMovesRun);  /* 80813E jsr */
     lda8(ea_abs(NMITIMEN_SHADOW));  /* 808141 lda */
     and8_v(0x30);  /* 808144 and */
     if (!IF_Z) goto L_80814E;  /* 808146 bne */
@@ -229,23 +239,23 @@ L_808182:
     sta8(ea_abs(DAS0H));  /* 8081AD sta */
     lda8_v(0x01);  /* 8081B0 lda */
     sta8(ea_abs(MDMAEN));  /* 8081B2 sta */
-    abi_VramQueueFlush();  /* 8081B5 jsr */
+    call_frame(0x81B7, abi_VramQueueFlush);  /* 8081B5 jsr */
     lda8(ea_abs(V_082A));  /* 8081B8 lda */
     if (!IF_Z) goto L_8081D2;  /* 8081BB bne */
-    abi_LayersCopyToVram();  /* 8081BD jsr */
+    call_frame(0x81BF, abi_LayersCopyToVram);  /* 8081BD jsr */
 L_8081C0:
-    abi_VramListsUpload();  /* 8081C0 jsr */
-    abi_TileBlockQueueFlush();  /* 8081C3 jsr */
-    abi_VramWordsUpload();  /* 8081C6 jsr */
-    abi_TextBufferUpload();  /* 8081C9 jsr */
-    abi_TextBufferPartsUpload();  /* 8081CC jsr */
-    abi_VramUploadByNumber();  /* 8081CF jsr */
+    call_frame(0x81C2, abi_VramListsUpload);  /* 8081C0 jsr */
+    call_frame(0x81C5, abi_TileBlockQueueFlush);  /* 8081C3 jsr */
+    call_frame(0x81C8, abi_VramWordsUpload);  /* 8081C6 jsr */
+    call_frame(0x81CB, abi_TextBufferUpload);  /* 8081C9 jsr */
+    call_frame(0x81CE, abi_TextBufferPartsUpload);  /* 8081CC jsr */
+    call_frame(0x81D1, abi_VramUploadByNumber);  /* 8081CF jsr */
 L_8081D2:
-    abi_UploadCharsets();  /* 8081D2 jsr */
-    abi_UploadStepped();  /* 8081D5 jsr */
-    abi_UploadBlockB();  /* 8081D8 jsr */
-    abi_UploadBlockA();  /* 8081DB jsr */
-    abi_PaletteUploadFrom();  /* 8081DE jsr */
+    call_frame(0x81D4, abi_UploadCharsets);  /* 8081D2 jsr */
+    call_frame(0x81D7, abi_UploadStepped);  /* 8081D5 jsr */
+    call_frame(0x81DA, abi_UploadBlockB);  /* 8081D8 jsr */
+    call_frame(0x81DD, abi_UploadBlockA);  /* 8081DB jsr */
+    call_frame(0x81E0, abi_PaletteUploadFrom);  /* 8081DE jsr */
     lda8(ea_abs(WH0_SHADOW));  /* 8081E1 lda */
     sta8(ea_abs(WH0));  /* 8081E4 sta */
     lda8(ea_abs(WH1_SHADOW));  /* 8081E7 lda */
@@ -347,7 +357,7 @@ L_8082A5:
 L_8082F0:
     lda8(ea_abs(BGMODE_SHADOW));  /* 8082F0 lda */
     sta8(ea_abs(BGMODE));  /* 8082F3 sta */
-    abi_Mode7MatrixWrite();  /* 8082F6 jsr */
+    call_frame(0x82F8, abi_Mode7MatrixWrite);  /* 8082F6 jsr */
     lda8(ea_abs(NMITIMEN_SHADOW));  /* 8082F9 lda */
     and8_v(0x30);  /* 8082FC and */
     if (!IF_Z) goto L_808306;  /* 8082FE bne */
@@ -370,8 +380,8 @@ L_80831C:
     sbc8_v(0x18);  /* 80831E sbc */
     tax8();  /* 808320 tax */
     if (!IF_Z) goto L_80830B;  /* 808321 bne */
-    abi_SoundCommandSend();  /* 808323 jsr */
-    abi_NmiEnable();  /* 808326 jsl */
+    call_frame(0x8325, abi_SoundCommandSend);  /* 808323 jsr */
+    jsl_call(0x808326u, abi_NmiEnable);  /* 808326 jsl */
     op_rep(0x30);  /* 80832A rep */
     ply16();  /* 80832C ply */
     plx16();  /* 80832D plx */

@@ -42,12 +42,13 @@ void abi_Mode7ElementScale(void)
     wr8(dba((uint16_t)M7B), (uint8_t)cpu.x);
 }
 
-/* Element `i` of the matrix scaled (Mode7ElementScale by its scale). */
-static void element_scaled(int i)
+/* Element `i` of the matrix scaled (Mode7ElementScale by its scale), by
+   the JSR whose return address is `ret`. */
+static void element_scaled(int i, uint16_t ret)
 {
     cpu.a = rd16(dba((uint16_t)(MODE7_MATRIX + 2 * i)));
     x8_load(rd8(dba((uint16_t)(MODE7_SCALES + i))));
-    abi_Mode7ElementScale();
+    call_frame(ret, abi_Mode7ElementScale);
 }
 
 /*
@@ -79,16 +80,16 @@ void abi_Mode7MatrixWrite(void)
         a8_load(v);
     } else {                              /* each element scaled: D, C, B (kept), A */
         op_rep(P_M);
-        element_scaled(3);
+        element_scaled(3, 0x8627);       /* JSR at 80:8625 */
         wr8(dba((uint16_t)M7D), (uint8_t)cpu.y);
         wr8(dba((uint16_t)M7D), (uint8_t)cpu.x);
-        element_scaled(2);
+        element_scaled(2, 0x8636);       /* JSR at 80:8634 */
         wr8(dba((uint16_t)M7C), (uint8_t)cpu.y);
         wr8(dba((uint16_t)M7C), (uint8_t)cpu.x);
-        element_scaled(1);
+        element_scaled(1, 0x8645);       /* JSR at 80:8643 */
         phy8();
         phx8();
-        element_scaled(0);
+        element_scaled(0, 0x8650);       /* JSR at 80:864E */
         wr8(dba((uint16_t)M7A), (uint8_t)cpu.y);
         wr8(dba((uint16_t)M7A), (uint8_t)cpu.x);
         plx8();
