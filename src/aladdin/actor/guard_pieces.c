@@ -54,10 +54,10 @@ static uint32_t guard_step_ahead(void);
 #define G_STEP_AHEAD_X 0xCFF4u          /* (data bank) by speed and facing: x of the point ahead (word) */
 #define G_STEP_AHEAD_Y 0xD010u          /* (data bank) by speed and facing: y of the point ahead (word) */
 
-static void climb(void);
-static void flip(void);
-static void land(void);
-static void run_down(void);
+void abi_GuardClimb(void);
+void abi_GuardFlip(void);
+void abi_GuardLand(void);
+void abi_GuardRunDown(void);
 static void jump_air(void);
 
 static void anim(uint8_t a)
@@ -149,7 +149,7 @@ void abi_GuardRun(void)
         abi_ActorMoveX();
         abi_ActorOutOfWall8();
         if (cpu.p & P_C) {
-            climb();
+            abi_GuardClimb();
             return;
         }
         abi_ActorSnapToGround();
@@ -168,12 +168,26 @@ void abi_GuardRun(void)
     abi_AnimStart();
     (void)inc8_at(dpa(G_IN_AIR));
     actor_yield(0xA5E616u);
-    run_down();
+    abi_GuardRunDown();
 }
 
-/* GuardRun from its drop ($A5:E618): the ledge below, the throw, the
-   preset, and on in the air. */
-static void run_down(void)
+/*
+ * @routine A5:E618 GuardRunDown
+ * @actor
+ * WHAT IT DOES: The guard off an edge (GuardRun's drop, also GuardFlip's):
+ * with no ledge below, it drops with preset $80; at a ledge it throws up to
+ * three kind $90 children to find its way and leaps by what they report.
+ * HOW: G_IN_AIR 0, G_MOVING up; ActorLedgeAhead C clear: Y = $80, on at
+ * the preset. Else BRK; the spawn place and G_SLOTS cleared; up to three
+ * ActorSpawn of kind $90 with $07 0, 1, 2, each slot counted up. Each
+ * frame (BRK) until a slot has a high nibble (or all are 0: Y =
+ * G_PRESET_NONE): low nibbles cleared, Y = G_PRESETS_FROM + the first slot
+ * set. ActorMotionPreset, and on in the air (GuardJump after its start).
+ * Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached from
+ * GuardRun's fall off an edge and by GuardFlip's jump. Exit: never
+ * returns.
+ */
+void abi_GuardRunDown(void)
 {
     static const uint16_t slot[3] = { G_SLOTS, G_SLOTS + 1, G_SLOTS + 2 };
     uint8_t seen, i;
@@ -283,7 +297,7 @@ static void jump_air(void)
                     wr8(dpa(ACTOR_FLIP), side);
                     wr8(dpa(ACTOR_FLIP), side);
                     wr8(dpa(G_MOVING), 0x00);
-                    land();
+                    abi_GuardLand();
                     return;
                 }
             }
@@ -297,11 +311,11 @@ static void jump_air(void)
             if (!(tile & 0x40)) {
                 a8_load(rd8(dpa(G_BACK_OFF)));
                 if ((uint8_t)cpu.a) {
-                    flip();
+                    abi_GuardFlip();
                     return;
                 }
                 wr8(dpa(G_MOVING), 0x00);
-                climb();
+                abi_GuardClimb();
                 return;
             }
         }
@@ -316,7 +330,7 @@ slope:
         a8_load((uint8_t)(side ^ rd8(dpa(ACTOR_FLIP))));
         if (!(uint8_t)cpu.a) {
             wr8(dpa(G_MOVING), 0x00);
-            land();
+            abi_GuardLand();
             return;
         }
 fall:
@@ -351,10 +365,21 @@ fall:
     abi_GuardStop();
 }
 
-/* The guard's climb of a wall ($A5:E73B): up it while the wall goes on;
-   at its top, over it (GuardJump); where the point above is solid, it
-   turns back. */
-static void climb(void)
+/*
+ * @routine A5:E73B GuardClimb
+ * @actor
+ * WHAT IT DOES: The guard's climb of a wall: up it while the wall goes
+ * on; at its top, over it (GuardJump); where the point above is solid,
+ * it turns back (GuardFlip).
+ * HOW: G_MOVING up; animation $0B; ActorSpeedXFromA5 0, ActorSpeedYFromA5
+ * 0; each frame (BRK) ActorMoveY, ActorMoveX, ActorOutOfWallProbe4: C
+ * clear, over ($A5:E785: G_MOVING 0, ActorSpeedXFromA5 3,
+ * ActorSpeedYFromA5 3, on at GuardJump); else the point 24 above its x
+ * (G_POINT_X, G_POINT_Y), PointInGroundLong C set: on at GuardFlip.
+ * Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached by
+ * jumps from GuardRun and GuardJump. Exit: never returns.
+ */
+void abi_GuardClimb(void)
 {
     (void)inc8_at(dpa(G_MOVING));
     anim(0x0B);
@@ -375,7 +400,7 @@ static void climb(void)
         wr16(dba(G_POINT_Y), cpu.a);
         abi_PointInGroundLong();                 /* leaves M 8-bit */
         if (cpu.p & P_C) {
-            flip();
+            abi_GuardFlip();
             return;
         }
     }
@@ -386,9 +411,17 @@ static void climb(void)
     abi_GuardJump();
 }
 
-/* Turned back ($A5:E774): facing and flip swapped, animation 8, and down
-   off the edge (GuardRun's drop). */
-static void flip(void)
+/*
+ * @routine A5:E774 GuardFlip
+ * @actor
+ * WHAT IT DOES: The guard turned back: facing and flip swapped, animation
+ * 8, and down off the edge (GuardRunDown).
+ * HOW: ACTOR_FACING EOR 1 to the facing and flip; AnimStart 8; on at
+ * GuardRunDown.
+ * Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached by
+ * jumps from GuardJump and GuardClimb. Exit: never returns.
+ */
+void abi_GuardFlip(void)
 {
     uint8_t f = (uint8_t)(rd8(dpa(ACTOR_FACING)) ^ 0x01);
 
@@ -397,7 +430,7 @@ static void flip(void)
     wr8(dpa(ACTOR_FLIP), f);
     a8_load(0x08);
     abi_AnimStart();
-    run_down();
+    abi_GuardRunDown();
 }
 
 /*
@@ -465,10 +498,18 @@ void abi_GuardGiveUp(void)
     abi_GuardJump();
 }
 
-/* The guard landed on a slope or ledge ($A5:E7EB): set at the tile's
-   centre, pose 7 for 32 frames, its speed cleared and a small hop
-   (ActorSpeedYFromA5 6), then stopped. */
-static void land(void)
+/*
+ * @routine A5:E7EB GuardLand
+ * @actor
+ * WHAT IT DOES: The guard landed on a slope or ledge: set at the tile's
+ * centre, pose 7 for 32 frames, its speed cleared and a small hop
+ * (ActorSpeedYFromA5 6), then stopped.
+ * HOW: G_MOVING up; GuardSnapToTile; ActorAnimChange 7; COP $20;
+ * ActorSpeedXClear; ActorSpeedYFromA5 6; G_MOVING 0; on at GuardStop.
+ * Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached by
+ * jumps from GuardJump. Exit: never returns.
+ */
+void abi_GuardLand(void)
 {
     (void)inc8_at(dpa(G_MOVING));
     abi_GuardSnapToTile();

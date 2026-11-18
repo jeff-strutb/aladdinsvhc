@@ -108,7 +108,23 @@ GuardRun:
     jsl.l AnimStart
     inc.b !G_IN_AIR
     brk.b #$00
-.down:
+
+; @routine A5:E618 GuardRunDown
+; @actor
+; WHAT IT DOES: The guard off an edge (GuardRun's drop, also GuardFlip's):
+; with no ledge below, it drops with preset $80; at a ledge it throws up to
+; three kind $90 children to find its way and leaps by what they report.
+; HOW: G_IN_AIR 0, G_MOVING up; ActorLedgeAhead C clear: Y = $80, on at
+; the preset. Else BRK; the spawn place and G_SLOTS cleared; up to three
+; ActorSpawn of kind $90 with $07 0, 1, 2, each slot counted up. Each
+; frame (BRK) until a slot has a high nibble (or all are 0: Y =
+; G_PRESET_NONE): low nibbles cleared, Y = G_PRESETS_FROM + the first slot
+; set. ActorMotionPreset, and on in the air (GuardJump after its start).
+; Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached from
+; GuardRun's fall off an edge and by GuardFlip's jump. Exit: never
+; returns.
+%at($A5E618)
+GuardRunDown:
     stz.b !G_IN_AIR
     inc.b !G_MOVING
     jsr.w ActorLedgeAhead
@@ -268,8 +284,19 @@ GuardJump:
     stz.b !G_MOVING
     jmp.w GuardStop
 
-; The guard's climb of a wall: up it while the wall goes on; at its top,
-; over it (GuardJump); where the point above is solid, it turns back.
+; @routine A5:E73B GuardClimb
+; @actor
+; WHAT IT DOES: The guard's climb of a wall: up it while the wall goes
+; on; at its top, over it (GuardJump); where the point above is solid,
+; it turns back (GuardFlip).
+; HOW: G_MOVING up; animation $0B; ActorSpeedXFromA5 0, ActorSpeedYFromA5
+; 0; each frame (BRK) ActorMoveY, ActorMoveX, ActorOutOfWallProbe4: C
+; clear, over ($A5:E785: G_MOVING 0, ActorSpeedXFromA5 3,
+; ActorSpeedYFromA5 3, on at GuardJump); else the point 24 above its x
+; (G_POINT_X, G_POINT_Y), PointInGroundLong C set: on at GuardFlip.
+; Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached by
+; jumps from GuardRun and GuardJump. Exit: never returns.
+%at($A5E73B)
 GuardClimb:
     inc.b !G_MOVING
     lda.b #$0B
@@ -295,8 +322,15 @@ GuardClimb:
     bcs GuardFlip
     bra .up
 
-; Turned back: facing and flip swapped, animation 8, and down off the
-; edge (GuardRun's drop).
+; @routine A5:E774 GuardFlip
+; @actor
+; WHAT IT DOES: The guard turned back: facing and flip swapped, animation
+; 8, and down off the edge (GuardRunDown).
+; HOW: ACTOR_FACING EOR 1 to the facing and flip; AnimStart 8; on at
+; GuardRunDown.
+; Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached by
+; jumps from GuardJump and GuardClimb. Exit: never returns.
+%at($A5E774)
 GuardFlip:
     lda.b !actor_facing
     eor.b #$01
@@ -304,7 +338,7 @@ GuardFlip:
     sta.b !actor_flip
     lda.b #$08
     jsl.l AnimStart
-    jmp.w GuardRun_down
+    jmp.w GuardRunDown
 
 GuardClimb_over:
     stz.b !G_MOVING
@@ -372,9 +406,16 @@ GuardGiveUp:
     jsr.w ActorSpeedYFromA5
     jmp.w GuardJump
 
-; The guard landed on a slope or ledge: set at the tile's centre, pose 7
-; for 32 frames, its speed cleared and a small hop (ActorSpeedYFromA5 6),
-; then stopped.
+; @routine A5:E7EB GuardLand
+; @actor
+; WHAT IT DOES: The guard landed on a slope or ledge: set at the tile's
+; centre, pose 7 for 32 frames, its speed cleared and a small hop
+; (ActorSpeedYFromA5 6), then stopped.
+; HOW: G_MOVING up; GuardSnapToTile; ActorAnimChange 7; COP $20;
+; ActorSpeedXClear; ActorSpeedYFromA5 6; G_MOVING 0; on at GuardStop.
+; Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; reached by
+; jumps from GuardJump. Exit: never returns.
+%at($A5E7EB)
 GuardLand:
     inc.b !G_MOVING
     jsr.w GuardSnapToTile

@@ -220,23 +220,36 @@ GuardChase:
     clc
     adc.w #$0030
     cmp.w #$0060
-    bcc .lF172
+    bcc GuardChaseClose
     clc
     adc.w #$0030
     cmp.w #$00C0
-    bcc .lF158
+    bcc GuardChaseSpeedUp_lF158
     clc
     adc.w #$0110
     cmp.w #$02E0
-    bcc .lF127
+    bcc GuardChaseSpeedUp
     ldx.b !actor_49
-    bne .lF127
+    bne GuardChaseSpeedUp
     ldx.b #$40
     stx.w !GUARD_CODE_SET
     lda.w #$E794
     sta.b !actor_03
     rts
-.lF127:
+
+; @routine A5:F127 GuardChaseSpeedUp
+; WHAT IT DOES: GuardChase's speed-up step, which GuardRunOff also calls:
+; the guard speeds up by 8, to at most $300, then (as every step of the
+; chase) runs on (code word $E5E8 once) facing the player.
+; HOW: 16-bit: $0300 below ACTOR_SPEED_X: kept; else + 8. Each new speed
+; ($A5:F134): stored; GUARD_CODE_SET 2 and code word $E5E8 unless already
+; 2; the speed's high byte cleared; its x against the player's: the carry
+; to the facing and flip (8-bit).
+; Entry: M 16-bit, X 8-bit; D = the guard; DB a bank whose $0000-$1FFF is
+; work RAM; reached by GuardChase's branch, and called by JSR from
+; GuardRunOff. Exit: M 8-bit; A = the facing; X = 0.
+%at($A5F127)
+GuardChaseSpeedUp:
     lda.w #$0300
     cmp.b !actor_speed_x
     bcc .lF134
@@ -275,20 +288,34 @@ GuardChase:
     bpl .lF134
     lda.w #$0000
     bra .lF134
-.lF172:
+
+; @routine A5:F172 GuardChaseClose
+; WHAT IT DOES: GuardChase's close step (the player within 48), which
+; GuardHoldLeft and GuardHoldRight also call: once after a pace kept
+; ($146E), it keeps his pace; a moving guard slows by $30 (to 0); a
+; stopped one is sent to GuardStop (code word $E5B6, once).
+; HOW: GUARD_PACE_ONCE set: cleared, on as the pace step
+; (GuardChaseSpeedUp_lF158). ACTOR_SPEED_X nonzero: less $30, at least
+; 0, on as a new speed (GuardChaseSpeedUp_lF134). Zero: GUARD_CODE_SET 1
+; and code word $E5B6 unless already 1.
+; Entry: M 16-bit, X 8-bit; D = the guard; DB a bank whose $0000-$1FFF is
+; work RAM; reached by GuardChase's branch, and called by JSR from
+; GuardHoldLeft and GuardHoldRight. Exit: M 16-bit.
+%at($A5F172)
+GuardChaseClose:
     ldx.w !GUARD_PACE_ONCE
     beq .lF17E
     ldx.b #$00
     stx.w !GUARD_PACE_ONCE
-    bra .lF158
+    bra GuardChaseSpeedUp_lF158
 .lF17E:
     lda.b !actor_speed_x
     beq .lF18D
     sec
     sbc.w #$0030
-    bpl .lF134
+    bpl GuardChaseSpeedUp_lF134
     lda.w #$0000
-    bra .lF134
+    bra GuardChaseSpeedUp_lF134
 .lF18D:
     ldx.b #$01
     cpx.w !GUARD_CODE_SET

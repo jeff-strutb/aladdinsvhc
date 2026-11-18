@@ -108,7 +108,7 @@ GuardHoldLeft:
 .held:
     lda.b !GUARD_HELD
     bne .out
-    jsr.w GuardChase_lF172
+    jsr.w GuardChaseClose
 .out:
     sep.b #$20
     rtl
@@ -142,7 +142,7 @@ GuardHoldRight:
 .held:
     lda.b !GUARD_HELD
     bne .out
-    jsr.w GuardChase_lF172
+    jsr.w GuardChaseClose
 .out:
     sep.b #$20
     rtl
@@ -173,7 +173,7 @@ GuardRunOff:
     adc.w #$00C0
     cmp.b !actor_x+1
     bcc .gone
-    jsr.w GuardChase_lF127
+    jsr.w GuardChaseSpeedUp
     lda.b #$05
     sta.b !actor_speed_x+1
     stz.b !actor_facing

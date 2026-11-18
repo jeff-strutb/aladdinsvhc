@@ -386,3 +386,40 @@ store:
     wr8(dpa(ACTOR_FACING), set);
     wr8(dpa(ACTOR_FLIP), set);
 }
+
+/*
+ * @routine A5:F127 GuardChaseSpeedUp
+ * WHAT IT DOES: GuardChase's speed-up step, which GuardRunOff also calls:
+ * the guard speeds up by 8, to at most $300, then (as every step of the
+ * chase) runs on (code word $E5E8 once) facing the player.
+ * HOW: 16-bit: $0300 below ACTOR_SPEED_X: kept; else + 8. Each new speed
+ * ($A5:F134): stored; GUARD_CODE_SET 2 and code word $E5E8 unless already
+ * 2; the speed's high byte cleared; its x against the player's: the carry
+ * to the facing and flip (8-bit).
+ * Entry: M 16-bit, X 8-bit; D = the guard; DB a bank whose $0000-$1FFF is
+ * work RAM; reached by GuardChase's branch, and called by JSR from
+ * GuardRunOff. Exit: M 8-bit; A = the facing; X = 0.
+ */
+void abi_GuardChaseSpeedUp(void)
+{
+    guard_chase_from(0xF127u);
+}
+
+/*
+ * @routine A5:F172 GuardChaseClose
+ * WHAT IT DOES: GuardChase's close step (the player within 48), which
+ * GuardHoldLeft and GuardHoldRight also call: once after a pace kept
+ * ($146E), it keeps his pace; a moving guard slows by $30 (to 0); a
+ * stopped one is sent to GuardStop (code word $E5B6, once).
+ * HOW: GUARD_PACE_ONCE set: cleared, on as the pace step
+ * (GuardChaseSpeedUp_lF158). ACTOR_SPEED_X nonzero: less $30, at least
+ * 0, on as a new speed (GuardChaseSpeedUp_lF134). Zero: GUARD_CODE_SET 1
+ * and code word $E5B6 unless already 1.
+ * Entry: M 16-bit, X 8-bit; D = the guard; DB a bank whose $0000-$1FFF is
+ * work RAM; reached by GuardChase's branch, and called by JSR from
+ * GuardHoldLeft and GuardHoldRight. Exit: M 16-bit.
+ */
+void abi_GuardChaseClose(void)
+{
+    guard_chase_from(0xF172u);
+}
