@@ -1,0 +1,70 @@
+# Actor kind $2B (its start $83:A467, its wait Kind2BWait $83:A709), which no
+# level the scripts reach places: the first level's record $092B (the
+# guard) made one, its kind byte (+6) set to $2B, its state to $0C and its
+# $07 to each variant (bits 0-2 its direction set, bit 3 its turn at a
+# tile, bit 4 its other walk), so the actor loop starts it by kind $2B's
+# table entry; 400 frames each.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 00
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 01
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 02
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 03
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 08
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 09
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 0A
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 0B
+poke 00092B 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 10
+poke 00092B 0C
+wait 400
+# Variant 0 with its $4E set once started (kept in range: Kind2BWait's
+# RTS, $83:A724; the start clears it, the grab sets it)
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 00
+poke 00092B 0C
+wait 5
+poke 000979 01
+wait 200
