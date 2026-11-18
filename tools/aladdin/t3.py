@@ -224,8 +224,12 @@ def affected_since(rev, harness=True):
         elif p.endswith('.c.held'):
             out |= tags_in(rev, p) | tags_in(REV, p)
         elif p == TREE + '/held.txt':
-            # A hold or release: the routines left out at one revision only.
-            out |= dropped_at(rev) ^ dropped_at(REV)
+            # A hold or release: the routines left out at some revision from
+            # `rev` to REV but not at all of them (held and released again in
+            # between counts: its results from before the hold are stale).
+            revs = [rev, REV] + git('log', '--format=%H', '%s..%s' % (rev, REV), '--', p).stdout.split()
+            sets = [dropped_at(r) for r in revs]
+            out |= frozenset().union(*sets) - frozenset.intersection(*sets)
         elif p.endswith('.h'):
             headers = True
         else:
