@@ -8,6 +8,13 @@
 #include "machine.h"
 #include "ops65.h"
 
+void abi_PlayerFrameWork(void);
+void abi_KindAnimateSend(void);
+void abi_KindAnimateFreeOff(void);
+void abi_KindAnimate9533(void);
+void abi_KindAnimate9628(void);
+void abi_KindAnimate9EF0(void);
+void abi_KindAnimate9F4A(void);
 void abi_LongReturn(void);
 void abi_Kind94Wait(void);
 void abi_KindWaitF991(void);
@@ -82,7 +89,9 @@ void abi_GuardWait(void);
  */
 void abi_ActorKind90Wait(void)
 {
+    jsl_frame(0x839366u);
     abi_LongReturn();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 
@@ -102,7 +111,9 @@ void abi_ActorKind90Wait(void)
  */
 void abi_ActorKind76Wait(void)
 {
-    call_routine(KIND_76_WAIT_WORK, 1);
+    jsl_frame(0x839285u);
+    abi_KindAnimateSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 /*
  * @routine 83:92B9 ActorKind7FWait
@@ -116,7 +127,9 @@ void abi_ActorKind76Wait(void)
  */
 void abi_ActorKind7FWait(void)
 {
-    call_routine(KIND_7F_WAIT_WORK, 1);
+    jsl_frame(0x8392B9u);
+    abi_KindAnimateFreeOff();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 /*
  * @routine 83:93B0 ActorKind96Wait
@@ -130,7 +143,9 @@ void abi_ActorKind7FWait(void)
  */
 void abi_ActorKind96Wait(void)
 {
-    call_routine(KIND_96_WAIT_WORK, 1);
+    jsl_frame(0x8393B0u);
+    abi_KindAnimate9F4A();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 /*
  * @routine 83:93A7 ActorKind95Wait
@@ -144,7 +159,9 @@ void abi_ActorKind96Wait(void)
  */
 void abi_ActorKind95Wait(void)
 {
-    call_routine(KIND_95_WAIT_WORK, 1);
+    jsl_frame(0x8393A7u);
+    abi_KindAnimate9EF0();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 /*
  * @routine 83:92F6 ActorKind85Wait
@@ -158,7 +175,9 @@ void abi_ActorKind95Wait(void)
  */
 void abi_ActorKind85Wait(void)
 {
-    call_routine(KIND_85_WAIT_WORK, 1);
+    jsl_frame(0x8392F6u);
+    abi_KindAnimate9628();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 /*
  * @routine 83:92D3 ActorKind82Wait
@@ -172,7 +191,9 @@ void abi_ActorKind85Wait(void)
  */
 void abi_ActorKind82Wait(void)
 {
-    call_routine(KIND_82_WAIT_WORK, 1);
+    jsl_frame(0x8392D3u);
+    abi_KindAnimate9533();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 
@@ -191,7 +212,9 @@ void abi_ActorKind82Wait(void)
  */
 void abi_ActorKind7CWait(void)
 {
+    jsl_frame(0x839292u);
     abi_MoverEndSound();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -205,7 +228,9 @@ void abi_ActorKind7CWait(void)
  */
 void abi_ActorKind83Wait(void)
 {
+    jsl_frame(0x8392DCu);
     abi_ActorWaitGrabsPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -219,7 +244,9 @@ void abi_ActorKind83Wait(void)
  */
 void abi_ActorKind8DWait(void)
 {
+    jsl_frame(0x839348u);
     abi_SenderWait8E();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -233,7 +260,9 @@ void abi_ActorKind8DWait(void)
  */
 void abi_ActorKind8FWait(void)
 {
+    jsl_frame(0x839359u);
     abi_KindAnimateSendFAAE();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -247,7 +276,9 @@ void abi_ActorKind8FWait(void)
  */
 void abi_ActorKind9BWait(void)
 {
+    jsl_frame(0x8393E9u);
     abi_ActorBobAnimate();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -261,7 +292,9 @@ void abi_ActorKind9BWait(void)
  */
 void abi_ActorKind24Wait(void)
 {
+    jsl_frame(0x839237u);
     abi_Kind24Animate();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -275,7 +308,9 @@ void abi_ActorKind24Wait(void)
  */
 void abi_ActorKind91Wait(void)
 {
+    jsl_frame(0x839373u);
     abi_Kind91FreeOff();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -290,7 +325,9 @@ void abi_ActorKind91Wait(void)
  */
 void abi_ActorKind92Wait(void)
 {
+    jsl_frame(0x839380u);
     abi_Kind91FreeOff();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -304,7 +341,9 @@ void abi_ActorKind92Wait(void)
  */
 void abi_ActorKind93Wait(void)
 {
+    jsl_frame(0x83938Du);
     abi_Kind93AnimateSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -318,7 +357,9 @@ void abi_ActorKind93Wait(void)
  */
 void abi_ActorKind9CWait(void)
 {
+    jsl_frame(0x8393F2u);
     abi_Kind9CAnimate();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -332,7 +373,9 @@ void abi_ActorKind9CWait(void)
  */
 void abi_ActorKindA0Wait(void)
 {
+    jsl_frame(0x839404u);
     abi_KindA0AnimateFreeOff();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -346,7 +389,9 @@ void abi_ActorKindA0Wait(void)
  */
 void abi_ActorKindA3Wait(void)
 {
+    jsl_frame(0x839427u);
     abi_KindA3Animate();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -360,7 +405,9 @@ void abi_ActorKindA3Wait(void)
  */
 void abi_ActorKind21Wait(void)
 {
+    jsl_frame(0x83922Au);
     abi_Kind21AnimateSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -374,7 +421,9 @@ void abi_ActorKind21Wait(void)
  */
 void abi_ActorKind63Wait(void)
 {
+    jsl_frame(0x83924Du);
     abi_Kind63Work();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -388,7 +437,9 @@ void abi_ActorKind63Wait(void)
  */
 void abi_ActorKind73Wait(void)
 {
+    jsl_frame(0x83925Eu);
     abi_Kind73Work();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -402,7 +453,9 @@ void abi_ActorKind73Wait(void)
  */
 void abi_ActorKind88Wait(void)
 {
+    jsl_frame(0x83931Du);
     abi_Kind88Work();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -416,7 +469,9 @@ void abi_ActorKind88Wait(void)
  */
 void abi_ActorKindA2Wait(void)
 {
+    jsl_frame(0x83941Au);
     abi_ActorAnimFreeFar();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -430,7 +485,9 @@ void abi_ActorKindA2Wait(void)
  */
 void abi_ActorKind74Wait(void)
 {
+    jsl_frame(0x83926Bu);
     abi_ChainPieceWork();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -444,7 +501,9 @@ void abi_ActorKind74Wait(void)
  */
 void abi_ActorKind75Wait(void)
 {
+    jsl_frame(0x839278u);
     abi_ChainPieceWork();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -458,7 +517,9 @@ void abi_ActorKind75Wait(void)
  */
 void abi_ActorKind49Wait(void)
 {
+    jsl_frame(0x839240u);
     abi_Kind49Wait();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -473,7 +534,9 @@ void abi_ActorKind49Wait(void)
  */
 void abi_ActorKind00Wait(void)
 {
-    call_routine(KIND_00_WAIT_WORK, 1);
+    jsl_frame(0x8391F8u);
+    abi_PlayerFrameWork();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -487,7 +550,9 @@ void abi_ActorKind00Wait(void)
  */
 void abi_ActorKind87Wait(void)
 {
+    jsl_frame(0x839310u);
     abi_KindWaitF991();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -501,7 +566,9 @@ void abi_ActorKind87Wait(void)
  */
 void abi_ActorKind94Wait(void)
 {
+    jsl_frame(0x83939Au);
     abi_Kind94Wait();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
