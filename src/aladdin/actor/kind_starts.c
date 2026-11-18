@@ -60,6 +60,7 @@ void abi_PlayerCarpetCrash(void);
 void abi_Kind83Start(void);
 void abi_Kind95Start(void);
 void abi_Kind87Start(void);
+void abi_KindA4Start(void);
 void abi_Kind7EStart(void);
 void abi_Kind84WaitWork(void);
 void abi_Kind73Start(void);
@@ -937,6 +938,20 @@ void abi_Kind84Second(void)
 void abi_Kind66Second(void)
 {
     abi_Kind73Start();
+}
+
+/*
+ * @routine 83:942C KindA4Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $A4 go on from the actor loop in
+ * its start state (the table at $83:8DAB): KindA4Start.
+ * HOW: JML to KindA4Start ($84:AA24).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as KindA4Start.
+ */
+void abi_KindA4Enter(void)
+{
+    abi_KindA4Start();
 }
 
 /*

@@ -1,0 +1,21 @@
+# Kind42Wait ($83:C6E3), the pot's wait, with Aladdin standing on it
+# ($83:C6EE: ActorBouncesOrHurtsPlayer gives 1, sound $12). The loop runs
+# the wait only once the pot is thrown ($09 bit 7), and a thrown pot is
+# never stood on. On the first level the guard at $0BAB is restarted with
+# $07 $13 (a guard with a pot, as cov_kind20_carrier_hit.box); Aladdin
+# dropped from y $0150 onto the carried pot (record $0BFB) stands on it 16
+# frames on; then the pot's $09 is made $D0 (bit 7 set) and its wait 3
+# frames, so the loop runs its wait for 2 frames.
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BB2 13
+poke 000BAB 0C
+wait 5
+poke 0008E7 1F,01
+poke 0008EA 50,01
+wait 16
+poke 000C04 D0
+poke 000BFC 03
+wait 20
