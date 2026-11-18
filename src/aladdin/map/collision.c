@@ -270,8 +270,13 @@ void abi_TileAtPlace(void)
 void abi_TileAt(void)
 {
     uint16_t place, t;
+    int off;
 
-    if (probe_off_view())
+    op_push8(0xB8);                            /* JSR ProbeOnView's return ($B833) */
+    op_push8(0x33);
+    off = probe_off_view();
+    cpu.s = (uint16_t)(cpu.s + 2);
+    if (off)
         return;
     cpu.a = rd16(abs_db(POINT_X));
     op_xba();
@@ -392,7 +397,7 @@ void abi_SurfaceHeightSolid(void)
  */
 void abi_PointInGround(void)
 {
-    abi_TileAt();
+    call_frame(0xB7D7, abi_TileAt);
     if ((cpu.p & P_Z) || (cpu.p & P_N)) {
         cpu.p &= (uint8_t)~P_C;
         return;
@@ -402,7 +407,7 @@ void abi_PointInGround(void)
         cpu.p |= P_C;
         return;
     }
-    abi_SurfaceHeight();
+    call_frame(0xB7E2, abi_SurfaceHeight);
     op_rep(P_M | P_X);
     cpu.a = rd16(abs_db(POINT_Y));
     op_cmp16(rd16(abs_db(SURFACE_Y)));
@@ -418,7 +423,7 @@ void abi_PointInGround(void)
 void abi_PointInGroundLong(void)
 {
     op_rep(P_M | P_X);
-    abi_PointInGround();
+    call_frame(0xB7D3, abi_PointInGround);
 }
 
 /*
@@ -449,7 +454,7 @@ void abi_ActorInGround(void)
  */
 void abi_GroundRight(void)
 {
-    abi_ProbeRight();
+    call_frame(0xB7A5, abi_ProbeRight);
     abi_PointInGround();
 }
 
@@ -463,7 +468,7 @@ void abi_GroundRight(void)
  */
 void abi_GroundLeft(void)
 {
-    abi_ProbeLeft();
+    call_frame(0xB7AA, abi_ProbeLeft);
     abi_PointInGround();
 }
 
@@ -503,9 +508,10 @@ void abi_GroundBehind(void)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | f);
     cpu.p = nz8(cpu.p, f);
     if (f == 0)
-        abi_GroundRight();
+        call_frame(0xB7B3, abi_ProbeRight);
     else
-        abi_GroundLeft();
+        call_frame(0xB7B8, abi_ProbeLeft);
+    abi_PointInGround();
 }
 
 /*
@@ -516,7 +522,7 @@ void abi_GroundBehind(void)
  */
 void abi_GroundRightLong(void)
 {
-    abi_GroundRight();
+    call_frame(0xB7BD, abi_GroundRight);
 }
 
 /*
@@ -527,7 +533,7 @@ void abi_GroundRightLong(void)
  */
 void abi_GroundLeftLong(void)
 {
-    abi_GroundLeft();
+    call_frame(0xB7C1, abi_GroundLeft);
 }
 
 /*
@@ -538,7 +544,7 @@ void abi_GroundLeftLong(void)
  */
 void abi_TileAtProbeLong(void)
 {
-    abi_TileAtProbe();
+    call_frame(0xB82D, abi_TileAtProbe);
 }
 
 /* Per behaviour's low 3 bits: nonzero, a wall the actor is pushed out of
@@ -555,7 +561,7 @@ void abi_TileAtProbeLong(void)
  */
 void abi_GroundInFrontLong(void)
 {
-    abi_GroundInFront();
+    call_frame(0xB797, abi_GroundInFront);
 }
 
 /*
@@ -572,7 +578,7 @@ void abi_GroundBehindBit4(void)
 {
     uint8_t b;
 
-    abi_GroundBehind();
+    call_frame(0xB5F8, abi_GroundBehind);
     b = (uint8_t)(rd8(abs_db(TILE_BEHAVIOUR_BYTE)) & 0x10);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
     cpu.p = nz8(cpu.p, b);
@@ -598,6 +604,7 @@ void abi_GroundBehindBit4(void)
 void abi_GroundBehindBit3(void)
 {
     static const uint8_t probes[2] = { 0x10, 0x14 };
+    static const uint16_t backs[2] = { 0xB5B9, 0xB5C7 };   /* the two JSRs' returns */
     uint8_t b = 0;
     int i;
 
@@ -605,7 +612,7 @@ void abi_GroundBehindBit3(void)
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | probes[i]);
         cpu.p = nz8(cpu.p, probes[i]);
         wr8(dp(ACTOR_PROBE_AT), probes[i]);
-        abi_GroundBehind();
+        call_frame(backs[i], abi_GroundBehind);
         b = (uint8_t)(rd8(abs_db(TILE_BEHAVIOUR_BYTE)) & 0x08);
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
         cpu.p = nz8(cpu.p, b);
@@ -615,14 +622,14 @@ void abi_GroundBehindBit3(void)
 }
 
 /* ActorOutOfWall's tests (and ActorOutOfWallByFlip's): GroundInFront at
-   probe A, then the tile a wall kind the actor cannot pass through.
-   None: C clear, 0. */
-static int wall_in_front(void)
+   probe A (`back` its JSR's return), then the tile a wall kind the actor
+   cannot pass through. None: C clear, 0. */
+static int wall_in_front(uint16_t back)
 {
     uint8_t b;
 
     wr8(dp(ACTOR_PROBE_AT), (uint8_t)cpu.a);
-    abi_GroundInFront();
+    call_frame(back, abi_GroundInFront);
     if (!(cpu.p & P_C))
         goto none;
     b = (uint8_t)(rd8(abs_db(TILE_BEHAVIOUR_BYTE)) & 0x07);
@@ -676,7 +683,7 @@ void abi_ActorOutOfWall(void)
 {
     uint16_t a;
 
-    if (!wall_in_front())
+    if (!wall_in_front(0xB610))
         return;
     op_rep(P_M);
     a = (uint16_t)(rd16(abs_db(POINT_X)) & 0x000F);
@@ -698,7 +705,7 @@ void abi_ActorOutOfWallByFlip(void)
 {
     uint16_t a, f;
 
-    if (!wall_in_front())
+    if (!wall_in_front(0xB64B))
         return;
     op_rep(P_M);
     f = rd16(dp(ACTOR_FLIP));
@@ -721,11 +728,11 @@ void abi_ActorOutOfWallsByFlip(void)
 {
     do {
         lda8_v(0x04);
-        abi_ActorOutOfWallByFlip();
+        call_frame(0xB56A, abi_ActorOutOfWallByFlip);
     } while (cpu.p & P_C);
     do {
         lda8_v(0x0C);
-        abi_ActorOutOfWallByFlip();
+        call_frame(0xB571, abi_ActorOutOfWallByFlip);
     } while (cpu.p & P_C);
 }
 
@@ -737,7 +744,7 @@ void abi_ActorOutOfWallsByFlip(void)
  */
 void abi_ActorOutOfWallLong(void)
 {
-    abi_ActorOutOfWall();
+    call_frame(0xB60A, abi_ActorOutOfWall);
 }
 
 /*
@@ -751,7 +758,7 @@ void abi_ActorOutOfWallProbe4(void)
 {
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x04);
     cpu.p = nz8(cpu.p, 0x04);
-    abi_ActorOutOfWall();
+    call_frame(0xB5B1, abi_ActorOutOfWall);
 }
 
 /*
@@ -767,12 +774,12 @@ void abi_ActorOutOfWalls(void)
 {
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x0C);
     cpu.p = nz8(cpu.p, 0x0C);
-    abi_ActorOutOfWall();
+    call_frame(0xB5A3, abi_ActorOutOfWall);
     if (cpu.p & P_C)
         return;
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x08);
     cpu.p = nz8(cpu.p, 0x08);
-    abi_ActorOutOfWall();
+    call_frame(0xB5AA, abi_ActorOutOfWall);
     if (cpu.p & P_C)
         return;
     abi_ActorOutOfWallProbe4();
@@ -781,12 +788,12 @@ void abi_ActorOutOfWalls(void)
 /* A floor tile under the point (TileAtProbe): returns 1 floor, 0 not a
    floor, -1 out (a kind with bit 7, or one the actor passes through: the
    caller gives up). `strict` treats passing through as out, else as not
-   a floor. */
-static int floor_at(int strict)
+   a floor; `back` is the JSR's return. */
+static int floor_at(int strict, uint16_t back)
 {
     uint8_t b, k;
 
-    abi_TileAtProbe();
+    call_frame(back, abi_TileAtProbe);
     if (cpu.p & P_Z)
         return 0;
     if (cpu.p & P_N)
@@ -829,21 +836,21 @@ void abi_ActorSettleOnFloor(void)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x08);
     cpu.p = nz8(cpu.p, 0x08);
     wr8(dp(ACTOR_PROBE_AT), 0x08);
-    abi_ProbeLeft();
+    call_frame(0xB679, abi_ProbeLeft);
     op_sep(P_M);
     cpu.x = rd16(abs_db(POINT_Y));
     cpu.p = nz16(cpu.p, cpu.x);
     if (cpu.x & 0x8000)
         goto out;
-    f = floor_at(0);
+    f = floor_at(0, 0xB683);
     if (f != 1) {
-        abi_ProbeRight();
+        call_frame(0xB699, abi_ProbeRight);
         op_sep(P_M);
         cpu.x = rd16(abs_db(POINT_Y));
         cpu.p = nz16(cpu.p, cpu.x);
         if (cpu.x & 0x8000)
             goto out;
-        f = floor_at(1);
+        f = floor_at(1, 0xB6A3);
         if (f < 0)
             goto out;
         if (f == 0)
@@ -854,7 +861,7 @@ void abi_ActorSettleOnFloor(void)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(dp(ACTOR_X + 2)));
     cpu.p = nz8(cpu.p, (uint8_t)cpu.a);
     wr8(abs_db(POINT_X + 1), (uint8_t)cpu.a);
-    abi_TileAtProbe();
+    call_frame(0xB6C3, abi_TileAtProbe);
     if (cpu.p & P_Z)
         return;
     if (cpu.p & P_N)
@@ -924,7 +931,7 @@ void abi_SurfaceHeightOver(void)
         cpu.a |= (uint16_t)(op_pull8() << 8);
         cpu.p = nz16(cpu.p, cpu.a);
     }
-    abi_TileAtPlace();
+    call_frame(0xB8E8, abi_TileAtPlace);
     if (cpu.p & P_Z)
         return;
     abi_SurfaceHeight();
@@ -933,17 +940,15 @@ void abi_SurfaceHeightOver(void)
 /* TileAt at the probe point made by `probe`, the surface by `surface`
    when there is a tile; returns 1 when the surface step says the tile is
    ground (Z clear after it). `at_probe` takes the lookup with 16-bit
-   registers first (TileAtProbe). */
-static int ground_at(void (*probe)(void), int at_probe, void (*surface)(void))
+   registers first (TileAtProbe). `back` holds the three JSRs' returns
+   (the probe, the lookup, the surface), as the original pushes them. */
+static int ground_at(const uint16_t back[3], void (*probe)(void), int at_probe, void (*surface)(void))
 {
-    probe();
-    if (at_probe)
-        abi_TileAtProbe();
-    else
-        abi_TileAt();
+    call_frame(back[0], probe);
+    call_frame(back[1], at_probe ? abi_TileAtProbe : abi_TileAt);
     if ((cpu.p & P_Z) || (cpu.p & P_N))
         return -1;
-    surface();
+    call_frame(back[2], surface);
     return !(cpu.p & P_Z);
 }
 
@@ -965,11 +970,15 @@ static uint16_t onto_surface(void)
    the actor on it (C set); else the kept y comes back. */
 static void snap_test(void)
 {
+    static const uint16_t at[3] = { 0xB462, 0xB465, 0xB46C };
+    static const uint16_t left[3] = { 0xB471, 0xB474, 0xB47B };
+    static const uint16_t right[3] = { 0xB480, 0xB483, 0xB48A };
+
     op_sep(P_M);
     wr8(dp(ACTOR_PROBE_AT), 0);
-    if (ground_at(abi_ProbeAtActor, 0, abi_SurfaceHeightOver) == 1
-        || ground_at(abi_ProbeLeft, 0, abi_SurfaceHeightSolid) == 1
-        || ground_at(abi_ProbeRight, 0, abi_SurfaceHeightSolid) == 1) {
+    if (ground_at(at, abi_ProbeAtActor, 0, abi_SurfaceHeightOver) == 1
+        || ground_at(left, abi_ProbeLeft, 0, abi_SurfaceHeightSolid) == 1
+        || ground_at(right, abi_ProbeRight, 0, abi_SurfaceHeightSolid) == 1) {
         op_rep(P_M);
         cpu.a = onto_surface();
         wr16(dp(ACTOR_Y + 1), cpu.a);
@@ -1073,8 +1082,8 @@ static void out_of_ground_tile(void)
     cpu.a = op_adc16(v, 0xFFF1, &cpu.p);
     wr16(dp(ACTOR_Y + 1), cpu.a);
     op_sep(P_M | P_X);
-    abi_ProbeAtActor();
-    abi_TileAtProbe();
+    call_frame(0xB541, abi_ProbeAtActor);
+    call_frame(0xB544, abi_TileAtProbe);
     if (!(cpu.p & P_Z) && !(cpu.p & P_N)) {
         op_rep(P_M | P_X);
         cpu.p |= P_C;
@@ -1110,24 +1119,26 @@ static void out_of_ground_tile(void)
 void abi_ActorOutOfGround(void)
 {
     int r;
+    static const uint16_t at[3] = { 0xB4F7, 0xB4FA, 0xB501 };
+    static const uint16_t left[3] = { 0xB506, 0xB509, 0xB510 };
 
     if (cpu.p & P_M)
         wr8(dp(ACTOR_PROBE_AT), 0);
     else
         wr16(dp(ACTOR_PROBE_AT), 0);
-    r = ground_at(abi_ProbeAtActor, 1, abi_SurfaceHeightOver);
+    r = ground_at(at, abi_ProbeAtActor, 1, abi_SurfaceHeightOver);
     if (r < 0) {
-        r = ground_at(abi_ProbeLeft, 1, abi_SurfaceHeightSolid);
+        r = ground_at(left, abi_ProbeLeft, 1, abi_SurfaceHeightSolid);
         if (r < 0) {
-            abi_ProbeRight();
-            abi_TileAtProbe();
+            call_frame(0xB515, abi_ProbeRight);
+            call_frame(0xB518, abi_TileAtProbe);
             if (cpu.p & P_Z)
                 return;
             if (cpu.p & P_N) {
                 op_sep(P_M | P_X | P_Z);
                 return;
             }
-            abi_SurfaceHeightSolid();
+            call_frame(0xB51F, abi_SurfaceHeightSolid);
         }
     }
     out_of_ground_tile();
@@ -1147,7 +1158,9 @@ void abi_ActorOutOfGround(void)
  */
 void abi_ActorOutOfGroundAtActor(void)
 {
-    if (ground_at(abi_ProbeAtActor, 1, abi_SurfaceHeightOver) < 0) {
+    static const uint16_t at[3] = { 0xB4E6, 0xB4E9, 0xB4F0 };
+
+    if (ground_at(at, abi_ProbeAtActor, 1, abi_SurfaceHeightOver) < 0) {
         op_sep(P_M | P_X | P_Z);
         return;
     }
@@ -1181,7 +1194,7 @@ void abi_PlayerOnFirmGround(void)
     cpu.p = nz16(cpu.p, cpu.d);
     op_sep(P_M);
     wr8(dp(ACTOR_PROBE_AT), (uint8_t)cpu.x);
-    abi_GroundLeft();
+    call_frame(0xB769, abi_GroundLeft);
     if (cpu.p & P_C) {
         b = rd8(abs_db(TILE_BEHAVIOUR_BYTE));
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
@@ -1196,7 +1209,7 @@ void abi_PlayerOnFirmGround(void)
         }
     }
     if (!firm) {
-        abi_GroundRight();
+        call_frame(0xB77D, abi_GroundRight);
         if (cpu.p & P_C) {
             b = rd8(abs_db(TILE_BEHAVIOUR_BYTE));
             cpu.a = (uint16_t)((cpu.a & 0xFF00) | b);
@@ -1227,9 +1240,9 @@ static int firm_side(int left, uint8_t through)
     uint8_t behaviour, kind, soft;
 
     if (left)
-        abi_GroundLeft();
+        call_frame(0xB769, abi_GroundLeft);
     else
-        abi_GroundRight();
+        call_frame(0xB77D, abi_GroundRight);
     if (!(cpu.p & P_C))
         return 0;
     behaviour = rd8(dba(TILE_BEHAVIOUR_BYTE));
@@ -1286,11 +1299,11 @@ void abi_PlayerOnFirmGroundProbe4(void)
 }
 
 /* ActorSettleOnGround: the tile at the probe point is ground to stand on:
-   not empty, not negative, not passed through. The flags as the tests
-   leave them. */
-static int ground_at_probe(void)
+   not empty, not negative, not passed through (`back` the TileAtProbe
+   JSR's return). The flags as the tests leave them. */
+static int ground_at_probe(uint16_t back)
 {
-    abi_TileAtProbe();
+    call_frame(back, abi_TileAtProbe);
     if (cpu.p & (P_Z | P_N))
         return 0;
     lda8_v(BEHAVIOUR_THROUGH);
@@ -1318,10 +1331,10 @@ void abi_ActorSettleOnGround(void)
 {
     lda8_v(0x08);
     wr8(dp(ACTOR_PROBE_AT), 0x08);
-    abi_ProbeLeft();
-    if (!ground_at_probe()) {
-        abi_ProbeRight();
-        if (!ground_at_probe())
+    call_frame(0xB6ED, abi_ProbeLeft);
+    if (!ground_at_probe(0xB6F0)) {
+        call_frame(0xB6FE, abi_ProbeRight);
+        if (!ground_at_probe(0xB701))
             return;
     }
     wr8(dp(ACTOR_SPEED_Y + 2), 0);
@@ -1360,12 +1373,12 @@ void abi_ActorGroundCount(void)
     lda8_v(0x08);
     wr8(dp(ACTOR_PROBE_AT), 0x08);
     stz8(ea_abs(GROUND_COUNT));
-    abi_ProbeRight();
-    abi_PointInGround();
+    call_frame(0xB736, abi_ProbeRight);
+    call_frame(0xB739, abi_PointInGround);
     if (IF_C)
         MEM8(inc, ea_abs(GROUND_COUNT));
-    abi_ProbeLeft();
-    abi_PointInGround();
+    call_frame(0xB741, abi_ProbeLeft);
+    call_frame(0xB744, abi_PointInGround);
     if (IF_C)
         MEM8(inc, ea_abs(GROUND_COUNT));
     lda8(ea_abs(GROUND_COUNT));
@@ -1380,7 +1393,7 @@ void abi_ActorGroundCount(void)
  */
 void abi_ActorGroundCountLong(void)
 {
-    abi_ActorGroundCount();
+    call_frame(0xB72B, abi_ActorGroundCount);
 }
 
 /*
@@ -1403,10 +1416,10 @@ void abi_ActorOutOfWallsMovePlayer(void)
     lda8(ea_dp(ACTOR_X + 2));
     sta8(ea_abs(WALL_X_BEFORE + 1));
     lda8_v(0x04);
-    abi_ActorOutOfWall();
+    call_frame(0xB583, abi_ActorOutOfWall);
     if (!IF_C) {
         lda8_v(0x08);
-        abi_ActorOutOfWall();
+        call_frame(0xB58A, abi_ActorOutOfWall);
         if (!IF_C) {
             op_sep(0x20);
             return;
@@ -1437,12 +1450,13 @@ void abi_ActorOutOfWallsMovePlayer(void)
 void abi_GroundBehindKind7(void)
 {
     static const uint8_t probes[2] = { 0x20, 0x24 };
+    static const uint16_t backs[2] = { 0xB5D6, 0xB5E6 };   /* the two JSRs' returns */
     int i;
 
     for (i = 0; i < 2; i++) {
         lda8_v(probes[i]);
         wr8(dp(ACTOR_PROBE_AT), probes[i]);
-        abi_GroundBehind();
+        call_frame(backs[i], abi_GroundBehind);
         lda8(abs_db(TILE_BEHAVIOUR_BYTE));
         and8_v(0x07);
         cmp8_v(0x07);
