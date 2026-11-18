@@ -60,7 +60,7 @@ QUIET = tuple(LEDGERS) + ('docs/',)
 # A7 = half as many lockstep pairs (~1.6 cores, ~0.6G each); one lockstep
 # pair for a bisection test; light Python reading the traces.
 BUILD = ('6', '5G')
-QUALIFY = ('12', '8G')
+QUALIFY = ('8', '6G')
 QUALIFY_TIMEOUT = 14400
 BISECT = ('2', '2G')
 LIGHT = ('1', '3G')
@@ -156,6 +156,27 @@ def green(rev, script, hold, out):
     if v is None:
         raise RuntimeError('bisection test of %s gave no result (rc %d)' % (script, rc))
     return v == 'IDENTICAL'
+
+
+def green_many(rev, scripts, hold, out):
+    """{script: IDENTICAL?} for several scripts with the same `hold` added:
+    one probe and one hybrid build, the scripts run in parallel on the
+    qualify slots (t3.py --lockstep takes several). A script with no
+    result raises, as in green()."""
+    p = probe(rev, hold)
+    path = os.path.join(ROOT, 'build', 'aladdin', BISECT_OUT, 'whole_image.csv')
+    if os.path.exists(path):
+        os.remove(path)
+    rc, text = job(QUALIFY, 'python3 tools/aladdin/t3.py --lockstep %s' % ' '.join(sorted(scripts)),
+                   env={'ALADDIN_GATE_REV': p, 'ALADDIN_GATE_OUT': BISECT_OUT}, timeout=QUALIFY_TIMEOUT, out=out)
+    rows = {r['script']: r for r in csv.DictReader(open(path))} if os.path.exists(path) else {}
+    missing = [s for s in scripts if s not in rows]
+    if missing:
+        raise RuntimeError('test of %s gave no result (rc %d)' % (' '.join(missing), rc))
+    got = {s: rows[s]['verdict'] == 'IDENTICAL' for s in scripts}
+    log('  test %d script(s) holding %s: %d IDENTICAL, %d not' % (
+        len(scripts), ' '.join(sorted(hold)), sum(got.values()), sum(1 for v in got.values() if not v)))
+    return got
 
 
 def culprits(rev, script, base, cands, out):
@@ -255,7 +276,7 @@ def batch(state, head):
     if rc:
         log('%s: --affected failed, see %s' % (short, out))
         return False
-    got = dict(l.split(' ', 1) if ' ' in l else (l, '') for l in text.splitlines() if l.startswith(('routines', 'scripts')))
+    got = dict(l.split(' ', 1) if ' ' in l else (l, '') for l in text.splitlines() if l.startswith(('routines', 'scripts', 'harness')))
     addrs = got.get('routines', '').split()
     if got.get('harness') == 'yes':
         state['regress'] = head
@@ -280,15 +301,22 @@ def batch(state, head):
         if w and w[0] == 'a5':
             for a in w[1:]:
                 why[a] = 'A5 DIVERGENT at %s' % short
-    for l in text.splitlines():
-        w = l.split()
-        if not w or w[0] != 'red':
+    reds = {l.split()[1]: set(l.split()[2:]) for l in text.splitlines() if l.split()[:1] == ['red']}
+    base = set(why)
+    cleared = {}
+    if base and reds:
+        # Do the A5 holds alone turn them green? One test for all of them.
+        try:
+            cleared = green_many(head, reds, base, out)
+        except RuntimeError as e:
+            log('%s: %s' % (short, e))
+        for sc in sorted(s for s, ok in cleared.items() if ok):
+            log('%s: %s green with the A5 holds' % (short, sc))
+    for script in sorted(reds):
+        if cleared.get(script):
             continue
-        script, cands = w[1], set(w[2:]) - set(why)
+        cands = reds[script] - set(why)
         base = set(why)
-        if base and green(head, script, base, out):
-            log('%s: %s green with the A5 holds' % (short, script))
-            continue
         if not cands:
             log('%s: %s red, no routine of the batch left to blame' % (short, script))
             continue

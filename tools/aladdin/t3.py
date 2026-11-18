@@ -882,9 +882,12 @@ def qualify(addrs):
 
 
 def gate_lock():
-    """One gate run at a time: two runs would share output files and the
-    machine. A lock left by a run that died is taken over."""
-    lock = os.path.join(B, 'gate.lock')
+    """One gate run at a time per output folder (WORKD: build/aladdin, or
+    ALADDIN_GATE_OUT's): two runs there would share output files. A run
+    into another folder (a probe, a test) never blocks the ledger's. A lock
+    left by a run that died is taken over."""
+    os.makedirs(WORKD, exist_ok=True)
+    lock = os.path.join(WORKD, 'gate.lock')
     if os.path.exists(lock):
         try:
             pid = int(open(lock).read().strip())
