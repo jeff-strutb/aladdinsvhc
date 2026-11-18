@@ -1,0 +1,18 @@
+# Actor kind $77 (83:F4AA), a platform that carries Aladdin to the right,
+# which no level's placements hold. In stage a3 s1 the record at the top of
+# the free stack (its top offset $15E4 lowered from $34 to $32, so no other
+# spawn takes it) made kind $77 at x $0040, y $0070 and started (state $0C
+# last); Aladdin dropped onto it from y $0050: it carries him right, then
+# he jumps off (B) while it goes on to x $0630.
+load build/aladdin/states/stage_a3_s1.state
+wait 10
+poke 0015E4 32
+poke 000BB1 77,00
+poke 000BB6 00,40,00,00,70,00
+poke 000BAB 0C
+wait 5
+poke 0008E7 40,00
+poke 0008EA 50,00
+wait 300
+hold B 10
+wait 600
