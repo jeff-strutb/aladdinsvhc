@@ -1,0 +1,62 @@
+# Actor kind $27's parts no level reaches, on the kind $27 beside Aladdin
+# at record $0CEB, played to as cov_actor27_flag.box (rand_pw1_1 from
+# pw1.state):
+# 1. put back in its start state ($0C) with $07 = 8: the figure that
+#    flies in, circles, crosses, leaves a child and fades the level out
+#    (Kind27Start's bit 3, $83:9E58 on, with Kind27Trail each frame);
+#    Aladdin held at x $01E0, away from it (its $42 is set, so touching
+#    him would end it);
+# 2. again from the state, restarted with $07 = 0 (Kind27Waiter,
+#    $83:9F2F) and $036C set 10 frames on: it rises, circles and flies
+#    its three rounds.
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 30
+poke 000CEB 0C
+poke 000CF2 08
+repeat 240
+poke 0008E7 E0,01
+wait 1
+end
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 30
+poke 000CEB 0C
+poke 000CF2 00
+wait 10
+poke 00036C 01
+wait 900
