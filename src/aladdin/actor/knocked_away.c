@@ -11,6 +11,9 @@
 #include "wram_video.h"
 #include "actor.h"
 
+/* A JSL at `site`, its return address on the stack while the callee runs. */
+#define JSL(site, fn) do { jsl_frame(site); fn(); cpu.s = (uint16_t)(cpu.s + 3); } while (0)
+
 void abi_ActorEndOutOfRange(void);
 void abi_ActorFly(void);
 void abi_ActorMotionPreset(void);
@@ -35,9 +38,9 @@ static void fly_off(void)
 {
     for (;;) {
         actor_yield(0x839561u);
-        abi_AnimStep();
-        abi_ActorPictureSend();
-        abi_ActorFly();
+        JSL(0x839563u, abi_AnimStep);
+        JSL(0x839567u, abi_ActorPictureSend);
+        JSL(0x83956Bu, abi_ActorFly);
         lda8(ea_abs(LEVEL));
         cmp8_v(FLY_LEVEL_A);
         if (IF_Z || (cmp8_v(FLY_LEVEL_B), IF_Z)) {
@@ -71,12 +74,12 @@ void abi_ActorKnockedAway(void)
 {
     phx8();
     phy8();
-    abi_AnimStart();
-    abi_ActorPictureSend();
+    JSL(0x839534u, abi_AnimStart);
+    JSL(0x839538u, abi_ActorPictureSend);
     ply8();
-    abi_ActorMotionPreset();
+    JSL(0x83953Du, abi_ActorMotionPreset);
     pla8();
-    abi_SoundQueueAdd();
+    JSL(0x839542u, abi_SoundQueueAdd);
     lda8(ea_abs((uint16_t)PLAYER_FLIP));
     eor8_v(0x01);
     sta8(ea_dp(ACTOR_FACING));
@@ -85,8 +88,8 @@ void abi_ActorKnockedAway(void)
     sta8(ea_dp(STEPS));
     do {
         actor_yield(0x839553u);
-        abi_AnimStep();
-        abi_ActorPictureSend();
+        JSL(0x839555u, abi_AnimStep);
+        JSL(0x839559u, abi_ActorPictureSend);
         MEM8(dec, ea_dp(STEPS));
     } while (!IF_Z);
     fly_off();
@@ -108,10 +111,10 @@ void abi_ActorKnockedAwayResumed(void)
 {
     phy8();
     stx8(ea_dp(ANIM_AT));
-    abi_AnimResume();
-    abi_ActorPictureSend();
+    JSL(0x83958Cu, abi_AnimResume);
+    JSL(0x839590u, abi_ActorPictureSend);
     ply8();
-    abi_ActorMotionPreset();
+    JSL(0x839595u, abi_ActorMotionPreset);
     lda8_v(0x05);
     actor_wait(0x83959Bu);
     fly_off();
@@ -139,7 +142,7 @@ void abi_Kind20Hit(void)
     and8_v(0x10);
     if (!IF_Z) {
         ldy8_v(0x05);
-        abi_ActorPaletteFromRom();
+        JSL(0x839C21u, abi_ActorPaletteFromRom);
     }
     lda8(ea_dp(ACTOR_FACING));
     if (!IF_N) {
@@ -154,7 +157,7 @@ void abi_Kind20Hit(void)
     eor8_v(0x01);
     sta8(ea_dp(ACTOR_FLIP));
     lda8_v(0x07);
-    abi_SoundQueueAdd();
+    JSL(0x839C3Cu, abi_SoundQueueAdd);
     lda8_v(0x04);
     ldx8_v(0x03);
     ldy8_v(0x4C);
@@ -176,10 +179,10 @@ void abi_ActorKnockedAwayResumedB(void)
 {
     phy8();
     stx8(ea_dp(ANIM_AT));
-    abi_AnimResume();
-    abi_ActorPictureSend();
+    JSL(0x8395A2u, abi_AnimResume);
+    JSL(0x8395A6u, abi_ActorPictureSend);
     ply8();
-    abi_ActorMotionPreset();
+    JSL(0x8395ABu, abi_ActorMotionPreset);
     lda8_v(0x05);
     actor_wait(0x83959Bu);
     fly_off();
