@@ -60,6 +60,9 @@ void abi_PlayerCarpetCrash(void);
 void abi_Kind83Start(void);
 void abi_Kind95Start(void);
 void abi_Kind87Start(void);
+void abi_Kind73Start(void);
+void abi_Kind73Hit(void);
+void abi_ChainPieceGone(void);
 void abi_Kind91Start(void);
 
 /*
@@ -834,6 +837,62 @@ void abi_Kind85Enter(void)
 void abi_Kind8EEnter(void)
 {
     abi_Kind8EStart();
+}
+
+/*
+ * @routine 83:925A Kind73Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $73 go on from the actor loop in
+ * its start state (the table at $83:8CAB): Kind73Start.
+ * HOW: JML to Kind73Start ($84:8629).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind73Start.
+ */
+void abi_Kind73Enter(void)
+{
+    abi_Kind73Start();
+}
+
+/*
+ * @routine 83:9263 Kind73Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $73 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): Kind73Hit.
+ * HOW: JML to Kind73Hit ($84:8766).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind73Hit.
+ */
+void abi_Kind73Second(void)
+{
+    abi_Kind73Hit();
+}
+
+/*
+ * @routine 83:9270 Kind74Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $74 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): ChainPieceGone.
+ * HOW: JML to ChainPieceGone ($84:8AC2).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as ChainPieceGone.
+ */
+void abi_Kind74Second(void)
+{
+    abi_ChainPieceGone();
+}
+
+/*
+ * @routine 83:927D Kind75Second
+ * @actor
+ * WHAT IT DOES: Where actors of kind $75 go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8DFD): ChainPieceGone.
+ * HOW: JML to ChainPieceGone ($84:8AC2).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as ChainPieceGone.
+ */
+void abi_Kind75Second(void)
+{
+    abi_ChainPieceGone();
 }
 
 /*
