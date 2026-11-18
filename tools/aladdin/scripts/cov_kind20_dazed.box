@@ -1,0 +1,49 @@
+# Kind $20's guard knocked down (Kind20Dazed, $83:9C49, entered by state
+# $CC) and struck (Kind20Hit, $83:9C19, state $8C), on the first level
+# with the guard at record $0BAB (x $0125, y $01B0), the camera put at
+# x $0080 (Aladdin is held inside the view):
+# 1. Its place byte $07 given bit 4 ($13), put 96 pixels up (y $0150) and
+#    in state $CC: its palette from ROM ($83:9C5D) and the fall
+#    ($83:9C79); Aladdin dropped from 41 pixels above it (x $0125,
+#    y $0127) comes down on it as it falls, so he bounces and it goes into
+#    state $8C ($83:9C80): Kind20Hit with bit 4, its palette from ROM too
+#    ($83:9C1F).
+# 2. Again from the state, put in state $CC on the ground, and Aladdin
+#    dropped onto it from 64 pixels above: he bounces on it during the
+#    daze ($83:9CA8), and it is struck.
+# 3. Again, put in state $CC, and Aladdin at x $00D0 facing right throws
+#    an apple at it; the apple (record $09CB) made harmless in flight (its
+#    $11 = $80), so ActorHitByShotCC turns the guard with bit 7 set and it
+#    is struck from behind ($83:9CB8).
+# (A state load right after phase 3 cut an SPC700 call in flight, and
+# lockstep compared that frame's APU RAM: so phase 3 comes last.)
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BB2 13
+poke 000BBA 50
+poke 000BAB CC
+poke 0008E7 25,01
+poke 0008EA 27,01
+wait 120
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BAB CC
+wait 2
+poke 0008E7 25,01
+poke 0008EA 70,01
+wait 110
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BAB CC
+wait 2
+poke 0008E7 D0,00
+hold RIGHT 2
+press A
+poke 0009DC 80
+wait 110

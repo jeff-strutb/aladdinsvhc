@@ -1,0 +1,10 @@
+# Kind $20's start (Kind20Start, $83:97AF) with its place byte $07 = $1F,
+# the ending's scene, which no first-level guard has: AnimStart 0 and a
+# 32-frame wait first, then $07 = 3 and on as a guard ($83:97CB). On the
+# first level the guard at record $0BAB is put back in its start state
+# ($0C) with $07 = $1F, and 80 frames run.
+load build/aladdin/states/level1.state
+wait 30
+poke 000BB2 1F
+poke 000BAB 0C
+wait 80
