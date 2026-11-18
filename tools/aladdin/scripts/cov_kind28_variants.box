@@ -1,0 +1,39 @@
+# Actor kind $28 (Kind28Start, $83:A03E) in the variants no level places.
+# On pw4.state the kind $28 at record $0BFB (x $0120, y $01B8) is put back
+# in its start state ($0C) with its $07, Aladdin held near it (x $0110):
+# 1. $07 = $0E: bit 3 (shown at once, $83:A064), bit 2 (facing from its
+#    x, $83:A082), bit 1 (it drifts with no wave, $83:A0CF).
+# 2. $07 = $10, the spawner ($83:A110 on): near, so it spawns one at
+#    once and counts its wait down while he stays; Aladdin far (x $0060)
+#    for 5 frames (back to the first wait, which counts down, $83:A128);
+#    then near again for 10 frames.
+load build/aladdin/states/pw4.state
+hold R 5
+wait 60
+poke 000BFB 0C
+poke 000C02 0E
+repeat 120
+poke 0008E7 10,01
+poke 0008EA B8,01
+wait 1
+end
+load build/aladdin/states/pw4.state
+hold R 5
+wait 60
+poke 000BFB 0C
+poke 000C02 10
+repeat 10
+poke 0008E7 10,01
+poke 0008EA B8,01
+wait 1
+end
+repeat 5
+poke 0008E7 60,00
+poke 0008EA B8,01
+wait 1
+end
+repeat 10
+poke 0008E7 10,01
+poke 0008EA B8,01
+wait 1
+end

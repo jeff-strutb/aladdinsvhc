@@ -34,9 +34,10 @@ arch 65816
 ; A byte of work RAM it puts in PLAYER_LANDED (an absolute $0001 where
 ; the other landings put an immediate 1).
 !V_0001 = $0001
+!HIT_BOXES = $C29A               ; the hit boxes: 4 bytes each, the half-width first (data bank)
+!TEST_BOX_HALF_W = $1488         ; the test box's half-width
 ; Not yet filed (no script reaches it): the pad met from the side, or
-; with a state $8C counted: the player pushed out of its box sideways
-; ($83:80C3), then its next frame.
+; with a state $8C counted: PlayerPushAside, then its next frame.
 PadFromSide = $83FA40
 
 ; @routine 83:848D PlayerLandsOnActor
@@ -225,3 +226,44 @@ LandingPad:
     lda.w !V_0001
     sta.w !PLAYER_LANDED
     bra .frame
+
+; @routine 83:80C3 PlayerPushAside
+; WHAT IT DOES: Puts Aladdin beside the actor, just out of its box: on
+; its left when he is left of it (or at its x), else on its right.
+; HOW: 16-bit: Y = the actor's box ($06) times 4; its x pixels less his
+; ($08E7), the borrow kept (PHP); the box's half-width (HIT_BOXES,Y)
+; plus 1 plus TEST_BOX_HALF_W; with no borrow (he is left of it, or at
+; its x) that is negated, plus 1 (EOR #$FFFF, INC, INC); his x pixels =
+; that plus its x pixels. M and X 8-bit.
+; Entry: M and X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM and whose HIT_BOXES is the box table; called
+; by JSR. Exit: M and X
+; 8-bit (Y high byte cleared); A = his new x pixels (word); N, Z, C from
+; the last ADC.
+%at($8380C3)
+PlayerPushAside:
+    rep.b #$30
+    lda.b !actor_06
+    and.w #$00FF
+    asl a
+    asl a
+    tay
+    lda.b !actor_x+1
+    sec
+    sbc.w !PLAYER_X_PIXELS
+    php
+    lda.w !HIT_BOXES,y
+    inc a
+    clc
+    adc.w !TEST_BOX_HALF_W
+    plp
+    bcc .beside
+    eor.w #$FFFF
+    inc a
+    inc a
+.beside:
+    clc
+    adc.b !actor_x+1
+    sta.w !PLAYER_X_PIXELS
+    sep.b #$30
+    rts

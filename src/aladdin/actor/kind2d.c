@@ -7,6 +7,7 @@
 #include "machine.h"
 #include "native.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "wram_video.h"
 #include "actor.h"
 
@@ -27,6 +28,11 @@ void abi_Kind2DWatch(void);
 void abi_Kind2DRest(void);
 void abi_Kind2DThrown(void);
 void abi_Kind2DAfterThrow(void);
+void abi_Kind2DHit(void);
+void abi_AnimStep(void);
+void abi_ActorPictureSend(void);
+void abi_ActorBouncesPlayer(void);
+void abi_ActorHitByShotCC(void);
 static void throw_at(int again);
 
 #define K2D_FRAMES 0x40u        /* the watch: frames left; the thrown copy: frames of a pose */
@@ -36,6 +42,7 @@ static void throw_at(int again);
 #define K2D_FIRST 0x47u         /* the throw's frames, by $07 */
 #define K2D_AT 0x48u            /* the frame of the throw the copy leaves at, by $07 */
 #define K2D_AGAIN 0x49u         /* set once a $07 = 2 thrower has thrown twice */
+#define K2D_STUN_FRAMES 0x4Au  /* its third state: frames left */
 #define K2D_4F 0x4Fu            /* 0: a thrower; 1: a thrown copy */
 #define K2D_29 0x29u            /* word: $8911 */
 #define K2D_REACH_X 0xD122u     /* (bank $83) by facing * 4: x offset (word), then reach (word) */
@@ -445,3 +452,61 @@ void abi_Kind2DHit(void)
     abi_ActorKnockedAway();
 }
 
+/*
+ * @routine 83:AA95 Kind2DStunned
+ * @actor
+ * WHAT IT DOES: Kind $2D in its third state: it stands stunned, facing
+ * the way it is flipped, for 96 frames, then rests after a throw
+ * (Kind2DAfterThrow). Aladdin bouncing on it, or a shot reaching it
+ * while it faces left, sends it into its hit state (Kind2DHit); a shot
+ * while it faces right starts it stunned again.
+ * HOW: ACTOR_FACING = ACTOR_FLIP; ACTOR_09 bit 7 cleared (its wait
+ * stops); AnimStart 6; ActorPictureSend; K2D_STUN_FRAMES = $60. Each frame
+ * (BRK first): ActorBouncesPlayer (JSR) nonzero: ACTOR_09 bit 7 cleared
+ * (ASL, LSR), state $8C, JMP Kind2DHit. ActorHitByShotCC (JSR) C clear:
+ * facing not negative: from the start again; negative: JMP Kind2DHit.
+ * Else AnimStep, ActorPictureSend, K2D_STUN_FRAMES down; at 0 ACTOR_09
+ * bit 7 set and JMP Kind2DAfterThrow. The bounce and the shot while it
+ * faces left no script meets.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $2D
+ * in its third state (the table at $83:90A1). Exit: never returns.
+ */
+void abi_Kind2DStunned(void)
+{
+L_83AA95:
+    lda8(ea_dp(ACTOR_FLIP));  /* 83AA95 lda */
+    sta8(ea_dp(ACTOR_FACING));  /* 83AA97 sta */
+    lda8_v(0x80);  /* 83AA99 lda */
+    trb8(ea_dp(ACTOR_09));  /* 83AA9B trb */
+    lda8_v(0x06);  /* 83AA9D lda */
+    jsl_frame(0x83AA9Fu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83AA9F jsl */
+    jsl_frame(0x83AAA3u); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83AAA3 jsl */
+    lda8_v(0x60);  /* 83AAA7 lda */
+    sta8(ea_dp(K2D_STUN_FRAMES));  /* 83AAA9 sta */
+L_83AAAB:
+    actor_yield(0x83AAABu);  /* 83AAAB brk */
+    call_frame(0xAAAF, abi_ActorBouncesPlayer);  /* 83AAAD jsr */
+    if (IF_Z) goto L_83AABD;  /* 83AAB0 beq */
+    MEM8(asl, ea_dp(ACTOR_09));  /* 83AAB2 asl */
+    MEM8(lsr, ea_dp(ACTOR_09));  /* 83AAB4 lsr */
+    lda8_v(0x8C);  /* 83AAB6 lda */
+    sta8(ea_dp(ACTOR_STATE));  /* 83AAB8 sta */
+    abi_Kind2DHit();  /* 83AABA jmp */
+    return;
+L_83AABD:
+    call_frame(0xAABF, abi_ActorHitByShotCC);  /* 83AABD jsr */
+    if (IF_C) goto L_83AAC9;  /* 83AAC0 bcs */
+    lda8(ea_dp(ACTOR_FACING));  /* 83AAC2 lda */
+    if (!IF_N) goto L_83AA95;  /* 83AAC4 bpl */
+    abi_Kind2DHit();  /* 83AAC6 jmp */
+    return;
+L_83AAC9:
+    jsl_frame(0x83AAC9u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83AAC9 jsl */
+    jsl_frame(0x83AACDu); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83AACD jsl */
+    MEM8(dec, ea_dp(K2D_STUN_FRAMES));  /* 83AAD1 dec */
+    if (!IF_Z) goto L_83AAAB;  /* 83AAD3 bne */
+    lda8_v(0x80);  /* 83AAD5 lda */
+    tsb8(ea_dp(ACTOR_09));  /* 83AAD7 tsb */
+    abi_Kind2DAfterThrow();  /* 83AAD9 jmp */
+}

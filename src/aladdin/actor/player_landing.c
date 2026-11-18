@@ -44,11 +44,10 @@ void abi_SoundQueueAdd(void);
 /* A byte of work RAM it puts in PLAYER_LANDED (an absolute $0001 where
    the other landings put an immediate 1) */
 #define V_0001 0x000001u
-/* Not yet filed (no script reaches it): pushes the player out of the
-   actor's box sideways. */
-#define PLAYER_PUSH_ASIDE 0x8380C3u
+#define HIT_BOXES 0xC29Au         /* the hit boxes: 4 bytes each, the half-width first (data bank) */
+#define TEST_BOX_HALF_W 0x001488u  /* the test box's half-width */
 /* Not yet filed (no script reaches it): the pad met from the side, or
-   with a state $8C counted: PLAYER_PUSH_ASIDE, then its next frame. */
+   with a state $8C counted: PlayerPushAside, then its next frame. */
 #define PAD_FROM_SIDE 0x83FA40u
 
 /*
@@ -297,4 +296,47 @@ void abi_LandingPad(void)
         wr8(dba(PLAYER_LANDED), landed);
     }
     jump_routine(PAD_FROM_SIDE);
+}
+
+/*
+ * @routine 83:80C3 PlayerPushAside
+ * WHAT IT DOES: Puts Aladdin beside the actor, just out of its box: on
+ * its left when he is left of it (or at its x), else on its right.
+ * HOW: 16-bit: Y = the actor's box ($06) times 4; its x pixels less his
+ * ($08E7), the borrow kept (PHP); the box's half-width (HIT_BOXES,Y)
+ * plus 1 plus TEST_BOX_HALF_W; with no borrow (he is left of it, or at
+ * its x) that is negated, plus 1 (EOR #$FFFF, INC, INC); his x pixels =
+ * that plus its x pixels. M and X 8-bit.
+ * Entry: M and X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM and whose HIT_BOXES is the box table; called
+ * by JSR. Exit: M and X
+ * 8-bit (Y high byte cleared); A = his new x pixels (word); N, Z, C from
+ * the last ADC.
+ */
+void abi_PlayerPushAside(void)
+{
+    op_rep(0x30);
+    lda16(ea_dp(ACTOR_06));
+    and16_v(0x00FF);
+    ACC16(asl);
+    ACC16(asl);
+    tay16();
+    lda16(ea_dp(ACTOR_X + 1));
+    sec();
+    sbc16_v(rd16(ea_abs(PLAYER_X_PIXELS)));
+    php();
+    lda16(ea_absy(HIT_BOXES));
+    ACC16(inc);
+    clc();
+    adc16_v(rd16(ea_abs(TEST_BOX_HALF_W)));
+    cpu.p = op_pull8();
+    if (!IF_C) goto beside;
+    eor16_v(0xFFFF);
+    ACC16(inc);
+    ACC16(inc);
+beside:
+    clc();
+    adc16_v(rd16(ea_dp(ACTOR_X + 1)));
+    sta16(ea_abs(PLAYER_X_PIXELS));
+    op_sep(0x30);
 }

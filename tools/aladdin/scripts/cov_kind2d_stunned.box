@@ -1,0 +1,37 @@
+# Kind $2D in its third state (Kind2DStunned, $83:AA95), entered by state
+# $CC, on stage a5 s2 with the kind $2D at record $0BFB (x $0110, y $00A0),
+# the camera put at x $0080 (Aladdin is held inside the view):
+# 1. Put in state $CC, and Aladdin dropped onto it from above: he bounces
+#    on it, so it goes into its hit state ($83:AAB2).
+# 2. Again from the state, put in state $CC with its flip $80, and Aladdin
+#    at x $00D0 facing right throws an apple at it; the apple (record
+#    $09CB) made harmless in flight (its $11 = $80), so the hit turns the
+#    actor with bit 7 set (ActorHitByShotCC's harmless path, $83:8135):
+#    it is hit facing left ($83:AAC6).
+# 3. Again, put in state $CC and left alone: its 96 frames run out
+#    ($83:AAD5).
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BFB CC
+wait 2
+poke 0008E7 10,01
+poke 0008EA 70,00
+wait 110
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000C10 80
+poke 000BFB CC
+wait 2
+poke 0008E7 D0,00
+hold RIGHT 2
+press A
+poke 0009DC 80
+wait 110
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 000BFB CC
+wait 110

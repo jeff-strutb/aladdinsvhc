@@ -1,0 +1,18 @@
+# Actor kind $3F (Kind3FStart, $83:B19A), the platform that crumbles once
+# Aladdin has ridden it ($83:B1C0 on): on stage a4 s1 (level $0C) the one
+# at x $0373, y $02D8 (record $0CEB), the camera put at x $0300, y $0260
+# and Aladdin held above it until it is placed, then dropped from y
+# $02B0: he lands on it (its $43 set by its wait), its $42 runs down from
+# $30, it crumbles (sound $2C) and ends $38 frames later.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 00,03
+poke 0019E5 00,03
+poke 001777 60,02
+poke 0019E9 60,02
+poke 0008E7 73,03
+poke 0008EA 00,02
+wait 40
+poke 0008E7 73,03
+poke 0008EA B0,02
+wait 180

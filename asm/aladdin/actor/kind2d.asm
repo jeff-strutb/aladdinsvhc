@@ -17,6 +17,7 @@ arch 65816
 !K2D_FIRST = $47                ; the throw's frames, by $07
 !K2D_AT = $48                   ; the frame of the throw the copy leaves at, by $07
 !K2D_AGAIN = $49                ; set once a $07 = 2 thrower has thrown twice
+!K2D_STUN_FRAMES = $4A          ; its third state: frames left
 !K2D_4F = $4F                   ; 0: a thrower; 1: a thrown copy
 !K2D_29 = $29                   ; word: $8911
 !K2D_REACH_X = $D122            ; (bank $83) by facing * 4: x offset (word), then reach (word)
@@ -386,3 +387,55 @@ Kind2DHit:
     ldy.b #$03
     jmp.w ActorKnockedAwayResumedB
 
+; @routine 83:AA95 Kind2DStunned
+; @actor
+; WHAT IT DOES: Kind $2D in its third state: it stands stunned, facing
+; the way it is flipped, for 96 frames, then rests after a throw
+; (Kind2DAfterThrow). Aladdin bouncing on it, or a shot reaching it
+; while it faces left, sends it into its hit state (Kind2DHit); a shot
+; while it faces right starts it stunned again.
+; HOW: ACTOR_FACING = ACTOR_FLIP; ACTOR_09 bit 7 cleared (its wait
+; stops); AnimStart 6; ActorPictureSend; K2D_STUN_FRAMES = $60. Each frame
+; (BRK first): ActorBouncesPlayer (JSR) nonzero: ACTOR_09 bit 7 cleared
+; (ASL, LSR), state $8C, JMP Kind2DHit. ActorHitByShotCC (JSR) C clear:
+; facing not negative: from the start again; negative: JMP Kind2DHit.
+; Else AnimStep, ActorPictureSend, K2D_STUN_FRAMES down; at 0 ACTOR_09
+; bit 7 set and JMP Kind2DAfterThrow. The bounce and the shot while it
+; faces left no script meets.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $2D
+; in its third state (the table at $83:90A1). Exit: never returns.
+%at($83AA95)
+Kind2DStunned:
+    lda.b !actor_flip
+    sta.b !actor_facing
+    lda.b #$80
+    trb.b !actor_09
+    lda.b #$06
+    jsl.l AnimStart
+    jsl.l ActorPictureSend
+    lda.b #$60
+    sta.b !K2D_STUN_FRAMES
+.frame:
+    brk.b #$00
+    jsr.w ActorBouncesPlayer
+    beq .no_bounce
+    asl.b !actor_09
+    lsr.b !actor_09
+    lda.b #$8C
+    sta.b !actor_state
+    jmp.w Kind2DHit
+.no_bounce:
+    jsr.w ActorHitByShotCC
+    bcs .no_shot
+    lda.b !actor_facing
+    bpl Kind2DStunned
+    jmp.w Kind2DHit
+.no_shot:
+    jsl.l AnimStep
+    jsl.l ActorPictureSend
+    dec.b !K2D_STUN_FRAMES
+    bne .frame
+    lda.b #$80
+    tsb.b !actor_09
+    jmp.w Kind2DAfterThrow
