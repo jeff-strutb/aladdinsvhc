@@ -629,6 +629,48 @@ ActorMoveByVector:
     sep.b #$10
     rtl
 
+; @routine 81:A897 ActorMoveBackByVector
+; WHAT IT DOES: Moves the actor back by a vector from direction set X (the
+; set's left vector when it faces left): ActorMoveByVector the other way.
+; HOW: The set's first vector (a word at $BBB9 + X) plus the facing (its
+; word read, the low byte kept) is the vector; its 24-bit x and y parts
+; are taken from the position.
+; Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+; bank; X = the set's byte offset. Exit: M and X 8-bit; X = the vector's
+; low byte; A low byte = the y position's high byte; N, V, Z, C from its
+; SBC; Y unchanged.
+%at($81A897)
+ActorMoveBackByVector:
+    rep.b #$30
+    clc
+    lda.b !actor_facing
+    and.w #$00FF
+    adc.w !vector_sets,x
+    tax
+    sep.b #$20
+    sec
+    lda.b !actor_x
+    sbc.l !vector_x_frac,x
+    sta.b !actor_x
+    lda.b !actor_x+1
+    sbc.l !vector_x_mid,x
+    sta.b !actor_x+1
+    lda.b !actor_x+2
+    sbc.l !vector_x_hi,x
+    sta.b !actor_x+2
+    sec
+    lda.b !actor_y
+    sbc.l !vector_y_frac,x
+    sta.b !actor_y
+    lda.b !actor_y+1
+    sbc.l !vector_y_mid,x
+    sta.b !actor_y+1
+    lda.b !actor_y+2
+    sbc.l !vector_y_hi,x
+    sta.b !actor_y+2
+    sep.b #$10
+    rtl
+
 ; @routine 81:A8DA ActorSpeedAddVector
 ; WHAT IT DOES: Adds a vector from direction set X to the actor's speeds,
 ; the set's left vector when it faces left.

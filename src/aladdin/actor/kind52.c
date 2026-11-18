@@ -16,6 +16,7 @@ void abi_ActorZoneHasTestBox(void);
 void abi_AnimStart(void);
 void abi_AnimStep(void);
 void abi_PlayerEnter8CFacing(void);
+void abi_ActorSpawnSameLook(void);
 void abi_RandomFromList(void);
 void abi_RandomNext(void);
 void abi_SoundQueueAdd(void);
@@ -27,6 +28,7 @@ void abi_SoundQueueAdd(void);
 #define KIND52_LIFE 0x44u          /* variant: frames left of turning toward the player */
 #define KIND52_TURN_IN 0x43u       /* variant: frames left to its next turn */
 #define KIND52_DONE_TURNING 0x46u  /* variant: nonzero once its turning time is over */
+#define KIND_COUNT 0x7EFF00u        /* by hit box, how many such actors are live */
 #define PLAYER_X_PIXEL (PLAYER + ACTOR_X + 1)
 
 /*
@@ -61,7 +63,8 @@ void abi_SoundQueueAdd(void);
  * The block at $83:D42E-D46B (a COP wait, ActorSpawnSameLook with its hit
  * box and a count up at $7E:FF00 by hit box, setting $42) is reached from
  * nowhere: the table at $D3F7 holds $D3FD, $D46C, $D46C, and no branch,
- * jump or pointer names it. It has no C, as no entry can run it.
+ * jump or pointer names it. Its C stands where the block does, under a
+ * label nothing jumps to.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for state $0C. Exit: never returns; the variant
  * ends in ActorEndOutOfRange.
@@ -175,6 +178,34 @@ L_83D419:
     abi_RandomFromList();  /* 83D425 jsl */
     sta8(ea_dp(KIND52_REST));  /* 83D429 sta */
     goto L_83D3B8;  /* 83D42B jmp */
+    /* Reached from nowhere (see the header). */
+L_83D42E: __attribute__((unused));
+    lda8(ea_dp(KIND52_SPARE));  /* 83D42E lda */
+    if (!IF_Z) goto L_83D3B8;  /* 83D430 bne, 83D469 jmp */
+    lda8_v(0x06);  /* 83D432 lda */
+    abi_AnimStart();  /* 83D434 jsl */
+    lda8_v(0x18);  /* 83D438 lda */
+    actor_wait(0x83D43Au);  /* 83D43A cop */
+    lda8(ea_dp(ACTOR_FLIP));  /* 83D43C lda */
+    eor8_v(0x01);  /* 83D43E eor */
+    sta8(ea_dp(ACTOR_FLIP));  /* 83D440 sta */
+    lda8(ea_dp(ACTOR_06));  /* 83D442 lda */
+    abi_ActorSpawnSameLook();  /* 83D444 jsl */
+    if (IF_N) goto L_83D455;  /* 83D448 bmi */
+    ldx8(ea_dp(ACTOR_06));  /* 83D44A ldx */
+    lda8(ea_longx(KIND_COUNT));  /* 83D44C lda */
+    ACC8(inc);  /* 83D450 inc */
+    sta8(ea_longx(KIND_COUNT));  /* 83D451 sta */
+L_83D455:
+    lda8(ea_dp(ACTOR_FLIP));  /* 83D455 lda */
+    eor8_v(0x01);  /* 83D457 eor */
+    sta8(ea_dp(ACTOR_FLIP));  /* 83D459 sta */
+    lda8_v(0x00);  /* 83D45B lda */
+    abi_AnimStart();  /* 83D45D jsl */
+    ldx8_v(0x0E);  /* 83D461 ldx */
+    abi_RandomFromList();  /* 83D463 jsl */
+    sta8(ea_dp(KIND52_SPARE));  /* 83D467 sta */
+    goto L_83D3B8;  /* 83D469 jmp */
 L_83D46C:
     ldx8_v(0x10);  /* 83D46C ldx */
     abi_RandomNext();  /* 83D46E jsl */

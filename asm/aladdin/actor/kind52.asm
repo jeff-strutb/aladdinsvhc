@@ -48,7 +48,8 @@ arch 65816
 ; The block at $83:D42E-D46B (a COP wait, ActorSpawnSameLook with its hit
 ; box and a count up at $7E:FF00 by hit box, setting $42) is reached from
 ; nowhere: the table at $D3F7 holds $D3FD, $D46C, $D46C, and no branch,
-; jump or pointer names it.
+; jump or pointer names it. Its C stands where the block does, under a
+; label nothing jumps to.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for state $0C. Exit: never returns; the variant
 ; ends in ActorEndOutOfRange.

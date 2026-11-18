@@ -1,8 +1,6 @@
 /*
  * kind58_start.c: actor kind $58's start. Named and described by hand.
- * Held: it calls 81:A897 (ActorMoveByVector backwards), which has no C
- * yet; abi_ActorMoveBackByVector is a placeholder name for it. Its pose
- * helper Kind58Pose is in kind58.c.
+ * Its pose helper Kind58Pose is in kind58.c.
  */
 #include "machine.h"
 #include "ops65.h"
@@ -38,8 +36,8 @@ void abi_Kind58Pose(void);
  * pose 3 (AnimStart 3). K58_LEG = K58_FRAMES = K58_LEGS[$07], $14 =
  * K58_DIRS[$07]. Then for good: each frame (BRK first) Kind58Pose,
  * ActorMoveByVector $14 and ActorCarryPlayer for K58_FRAMES frames; $40
- * frames of Kind58Pose; 2 * K58_LEG frames of Kind58Pose, 81:A897
- * (ActorMoveByVector backwards) $14 and ActorCarryPlayer; $40 frames of
+ * frames of Kind58Pose; 2 * K58_LEG frames of Kind58Pose,
+ * ActorMoveBackByVector $14 and ActorCarryPlayer; $40 frames of
  * Kind58Pose; the next legs forward are 2 * K58_LEG frames too.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for state $0C. Exit: never returns.

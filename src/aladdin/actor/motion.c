@@ -550,6 +550,50 @@ void abi_ActorMoveByVector(void)
 }
 
 /*
+ * @routine 81:A897 ActorMoveBackByVector
+ * WHAT IT DOES: Moves the actor back by a vector from direction set X (the
+ * set's left vector when it faces left): ActorMoveByVector the other way.
+ * HOW: The set's first vector (a word at $BBB9 + X) plus the facing (its
+ * word read, the low byte kept) is the vector; its 24-bit x and y parts
+ * are taken from the position.
+ * Entry: M 8-bit, X 8-bit; D = the actor; the sets at $BBB9 in the data
+ * bank; X = the set's byte offset. Exit: M and X 8-bit; X = the vector's
+ * low byte; A low byte = the y position's high byte; N, V, Z, C from its
+ * SBC; Y unchanged.
+ */
+void abi_ActorMoveBackByVector(void)
+{
+    op_rep(0x30);  /* 81A897 rep */
+    clc();  /* 81A899 clc */
+    lda16(ea_dp(ACTOR_FACING));  /* 81A89A lda */
+    and16_v(0x00FF);  /* 81A89C and */
+    adc16_v(rd16(ea_absx(VECTOR_SETS)));  /* 81A89F adc */
+    tax16();  /* 81A8A2 tax */
+    op_sep(0x20);  /* 81A8A3 sep */
+    sec();  /* 81A8A5 sec */
+    lda8(ea_dp(ACTOR_X));
+    sbc8_v(rd8(ea_longx(VECTOR_X_FRAC)));
+    sta8(ea_dp(ACTOR_X));
+    lda8(ea_dp(ACTOR_X + 1));
+    sbc8_v(rd8(ea_longx(VECTOR_X_MID)));
+    sta8(ea_dp(ACTOR_X + 1));
+    lda8(ea_dp(ACTOR_X + 2));
+    sbc8_v(rd8(ea_longx(VECTOR_X_HI)));
+    sta8(ea_dp(ACTOR_X + 2));
+    sec();
+    lda8(ea_dp(ACTOR_Y));
+    sbc8_v(rd8(ea_longx(VECTOR_Y_FRAC)));
+    sta8(ea_dp(ACTOR_Y));
+    lda8(ea_dp(ACTOR_Y + 1));
+    sbc8_v(rd8(ea_longx(VECTOR_Y_MID)));
+    sta8(ea_dp(ACTOR_Y + 1));
+    lda8(ea_dp(ACTOR_Y + 2));
+    sbc8_v(rd8(ea_longx(VECTOR_Y_HI)));
+    sta8(ea_dp(ACTOR_Y + 2));
+    op_sep(0x10);  /* 81A8D7 sep */
+}
+
+/*
  * @routine 81:A8DA ActorSpeedAddVector
  * WHAT IT DOES: Adds a vector from direction set X to the actor's speeds,
  * the set's left vector when it faces left.

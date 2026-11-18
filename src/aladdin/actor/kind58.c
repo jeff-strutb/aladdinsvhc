@@ -1,7 +1,7 @@
 /*
  * kind58.c: actor kind $58, the platforms of stage a3 s0 that move to and
  * fro along a direction, which Aladdin rides or hangs from: the pose it
- * shows each frame. Its start is in kind58_start.c.held (held), its wait
+ * shows each frame. Its start is in kind58_start.c, its wait
  * Kind58Wait (kind_waits_rest.c). Named and described by hand.
  */
 #include "machine.h"

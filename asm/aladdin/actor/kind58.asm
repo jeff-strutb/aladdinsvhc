@@ -34,7 +34,7 @@ arch 65816
 ; K58_DIRS[$07]. Then for good: each frame (BRK first) Kind58Pose,
 ; ActorMoveByVector $14 and ActorCarryPlayer for K58_FRAMES frames; $40
 ; frames of Kind58Pose; 2 * K58_LEG frames of Kind58Pose,
-; 81:A897 (ActorMoveByVector backwards) $14 and ActorCarryPlayer; $40 frames of
+; ActorMoveBackByVector $14 and ActorCarryPlayer; $40 frames of
 ; Kind58Pose; the next legs forward are 2 * K58_LEG frames too.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for state $0C. Exit: never returns.
@@ -97,7 +97,7 @@ Kind58Start:
     brk.b #$00
     jsr.w Kind58Pose
     ldx.b #$14
-    jsl.l $81A897               ; the reverse of ActorMoveByVector, not yet filed
+    jsl.l ActorMoveBackByVector
     jsr.w ActorCarryPlayer
     dec.b !K58_FRAMES
     bne .back
