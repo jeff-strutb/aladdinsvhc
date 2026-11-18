@@ -14,13 +14,10 @@ arch 65816
 ; @routine 81:ABEA ActorDirectionToPlayer
 ; WHAT IT DOES: The direction from the actor to the player, as one of the
 ; directions in the table at $BBE3.
-; HOW: The distances across and up or down (made positive, the quadrant
-; kept: 4 for the player above, 2 for left); the band is 0 when the smaller
-; distance is under a quarter of the larger, 1 under three quarters, else
-; 2; the quadrant * 4 plus the band picks the direction.
-; Entry: D = the actor; DB = $81; called by JSL. Exit: M and X 8-bit; A =
-; the direction (16 bits, low byte as M 8-bit); X = its index; Y = the
-; quadrant; scratch $0C-$13 the distances.
+; HOW: 16-bit registers; the player's x and y pixels to scratch $10 and
+; $12; then on into ActorDirectionToPoint.
+; Entry: D = the actor; DB = $81; called by JSL. Exit: as
+; ActorDirectionToPoint.
 %at($81ABEA)
 ActorDirectionToPlayer:
     rep.b #$30
@@ -29,7 +26,20 @@ ActorDirectionToPlayer:
     sta.w !scratch+4
     lda.w !actor_y+1,x
     sta.w !scratch+6
-.to_point:
+; @routine 81:ABFB ActorDirectionToPoint
+; WHAT IT DOES: The direction from the actor to the point at scratch $10,
+; $12, as one of the directions in the table at $BBE3.
+; HOW: The distances across and up or down (made positive, the quadrant
+; kept: 4 for the point above, 2 for left); the band is 0 when the smaller
+; distance is under a quarter of the larger, 1 under three quarters, else
+; 2; the quadrant * 4 plus the band picks the direction.
+; Entry: M and X 16-bit; D = the actor; scratch $10, $12 = the point's x
+; and y; DB = $81; reached from ActorDirectionToPlayer and by a jump from
+; ActorDirectionToPlayerOffset. Exit: M and X 8-bit; A = the direction (16
+; bits, low byte as M 8-bit); X = its index; Y = the quadrant; scratch
+; $0C-$13 the distances.
+%at($81ABFB)
+ActorDirectionToPoint:
     ldy.w #$0000
     lda.w !scratch+6
     sec
@@ -138,14 +148,14 @@ PlayerInFrontBox:
 ; WHAT IT DOES: The direction from the actor to a point by the player
 ; (PlayerOffsetPoint), as ActorDirectionToPlayer gives it to the player.
 ; No code refers to it.
-; HOW: PlayerOffsetPoint, then into ActorDirectionToPlayer after it puts
-; the player's position at $10, $12 (81:ABFB).
+; HOW: PlayerOffsetPoint, then on at ActorDirectionToPoint (81:ABFB),
+; past ActorDirectionToPlayer's putting the player's position at $10, $12.
 ; Entry: as PlayerOffsetPoint; called by JSL. Exit: as
 ; ActorDirectionToPlayer.
 %at($81ABB4)
 ActorDirectionToPlayerOffset:
     jsr.w PlayerOffsetPoint
-    jmp.w ActorDirectionToPlayer_to_point
+    jmp.w ActorDirectionToPoint
 
 ; @routine 81:ABBA ActorAimAtPlayerOffset
 ; WHAT IT DOES: The direction from the actor to a point by the player

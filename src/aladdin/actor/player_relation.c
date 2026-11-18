@@ -7,58 +7,75 @@
 #include "cpu_ops.h"
 #include "ops65.h"
 void abi_ActorDirectionToPlayer(void);
+void abi_ActorDirectionToPoint(void);
 void abi_PlayerInFrontBox(void);
 void abi_ActorAimAt(void);
 #include "actor.h"
 #include "wram.h"
 
-/* ActorDirectionToPlayer from 81:ABFB: the direction from the actor to
-   the point at scratch $10, $12 (the table at $BBE3), M and X 16-bit. */
-static void direction_to_point(void)
+/*
+ * @routine 81:ABFB ActorDirectionToPoint
+ * WHAT IT DOES: The direction from the actor to the point at scratch $10,
+ * $12, as one of the directions in the table at $BBE3.
+ * HOW: The distances across and up or down (made positive, the quadrant
+ * kept: 4 for the point above, 2 for left); the band is 0 when the smaller
+ * distance is under a quarter of the larger, 1 under three quarters, else
+ * 2; the quadrant * 4 plus the band picks the direction.
+ * Entry: M and X 16-bit; D = the actor; scratch $10, $12 = the point's x
+ * and y; DB = $81; reached from ActorDirectionToPlayer and by a jump from
+ * ActorDirectionToPlayerOffset. Exit: M and X 8-bit; A = the direction (16
+ * bits, low byte as M 8-bit); X = its index; Y = the quadrant; scratch
+ * $0C-$13 the distances.
+ */
+void abi_ActorDirectionToPoint(void)
 {
-    uint16_t dy, dx, small, large, quarter, a;
+    uint16_t a, t;
 
-    /* the distances (Y: bit 2 when the point is above, bit 1 when left) */
+    /* the distances (Y: bit 2 when the point is above, bit 1 when left);
+       each compare and add reads its scratch word, as the asm does */
     cpu.y = 0;
+    a = rd16(dba(SCRATCH + 6));
     flag_set(P_C, 1);
-    dy = rd16(dba(SCRATCH + 6));
-    dy = op_sbc16(dy, dp16(ACTOR_Y + 1), &cpu.p);
+    a = op_sbc16(a, dp16(ACTOR_Y + 1), &cpu.p);
     if (!(cpu.p & P_C)) {
-        dy = (uint16_t)((dy ^ 0xFFFF) + 1);
+        a = (uint16_t)((a ^ 0xFFFF) + 1);
         cpu.y = 4;
     }
-    wr16(dba(SCRATCH), dy);
+    wr16(dba(SCRATCH), a);
+    a = rd16(dba(SCRATCH + 4));
     flag_set(P_C, 1);
-    dx = rd16(dba(SCRATCH + 4));
-    dx = op_sbc16(dx, dp16(ACTOR_X + 1), &cpu.p);
+    a = op_sbc16(a, dp16(ACTOR_X + 1), &cpu.p);
     if (!(cpu.p & P_C)) {
-        dx = (uint16_t)((dx ^ 0xFFFF) + 1);
+        a = (uint16_t)((a ^ 0xFFFF) + 1);
         cpu.y = (uint16_t)(cpu.y + 2);
     }
-    /* bit 0 when the y distance is the greater: SCRATCH the smaller */
-    cmp16_of(dx, dy);
-    large = dx;
-    small = dy;
-    if (dx < dy) {
+    /* bit 0 when the y distance is the greater: SCRATCH the smaller, A
+       the larger */
+    t = rd16(dba(SCRATCH));
+    cmp16_of(a, t);
+    if (a < t) {
         cpu.y = (uint16_t)(cpu.y + 1);
-        cpu.x = dy;
-        wr16(dba(SCRATCH), dx);
-        large = dy;
-        small = dx;
+        cpu.x = rd16(dba(SCRATCH));
+        wr16(dba(SCRATCH), a);
+        a = cpu.x;
     }
     /* how steep: 0 when the smaller is within a quarter of the larger,
        1 within three quarters, else 2 */
     cpu.x = 0;
-    flag_set(P_C, (large >> 1) & 1);
-    quarter = (uint16_t)(large >> 2);
-    wr16(dba(SCRATCH + 2), quarter);
-    cmp16_of(quarter, small);
-    if (quarter < small) {
+    flag_set(P_C, (a >> 1) & 1);
+    a = (uint16_t)(a >> 2);
+    wr16(dba(SCRATCH + 2), a);
+    t = rd16(dba(SCRATCH));
+    cmp16_of(a, t);
+    if (a < t) {
         cpu.x = 1;
-        a = op_adc16(quarter, quarter, &cpu.p);
-        a = op_adc16(a, quarter, &cpu.p);
-        cmp16_of(a, small);
-        if (a < small)
+        t = rd16(dba(SCRATCH + 2));
+        a = op_adc16(a, t, &cpu.p);
+        t = rd16(dba(SCRATCH + 2));
+        a = op_adc16(a, t, &cpu.p);
+        t = rd16(dba(SCRATCH));
+        cmp16_of(a, t);
+        if (a < t)
             cpu.x = 2;
     }
     wr16(dba(SCRATCH), (uint16_t)(cpu.y << 2));
@@ -72,13 +89,10 @@ static void direction_to_point(void)
  * @routine 81:ABEA ActorDirectionToPlayer
  * WHAT IT DOES: The direction from the actor to the player, as one of the
  * directions in the table at $BBE3.
- * HOW: The distances across and up or down (made positive, the quadrant
- * kept: 4 for the player above, 2 for left); the band is 0 when the smaller
- * distance is under a quarter of the larger, 1 under three quarters, else
- * 2; the quadrant * 4 plus the band picks the direction.
- * Entry: D = the actor; DB = $81; called by JSL. Exit: M and X 8-bit; A =
- * the direction (16 bits, low byte as M 8-bit); X = its index; Y = the
- * quadrant; scratch $0C-$13 the distances.
+ * HOW: 16-bit registers; the player's x and y pixels to scratch $10 and
+ * $12; then on into ActorDirectionToPoint.
+ * Entry: D = the actor; DB = $81; called by JSL. Exit: as
+ * ActorDirectionToPoint.
  */
 void abi_ActorDirectionToPlayer(void)
 {
@@ -86,7 +100,7 @@ void abi_ActorDirectionToPlayer(void)
     cpu.x = PLAYER;
     wr16(dba(SCRATCH + 4), rd16(dba(PLAYER + ACTOR_X + 1)));
     wr16(dba(SCRATCH + 6), rd16(dba(PLAYER + ACTOR_Y + 1)));
-    direction_to_point();
+    abi_ActorDirectionToPoint();
 }
 
 /*
@@ -191,15 +205,15 @@ void abi_PlayerOffsetPoint(void)
  * WHAT IT DOES: The direction from the actor to a point by the player
  * (PlayerOffsetPoint), as ActorDirectionToPlayer gives it to the player.
  * No code refers to it.
- * HOW: PlayerOffsetPoint, then into ActorDirectionToPlayer after it puts
- * the player's position at $10, $12 (81:ABFB).
+ * HOW: PlayerOffsetPoint, then on at ActorDirectionToPoint (81:ABFB),
+ * past ActorDirectionToPlayer's putting the player's position at $10, $12.
  * Entry: as PlayerOffsetPoint; called by JSL. Exit: as
  * ActorDirectionToPlayer.
  */
 void abi_ActorDirectionToPlayerOffset(void)
 {
     player_offset_point();
-    direction_to_point();
+    abi_ActorDirectionToPoint();
 }
 
 /*
