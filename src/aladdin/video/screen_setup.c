@@ -37,6 +37,30 @@ void abi_ScrollStateClear(void)
 }
 
 /*
+ * @routine 81:984A DisplayShadowsClear
+ * WHAT IT DOES: Clears the display's shadows at $038B-$03B9 (TMW's at
+ * $038B among them), turns the window edges, the
+ * screen's settings (SETINI) and HDMA off. Nothing in the game calls it.
+ * HOW: STZ to $038B+X for X from $2E down to 0; then WH0-WH3, SETINI and
+ * HDMAEN written 0.
+ * Entry: M 8-bit, X 8-bit; DB = $00-$3F or $80-$BF; called by JSL. Exit:
+ * X = $FF, N set, Z clear (DEX); A, Y unchanged.
+ */
+void abi_DisplayShadowsClear(void)
+{
+    ldx8_v(0x2E);
+    do
+        stz8(ea_absx(0x038B));
+    while (dex8(), !IF_N);
+    stz8(ea_abs((uint16_t)WH0));
+    stz8(ea_abs((uint16_t)WH1));
+    stz8(ea_abs((uint16_t)WH2));
+    stz8(ea_abs((uint16_t)WH3));
+    stz8(ea_abs((uint16_t)SETINI));
+    stz8(ea_abs((uint16_t)HDMAEN));
+}
+
+/*
  * @routine 81:9865 DisplayDefaults
  * WHAT IT DOES: Puts the display's settings back to their defaults:
  * sprites from VRAM $6000 (OBSEL = 3), colour math's shadows to their

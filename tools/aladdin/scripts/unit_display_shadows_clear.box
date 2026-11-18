@@ -1,0 +1,7 @@
+# The display's shadows at $038B-$03B9, the window edges, SETINI and
+# HDMAEN cleared ($81:984A, DisplayShadowsClear): nothing in the game calls
+# it, so no screen runs it; a unit call by JSL on the first level's state
+# (M and X 8-bit, DB $80). (The machine is put back after the call.)
+load build/aladdin/states/level1.state
+wait 10
+call 81984A long db=80 p=30
