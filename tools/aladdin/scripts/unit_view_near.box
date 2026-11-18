@@ -1,0 +1,10 @@
+# Unit calls of ActorNearViewX (81:AD48) and ActorNearViewY (81:AD84),
+# which no code refers to: whether the actor is within a half-size (span
+# Y's, from $80:BC7B and $80:BC85) of the view's middle ($80 past its left
+# edge $1773, or its top $1777). By JSL in a level (stage_a0_s0), M and X
+# 8-bit, DB $80, the actor Aladdin's record ($08DB), span 0, the machine
+# put back after each.
+load build/aladdin/states/stage_a0_s0.state
+wait 2
+call 81AD48 long p=30 db=80 d=08DB y=00
+call 81AD84 long p=30 db=80 d=08DB y=00
