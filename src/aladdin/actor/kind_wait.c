@@ -44,6 +44,7 @@ void abi_Kind81WaitWork(void);
 void abi_Kind84WaitWork(void);
 void abi_Kind8CWaitWork(void);
 void abi_Kind97WaitWork(void);
+void abi_Kind98WaitWork(void);
 void abi_Kind99WaitWork(void);
 void abi_Kind9AWaitWork(void);
 void abi_Kind9EWaitWork(void);
@@ -677,6 +678,23 @@ void abi_ActorKind97Wait(void)
 {
     jsl_frame(0x8393B9u);
     abi_Kind97WaitWork();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+/*
+ * @routine 83:93C2 ActorKind98Wait
+ * WHAT IT DOES: The routine actors of kind $98 run each frame they wait
+ * (not the last), when bit 7 of their byte at $09 is set: Kind98WaitWork.
+ * HOW: JSL Kind98WaitWork ($84:A39C), then RTS; its C makes the JSL's
+ * return frame (jsl_frame).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+ * (its low 7 bits); called by JSR through the actor loop's table by kind.
+ * Exit: as Kind98WaitWork leaves them.
+ */
+void abi_ActorKind98Wait(void)
+{
+    jsl_frame(0x8393C2u);
+    abi_Kind98WaitWork();
     cpu.s = (uint16_t)(cpu.s + 3);
 }
 

@@ -1,0 +1,63 @@
+# Actor kind $98 (Kind98Start 84:A112, its second state 84:A2A6, its wait
+# 84:A39C through the stub at $83:93C2): the flyer placed on stage a5 s2
+# at x $1280, which play from the stage's start never comes near. The
+# view put at x $1200, y 0 and Aladdin at x $1240.
+# Not run: the JMP at 84:A20F, which follows the flight's JMP to $A25F at
+# 84:A20C and is the target of no branch or jump: no input reaches it.
+# A. As placed: it flies at him and back (the way RandomFromList list $3E
+# picks, here the first), drops a kind $9A on the way.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+wait 900
+# B. The random number ($032B) held at $003F each frame for 300 frames, so
+# its first pick of list $3E is the second way ($84:A224: a pose, sound
+# $47, a child of kind $23 from it); after it its direction ($44) is 0, and
+# with the numbers left to run the next cycle's flight takes that branch
+# ($84:A212).
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+repeat 300
+poke 00032B 3F,00
+wait 1
+end
+wait 2400
+# C. Its record ($0B5B) put in its second state ($8C, as a hit puts it)
+# with its count ($11) at 0: the defeat ($84:A36D: $00BD set, $1B14 up,
+# pose 1, sound $46, $30 frames, then it ends).
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+wait 400
+poke 000B6C 00
+poke 000B5B 8C
+wait 200
+# D. As C with its count left as it was: hit, it falls, rests, rises, throws
+# three kind $A5 and flies on ($84:A2C3 on).
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+wait 400
+poke 000B5B 8C
+wait 900

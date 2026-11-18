@@ -490,6 +490,19 @@ ActorKind97Wait:
     jsl.l Kind97WaitWork
     rts
 
+; @routine 83:93C2 ActorKind98Wait
+; WHAT IT DOES: The routine actors of kind $98 run each frame they wait
+; (not the last), when bit 7 of their byte at $09 is set: Kind98WaitWork.
+; HOW: JSL Kind98WaitWork ($84:A39C), then RTS; its C makes the JSL's
+; return frame (jsl_frame).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
+; (its low 7 bits); called by JSR through the actor loop's table by kind.
+; Exit: as Kind98WaitWork leaves them.
+%at($8393C2)
+ActorKind98Wait:
+    jsl.l Kind98WaitWork
+    rts
+
 ; @routine 83:93CF ActorKind99Wait
 ; WHAT IT DOES: The routine actors of kind $99 run each frame they wait
 ; (not the last), when bit 7 of their byte at $09 is set: Kind99WaitWork.
