@@ -1,0 +1,20 @@
+# Kind $20's guard with $07 bit 4 (Kind20Carrier, $83:9AC9) and its pot (kind
+# $42, Kind42Start $83:C5DE), which no level places: on the first level
+# the guard at record $0BAB is put back in its start state ($0C) with $07
+# bit 4 set. The free list's top entry ($15D4, top offset $32) is made
+# $0B0B first, a free record before the guard's: the pot is made there, so
+# the guard writes its own resume address ($83:9B53), swaps its record with
+# the pot's ($83:9B12) and goes on as the pot (Kind42Start); the next frame
+# the loop resumes the guard from $0B0B at Kind20CarrierWaits. Aladdin is
+# put at x $00D0 (the view at x $0080) 5 frames on, so it throws.
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 0015D4 0B,0B
+poke 000BB2 13
+poke 000BAB 0C
+wait 5
+poke 0008E7 D0,00
+poke 0008EA B0,01
+wait 200

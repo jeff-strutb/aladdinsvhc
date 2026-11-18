@@ -1,0 +1,25 @@
+# Kind $20's guard with $07 bit 4 (Kind20Carrier, $83:9AC9) and its pot (kind
+# $42, Kind42Start $83:C5DE), which no level places: on the first level
+# the guard at record $0BAB is put back in its start state ($0C) with $07
+# bit 4 set. The guard moved to x $0090 with $07 $10 (facing right, the
+# pot's $07 0: it rolls), the floor at x $0100-$011F emptied (level tile
+# words $7F2380, $7F2382 made $1140, an empty tile) and Aladdin at x $00E0:
+# it throws; 24 frames on Aladdin is put at x $0040, behind it, so the pot
+# passes him and tells the guard (its $4F 2), which turns red and charges
+# (Kind20Spotted). The pot lands, rolls, drops into the gap
+# ($83:C672), rolls on and breaks at the wall ahead (Kind42Break).
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 40,00
+poke 0019E5 40,00
+poke 7F2380 40,11
+poke 7F2382 40,11
+poke 000BB7 90,00
+poke 000BB2 10
+poke 000BAB 0C
+wait 5
+poke 0008E7 E0,00
+poke 0008EA B0,01
+wait 24
+poke 0008E7 40,00
+wait 200

@@ -89,10 +89,20 @@ ActorMapAtOffset:
 ActorSeesPlayer:
     ldx.b #$00
     jsl.l !PLAYER_IN_REACH_Y
-    bcs .not_seen
+    bcs ActorSeesPlayerLine_not_seen
     lda.b !actor_07
     and.b #$10
-    bne .seen
+    bne ActorSeesPlayerLine_seen
+
+; @routine 83:9A54 ActorSeesPlayerLine
+; WHAT IT DOES: ActorSeesPlayer past its reach test: whether the map
+; between the actor and the player is clear (C clear), and then the turn
+; to face him.
+; HOW: As ActorSeesPlayer from its distance in 16-pixel steps on.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR
+; (Kind20CarrierWaits) or run on into from ActorSeesPlayer. Exit: as
+; ActorSeesPlayer.
+ActorSeesPlayerLine:
     rep.b #$20
     ldx.b #$00
     lda.b !actor_x+1

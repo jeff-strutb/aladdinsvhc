@@ -1,0 +1,17 @@
+# Kind $20's guard with $07 bit 4 (Kind20Carrier, $83:9AC9) and its pot (kind
+# $42, Kind42Start $83:C5DE), which no level places: on the first level
+# the guard at record $0BAB is put back in its start state ($0C) with $07
+# bit 4 set. Aladdin put at x $00D0 (the view at x $0080): it makes the
+# pot (record $0BFB, $07 2: it bounces), sees him and throws; the pot
+# bounces at him, hurts him and tells the guard (its $4F 1), which waits
+# 128 frames and walks as a guard (Kind20CarrierWalks, Kind20StartWalk).
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 80,00
+poke 0019E5 80,00
+poke 000BB2 13
+poke 000BAB 0C
+wait 5
+poke 0008E7 D0,00
+poke 0008EA B0,01
+wait 330

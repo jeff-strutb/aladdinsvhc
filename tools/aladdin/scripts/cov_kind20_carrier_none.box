@@ -1,0 +1,12 @@
+# Kind $20's guard with $07 bit 4 (Kind20Carrier, $83:9AC9) and its pot (kind
+# $42, Kind42Start $83:C5DE), which no level places: on the first level
+# the guard at record $0BAB is put back in its start state ($0C) with $07
+# bit 4 set. The free list's top offset ($15E4) is made $FF first (no
+# record free): ActorCreate fails, so the guard walks at once
+# (Kind20CarrierWalks, $83:9AB9).
+load build/aladdin/states/level1.state
+wait 30
+poke 0015E4 FF
+poke 000BB2 13
+poke 000BAB 0C
+wait 60

@@ -11,6 +11,7 @@
 #include "wram.h"
 
 void abi_ActorSideOfPlayer(void);
+void abi_ActorSeesPlayerLine(void);
 
 /* The map test: the class of the level map's block at the point SCRATCH
    (x, word), SCRATCH + 2 (y, word); A = X = it, 8-bit registers. */
@@ -142,19 +143,56 @@ void abi_ActorMapAhead5Down12(void)
  * A low byte = the facing; C set: not seen. M 8-bit, X 8-bit; $48, $4A,
  * $4C and SCRATCH up as the tests leave them.
  */
+/* ActorSeesPlayer's two ends: seen (turned to face him, C clear) and not
+   seen (C set), M back to 8-bit. */
+static void sees_turn(void)
+{
+    abi_ActorSideOfPlayer();
+    wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
+    wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
+    flag_set(P_C, 0);
+    op_sep(P_M);
+}
+
+static void sees_not(void)
+{
+    flag_set(P_C, 1);
+    op_sep(P_M);
+}
+
 void abi_ActorSeesPlayer(void)
 {
-    uint16_t d, steps, w;
     uint8_t v;
 
     x8_load(0x00);
     abi_PlayerInFrontBox();
-    if (cpu.p & P_C)
-        goto not_seen;
+    if (cpu.p & P_C) {
+        sees_not();
+        return;
+    }
     v = rd8(dpa(ACTOR_07)) & 0x10;
     a8_load(v);
-    if (v)                                /* seen through walls */
-        goto seen;
+    if (v) {                              /* seen through walls */
+        sees_turn();
+        return;
+    }
+    abi_ActorSeesPlayerLine();            /* runs on into it */
+}
+
+/*
+ * @routine 83:9A54 ActorSeesPlayerLine
+ * WHAT IT DOES: ActorSeesPlayer past its reach test: whether the map
+ * between the actor and the player is clear (C clear), and then the turn
+ * to face him.
+ * HOW: As ActorSeesPlayer from its distance in 16-pixel steps on.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSR
+ * (Kind20CarrierWaits) or run on into from ActorSeesPlayer. Exit: as
+ * ActorSeesPlayer.
+ */
+void abi_ActorSeesPlayerLine(void)
+{
+    uint16_t d, steps, w;
+
     /* each 16 pixels between it and him (at its height, or 12 below)
        must be an empty block */
     op_rep(P_M);
@@ -169,8 +207,10 @@ void abi_ActorSeesPlayer(void)
     flag_set(P_C, (d >> 3) & 1);
     steps = (uint16_t)(d >> 4);
     a16_load(steps);
-    if (!steps)
-        goto not_seen;
+    if (!steps) {
+        sees_not();
+        return;
+    }
     dp16_set(STEPS_LEFT, steps);
     a16_load(0xFFF0);
     cmp8_of((uint8_t)cpu.x, 0x00);
@@ -196,17 +236,10 @@ void abi_ActorSeesPlayer(void)
             wr16(dba(SCRATCH + 2), cpu.a);
         }
         abi_TileAtProbeLong();
-        if (!(cpu.p & P_Z))
-            goto not_seen;
+        if (!(cpu.p & P_Z)) {
+            sees_not();
+            return;
+        }
     } while (dec8_at(dpa(STEPS_LEFT)));
-seen:
-    abi_ActorSideOfPlayer();
-    wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
-    wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
-    flag_set(P_C, 0);
-    op_sep(P_M);
-    return;
-not_seen:
-    flag_set(P_C, 1);
-    op_sep(P_M);
+    sees_turn();
 }

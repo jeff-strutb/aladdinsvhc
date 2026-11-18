@@ -34,6 +34,7 @@ void abi_ActorSpeedXSet1(void);
 void abi_ActorTileAheadIs70(void);
 void abi_ActorXTo40(void);
 void abi_Kind20Patrol(void);
+void abi_Kind20StartWalk(void);
 void abi_AnimStart(void);
 void abi_SoundQueueAdd(void);
 
@@ -50,7 +51,7 @@ void abi_SoundQueueAdd(void);
 #define SURFACE 0x27u              /* the class of the ground under it */
 #define V_0013 0x0013u             /* $0F: the map test's last block was a ledge */
 #define COPIER_TEST 0x700023u      /* cartridge RAM, which a retail cartridge has none of */
-#define NO_PATROL 0x839AC9u        /* its code for bit 4 of PLACE, which no script reaches */
+#define CARRIER 0x839AC9u          /* Kind20Carrier: the guard with a pot (bit 4 of PLACE) */
 
 /* How a charging frame stopped: 0 by a branch into Kind20Halt (or running
    on into it), HALT_BY_JMP by a JMP to it. */
@@ -207,12 +208,11 @@ static void halt_after(int on)
  * @routine 83:97AF Kind20Start
  * @actor
  * WHAT IT DOES: Actor kind $20's start: a guard set up to walk its beat
- * the way its placement faces.
+ * the way its placement faces, or (PLACE bit 4) one with a pot.
  * HOW: ACTOR_08 bit 1 and ACTOR_09 bits $90 set; KIND20_16 $D05A,
  * KIND20_29 $890F; with PLACE $1F (the ending's scene), AnimStart 0, a
- * 32-frame wait, then PLACE 3; with PLACE bit 4, on at NO_PATROL (no
- * script runs that); Actor44SetBy07, AnimStart 2, facing and flip PLACE
- * bit 0, ActorXTo40, ActorSpeedXSet1; on into Kind20Patrol at its BRK.
+ * 32-frame wait, then PLACE 3; with PLACE bit 4, on at Kind20Carrier (a
+ * guard with a pot, JMP); Actor44SetBy07, then on into Kind20StartWalk.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
  * $0000-$1FFF is work RAM; reached by the actor loop's jump for kind $20
  * (the table at $83:8CAB). Exit: never returns.
@@ -242,10 +242,26 @@ void abi_Kind20Start(void)
     lda8(ea_dp(PLACE));
     bit8_i(0x10);
     if (!IF_Z) {
-        jump_routine(NO_PATROL);
+        jump_routine(CARRIER);
         return;
     }
     abi_Actor44SetBy07();
+    abi_Kind20StartWalk();      /* runs on into it */
+}
+
+/*
+ * @routine 83:97E5 Kind20StartWalk
+ * @actor
+ * WHAT IT DOES: The rest of Kind20Start for a walking guard: animation 2,
+ * facing PLACE bit 0, its speed, then Kind20Patrol.
+ * HOW: AnimStart 2, facing and flip PLACE bit 0, ActorXTo40,
+ * ActorSpeedXSet1; on into Kind20Patrol at its BRK.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached from
+ * Kind20Start (past its Actor44SetBy07) and by Kind20CarrierWalks's JMP
+ * (its beat set by Actor44Set40And80 instead). Exit: never returns.
+ */
+void abi_Kind20StartWalk(void)
+{
     lda8_v(0x02);
     abi_AnimStart();
     lda8(ea_dp(PLACE));

@@ -1,0 +1,13 @@
+# Kind $20's guard with $07 bit 4 (Kind20Carrier, $83:9AC9) and its pot (kind
+# $42, Kind42Start $83:C5DE), which no level places: on the first level
+# the guard at record $0BAB is put back in its start state ($0C) with $07
+# bit 4 set. 10 frames on (the pot made and carried) the guard is put in
+# state $8C, as a shot that strikes it does: its animation shows frame $0E
+# and the pot drops ($83:C67D) and breaks.
+load build/aladdin/states/level1.state
+wait 30
+poke 000BB2 13
+poke 000BAB 0C
+wait 10
+poke 000BAB 8C
+wait 100
