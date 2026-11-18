@@ -1,0 +1,189 @@
+# Actor kind $87 (Kind87Start, $83:F77F) catching Aladdin, which no play
+# does: rand_stage_a5_s1.box played to its end, where the kind $87 in
+# record $0ECB (x $05D8, y $0164) waits; Aladdin put at x $05D8, y $0164,
+# in its zone.
+# A. It takes hold of him ($83:F7BA), holds him $30 frames, shakes him
+# moving him with it, lets him go (his code $CDD2), drops, makes its five
+# children and blinks out.
+load build/aladdin/states/stage_a5_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 82
+hold B 69
+hold L 10
+hold UP+B 54
+hold R 17
+hold R 11
+hold B+RIGHT 60
+hold Y+RIGHT 80
+poke 0008E7 D8,05
+poke 0008EA 64,01
+wait 300
+# B. As A, with Aladdin taken no longer ($1427 cleared) at frame 30, in its
+# hold: it stops holding him ($83:F7E2), and shakes without him ($83:F80E).
+load build/aladdin/states/stage_a5_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 82
+hold B 69
+hold L 10
+hold UP+B 54
+hold R 17
+hold R 11
+hold B+RIGHT 60
+hold Y+RIGHT 80
+poke 0008E7 D8,05
+poke 0008EA 64,01
+wait 30
+poke 001427 00
+wait 100
+# C. Its $42 set before he comes: it skips the catch and goes straight to
+# the shake and its end.
+load build/aladdin/states/stage_a5_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 82
+hold B 69
+hold L 10
+hold UP+B 54
+hold R 17
+hold R 11
+hold B+RIGHT 60
+hold Y+RIGHT 80
+poke 000F0D 01
+wait 120
