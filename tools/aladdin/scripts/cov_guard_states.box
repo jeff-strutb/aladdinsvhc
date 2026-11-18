@@ -1,0 +1,103 @@
+# Bank $A5's guard (kind $08) by GuardWait's states, which play meets
+# only in part: on the first level the guard in record $092B (x $0015,
+# Aladdin at x $003A) given each state ($4D) with its x, facing ($14),
+# GUARD_HELD ($41), $146B or health ($0367) set for the branch named, and
+# two frames of GuardWait.
+# GuardIdle (state 3).
+load build/aladdin/states/level1.state
+wait 10
+poke 000978 03
+wait 2
+# GuardHoldLeft, the player to its left, facing left, not held (GUARD_HELD
+# is a word: $42, left at $28 by its walk, cleared too): stopped, it keeps
+# pace.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 80,00
+poke 00093F 01
+poke 00096C 00,00
+poke 000978 04
+wait 2
+# GuardHoldLeft, the player to its left, facing right, held.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 80,00
+poke 00093F 00
+poke 00096C 01
+poke 000978 04
+wait 2
+# GuardHoldLeft, the player level or to its right: calm (state 1).
+load build/aladdin/states/level1.state
+wait 10
+poke 000978 04
+wait 2
+# GuardHoldRight, the player to its right, facing right, not held ($41
+# and $42 cleared).
+load build/aladdin/states/level1.state
+wait 10
+poke 00093F 00
+poke 00096C 00,00
+poke 000978 05
+wait 2
+# GuardHoldRight, the player to its right, facing left, held.
+load build/aladdin/states/level1.state
+wait 10
+poke 00093F 01
+poke 00096C 01
+poke 000978 05
+wait 2
+# GuardHoldRight, the player to its left: calm.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 80,00
+poke 000978 05
+wait 2
+# GuardRunOff, held.
+load build/aladdin/states/level1.state
+wait 10
+poke 00096C 01
+poke 000978 06
+wait 2
+# GuardRunOff, more than 192 right of the player: gone.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 00,02
+poke 000978 06
+wait 2
+# GuardRunOff, near: it speeds off right.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 80,00
+poke 000978 06
+wait 2
+# GuardFaceView far right of the range point.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 00,08
+poke 000978 02
+wait 2
+# GuardFaceView far left of it.
+load build/aladdin/states/level1.state
+wait 10
+poke 000937 00,00
+poke 000978 02
+wait 2
+# GuardWait state 1 held: its code-set bits 0-6 cleared.
+load build/aladdin/states/level1.state
+wait 10
+poke 00096C 01
+poke 000978 01
+wait 2
+# GuardWait state 1 with $146B bit 7: the chase's code word.
+load build/aladdin/states/level1.state
+wait 10
+poke 00146B 80
+poke 000978 01
+wait 2
+# GuardWait state 1 with no health left: the walk's code word.
+load build/aladdin/states/level1.state
+wait 10
+poke 000367 00
+poke 00146B 00
+poke 000978 01
+wait 2

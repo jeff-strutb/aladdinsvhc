@@ -1,0 +1,45 @@
+# Bank $A5's guard states that GuardWait reaches only by its JMP through
+# its state table (no call of their own for the per-call check): unit
+# calls of each, by JSL, on the first level with the guard's record ($092B,
+# x $0015, Aladdin at x $003A) set for the branch named; the machine is put
+# back after each call. cov_guard_states.box plays the same branches.
+load build/aladdin/states/level1.state
+wait 10
+# GuardHoldLeft ($A5:F07A), the player to its left, facing left, not held.
+set 000937 80,00
+set 00093F 01
+set 00096C 00,00
+call A5F07A long d=092B db=80 p=30
+# GuardHoldLeft, the player to its left, facing right, held.
+set 000937 80,00
+set 00093F 00
+set 00096C 01
+call A5F07A long d=092B db=80 p=30
+# GuardHoldLeft, the player level or to its right (state 1 and on).
+set 00096C 00,00
+call A5F07A long d=092B db=80 p=30
+# GuardHoldRight ($A5:F09F), the player to its right, facing right, not held.
+set 00093F 00
+set 00096C 00,00
+call A5F09F long d=092B db=80 p=30
+# GuardHoldRight, the player to its right, facing left, held.
+set 00093F 01
+set 00096C 01
+call A5F09F long d=092B db=80 p=30
+# GuardHoldRight, the player to its left (state 1 and on).
+set 000937 80,00
+set 00096C 00,00
+call A5F09F long d=092B db=80 p=30
+# GuardRunOff ($A5:F0C4), held.
+set 00096C 01
+call A5F0C4 long d=092B db=80 p=30
+# GuardRunOff, more than 192 right of the player: gone.
+set 000937 00,02
+set 00096C 00
+call A5F0C4 long d=092B db=80 p=30
+# GuardRunOff, near: it speeds off right.
+set 000937 80,00
+set 00096C 00
+call A5F0C4 long d=092B db=80 p=30
+# GuardIdle ($A5:F308).
+call A5F308 long d=092B db=80 p=30
