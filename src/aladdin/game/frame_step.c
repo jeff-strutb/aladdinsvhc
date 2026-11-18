@@ -56,6 +56,15 @@ void abi_BgFollowLayers(void);
  * Entry: M 8-bit, X 8-bit; DB a bank whose $0000-$1FFF is work RAM; called
  * by JSR. Exit: M 8-bit; registers as BgFollowLayers leaves them.
  */
+/* A JSL at `site` to fn: its return address on the stack while fn runs,
+   as the original's (the stack the callees push to lies where theirs does). */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
 void abi_FrameStep(void)
 {
     op_rep(0x20);
@@ -72,13 +81,13 @@ void abi_FrameStep(void)
     stz8(ea_abs(TILE_BLOCKS_LENGTH + 1));
     stz8(ea_abs(OAM_0857));
     actor_loop_call(0x818336u, abi_PlayerLoop);
-    abi_OamBuildBegin();
+    jsl_call(0x81833Au, abi_OamBuildBegin);
     actor_loop_call(0x81833Eu, abi_ActorLoop);
-    abi_ScrollUpdate();
-    abi_TileChangesApply();
-    abi_LayersScroll();
-    abi_PlacementsScroll();
-    abi_PlayTimeTick();
+    call_frame(0x8344, abi_ScrollUpdate);
+    jsl_call(0x818345u, abi_TileChangesApply);
+    call_frame(0x834B, abi_LayersScroll);
+    jsl_call(0x81834Cu, abi_PlacementsScroll);
+    call_frame(0x8352, abi_PlayTimeTick);
     op_rep(0x20);
     clc();
     lda16(ea_abs(VIEW_X));
@@ -92,15 +101,15 @@ void abi_FrameStep(void)
     lda8(ea_abs(PAUSED));
     ora8_v(rd8(ea_abs(PAUSE_BLOCK)));
     if (IF_Z) {
-        abi_SequencesStep();
-        abi_PaletteCyclesStep();
+        call_frame(0x8375, abi_SequencesStep);
+        call_frame(0x8378, abi_PaletteCyclesStep);
     }
-    abi_ActorsInView();
-    abi_OamDrawActors();
+    jsl_call(0x818379u, abi_ActorsInView);
+    jsl_call(0x81837Du, abi_OamDrawActors);
     MEM8(inc, ea_abs(OAM_0857));
     MEM8(inc, ea_abs(TILE_BLOCKS_PENDING));
     MEM8(inc, ea_abs(VRAM_QUEUE_PENDING));
-    abi_BgFollowLayers();
+    call_frame(0x838C, abi_BgFollowLayers);
 }
 
 /*

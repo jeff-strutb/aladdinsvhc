@@ -68,22 +68,45 @@ void abi_TileChangeQueueQuarter(void)
  */
 void abi_MapTileAddress(void)
 {
-    uint16_t x = cpu.x & 0xFFF0, y = cpu.y & 0xFFF0, at, screen;
-
     /* the point to 16 pixels; its screen, 32 across in the screen map;
-       its tile there, 16 across */
-    dp16_set(0x0C, x);
-    dp16_set(0x0E, y);
-    dp16_set(0x10, (uint16_t)(((x >> 8) << 1) & 0x003E));
-    at = (uint16_t)(((cpu.y >> 2) & 0x03C0) | dp16(0x10));
-    screen = rd16(0x7FF042u + at);
-    dp16_set(0x14, screen);
-    dp16_set(0x10, (uint16_t)((x >> 3) & 0x001E));
-    flag_set(P_C, 0);
-    cpu.a = op_adc16((uint16_t)(((y << 1) & 0x01E0) | dp16(0x10)), screen, &cpu.p);
-    cpu.x = cpu.a;
-    cpu.y = screen;
-    nz16_of(screen);
+       its tile there, 16 across. As the original, instruction by
+       instruction: the x kept on the stack while the y is rounded, the
+       screen's tiles pushed and pulled into Y at the end. */
+    txa16();
+    and16_v(0xFFF0);
+    sta16(ea_dp(0x0C));
+    pha16();
+    tya16();
+    and16_v(0xFFF0);
+    sta16(ea_dp(0x0E));
+    pla16();
+    xba();
+    cpu.a = asl16_r(cpu.a);
+    and16_v(0x003E);
+    sta16(ea_dp(0x10));
+    tya16();
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = lsr16_r(cpu.a);
+    and16_v(0x03C0);
+    ora16_v(rd16(ea_dp(0x10)));
+    tax16();
+    lda16(0x7FF042u + cpu.x);
+    sta16(ea_dp(0x14));
+    pha16();
+    lda16(ea_dp(0x0C));
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = lsr16_r(cpu.a);
+    cpu.a = lsr16_r(cpu.a);
+    and16_v(0x001E);
+    sta16(ea_dp(0x10));
+    lda16(ea_dp(0x0E));
+    cpu.a = asl16_r(cpu.a);
+    and16_v(0x01E0);
+    ora16_v(rd16(ea_dp(0x10)));
+    clc();
+    adc16_v(rd16(ea_dp(0x14)));
+    tax16();
+    ply16();
 }
 
 /* The view's span on one axis from the camera at `camera` ($28 its start
@@ -111,15 +134,16 @@ static void view_span(uint16_t camera, uint16_t extent, uint16_t size, uint16_t 
 /* `at` less `mid` plus `half` below `size`: inside the view. */
 static int in_view(uint16_t at, uint16_t mid, uint16_t half, uint16_t size)
 {
-    uint16_t v;
+    uint16_t v, s;
 
     flag_set(P_C, 1);
     v = op_sbc16(at, dp16(mid), &cpu.p);
     flag_set(P_C, 0);
     v = op_adc16(v, dp16(half), &cpu.p);
     cpu.a = v;
-    cmp16_of(v, dp16(size));
-    return v < dp16(size);
+    s = dp16(size);                              /* one read: the CMP's */
+    cmp16_of(v, s);
+    return v < s;
 }
 
 /*
@@ -139,31 +163,41 @@ static int in_view(uint16_t at, uint16_t mid, uint16_t half, uint16_t size)
  */
 void abi_TileChangesApply(void)
 {
-    uint16_t d = cpu.d, y;
+    uint16_t y;
 
     a8_load(rd8(dba(0x0719)));
     if (!(uint8_t)cpu.a)
         return;
     op_rep(0x30);
+    phd();
     cpu.d = 0;
     view_span(0x176C, 0x0118, 0x1C, 0x1E, 0x20);
     view_span(0x176E, 0x00F0, 0x22, 0x24, 0x26);
     dp16_set(0x30, 0);
     wr16(dba(0x0617), 0);
     y = 0;
+    cpu.y = 0;
     do {
         /* each change: its tile into the level's map, and its four
-           quarters queued for VRAM when it is in view */
+           quarters queued for VRAM when it is in view. Y (the change's
+           offset) on the stack while it is made; the point's x and y
+           pushed for TilemapWordLong and pulled into Y and X for
+           MapTileAddress, as the original's PHA/PHY and PLY/PLX. */
+        phy16();
         dp16_set(0x2C, db16((uint16_t)(0x071D + y)));
         dp16_set(0x2E, db16((uint16_t)(0x071F + y)));
         dp16_set(0x34, db16((uint16_t)(0x0721 + y)));
-        cpu.a = dp16(0x2C);
-        cpu.y = dp16(0x2E);
+        lda16(ea_dp(0x2C));
+        pha16();
+        ldy16(ea_dp(0x2E));
+        phy16();
+        jsl_frame(0x8199FCu);
         abi_TilemapWordLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         dp16_set(0x32, cpu.a);
-        cpu.y = dp16(0x2E);
-        cpu.x = dp16(0x2C);
-        abi_MapTileAddress();
+        ply16();
+        plx16();
+        call_frame(0x9A06, abi_MapTileAddress);
         cpu.a = dp16(0x34);
         wr16(0x7F0000u + cpu.x, cpu.a);
         flag_set(P_C, 0);
@@ -173,17 +207,18 @@ void abi_TileChangesApply(void)
         if (in_view(dp16(0x2C), 0x20, 0x1E, 0x1C) && in_view(dp16(0x2E), 0x26, 0x24, 0x22)) {
             cpu.x = dp16(0x30);
             cpu.y = 0x0018;
-            abi_TileChangeQueueQuarter();
+            call_frame(0x9A35, abi_TileChangeQueueQuarter);
             cpu.y = 0x0010;
-            abi_TileChangeQueueQuarter();
+            call_frame(0x9A3B, abi_TileChangeQueueQuarter);
             cpu.y = 0x0008;
-            abi_TileChangeQueueQuarter();
+            call_frame(0x9A41, abi_TileChangeQueueQuarter);
             cpu.y = 0x0000;
-            abi_TileChangeQueueQuarter();
+            call_frame(0x9A47, abi_TileChangeQueueQuarter);
             dp16_set(0x30, cpu.x);
         }
+        pla16();                                 /* the change's offset */
         flag_set(P_C, 0);
-        y = op_adc16(y, 0x0008, &cpu.p);
+        y = op_adc16(cpu.a, 0x0008, &cpu.p);
         cpu.a = y;
         cpu.y = y;
     } while (dec16_at(dba(0x0719)));
@@ -192,8 +227,7 @@ void abi_TileChangesApply(void)
     a8_load(rd8(dba(0x0617)));
     if ((uint8_t)cpu.a)
         inc8_at(dba(0x0616));
-    cpu.d = d;
-    nz16_of(d);
+    pld();
 }
 
 /*

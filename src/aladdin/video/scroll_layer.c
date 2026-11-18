@@ -11,6 +11,8 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "ops65.h"
+#include "native.h"
 #include "wram.h"
 #include "hw.h"
 #include "wram_video.h"
@@ -572,8 +574,7 @@ void abi_LayerSetup(void)
  */
 void abi_TilemapWord(void)
 {
-    uint16_t px = cpu.a;
-
+    pha16();                                     /* the x, pulled back below */
     op_and16(0x00FF);
     op_lsr16();
     op_lsr16();
@@ -585,7 +586,7 @@ void abi_TilemapWord(void)
     op_asl16();
     op_ora16(rd16((SCRATCH + 8)));
     wr16((SCRATCH + 8), cpu.a);
-    op_lda16_imm(px);
+    pla16();
     op_xba();
     op_lsr16();
     op_lda16_imm(cpu.y);
@@ -609,7 +610,7 @@ void abi_TilemapWord(void)
  */
 void abi_TilemapWordLong(void)
 {
-    abi_TilemapWord();
+    call_frame(0xC175, abi_TilemapWord);
 }
 
 /*
