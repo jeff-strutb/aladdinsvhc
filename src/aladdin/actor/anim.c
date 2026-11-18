@@ -12,6 +12,8 @@
 #include "actor.h"
 #include "actor_anim.h"
 
+void abi_AnimStepNext(void);
+
 static uint16_t dp(uint16_t off)
 {
     return (uint16_t)(cpu.d + off);
@@ -159,6 +161,33 @@ void abi_AnimResume(void)
 }
 
 /*
+ * @routine 81:911B AnimStepBy
+ * WHAT IT DOES: Plays an actor's animation on by A frames of time: the
+ * frame's time less A; when that goes below 0, on to the next frame as
+ * AnimStep does. Nothing in the game calls it.
+ * HOW: A to scratch $1E (in the data bank); the frame's time less it; the
+ * result kept; negative: on at AnimStepNext; else out.
+ * Entry: A low byte = the frames; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSL. Exit: M and X 8-bit; time left:
+ * A = it, N and Z from it, C from the SBC; else as AnimStepNext.
+ */
+void abi_AnimStepBy(void)
+{
+    uint32_t by_at = (uint32_t)cpu.db << 16 | 0x001E;
+    uint8_t t;
+
+    op_sep(0x30);
+    wr8(by_at, (uint8_t)cpu.a);
+    t = rd8(dp(ACTOR_FRAME_TIME));
+    cpu.p |= P_C;
+    t = op_sbc8(t, rd8(by_at), &cpu.p);
+    cpu.a = (uint16_t)((cpu.a & 0xFF00) | t);
+    wr8(dp(ACTOR_FRAME_TIME), t);
+    if (cpu.p & P_N)
+        abi_AnimStepNext();
+}
+
+/*
  * @routine 81:912B AnimStep
  * WHAT IT DOES: Plays an actor's animation on by one frame of time: when
  * the frame's time runs out, on to the next frame, or back the
@@ -173,7 +202,7 @@ void abi_AnimResume(void)
  */
 void abi_AnimStep(void)
 {
-    uint8_t db, t;
+    uint8_t t;
 
     op_sep(0x30);
     t = (uint8_t)(rd8_rmw(dp(ACTOR_FRAME_TIME)) - 1);
@@ -181,6 +210,22 @@ void abi_AnimStep(void)
     cpu.p = nz8(cpu.p, t);
     if (t != 0)
         return;
+    abi_AnimStepNext();
+}
+
+/*
+ * @routine 81:9131 AnimStepNext
+ * WHAT IT DOES: The rest of AnimStep once the frame's time has run out:
+ * on to the next frame, or back the animation's step at its end.
+ * HOW: As AnimStep's HOW from the frame stepping on.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; reached from AnimStep
+ * and by a branch from AnimStepBy. Exit: as AnimStep's when the time ran
+ * out.
+ */
+void abi_AnimStepNext(void)
+{
+    uint8_t db, t;
+
     db = cpu.db;
     db_7e();
     t = (uint8_t)(rd8_rmw(dp(ACTOR_FRAME)) + 1);

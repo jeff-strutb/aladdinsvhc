@@ -84,6 +84,26 @@ AnimStart:
     plb
     rtl
 
+; @routine 81:911B AnimStepBy
+; WHAT IT DOES: Plays an actor's animation on by A frames of time: the
+; frame's time less A; when that goes below 0, on to the next frame as
+; AnimStep does. Nothing in the game calls it.
+; HOW: A to scratch $1E (in the data bank); the frame's time less it; the
+; result kept; negative: on at AnimStepNext; else out.
+; Entry: A low byte = the frames; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSL. Exit: M and X 8-bit; time left:
+; A = it, N and Z from it, C from the SBC; else as AnimStepNext.
+%at($81911B)
+AnimStepBy:
+    sep.b #$30
+    sta.w $001E
+    lda.b !ACTOR_FRAME_TIME
+    sec
+    sbc.w $001E
+    sta.b !ACTOR_FRAME_TIME
+    bmi AnimStepNext
+    rtl
+
 ; @routine 81:912B AnimStep
 ; WHAT IT DOES: Plays an actor's animation on by one frame of time: when
 ; the frame's time runs out, on to the next frame, or back the
@@ -99,7 +119,15 @@ AnimStart:
 AnimStep:
     sep.b #$30
     dec.b !ACTOR_FRAME_TIME
-    bne .done
+    bne AnimStepNext_done
+; @routine 81:9131 AnimStepNext
+; WHAT IT DOES: The rest of AnimStep once the frame's time has run out:
+; on to the next frame, or back the animation's step at its end.
+; HOW: As AnimStep's HOW from the frame stepping on.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; reached from AnimStep
+; and by a branch from AnimStepBy. Exit: as AnimStep's when the time ran
+; out.
+AnimStepNext:
     phb
     lda.b #!anim_data>>16
     pha

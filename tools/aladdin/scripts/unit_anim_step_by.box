@@ -1,0 +1,12 @@
+# An actor's animation played on by A frames of time ($81:911B,
+# AnimStepBy): nothing in the game calls it, so no screen runs it. Unit
+# calls by JSL on the first level's state with D = Aladdin's record
+# ($08DB, his frame's time set to 5) and DB $80: A = 1 leaves time (4);
+# A = 6 takes it below 0, and the frame steps on (AnimStepNext). (The
+# machine is put back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+set $000901 05
+call 81911B long a=01 d=08DB db=80 p=30
+set $000901 05
+call 81911B long a=06 d=08DB db=80 p=30
