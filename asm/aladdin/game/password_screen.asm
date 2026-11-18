@@ -81,8 +81,8 @@ PasswordPictureDraw:
 ; @routine 84:AF7F CopierCheck
 ; WHAT IT DOES: A check for cartridge RAM at $70:1522 (a copier's): when
 ; $38 and $82 both read back there, lives, health and $0365 are set to 1.
-; This board has no such RAM (each read is the bus's last byte), so the
-; punishment never runs and no script covers it.
+; This board has no such RAM (each read is the bus's last byte): the
+; punishment runs only with a script's copier RAM on (cartram).
 ; HOW: DB = $70 ($28 + $48); $38 written and compared, then $82; both
 ; equal: $0364, $0367 and $0365 = 1.
 ; Entry: M 8-bit, X 8-bit; called by JSR. Exit: DB as at entry; RAM found:

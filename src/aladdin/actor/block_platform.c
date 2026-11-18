@@ -1,6 +1,6 @@
 /*
- * block_platform.c: pieces of the platform of kind $68 (its start at
- * $83:E6BB), which goes back and forth along a leg and is drawn as blocks
+ * block_platform.c: the platform of kind $68 (its start, Kind68Start,
+ * and its pieces), which goes back and forth along a leg and is drawn as blocks
  * of the level map, written ($81:9978) where it moves to, a block at a
  * time. Drafted by cdraft.py; named and described by hand.
  */
@@ -26,6 +26,15 @@
    first). */
 #define MOVE_LISTS 0xD517u
 #define MOVE_PICKS 0xD51Fu
+
+void abi_ActorCreateChild8(void);
+void abi_ActorEndPlaced(void);
+void abi_ActorKeepSpot(void);
+void abi_AnimStart(void);
+void abi_BlockPlatformMove(void);
+void abi_BlockPointInBounds(void);
+void abi_BlockPointStep(void);
+void abi_TileActorDraw(void);
 
 /*
  * @routine 83:E7DE BlockPointInBounds

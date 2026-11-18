@@ -1,0 +1,27 @@
+# Kind $4D's start (Kind4DStart, $83:CE7B) finding a copier's cartridge
+# RAM: its check byte at $70:1000 + X reads back after its increment, so
+# it fills $0000-$001F with $AA ($83:CE8A), which no retail cart does.
+# The first level played as level1_walk.box; the copier RAM is turned on
+# (cartram) 95 frames into the walk after the pause, just before the first
+# kind $4D actor ($0C9B) starts. Turned on earlier, Aladdin is stopped at
+# x $01A0 and never meets one.
+load build/aladdin/states/level1.state
+hold RIGHT 120
+press B
+hold B+RIGHT 30
+hold RIGHT 60
+press A
+wait 30
+hold Y+RIGHT 90
+hold B+R 60
+hold DOWN 30
+hold DOWN+A 20
+hold UP 40
+press START
+wait 60
+press START
+hold RIGHT 95
+cartram on
+hold RIGHT 205
+hold B+RIGHT 60
+hold RIGHT 300

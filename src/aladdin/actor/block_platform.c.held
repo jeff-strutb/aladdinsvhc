@@ -1,0 +1,186 @@
+/* heldc: keep (lockstep rand_stage_a3_s2 DIVERGENT with it: the original takes the frame's NMI exactly at its first BRK ($83:E767, after STA $40); with this C the hybrid places the BRK's push before that interrupt (frame 903), the NMI's C is not run in frame 904, $0329 03/02 from frame 904. Main, running it as original, is IDENTICAL. Whether the C or the checker's placement at a yield is at fault is not settled) */
+/*
+ * @routine 83:E6BB Kind68Start
+ * @actor
+ * WHAT IT DOES: Actor kind $68 (also kind $67's second state), the block
+ * platform: with $07 $0F, a spawner that makes eight platforms ($07 7 down
+ * to 0) and ends; else one platform set up by its $07 that, after its
+ * wait, moves along its leg a block at a time (written into the level map
+ * while in bounds), pauses, and goes back. On a copier (cartridge RAM
+ * found at $70:0040) it never moves.
+ * HOW: $07 $0F: x, y 0; $07 7; K68_CHILD_SLOT $6A; ActorCreateChild8 $68,
+ * the slot down 2, $07 down, while $07 is not negative; ActorEndPlaced.
+ * Else: $AB written to and compared at $70:0040 + 0 and $CD at +$40 (DB
+ * $70): both equal, K68_COPIER 1. ACTOR_08 3, ACTOR_09 $90; BLOCK_ALT,
+ * BACK_LEG (word), gravity and $16-$17 0; BLOCK_X, BLOCK_Y from
+ * K68_BLOCKS_AT by $07; K68_LEG_BLOCKS from K68_LEG; facing (flip the
+ * opposite) and actor_47 from K68_WAYS; $48 0; K68_LAST_X its x low;
+ * ActorKeepSpot, AnimStart by K68_POSES; K68_WAIT frames (BRK) from
+ * K68_WAITS. Each frame (BRK): ActorKeepSpot, BlockPlatformMove; its x low
+ * 10 or more from K68_LAST_X: K68_LAST_X 16 on toward it,
+ * BlockPointInBounds C clear: TileActorDraw; BlockPointStep; the leg's
+ * blocks down: at 0 the next leg (K68_LEG_BLOCKS again, BACK_LEG and the
+ * facing flipped, BlockPointStep, BLOCK_ALT flipped, K68_PAUSES frames of
+ * ActorKeepSpot, or BRK for good with K68_COPIER), else BLOCK_ALT flipped.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
+ * the actor loop's jump for kind $68 in state $0C (the table at $83:8CAB)
+ * and kind $67's second state ($83:8DFD). Exit: never returns.
+ */
+void abi_Kind68Start(void)
+{
+    lda8(ea_dp(0x07));  /* 83E6BB lda */
+    cmp8_v(0x0F);  /* 83E6BD cmp */
+    if (!IF_Z) goto L_83E6E2;  /* 83E6BF bne */
+    op_rep(0x20);  /* 83E6C1 rep */
+    stz16(ea_dp(0x0C));  /* 83E6C3 stz */
+    stz16(ea_dp(0x0F));  /* 83E6C5 stz */
+    op_sep(0x20);  /* 83E6C7 sep */
+    lda8_v(0x07);  /* 83E6C9 lda */
+    sta8(ea_dp(0x07));  /* 83E6CB sta */
+    lda8_v(0x6A);  /* 83E6CD lda */
+    sta8(ea_dp(0x21));  /* 83E6CF sta */
+L_83E6D1:
+    lda8_v(0x68);  /* 83E6D1 lda */
+    abi_ActorCreateChild8();  /* 83E6D3 jsl */
+    MEM8(dec, ea_dp(0x21));  /* 83E6D7 dec */
+    MEM8(dec, ea_dp(0x21));  /* 83E6D9 dec */
+    MEM8(dec, ea_dp(0x07));  /* 83E6DB dec */
+    if (!IF_N) goto L_83E6D1;  /* 83E6DD bpl */
+    abi_ActorEndPlaced(); return;  /* 83E6DF jmp */
+L_83E6E2:
+    stz8(ea_dp(0x18));  /* 83E6E2 stz */
+    ldx8_v(0x40);  /* 83E6E4 ldx */
+    phb();  /* 83E6E6 phb */
+    sec();  /* 83E6E7 sec */
+    lda8_v(0x80);  /* 83E6E8 lda */
+    sbc8_v(0x10);  /* 83E6EA sbc */
+    pha8();  /* 83E6EC pha */
+    plb();  /* 83E6ED plb */
+    lda8_v(0xAB);  /* 83E6EE lda */
+    sta8(ea_absx(0x0000));  /* 83E6F0 sta */
+    cmp8_v(rd8(ea_absx(0x0000)));  /* 83E6F3 cmp */
+    if (!IF_Z) goto L_83E707;  /* 83E6F6 bne */
+    lda8_v(0xCD);  /* 83E6F8 lda */
+    sta8(ea_absx(0x0040));  /* 83E6FA sta */
+    cmp8_v(rd8(ea_absx(0x0040)));  /* 83E6FD cmp */
+    if (!IF_Z) goto L_83E707;  /* 83E700 bne */
+    plb();  /* 83E702 plb */
+    MEM8(inc, ea_dp(0x18));  /* 83E703 inc */
+    goto L_83E708;  /* 83E705 bra */
+L_83E707:
+    plb();  /* 83E707 plb */
+L_83E708:
+    lda8_v(0x03);  /* 83E708 lda */
+    sta8(ea_dp(0x08));  /* 83E70A sta */
+    lda8_v(0x90);  /* 83E70C lda */
+    sta8(ea_dp(0x09));  /* 83E70E sta */
+    stz8(ea_dp(0x4A));  /* 83E710 stz */
+    stz8(ea_dp(0x19));  /* 83E712 stz */
+    stz8(ea_dp(0x1A));  /* 83E714 stz */
+    stz8(ea_dp(0x20));  /* 83E716 stz */
+    stz8(ea_dp(0x16));  /* 83E718 stz */
+    stz8(ea_dp(0x17));  /* 83E71A stz */
+    op_rep(0x20);  /* 83E71C rep */
+    lda16(ea_dp(0x07));  /* 83E71E lda */
+    ACC16(asl);  /* 83E720 asl */
+    ACC16(asl);  /* 83E721 asl */
+    tax8();  /* 83E722 tax */
+    lda16(ea_absx(0xD5C7));  /* 83E723 lda */
+    sta16(ea_dp(0x42));  /* 83E726 sta */
+    lda16(ea_absx(0xD5C9));  /* 83E728 lda */
+    sta16(ea_dp(0x44));  /* 83E72B sta */
+    op_sep(0x20);  /* 83E72D sep */
+    ldx8(ea_dp(0x07));  /* 83E72F ldx */
+    lda8(ea_absx(0xD5E7));  /* 83E731 lda */
+    sta8(ea_dp(0x1C));  /* 83E734 sta */
+    lda8(ea_absx(0xD50D));  /* 83E736 lda */
+    pha8();  /* 83E739 pha */
+    ACC8(lsr);  /* 83E73A lsr */
+    ACC8(lsr);  /* 83E73B lsr */
+    sta8(ea_dp(0x14));  /* 83E73C sta */
+    eor8_v(0x01);  /* 83E73E eor */
+    sta8(ea_dp(0x15));  /* 83E740 sta */
+    pla8();  /* 83E742 pla */
+    and8_v(0x01);  /* 83E743 and */
+    sta8(ea_dp(0x47));  /* 83E745 sta */
+    stz8(ea_dp(0x48));  /* 83E747 stz */
+    op_sep(0x20);  /* 83E749 sep */
+    lda8(ea_dp(0x0C));  /* 83E74B lda */
+    sta8(ea_dp(0x49));  /* 83E74D sta */
+    abi_ActorKeepSpot();  /* 83E74F jsl */
+    ldx8(ea_dp(0x47));  /* 83E753 ldx */
+    lda8(ea_absx(0xD515));  /* 83E755 lda */
+    abi_AnimStart();  /* 83E758 jsl */
+    lda8(ea_dp(0x07));  /* 83E75C lda */
+    ACC8(asl);  /* 83E75E asl */
+    tax8();  /* 83E75F tax */
+    op_rep(0x20);  /* 83E760 rep */
+    lda16(ea_absx(0xD5EF));  /* 83E762 lda */
+    sta16(ea_dp(0x40));  /* 83E765 sta */
+L_83E767:
+    actor_yield(0x83E767u);  /* 83E767 brk */
+    MEM16(dec, ea_dp(0x40));  /* 83E769 dec */
+    if (!IF_Z) goto L_83E767;  /* 83E76B bne */
+    op_sep(0x20);  /* 83E76D sep */
+L_83E76F:
+    actor_yield(0x83E76Fu);  /* 83E76F brk */
+    abi_ActorKeepSpot();  /* 83E771 jsl */
+    abi_BlockPlatformMove();  /* 83E775 jsr */
+    ldy8_v(0x10);  /* 83E778 ldy */
+    sec();  /* 83E77A sec */
+    lda8(ea_dp(0x0C));  /* 83E77B lda */
+    sbc8_v(rd8(ea_dp(0x49)));  /* 83E77D sbc */
+    if (!IF_N) goto L_83E786;  /* 83E77F bpl */
+    eor8_v(0xFF);  /* 83E781 eor */
+    ACC8(inc);  /* 83E783 inc */
+    ldy8_v(0xF0);  /* 83E784 ldy */
+L_83E786:
+    cmp8_v(0x0A);  /* 83E786 cmp */
+    if (!IF_C) goto L_83E7A5;  /* 83E788 bcc */
+    clc();  /* 83E78A clc */
+    tya8();  /* 83E78B tya */
+    adc8_v(rd8(ea_dp(0x49)));  /* 83E78C adc */
+    sta8(ea_dp(0x49));  /* 83E78E sta */
+    abi_BlockPointInBounds();  /* 83E790 jsr */
+    if (IF_C) goto L_83E798;  /* 83E793 bcs */
+    /* the JSR's return on the stack while it runs: its tile lookup pushes
+       there (TileAtPlace's PHA), as the original's does */
+    call_frame(0xE797, abi_TileActorDraw);  /* 83E795 jsr */
+L_83E798:
+    abi_BlockPointStep();  /* 83E798 jsr */
+    MEM8(dec, ea_dp(0x1C));  /* 83E79B dec */
+    if (IF_Z) goto L_83E7A7;  /* 83E79D beq */
+    lda8(ea_dp(0x4A));  /* 83E79F lda */
+    eor8_v(0x01);  /* 83E7A1 eor */
+    sta8(ea_dp(0x4A));  /* 83E7A3 sta */
+L_83E7A5:
+    goto L_83E76F;  /* 83E7A5 bra */
+L_83E7A7:
+    ldx8(ea_dp(0x07));  /* 83E7A7 ldx */
+    lda8(ea_absx(0xD5E7));  /* 83E7A9 lda */
+    sta8(ea_dp(0x1C));  /* 83E7AC sta */
+    lda8(ea_dp(0x19));  /* 83E7AE lda */
+    eor8_v(0x01);  /* 83E7B0 eor */
+    sta8(ea_dp(0x19));  /* 83E7B2 sta */
+    lda8(ea_dp(0x14));  /* 83E7B4 lda */
+    eor8_v(0x01);  /* 83E7B6 eor */
+    sta8(ea_dp(0x14));  /* 83E7B8 sta */
+    abi_BlockPointStep();  /* 83E7BA jsr */
+    lda8(ea_dp(0x4A));  /* 83E7BD lda */
+    eor8_v(0x01);  /* 83E7BF eor */
+    sta8(ea_dp(0x4A));  /* 83E7C1 sta */
+    ldx8(ea_dp(0x19));  /* 83E7C3 ldx */
+    lda8(ea_absx(0xD655));  /* 83E7C5 lda */
+    sta8(ea_dp(0x40));  /* 83E7C8 sta */
+    lda8(ea_dp(0x18));  /* 83E7CA lda */
+    if (IF_Z) goto L_83E7D2;  /* 83E7CC beq */
+L_83E7CE:
+    actor_yield(0x83E7CEu);  /* 83E7CE brk */
+    goto L_83E7CE;  /* 83E7D0 bra */
+L_83E7D2:
+    actor_yield(0x83E7D2u);  /* 83E7D2 brk */
+    abi_ActorKeepSpot();  /* 83E7D4 jsl */
+    MEM8(dec, ea_dp(0x40));  /* 83E7D8 dec */
+    if (!IF_Z) goto L_83E7D2;  /* 83E7DA bne */
+    goto L_83E76F;  /* 83E7DC bra */
+}
