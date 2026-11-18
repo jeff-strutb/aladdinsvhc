@@ -128,6 +128,31 @@ static int jump_return(uint32_t pc, uint16_t sp, const uint8_t *w, uint32_t *ret
     return 1;
 }
 
+/* @interrupt: a routine entered with an interrupt's frame on the stack: the
+   code an interrupt, BRK or COP vector leads to (in bank $00), or a handler
+   it jumps to. The frame is P at S + 1, then the address the RTI returns
+   to (PC at S + 2, its bank at S + 4; native mode): that address and S + 4
+   are the call's return and exit level, as a JSR's are a routine's. Such a
+   routine is entered just after the interrupt (taken: the core reported
+   it), after a BRK or COP, or by a jump from the vector's code; it ends at
+   its RTI there, or (BRK, COP) where it jumps into the actor loop with its
+   frame pulled, as a routine that ends its actor does. */
+static uint8_t irqrt_bits[1 << 21];
+/* The interrupt the core reported just now, by each side that sees it:
+   the next instruction is its vector's code (irq_entered). */
+static int a5_taken, o_taken;
+static uint16_t a5_taken_s, o_taken_s;
+static int is_irq_routine(uint32_t pc) { return irqrt_bits[pc >> 3] >> (pc & 7) & 1; }
+static int irq_entered(uint32_t pc, uint8_t via, int taken)
+{
+    return is_irq_routine(pc) && (taken || via == 0x00 || via == 0x02 || via == 0x5C || via == 0x4C);
+}
+static void irq_return(uint16_t sp, const uint8_t *w, uint32_t *ret, uint16_t *exit_s)
+{
+    *ret = (uint32_t)w[(uint16_t)(sp + 4)] << 16 | (uint32_t)w[(uint16_t)(sp + 3)] << 8 | w[(uint16_t)(sp + 2)];
+    *exit_s = (uint16_t)(sp + 4);
+}
+
 /* Actors (docs/aladdin/ACTORS.md): their code yields by BRK, whose vector
    ($00:FFE6) leads to the code at $00:FFAC, and the actor loop resumes it
    by RTI at the BRK's address + 2, at the same S, with D its record. An
@@ -753,6 +778,9 @@ static void on_insn(uint32_t pc)
     int have = 0;
     uint8_t prev_op = *core_opcode;
     int resumed_now = 0;   /* a parked piece resumed at this instruction */
+    int taken = a5_taken;  /* this is the first instruction after an interrupt */
+    uint16_t taken_s = a5_taken_s;
+    a5_taken = 0;
     if (prev_op == 0x9A || prev_op == 0x1B)
         for (int i = 0; i < depth; i++)
             if (!ws[i]->in_irq) ws[i]->stack_reset = 1;
@@ -766,6 +794,22 @@ static void on_insn(uint32_t pc)
             if (!have) { core_regs(&r); have = 1; }
             if (r.s == ws[i]->irq_s) ws[i]->in_irq = 0;
         }
+    /* An interrupt's RTI back at its frame's address and level: the calls
+       entered with that frame (@interrupt: the vector's code and the
+       handler it jumps to) end here, before any rule for the code it
+       returns to (the scheduler's wait loop, an actor loop's hand-off)
+       takes them for that code's own. */
+    /* (prev_op is already the opcode before the interrupt there: the
+       core's own last opcode says RTI.) */
+    if (depth && *core_opcode == 0x40) {
+        if (!have) { core_regs(&r); have = 1; }
+        while (depth) {
+            Watch *t = ws[depth - 1];
+            if (t->in_irq || !is_irq_routine(routines[t->idx].addr) || pc != t->ret_pc || r.s != t->exit_s) break;
+            finish(t);
+            depth--;
+        }
+    }
     if (prev_op == 0x22 && is_actor_loop(pc)) {
         if (!have) { core_regs(&r); have = 1; }
         a5_loop_s = r.s;
@@ -1042,6 +1086,8 @@ static void on_insn(uint32_t pc)
         w->ret_pc = ue.ret;
         w->exit_s = ue.exit_s;
         ue.set = 0;
+    } else if (irq_entered(pc, via, taken && (uint16_t)(sp + 4) == taken_s)) {
+        irq_return((uint16_t)sp, wram, &w->ret_pc, &w->exit_s);
     } else if (actor_enters(pc, via) && !(via == 0x40 && resumed_now)) {
         w->ret_pc = 0xFFFFFFFFu;
         w->exit_s = (uint16_t)sp;
@@ -1104,8 +1150,13 @@ static void on_read(uint32_t addr, uint8_t data)
         if (!ws[i]->in_irq) io_add(&ws[i]->oread, r == R_IO ? addr & 0xFFFF : OPEN_BUS_KEY(addr), data);
 }
 
+/* The interrupt the core reported just now: the next instruction is its
+   vector's code, with its frame at S + 1 (irq_entered). */
 static void on_interrupt(uint32_t resume_pc, uint16_t s)
 {
+    /* The core reports a taken interrupt once more at the vector's code,
+       with nothing taken (S below the frame there): the first stands. */
+    if (!a5_taken) { a5_taken = 1; a5_taken_s = s; }
     if (nirqs < 16) {
         irqs[nirqs].pc = resume_pc; irqs[nirqs].s = s; irqs[nirqs].op = *core_opcode;
         nirqs++;
@@ -1165,6 +1216,10 @@ static int load_routines(void *core, const char *lib, const char *only)
     const int *lpn = dlsym(h, "game_actor_loop_count");
     if (lp && lpn)
         for (int i = 0; i < *lpn; i++) loop_bits[lp[i] >> 3] |= (uint8_t)(1 << (lp[i] & 7));
+    const uint32_t *iq = dlsym(h, "game_interrupt_routines");
+    const int *iqn = dlsym(h, "game_interrupt_routine_count");
+    if (iq && iqn)
+        for (int i = 0; i < *iqn; i++) irqrt_bits[iq[i] >> 3] |= (uint8_t)(1 << (iq[i] & 7));
     const uint32_t *pu = dlsym(h, "game_pushed");
     const int *pun = dlsym(h, "game_pushed_count");
     if (pu && pun)
@@ -1391,6 +1446,7 @@ static struct {
     uint16_t entry_s;        /* S at the call's own entry */
     int actor;               /* a piece of an actor's code: no return; ends at its yield or its leave */
     int exit_calls;          /* calls it made from its exit level, not yet returned */
+    int irq;                 /* entered with an interrupt's frame (@interrupt): it returns by RTI */
     uint32_t ret[0x10000];   /* by S at a callee's entry: 1 << 24 | its return address */
 } m;
 static uint32_t m_pc;        /* the routine of the open call */
@@ -1529,6 +1585,11 @@ static void lopark_resume(uint32_t pc, struct SnesboxRegs *r)
         fprintf(stderr, "OLOOPBACK frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)m.call, pc, r->s);
 }
 
+/* The opcode that reached the instruction ls_insn looks at, as an open
+   record saw it (before an interrupt taken just before it). */
+static uint8_t o_via;
+static int o_via_set;
+
 static void ls_insn(uint32_t pc)
 {
     trace_insn(pc);
@@ -1536,6 +1597,9 @@ static void ls_insn(uint32_t pc)
         struct SnesboxRegs r; core_regs(&r);
         insn_s = r.s;
     }
+    int taken = o_taken && (uint16_t)(insn_s + 4) == o_taken_s;   /* the first instruction after an interrupt */
+    o_taken = 0;
+    o_via_set = 0;
     if (m.active) {
         if (m.in_irq) {
             if (pc != m.irq_pc) return;
@@ -1544,6 +1608,10 @@ static void ls_insn(uint32_t pc)
             m.in_irq = 0;  /* back from the handler: this may also be the return */
             m.irq_resumed = 1;
         }
+        /* how this instruction was reached, for a record that ends here and
+           the next one opening at it (not_active) */
+        o_via = m.irq_resumed ? m.pre_irq_op : *core_opcode;
+        o_via_set = 1;
         struct SnesboxRegs r; core_regs(&r);
         /* The actor loop's record ends where it hands control to an actor
            (its RTI, or JMP (table,X)) at the loop's level; the actor's
@@ -1587,7 +1655,7 @@ static void ls_insn(uint32_t pc)
            open at that same S: the actor's code jumped on to more actor
            code (ActorEnd); a routine it called is below it. */
         if (m.actor) {
-            int yield = ((pc == ACTOR_BRK_AT && *core_opcode == 0x00) || (pc == ACTOR_COP_AT && *core_opcode == 0x02))
+            int yield = ((pc == ACTOR_BRK_AT && (m.irq_resumed ? m.pre_irq_op : *core_opcode) == 0x00) || (pc == ACTOR_COP_AT && (m.irq_resumed ? m.pre_irq_op : *core_opcode) == 0x02))
                         && r.s == (uint16_t)(m.entry_s - 4);
             int leave = (pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER) && r.s == m.entry_s;
             if (yield || leave) {
@@ -1605,12 +1673,14 @@ static void ls_insn(uint32_t pc)
                 m.active = 0;
                 m.irq_resumed = 0;
                 /* Left into the loop's code that has C (a re-entry): its
-                   record opens at this same jump. */
+                   record opens at this same jump. Yielded into the BRK or
+                   COP vector's code that has C: its record opens here. */
                 if (leave && is_actor_loop(pc)) goto not_active;
+                if (yield && routine_at(pc) >= 0) goto not_active;
                 return;
             }
-        } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op(*core_opcode)))
-                   && (r.s >= m.exit_s || (is_jump_op(*core_opcode) && loop_left(m_pc, r.s, m.exit_s)))) {
+        } else if ((pc == ACTOR_LOOP_NEXT || pc == ACTOR_LOOP_PLAYER || (is_actor_entry(pc) && is_jump_op((m.irq_resumed ? m.pre_irq_op : *core_opcode))))
+                   && (r.s >= m.exit_s || (is_jump_op((m.irq_resumed ? m.pre_irq_op : *core_opcode)) && loop_left(m_pc, r.s, m.exit_s)))) {
             /* A routine the actor's code called that ends the actor: it
                pulled its own return address (S back at the actor's level,
                its exit level, or past it when it drops its callers' too)
@@ -1626,7 +1696,7 @@ static void ls_insn(uint32_t pc)
                this same jump, as on the hybrid side. */
             if (is_actor_entry(pc) || is_actor_loop(pc)) goto not_active;
             return;
-        } else if (((pc == ACTOR_BRK_AT && *core_opcode == 0x00) || (pc == ACTOR_COP_AT && *core_opcode == 0x02))
+        } else if (((pc == ACTOR_BRK_AT && (m.irq_resumed ? m.pre_irq_op : *core_opcode) == 0x00) || (pc == ACTOR_COP_AT && (m.irq_resumed ? m.pre_irq_op : *core_opcode) == 0x02))
                    && (uint16_t)(r.s + 4) >= m.exit_s) {
             /* A routine an actor's code called that pulled its own return
                address and yields by BRK or COP at its exit level
@@ -1639,7 +1709,21 @@ static void ls_insn(uint32_t pc)
             STORE(sh->calls[m.call % CALLRING].done, 1);
             m.active = 0;
             m.irq_resumed = 0;
+            if (routine_at(pc) >= 0) goto not_active;   /* the vector's code has C */
             return;
+        }
+        /* An interrupt's record (@interrupt) ends at its RTI back at its
+           frame's return, before the rule for a task's wait below: an NMI
+           taken in the scheduler's idle loop returns to the very place and
+           level a task waits at, and would be parked as that task's call
+           (over the task's own parked record). */
+        if (m.irq && *core_opcode == 0x40 && pc == m.ret_pc && r.s == m.exit_s) {
+            if (calls_from >= 0 && cur_frame >= calls_from)
+                fprintf(stderr, "ODONE frame %ld call %llu at %06X S=%04X (RTI)\n", cur_frame, (unsigned long long)m.call, pc, r.s);
+            STORE(sh->calls[m.call % CALLRING].done, 1);
+            m.active = 0;
+            m.irq_resumed = 0;
+            goto not_active;
         }
         /* The call's task waits: the call ends here, at the scheduler, and
            is parked for the task's next turn. */
@@ -1709,6 +1793,11 @@ static void ls_insn(uint32_t pc)
             /* the actor loop's re-entry returning by its RTL to a parked
                caller: that caller's record goes on from here */
             if (lopark.valid && prev == 0x6B && pc == lopark.resume && r.s == lopark.resume_s) lopark_resume(pc, &r);
+            /* Back from an interrupt by its RTI: the instruction it returns
+               to is looked at as after an interrupt with no record (a
+               parked actor's resume, say), as the hybrid looks at it after
+               the C (ls_finish: its opcode the RTI's). */
+            else if (m.irq) goto not_active;
             return;
         }
     not_end:
@@ -1822,21 +1911,33 @@ not_active:
     }
     if (routine_at(pc) < 0) return;
     struct SnesboxRegs r; core_regs(&r);
+    /* The opcode that reached this instruction: the one before an
+       interrupt taken just before it (a record that ended here after the
+       handler's RTI), as the hybrid enters its C there by that jump. */
+    uint8_t via = o_via_set ? o_via : *core_opcode;
+    /* Entered with an interrupt's frame on the stack (@interrupt): its
+       return is the frame's (irq_entered). */
+    if (!r.e && irq_entered(pc, via, taken)) {
+        o_open(pc, &r);
+        irq_return(r.s, wram, &m.ret_pc, &m.exit_s);
+        m.irq = 1;
+        return;
+    }
     /* An actor's code, entered by the actor loop's jump: its first piece. */
-    if (actor_enters(pc, *core_opcode)) {
+    if (actor_enters(pc, via)) {
         o_open(pc, &r);
         m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s; m.actor = 1;
         return;
     }
     /* A task's start, where the scheduler's RTL lands: its first piece,
        ending where the task first waits (or exits). */
-    if (task_entry_at(*core_opcode, r.s)) {
+    if (task_entry_at(via, r.s)) {
         o_open(pc, &r);
         m.ret_pc = 0xFFFFFFFFu; m.exit_s = r.s;
         return;
     }
     /* A jump into a routine: its caller's return address is on the stack. */
-    if (jump_entered(pc, *core_opcode)) {
+    if (jump_entered(pc, via)) {
         o_open(pc, &r);
         jump_return(pc, r.s, wram, &m.ret_pc, &m.exit_s);
         return;
@@ -1859,7 +1960,7 @@ static void o_open(uint32_t pc, struct SnesboxRegs *rp)
     sh->fs[cur_frame % NSLOT].ncalls++;
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(stderr, "OCALL frame %ld call %llu %06X S=%04X\n", cur_frame, (unsigned long long)k, pc, r.s);
-    m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0; m.actor = 0; m.exit_calls = 0;
+    m.active = 1; m.in_irq = 0; m.call = k; m.depth = 0; m.entry_s = r.s; m.stack_reset = 0; m.actor = 0; m.exit_calls = 0; m.irq = 0;
     m.noreturn = ls_noreturn_pc == pc;
     ls_noreturn_pc = (uint32_t)-1;
     m_pc = pc;
@@ -1890,9 +1991,23 @@ static int ends_in_idle_irq(uint8_t op)
     return 0;
 }
 
+/* The interrupt the core reported just now (irq_entered), on the side
+   that runs the original. */
 static void ls_interrupt(uint32_t resume_pc, uint16_t s)
 {
+    if (!o_taken) { o_taken = 1; o_taken_s = s; }   /* the first stands (on_interrupt) */
     if (!m.active) return;
+    /* An interrupt's record whose RTI lands straight in another interrupt
+       (pending as it returned): no instruction runs at its return, so it
+       ends here, and the next interrupt opens a record of its own. */
+    if (m.irq && !m.in_irq && *core_opcode == 0x40 && resume_pc == m.ret_pc && s == m.exit_s) {
+        if (calls_from >= 0 && cur_frame >= calls_from)
+            fprintf(stderr, "ODONE frame %ld call %llu at %06X S=%04X (RTI into an interrupt)\n", cur_frame, (unsigned long long)m.call, resume_pc, s);
+        STORE(sh->calls[m.call % CALLRING].done, 1);
+        m.active = 0;
+        m.irq_resumed = 0;
+        return;
+    }
     /* A handler that returns straight into another interrupt: no instruction
        runs at the call's level in between, but this one is taken there too. */
     if (m.in_irq && resume_pc == m.irq_pc && s == m.irq_s) m.in_irq = 0;
@@ -2833,6 +2948,7 @@ typedef struct Ctx {
     uint16_t resume_s;
     int actor;               /* an actor's code: parked by its record (D) */
     uint16_t d;
+    int irq;                 /* entered with an interrupt's frame (@interrupt): it returns by RTI */
     struct Ctx *next;
 } Ctx;
 static Ctx *ctx_cur, *ctx_free;
@@ -2934,9 +3050,23 @@ static int ls_take_record(const char *name)
     return 0;
 }
 
+/* The hybrid's interrupt just taken (irq_entered): only one the core takes
+   as the game runs (not one it replays with C swapping off, inside C, whose
+   handler runs as original code). */
+static int h_taken;
+static uint16_t h_taken_s;
+static void h_interrupt(uint32_t resume_pc, uint16_t s)
+{
+    (void)resume_pc;
+    if (*core_exec && !h_taken) { h_taken = 1; h_taken_s = s; }   /* the first stands (on_interrupt) */
+}
+
 static int ls_exec(uint32_t pc)
 {
     struct SnesboxRegs r;
+    int taken = h_taken;   /* the first instruction after an interrupt */
+    uint16_t taken_s = h_taken_s;
+    h_taken = 0;
     /* A parked call goes on where its task resumes: just after the
        scheduler's RTL, at the resume address with the resume S. */
     if (*core_opcode == 0x6B && wram[TASK_CURRENT] % 0x18 == 0 && wram[TASK_CURRENT] / 0x18 < TASK_SLOTS) {
@@ -3019,8 +3149,10 @@ static int ls_exec(uint32_t pc)
     if (idx < 0) return 0;
     core_regs(&r);
     uint32_t ret; uint16_t exit_s;
-    int actor = actor_enters(pc, *core_opcode);
-    if (actor || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
+    int irq = !r.e && irq_entered(pc, *core_opcode, taken && (uint16_t)(r.s + 4) == taken_s);
+    int actor = !irq && actor_enters(pc, *core_opcode);
+    if (irq) irq_return(r.s, wram, &ret, &exit_s);
+    else if (actor || task_entry_at(*core_opcode, r.s)) { ret = 0xFFFFFFFFu; exit_s = r.s; }
     else if (jump_entered(pc, *core_opcode)) jump_return(pc, r.s, wram, &ret, &exit_s);
     else if (!entry(pc, &r, &ret, &exit_s)) { calls_fallback++; return 0; }
     ls_cur_name = routines[idx].name;
@@ -3046,6 +3178,7 @@ static int ls_exec(uint32_t pc)
     c->idx = idx;
     c->ret = ret; c->exit_s = exit_s; c->entry_s = r.s; c->entry_pc = pc;
     c->actor = actor;
+    c->irq = irq;
     c->unit_noreturn = ls_unit_noreturn; c->name = routines[idx].name;
     ctx_run(c);
     if (pushes_return(pc) && !cpu.unwound && c->status != 3) {
@@ -3089,7 +3222,8 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
     /* (a routine entered with bytes pushed above its caller's return,
        @pushed, returns past them: its RTL is still an RTL) */
     if (!cpu.unwound || cpu.s == exit_s)
-        *core_opcode = (uint8_t)(exit_s - entry_s - pushed_of(c->entry_pc) == 3 ? 0x6B : 0x60);
+        *core_opcode = c->irq && !cpu.unwound ? 0x40   /* its RTI */
+                       : (uint8_t)(exit_s - entry_s - pushed_of(c->entry_pc) == 3 ? 0x6B : 0x60);
     if (calls_from >= 0 && cur_frame >= calls_from)
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
                 out.pc, out.s, cpu.unwound ? " unwound" : "");
@@ -3126,6 +3260,9 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
         for (k = 0; k < ACTOR_PARKS; k++)
             if (aparked[k] && aparked[k]->d == out.d) { ctx_abandon(aparked[k]); aparked[k] = NULL; }
         for (k = 0; k < ACTOR_PARKS && aparked[k]; k++) {}
+        /* the BRK or COP's own opcode, as before the vector's code on the
+           original side (its code may have C: irq_entered) */
+        if (out.pc == ACTOR_BRK_AT || out.pc == ACTOR_COP_AT) *core_opcode = out.pc == ACTOR_COP_AT ? 0x02 : 0x00;
         if ((out.pc == ACTOR_BRK_AT || out.pc == ACTOR_COP_AT) && k < ACTOR_PARKS) {
             c->d = out.d;
             c->resume = actor_resume_of(wram, out.s, &rs);
@@ -3145,6 +3282,7 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
         ctx_abandon(c);
         if (is_actor_entry(out.pc) || is_actor_loop(out.pc)) *core_opcode = 0x4C;   /* entered by its jump */
     } else if (c->status == 3 && (out.pc == ACTOR_BRK_AT || out.pc == ACTOR_COP_AT)) {
+        *core_opcode = out.pc == ACTOR_COP_AT ? 0x02 : 0x00;
         /* a routine an actor's code called yielded past its exit level
            (no piece of its actor open: the original side ends the call at
            the same yield): nothing resumes it as C */
@@ -3350,8 +3488,10 @@ int lockstep_begin(void *core, const char *lib, const char *only, const char *re
             if (dladdr((void *)routines[0].abi, &di)) cyc_base = (uintptr_t)di.dli_fbase;
         }
         *core_exec = ls_exec;
-        if (tr) {
-            static struct SnesboxCallbacks hcb = {trace_insn, trace_write, trace_read, NULL, NULL};
+        {
+            /* the interrupts it takes, for the entries of @interrupt C (h_interrupt) */
+            static struct SnesboxCallbacks hcb = {NULL, NULL, NULL, h_interrupt, NULL};
+            if (tr) { hcb.insn = trace_insn; hcb.write = trace_write; hcb.read = trace_read; }
             set_cb(&hcb);
         }
     } else {

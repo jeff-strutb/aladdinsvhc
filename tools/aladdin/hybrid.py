@@ -45,6 +45,7 @@ ACTOR = re.compile(r'@actor\b')
 ACTORLOOP = re.compile(r'@actorloop\b')
 PUSHED = re.compile(r'@pushed\s+(\d+)')
 PUSHESRET = re.compile(r'@pushes_return\b')
+INTERRUPT = re.compile(r'@interrupt\b')
 
 
 def main(src=None, lib=None):
@@ -56,7 +57,7 @@ def main(src=None, lib=None):
         os.remove(LIB)
     files = sorted(glob.glob(os.path.join(SRC, '**', '*.c'), recursive=True))
     rows, bad, spc, uses, actors = [], [], {}, {}, []
-    loops, pushed, pushret = [], {}, []
+    loops, pushed, pushret, irqs = [], {}, [], []
     # Held C (held.txt beside the C, objdiff.py): compiled, but left out of
     # the table with every routine whose C calls it, so the original runs.
     sys.path.insert(0, os.path.join(ROOT, 'tools', 'aladdin'))
@@ -108,8 +109,17 @@ def main(src=None, lib=None):
             # address before its RTS; the checks take its return there.
             if PUSHESRET.search(head):
                 pushret.append(addr)
+            # @interrupt: entered with an interrupt's frame on the stack (an
+            # interrupt or BRK or COP vector's code, or a handler it jumps
+            # to): P, then the address it returns to by RTI; the checks take
+            # that address and S above the frame as the call's return.
+            irq = bool(INTERRUPT.search(head))
+            if irq:
+                irqs.append(addr)
             for al in ALIAS.finditer(head):
                 rows.append((int(al.group(1), 16) << 16 | int(al.group(2), 16), name))
+                if irq:
+                    irqs.append(int(al.group(1), 16) << 16 | int(al.group(2), 16))
     if bad:
         print('\n'.join(bad)); return 1
     # The catalog's actor entries (entered by a jump, yielding by BRK) that
@@ -253,6 +263,8 @@ def main(src=None, lib=None):
                 % (''.join('0x%06X, ' % a for a in sorted(actors)), len(actors)))
         t.write('const uint32_t game_actor_loops[] = {%s0};\nconst int game_actor_loop_count = %d;\n'
                 % (''.join('0x%06X, ' % a for a in sorted(loops)), len(loops)))
+        t.write('const uint32_t game_interrupt_routines[] = {%s0};\nconst int game_interrupt_routine_count = %d;\n'
+                % (''.join('0x%06X, ' % a for a in sorted(irqs)), len(irqs)))
         t.write('const uint32_t game_pushed[] = {%s0};\nconst int game_pushed_count = %d;\n'
                 % (''.join('0x%06X, %d, ' % (a, n) for a, n in sorted(pushed.items())), len(pushed)))
         t.write('const uint32_t game_pushes_returns[] = {%s0};\nconst int game_pushes_return_count = %d;\n'
