@@ -3375,6 +3375,7 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
         fprintf(lsrep, "HDONE frame %ld call %llu at %06X S=%04X%s\n", cur_frame, (unsigned long long)(LOAD(sh->h_calls) - 1),
                 out.pc, out.s, cpu.unwound ? " unwound" : "");
     calls_swapped++;
+    int yielded = c->status == 3;
     int lc = c->status == 3 ? loop_call_of(c->co) : -1;
     if (lc >= 0) {
         /* Its C called the actor loop, which handed control to an actor
@@ -3448,9 +3449,6 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
             c->resume = resume; c->resume_s = rs;
             parked[slot / 0x18] = c;
         } else ctx_abandon(c);
-        /* into the scheduler by TaskToScheduler's JMP: its C (if it has
-           C) is entered by that jump, as on the original side */
-        if (out.pc == TASK_SCHEDULER) *core_opcode = 0x4C;
     } else {
         c->next = ctx_free;
         ctx_free = c;
@@ -3458,6 +3456,11 @@ static int ls_finish(Ctx *c, struct SnesboxRegs r, uint16_t exit_s, uint32_t ret
            is entered by that jump */
         if (cpu.unwound && out.pc == TASK_SCHEDULER_START) *core_opcode = 0x5C;
     }
+    /* A C that yielded into the scheduler by TaskToScheduler's JMP (a
+       task's wait, exit or exec; an actor's code ending its task by
+       TaskExec): the scheduler's C, if it has C, is entered by that jump,
+       as on the original side. */
+    if (yielded && out.pc == TASK_SCHEDULER && out.s == TASK_SCHEDULER_S) *core_opcode = 0x4C;
     return 1;
 }
 
