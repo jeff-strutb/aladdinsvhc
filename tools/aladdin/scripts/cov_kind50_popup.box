@@ -1,0 +1,27 @@
+# Actor kind $50 ($83:D109, its wait $83:D1B0), placed only in level 0
+# (level1.state) at x $07D8-$08D8, where no other script goes: it rises
+# out of the ground in steps, waits, sinks, and again, facing Aladdin. The
+# view put at x $0700 and Aladdin at x $0780, so the first two (records
+# $0C9B, $0CEB) are placed; each restarted once (state $0C) a frame apart
+# from the other, so their starts draw RandomNext both ways ($20 and $40
+# frames up), and both run a whole cycle (up, wait, down). Then Aladdin
+# between them at x $0800 throws apples left (the count kept at 6): those
+# reaching one down it (its wait's ActorDownedByShot, $83:D1BC).
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 00,07
+poke 0019E5 00,07
+poke 0008E7 80,07
+poke 0008EA 80,01
+wait 60
+poke 000CEB 0C
+wait 61
+poke 000C9B 0C
+wait 300
+repeat 15
+poke 000369 06
+poke 0008E7 00,08
+hold LEFT+A 1
+wait 7
+end
+wait 120
