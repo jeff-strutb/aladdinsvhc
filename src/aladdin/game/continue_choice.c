@@ -71,9 +71,7 @@ void abi_ContinueChoiceActor(void)
         /* a choice ($07 0: yes, else no): Aladdin steps into it, it sinks
            16 pixels, and the choice is made */
         a8_load(0x00);
-        jsl_frame(0x839D84u);
-        abi_AnimStart();
-        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x839D84u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         wr8(dpa(CHOICE_TAKEN), 0);
         a8_load(rd8(dpa(ACTOR_07)));
         if ((uint8_t)cpu.a) {
@@ -114,9 +112,7 @@ void abi_ContinueChoiceActor(void)
         cmp8_of(anim, rd8(dpa(WATCHER_ANIM)));
         if (anim != rd8(dpa(WATCHER_ANIM))) {
             wr8(dpa(WATCHER_ANIM), anim);
-            jsl_frame(0x839DD6u);
-            abi_AnimStart();
-            cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x839DD6u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         }
         a8_load(rd8(dba(V_0380)));
         wr8(dpa(WATCHER_46), (uint8_t)cpu.a);

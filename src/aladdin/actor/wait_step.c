@@ -71,7 +71,7 @@ void abi_ActorWaitAnimIf07Bit4(void)
     a8_load(v);
     flag_set(P_Z, !(v & 0x10));
     if (v & 0x10)
-        abi_AnimStep();
+        jsl_frame(0x83B0C2u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -83,7 +83,7 @@ void abi_ActorWaitAnimIf07Bit4(void)
  */
 void abi_ActorWaitAnim(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83B4B9u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -96,7 +96,7 @@ void abi_ActorWaitAnim(void)
  */
 void abi_ActorWaitAnimB(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83E4E7u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /* The tail at $83:9738, which three of these jump into: the actor is
@@ -143,7 +143,7 @@ void abi_ActorWaitAnimEnd10(void)
 {
     uint8_t level;
 
-    abi_AnimStep();
+    jsl_frame(0x83BD0Bu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     level = rd8(dba(LEVEL_035C));
     a8_load(level);
     cmp8_of(level, 0x06);
@@ -180,7 +180,7 @@ void abi_ActorWaitAnimEnd10(void)
  */
 void abi_ActorWaitHurtOnTouch(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83D8CEu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_07)) & 0x08);
     if (!(uint8_t)cpu.a)
         abi_ActorHurtsPlayerOnTouch();
@@ -198,7 +198,7 @@ void abi_ActorWaitHurtOnTouch(void)
  */
 void abi_ActorWaitAnimRange18(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83F487u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     abi_ActorPictureSend();
     x8_load(0x18);
     abi_ActorEndOutOfRange();
@@ -215,7 +215,7 @@ void abi_ActorWaitAnimRange18(void)
  */
 void abi_ActorWaitAnimRange10(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83E458u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x10);
     abi_ActorEndOutOfRange();
 }
@@ -256,7 +256,7 @@ void abi_ActorWaitTest42Anim2(void)
     }
     y8_load(0x20);
     abi_ActorSolidForPlayer();
-    abi_AnimStep();
+    jsl_frame(0x83D0FFu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x10);
     abi_ActorEndOutOfRange();
 }
@@ -307,9 +307,7 @@ void abi_ActorWaitHoldPlayer(void)
 {
     uint8_t v;
 
-    jsl_frame(0x839E0Au);
-    abi_AnimStep();
-    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x839E0Au); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_42)));
     if (!(uint8_t)cpu.a) {
         a8_load(rd8(dpa(ACTOR_44)));
@@ -352,9 +350,7 @@ void abi_ActorWaitTurnAnim08(void)
 {
     call_frame(0x9C08, abi_ActorStompOrHurt);
     call_frame(0x9C0B, abi_ActorHitByShotCC);
-    jsl_frame(0x839C0Cu);
-    abi_AnimStep();
-    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x839C0Cu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     jsl_frame(0x839C10u);
     abi_ActorPictureSend();
     cpu.s = (uint16_t)(cpu.s + 3);
@@ -385,7 +381,7 @@ void abi_ActorWaitTest42Anim(void)
             inc8_at(dpa(ACTOR_42));
         }
     }
-    abi_AnimStep();
+    jsl_frame(0x83CFA0u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x10);
     abi_ActorEndOutOfRange();
 }
@@ -399,7 +395,7 @@ void abi_ActorWaitTest42Anim(void)
  */
 void abi_ActorWaitAnimC(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83ECCFu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -471,7 +467,7 @@ void abi_ActorEndIfAhead(void)
  */
 void abi_ActorWaitStepSounds(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83DFCDu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_07));
     if (!IF_N) goto other;
     lda8(ea_dp(ACTOR_42));
