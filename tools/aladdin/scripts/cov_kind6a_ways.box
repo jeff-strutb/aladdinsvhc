@@ -1,0 +1,26 @@
+# Actor kind $6A (83:EB5E), which stage a3 s1 places as spawners ($07 0
+# and 1) further right than play from the state reaches. Five records from
+# the top of the free stack (its top offset $15E4 lowered from $34 to $2A,
+# so the spawners' children never take them) made kind $6A near the start
+# (x $0100 on, y $0080), started (state $0C last): spawners with $07 0-3
+# (83:EB90, children of $07 4-7, 83:EBC1, EBD5, EBEB, EBFF) and one in its
+# second state ($8C: 83:EC1C, ActorEndPlaced).
+load build/aladdin/states/stage_a3_s1.state
+wait 10
+poke 0015E4 2A
+poke 000BB1 6A,00
+poke 000BB6 00,00,01,00,80,00
+poke 000BAB 0C
+poke 000C01 6A,01
+poke 000C06 00,30,01,00,80,00
+poke 000BFB 0C
+poke 000C51 6A,02
+poke 000C56 00,60,01,00,80,00
+poke 000C4B 0C
+poke 000CA1 6A,03
+poke 000CA6 00,90,01,00,80,00
+poke 000C9B 0C
+poke 000CF1 6A,00
+poke 000CF6 00,80,01,00,80,00
+poke 000CEB 8C
+wait 600
