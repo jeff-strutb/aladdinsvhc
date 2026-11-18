@@ -9,6 +9,7 @@
 #include "machine.h"
 #include "native.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "wram.h"
 #include "wram_video.h"
 #include "actor.h"
@@ -199,11 +200,22 @@ void abi_ParallaxUpdateLong(void)
 /* One band set's scrolls, SBAND_SCROLLS by band, top first (bank DB = $7E).
    Both add DRIFT_STEP to the drift, a 24-bit position (fraction byte
    first) the top bands carry on their own. */
+/* The band variables by the addressing the original uses: absolute in
+   bank DB ($7E), or absolute indexed. */
+#define SB(a) ea_abs((uint16_t)(a))
+#define SBX(a) ea_absx((uint16_t)(a))
+#define SBY(a) ea_absy((uint16_t)(a))
+#define SCROLL_X_AT ea_long(LAYER0 + LAYER_SCROLL_X)
+
 static void drift_on(void)
 {
-    flag_set(P_C, 0);
-    wr16(BAND_DRIFT, op_adc16(rd16(BAND_DRIFT), 0x00C0, &cpu.p));
-    wr16(BAND_DRIFT + 2, op_adc16(rd16(BAND_DRIFT + 2), 0, &cpu.p));
+    clc();                                      /* 24 bits: + $C0 */
+    lda16(ea_long(BAND_DRIFT));
+    adc16_v(0x00C0);
+    sta16(ea_long(BAND_DRIFT));
+    lda16(ea_long(BAND_DRIFT + 2));
+    adc16_v(0);
+    sta16(ea_long(BAND_DRIFT + 2));
 }
 
 /* Set 0: every band below the top at the scroll X halved once more per
@@ -211,28 +223,24 @@ static void drift_on(void)
    quartered. */
 static void scrolls_halving(void)
 {
-    uint16_t sx = rd16(LAYER0 + LAYER_SCROLL_X), y, v;
-
-    y = (uint16_t)(rd16(dba((uint16_t)SBAND_COUNT)) << 1);
-    v = sx;
+    lda16(SB(SBAND_COUNT));                     /* 81C952 */
+    cpu.a = asl16_r(cpu.a);
+    tay16();
+    lda16(SCROLL_X_AT);
     do {
-        flag_set(P_C, v & 1);
-        v >>= 1;
-        wr16(dba((uint16_t)(SBAND_SCROLLS - 2 + y)), v);
-        y -= 2;
-    } while (y != 0);
-    cpu.y = 0;
+        cpu.a = lsr16_r(cpu.a);
+        sta16(SBY(SBAND_SCROLLS - 2));
+        dey16();
+        dey16();
+    } while (!IF_Z);
     drift_on();
-    flag_set(P_C, 0);
-    v = op_adc16(rd16(BAND_DRIFT + 1), sx, &cpu.p);
-    flag_set(P_C, v & 1);
-    v >>= 1;
-    wr16(dba((uint16_t)SBAND_SCROLLS), v);
-    flag_set(P_C, v & 1);
-    v >>= 1;
-    wr16(dba((uint16_t)(SBAND_SCROLLS + 2)), v);
-    cpu.a = v;
-    nz16_of(v);
+    clc();
+    lda16(ea_long(BAND_DRIFT + 1));
+    adc16_v(rd16(SCROLL_X_AT));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_SCROLLS));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_SCROLLS + 2));
 }
 
 /* Set 2: the drift, held back by as far as the play field moved right
@@ -240,31 +248,37 @@ static void scrolls_halving(void)
    next three; then the scroll X halved, and three quarters of it. */
 static void scrolls_drifting(void)
 {
-    uint16_t sx = rd16(LAYER0 + LAYER_SCROLL_X), d, v, drift;
-
-    drift_on();
-    flag_set(P_C, 1);
-    d = op_sbc16(sx, rd16(SCROLL_X_BEFORE), &cpu.p);
-    if (d & 0x8000)
-        d = 0;
-    wr16(SCRATCH, d);
-    flag_set(P_C, 1);
-    drift = rd16(BAND_DRIFT + 1);
-    wr16(BAND_DRIFT + 1, op_sbc16(drift, rd16(SCRATCH), &cpu.p));
-    flag_set(P_C, 0);
-    v = op_adc16(rd16(BAND_DRIFT + 1), sx, &cpu.p);
-    wr16(dba((uint16_t)SBAND_SCROLLS), v);
-    v >>= 1;
-    wr16(dba((uint16_t)(SBAND_SCROLLS + 2)), v);
-    v >>= 1;
-    wr16(dba((uint16_t)(SBAND_SCROLLS + 4)), v);
-    v >>= 1;
-    wr16(dba((uint16_t)(SBAND_SCROLLS + 6)), v);
-    wr16(dba((uint16_t)(SBAND_SCROLLS + 8)), (uint16_t)(sx >> 1));
-    wr16(SCRATCH, (uint16_t)(sx >> 2));
-    flag_set(P_C, 0);
-    cpu.a = op_adc16(sx, rd16(SCRATCH), &cpu.p);
-    wr16(dba((uint16_t)(SBAND_SCROLLS + 10)), cpu.a);
+    drift_on();                                 /* 81C98C */
+    sec();                                      /* held back by the move right */
+    lda16(SCROLL_X_AT);
+    sbc16_v(rd16(ea_long(SCROLL_X_BEFORE)));
+    if (IF_N)
+        lda16_v(0);
+    sta16(ea_long(SCRATCH));
+    sec();
+    lda16(ea_long(BAND_DRIFT + 1));
+    sbc16_v(rd16(ea_long(SCRATCH)));
+    sta16(ea_long(BAND_DRIFT + 1));
+    clc();
+    lda16(ea_long(BAND_DRIFT + 1));
+    adc16_v(rd16(SCROLL_X_AT));
+    sta16(SB(SBAND_SCROLLS));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_SCROLLS + 2));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_SCROLLS + 4));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_SCROLLS + 6));
+    lda16(SCROLL_X_AT);
+    pha16();
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_SCROLLS + 8));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(ea_long(SCRATCH));
+    pla16();
+    clc();
+    adc16_v(rd16(ea_long(SCRATCH)));
+    sta16(SB(SBAND_SCROLLS + 10));
 }
 
 /*
@@ -289,8 +303,7 @@ static void scrolls_drifting(void)
  */
 void abi_BandScrolls(void)
 {
-    cpu.x = rd16(dba((uint16_t)SBAND_SET));
-    nz16_of(cpu.x);
+    ldx16(SB(SBAND_SET));
     if (cpu.x == 0)
         scrolls_halving();
     else if (cpu.x == 2)
@@ -299,93 +312,118 @@ void abi_BandScrolls(void)
         jump_routine(0x810000u | rd16(0x810000u | (uint16_t)(0xC94Eu + cpu.x)));
 }
 
-/* BandTable from 81:C84B, with set: HDMA channel 4's table for the
-   backdrop's bands, from the screen's top line down. */
+/* BandTable from 81:C84B, with A = set: HDMA channel 4's table for the
+   backdrop's bands, from the screen's top line down. Every read, write,
+   push and pull where the original makes it, in its order: an interrupt
+   taken inside the frame's step reads what this has written so far (the
+   NMI loads channel 4's table address from HDMA_TABLE_AT). */
 static void band_table(uint16_t set)
 {
-    uint8_t db = cpu.db;
-    uint16_t sy, at, base, idx, k, left, n, line;
-
-    wr16(SBAND_SET, set);
-    cpu.db = 0x7E;
-    sy = rd16(LAYER0 + LAYER_SCROLL_Y);
-    wr16(LAYER1 + LAYER_SCROLL_Y, sy);
-    flag_set(P_C, 0);
-    wr16(dba((uint16_t)SBAND_LINE), op_adc16(sy, 8, &cpu.p));
-    cpu.x = rd16(dba((uint16_t)SBAND_SET));
-    wr16(dba((uint16_t)SBAND_COUNT), (uint16_t)(rd16(SBAND_SETS_COUNT + cpu.x) >> 1));
-    abi_BandScrolls();
-
-    /* the other of the two tables than last frame's */
-    cpu.x = rd16(SBAND_BUFFER) ^ 2;
-    wr16(SBAND_BUFFER, cpu.x);
-    base = rd16(SBAND_TABLES + cpu.x);
-    at = base;
-    left = 0x00E0;
-    wr16(dba((uint16_t)SBAND_LINES_LEFT), left);
-    wr16(dba((uint16_t)SBAND_EDGE), rd16(SBAND_EDGES + rd16(dba((uint16_t)SBAND_SET))));
-    wr16(dba((uint16_t)SBAND_AT), 0);
+    lda16_v(set);
+    sta16(ea_long(SBAND_SET));                  /* 81C84B */
+    op_sep(0x20);
+    phb();
+    lda8_v(0x7E);
+    pha8();
+    plb();
+    op_rep(0x20);
+    lda16(ea_long(LAYER0 + LAYER_SCROLL_Y));
+    sta16(ea_long(LAYER1 + LAYER_SCROLL_Y));
+    clc();
+    adc16_v(8);
+    sta16(SB(SBAND_LINE));
+    ldx16(SB(SBAND_SET));
+    lda16(ea_longx(SBAND_SETS_COUNT));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(SB(SBAND_COUNT));
+    call_frame(0xC874, abi_BandScrolls);        /* 81C872 jsr */
+    lda16(ea_long(SBAND_BUFFER));               /* the other table than last frame's */
+    eor16_v(2);
+    sta16(ea_long(SBAND_BUFFER));
+    tax16();
+    lda16(ea_longx(SBAND_TABLES));
+    tay16();
+    phy16();
+    lda16_v(224);
+    sta16(SB(SBAND_LINES_LEFT));
+    ldx16(SB(SBAND_SET));
+    lda16(ea_longx(SBAND_EDGES));
+    sta16(SB(SBAND_EDGE));
+    stz16(SB(SBAND_AT));
     for (;;) {
-        idx = rd16(dba((uint16_t)SBAND_EDGE));
-        cpu.x = idx;
-        line = rd16(dba((uint16_t)SBAND_LINE));
-        if (line >= rd16(SBAND_EDGES + idx)
-                && line < rd16(SBAND_EDGES + 2 + idx)) {
-            /* the band the line is in: its lines to the next edge, at most
-               the lines left (one if none: no script meets that) */
-            flag_set(P_C, 1);
-            n = rd16(SBAND_EDGES + 2 + idx);
-            n = op_sbc16(n, rd16(dba((uint16_t)SBAND_LINE)), &cpu.p);
-            if (n == 0)
-                n = 1;
-            if (n >= rd16(dba((uint16_t)SBAND_LINES_LEFT)))
-                n = rd16(dba((uint16_t)SBAND_LINES_LEFT));
-            wr16(dba((uint16_t)SBAND_LINES), n);
-            k = rd16(dba((uint16_t)SBAND_AT));
-            if (n < 0x80) {
-                wr16(dba((uint16_t)(at + 3)), n);
-                wr16(dba((uint16_t)(at + 4)), rd16(dba((uint16_t)(SBAND_SCROLLS + k))));
-                flag_set(P_C, 0);
-                at = op_adc16(at, 3, &cpu.p);
-            } else {
-                /* an entry holds 127 lines at most: two */
-                flag_set(P_C, 1);
-                wr16(dba((uint16_t)(at + 3)), op_sbc16(n, 0x007F, &cpu.p));
-                wr16(dba((uint16_t)(at + 6)), 0x007F);
-                wr16(dba((uint16_t)(at + 4)), rd16(dba((uint16_t)(SBAND_SCROLLS + k))));
-                wr16(dba((uint16_t)(at + 7)), rd16(dba((uint16_t)(SBAND_SCROLLS + k))));
-                flag_set(P_C, 0);
-                at = op_adc16(at, 6, &cpu.p);
+        ldx16(SB(SBAND_EDGE));                  /* 81C89C */
+        lda16(SB(SBAND_LINE));
+        cmp16_v(rd16(ea_longx(SBAND_EDGES)));
+        if (IF_C) {
+            cmp16_v(rd16(ea_longx(SBAND_EDGES + 2)));
+            if (!IF_C) {
+                /* the band the line is in: its lines to the next edge, at
+                   most the lines left (one if none: no script meets that) */
+                sec();
+                lda16(ea_longx(SBAND_EDGES + 2));
+                sbc16_v(rd16(SB(SBAND_LINE)));
+                if (IF_Z)
+                    lda16_v(1);
+                cmp16_v(rd16(SB(SBAND_LINES_LEFT)));
+                if (IF_C)
+                    lda16(SB(SBAND_LINES_LEFT));
+                sta16(SB(SBAND_LINES));
+                ldx16(SB(SBAND_AT));
+                cmp16_v(128);
+                if (!IF_C) {
+                    sta16(SBY(3));              /* an entry: lines, scroll */
+                    lda16(SBX(SBAND_SCROLLS));
+                    sta16(SBY(4));
+                    clc();
+                    tya16();
+                    adc16_v(3);
+                    tay16();
+                } else {
+                    sbc16_v(127);               /* past 127 lines: two entries */
+                    sta16(SBY(3));
+                    lda16_v(127);
+                    sta16(SBY(6));
+                    lda16(SBX(SBAND_SCROLLS));
+                    sta16(SBY(4));
+                    sta16(SBY(7));
+                    clc();
+                    tya16();
+                    adc16_v(6);
+                    tay16();
+                }
+                ldx16(SB(SBAND_EDGE));
+                lda16(ea_longx(SBAND_EDGES + 2));
+                sta16(SB(SBAND_LINE));
+                clc();
+                lda16(SB(SBAND_LINES_LEFT));
+                sbc16_v(rd16(SB(SBAND_LINES)));
+                if (!IF_C)
+                    break;                      /* the screen is full */
+                cpu.a = inc16_r(cpu.a);
+                sta16(SB(SBAND_LINES_LEFT));
             }
-            cpu.x = idx;
-            wr16(dba((uint16_t)SBAND_LINE), rd16(SBAND_EDGES + 2 + idx));
-            flag_set(P_C, 0);
-            left = rd16(dba((uint16_t)SBAND_LINES_LEFT));
-            left = op_sbc16(left, rd16(dba((uint16_t)SBAND_LINES)), &cpu.p);
-            if (!(cpu.p & P_C))
-                break;              /* the screen is full */
-            wr16(dba((uint16_t)SBAND_LINES_LEFT), (uint16_t)(left + 1));
         }
-        wr16(dba((uint16_t)SBAND_EDGE), (uint16_t)(idx + 2));
-        wr16(dba((uint16_t)SBAND_AT), (uint16_t)(rd16(dba((uint16_t)SBAND_AT)) + 2));
-        if (dec16_at(dba((uint16_t)SBAND_COUNT)) == 0)
+        MEM16(inc, SB(SBAND_EDGE));
+        MEM16(inc, SB(SBAND_EDGE));
+        MEM16(inc, SB(SBAND_AT));
+        MEM16(inc, SB(SBAND_AT));
+        MEM16(dec, SB(SBAND_COUNT));
+        if (IF_Z)
             break;
     }
-    /* the end mark; ahead of the bands, one line at the top band's
-       scroll, which also goes to BG2's */
-    wr16(dba((uint16_t)(at + 3)), 0);
-    cpu.y = base;
-    wr16(dba(base), 0x0001);
-    n = rd16(dba((uint16_t)(base + 4)));
-    wr16(dba((uint16_t)(base + 1)), n);
-    wr16(BG2_X, n);
-    n = rd16(LAYER0 + LAYER_SCROLL_X);
-    flag_set(P_C, n & 1);
-    cpu.a = (uint16_t)(n >> 1);
-    wr16(LAYER1 + LAYER_SCROLL_X, cpu.a);
-    cpu.db = db;
-    nz8_of(db);
-    wr16(dba(HDMA_TABLE_AT), base);
+    lda16_v(0);                                 /* the end mark */
+    sta16(SBY(3));
+    ply16();
+    lda16_v(1);                                 /* the head: one line at the top band's scroll */
+    sta16(SBY(0));
+    lda16(SBY(4));
+    sta16(SBY(1));
+    sta16(ea_long(BG2_X));
+    lda16(ea_long(LAYER0 + LAYER_SCROLL_X));
+    cpu.a = lsr16_r(cpu.a);
+    sta16(ea_long(LAYER1 + LAYER_SCROLL_X));
+    plb();
+    sty16(ea_abs((uint16_t)HDMA_TABLE_AT));
 }
 
 /*
