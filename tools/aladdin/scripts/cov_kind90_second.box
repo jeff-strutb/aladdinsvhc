@@ -1,8 +1,0 @@
-# Kind $90's second state (Kind90Second, $83:936B: JML LongReturn), which the actor
-# loop jumps to for a kind $90 record in a state with bit 7 set (the table at
-# $83:8EFD). The title's demo left alone: at frame 1000 a kind $90 is live at
-# record $0E7B; it is put in state $8C, and 60 frames run.
-load build/aladdin/states/title.state
-wait 1000
-poke 000E7B 8C
-wait 60
