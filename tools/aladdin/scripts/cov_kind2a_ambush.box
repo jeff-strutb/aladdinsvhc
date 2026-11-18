@@ -1,0 +1,44 @@
+# Kind $2A (Kind2AStart, $83:A1E5) without bit 4 of $07, the part no
+# level places ($83:A208 on): it waits until Aladdin is below and near,
+# rises toward him (or, with $07 halved nonzero, drops onto him) and leaps.
+# Stage a1 s1 with the camera at x $0200, y $0100: the kind $2A at record
+# $0BAB (near x $029A, y $01A8) put back in its start state ($0C), Aladdin
+# held under it at x $029A, y $01E0 for 200 frames; with $07 = 0 (Aladdin
+# first held away at x $0210 for 5 frames, so it waits), then 2.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA 00,02
+wait 30
+poke 000BAB 0C
+poke 000BB2 00
+repeat 5
+poke 0008E7 10,02
+poke 0008EA E0,01
+wait 1
+end
+repeat 200
+poke 0008E7 9A,02
+poke 0008EA E0,01
+wait 1
+end
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,01
+poke 0019E9 00,01
+poke 0008E7 60,02
+poke 0008EA 00,02
+wait 30
+poke 000BAB 0C
+poke 000BB2 02
+repeat 200
+poke 0008E7 9A,02
+poke 0008EA E0,01
+wait 1
+end

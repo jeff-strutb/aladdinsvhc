@@ -1,0 +1,40 @@
+# Kind $2F (Kind2FStart, $83:B4BE) on the first level, the camera put at
+# x $0240, y $0080 and Aladdin at x $0250, so the two at x $0292 and
+# $02F2 (records $0BFB, $0C9B) start:
+# 1. with the copier RAM on (cartram): its write at $70:1000 reads back,
+#    and it puts Aladdin at x 0 ($83:B4CD);
+# 2. without it, left for 600 frames: they rise, land and walk, and the
+#    walk runs out ($83:B5A7). At frame 300 the one at record $0BFB,
+#    walking left on the ground at y $01C0, is moved to x $0175, just
+#    right of the block at x $0130-$016F (tiles read from a WRAM dump):
+#    it walks into it and turns ($83:B595).
+# 3. Then the one at record $0C9B put in its downed state (Kind2FSecond,
+#    $83:B643) by state $8C, with a shot counted ($42 = 1) and its facing
+#    $80: the hit test reads the facing ($83:B657) and clears its bit 7
+#    ($83:B665).
+load build/aladdin/states/level1.state
+cartram on
+wait 30
+poke 001773 40,02
+poke 0019E5 40,02
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 50,02
+poke 0008EA 00,01
+wait 30
+cartram off
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 40,02
+poke 0019E5 40,02
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 50,02
+poke 0008EA 00,01
+wait 300
+poke 000C07 75,01
+wait 300
+poke 000CDD 01
+poke 000CAF 80
+poke 000C9B 8C
+wait 30

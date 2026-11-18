@@ -1,0 +1,61 @@
+# Kind $35, the gems (Kind35Start, $83:BBF2): a gem taken when the HUD's
+# gem count ($036B, two BCD digits) rolls its low digit over ($83:BC77)
+# and its tens past 9 ($83:BC89 on), which no play reaches. The first
+# level with the camera at x $0300, y $0080 places the gem at x $0358,
+# y $0118 (record $0D3B); Aladdin is then held on it. Three times:
+# 1. the count $99, health marks ($0365) 3: one more mark, health = them;
+# 2. the count $99, health marks $0A, $0364 0: health $0A, $0364 up;
+# 3. the same with $0364 at 100: $0364 kept.
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 00,03
+poke 0019E5 00,03
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 00,03
+poke 0008EA 00,01
+wait 20
+poke 00036B 99
+poke 000365 03
+repeat 6
+poke 0008E7 58,03
+poke 0008EA 18,01
+wait 1
+end
+wait 30
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 00,03
+poke 0019E5 00,03
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 00,03
+poke 0008EA 00,01
+wait 20
+poke 00036B 99
+poke 000365 0A
+poke 000364 00
+repeat 6
+poke 0008E7 58,03
+poke 0008EA 18,01
+wait 1
+end
+wait 30
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 00,03
+poke 0019E5 00,03
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 00,03
+poke 0008EA 00,01
+wait 20
+poke 00036B 99
+poke 000365 0A
+poke 000364 64
+repeat 6
+poke 0008E7 58,03
+poke 0008EA 18,01
+wait 1
+end
+wait 30
