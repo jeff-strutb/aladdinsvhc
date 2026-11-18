@@ -70,7 +70,7 @@ void abi_ActorSpawnRing(void)
         wr8(dpa(ACTOR_07), 0x01);
         wr8(dpa(ACTOR_SPAWN_AT), 0);
         a8_load(RING_KIND);
-        abi_ActorCreateChild8();
+        jsl_frame(0x83D0D1u); abi_ActorCreateChild8(); cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_Z))
             break;
         x8_load((uint8_t)(rd8(dpa(ACTOR_43)) + 4));
@@ -107,14 +107,14 @@ void abi_ActorSpawnPair(void)
     a8_load(0x46);
     wr8(dpa(ACTOR_SPAWN_AT), 0x46);
     a8_load(rd8(dpa(ACTOR_06)));
-    abi_ActorSpawnSameLook();
+    jsl_frame(0x83D33Cu); abi_ActorSpawnSameLook(); cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_N)) {                 /* the second, with bit 2 of $07 */
         a8_load(0x04);
         tsb_at(dpa(ACTOR_07), 0x04);
         a8_load(0x48);
         wr8(dpa(ACTOR_SPAWN_AT), 0x48);
         a8_load(rd8(dpa(ACTOR_06)));
-        abi_ActorSpawnSameLook();
+        jsl_frame(0x83D34Cu); abi_ActorSpawnSameLook(); cpu.s = (uint16_t)(cpu.s + 3);
     }
     v = rd8(dpa(ACTOR_07)) & 0x01;
     a8_load(v);
@@ -133,7 +133,7 @@ void abi_ActorSpawn5E(void)
     a8_load(0x4E);
     wr8(dpa(ACTOR_SPAWN_AT), 0x4E);
     a8_load(0x5E);
-    abi_ActorCreateChild8();
+    jsl_frame(0x83D7CFu); abi_ActorCreateChild8(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 /*
  * @routine 83:D7D4 ActorSpawnCopy
@@ -151,7 +151,7 @@ void abi_ActorSpawnCopy(void)
     a8_load(0x00);
     wr8(dpa(ACTOR_SPAWN_AT), 0x00);
     a8_load(rd8(dpa(ACTOR_06)));
-    abi_ActorSpawnSameLook();
+    jsl_frame(0x83D7DEu); abi_ActorSpawnSameLook(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x08);
     trb_at(dpa(ACTOR_07), 0x08);
 }

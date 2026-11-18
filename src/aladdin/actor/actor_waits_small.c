@@ -394,7 +394,7 @@ void abi_ActorFlyAgainstNoRise(void)
  */
 void abi_Kind40Wait(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83C569u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x18);
     abi_ActorEndOutOfRange();
 }
@@ -411,7 +411,7 @@ void abi_Kind40Wait(void)
  */
 void abi_Kind62Wait(void)
 {
-    abi_ActorStopsShot();
+    call_frame(0xC968, abi_ActorStopsShot);
     x8_load(0x00);
     abi_ActorEndOutOfRange();
 }
@@ -427,7 +427,7 @@ void abi_Kind62Wait(void)
  */
 void abi_Kind7BWait(void)
 {
-    abi_AnimStep();
+    jsl_frame(0x83C5D5u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x60);
     abi_ActorEndOutOfRange();
 }
@@ -701,22 +701,22 @@ void abi_Kind3BWait(void)
     if (!IF_Z) goto L_83C25C;  /* 83C220 bne */
     bit8_i(0x08);  /* 83C222 bit */
     if (IF_Z) goto L_83C23A;  /* 83C224 beq */
-    abi_AnimStep();  /* 83C226 jsl */
+    jsl_frame(0x83C226u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C226 jsl */
     ldx8_v(0x18);  /* 83C22A ldx */
-    abi_ActorFreeOutOfRange();  /* 83C22C jsr */
+    call_frame(0xC22E, abi_ActorFreeOutOfRange);  /* 83C22C jsr */
     if (!IF_C) return;  /* 83C22F bcc (83C239 rts) */
     lda8(ea_dp(ACTOR_07));  /* 83C231 lda */
     and8_v(0x07);  /* 83C233 and */
     tax8();  /* 83C235 tax */
-    abi_LevelFlagFromMask();  /* 83C236 jsr */
+    call_frame(0xC238, abi_LevelFlagFromMask);  /* 83C236 jsr */
     return;  /* 83C239 rts */
 L_83C23A:
     lda8_v(0x1E);  /* 83C23A lda */
     sta8(ea_dp(ACTOR_4C));  /* 83C23C sta */
     ldx8_v(0x02);  /* 83C23E ldx */
-    abi_ActorTestCarries();  /* 83C240 jsr */
+    call_frame(0xC242, abi_ActorTestCarries);  /* 83C240 jsr */
     ldx8_v(0x02);  /* 83C243 ldx */
-    abi_ActorLiftPlayerStep();  /* 83C245 jsr */
+    call_frame(0xC247, abi_ActorLiftPlayerStep);  /* 83C245 jsr */
     lda8(ea_dp(ACTOR_07));  /* 83C248 lda */
     cmp8_v(0x02);  /* 83C24A cmp */
     if (!IF_Z) goto L_83C257;  /* 83C24C bne */
@@ -727,7 +727,7 @@ L_83C23A:
     return;  /* 83C256 rts */
 L_83C257:
     ldx8_v(0x18);  /* 83C257 ldx */
-    abi_ActorFreeOutOfRange();  /* 83C259 jmp */
+    call_frame(0xC22E, abi_ActorFreeOutOfRange);  /* 83C259 jmp */
     return;
 L_83C25C:
     op_rep(0x20);  /* 83C25C rep */
@@ -748,19 +748,19 @@ L_83C26C:
     cmp8_v(0x10);  /* 83C278 cmp */
     if (IF_C) goto L_83C29C;  /* 83C27A bcs */
     ldy8_v(0x5D);  /* 83C27C ldy */
-    abi_ActorSpeedYSet();  /* 83C27E jsl */
-    abi_ActorMoveY();  /* 83C282 jsl */
+    jsl_frame(0x83C27Eu); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C27E jsl */
+    jsl_frame(0x83C282u); abi_ActorMoveY(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C282 jsl */
     lda8_v(0x03);  /* 83C286 lda */
-    abi_PlayerToActorBelow();  /* 83C288 jsl */
+    jsl_frame(0x83C288u); abi_PlayerToActorBelow(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C288 jsl */
     goto L_83C29C;  /* 83C28C bra */
 L_83C28E:
     lda8(ea_dp(KIND3B_RISE));  /* 83C28E lda */
     if (IF_Z) goto L_83C29C;  /* 83C290 beq */
     ldy8_v(0x5A);  /* 83C292 ldy */
-    abi_ActorSpeedYSet();  /* 83C294 jsl */
-    abi_ActorMoveY();  /* 83C298 jsl */
+    jsl_frame(0x83C294u); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C294 jsl */
+    jsl_frame(0x83C298u); abi_ActorMoveY(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C298 jsl */
 L_83C29C:
-    abi_AnimStep();  /* 83C29C jsl */
+    jsl_frame(0x83C29Cu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C29C jsl */
     ldx8_v(0x18);  /* 83C2A0 ldx */
     abi_ActorFreeOutOfRange();  /* 83C2A2 jmp */
 }

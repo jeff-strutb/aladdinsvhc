@@ -44,7 +44,7 @@ void abi_Kind4BStart(void)
     clc();
     lda8(ea_dp(ACTOR_07));
     adc8_v(K4B_ANIM_0);
-    abi_AnimStart();
+    jsl_frame(0x83CE33u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0xFF);
     sta8(ea_dp(K4B_SHOWN));
     lda8_v(0x06);
@@ -70,9 +70,9 @@ void abi_Kind4BStart(void)
             sta8(ea_dp(K4B_SHOWN));
             clc();
             adc8_v(K4B_ANIM_0);
-            abi_AnimResume();
+            jsl_frame(0x83CE69u); abi_AnimResume(); cpu.s = (uint16_t)(cpu.s + 3);
         }
-        abi_AnimStep();
+        jsl_frame(0x83CE6Du); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         actor_yield(0x83CE71u);
         MEM8(dec, ea_dp(K4B_FRAMES));
     } while (!IF_Z);

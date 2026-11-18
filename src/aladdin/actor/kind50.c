@@ -4,6 +4,7 @@
  * wait is Kind50Wait (kind_waits_rest.c). Named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -46,14 +47,14 @@ void abi_Kind50Start(void)
     sta8(ea_dp(ACTOR_08));  /* 83D10D sta */
     lda8_v(0x90);  /* 83D10F lda */
     tsb8(ea_dp(ACTOR_09));  /* 83D111 tsb */
-    abi_Kind50Face();  /* 83D113 jsr */
+    call_frame(0xD115, abi_Kind50Face);  /* 83D113 jsr */
     lda8_v(0x06);  /* 83D116 lda */
     sta8(ea_dp(K50_POSE));  /* 83D118 sta */
-    abi_AnimStart();  /* 83D11A jsl */
+    jsl_frame(0x83D11Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D11A jsl */
     ldx8_v(0x04);  /* 83D11E ldx */
-    abi_RandomFromList();  /* 83D120 jsl */
+    jsl_frame(0x83D120u); abi_RandomFromList(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D120 jsl */
     sta8(ea_dp(K50_FRAMES));  /* 83D124 sta */
-    abi_RandomNext();  /* 83D126 jsl */
+    jsl_frame(0x83D126u); abi_RandomNext(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D126 jsl */
     if (IF_N) goto L_83D130;  /* 83D12A bmi */
     lda8_v(0x20);  /* 83D12C lda */
     goto L_83D132;  /* 83D12E bra */
@@ -63,7 +64,7 @@ L_83D132:
     sta8(ea_dp(K50_TOP));  /* 83D132 sta */
 L_83D134:
     actor_yield(0x83D134u);  /* 83D134 brk */
-    abi_Kind50Face();  /* 83D136 jsr */
+    call_frame(0xD138, abi_Kind50Face);  /* 83D136 jsr */
     MEM8(dec, ea_dp(K50_FRAMES));  /* 83D139 dec */
     if (!IF_N) goto L_83D134;  /* 83D13B bpl */
     lda8(ea_dp(K50_TOP));  /* 83D13D lda */
@@ -78,17 +79,17 @@ L_83D145:
     MEM8(dec, ea_dp(K50_POSE));  /* 83D14B dec */
     if (IF_N) goto L_83D15A;  /* 83D14D bmi */
     lda8(ea_dp(K50_POSE));  /* 83D14F lda */
-    abi_AnimStart();  /* 83D151 jsl */
-    abi_Kind50Up8();  /* 83D155 jsr */
+    jsl_frame(0x83D151u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D151 jsl */
+    call_frame(0xD157, abi_Kind50Up8);  /* 83D155 jsr */
     goto L_83D141;  /* 83D158 bra */
 L_83D15A:
     MEM8(inc, ea_dp(K50_POSE));  /* 83D15A inc */
 L_83D15C:
     actor_yield(0x83D15Cu);  /* 83D15C brk */
-    abi_Kind50Face();  /* 83D15E jsr */
+    call_frame(0xD160, abi_Kind50Face);  /* 83D15E jsr */
     MEM8(dec, ea_dp(K50_FRAMES));  /* 83D161 dec */
     if (!IF_Z) goto L_83D15C;  /* 83D163 bne */
-    abi_Kind50Still();  /* 83D165 jsr */
+    call_frame(0xD167, abi_Kind50Still);  /* 83D165 jsr */
 L_83D168:
     lda8_v(0x07);  /* 83D168 lda */
     sta8(ea_dp(K50_STEP));  /* 83D16A sta */
@@ -100,14 +101,14 @@ L_83D16C:
     lda8(ea_dp(K50_POSE));  /* 83D174 lda */
     cmp8_v(0x07);  /* 83D176 cmp */
     if (IF_Z) goto L_83D183;  /* 83D178 beq */
-    abi_AnimStart();  /* 83D17A jsl */
-    abi_Kind50Down8();  /* 83D17E jsr */
+    jsl_frame(0x83D17Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D17A jsl */
+    call_frame(0xD180, abi_Kind50Down8);  /* 83D17E jsr */
     goto L_83D168;  /* 83D181 bra */
 L_83D183:
     MEM8(dec, ea_dp(K50_POSE));  /* 83D183 dec */
     lda8(ea_dp(K50_TOP));  /* 83D185 lda */
     sta8(ea_dp(K50_FRAMES));  /* 83D187 sta */
-    abi_Kind50Still();  /* 83D189 jsr */
+    call_frame(0xD18B, abi_Kind50Still);  /* 83D189 jsr */
     goto L_83D134;  /* 83D18C bra */
 }
 
@@ -164,7 +165,7 @@ void abi_Kind50Up8(void)
  */
 void abi_Kind50Face(void)
 {
-    abi_ActorSideOfPlayer();  /* 83D1A7 jsl */
+    jsl_frame(0x83D1A7u); abi_ActorSideOfPlayer(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D1A7 jsl */
     sta8(ea_dp(ACTOR_FACING));  /* 83D1AB sta */
     sta8(ea_dp(ACTOR_FLIP));  /* 83D1AD sta */
 }

@@ -85,7 +85,7 @@ void abi_Kind51Cycle(void)
     for (;;) {
         wr8(dpa(KIND51_SOLID), 0);
         a8_load(0x00);
-        abi_AnimStart();
+        jsl_frame(0x83D24Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         frames = 0x40;
         x8_load(frames);
         a8_load((uint8_t)(rd8(dpa(ACTOR_07)) & 0x01));
@@ -95,7 +95,7 @@ void abi_Kind51Cycle(void)
         }
         for_frames(frames, 0x83D25Fu, 0);
         a8_load(0x01);
-        abi_AnimStart();
+        jsl_frame(0x83D267u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x80);
         wr8(dpa(KIND51_FRAMES), 0x80);
         (void)inc8_at(dpa(KIND51_SOLID));
@@ -125,39 +125,39 @@ void abi_Kind51Cycle(void)
 void abi_Kind51Second(void)
 {
     a8_load(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83D2C0u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x0F);
-    abi_SoundQueueAdd();
+    jsl_frame(0x83D2C6u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x20);
     wr8(dpa(KIND51_FRAMES), 0x20);
     actor_yield(0x83D2CEu);
-    abi_AnimStep();
+    jsl_frame(0x83D2D0u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(0x20);
     a16_load(rd16(dba(V_08F9)));
     op_sep(0x20);
     do {
         actor_yield(0x83D2DBu);
-        abi_AnimStep();
+        jsl_frame(0x83D2DDu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(KIND51_FRAMES)));
     for_frames(0x20, 0x83D2E9u, abi_AnimStep);
     x8_load(0x0C);
-    abi_RandomFromList();
+    jsl_frame(0x83D2F5u); abi_RandomFromList(); cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_Z) {
         a8_load(0x03);
     } else {
-        abi_ActorSpawnPair();
+        call_frame(0xD301, abi_ActorSpawnPair);
         a8_load(0x04);
     }
-    abi_AnimStart();
+    jsl_frame(0x83D304u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x60);
     wr8(dpa(KIND51_FRAMES), 0x60);
     do {
-        abi_ActorSideOfPlayer();
+        jsl_frame(0x83D30Cu); abi_ActorSideOfPlayer(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load((uint8_t)(cpu.a ^ 0x01));
         wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
         wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
         actor_yield(0x83D316u);
-        abi_AnimStep();
+        jsl_frame(0x83D318u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(KIND51_FRAMES)));
     a8_load(0x80);
     tsb_at(dpa(ACTOR_09), 0x80);
@@ -194,12 +194,12 @@ void abi_Kind51Variant(void)
         while (dec8_at(dpa(KIND51_FRAMES)));
     }
     a8_load(0x05);
-    abi_AnimStart();
+    jsl_frame(0x83D28Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x58);
     wr8(dpa(KIND51_FRAMES), 0x58);
     do {
         actor_yield(0x83D295u);
-        abi_AnimStep();
+        jsl_frame(0x83D297u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(KIND51_FRAMES)));
     abi_Kind51End();
 }

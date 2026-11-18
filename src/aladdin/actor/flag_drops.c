@@ -110,7 +110,7 @@ void abi_FlagDropChild(void)
     lda8_v(0x3C);
     sta8(ea_dp(ACTOR_SPAWN_AT));
     lda8_v(FLAG_DROP_BOX);
-    abi_ActorCreateChild8();
+    jsl_frame(0x83CF5Bu); abi_ActorCreateChild8(); cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C)
         return;
     flag_mark();
@@ -139,7 +139,7 @@ void abi_FlagDropThree(void)
     sta8(ea_dp(ACTOR_SPAWN_AT));
     do {
         lda8_v(FLAG_DROP_BOX);
-        abi_ActorSpawn();
+        jsl_frame(0x83CF75u); abi_ActorSpawn(); cpu.s = (uint16_t)(cpu.s + 3);
         if (IF_N)
             return;
         lda8(ea_dp(FLAG_DROP_LEFT));

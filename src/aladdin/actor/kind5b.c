@@ -29,14 +29,16 @@ void abi_AnimStart(void);
    fall_at) flying for `frames` frames. */
 static void thrown(uint32_t rise_at, uint32_t cop_at, uint32_t fall_at, uint8_t frames)
 {
-    abi_ActorStopX();
+    /* its JSLs at fixed places from its first BRK (83:DF63, DF69, DF73)
+       and after its second (DF85) */
+    jsl_frame(rise_at - 0x0E); abi_ActorStopX(); cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x3C);
-    abi_ActorSpeedYSet();
+    jsl_frame(rise_at - 0x08); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x04);
     wr8(dpa(ACTOR_ACCEL_Y), 0x04);
     do {
         actor_yield(rise_at);
-        abi_ActorFly();
+        jsl_frame(rise_at + 2); abi_ActorFly(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
     } while ((uint8_t)cpu.a & 0x80);
     a8_load(0x28);
@@ -45,7 +47,7 @@ static void thrown(uint32_t rise_at, uint32_t cop_at, uint32_t fall_at, uint8_t 
     wr8(dpa(K5B_FRAMES), frames);
     do {
         actor_yield(fall_at);
-        abi_ActorFly();
+        jsl_frame(fall_at + 2); abi_ActorFly(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(K5B_FRAMES)));
 }
 
@@ -86,12 +88,12 @@ void abi_Kind5BStart(void)
         a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x03));
         wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
         a8_load(0x02);
-        abi_AnimStart();
+        jsl_frame(0x83DF2Fu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         x8_load(rd8(dpa(ACTOR_07)));
         a8_load(rd8(dba((uint16_t)(K5B_DELAYS + cpu.x))));
         actor_wait(0x83DF38u);
         a8_load(0x01);
-        abi_AnimStart();
+        jsl_frame(0x83DF3Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x20);
         actor_wait(0x83DF42u);
         a8_load(COPY_HIT_BOX);
@@ -99,7 +101,7 @@ void abi_Kind5BStart(void)
         a8_load(0xFF);
         wr8(dpa(ACTOR_07), 0xFF);
         a8_load(rd8(dpa(ACTOR_06)));
-        abi_ActorSpawnSameLook();
+        jsl_frame(0x83DF4Eu); abi_ActorSpawnSameLook(); cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_N)) {
             uint8_t box = rd8(dpa(ACTOR_06));
 
@@ -116,16 +118,16 @@ void abi_Kind5BStart(void)
     a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
     wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
     a8_load(0x00);
-    abi_AnimStart();
-    abi_ActorStopX();
+    jsl_frame(0x83DF97u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83DF9Bu); abi_ActorStopX(); cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x3C);
-    abi_ActorSpeedYSet();
+    jsl_frame(0x83DFA1u); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x04);
     wr8(dpa(ACTOR_ACCEL_Y), 0x04);
     (void)inc8_at(dpa(K5B_FALLING));
     do {
         actor_yield(0x83DFABu);
-        abi_ActorFly();
+        jsl_frame(0x83DFADu); abi_ActorFly(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
     } while ((uint8_t)cpu.a & 0x80);
     a8_load(0x28);
@@ -134,7 +136,7 @@ void abi_Kind5BStart(void)
     wr8(dpa(K5B_FRAMES), 0x60);
     do {
         actor_yield(0x83DFBDu);
-        abi_ActorFly();
+        jsl_frame(0x83DFBFu); abi_ActorFly(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(K5B_FRAMES)));
     wr8(dpa(K5B_FALLING), 0);
     abi_ActorEndPlaced();

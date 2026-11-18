@@ -3,6 +3,7 @@
  * Kind40Wait (actor_waits_small.c).
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "wram_state.h"
 #include "wram_player.h"
@@ -47,14 +48,14 @@ void abi_Kind40Start(void)
     op_sep(0x20);  /* 83C51A sep */
 L_83C51C:
     lda8_v(0x00);  /* 83C51C lda */
-    abi_AnimStart();  /* 83C51E jsl */
+    jsl_frame(0x83C51Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C51E jsl */
 L_83C522:
     actor_yield(0x83C522u);  /* 83C522 brk */
     lda8(ea_abs(V_141C));  /* 83C524 lda */
     if (IF_Z) goto L_83C522;  /* 83C527 beq */
     lda8(ea_abs(PLAYER_SPEED_Y_HI));  /* 83C529 lda */
     if (IF_N) goto L_83C522;  /* 83C52C bmi */
-    abi_ActorHitsTestBoxLong();  /* 83C52E jsl */
+    jsl_frame(0x83C52Eu); abi_ActorHitsTestBoxLong(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C52E jsl */
     if (IF_C) goto L_83C522;  /* 83C532 bcs */
     lda8(ea_abs(HEALTH));  /* 83C534 lda */
     if (!IF_Z) goto L_83C53F;  /* 83C537 bne */
@@ -71,7 +72,7 @@ L_83C53F:
     op_sep(0x20);  /* 83C54B sep */
     if (IF_C) goto L_83C522;  /* 83C54D bcs */
     lda8_v(0x01);  /* 83C54F lda */
-    abi_AnimStart();  /* 83C551 jsl */
+    jsl_frame(0x83C551u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83C551 jsl */
     lda8_v((uint8_t)PLAYER_SPRUNG);  /* 83C555 lda */
     sta8(ea_abs(PLAYER + ACTOR_03));  /* 83C557 sta */
     lda8_v((uint8_t)(PLAYER_SPRUNG >> 8));  /* 83C55A lda */

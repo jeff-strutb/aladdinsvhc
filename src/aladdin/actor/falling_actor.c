@@ -47,7 +47,7 @@ void abi_ActorFallTileTest(void)
     /* the tile 10 pixels below it */
     cpu.a = op_adc16(y, 0x000A, &cpu.p);
     wr16(dba(SCRATCH + 2), cpu.a);
-    abi_TileAtProbeLong();
+    jsl_frame(0x83C914u); abi_TileAtProbeLong(); cpu.s = (uint16_t)(cpu.s + 3);
     kind = rd8(dba(V_0012));
     a8_load(kind);
     cmp8_of(kind, 0x02);

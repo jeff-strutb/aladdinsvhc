@@ -68,13 +68,13 @@ void abi_Kind4DStart(void)
     lda8_v(0x90);
     tsb8(ea_dp(ACTOR_09));
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83CEA4u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(K4D_HITS));
     do
         actor_yield(0x83CEAAu);
     while (lda8(ea_dp(K4D_HITS)), IF_Z);
     lda8_v(0x12);
-    abi_SoundQueueAdd();
+    jsl_frame(0x83CEB2u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x01);
     lda8(ea_dp(K4D_HITS));
     ACC8(dec);
@@ -86,9 +86,9 @@ void abi_Kind4DStart(void)
         MEM8(dec, ea_dp(K4D_FRAMES));
     } while (!IF_Z);
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83CEC9u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     ldy8_v(0x7E);
-    abi_ActorSpeedYSet();
+    jsl_frame(0x83CECFu); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x38);
     sta8(ea_dp(ACTOR_ACCEL_Y));
     lda8_v(0x35);
@@ -103,18 +103,18 @@ void abi_Kind4DStart(void)
     }
     do {
         actor_yield(0x83CEE9u);
-        abi_ActorFall();
+        jsl_frame(0x83CEEBu); abi_ActorFall(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(K4D_FRAMES));
     } while (!IF_Z);
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83CEF5u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     ldy8_v(0x2A);
-    abi_ActorSpeedYSet();
+    jsl_frame(0x83CEFBu); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x3C);
-    abi_SoundQueueAdd();
+    jsl_frame(0x83CF01u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x03);
     tsb8(ea_dp(ACTOR_08));
-    abi_ActorFlagOnce();
+    call_frame(0xCF0B, abi_ActorFlagOnce);
     for (;;)
         actor_yield(0x83CF0Cu);
 }

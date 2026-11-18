@@ -3,6 +3,7 @@
  * Its pose helper Kind58Pose is in kind58.c.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -64,14 +65,14 @@ void abi_Kind58Start(void)
     if (!IF_Z) goto L_83DBEA;  /* 83DBDE bne */
     lda8_v(0x00);  /* 83DBE0 lda */
     sta8(ea_dp(K58_POSE));  /* 83DBE2 sta */
-    abi_AnimStart();  /* 83DBE4 jsl */
+    jsl_frame(0x83DBE4u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83DBE4 jsl */
     goto L_83DBF6;  /* 83DBE8 bra */
 L_83DBEA:
     and8_v(0x0F);  /* 83DBEA and */
     sta8(ea_dp(ACTOR_07));  /* 83DBEC sta */
     lda8_v(0x03);  /* 83DBEE lda */
     sta8(ea_dp(K58_POSE));  /* 83DBF0 sta */
-    abi_AnimStart();  /* 83DBF2 jsl */
+    jsl_frame(0x83DBF2u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83DBF2 jsl */
 L_83DBF6:
     ldx8(ea_dp(ACTOR_07));  /* 83DBF6 ldx */
     lda8(ea_absx(K58_LEGS));  /* 83DBF8 lda */
@@ -81,17 +82,17 @@ L_83DBF6:
     sta8(ea_dp(ACTOR_FACING));  /* 83DC02 sta */
 L_83DC04:
     actor_yield(0x83DC04u);  /* 83DC04 brk */
-    abi_Kind58Pose();  /* 83DC06 jsr */
+    call_frame(0xDC08, abi_Kind58Pose);  /* 83DC06 jsr */
     ldx8_v(0x14);  /* 83DC09 ldx */
-    abi_ActorMoveByVector();  /* 83DC0B jsl */
-    abi_ActorCarryPlayer();  /* 83DC0F jsr */
+    jsl_frame(0x83DC0Bu); abi_ActorMoveByVector(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83DC0B jsl */
+    call_frame(0xDC11, abi_ActorCarryPlayer);  /* 83DC0F jsr */
     MEM8(dec, ea_dp(K58_FRAMES));  /* 83DC12 dec */
     if (!IF_Z) goto L_83DC04;  /* 83DC14 bne */
     lda8_v(0x40);  /* 83DC16 lda */
     sta8(ea_dp(K58_FRAMES));  /* 83DC18 sta */
 L_83DC1A:
     actor_yield(0x83DC1Au);  /* 83DC1A brk */
-    abi_Kind58Pose();  /* 83DC1C jsr */
+    call_frame(0xDC1E, abi_Kind58Pose);  /* 83DC1C jsr */
     MEM8(dec, ea_dp(K58_FRAMES));  /* 83DC1F dec */
     if (!IF_Z) goto L_83DC1A;  /* 83DC21 bne */
     lda8(ea_dp(K58_LEG));  /* 83DC23 lda */
@@ -99,17 +100,17 @@ L_83DC1A:
     sta8(ea_dp(K58_FRAMES));  /* 83DC26 sta */
 L_83DC28:
     actor_yield(0x83DC28u);  /* 83DC28 brk */
-    abi_Kind58Pose();  /* 83DC2A jsr */
+    call_frame(0xDC2C, abi_Kind58Pose);  /* 83DC2A jsr */
     ldx8_v(0x14);  /* 83DC2D ldx */
-    abi_ActorMoveBackByVector();  /* 83DC2F jsl */
-    abi_ActorCarryPlayer();  /* 83DC33 jsr */
+    jsl_frame(0x83DC2Fu); abi_ActorMoveBackByVector(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83DC2F jsl */
+    call_frame(0xDC35, abi_ActorCarryPlayer);  /* 83DC33 jsr */
     MEM8(dec, ea_dp(K58_FRAMES));  /* 83DC36 dec */
     if (!IF_Z) goto L_83DC28;  /* 83DC38 bne */
     lda8_v(0x40);  /* 83DC3A lda */
     sta8(ea_dp(K58_FRAMES));  /* 83DC3C sta */
 L_83DC3E:
     actor_yield(0x83DC3Eu);  /* 83DC3E brk */
-    abi_Kind58Pose();  /* 83DC40 jsr */
+    call_frame(0xDC42, abi_Kind58Pose);  /* 83DC40 jsr */
     MEM8(dec, ea_dp(K58_FRAMES));  /* 83DC43 dec */
     if (!IF_Z) goto L_83DC3E;  /* 83DC45 bne */
     lda8(ea_dp(K58_LEG));  /* 83DC47 lda */

@@ -4,6 +4,7 @@
  * wait is Kind4EWait (kind_waits_rest.c). Named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -17,7 +18,7 @@ static void kind4e_rest(void)
 {
     stz8(ea_dp(K4E_STILL));  /* 83CFB5 stz */
     lda8_v(0x06);  /* 83CFB7 lda */
-    abi_AnimStart();  /* 83CFB9 jsl */
+    jsl_frame(0x83CFB9u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CFB9 jsl */
     for (;;)
         actor_yield(0x83CFBDu);  /* 83CFBD brk, 83CFBF bra */
 }
@@ -58,7 +59,7 @@ void abi_Kind4EStart(void)
 void abi_Kind4EBounced(void)
 {
     lda8_v(0x07);  /* 83CFC1 lda */
-    abi_AnimStart();  /* 83CFC3 jsl */
+    jsl_frame(0x83CFC3u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CFC3 jsl */
     lda8_v(0x10);  /* 83CFC7 lda */
     actor_wait(0x83CFC9u);  /* 83CFC9 cop */
     MEM8(inc, ea_dp(K4E_STILL));  /* 83CFCB inc */
@@ -66,7 +67,7 @@ void abi_Kind4EBounced(void)
     sta8(ea_dp(K4E_POSE));  /* 83CFCF sta */
 L_83CFD1:
     lda8(ea_dp(K4E_POSE));  /* 83CFD1 lda */
-    abi_AnimStart();  /* 83CFD3 jsl */
+    jsl_frame(0x83CFD3u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CFD3 jsl */
     lda8_v(0x08);  /* 83CFD7 lda */
     actor_wait(0x83CFD9u);  /* 83CFD9 cop */
     MEM8(dec, ea_dp(K4E_POSE));  /* 83CFDB dec */
@@ -76,7 +77,7 @@ L_83CFD1:
     lda8_v(0x00);  /* 83CFE3 lda */
 L_83CFE5:
     sta8(ea_dp(K4E_POSE));  /* 83CFE5 sta */
-    abi_AnimStart();  /* 83CFE7 jsl */
+    jsl_frame(0x83CFE7u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CFE7 jsl */
     lda8_v(0x08);  /* 83CFEB lda */
     actor_wait(0x83CFEDu);  /* 83CFED cop */
     lda8(ea_dp(K4E_POSE));  /* 83CFEF lda */

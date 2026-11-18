@@ -5,6 +5,7 @@
  * Kind58Wait (kind_waits_rest.c). Named and described by hand.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -74,11 +75,11 @@ L_83DC70:
 L_83DC88:
     stx8(ea_dp(K58_POSE));  /* 83DC88 stx */
     txa8();  /* 83DC8A txa */
-    abi_AnimStart();  /* 83DC8B jsl */
+    jsl_frame(0x83DC8Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83DC8B jsl */
     return;  /* 83DC8F rts */
 L_83DC90:
     lda8_v(0xFF);  /* 83DC90 lda */
     sta8(ea_dp(K58_POSE));  /* 83DC92 sta */
     lda8_v(0x02);  /* 83DC94 lda */
-    abi_AnimStart();  /* 83DC96 jsl */
+    jsl_frame(0x83DC96u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83DC96 jsl */
 }

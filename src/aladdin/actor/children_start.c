@@ -62,7 +62,7 @@ void abi_ActorVariantChildStep(void)
     a8_load(0x3E);
     wr8(dpa(ACTOR_SPAWN_AT), 0x3E);
     a8_load(0x30);
-    abi_ActorCreateChild8();
+    jsl_frame(0x83D08Cu); abi_ActorCreateChild8(); cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_Z))
         return;
     a8_load(rd8(dpa(ACTOR_41)));
@@ -84,7 +84,7 @@ void abi_ActorStartChild1E(void)
 {
     cpu.x = 0x1E;
     y8_load(0x04);
-    abi_ChildStartListed();
+    call_frame(0xC330, abi_ChildStartListed);
 }
 
 /*
@@ -119,8 +119,8 @@ void abi_ActorStartTwoChildren(void)
     op_sep(P_M);
     cpu.x = 0x1C;
     y8_load(0x05);
-    abi_ChildStartListed();
+    call_frame(0xC35A, abi_ChildStartListed);
     cpu.x = 0x1E;
     y8_load(0x04);
-    abi_ChildStartListed();
+    call_frame(0xC361, abi_ChildStartListed);
 }

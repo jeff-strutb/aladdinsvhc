@@ -470,7 +470,7 @@ void abi_Kind5AWait(void)
     uint8_t s;
 
     jsl_frame(0x83DEF3u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
-    abi_ActorPictureSend();
+    jsl_frame(0x83DEF7u); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x20);
     trb8(ea_dp(ACTOR_09));
     s = rd8(ea_dp(K5A_SHAPE));
@@ -522,8 +522,8 @@ void abi_Kind6AWait(void)
 void abi_Kind50Wait(void)
 {
     jsl_frame(0x83D1B0u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
-    abi_ActorStompOrHurt16();
-    abi_ActorDownedByShot();
+    call_frame(0xD1B6, abi_ActorStompOrHurt16);
+    call_frame(0xD1B9, abi_ActorDownedByShot);
     if (!IF_C) {
         lda8(ea_dp(K50_FACING));
         if (!IF_N)
@@ -548,13 +548,13 @@ void abi_Kind50Wait(void)
  */
 void abi_Kind42Wait(void)
 {
-    abi_ActorDownedByHarmlessShot();
-    abi_ActorBouncesOrHurtsPlayer();
+    call_frame(0xC6E5, abi_ActorDownedByHarmlessShot);
+    call_frame(0xC6E8, abi_ActorBouncesOrHurtsPlayer);
     if (!IF_Z) {
         ACC8(dec);
         if (IF_Z) {
             lda8_v(0x12);
-            abi_SoundQueueAdd();
+            jsl_frame(0x83C6F0u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
         } else {
             lda8(ea_abs(V_03F5));
             if (IF_Z) {
@@ -611,7 +611,7 @@ void abi_Kind57Wait(void)
     mode = (uint8_t)cpu.a;
     if (mode == 0) {
         jsl_frame(0x83DAE9u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
-        abi_ActorPictureSend();
+        jsl_frame(0x83DAEDu); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8(ea_dp(K57_POSE));
         pose = (uint8_t)cpu.a;
         cmp8_v(0x18);
@@ -624,24 +624,24 @@ void abi_Kind57Wait(void)
                 goto shots;
         }
         ldy8_v(0x38);
-        abi_ActorZoneHasTestBox();
+        call_frame(0xDB03, abi_ActorZoneHasTestBox);
         if (!IF_C)
-            abi_PlayerEnter8CFacing();
+            call_frame(0xDB08, abi_PlayerEnter8CFacing);
 shots:
-        abi_ActorHitByShotCC();
+        call_frame(0xDB0B, abi_ActorHitByShotCC);
         lda8(ea_dp(K57_FACES));
         if (!IF_Z) {
-            abi_ActorSideOfPlayer();
+            jsl_frame(0x83DB10u); abi_ActorSideOfPlayer(); cpu.s = (uint16_t)(cpu.s + 3);
             stx8(ea_dp(ACTOR_FACING));
             stx8(ea_dp(ACTOR_FLIP));
         }
         lda8(ea_dp(K57_TOUCH));
         if (IF_Z) {
-            abi_ActorHurtsPlayerOnTouch();
+            call_frame(0xDB24, abi_ActorHurtsPlayerOnTouch);
             return;
         }
         if (!IF_N)
-            abi_ActorStompOrHurt();
+            call_frame(0xDB20, abi_ActorStompOrHurt);
         return;
     }
     ACC8(dec);
@@ -659,7 +659,7 @@ shots:
         }
     }
     jsl_frame(0x83DB3Au); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
-    abi_ActorPictureSend();
+    jsl_frame(0x83DB3Eu); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -883,14 +883,14 @@ void abi_Kind4EWait(void)
 {
     lda8(ea_dp(K4E_STILL));
     if (IF_Z) {
-        abi_ActorBouncesPlayer();
+        call_frame(0xCFFE, abi_ActorBouncesPlayer);
         if (!IF_Z) {
             op_rep(0x20);
             lda16_v(K4E_BOUNCED_AT);
             sta16(ea_dp(ACTOR_03));
             op_sep(0x20);
             lda8_v(0x12);
-            abi_SoundQueueAdd();
+            jsl_frame(0x83D00Cu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
         }
     }
     jsl_frame(0x83D010u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
@@ -949,7 +949,7 @@ void abi_Kind58Wait(void)
     lda8_v(0x2C);
     sta8(ea_dp(K58_CARRY_BOX));
     ldx8_v(0x00);
-    abi_ActorTestCarries();
+    call_frame(0xDCDB, abi_ActorTestCarries);
     pla8();
     sta8(ea_dp(0x0F));
     sta8(ea_dp(K58_Y_COPY));
@@ -958,7 +958,7 @@ void abi_Kind58Wait(void)
     sta8(ea_dp(K58_Y_COPY + 1));
     lda8_v(0x2C);
     ldx8_v(0x01);
-    abi_ActorLiftPlayerStep();
+    call_frame(0xDCEC, abi_ActorLiftPlayerStep);
     lda8(ea_abs(LEVEL_035E));
     cmp8_v(0x08);
     if (IF_Z) {

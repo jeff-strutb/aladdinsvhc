@@ -52,7 +52,7 @@ void abi_Kind7BStart(void)
     sta8(ea_dp(ACTOR_09));
     for (;;) {
         lda8_v(0x00);
-        abi_AnimStart();
+        jsl_frame(0x83C580u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         for (;;) {
             actor_yield(0x83C584u);
             lda8(ea_abs(V_141C));
@@ -61,7 +61,7 @@ void abi_Kind7BStart(void)
             lda8(ea_abs(K7B_PLAYER_1F));
             if (IF_N)
                 continue;
-            abi_ActorHitsTestBoxLong();
+            jsl_frame(0x83C590u); abi_ActorHitsTestBoxLong(); cpu.s = (uint16_t)(cpu.s + 3);
             if (IF_C)
                 continue;
             lda8(ea_abs(HEALTH));
@@ -80,7 +80,7 @@ void abi_Kind7BStart(void)
             if (IF_C)
                 continue;
             lda8_v(0x01);
-            abi_AnimStart();
+            jsl_frame(0x83C5B3u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             lda8_v(K7B_SENT_TO & 0xFF);
             sta8(ea_abs(K7B_PLAYER_RESUME));
             lda8_v(K7B_SENT_TO >> 8);
@@ -88,7 +88,7 @@ void abi_Kind7BStart(void)
             lda8_v(0x20);
             actor_wait(0x83C5C3u);
             lda8_v(K7B_SOUND);
-            abi_SoundQueueAdd();
+            jsl_frame(0x83C5C7u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
             lda8_v(0x10);
             actor_wait(0x83C5CDu);
         }

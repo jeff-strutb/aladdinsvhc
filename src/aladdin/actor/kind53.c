@@ -42,18 +42,18 @@ static void kind53_break(void)
     uint8_t shown;
 
     a8_load(0x08);
-    abi_AnimStart();
+    jsl_frame(0x83D6ACu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     shown = rd8(dpa(ACTOR_09)) & 0x40;
     a8_load(shown);
     if (shown) {
         a8_load(0x24);
-        abi_SoundQueueAdd();
+        jsl_frame(0x83D6B8u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     }
     a8_load(0x28);
     wr8(dpa(KIND53_BOUNCES), 0x28);
     do {
         actor_yield(0x83D6C0u);
-        abi_AnimStep();
+        jsl_frame(0x83D6C2u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(KIND53_BOUNCES)));
     op_rep(P_X);
     cpu.x = dp16(KIND53_COUNTER);
@@ -120,7 +120,7 @@ void abi_Kind53Held(void)
     wr8(dpa(ACTOR_FACING), 0x01);
     wr8(dpa(ACTOR_FLIP), 0x01);
     a8_load(0x07);
-    abi_AnimStart();
+    jsl_frame(0x83D586u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     /* held: at its holder's hand for the holder's frame, facing its way */
     for (;;) {
         actor_yield(0x83D58Au);
@@ -162,19 +162,19 @@ void abi_Kind53Held(void)
     }
     /* let go: it falls to the ground, then bounces 8 times, then breaks */
     a8_load(0x10);
-    abi_ActorMotionReset();
+    jsl_frame(0x83D5D2u); abi_ActorMotionReset(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_FLIP)) & 0x01);
     wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
     wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
     do {
         actor_yield(0x83D5DEu);
-        abi_ActorFall();
-        abi_ActorOutOfGround();
+        jsl_frame(0x83D5E0u); abi_ActorFall(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83D5E4u); abi_ActorOutOfGround(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (cpu.p & P_Z);
     a8_load(0x30);
-    abi_SoundQueueAdd();
+    jsl_frame(0x83D5ECu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x42);
-    abi_ActorMotionPreset();
+    jsl_frame(0x83D5F2u); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
     kind53_fly(0x83D5F6u);
     a8_load(0x08);
     wr8(dpa(KIND53_BOUNCES), 0x08);
@@ -183,10 +183,10 @@ void abi_Kind53Held(void)
         a8_load(v);
         if (v) {
             a8_load(0x30);
-            abi_SoundQueueAdd();
+            jsl_frame(0x83D61Cu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
         }
         y8_load(0x4E);
-        abi_ActorSpeedYSet();
+        jsl_frame(0x83D622u); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);
         kind53_fly(0x83D626u);
     } while (dec8_at(dpa(KIND53_BOUNCES)));
     a8_load(0x80);
@@ -210,12 +210,12 @@ void abi_Kind53Held(void)
 void abi_Kind53Thrown(void)
 {
     y8_load(0x4B);
-    abi_ActorMotionPreset();
+    jsl_frame(0x83D696u); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83D69Au);
-        abi_AnimStep();
-        abi_ActorMove();
-        abi_ActorOutOfGround();
+        jsl_frame(0x83D69Cu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83D6A0u); abi_ActorMove(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83D6A4u); abi_ActorOutOfGround(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (cpu.p & P_Z);
     kind53_break();
 }

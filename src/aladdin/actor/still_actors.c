@@ -81,14 +81,14 @@ void abi_ActorFlyOffEnd(void)
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x40);
     flag_set(P_C, 0);
     y8_load(0x2B);                        /* LDY #$2A; INY (the LSR left C clear) */
-    abi_ActorMotionPreset();
+    jsl_frame(0x83C92Fu); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x03);
-    abi_AnimStart();
+    jsl_frame(0x83C935u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x18);
     wr8(dpa(FLYOFF_LEFT), 0x18);
     do {
         actor_yield(0x83C93Du);
-        abi_ActorFly();
+        jsl_frame(0x83C93Fu); abi_ActorFly(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(FLYOFF_LEFT)));
     abi_ActorEndPlaced();
 }

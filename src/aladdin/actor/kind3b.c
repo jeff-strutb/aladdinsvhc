@@ -254,14 +254,14 @@ void abi_Kind3BPart0(void)
     lda8_v(0x40);
     sta8(ea_dp(K3B_RUN));
     ldy8_v(0x0C);
-    abi_ActorSpeedXSet();
+    jsl_frame(0x83C06Du); abi_ActorSpeedXSet(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x20);
     sta8(ea_dp(K3B_FRAMES));
     for (;;) {
         do {
             actor_yield(0x83C075u);
-            abi_ActorMoveX();
-            abi_ActorCarryPlayer();
+            jsl_frame(0x83C077u); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+            call_frame(0xC07D, abi_ActorCarryPlayer);
             MEM8(dec, ea_dp(K3B_FRAMES));
         } while (!IF_Z);
         lda8(ea_dp(ACTOR_FACING));
@@ -292,14 +292,14 @@ void abi_Kind3BPart1(void)
     lda8_v(0x40);
     sta8(ea_dp(K3B_RUN));
     ldy8_v(0x1E);
-    abi_ActorSpeedYSet();
+    jsl_frame(0x83C0A0u); abi_ActorSpeedYSet(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x20);
     sta8(ea_dp(K3B_FRAMES));
     for (;;) {
         do {
             actor_yield(0x83C0A8u);
-            abi_ActorMoveY();
-            abi_ActorCarryPlayer();
+            jsl_frame(0x83C0AAu); abi_ActorMoveY(); cpu.s = (uint16_t)(cpu.s + 3);
+            call_frame(0xC0B0, abi_ActorCarryPlayer);
             MEM8(dec, ea_dp(K3B_FRAMES));
         } while (!IF_Z);
         op_rep(P_M);
@@ -347,7 +347,7 @@ void abi_Kind3BPart1(void)
  */
 void abi_Kind3BPart2(void)
 {
-    abi_ActorFacePlayer();
+    call_frame(0xC0D9, abi_ActorFacePlayer);
     MEM8(asl, ea_dp(ACTOR_FACING));
     for (;;) {
         /* the map quarter ahead */
@@ -364,7 +364,7 @@ void abi_Kind3BPart2(void)
         lda16(ea_absx(K3B_AHEAD + 2));
         adc16_v(rd16(ea_dp(ACTOR_Y + 1)));
         sta16(ea_abs(K3B_PROBE_Y));
-        abi_MapQuarterAt();
+        jsl_frame(0x83C0F5u); abi_MapQuarterAt(); cpu.s = (uint16_t)(cpu.s + 3);
         and8_v(0x07);
         ACC8(asl);
         tax8();
@@ -403,11 +403,11 @@ void abi_Kind3BPart2(void)
                 lda16(ea_abs(K3B_PROBE_Y));
                 sta16(ea_dp(K3B_TARGET_Y));
                 op_sep(P_M);
-                abi_LevelFlagSpotFind();
+                call_frame(0xC183, abi_LevelFlagSpotFind);
             } while (IF_C);
             lda8(ea_longx(K3B_LEVEL_FLAGS));
             pha8();
-            abi_LevelFlagFromMask();
+            call_frame(0xC18D, abi_LevelFlagFromMask);
             ora8_v(0x80);
             sta8(ea_longx(K3B_LEVEL_FLAGS));
             pla8();
@@ -439,11 +439,11 @@ void abi_Kind3BPart2(void)
             sta8(ea_dp(K3B_FRAMES));
             do {
                 actor_yield(0x83C1C5u);
-                abi_ActorStepToTargetCarry();
+                call_frame(0xC1C9, abi_ActorStepToTargetCarry);
                 actor_yield(0x83C1CAu);
-                abi_ActorStepToTargetCarry();
+                call_frame(0xC1CE, abi_ActorStepToTargetCarry);
                 actor_yield(0x83C1CFu);
-                abi_ActorStepToTargetCarry();
+                call_frame(0xC1D3, abi_ActorStepToTargetCarry);
                 clc();
                 lda8(ea_dp(ACTOR_FACING));
                 adc8_v(rd8(ea_dp(K3B_TURN)));

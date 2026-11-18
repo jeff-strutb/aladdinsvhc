@@ -22,7 +22,7 @@ void abi_Bits035DExpand(void)
 {
     cpu.x = 7;
     do {
-        abi_LevelFlagFromMask();
+        call_frame(0xC2EB, abi_LevelFlagFromMask);
         x8_load((uint8_t)(cpu.x - 1));
     } while (!(cpu.x & 0x80));
 }

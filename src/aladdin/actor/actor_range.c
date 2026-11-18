@@ -3,6 +3,7 @@
  * camera are ended, and their placement may place them again.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "actor.h"
 #include "ops65.h"
@@ -92,7 +93,7 @@ void abi_ActorFreePlaced(void)
         cpu.p = nz8(cpu.p, 0);
         wr8(PLACED_FLAGS + x, 0);
     }
-    abi_ActorClear();
+    call_frame(0x96F4, abi_ActorClear);
     top = (uint8_t)(rd8_rmw(ACTOR_FREE_TOP) + 1);
     wr8(ACTOR_FREE_TOP, top);
     top = (uint8_t)(rd8_rmw(ACTOR_FREE_TOP) + 1);
@@ -127,7 +128,7 @@ out:
     op_sep(0x30);
     pla8();
     pla8();
-    abi_ActorFreePlaced();
+    call_frame(0x96CC, abi_ActorFreePlaced);
     actor_leave(ACTOR_LOOP_NEXT);
 }
 
@@ -143,7 +144,7 @@ out:
  */
 void abi_ActorInRange8(void)
 {
-    abi_ActorInRange();
+    call_frame(0x9655, abi_ActorInRange);
     op_sep(0x30);
 }
 
@@ -162,7 +163,7 @@ void abi_ActorInRange8(void)
  */
 void abi_ActorEndOutOfRangeLong(void)
 {
-    abi_ActorInRange();
+    call_frame(0x965B, abi_ActorInRange);
     op_sep(0x30);
     if (!IF_C)
         return;
@@ -214,7 +215,7 @@ void abi_ActorEndPlaced(void)
        (an interrupt in it stacks below it), pulled by its RTS */
     wr8(cpu.s, 0x96); cpu.s--;
     wr8(cpu.s, 0xCC); cpu.s--;
-    abi_ActorFreePlaced();
+    call_frame(0x96CC, abi_ActorFreePlaced);
     cpu.s += 2;
     actor_leave(ACTOR_LOOP_NEXT);
 }
@@ -232,9 +233,9 @@ void abi_ActorEndPlaced(void)
  */
 void abi_ActorFreeOutOfRange(void)
 {
-    abi_ActorInRange();
+    call_frame(0x966E, abi_ActorInRange);
     if (cpu.p & P_C)
-        abi_ActorFreePlaced();
+        call_frame(0x9673, abi_ActorFreePlaced);
     op_sep(P_M | P_X);
 }
 
@@ -247,7 +248,7 @@ void abi_ActorFreeOutOfRange(void)
  */
 void abi_ActorFreeOutOfRangeLong(void)
 {
-    abi_ActorFreeOutOfRange();
+    call_frame(0x966A, abi_ActorFreeOutOfRange);
 }
 
 /*
@@ -264,7 +265,7 @@ void abi_ActorFreePlacedAtY(void)
     phd();
     phy16();
     pld();
-    abi_ActorFreePlaced();
+    call_frame(0x96DA, abi_ActorFreePlaced);
     pld();
     plp();
 }
@@ -310,12 +311,12 @@ far:
     op_sep(0x20);  /* 83C4CF sep */
     op_rep(0x10);  /* 83C4D1 rep */
     ldy16(ea_dp(CHILD_A));  /* 83C4D3 ldy */
-    abi_ActorFreePlacedAtY();  /* 83C4D5 jsr */
+    call_frame(0xC4D7, abi_ActorFreePlacedAtY);  /* 83C4D5 jsr */
     lda8(ea_dp(CHILD_COUNT));  /* 83C4D8 lda */
     ACC8(dec);  /* 83C4DA dec */
     if (IF_Z) goto one;  /* 83C4DB beq */
     ldy16(ea_dp(CHILD_B));  /* 83C4DD ldy */
-    abi_ActorFreePlacedAtY();  /* 83C4DF jsr */
+    call_frame(0xC4E1, abi_ActorFreePlacedAtY);  /* 83C4DF jsr */
 one:
     op_sep(0x10);  /* 83C4E2 sep */
     pla8();  /* 83C4E4 pla */

@@ -108,7 +108,7 @@ void abi_ChildStartListed(void)
     wr8(dpa(ACTOR_SPAWN_AT), (uint8_t)cpu.x);
     wr8(dpa(ACTOR_07), (uint8_t)cpu.y);
     a8_load(0x3D);
-    abi_ActorCreateChild();
+    jsl_frame(0x83C4F2u); abi_ActorCreateChild(); cpu.s = (uint16_t)(cpu.s + 3);
     cpu.y = cpu.x;                        /* the child */
     op_rep(P_M);
     at = (uint16_t)((dp16(CHILD_COUNT) & 0x00FF) << 1);

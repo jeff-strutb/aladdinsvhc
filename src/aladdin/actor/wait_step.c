@@ -183,7 +183,7 @@ void abi_ActorWaitHurtOnTouch(void)
     jsl_frame(0x83D8CEu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_07)) & 0x08);
     if (!(uint8_t)cpu.a)
-        abi_ActorHurtsPlayerOnTouch();
+        call_frame(0xD8DA, abi_ActorHurtsPlayerOnTouch);
     end_if_left_behind();
 }
 /*
@@ -250,12 +250,12 @@ void abi_ActorWaitTest42Anim2(void)
 {
     a8_load(rd8(dpa(ACTOR_42)));
     if (!(uint8_t)cpu.a) {                /* not yet bounced on: a bounce counts */
-        abi_ActorBouncesPlayer();
+        call_frame(0xD0F5, abi_ActorBouncesPlayer);
         if (!(cpu.p & P_Z))
             inc8_at(dpa(ACTOR_42));
     }
     y8_load(0x20);
-    abi_ActorSolidForPlayer();
+    call_frame(0xD0FE, abi_ActorSolidForPlayer);
     jsl_frame(0x83D0FFu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x10);
     abi_ActorEndOutOfRange();
@@ -279,7 +279,7 @@ void abi_ActorWaitWake(void)
     if (!(uint8_t)cpu.a) {
         a8_load(rd8(dpa(ACTOR_41)));
         if ((uint8_t)cpu.a) {
-            abi_PlayerLandsOnActor();
+            call_frame(0xD2AE, abi_PlayerLandsOnActor);
             if (!(cpu.p & P_Z)) {         /* landed on: it wakes (state $8C) */
                 a8_load(0x8C);
                 tsb_at(dpa(ACTOR_STATE), 0x8C);
@@ -372,10 +372,10 @@ void abi_ActorWaitTest42Anim(void)
 {
     a8_load(rd8(dpa(ACTOR_42)));
     if (!(uint8_t)cpu.a) {                /* a bounce counts 1, a shot 2 */
-        abi_ActorBouncesPlayer();
+        call_frame(0xCF92, abi_ActorBouncesPlayer);
         if (!(cpu.p & P_Z))
             inc8_at(dpa(ACTOR_42));
-        abi_ActorTakesShot();
+        call_frame(0xCF99, abi_ActorTakesShot);
         if (!(cpu.p & P_C)) {
             inc8_at(dpa(ACTOR_42));
             inc8_at(dpa(ACTOR_42));
@@ -479,16 +479,16 @@ void abi_ActorWaitStepSounds(void)
     and8_v(0x0F);
     tax8();
     lda8(ea_absx(STEP_SOUNDS));
-    abi_SoundQueueAdd();
+    jsl_frame(0x83DFE8u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
 touch:
-    abi_ActorHurtsPlayerOnTouch();
+    call_frame(0xDFEE, abi_ActorHurtsPlayerOnTouch);
     goto tail;
 other:
     call_routine(SUB_83FBDA, 0);
     ldy8_v(0x3C);
     sty8(ea_dp(ACTOR_4C));
     ldx8_v(0x02);
-    abi_ActorTestCarries();
+    call_frame(0xDFFC, abi_ActorTestCarries);
 tail:
     end_if_left_behind();
 }

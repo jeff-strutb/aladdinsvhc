@@ -161,10 +161,10 @@ void abi_Kind54Wait(void)
 {
     uint8_t v;
 
-    abi_AnimStep();
+    jsl_frame(0x83D7E7u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     v = (uint8_t)(rd8(dpa(ACTOR_07)) & 0x08);
     a8_load(v);
     if (!v)
-        abi_ActorHurtsPlayerOnTouch();
+        call_frame(0xD7F3, abi_ActorHurtsPlayerOnTouch);
     abi_ActorEndIfLeftBehind();
 }

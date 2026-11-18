@@ -111,8 +111,8 @@ void abi_ActorFacePlayer(void)
 void abi_ActorStepCarry(void)
 {
     x8_load(0x0E);
-    abi_ActorMoveByVector();
-    abi_ActorCarryPlayer();
+    jsl_frame(0x83C1EEu); abi_ActorMoveByVector(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xC1F4, abi_ActorCarryPlayer);
 }
 
 
@@ -139,7 +139,7 @@ void abi_ActorStepToTargetCarry(void)
     if (now != dp16(0x1A)) {
         op_sep(P_M);
         x8_load(0x08);
-        abi_ActorMoveByVectorX();
+        jsl_frame(0x83C202u); abi_ActorMoveByVectorX(); cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(P_M);
     }
     now = dp16(ACTOR_Y + 1);
@@ -148,10 +148,10 @@ void abi_ActorStepToTargetCarry(void)
     if (now != dp16(0x1E)) {
         op_sep(P_M);
         x8_load(0x08);
-        abi_ActorMoveByVectorY();
+        jsl_frame(0x83C212u); abi_ActorMoveByVectorY(); cpu.s = (uint16_t)(cpu.s + 3);
     }
     op_sep(P_M);
-    abi_ActorCarryPlayer();
+    call_frame(0xC21A, abi_ActorCarryPlayer);
 }
 
 

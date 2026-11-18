@@ -131,7 +131,7 @@ void abi_GrabberStart(void)
     and8_v(0x01);
     sta8(ea_dp(ACTOR_FLIP));
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83C77Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
 
     /* until it catches him */
     for (;;) {
@@ -146,7 +146,7 @@ void abi_GrabberStart(void)
         if (IF_N)
             continue;
         ldy8_v(GRAB_ZONE);
-        abi_ActorZoneHasTestPointLong();
+        jsl_frame(0x83C796u); abi_ActorZoneHasTestPointLong(); cpu.s = (uint16_t)(cpu.s + 3);
         if (!IF_C)
             break;
     }
@@ -159,9 +159,9 @@ void abi_GrabberStart(void)
     lda8_v(GRAB_HOLD_CODE >> 8);
     sta8(ea_abs(GRAB_PLAYER_RESUME + 1));
     MEM8(inc, ea_dp(GRAB_HELD));
-    abi_Point145DToActor();
+    call_frame(0xC7B3, abi_Point145DToActor);
     actor_yield(0x83C7B4u);
-    abi_PlayerToActor();
+    call_frame(0xC7B8, abi_PlayerToActor);
     lda8_v(0x30);
     sta8(ea_dp(GRAB_FRAMES));
     do {                                  /* holds him 48 frames */
@@ -219,9 +219,9 @@ shake:
         trb8(ea_dp(ACTOR_09));
     }
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83C81Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x38);
-    abi_ActorMotionReset();
+    jsl_frame(0x83C823u); abi_ActorMotionReset(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x81);
     sta8(ea_dp(ACTOR_07));
     lda8_v(0x40);
@@ -233,8 +233,8 @@ shake:
     }
     for (;;) {
         actor_yield(0x83C846u);
-        abi_AnimStep();
-        abi_ActorFall();
+        jsl_frame(0x83C848u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83C84Cu); abi_ActorFall(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8(ea_dp(GRAB_KIND));
         if (!IF_Z) {
             lda8(ea_dp(ACTOR_Y + 1));
@@ -243,7 +243,7 @@ shake:
                 goto landed;
         }
         push16(0xC85C);
-        abi_ActorFallTileTest();
+        call_frame(0xC85C, abi_ActorFallTileTest);
         cpu.s = (uint16_t)(cpu.s + 2);
         if (IF_Z)
             break;
@@ -254,7 +254,7 @@ shake:
         lda8(ea_dp(GRAB_KIND));
         if (IF_Z) {
             lda8_v(0x18);
-            abi_SoundQueueAdd();
+            jsl_frame(0x83C86Bu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
         }
     }
 
@@ -290,23 +290,23 @@ landed:
     if (!IF_Z) {
         for (;;) {                        /* kind $62: falls on */
             actor_yield(0x83C8D1u);
-            abi_AnimStep();
-            abi_ActorFall();
+            jsl_frame(0x83C8D3u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x83C8D7u); abi_ActorFall(); cpu.s = (uint16_t)(cpu.s + 3);
         }
     }
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83C8B6u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_08));
     and8_v(0xFC);
     ora8_v(0x02);
     sta8(ea_dp(ACTOR_08));
     for (;;) {
         actor_yield(0x83C8C2u);
-        abi_ActorBouncesPlayer();
+        call_frame(0xC8C6, abi_ActorBouncesPlayer);
         if (IF_Z)
             continue;
         lda8_v(0x12);
-        abi_SoundQueueAdd();
+        jsl_frame(0x83C8CBu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 

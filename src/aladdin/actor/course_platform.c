@@ -321,8 +321,8 @@ void abi_PlatformCourseStart(void)
             cmp8_of(x_high, COURSE_END_X_HIGH);
             if (x_high == COURSE_END_X_HIGH)
                 goto worked_out;
-            abi_PlatformCourseRecord();
-            abi_PlatformCourseSlower();
+            call_frame(0xC999, abi_PlatformCourseRecord);
+            call_frame(0xC99C, abi_PlatformCourseSlower);
             if (!(cpu.p & P_C))
                 break;
         }
@@ -330,8 +330,8 @@ void abi_PlatformCourseStart(void)
         wr8(dpa(ACTOR_FACING), facing);
         nz8_of(facing);
         do {
-            abi_PlatformCourseRecord();
-            abi_PlatformCourseFaster();
+            call_frame(0xC9A3, abi_PlatformCourseRecord);
+            call_frame(0xC9A6, abi_PlatformCourseFaster);
         } while (!(cpu.p & P_C));
     }
 worked_out:;
@@ -339,12 +339,12 @@ worked_out:;
     uint8_t top = rd8(dba(ACTOR_FREE_TOP));
     a8_load((uint8_t)(top >> 1));
     flag_set(P_C, top & 1);
-    abi_ActorFreeListSortHigh();
+    jsl_frame(0x83C9AFu); abi_ActorFreeListSortHigh(); cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_07), (uint8_t)(rd8(dpa(ACTOR_07)) + 1));
     a8_load(6 * WAYPOINT_SIZE);
     dp16_set(COURSE_AT, 6 * WAYPOINT_SIZE);
     for (int i = 0; i < 4; i++)
-        abi_PlatformSpawnOnCourse();
+        call_frame(0xC9BD, abi_PlatformSpawnOnCourse);
     a8_load(18);
     wr8(dba(COURSE_LIVE), 18);
     /* Each frame the live waypoint follows the screen's middle: on one
@@ -410,7 +410,7 @@ void abi_PlatformOnCourseStart(void)
     wr8(dpa(DIRECTION), 0);
     wr8(dpa(DIRECTION_FLIP), 0);
     wr8(dpa(RIDDEN), 0);
-    abi_PlatformDipClear();
+    call_frame(0xCA7F, abi_PlatformDipClear);
     wr8(dpa(LAST_DIRECTION), 0xFF);
     wr8(dpa(ACTOR_08), 0x02);
     wr8(dpa(ACTOR_09), 0x90);
@@ -423,8 +423,8 @@ void abi_PlatformOnCourseStart(void)
     wr8(dpa(ACTOR_FACING), 0);
     do {
         actor_yield(0x83CA9Eu);
-        abi_PlatformPositionKeep();
-        abi_PlatformCourseSlower();
+        call_frame(0xCAA2, abi_PlatformPositionKeep);
+        call_frame(0xCAA5, abi_PlatformCourseSlower);
     } while (cpu.p & P_C);
     jump_routine(PLATFORM_IN_TURN);
 }
@@ -447,7 +447,7 @@ void abi_PlatformSpawnOnCourse(void)
     uint16_t child, at;
 
     a8_load(0x47);
-    abi_ActorCreateChild();
+    jsl_frame(0x83CA13u); abi_ActorCreateChild(); cpu.s = (uint16_t)(cpu.s + 3);
     /* the child at the waypoint the next platform starts at; the next one
        6 waypoints on */
     op_rep(P_M);
@@ -513,7 +513,7 @@ void abi_PlatformCourseStep(void)
     wr8(dba(0x0011), rd8(dba((uint16_t)(0xD308 + x))));
     wr8(dba(V_0012), rd8(dba((uint16_t)(0xD309 + x))));
     a8_load(rd8(dpa(0x20)));
-    abi_ActorMoveScaled();
+    jsl_frame(0x83CB5Cu); abi_ActorMoveScaled(); cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(0x4D), rd8(dpa(0x0E)));
     wr8(dpa(0x4E), rd8(dpa(0x0F)));
     a8_load(rd8(dpa(0x10)));
@@ -595,7 +595,7 @@ void abi_PlatformCourseFollow(void)
     wr8(dpa(0x1C), 0xFF);
     wr8(dpa(0x42), 0);
     wr8(dpa(0x13), 0);
-    abi_PlatformDipClear();
+    call_frame(0xCC12, abi_PlatformDipClear);
     inc8_at(dpa(0x16));
 out:
     op_sep(0x30);
@@ -619,7 +619,7 @@ void abi_PlatformDipLand(void)
     a8_load(0x4B);
     x8_load(0x00);
     y8_load(rd8(dpa(0x40)));
-    abi_ActorSpawnFacingY();
+    jsl_frame(0x83CC48u); abi_ActorSpawnFacingY(); cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_N)) {
         /* the child's parent, and the sound when on screen */
         a16_load(cpu.d);
@@ -631,7 +631,7 @@ void abi_PlatformDipLand(void)
         bit8_of((uint8_t)cpu.a, rd8(dpa(0x09)));
         if (cpu.p & P_V) {
             a8_load(rd8(dpa(0x17)));
-            abi_SoundQueueAdd();
+            jsl_frame(0x83CC5Eu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
         }
     }
     inc8_at(dpa(0x13));
@@ -651,7 +651,7 @@ void abi_PlatformDipLand(void)
 void abi_PlatformDipSink(void)
 {
     x8_load(0x00);
-    abi_PlatformDipStep();
+    call_frame(0xCC69, abi_PlatformDipStep);
     op_rep(P_M);
     a16_load(dp16(0x4B));
     cmp16_of(cpu.a, 0x000B);
@@ -674,7 +674,7 @@ void abi_PlatformDipSink(void)
 void abi_PlatformDipRise(void)
 {
     x8_load(0x03);
-    abi_PlatformDipStep();
+    call_frame(0xCC7D, abi_PlatformDipStep);
     op_rep(P_M);
     a16_load(dp16(0x4B));
     cmp16_of(cpu.a, 0x0003);
@@ -697,7 +697,7 @@ void abi_PlatformDipRise(void)
 void abi_PlatformDipSinkAgain(void)
 {
     x8_load(0x00);
-    abi_PlatformDipStep();
+    call_frame(0xCC98, abi_PlatformDipStep);
     op_rep(P_M);
     a16_load(dp16(0x4B));
     cmp16_of(cpu.a, 0x000B);
@@ -720,7 +720,7 @@ void abi_PlatformDipSinkAgain(void)
 void abi_PlatformDipRiseEnd(void)
 {
     x8_load(0x03);
-    abi_PlatformDipStep();
+    call_frame(0xCCAC, abi_PlatformDipStep);
     a8_load(rd8(dpa(0x4C)));
     if ((uint8_t)cpu.a & 0x80) {
         /* risen past level: done */
@@ -753,8 +753,8 @@ void abi_PlatformCourseSlower(void)
         speed = 0x20;
     a8_load(speed);
     wr8(dpa(0x20), speed);
-    abi_PlatformCourseStep();
-    abi_PlatformTurnZoneTest();
+    call_frame(0xCB0B, abi_PlatformCourseStep);
+    call_frame(0xCB0E, abi_PlatformTurnZoneTest);
 }
 
 
@@ -780,8 +780,8 @@ void abi_PlatformCourseFaster(void)
         speed = 0x80;
     a8_load(speed);
     wr8(dpa(0x20), speed);
-    abi_PlatformCourseStep();
-    abi_PlatformTurnZoneTest();
+    call_frame(0xCB1F, abi_PlatformCourseStep);
+    call_frame(0xCB22, abi_PlatformTurnZoneTest);
 }
 
 
@@ -847,16 +847,16 @@ L_83CD06:
     stx16(ea_dp(RIDER_X_KEPT));  /* 83CD0B stx */
     ldx16_v(0x0000);  /* 83CD0D ldx */
     ldy16_v(PLAYER);  /* 83CD10 ldy */
-    abi_PlatformCarriesRecordY();  /* 83CD13 jsr */
+    call_frame(0xCD15, abi_PlatformCarriesRecordY);  /* 83CD13 jsr */
     if (IF_C) goto L_83CD44;  /* 83CD16 bcs */
     MEM8(inc, ea_abs(V_1428));  /* 83CD18 inc */
     MEM8(inc, ea_dp(RIDDEN));  /* 83CD1B inc */
     op_sep(0x10);  /* 83CD1D sep */
-    abi_PlayerOnFirmGroundProbe8();  /* 83CD1F jsl */
+    jsl_frame(0x83CD1Fu); abi_PlayerOnFirmGroundProbe8(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CD1F jsl */
     if (IF_C) goto L_83CD31;  /* 83CD23 bcs */
-    abi_PlayerOnFirmGroundProbe4();  /* 83CD25 jsl */
+    jsl_frame(0x83CD25u); abi_PlayerOnFirmGroundProbe4(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CD25 jsl */
     if (IF_C) goto L_83CD31;  /* 83CD29 bcs */
-    abi_PlayerOnFirmGround();  /* 83CD2B jsl */
+    jsl_frame(0x83CD2Bu); abi_PlayerOnFirmGround(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CD2B jsl */
     if (!IF_C) goto L_83CD3B;  /* 83CD2F bcc */
 L_83CD31:
     lda8(ea_dp(RIDER_X_KEPT));  /* 83CD31 lda */
@@ -867,7 +867,7 @@ L_83CD3B:
     lda8(ea_dp(DIP_PHASE));  /* 83CD3B lda */
     if (!IF_Z) goto L_83CD44;  /* 83CD3D bne */
     lda8_v(0x1F);  /* 83CD3F lda */
-    abi_PlatformDipStart();  /* 83CD41 jsr */
+    call_frame(0xCD43, abi_PlatformDipStart);  /* 83CD41 jsr */
 L_83CD44:
     op_sep(0x10);  /* 83CD44 sep */
 }
@@ -1009,9 +1009,9 @@ void abi_PlatformNotOn(void)
 void abi_PlatformWait(void)
 {
     stz8(ea_dp(JUMPED));  /* 83CAD1 stz */
-    abi_PlatformDipUpdate();  /* 83CAD3 jsr */
-    abi_PlatformMoveMeasure();  /* 83CAD6 jsr */
-    abi_PlatformRiderCheck();  /* 83CAD9 jsr */
+    call_frame(0xCAD5, abi_PlatformDipUpdate);  /* 83CAD3 jsr */
+    call_frame(0xCAD8, abi_PlatformMoveMeasure);  /* 83CAD6 jsr */
+    call_frame(0xCADB, abi_PlatformRiderCheck);  /* 83CAD9 jsr */
     lda8(ea_dp(0x42));  /* 83CADC lda */
     if (IF_Z) goto L_83CAE8;  /* 83CADE beq */
     stz8(ea_dp(0x42));  /* 83CAE0 stz */
@@ -1019,13 +1019,13 @@ void abi_PlatformWait(void)
     eor8_v(0x01);  /* 83CAE4 eor */
     sta8(ea_dp(0x40));  /* 83CAE6 sta */
 L_83CAE8:
-    abi_PlatformCourseFollow();  /* 83CAE8 jsr */
+    call_frame(0xCAEA, abi_PlatformCourseFollow);  /* 83CAE8 jsr */
     lda8(ea_dp(0x40));  /* 83CAEB lda */
     cmp8_v(rd8(ea_dp(0x1C)));  /* 83CAED cmp */
     if (IF_Z) goto L_83CAF7;  /* 83CAEF beq */
     sta8(ea_dp(0x1C));  /* 83CAF1 sta */
-    abi_AnimStart();  /* 83CAF3 jsl */
+    jsl_frame(0x83CAF3u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CAF3 jsl */
 L_83CAF7:
-    abi_AnimStep();  /* 83CAF7 jsl */
+    jsl_frame(0x83CAF7u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83CAF7 jsl */
     return;  /* 83CAFB rts */
 }

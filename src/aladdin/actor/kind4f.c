@@ -71,11 +71,11 @@ void abi_Kind4FStart(void)
         /* already open */
         (void)inc8_at(dpa(K4F_OPEN));
         a8_load(0x0A);
-        abi_AnimStart();
+        jsl_frame(0x83D03Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         stay();
     }
     a8_load(0x09);
-    abi_AnimStart();
+    jsl_frame(0x83D044u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83D048u);
         a8_load(rd8(dpa(K4F_OPEN)));
@@ -83,14 +83,14 @@ void abi_Kind4FStart(void)
     a8_load(0x05);
     wr8(dpa(K4F_FRAMES), 0x05);
     a8_load(0x12);
-    abi_SoundQueueAdd();
+    jsl_frame(0x83D054u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
     do
         actor_yield(0x83D058u);
     while (dec8_at(dpa(K4F_FRAMES)));
     a8_load(0x0A);
-    abi_AnimStart();
-    abi_ActorSpawnRing();
+    jsl_frame(0x83D060u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xD066, abi_ActorSpawnRing);
     pause(0x83D06Bu);
-    abi_ActorVariantChildStep();
+    call_frame(0xD073, abi_ActorVariantChildStep);
     stay();
 }

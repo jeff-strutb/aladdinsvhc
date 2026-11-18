@@ -88,10 +88,10 @@ void abi_Kind3DPlayerContact(void)
     ldx8(ea_dp(K3D_RIDDEN));
     if (!IF_Z) {                          /* ridden */
         op_sep(P_M);
-        abi_PlayerMoveWithActor();
-        abi_PlayerEnter8CFacing();
+        jsl_frame(0x83C45Au); abi_PlayerMoveWithActor(); cpu.s = (uint16_t)(cpu.s + 3);
+        call_frame(0xC460, abi_PlayerEnter8CFacing);
         op_rep(P_M);
-        abi_ActorPlayerBoxCount();
+        call_frame(0xC465, abi_ActorPlayerBoxCount);
         ldy8(ea_abs(V_141C));
         if (IF_Z) {
             lda16(ea_dp(K3D_X_COUNT));
@@ -108,7 +108,7 @@ void abi_Kind3DPlayerContact(void)
         stz8(ea_dp(K3D_RIDDEN));
         return;
     }
-    abi_ActorPlayerBoxCount();
+    call_frame(0xC3F8, abi_ActorPlayerBoxCount);
     lda16(ea_dp(K3D_X_COUNT));
     if (IF_Z)
         goto out;
@@ -141,7 +141,7 @@ void abi_Kind3DPlayerContact(void)
     if (!IF_Z) {
         lda8(ea_dp(K3D_4B));
         if (IF_Z)
-            abi_PlayerEnter8CFacing();
+            call_frame(0xC420, abi_PlayerEnter8CFacing);
     }
     op_rep(P_M);
     ldx8(ea_abs(V_141C));
@@ -165,8 +165,8 @@ out:
  */
 void abi_Kind3DWait(void)
 {
-    abi_Kind3DPlayerContact();
-    abi_ActorTurnsShotBack();
+    call_frame(0xC4A6, abi_Kind3DPlayerContact);
+    call_frame(0xC4A9, abi_ActorTurnsShotBack);
 }
 
 /*
@@ -182,18 +182,19 @@ void abi_ActorStartChild1E5(void)
 {
     ldx8_v(0x1E);
     ldy8_v(0x05);
-    abi_ChildStartListed();
+    call_frame(0xC338, abi_ChildStartListed);
 }
 
-/* `n` frames (BRK at brk_at first) of ActorKeepSpot and `step`. */
+/* `n` frames (BRK at brk_at first) of ActorKeepSpot (its JSL right after
+   the BRK) and `step` (its JSR after that). */
 static void bob_frames(uint8_t n, uint32_t brk_at, void (*step)(void))
 {
     lda8_v(n);
     sta8(ea_dp(ACTOR_40));
     do {
         actor_yield(brk_at);
-        abi_ActorKeepSpot();
-        step();
+        jsl_frame(brk_at + 2); abi_ActorKeepSpot(); cpu.s = (uint16_t)(cpu.s + 3);
+        call_frame((uint16_t)(brk_at + 8), step);
         MEM8(dec, ea_dp(ACTOR_40));
     } while (!IF_Z);
 }
@@ -227,21 +228,21 @@ void abi_Kind3DBob(void)
     stz8(ea_dp(K3D_Y_WAS + 1));
     stz8(ea_dp(K3D_RIDDEN));
     lda8(ea_dp(ACTOR_07));
-    abi_AnimStart();
+    jsl_frame(0x83C379u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x90);
     sta8(ea_dp(ACTOR_09));
     for (;;) {
         stz8(ea_dp(K3D_4B));
         actor_yield(0x83C383u);
-        abi_ActorKeepSpot();
+        jsl_frame(0x83C385u); abi_ActorKeepSpot(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8_v(0x28);
         actor_wait(0x83C38Bu);
         bob_frames(0x0E, 0x83C391u, abi_ActorBobStep);
         MEM8(inc, ea_dp(K3D_4B));
         lda8_v(0x4E);
-        abi_SoundQueueAdd();
+        jsl_frame(0x83C3A2u); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
         actor_yield(0x83C3A6u);
-        abi_ActorKeepSpot();
+        jsl_frame(0x83C3A8u); abi_ActorKeepSpot(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8_v(0x1B);
         actor_wait(0x83C3AEu);
         stz8(ea_dp(K3D_4B));
@@ -288,9 +289,10 @@ void abi_Kind3DStart(void)
         return;
     }
     switch (cpu.x) {
-    case 0: abi_ActorStartChild1E(); break;
-    case 2: abi_ActorStartChild1E5(); break;
-    case 4: abi_ActorStartTwoChildren(); break;
+    /* JSR ($C324,X) at 83:C317 */
+    case 0: call_frame(0xC319, abi_ActorStartChild1E); break;
+    case 2: call_frame(0xC319, abi_ActorStartChild1E5); break;
+    case 4: call_frame(0xC319, abi_ActorStartTwoChildren); break;
     default: call_routine(0x830000u | rd16(0x830000u | (uint16_t)(K3D_CHILD_SETS + cpu.x)), 0); break;
     }
     for (;;) {
