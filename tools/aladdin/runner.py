@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """runner.py: the gate runner. Certifies each commit's routines as it lands.
 
-    runner.py [--from REV] [--once] [--ledger-every N]
+    runner.py [--from REV] [--once] [--ledger-every N] | runner.py --sweep
 
 For each new commit on the checked-out branch (the batch: every commit since
 the last one done), the runner:
@@ -21,10 +21,10 @@ the last one done), the runner:
      (Holds are not made: C reaches some routines only by runtime jumps no
      static check sees, so a hold can leave C jumping into code with no C.)
   5. a batch that changed the harness (the checker, core patches,
-     hybrid.py) qualifies only the routines it changed, like any other;
-     the whole game is checked again off the critical path: a full A7 on
-     the new harness into the A7 ledger, run once no commit has landed for
-     15 minutes, which reports red scripts (regressions) without holding;
+     hybrid.py) qualifies only the routines it changed, like any other.
+     The whole-game A7 (every script, into the A7 ledger, reds reported)
+     runs only when Jeff asks for it: runner.py --sweep (Jeff,
+     2026-11-18: test what needs testing, not what is already proven);
   6. commits the ledgers (config/aladdin/t3_live.csv, whole_image.csv, and
      progress.py's README and map) every N batches (default 3), or when idle.
 
@@ -278,8 +278,7 @@ def batch(state, head):
     got = dict(l.split(' ', 1) if ' ' in l else (l, '') for l in text.splitlines() if l.startswith(('routines', 'scripts', 'harness')))
     addrs = got.get('routines', '').split()
     if got.get('harness') == 'yes':
-        state['regress'] = head
-        log('%s: harness changed: whole-game A7 queued for when no commit lands for %d min' % (short, REGRESS_IDLE // 60))
+        log('%s: harness changed; the whole-game A7 runs only on request (runner.py --sweep)' % short)
     if not addrs:
         log('%s: no routine affected' % short)
         return True
@@ -352,6 +351,13 @@ def main(argv):
         # The revision the ledgers were last measured on: the first batch is everything since.
         state = {'done': git('rev-parse', argv[argv.index('--from') + 1], check=True), 'at': time.time(), 'batches': 0}
         save_state(state)
+    if '--sweep' in argv:
+        # The whole-game A7 at HEAD, on request only.
+        state['regress'] = git('rev-parse', 'HEAD')
+        regress(state)
+        save_state(state)
+        return 0
+    state.pop('regress', None)
     waiting = None
     log('runner start at %s, done %s' % (git('rev-parse', '--short', 'HEAD'), state.get('done', '-')[:7]))
     while True:
