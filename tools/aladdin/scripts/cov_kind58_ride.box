@@ -1,0 +1,52 @@
+# Actor kind $58 ($83:DBBB, its wait $83:DC9B), the rising and sinking
+# platforms of stage a3 s0 (level 8; records $0BAB, $0BFB, $0CEB at x
+# $03A0, $0360, $03E0, and $0D8B), which no other script reaches. The view
+# put at x $03C0, y 0. Aladdin dropped onto $0BAB: he rides it ($43 set,
+# pose 1). Moved onto $0BFB: $0BAB's copier count ($42) runs out and its
+# test finds no copier. Held in the air under $0CEB at its top for 30
+# frames: he hangs from it ($44 counts, pose 4 by his flip); $1427
+# cleared: he lets go ($44 from $F0). With cartram on he rides $0BAB
+# again and moves to $0BFB: its test finds the copier and puts him on
+# $0BAB. Then $0D8B restarted (state $0C) with $07 = $12, its bit 4
+# variant (pose 3); $0BAB's bit 6 of $09 set, and the view moved to x
+# $07D0, where level 8's kind $58 ends unless that bit is set. Last,
+# health 0: each one takes pose $FF.
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 001773 C0,03
+poke 0019E5 C0,03
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 00,04
+poke 0008EA 60,00
+wait 20
+poke 0008E7 A0,03
+poke 0008EA 30,00
+wait 100
+poke 0008E7 60,03
+wait 90
+repeat 30
+poke 0008E7 E0,03
+poke 0008EA 52,00
+wait 1
+end
+wait 60
+poke 001427 00
+wait 40
+cartram on
+poke 0008E7 A0,03
+poke 0008EA 30,00
+wait 80
+poke 0008E7 60,03
+wait 60
+cartram off
+wait 10
+poke 000D8B 0C
+poke 000D92 12
+wait 60
+poke 000BB4 D0
+poke 001773 D0,07
+poke 0019E5 D0,07
+wait 30
+poke 000367 00
+wait 20
