@@ -35,11 +35,11 @@ void abi_HudRedrawAll(void)
     uint8_t mark;
 
     a8_load(0x00);
-    abi_TextLayoutShow();
+    jsl_frame(0x81F435u); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dba(HEALTH_MARKS)));
     do {                                  /* each mark place, the last first */
         pha8();
-        abi_HudHealthMarkShow();
+        call_frame(0xF43F, abi_HudHealthMarkShow);   /* 81F43D jsr */
         pla8();
         mark = (uint8_t)(cpu.a - 1);
         a8_load(mark);
@@ -49,6 +49,6 @@ void abi_HudRedrawAll(void)
     wr8(dba(HUD_036D), 0);
     wr8(dba(HUD_COUNT_1_SHOWN), 0);
     wr8(dba(HUD_COUNT_2_SHOWN), 0);
-    abi_HudDigitRefresh();
-    abi_HudRefresh();
+    call_frame(0xF455, abi_HudDigitRefresh);     /* 81F453 jsr */
+    abi_HudRefresh();                            /* on into it */
 }

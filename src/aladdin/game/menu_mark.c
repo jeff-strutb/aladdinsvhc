@@ -63,7 +63,7 @@ static uint8_t menu_line(uint8_t choice)
  */
 void abi_TitleMenuCursorLong(void)
 {
-    abi_TitleMenuCursor();
+    call_frame(0xEDA4, abi_TitleMenuCursor);       /* 81EDA2 jsr */
 }
 
 /*
@@ -84,44 +84,44 @@ void abi_TitleMenuCursorLong(void)
  */
 void abi_TitleMenuCursor(void)
 {
-    uint8_t pressed = rd8(dba((uint16_t)(JOY_PRESSED + 1))), choice, was;
-    uint16_t idle;
-
-    a8_load(pressed);
-    if (!(pressed & (PAD_UP | PAD_DOWN))) {
-        abi_TitleMenuBlink();
-        return;
-    }
-    choice = rd8(dba(MENU_CHOICE));
-    if (pressed & PAD_UP) {
-        choice = (uint8_t)(choice - 1);
-        if (choice & 0x80)
-            choice = 2;
-        a8_load(choice);
+    lda8(ea_abs((uint16_t)(JOY_PRESSED + 1)));
+    bit8_i(PAD_UP);
+    if (IF_Z) {
+        bit8_i(PAD_DOWN);
+        if (IF_Z) {
+            call_frame(0xEDB3, abi_TitleMenuBlink); /* 81EDB1 jsr */
+            return;
+        }
+        MEM8(inc, ea_abs((uint16_t)MENU_CHOICE));    /* down */
+        lda8(ea_abs((uint16_t)MENU_CHOICE));
+        cmp8_v(0x03);
+        if (IF_Z)
+            stz8(ea_abs((uint16_t)MENU_CHOICE));
     } else {
-        choice = (uint8_t)(choice + 1);
-        a8_load(choice);             /* A keeps 3 when it wraps */
-        if (choice == 3)
-            choice = 0;
+        MEM8(dec, ea_abs((uint16_t)MENU_CHOICE));    /* up */
+        lda8(ea_abs((uint16_t)MENU_CHOICE));
+        if (IF_N) {
+            lda8_v(0x02);
+            sta8(ea_abs((uint16_t)MENU_CHOICE));
+        }
     }
-    wr8(dba(MENU_CHOICE), choice);
-    abi_MenuMarkMove();
-    abi_TitleMenuBlink();
-    was = rd8(dba(MENU_CHOICE_WAS));
-    cpu.y = was;
-    a8_load(menu_line(was));
-    abi_TextLayoutShow();
-    wr8(dba(MENU_BLINK_HIDDEN), 0);
-    wr8(dba(MENU_BLINK_FRAMES), 0);
-    choice = rd8(dba(MENU_CHOICE));
-    wr8(dba(MENU_CHOICE_WAS), choice);
-    idle = rd16(dba(V_0343));
-    cpu.a = TITLE_IDLE_LEAST;
-    cmp16_of(TITLE_IDLE_LEAST, idle);
-    if (TITLE_IDLE_LEAST >= idle)
-        wr16(dba(V_0343), TITLE_IDLE_LEAST);
-    a8_load(SOUND_MENU_MOVE);
-    abi_SoundQueueAdd();
+    jsl_frame(0x81EDD1u); abi_MenuMarkMove(); cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xEDD7, abi_TitleMenuBlink);         /* 81EDD5 jsr */
+    ldy8(ea_abs((uint16_t)MENU_CHOICE_WAS));
+    lda8(ea_absy(MENU_LINES));
+    jsl_frame(0x81EDDEu); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
+    stz8(ea_abs((uint16_t)MENU_BLINK_HIDDEN));
+    stz8(ea_abs((uint16_t)MENU_BLINK_FRAMES));
+    lda8(ea_abs((uint16_t)MENU_CHOICE));
+    sta8(ea_abs((uint16_t)MENU_CHOICE_WAS));
+    op_rep(0x20);
+    lda16_v(TITLE_IDLE_LEAST);
+    cmp16_v(rd16(ea_abs((uint16_t)V_0343)));
+    if (IF_C)
+        sta16(ea_abs((uint16_t)V_0343));
+    op_sep(0x20);
+    lda8_v(SOUND_MENU_MOVE);
+    jsl_frame(0x81EDFFu); abi_SoundQueueAdd(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -153,7 +153,7 @@ void abi_TitleMenuBlink(void)
         choice = rd8(dba(MENU_CHOICE_WAS));
         cpu.y = choice;
         a8_load(menu_line(choice));
-        abi_TextLayoutShow();
+        jsl_frame(0x81EE6Bu); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
         return;
     }
     frames = (uint8_t)(frames + 1);
@@ -166,5 +166,5 @@ void abi_TitleMenuBlink(void)
     choice = rd8(dba(MENU_CHOICE));
     cpu.y = choice;
     a8_load((uint8_t)(menu_line(choice) | 0x80));
-    abi_TextLayoutShow();
+    jsl_frame(0x81EE84u); abi_TextLayoutShow(); cpu.s = (uint16_t)(cpu.s + 3);
 }
