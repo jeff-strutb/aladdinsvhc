@@ -1037,13 +1037,17 @@ drawn:
    `side` the record's side field, `bits` the side's edge bits, `draw` and
    `step` the draw and the edges' step. */
 static void draw_queued(uint32_t queue, uint32_t head, uint32_t tail, uint16_t side,
-                        uint32_t bits, void (*draw)(void), void (*step)(void))
+                        uint32_t bits, void (*draw)(void), uint16_t draw_ret,
+                        void (*step)(void), uint16_t step_ret)
 {
     for (;;) {
+        uint8_t t;
+
         cpu.x = rd8(head);
         cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
-        cpu.p = cmp8_flags(cpu.p, (uint8_t)cpu.x, rd8(tail));
-        if ((uint8_t)cpu.x == rd8(tail))
+        t = rd8(tail);                           /* one read: the CPX's */
+        cpu.p = cmp8_flags(cpu.p, (uint8_t)cpu.x, t);
+        if ((uint8_t)cpu.x == t)
             return;
         set_a8(rd8(queue + 1 + cpu.x));
         op_xba();
@@ -1060,8 +1064,8 @@ static void draw_queued(uint32_t queue, uint32_t head, uint32_t tail, uint16_t s
         wr8(head, (uint8_t)cpu.a);
         set_a8(rd8(bits + cpu.y));
         if (bit8_dp(LAYER_EDGES)) {
-            draw();
-            step();
+            call_frame(draw_ret, draw);
+            call_frame(step_ret, step);
         }
     }
 }
@@ -1074,7 +1078,7 @@ static void draw_queued(uint32_t queue, uint32_t head, uint32_t tail, uint16_t s
  */
 void abi_LayersScrollLong(void)
 {
-    abi_LayersScroll();
+    call_frame(0xC1F8, abi_LayersScroll);
 }
 
 /*
@@ -1091,17 +1095,16 @@ void abi_LayersScrollLong(void)
  */
 void abi_LayersScroll(void)
 {
-    uint8_t p = cpu.p;
-    uint16_t d = cpu.d;
-
+    php();
+    phd();
     op_rep(0x20);
     op_lda16_imm(LAYER0);
     cpu.d = cpu.a;
     do {
         op_lda16(dp(LAYER_EDGES));
         if (cpu.a != 0) {
-            abi_LayerQueueColumn();
-            abi_LayerQueueRow();
+            call_frame(0xC208, abi_LayerQueueColumn);
+            call_frame(0xC20B, abi_LayerQueueRow);
         }
         op_lda16_imm(cpu.d);                     /* TDC */
         op_add16(LAYER_SIZE);
@@ -1110,11 +1113,11 @@ void abi_LayersScroll(void)
     } while (cpu.a != LAYER1 + LAYER_SIZE);
     op_sep(0x20);
     draw_queued(COLUMN_QUEUE, COLUMN_QUEUE_HEAD, COLUMN_QUEUE_TAIL, LAYER_COLUMN_SIDE,
-                SIDE_EDGE_BIT, abi_LayerDrawColumn, abi_LayerStepAcross);
+                SIDE_EDGE_BIT, abi_LayerDrawColumn, 0xC240, abi_LayerStepAcross, 0xC243);
     draw_queued(ROW_QUEUE, ROW_QUEUE_HEAD, ROW_QUEUE_TAIL, LAYER_ROW_SIDE,
-                SIDE_EDGE_BIT + 2, abi_LayerDrawRow, abi_LayerStepUpDown);
-    cpu.d = d;
-    op_plp(p);
+                SIDE_EDGE_BIT + 2, abi_LayerDrawRow, 0xC26D, abi_LayerStepUpDown, 0xC270);
+    pld();
+    op_plp(op_pull8());
 }
 
 /* LDA #$40, STA DAS0L, LDX #1, STX MDMAEN: 64 bytes, go */
