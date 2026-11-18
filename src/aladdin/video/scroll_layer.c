@@ -118,6 +118,16 @@ static void dec16_dp(uint16_t off)
     cpu.p = nz16(cpu.p, v);
 }
 
+/* INC abs, 16-bit, as the CPU makes it: both bytes read, then the high
+   byte written first and the low after */
+static void inc16_abs(uint32_t addr)
+{
+    uint16_t v = (uint16_t)(rd16_rmw(addr) + 1);
+
+    wr16_rmw(addr, v);
+    cpu.p = nz16(cpu.p, v);
+}
+
 static void op_ror16(void)
 {
     uint8_t c = (uint8_t)(cpu.a & 1);
@@ -476,7 +486,7 @@ done:
 static const uint8_t edge_bit[4] = { 0x02, 0x01, 0x08, 0x04 };
 static const uint8_t edge_at[4] = { 0, 10, 20, 30 };
 
-static void step_edges(void (*step)(void))
+static void step_edges(void (*step)(void), const uint16_t back[3])
 {
     int i;
 
@@ -484,7 +494,10 @@ static void step_edges(void (*step)(void))
         set_a8(edge_bit[i]);
         cpu.x = edge_at[i];
         cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
-        step();
+        if (i < 3)
+            call_frame(back[i], step);  /* JSR, its return on the stack */
+        else
+            step();                     /* the last by JMP */
     }
 }
 
@@ -501,7 +514,13 @@ void abi_LayerStepAcross(void)
 {
     cpu.x = rd8(dp(LAYER_COLUMN_SIDE));
     cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
-    step_edges(cpu.x == 0 ? abi_EdgeStepRightIfDrawn : abi_EdgeStepLeft);
+    static const uint16_t right[3] = { 0xC429, 0xC430, 0xC437 };
+    static const uint16_t left[3] = { 0xC445, 0xC44C, 0xC453 };
+
+    if (cpu.x == 0)
+        step_edges(abi_EdgeStepRightIfDrawn, right);
+    else
+        step_edges(abi_EdgeStepLeft, left);
 }
 
 /*
@@ -517,7 +536,13 @@ void abi_LayerStepUpDown(void)
 {
     cpu.x = rd8(dp(LAYER_ROW_SIDE));
     cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
-    step_edges(cpu.x == 0 ? abi_EdgeStepDown : abi_EdgeStepUp);
+    static const uint16_t down[3] = { 0xC466, 0xC46D, 0xC474 };
+    static const uint16_t up[3] = { 0xC482, 0xC489, 0xC490 };
+
+    if (cpu.x == 0)
+        step_edges(abi_EdgeStepDown, down);
+    else
+        step_edges(abi_EdgeStepUp, up);
 }
 
 /*
@@ -1004,8 +1029,8 @@ void abi_LayerDrawRow(void)
                     break;
             }
             wr16((SCRATCH + 6), cpu.a);
-            op_inc16_mem((SCRATCH + 2));
-            op_inc16_mem((SCRATCH + 2));
+            inc16_abs(SCRATCH + 2);
+            inc16_abs(SCRATCH + 2);
             op_lda16((SCRATCH + 2));
             op_tay16();
             if (!bit_imm(0x001E))
@@ -1015,8 +1040,8 @@ void abi_LayerDrawRow(void)
         wr16((SCRATCH + 2), cpu.a);
         cpu.y = cpu.x;
         cpu.p = nz16(cpu.p, cpu.y);
-        op_inc16_mem(SCRATCH);
-        op_inc16_mem(SCRATCH);
+        inc16_abs(SCRATCH);
+        inc16_abs(SCRATCH);
         cpu.x = rd16(SCRATCH);
         cpu.p = nz16(cpu.p, cpu.x);
     }
