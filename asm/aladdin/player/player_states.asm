@@ -1056,15 +1056,26 @@ PlayerKnockback:
     sta.w !NO_LANDING
 .preset:
     ldy.b #$05
-    bra .start
-.from_ledge:                    ; entered from 81:DCFD, which no script runs
+    bra PlayerKnockbackFromLedge_start
+; @routine 81:DAEB PlayerKnockbackFromLedge
+; @actor
+; WHAT IT DOES: PlayerKnockback with its motion preset 2 (as from a
+; ledge). No input reaches it: only the JMP at 81:DCFD names it, in code
+; ($81:DCE4-DCFF) nothing reaches; cov_knockback_entries.box runs it from
+; his record with its resume address set to it.
+; HOW: Y = 2; then as PlayerKnockback from its start.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI at a resume address set to it. Exit: never
+; returns.
+%at($81DAEB)
+PlayerKnockbackFromLedge:
     ldy.b #$02
 .start:
     stz.w !GROUND_PUSHED
     stz.w !V_1427
     lda.w !FALLEN_OUT
     beq .knocked
-    jmp.w .fallen
+    jmp.w PlayerKnockbackNoHealth_fallen
 .knocked:
     lda.w !level
     sec
@@ -1109,7 +1120,7 @@ PlayerKnockback:
     lda.b !actor_speed_y+2
     bmi .frame
     jsr.w PlayerFallenTest
-    bcc .fallen
+    bcc PlayerKnockbackNoHealth_fallen
     lda.w !level
     cmp.b #$05
     bne .ground_test
@@ -1132,7 +1143,7 @@ PlayerKnockback:
     ora.b #$04
     sta.w !PLAYER_FLAGS
     lda.w !health
-    beq .no_health
+    beq PlayerKnockbackNoHealth_no_health
     lda.w !v_1428
     bne .blink
     rep.b #$20
@@ -1160,7 +1171,20 @@ PlayerKnockback:
     sta.b !FRAMES_40
     sta.b !actor_41
     jmp.w PlayerAirStart
-    jmp.w .no_health            ; no path reaches it
+; @routine 81:DBCF PlayerKnockbackNoHealth
+; @actor
+; WHAT IT DOES: Aladdin knocked back with no health left: his life is
+; lost (PlayerKnockback's own path there). No input reaches this entry:
+; it is a JMP right after PlayerKnockback's JMP to PlayerAirStart, and
+; nothing in the ROM names $81:DBCF. cov_knockback_entries.box runs it
+; from his record with its resume address set to it.
+; HOW: JMP to the life's loss as PlayerKnockback takes it with no health.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI at a resume address set to it. Exit: never
+; returns.
+%at($81DBCF)
+PlayerKnockbackNoHealth:
+    jmp.w .no_health
 .fallen:
     sep.b #$30
     stz.w !health

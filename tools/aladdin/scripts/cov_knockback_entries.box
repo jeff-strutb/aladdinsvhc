@@ -1,0 +1,15 @@
+# PlayerKnockback's two entries no input reaches, each run from the
+# player's record with its resume address ($08DE-$08DF, bank $81) set to
+# it on stage a1 s0 at frame 30: PlayerKnockbackFromLedge ($81:DAEB, the
+# knockback with motion preset 2; only code nothing reaches names it),
+# then, again from the state, PlayerKnockbackNoHealth ($81:DBCF, a JMP
+# right after a JMP: the life's loss), run on until the stage starts
+# again.
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 0008DE EB,DA
+wait 120
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 0008DE CF,DB
+wait 500

@@ -1458,15 +1458,66 @@ static void ending_frame(uint32_t brk_at)
  * by a jump from the player's states when ground hurts him. Exit: never
  * returns.
  */
+static void knockback(int entry);
+
 void abi_PlayerKnockback(void)
+{
+    knockback(0);
+}
+
+/*
+ * @routine 81:DAEB PlayerKnockbackFromLedge
+ * @actor
+ * WHAT IT DOES: PlayerKnockback with its motion preset 2 (as from a
+ * ledge). No input reaches it: only the JMP at 81:DCFD names it, in code
+ * ($81:DCE4-DCFF) nothing reaches; cov_knockback_entries.box runs it from
+ * his record with its resume address set to it.
+ * HOW: Y = 2; then as PlayerKnockback from its start.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI at a resume address set to it. Exit: never
+ * returns.
+ */
+void abi_PlayerKnockbackFromLedge(void)
+{
+    knockback(1);
+}
+
+/*
+ * @routine 81:DBCF PlayerKnockbackNoHealth
+ * @actor
+ * WHAT IT DOES: Aladdin knocked back with no health left: his life is
+ * lost (PlayerKnockback's own path there). No input reaches this entry:
+ * it is a JMP right after PlayerKnockback's JMP to PlayerAirStart, and
+ * nothing in the ROM names $81:DBCF. cov_knockback_entries.box runs it
+ * from his record with its resume address set to it.
+ * HOW: JMP to the life's loss as PlayerKnockback takes it with no health.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI at a resume address set to it. Exit: never
+ * returns.
+ */
+void abi_PlayerKnockbackNoHealth(void)
+{
+    knockback(2);
+}
+
+/* PlayerKnockback's body, entered at its start (0), at $81:DAEB (1) or
+   at $81:DBCF (2). */
+static void knockback(int entry)
 {
     uint8_t v;
     uint32_t at;
     int lost = 0, fallen = 0;
 
+    if (entry == 2)
+        goto no_health;
+    if (entry == 1) {
+        y8_load(0x02);
+        goto start;
+    }
     if (!ld(HEALTH))
         put(NO_LANDING, 0xFF);
     y8_load(0x05);
+start:
     wr8(dba(GROUND_PUSHED), 0);
     wr8(dba(V_1427), 0);
     if (ld(FALLEN_OUT)) {
@@ -1556,6 +1607,7 @@ void abi_PlayerKnockback(void)
         a8_load(v);
         wr8(dba(PLAYER_FLAGS), v);
         if (!ld(HEALTH)) {
+no_health:
             (void)inc8_at(dba(SCENE_ON));
             x8_load(0x06);
             wr8(dba(PLAYER_BOX_WANTED), 0x06);
