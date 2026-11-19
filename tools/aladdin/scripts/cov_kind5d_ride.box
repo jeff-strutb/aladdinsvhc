@@ -1,0 +1,23 @@
+# Kind $5D, the Genie's head's cloud (Kind5DStart $83:E29B), landed on.
+# Stage a3 s0 set up as cov_kind5c_bob.box (the view at x $07C0, Aladdin
+# at x $08C0, y $30), with one life ($0364: the first path, all its
+# children clouds). 300 frames on its first cloud (record $0C9B) rests at
+# x $0930, y $0072; Aladdin is put at x $0930, y $005C, in its landing box
+# ($50: x within 24, his y between 28 and 16 above its): he lands, it
+# marks it ($83:E2C3), sinks under him and rises back; 60 frames on he
+# jumps off (B), and it sinks and rises once more ($83:E2F1).
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000364 01
+poke 001773 C0,07
+poke 0019E5 C0,07
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C0,08
+poke 0008EA 30,00
+wait 300
+poke 0008E7 30,09
+poke 0008EA 5C,00
+wait 60
+press B 4
+wait 200
