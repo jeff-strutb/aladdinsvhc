@@ -15,6 +15,7 @@ void abi_Kind98Start(void);
 void abi_Kind98Hit(void);
 void abi_Kind99Start(void);
 void abi_Kind9AStart(void);
+void abi_KindA5Start(void);
 void abi_KindA0Start(void);
 void abi_Kind75Start(void);
 void abi_Kind74Start(void);
@@ -1157,4 +1158,18 @@ void abi_Kind99Enter(void)
 void abi_Kind9AEnter(void)
 {
     abi_Kind9AStart();
+}
+
+/*
+ * @routine 83:9435 KindA5Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $A5 go on from the actor loop in
+ * its start state (the table at $83:8DAB): KindA5Start.
+ * HOW: JML to KindA5Start ($84:AB9C).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as KindA5Start.
+ */
+void abi_KindA5Enter(void)
+{
+    abi_KindA5Start();
 }
