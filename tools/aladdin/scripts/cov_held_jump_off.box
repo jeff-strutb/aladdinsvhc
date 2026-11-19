@@ -1,0 +1,44 @@
+# PlayerHeldJumpOff's arms (81:D5EC) no script ran: Aladdin jumps off kind
+# $79 as in cov_kind79_let_go.box (it carries him from frame 35; B jumps him
+# off while its pose, $2F, is 4 to $0C).
+# A. Off high in the carry (71 frames on: pose $0A, y $9F), A (the throw) at once:
+#    the throw starts (81:D66B), AIR_THROW counts down to 0 in the air
+#    (81:D65B-D665).
+# B. HOVER_ON ($036E) poked to 1 as in cov_hover.box, R (the fourth
+#    action) held through the fall: on at PlayerHover (81:D685-D690).
+# C. V_1428 set three frames into the jump, as an actor he lands on sets
+#    it (land_on_actor.asm): TILE_BITS 0, on at PlayerLand (81:D640).
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 0008E7 F0,00
+poke 0008EA C0,00
+wait 71
+press B
+press A
+wait 60
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 0008E7 F0,00
+poke 0008EA C0,00
+poke 00036E 01
+wait 41
+press B
+hold R 60
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 14
+poke 0008E7 F0,00
+poke 0008EA C0,00
+wait 41
+press B
+wait 3
+poke 001428 01
+wait 40
