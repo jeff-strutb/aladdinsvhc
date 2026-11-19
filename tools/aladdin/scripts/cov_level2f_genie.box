@@ -1,0 +1,23 @@
+# Level $2F, the Genie's screen, which no script reaches: its kind $5A
+# (start $83:DEBE, wait $83:DEF3), its kind $59 pieces (start $83:DD10,
+# wait $83:DEB9) and kind $9E's wait ($84:A8BD) with its pieces at y $FF80.
+# Loaded as cov_level3_guard.box loads level 3: act 1 stage 1 played to its
+# end (cov_level_end_press.box), START on the screen between acts, and the
+# level ($035E) held at $2F through the next level's load (1300 frames).
+# Then the screen runs on its own.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+repeat 1300
+poke 00035E 2F
+wait 1
+end
+wait 300

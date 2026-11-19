@@ -57,6 +57,7 @@ void abi_Kind91FreeOff(void);
 void abi_Kind93AnimateSend(void);
 void abi_Kind9BStory(void);
 void abi_Kind9CStart(void);
+void abi_Kind9EStart(void);
 void abi_KindAnimate9628(void);
 void abi_LandingPad(void);
 void abi_LongReturn(void);
@@ -667,6 +668,20 @@ void abi_Kind9BEnter(void)
 void abi_Kind9CEnter(void)
 {
     abi_Kind9CStart();
+}
+
+/*
+ * @routine 83:93F7 Kind9EEnter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $9E go on from the actor loop in
+ * its start state (the table at $83:8DAB): Kind9EStart.
+ * HOW: JML to Kind9EStart ($84:A820).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind9EStart.
+ */
+void abi_Kind9EEnter(void)
+{
+    abi_Kind9EStart();
 }
 
 /*
