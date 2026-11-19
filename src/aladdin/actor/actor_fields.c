@@ -375,3 +375,35 @@ void abi_ActorStateSet8CUnhit(void)
     lda8_v(0x8C);
     sta8(ea_dp(ACTOR_STATE));
 }
+
+#define LIST_4E 0x4Eu            /* ActorList4EFindIdle's link (word) */
+
+/*
+ * @routine 84:8A65 ActorList4EFindIdle
+ * WHAT IT DOES: ActorListFindIdle on the list linked through $4E: from the
+ * record its $4E points at, the first whose byte at $18 is 0.
+ * HOW: 16-bit X and Y (REP #$11, carry clear): X = its $4E; each record's
+ * $18 byte: 0, found (C clear); else on through that record's $4E until a
+ * link of 0 (C set). No code calls it (no JSR, JSL, JMP or table word
+ * reaches it): unit_dead_84.box calls it at its own entry.
+ * Entry: M 8-bit, X 8-bit; D = the record; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSR. Exit: X 8-bit; found: C clear, X the record's
+ * low byte, Z set; none: C set, X 0.
+ */
+void abi_ActorList4EFindIdle(void)
+{
+    op_rep(0x11);
+    ldx16(ea_dp(LIST_4E));
+    for (;;) {
+        lda8(ea_absx(ACTOR_18));
+        if (IF_Z)
+            break;
+        ldy16(ea_absx(LIST_4E));
+        tyx16();
+        if (IF_Z) {
+            sec();
+            break;
+        }
+    }
+    op_sep(0x10);
+}

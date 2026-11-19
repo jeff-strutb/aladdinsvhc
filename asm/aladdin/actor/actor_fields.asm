@@ -20,6 +20,8 @@ arch 65816
 ; The actor being worked on, as some bank-$84 code keeps it (word).
 !ACTOR_CURRENT = $1B14
 
+!LIST_4E = $4E                  ; ActorList4EFindIdle's link (word)
+
 ; @routine 83:8242 ActorStateSet8CUnhit
 ; WHAT IT DOES: Puts the actor into state $8C with bit 7 of its byte at $09
 ; cleared. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
@@ -180,6 +182,31 @@ ActorListFindIdle:
     lda.w !actor_18,x
     beq .done
     ldy.w !actor_next,x
+    tyx
+    bne .next
+    sec
+.done:
+    sep.b #$10
+    rts
+
+; @routine 84:8A65 ActorList4EFindIdle
+; WHAT IT DOES: ActorListFindIdle on the list linked through $4E: from the
+; record its $4E points at, the first whose byte at $18 is 0.
+; HOW: 16-bit X and Y (REP #$11, carry clear): X = its $4E; each record's
+; $18 byte: 0, found (C clear); else on through that record's $4E until a
+; link of 0 (C set). No code calls it (no JSR, JSL, JMP or table word
+; reaches it): unit_dead_84.box calls it at its own entry.
+; Entry: M 8-bit, X 8-bit; D = the record; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSR. Exit: X 8-bit; found: C clear, X the record's
+; low byte, Z set; none: C set, X 0.
+%at($848A65)
+ActorList4EFindIdle:
+    rep.b #$11
+    ldx.b !LIST_4E
+.next:
+    lda.w !actor_18,x
+    beq .done
+    ldy.w !LIST_4E,x
     tyx
     bne .next
     sec
