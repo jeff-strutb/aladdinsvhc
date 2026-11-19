@@ -436,5 +436,5 @@ void abi_Kind86Unused(void)
     lda8_v(0x8C);
     tsb8(ea_dp(ACTOR_STATE));
     for (;;)
-        actor_yield(0x849693u);
+        actor_yield(0x849694u);
 }

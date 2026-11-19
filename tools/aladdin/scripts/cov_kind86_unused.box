@@ -1,0 +1,18 @@
+# Kind86Unused ($84:968E), kind $86's state that nothing reaches: it
+# follows Kind86Start's BRA at $84:968C, and no JMP, JSR, JML, JSL, branch,
+# word or resume address in the ROM leads to it. On stage a5 s0 with the
+# view at x $0920 and Aladdin at x $09A0 (as cov_kind86_wait.box), 90
+# frames on, the placed kind $86 at record $0B5B has its resume address
+# ($03-$04) set to $968E: the loop's RTI starts it there; it sets its state
+# bits $8C and waits for good.
+load build/aladdin/states/stage_a5_s0.state
+wait 30
+poke 001773 20,09
+poke 0019E5 20,09
+poke 001777 80,00
+poke 0019E9 80,00
+poke 0008E7 A0,09
+poke 0008EA E0,00
+wait 90
+poke 000B5E 8E,96
+wait 60
