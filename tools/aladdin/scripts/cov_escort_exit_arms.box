@@ -1,0 +1,26 @@
+# PlayerEscortExit's (81:E730) two arms no play reaches, from its walk out
+# of level $12 as in cov_escort_exit.box (the camera's scroll x put just
+# short of the exit spot, Aladdin 192 pixels right of it; one frame on,
+# LevelExitCheck has set his code to $E730 and LevelExitReached has
+# rewritten LEVEL_035C to 5).
+# 1. LEVEL_035C set to 1 before his code runs: the walk at speed $28,
+#    accel $57 (81:E744-E74D). The game's own stores never leave it 1 here:
+#    the escort levels (7, $12, $17, the table at $80:B96B) get 3, 5, 8.
+# 2. Level $17 (the one escort level whose STAGE_GOES_ON entry, $C6F2+$17,
+#    is 0) set at the frame the fade ends (TASK2_STATE 0 at frame 64): the
+#    exit goes on at the story card (81:E7AB-E7B0, TaskExec StoryCardTask),
+#    which shows part 5's card.
+load build/aladdin/states/stage_a6_s0.state
+wait 2
+poke $001773 F0,1E
+poke $0008E7 B0,1F
+wait 1
+poke $00035C 01
+wait 120
+load build/aladdin/states/stage_a6_s0.state
+wait 2
+poke $001773 F0,1E
+poke $0008E7 B0,1F
+wait 63
+poke $00035E 17,00
+wait 400
