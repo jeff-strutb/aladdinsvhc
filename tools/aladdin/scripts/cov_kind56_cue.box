@@ -1,0 +1,59 @@
+# Kind $56, level 3's monkey (Kind56Start $83:D8E2), past its wait for
+# Aladdin's walk-out scene ($00BE, $83:D95A on): after cov_level3_guard.
+# box's run (its lines below, unchanged) his health is made 8 (that run
+# leaves him with 1, and the guard's next touch ends him), the guard
+# (record $0BAB) is knocked away (state $8C with $11 0, as after its
+# fourth stomp; that sets $00BD), and he is put at x $05F8, on the
+# ground: the level's task (80:A12D) then starts his walk-out scene,
+# which sets $00BE, and the monkey runs at him, sets it to $80 and runs
+# off.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+repeat 1300
+poke 00035E 03
+wait 1
+end
+poke 001773 80,04
+poke 0019E5 80,04
+poke 0008E7 C0,04
+wait 130
+poke 0008E7 30,05
+wait 260
+hold RIGHT 40
+wait 60
+hold A 4
+wait 30
+hold A 4
+wait 30
+hold A 4
+wait 60
+hold B 10
+hold B+RIGHT 30
+wait 60
+hold Y 10
+wait 30
+hold Y 10
+wait 30
+hold Y 10
+wait 60
+hold B+LEFT 30
+wait 60
+hold LEFT 30
+wait 120
+hold RIGHT 60
+wait 200
+poke 000367 08
+poke 000BBC 00
+poke 000BAB 8C
+wait 200
+poke 0008E7 F8,05
+wait 800
