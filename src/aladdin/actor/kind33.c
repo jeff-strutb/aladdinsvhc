@@ -135,30 +135,12 @@ void abi_Kind33Hub(void)
     }
 }
 
-/*
- * @routine 83:B9C1 Kind33Swing
- * @actor
- * WHAT IT DOES: Kind $33's platform: swings about the placed one, faster
- * towards the bottom of each swing and slower past it, one way and back,
- * then stops and starts over; it carries the player standing on it and
- * may take hold of him; it ends when the placed one's record is free.
- * HOW: $08 bit 0 and $09 bit 4 set; AnimStart 1; K33_RIDDEN, K33_SHOWN,
- * $21 and K33_HOLD_AT cleared; y pixels $8080; K33_PHASE 0, K33_PAST 1,
- * K33_ACCEL 9, K33_SPEED $020A, K33_ANGLE $4AFD. Each frame (BRK first):
- * Kind33PartnerState zero: JMP ActorEndPlaced. Kind33SwingMove;
- * ActorHoldPlayer. Phase 0: K33_ANGLE += K33_SPEED (16-bit); phase 1: -=.
- * K33_PAST clear and the direction below $44 (phase 0) or at least $48
- * (phase 1): K33_SPEED += K33_ACCEL, next frame. K33_PAST clear
- * otherwise: K33_PAST up. Then K33_SPEED -= K33_ACCEL; not negative, next
- * frame; negative in phase 0: phase 1, K33_PAST 0; in phase 1: phase,
- * past, speed and angle 0, K33_ACCEL 9.
- * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by a
- * jump from Kind33Start. Exit: never returns.
- * (The JMP back to the stop at $83:BA76-BA78, after the JMP at $83:BA73,
- * is reached by nothing: no branch or jump targets it. It is not filed.)
- */
-void abi_Kind33Swing(void)
+/* Kind33Swing's body, from its start or (stop_first) its stop, where
+   Kind33SwingStop jumps. */
+static void swing(int stop_first)
 {
+    if (stop_first)
+        goto stop;
     lda8_v(0x01);
     tsb8(ea_dp(ACTOR_08));
     lda8_v(0x10);
@@ -261,6 +243,48 @@ slower:
     MEM8(inc, ea_dp(K33_PHASE));
     stz8(ea_dp(K33_PAST));
     goto frame;
+}
+
+/*
+ * @routine 83:B9C1 Kind33Swing
+ * @actor
+ * WHAT IT DOES: Kind $33's platform: swings about the placed one, faster
+ * towards the bottom of each swing and slower past it, one way and back,
+ * then stops and starts over; it carries the player standing on it and
+ * may take hold of him; it ends when the placed one's record is free.
+ * HOW: $08 bit 0 and $09 bit 4 set; AnimStart 1; K33_RIDDEN, K33_SHOWN,
+ * $21 and K33_HOLD_AT cleared; y pixels $8080; K33_PHASE 0, K33_PAST 1,
+ * K33_ACCEL 9, K33_SPEED $020A, K33_ANGLE $4AFD. Each frame (BRK first):
+ * Kind33PartnerState zero: JMP ActorEndPlaced. Kind33SwingMove;
+ * ActorHoldPlayer. Phase 0: K33_ANGLE += K33_SPEED (16-bit); phase 1: -=.
+ * K33_PAST clear and the direction below $44 (phase 0) or at least $48
+ * (phase 1): K33_SPEED += K33_ACCEL, next frame. K33_PAST clear
+ * otherwise: K33_PAST up. Then K33_SPEED -= K33_ACCEL; not negative, next
+ * frame; negative in phase 0: phase 1, K33_PAST 0; in phase 1: phase,
+ * past, speed and angle 0, K33_ACCEL 9.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by a
+ * jump from Kind33Start. Exit: never returns.
+ */
+void abi_Kind33Swing(void)
+{
+    swing(0);
+}
+
+/*
+ * @routine 83:BA76 Kind33SwingStop
+ * @actor
+ * WHAT IT DOES: Kind $33's platform from the stop of its swing: speed,
+ * phase, past and angle 0, then on swinging as Kind33Swing. No branch,
+ * jump, word or resume address in the ROM leads to it:
+ * cov_kind33_swing_stop resumes a live platform here.
+ * HOW: JMP to Kind33Swing's stop (83:B9FB).
+ * Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; reached by
+ * the actor loop's RTI at the platform's resume address. Exit: never
+ * returns: as Kind33Swing.
+ */
+void abi_Kind33SwingStop(void)
+{
+    swing(1);
 }
 
 /*

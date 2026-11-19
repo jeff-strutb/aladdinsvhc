@@ -1,0 +1,11 @@
+# Unit calls of two routines in bank $83 that no script runs, each at its
+# own entry: LoneReturnCB8F ($83:CB8F, an RTS that no branch, JSR, JSL,
+# JMP, pointer or word in the ROM names), and Kind5DParentGoneLong
+# ($83:E3BD, called only by kind $8B's code in bank $84) for the record
+# at $0BAB with its maker (its $37) set to itself. On the first
+# level's state at frame 10, M and X 8-bit, DB $80.
+load build/aladdin/states/level1.state
+wait 10
+call 83CB8F p=30 db=80 d=0BAB
+set 000BE2 AB,0B
+call 83E3BD long p=30 db=80 d=0BAB

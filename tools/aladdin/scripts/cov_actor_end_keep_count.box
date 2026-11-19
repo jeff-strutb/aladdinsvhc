@@ -1,0 +1,15 @@
+# ActorEndKeepCount ($83:9798), which no branch, jump, word or resume
+# address in the ROM leads to. The first level's record $092B made a kind
+# $38 as cov_kind37_38.box makes it; 20 frames on, rolling, its resume
+# address ($03-$04) is set to $9798: the loop's RTI starts it there; the
+# record goes back on the free list ($15A2, top $15E4) cleared, its kind
+# count ($38's) and tile slot kept, and the loop goes on.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 20
+poke 00092E 98,97
+wait 10
+dump z

@@ -194,7 +194,9 @@ Kind5DParentCheck:
     rts
 
 ; @routine 83:E3BD Kind5DParentGoneLong
-; WHAT IT DOES: Kind5DParentGone for callers in other banks.
+; WHAT IT DOES: Kind5DParentGone for callers in other banks: kind $8B's
+; code (its JSLs at 84:9837, 9847, 9991, 99AA), which no script reaches;
+; unit_bank83_lone_returns runs it.
 ; HOW: JSR to it, then RTL.
 ; Entry: as Kind5DParentGone; called by JSL. Exit: as Kind5DParentGone.
 %at($83E3BD)

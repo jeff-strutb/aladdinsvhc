@@ -93,7 +93,8 @@ ActorTileSlotRelease:
 ; WHAT IT DOES: Clears an actor's record: it is free, still, drawn no
 ; more, and one fewer of its kind is live.
 ; HOW: Its kind's live count steps down; its state, flags, facing and
-; the other fields the actors use stay set are zeroed.
+; the other fields the actors use stay set are zeroed (on into
+; ActorClearFields, 83:9768).
 ; Entry: M either, X 8-bit; D = the actor's record. Exit: M 8-bit; A low
 ; = the kind's new count; X = the kind; N and Z from the count; the
 ; rest unchanged.
@@ -104,6 +105,16 @@ ActorClear:
     lda.l !kind_count,x
     dec a
     sta.l !kind_count,x
+
+; @routine 83:9768 ActorClearFields
+; WHAT IT DOES: ActorClear's fields part: the record is free, still and
+; drawn no more, its kind's live count left as it is. ActorClear runs on
+; into it; ActorEndKeepCount (83:9798) calls it.
+; HOW: Its state, flags, facing and the other fields the actors use stay
+; set are zeroed (STZ each).
+; Entry: M 8-bit; D = the actor's record. Exit: all registers and flags
+; unchanged.
+ActorClearFields:
     stz.b !actor_34
     stz.b !actor_state
     stz.b !actor_08
@@ -142,3 +153,43 @@ ActorJumpSaved:
     lda.b !ACTOR_SAVED_LOW
     pha
     rts
+
+; @routine 83:9794 ActorJumpSavedDrop2
+; WHAT IT DOES: ActorJumpSaved with its caller's return address dropped
+; first. Nothing in the game reaches it.
+; HOW: Two bytes pulled, then BRA to ActorJumpSaved.
+; @unreachable 83:9794-9797 It drops a caller's return that no caller
+; pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM names
+; 83:9794 (the byte search's one hit, at 87:CB92, follows $8B, no jump
+; opcode), and a unit call at it would pull the stub's own return
+; (master, 2026-11-19).
+; Entry: M 8-bit; D = the actor's record; called by JSR from a routine
+; called by JSR. Exit: as ActorJumpSaved.
+ActorJumpSavedDrop2:
+    pla
+    pla
+    bra ActorJumpSaved
+
+; @routine 83:9798 ActorEndKeepCount
+; @actor
+; WHAT IT DOES: Ends an actor of the first pool without counting it off
+; its kind or freeing its tile slot: its record goes back on the free
+; list, its fields cleared, and the actor loop goes on to the next
+; record. No branch, jump, word or resume address in the ROM leads to it:
+; cov_actor_end_keep_count resumes a live record here.
+; HOW: The free list's top up by 2 and the record's address (D) put
+; there, low byte then high; ActorClearFields; JMP into the actor loop
+; where it takes the next record.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; reached by the actor loop's RTI at the
+; record's resume address. Exit: never returns; in the actor loop.
+ActorEndKeepCount:
+    inc.w !actor_free_top
+    inc.w !actor_free_top
+    ldy.w !actor_free_top
+    tdc
+    sta.w !actor_free_list,y
+    xba
+    sta.w !actor_free_list+1,y
+    jsr.w ActorClearFields
+    jmp.w !actor_loop_next

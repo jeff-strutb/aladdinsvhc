@@ -1,0 +1,19 @@
+# Kind33SwingStop ($83:BA76), the JMP to Kind33Swing's stop that no
+# branch, jump, word or resume address in the ROM leads to. Kind $33 is
+# made as cov_kind33_swing.box makes it (the first level's record $092B
+# with $07 0); 30 frames on, its swinging child (record $0BFB) has its
+# resume address ($03-$04) set to $BA76: the loop's RTI starts it there,
+# it stops (speed, phase, past and angle 0) and swings on.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 33
+poke 000932 00
+poke 000964 01
+poke 0015E9 01
+poke 000937 80,00
+poke 00093A 20,01
+poke 00092B 0C
+wait 30
+poke 000BFE 76,BA
+wait 30
+dump z

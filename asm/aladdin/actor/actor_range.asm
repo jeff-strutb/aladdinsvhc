@@ -28,6 +28,10 @@ arch 65816
 ; unit_bank83_out_of_view runs it in view.
 ; HOW: BIT $09; V set: RTS. Else two bytes pulled (its JSR's return
 ; address) and on to ActorEndPlaced.
+; @unreachable 83:95FE-9602 The end: it pulls a caller's return that no
+; caller pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM
+; names 83:95FA, and a unit call at it would pull the stub's own return
+; and go into the actor loop with no actor running (master, 2026-11-19).
 ; Entry: M 8-bit; D = the actor's record; DB a bank whose $0000-$1FFF is
 ; work RAM; called by JSR from the actor's code at its own level. Exit:
 ; in view: N, V and Z from the BIT; else never returns.
@@ -47,6 +51,10 @@ ActorEndOutOfView:
 ; unit_bank83_out_of_view runs it in view.
 ; HOW: BIT $09; V set: RTL. Else three bytes pulled (its JSL's return
 ; address) and on to ActorEndPlaced.
+; @unreachable 83:9608-960D The end: it pulls a caller's return that no
+; caller pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM
+; names 83:9604, and a unit call at it would pull the stub's own return
+; and go into the actor loop with no actor running (master, 2026-11-19).
 ; Entry: as ActorEndOutOfView; called by JSL. Exit: as ActorEndOutOfView.
 ActorEndOutOfViewLong:
     bit.b !actor_09
@@ -65,6 +73,10 @@ ActorEndOutOfViewLong:
 ; view.
 ; HOW: BIT $09; V set: to ActorEndOutOfView's RTS (83:9603). Else four
 ; bytes pulled (two JSRs' return addresses) and on to ActorEndPlaced.
+; @unreachable 83:9613-9619 The end: it pulls a caller's return that no
+; caller pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM
+; names 83:960F, and a unit call at it would pull the stub's own return
+; and go into the actor loop with no actor running (master, 2026-11-19).
 ; Entry: as ActorEndOutOfView; called by JSR from a routine the actor's
 ; code called by JSR. Exit: as ActorEndOutOfView.
 ActorEndOutOfViewDrop4:
@@ -82,6 +94,10 @@ ActorEndOutOfViewDrop4:
 ; pointer or word names it): unit_bank83_out_of_view runs it in view.
 ; HOW: BIT $09; V set: to ActorEndOutOfViewLong's RTL (83:960E). Else
 ; eight bytes pulled and on to ActorEndPlaced.
+; @unreachable 83:961E-9628 The end: it pulls a caller's return that no
+; caller pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM
+; names 83:961A, and a unit call at it would pull the stub's own return
+; and go into the actor loop with no actor running (master, 2026-11-19).
 ; Entry: as ActorEndOutOfView; called by JSL, eight bytes of returns
 ; above the actor's own level. Exit: as ActorEndOutOfView.
 ActorEndOutOfViewLongDrop8:

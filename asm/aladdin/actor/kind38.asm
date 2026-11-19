@@ -140,6 +140,18 @@ Kind38StepEndOutOfRange:
     ldx.b #$10
     jmp.w ActorEndOutOfRange
 
+; @routine 83:BEAF Kind38End
+; @actor
+; WHAT IT DOES: Ends the actor for good (ActorEndPlaced). No branch, jump,
+; word or resume address in the ROM leads to it: cov_kind38_end resumes a
+; live kind $38 here.
+; HOW: JML to ActorEndPlaced.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's RTI at the actor's resume address. Exit: never
+; returns: as ActorEndPlaced.
+Kind38End:
+    jml.l ActorEndPlaced
+
 ; @routine 83:BD72 Kind37Second
 ; @actor
 ; WHAT IT DOES: The second state of kinds $37 and $38 (the table at

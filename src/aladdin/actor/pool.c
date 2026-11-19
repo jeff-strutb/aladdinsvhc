@@ -524,3 +524,18 @@ void abi_TileActorSpawn(void)
     op_sep(0x30);
     lda8_v(0x00);
 }
+
+/*
+ * @routine 83:946F NopLoop946F
+ * WHAT IT DOES: Nothing, for good: four NOPs and a BRA back to them.
+ * Nothing in the game reaches it (its own BRA is the only reference).
+ * HOW: NOP four times, BRA to the first.
+ * @unreachable 83:946F-9474 It loops for ever: no JSR, JSL, JMP, branch,
+ * pointer or word in the ROM leads to it but its own BRA, and a unit call
+ * at it never returns (master, 2026-11-19).
+ * Entry: any. Exit: never returns.
+ */
+void abi_NopLoop946F(void)
+{
+    cpu_loop_forever(0x83946Fu);       /* NOP x4, BRA: no access, no end */
+}

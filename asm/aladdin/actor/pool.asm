@@ -389,7 +389,22 @@ FreeListReadDown:
     dey
     dey
     rts
-%ends_at($83946F)
+
+; @routine 83:946F NopLoop946F
+; WHAT IT DOES: Nothing, for good: four NOPs and a BRA back to them.
+; Nothing in the game reaches it (its own BRA is the only reference).
+; HOW: NOP four times, BRA to the first.
+; @unreachable 83:946F-9474 It loops for ever: no JSR, JSL, JMP, branch,
+; pointer or word in the ROM leads to it but its own BRA, and a unit call
+; at it never returns (master, 2026-11-19).
+; Entry: any. Exit: never returns.
+NopLoop946F:
+    nop
+    nop
+    nop
+    nop
+    bra NopLoop946F
+%ends_at($839475)
 
 !TILE_ACTOR_INDEX = $142A       ; TileActorSpawn's kind index (word)
 !TILE_ACTOR_RECORD = $1425      ; the record it last started (word)

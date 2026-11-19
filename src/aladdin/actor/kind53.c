@@ -209,6 +209,10 @@ void abi_Kind53Held(void)
  * plus $E0, compared unsigned with $1C0; both below: RTS. Else SEP #$20,
  * 16-bit X from KIND53_COUNTER, COUNTER_LIVE of that record (DEC
  * $004B,X) down by one, SEP #$10, on to ActorEndDropReturn.
+ * @unreachable 83:D686-D693 The end: it pulls a caller's return that no
+ * caller pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM
+ * names 83:D665, and a unit call at it would pull the stub's own return
+ * and go into the actor loop with no actor running (master, 2026-11-19).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
  * $0000-$1FFF is work RAM; called by JSR from the actor's code at its own
  * level. Exit: in range: M 16-bit; A = the y sum; N, Z and C (clear) from

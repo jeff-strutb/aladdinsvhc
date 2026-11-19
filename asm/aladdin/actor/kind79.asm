@@ -342,6 +342,10 @@ Kind79Wait:
 ; word in the ROM names it): unit_bank83_keep_paths runs it with C clear.
 ; HOW: BCC to an RTS. Else Kind79SlotClear, then ActorEndDropReturn
 ; (JMP).
+; @unreachable 83:F6EB-F6F0 The end: it pulls a caller's return that no
+; caller pushes: no JSR, JSL, JMP, branch, pointer or word in the ROM
+; names 83:F6E9, and a unit call at it would pull the stub's own return
+; and go into the actor loop with no actor running (master, 2026-11-19).
 ; Entry: M 8-bit, X 8-bit; C set to end it; D = the actor's record; DB a bank
 ; whose $0000-$1FFF is work RAM; called by JSR from the actor's code at
 ; its own level. Exit: C clear: everything unchanged; else never

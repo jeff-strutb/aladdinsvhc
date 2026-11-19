@@ -9,6 +9,7 @@
 #include "actor.h"
 
 void abi_ActorEndOutOfRange(void);
+void abi_ActorEndPlaced(void);
 void abi_ActorFallAgainst(void);
 void abi_ActorFly(void);
 void abi_ActorFlyAgainst(void);
@@ -177,6 +178,22 @@ void abi_Kind38StepEndOutOfRange(void)
     cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x10);
     abi_ActorEndOutOfRange();
+}
+
+/*
+ * @routine 83:BEAF Kind38End
+ * @actor
+ * WHAT IT DOES: Ends the actor for good (ActorEndPlaced). No branch, jump,
+ * word or resume address in the ROM leads to it: cov_kind38_end resumes a
+ * live kind $38 here.
+ * HOW: JML to ActorEndPlaced.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's RTI at the actor's resume address. Exit: never
+ * returns: as ActorEndPlaced.
+ */
+void abi_Kind38End(void)
+{
+    abi_ActorEndPlaced();
 }
 
 /*

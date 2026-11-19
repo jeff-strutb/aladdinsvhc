@@ -120,8 +120,6 @@ Kind33Hub:
 ; past, speed and angle 0, K33_ACCEL 9.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by a
 ; jump from Kind33Start. Exit: never returns.
-; (The JMP back to the stop at $83:BA76-BA78, after the JMP at $83:BA73,
-; is reached by nothing: no branch or jump targets it. It is not filed.)
 %at($83B9C1)
 Kind33Swing:
     lda.b #$01
@@ -218,7 +216,20 @@ Kind33Swing:
     inc.b !K33_PHASE
     stz.b !K33_PAST
     jmp.w .frame
-%ends_at($83BA76)
+
+; @routine 83:BA76 Kind33SwingStop
+; @actor
+; WHAT IT DOES: Kind $33's platform from the stop of its swing: speed,
+; phase, past and angle 0, then on swinging as Kind33Swing. No branch,
+; jump, word or resume address in the ROM leads to it:
+; cov_kind33_swing_stop resumes a live platform here.
+; HOW: JMP to Kind33Swing's stop (83:B9FB).
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; reached by
+; the actor loop's RTI at the platform's resume address. Exit: never
+; returns: as Kind33Swing.
+Kind33SwingStop:
+    jmp.w Kind33Swing_stop
+%ends_at($83BA79)
 
 ; @routine 83:BA79 Kind33PartnerState
 ; WHAT IT DOES: Reads the state of the pair's other record (K33_PARTNER).

@@ -1,0 +1,14 @@
+# Kind38End ($83:BEAF), the JML to ActorEndPlaced that no branch, jump,
+# word or resume address in the ROM leads to. The first level's record
+# $092B made a kind $38 as cov_kind37_38.box makes it (kind byte $38,
+# state $0C); 20 frames on, rolling, its resume address ($03-$04) is set
+# to $BEAF: the loop's RTI starts it there and it ends.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 38
+poke 000932 00
+poke 00092B 0C
+wait 20
+poke 00092E AF,BE
+wait 10
+dump z

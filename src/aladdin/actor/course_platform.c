@@ -589,6 +589,18 @@ void abi_PlatformCourseStep(void)
 
 
 /*
+ * @routine 83:CB8F LoneReturnCB8F
+ * WHAT IT DOES: Nothing: a lone RTS after PlatformTurnZoneTest's own.
+ * Nothing in the game reaches it (no branch, JSR, JSL, JMP, pointer or
+ * word names it): unit_bank83_lone_returns runs it.
+ * HOW: RTS.
+ * Entry: any; called by JSR. Exit: everything unchanged.
+ */
+void abi_LoneReturnCB8F(void)
+{
+}
+
+/*
  * @routine 83:CB93 PlatformCourseFollow
  * WHAT IT DOES: Follows the course: on to the next waypoint once the
  * platform passes its x; and when the platform is out of the stretch the
