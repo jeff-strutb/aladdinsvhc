@@ -5,6 +5,7 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "actor.h"
+#include "ops65.h"
 
 #define ACTOR_X_PIXEL (ACTOR_X + 1)
 #define ACTOR_Y_PIXEL (ACTOR_Y + 1)
@@ -355,4 +356,22 @@ void abi_ActorListFindIdle(void)
     }
     cpu.x = x;
     op_sep(P_X);
+}
+
+/*
+ * @routine 83:8242 ActorStateSet8CUnhit
+ * WHAT IT DOES: Puts the actor into state $8C with bit 7 of its byte at $09
+ * cleared. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
+ * names it; it sits past the RTS before ActorStateSetCC): unit_bank83_pools
+ * runs it.
+ * HOW: ASL then LSR of $09; LDA #$8C, STA to its state byte.
+ * Entry: M 8-bit; D = the record; called by JSR. Exit: A low = $8C; N set,
+ * Z clear; C = bit 7 of $09 before.
+ */
+void abi_ActorStateSet8CUnhit(void)
+{
+    MEM8(asl, ea_dp(ACTOR_09));
+    MEM8(lsr, ea_dp(ACTOR_09));
+    lda8_v(0x8C);
+    sta8(ea_dp(ACTOR_STATE));
 }

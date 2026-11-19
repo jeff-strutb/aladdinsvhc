@@ -64,3 +64,55 @@ Spawn13AtY:
     bmi Spawn11AtY_none
     lda.b #$13
     bra Spawn11AtY_start
+
+; @routine 83:82C3 LoneReturn82C3
+; WHAT IT DOES: Nothing: a lone RTS after Spawn13AtY's BRA. Nothing in the
+; game reaches it (no branch, JSR, JSL, JMP, pointer or word names it):
+; unit_bank83_pools runs it.
+; HOW: RTS.
+; Entry: any; called by JSR. Exit: all unchanged.
+%at($8382C3)
+LoneReturn82C3:
+    rts
+
+; @routine 83:82C4 Spawn11At1Long
+; WHAT IT DOES: Spawn11At1 for callers in other banks. Nothing in the game
+; calls it (no JSL, JMP, pointer or word names it): unit_bank83_pools runs
+; it.
+; HOW: JSR Spawn11At1, then RTL.
+; Entry: as Spawn11At1; called by JSL. Exit: as Spawn11At1.
+Spawn11At1Long:
+    jsr.w Spawn11At1
+    rtl
+
+; @routine 83:82C8 Spawn11At1
+; WHAT IT DOES: Starts an actor of kind $11 with $07 1 at record Y's place,
+; when the second pool has a free record. Nothing in the game calls it but
+; its long entry, which nothing calls.
+; HOW: Keeps X and Y; ActorAllocBLong; none free: Spawn11AtY's way out.
+; Else state $0C, kind $11, $07 1, record Y's x and y pixels copied into
+; it; X and Y put back.
+; Entry: M 8-bit, X 16-bit; Y = the record; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSR. Exit: as Spawn11AtY.
+Spawn11At1:
+    phx
+    phy
+    sep.b #$10
+    jsl.l ActorAllocBLong
+    bmi Spawn11AtY_none
+    lda.b #$0C
+    sta.w !actor_state,x
+    lda.b #$11
+    sta.w !actor_06,x
+    lda.b #$01
+    sta.w !actor_07,x
+    ply
+    rep.b #$20
+    lda.w !actor_x+1,y
+    sta.w !actor_x+1,x
+    lda.w !actor_y+1,y
+    sta.w !actor_y+1,x
+    sep.b #$20
+    plx
+    rts
+%ends_at($8382F4)

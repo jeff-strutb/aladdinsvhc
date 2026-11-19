@@ -1,0 +1,50 @@
+# Unit calls of small bank-$83 entries nothing in the game calls (no JSR,
+# JSL, JMP, branch, pointer or word in the ROM names them), each at its
+# own entry: FreeListReadUpLong ($83:9457), FreeListReadUp ($83:945D),
+# FreeListReadDownLong ($83:9463), FreeListReadDown ($83:9469), with X
+# 16-bit and 8-bit; ActorStateSet8CUnhit ($83:8242);
+# ActorHitsTestBoxIfActiveLongB ($83:80AE, by way of $83:80B2);
+# PlayerPushAsideIfTouched ($83:80B9): Aladdin on the ground ($141C 0),
+# in the air not touching, in the air touching (the guard made hittable,
+# the test box on it); ActorDownedByShotUnmarkedLong ($83:80ED) and
+# ActorDownedByShotUnmarked ($83:80F1): no shot, then a shot (second-pool
+# record $09CB made one at the guard's place) that hits ($11 0) and one
+# that does not ($11 $80); LoneReturn82C3 ($83:82C3); Spawn11At1Long
+# ($83:82C4) at the guard. On the first level's state at frame 10, DB $80,
+# D the guard at record $0BAB; the machine put back after each call.
+load build/aladdin/states/level1.state
+wait 10
+call 839457 long p=20 db=80 y=0000
+call 83945D p=30 db=80 y=00
+call 839463 long p=20 db=80 y=0004
+call 839469 p=30 db=80 y=04
+call 838242 p=30 db=80 d=0BAB
+call 8380AE long p=30 db=80 d=0BAB
+set 00141C 00
+call 8380B9 p=30 db=80 d=0BAB
+set 00141C 01
+call 8380B9 p=30 db=80 d=0BAB
+set 00141C 01
+set 000BB4 D0
+set 001484 25,01,B0,01
+call 8380B9 p=30 db=80 d=0BAB
+set 000BB4 D0
+call 8380ED long p=30 db=80 d=0BAB
+set 000BB4 D0
+set 0009CB 01
+set 0009D1 00
+set 0009D3 00,40
+set 0009D7 25,01
+set 0009DA B0,01
+set 0009DC 00
+call 8380F1 p=30 db=80 d=0BAB
+set 000BB4 D0
+set 0009CB 01
+set 0009D1 00
+set 0009D3 00,40
+set 0009D7 25,01
+set 0009DA B0,01
+set 0009DC 80
+call 8380F1 p=30 db=80 d=0BAB
+call 8382C3 p=30 db=80
+call 8382C4 long p=20 db=80 y=0BAB

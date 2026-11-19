@@ -318,3 +318,64 @@ ActorSpawnSharedB:
     jsl.l ActorSpawnSharedAt
 .none:
     rtl
+
+; @routine 83:9457 FreeListReadUpLong
+; WHAT IT DOES: Reads the free list's word at Y into X and steps Y up a word.
+; Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+; it): unit_bank83_pools runs it.
+; HOW: LDX actor_free_list,Y; INY twice; RTL.
+; Entry: X and Y of either width; Y = an offset in the list; DB a bank
+; whose $0000-$1FFF is work RAM; called by JSL. Exit: X = the word (its
+; low byte with X 8-bit); Y = the offset plus 2; N and Z from Y.
+%at($839457)
+FreeListReadUpLong:
+    ldx.w !actor_free_list,y
+    iny
+    iny
+    rtl
+
+; @routine 83:945D FreeListReadUp
+; WHAT IT DOES: Reads the free list's word at Y into X and steps Y up a word.
+; Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+; it): unit_bank83_pools runs it.
+; HOW: LDX actor_free_list,Y; INY twice; RTS.
+; Entry: X and Y of either width; Y = an offset in the list; DB a bank
+; whose $0000-$1FFF is work RAM; called by JSR. Exit: X = the word (its
+; low byte with X 8-bit); Y = the offset plus 2; N and Z from Y.
+%at($83945D)
+FreeListReadUp:
+    ldx.w !actor_free_list,y
+    iny
+    iny
+    rts
+
+; @routine 83:9463 FreeListReadDownLong
+; WHAT IT DOES: Reads the free list's word at Y into X and steps Y down a word.
+; Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+; it): unit_bank83_pools runs it.
+; HOW: LDX actor_free_list,Y; DEY twice; RTL.
+; Entry: X and Y of either width; Y = an offset in the list; DB a bank
+; whose $0000-$1FFF is work RAM; called by JSL. Exit: X = the word (its
+; low byte with X 8-bit); Y = the offset less 2; N and Z from Y.
+%at($839463)
+FreeListReadDownLong:
+    ldx.w !actor_free_list,y
+    dey
+    dey
+    rtl
+
+; @routine 83:9469 FreeListReadDown
+; WHAT IT DOES: Reads the free list's word at Y into X and steps Y down a word.
+; Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+; it): unit_bank83_pools runs it.
+; HOW: LDX actor_free_list,Y; DEY twice; RTS.
+; Entry: X and Y of either width; Y = an offset in the list; DB a bank
+; whose $0000-$1FFF is work RAM; called by JSR. Exit: X = the word (its
+; low byte with X 8-bit); Y = the offset less 2; N and Z from Y.
+%at($839469)
+FreeListReadDown:
+    ldx.w !actor_free_list,y
+    dey
+    dey
+    rts
+%ends_at($83946F)

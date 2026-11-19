@@ -186,3 +186,33 @@ void abi_ActorHurtsPlayerOnTouch(void)
         return;
     abi_PlayerEnter8CFacing();
 }
+
+void abi_ActorHitsTestBoxIfActive(void);
+void abi_ActorHitsTestBoxIfActiveJump(void);
+
+/*
+ * @routine 83:80AE ActorHitsTestBoxIfActiveLongB
+ * WHAT IT DOES: ActorHitsTestBoxIfActive for callers in other banks, by way
+ * of ActorHitsTestBoxIfActiveJump. Nothing in the game calls it (no JSL,
+ * JMP, pointer or word names it): unit_bank83_pools runs it.
+ * HOW: JSR ActorHitsTestBoxIfActiveJump, then RTL.
+ * Entry: as ActorHitsTestBox; called by JSL. Exit: as
+ * ActorHitsTestBoxIfActive.
+ */
+void abi_ActorHitsTestBoxIfActiveLongB(void)
+{
+    call_frame(0x80B0, abi_ActorHitsTestBoxIfActiveJump);
+}
+
+/*
+ * @routine 83:80B2 ActorHitsTestBoxIfActiveJump
+ * WHAT IT DOES: ActorHitsTestBoxIfActive by a jump. Nothing in the game
+ * calls it but ActorHitsTestBoxIfActiveLongB, which nothing calls.
+ * HOW: JMP ActorHitsTestBoxIfActive.
+ * Entry: as ActorHitsTestBox; called by JSR. Exit: as
+ * ActorHitsTestBoxIfActive.
+ */
+void abi_ActorHitsTestBoxIfActiveJump(void)
+{
+    abi_ActorHitsTestBoxIfActive();
+}

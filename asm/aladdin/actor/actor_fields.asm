@@ -20,6 +20,22 @@ arch 65816
 ; The actor being worked on, as some bank-$84 code keeps it (word).
 !ACTOR_CURRENT = $1B14
 
+; @routine 83:8242 ActorStateSet8CUnhit
+; WHAT IT DOES: Puts the actor into state $8C with bit 7 of its byte at $09
+; cleared. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
+; names it; it sits past the RTS before ActorStateSetCC): unit_bank83_pools
+; runs it.
+; HOW: ASL then LSR of $09; LDA #$8C, STA to its state byte.
+; Entry: M 8-bit; D = the record; called by JSR. Exit: A low = $8C; N set,
+; Z clear; C = bit 7 of $09 before.
+%at($838242)
+ActorStateSet8CUnhit:
+    asl.b !actor_09
+    lsr.b !actor_09
+    lda.b #$8C
+    sta.b !actor_state
+    rts
+
 ; @routine 83:824B ActorStateSetCC
 ; WHAT IT DOES: Puts the actor into state $CC.
 ; HOW: LDA #$CC, STA to its state byte.

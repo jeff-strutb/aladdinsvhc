@@ -14,6 +14,29 @@ arch 65816
 
 !PLAYER_2F = !player+$2F        ; $0B or more: the side a harmless shot turns the actor to flips
 
+; @routine 83:80ED ActorDownedByShotUnmarkedLong
+; WHAT IT DOES: ActorDownedByShotUnmarked for callers in other banks.
+; Nothing in the game calls it (no JSL, JMP, pointer or word names it):
+; unit_bank83_pools runs it.
+; HOW: JSR ActorDownedByShotUnmarked, then RTL.
+; Entry: as ActorDownedByShot; called by JSL. Exit: as ActorDownedByShot.
+%at($8380ED)
+ActorDownedByShotUnmarkedLong:
+    jsr.w ActorDownedByShotUnmarked
+    rtl
+
+; @routine 83:80F1 ActorDownedByShotUnmarked
+; WHAT IT DOES: ActorDownedByShot with no small actor to mark the hit.
+; Nothing in the game calls it but its long entry, which nothing calls.
+; HOW: ActorTouchesSecondPool; no touch: out (ActorDownedByShot's SEP
+; #$30, RTS); a touch: on in ActorDownedByShot past its Spawn11AtY
+; ($83:8104, a BRA).
+; Entry: as ActorDownedByShot; called by JSR. Exit: as ActorDownedByShot.
+ActorDownedByShotUnmarked:
+    jsr.w ActorTouchesSecondPool
+    bcs ActorDownedByShot_out
+    bra ActorDownedByShot_checked
+
 ; @routine 83:80F8 ActorDownedByShotLong
 ; WHAT IT DOES: ActorDownedByShot for callers in other banks.
 ; HOW: JSR to it, then RTL.
@@ -41,6 +64,7 @@ ActorDownedByShot:
     jsr.w ActorTouchesSecondPool
     bcs .out
     jsr.w Spawn11AtY
+.checked:
     lda.w !ACTOR_11,y
     bpl .hits
     lda.w !PLAYER_2F

@@ -346,3 +346,96 @@ void abi_ActorSpawnSharedB(void)
     abi_ActorSpawnSharedAt();
     cpu.s = (uint16_t)(cpu.s + 3);
 }
+
+/*
+ * @routine 83:9457 FreeListReadUpLong
+ * WHAT IT DOES: Reads the free list's word at Y into X and steps Y up a word.
+ * Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+ * it): unit_bank83_pools runs it.
+ * HOW: LDX actor_free_list,Y; INY twice; RTL.
+ * Entry: X and Y of either width; Y = an offset in the list; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSL. Exit: X = the word (its
+ * low byte with X 8-bit); Y = the offset plus 2; N and Z from Y.
+ */
+void abi_FreeListReadUpLong(void)
+{
+    if (cpu.p & P_X) {
+        ldx8(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        iny8();
+        iny8();
+    } else {
+        ldx16(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        iny16();
+        iny16();
+    }
+}
+
+/*
+ * @routine 83:945D FreeListReadUp
+ * WHAT IT DOES: Reads the free list's word at Y into X and steps Y up a word.
+ * Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+ * it): unit_bank83_pools runs it.
+ * HOW: LDX actor_free_list,Y; INY twice; RTS.
+ * Entry: X and Y of either width; Y = an offset in the list; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSR. Exit: X = the word (its
+ * low byte with X 8-bit); Y = the offset plus 2; N and Z from Y.
+ */
+void abi_FreeListReadUp(void)
+{
+    if (cpu.p & P_X) {
+        ldx8(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        iny8();
+        iny8();
+    } else {
+        ldx16(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        iny16();
+        iny16();
+    }
+}
+
+/*
+ * @routine 83:9463 FreeListReadDownLong
+ * WHAT IT DOES: Reads the free list's word at Y into X and steps Y down a word.
+ * Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+ * it): unit_bank83_pools runs it.
+ * HOW: LDX actor_free_list,Y; DEY twice; RTL.
+ * Entry: X and Y of either width; Y = an offset in the list; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSL. Exit: X = the word (its
+ * low byte with X 8-bit); Y = the offset less 2; N and Z from Y.
+ */
+void abi_FreeListReadDownLong(void)
+{
+    if (cpu.p & P_X) {
+        ldx8(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        dey8();
+        dey8();
+    } else {
+        ldx16(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        dey16();
+        dey16();
+    }
+}
+
+/*
+ * @routine 83:9469 FreeListReadDown
+ * WHAT IT DOES: Reads the free list's word at Y into X and steps Y down a word.
+ * Nothing in the game calls it (no JSR, JSL, JMP, pointer or word names
+ * it): unit_bank83_pools runs it.
+ * HOW: LDX actor_free_list,Y; DEY twice; RTS.
+ * Entry: X and Y of either width; Y = an offset in the list; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSR. Exit: X = the word (its
+ * low byte with X 8-bit); Y = the offset less 2; N and Z from Y.
+ */
+void abi_FreeListReadDown(void)
+{
+    if (cpu.p & P_X) {
+        ldx8(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        dey8();
+        dey8();
+    } else {
+        ldx16(ea_absy((uint16_t)ACTOR_FREE_LIST));
+        dey16();
+        dey16();
+    }
+}
+

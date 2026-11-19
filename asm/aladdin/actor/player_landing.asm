@@ -236,6 +236,22 @@ PlayerPushAsideLong:
     jsr.w PlayerPushAside
     rtl
 
+; @routine 83:80B9 PlayerPushAsideIfTouched
+; WHAT IT DOES: PlayerPushAside when Aladdin is in the air ($141C set) and
+; touches the active actor; else nothing. Nothing in the game calls it
+; (no JSR, JSL, JMP, pointer or word names it; it sits past
+; PlayerPushAsideLong's RTL): unit_bank83_pools runs it.
+; HOW: $141C zero: out (PlayerPushAside's RTS); ActorHitsTestBoxIfActive C
+; set: out; else on into PlayerPushAside.
+; Entry: M and X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM and whose HIT_BOXES is the box table; called
+; by JSR. Exit: out: as the test leaves them; else as PlayerPushAside.
+PlayerPushAsideIfTouched:
+    lda.w !V_141C
+    beq PlayerPushAside_done
+    jsr.w ActorHitsTestBoxIfActive
+    bcs PlayerPushAside_done
+
 ; @routine 83:80C3 PlayerPushAside
 ; WHAT IT DOES: Puts Aladdin beside the actor, just out of its box: on
 ; its left when he is left of it (or at its x), else on its right.
@@ -275,4 +291,5 @@ PlayerPushAside:
     adc.b !actor_x+1
     sta.w !PLAYER_X_PIXELS
     sep.b #$30
+.done:
     rts

@@ -122,3 +122,25 @@ ActorHurtsPlayerOnTouch:
     jmp.w PlayerEnter8CFacing
 .no_hit:
     rts
+
+; @routine 83:80AE ActorHitsTestBoxIfActiveLongB
+; WHAT IT DOES: ActorHitsTestBoxIfActive for callers in other banks, by way
+; of ActorHitsTestBoxIfActiveJump. Nothing in the game calls it (no JSL,
+; JMP, pointer or word names it): unit_bank83_pools runs it.
+; HOW: JSR ActorHitsTestBoxIfActiveJump, then RTL.
+; Entry: as ActorHitsTestBox; called by JSL. Exit: as
+; ActorHitsTestBoxIfActive.
+%at($8380AE)
+ActorHitsTestBoxIfActiveLongB:
+    jsr.w ActorHitsTestBoxIfActiveJump
+    rtl
+
+; @routine 83:80B2 ActorHitsTestBoxIfActiveJump
+; WHAT IT DOES: ActorHitsTestBoxIfActive by a jump. Nothing in the game
+; calls it but ActorHitsTestBoxIfActiveLongB, which nothing calls.
+; HOW: JMP ActorHitsTestBoxIfActive.
+; Entry: as ActorHitsTestBox; called by JSR. Exit: as
+; ActorHitsTestBoxIfActive.
+ActorHitsTestBoxIfActiveJump:
+    jmp.w ActorHitsTestBoxIfActive
+%ends_at($8380B5)

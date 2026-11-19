@@ -89,3 +89,69 @@ void abi_Spawn13AtY(void)
     }
     hit_mark_start(0x13);
 }
+
+void abi_Spawn11At1(void);
+
+/*
+ * @routine 83:82C3 LoneReturn82C3
+ * WHAT IT DOES: Nothing: a lone RTS after Spawn13AtY's BRA. Nothing in the
+ * game reaches it (no branch, JSR, JSL, JMP, pointer or word names it):
+ * unit_bank83_pools runs it.
+ * HOW: RTS.
+ * Entry: any; called by JSR. Exit: all unchanged.
+ */
+void abi_LoneReturn82C3(void)
+{
+}
+
+/*
+ * @routine 83:82C4 Spawn11At1Long
+ * WHAT IT DOES: Spawn11At1 for callers in other banks. Nothing in the game
+ * calls it (no JSL, JMP, pointer or word names it): unit_bank83_pools runs
+ * it.
+ * HOW: JSR Spawn11At1, then RTL.
+ * Entry: as Spawn11At1; called by JSL. Exit: as Spawn11At1.
+ */
+void abi_Spawn11At1Long(void)
+{
+    call_frame(0x82C6, abi_Spawn11At1);
+}
+
+/*
+ * @routine 83:82C8 Spawn11At1
+ * WHAT IT DOES: Starts an actor of kind $11 with $07 1 at record Y's place,
+ * when the second pool has a free record. Nothing in the game calls it but
+ * its long entry, which nothing calls.
+ * HOW: Keeps X and Y; ActorAllocBLong; none free: Spawn11AtY's way out.
+ * Else state $0C, kind $11, $07 1, record Y's x and y pixels copied into
+ * it; X and Y put back.
+ * Entry: M 8-bit, X 16-bit; Y = the record; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSR. Exit: as Spawn11AtY.
+ */
+void abi_Spawn11At1(void)
+{
+    phx16();
+    phy16();
+    op_sep(0x10);
+    jsl_frame(0x8382CCu);
+    abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    if (IF_N) {
+        hit_mark_none();
+        return;
+    }
+    lda8_v(0x0C);
+    sta8(ea_absx(ACTOR_STATE));
+    lda8_v(0x11);
+    sta8(ea_absx(ACTOR_06));
+    lda8_v(0x01);
+    sta8(ea_absx(ACTOR_07));
+    ply16();
+    op_rep(0x20);
+    lda16(ea_absy(ACTOR_X + 1));
+    sta16(ea_absx(ACTOR_X + 1));
+    lda16(ea_absy(ACTOR_Y + 1));
+    sta16(ea_absx(ACTOR_Y + 1));
+    op_sep(0x20);
+    plx16();
+}

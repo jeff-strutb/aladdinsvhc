@@ -357,3 +357,43 @@ void abi_ActorDownedByHarmlessShot(void)
     }
     op_sep(0x30);
 }
+
+void abi_ActorDownedByShotUnmarked(void);
+
+/*
+ * @routine 83:80ED ActorDownedByShotUnmarkedLong
+ * WHAT IT DOES: ActorDownedByShotUnmarked for callers in other banks.
+ * Nothing in the game calls it (no JSL, JMP, pointer or word names it):
+ * unit_bank83_pools runs it.
+ * HOW: JSR ActorDownedByShotUnmarked, then RTL.
+ * Entry: as ActorDownedByShot; called by JSL. Exit: as ActorDownedByShot.
+ */
+void abi_ActorDownedByShotUnmarkedLong(void)
+{
+    call_frame(0x80EF, abi_ActorDownedByShotUnmarked);
+}
+
+/*
+ * @routine 83:80F1 ActorDownedByShotUnmarked
+ * WHAT IT DOES: ActorDownedByShot with no small actor to mark the hit.
+ * Nothing in the game calls it but its long entry, which nothing calls.
+ * HOW: ActorTouchesSecondPool; no touch: out (ActorDownedByShot's SEP
+ * #$30, RTS); a touch: on in ActorDownedByShot past its Spawn11AtY
+ * ($83:8104, a BRA).
+ * Entry: as ActorDownedByShot; called by JSR. Exit: as ActorDownedByShot.
+ */
+void abi_ActorDownedByShotUnmarked(void)
+{
+    call_frame(0x80F3, abi_ActorTouchesSecondPool);
+    if (!IF_C) {
+        if (shot_harmless()) {
+            facing_away();
+        } else {
+            face_shot();
+            call_frame(0x8129, abi_ActorStateSet8C);
+        }
+        call_frame(0x812C, abi_ActorStateSet8CSelf);
+        flag_set(P_C, 0);
+    }
+    op_sep(0x30);
+}

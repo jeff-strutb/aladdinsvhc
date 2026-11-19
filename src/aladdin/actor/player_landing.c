@@ -361,3 +361,26 @@ beside:
     sta16(ea_abs(PLAYER_X_PIXELS));
     op_sep(0x30);
 }
+
+/*
+ * @routine 83:80B9 PlayerPushAsideIfTouched
+ * WHAT IT DOES: PlayerPushAside when Aladdin is in the air ($141C set) and
+ * touches the active actor; else nothing. Nothing in the game calls it
+ * (no JSR, JSL, JMP, pointer or word names it; it sits past
+ * PlayerPushAsideLong's RTL): unit_bank83_pools runs it.
+ * HOW: $141C zero: out (PlayerPushAside's RTS); ActorHitsTestBoxIfActive C
+ * set: out; else on into PlayerPushAside.
+ * Entry: M and X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM and whose HIT_BOXES is the box table; called
+ * by JSR. Exit: out: as the test leaves them; else as PlayerPushAside.
+ */
+void abi_PlayerPushAsideIfTouched(void)
+{
+    lda8(ea_abs((uint16_t)V_141C));
+    if (IF_Z)
+        return;
+    call_frame(0x80C0, abi_ActorHitsTestBoxIfActive);
+    if (IF_C)
+        return;
+    abi_PlayerPushAside();
+}
