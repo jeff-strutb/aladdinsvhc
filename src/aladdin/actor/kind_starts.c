@@ -10,11 +10,6 @@
 void abi_Kind66WaitWork(void);
 
 void abi_ShotFly(void);
-void abi_Kind84Start(void);
-void abi_Kind98Start(void);
-void abi_Kind98Hit(void);
-void abi_Kind99Start(void);
-void abi_Kind9AStart(void);
 void abi_KindA0Start(void);
 void abi_Kind75Start(void);
 void abi_Kind74Start(void);
@@ -1087,74 +1082,4 @@ void abi_Kind75Enter(void)
 void abi_KindA0Enter(void)
 {
     abi_KindA0Start();
-}
-
-/*
- * @routine 83:92E5 Kind84Enter
- * @actor
- * WHAT IT DOES: Where actors of kind $84 go on from the actor loop in
- * its start state (the table at $83:8DAB): Kind84Start.
- * HOW: JML to Kind84Start ($84:95E3).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as Kind84Start.
- */
-void abi_Kind84Enter(void)
-{
-    abi_Kind84Start();
-}
-
-/*
- * @routine 83:93BE Kind98Enter
- * @actor
- * WHAT IT DOES: Where actors of kind $98 go on from the actor loop in
- * its start state (the table at $83:8DAB): Kind98Start.
- * HOW: JML to Kind98Start ($84:A112).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as Kind98Start.
- */
-void abi_Kind98Enter(void)
-{
-    abi_Kind98Start();
-}
-
-/*
- * @routine 83:93C7 Kind98Second
- * @actor
- * WHAT IT DOES: Where actors of kind $98 go on from the actor loop in
- * a state with bit 7 set (the table at $83:8EFD): Kind98Hit.
- * HOW: JML to Kind98Hit ($84:A2A6).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as Kind98Hit.
- */
-void abi_Kind98Second(void)
-{
-    abi_Kind98Hit();
-}
-
-/*
- * @routine 83:93CB Kind99Enter
- * @actor
- * WHAT IT DOES: Where actors of kind $99 go on from the actor loop in
- * its start state (the table at $83:8DAB): Kind99Start.
- * HOW: JML to Kind99Start ($84:A3B7).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as Kind99Start.
- */
-void abi_Kind99Enter(void)
-{
-    abi_Kind99Start();
-}
-
-/*
- * @routine 83:93D8 Kind9AEnter
- * @actor
- * WHAT IT DOES: Where actors of kind $9A go on from the actor loop in
- * its start state (the table at $83:8DAB): Kind9AStart.
- * HOW: JML to Kind9AStart ($84:A446).
- * Entry: D = the actor's record; reached by the actor loop's jump (JMP
- * (table,X)) by kind. Exit: never returns: as Kind9AStart.
- */
-void abi_Kind9AEnter(void)
-{
-    abi_Kind9AStart();
 }
