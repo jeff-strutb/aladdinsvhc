@@ -1,0 +1,14 @@
+# EscortWaitSpot4 ($A5:EF2B), EscortWaitSpot0's restart point: the escort
+# goes there when, following Aladdin, he is more than 192 pixels to its
+# left (ActorRestartIfPlayerFarLeft). On pw4.state the escort (record
+# $092B, its restart point $EF2B) waits at spot 0, x $0530, for him to
+# come near; he is at x $003A. Its x is put at $0040, by him: it starts
+# to follow; two frames on its x is put back at $0530, and its next
+# check sends it to spot 4, where it waits again.
+load build/aladdin/states/pw4.state
+wait 10
+poke 000937 40,00
+wait 2
+poke 000937 30,05
+wait 30
+dump z

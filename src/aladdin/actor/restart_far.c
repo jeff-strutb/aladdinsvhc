@@ -21,11 +21,12 @@ void abi_ActorAnimRiseFall(void);
 void abi_ActorFly(void);
 void abi_ActorOutOfGround(void);
 void abi_EscortStaySpot18(void);
+void abi_EscortWaitSpot4(void);
 
 #define ACTOR_RESTART 0x4Eu                 /* where its code starts again (word) */
 #define PLAYER_X_AT (PLAYER + ACTOR_X + 1)  /* the player's x, whole pixels (word) */
 #define FAR_LEFT 0x00C0u                    /* how far left of the actor the player must be */
-#define ESCORT_RESTART_A 0xEF2Bu            /* EscortWaitSpot0's restart point (code no script runs) */
+#define ESCORT_RESTART_A 0xEF2Bu            /* EscortWaitSpot0's restart point: EscortWaitSpot4 */
 #define ESCORT_RESTART_C 0xEF0Cu            /* EscortWaitSpot0C's: EscortStaySpot18 */
 #define ESCORT_RESTART_10 0xEFC5u           /* EscortWaitSpot10's: its wait at spot $14 */
 
@@ -72,6 +73,8 @@ static void escort_restart_at(uint16_t at)
         escort_spot10_restart();
     else if (at == ESCORT_RESTART_C)
         abi_EscortStaySpot18();
+    else if (at == ESCORT_RESTART_A)
+        abi_EscortWaitSpot4();
     else
         jump_routine(0xA50000u | at);
 }
@@ -148,7 +151,7 @@ static void escort_wait_spot(uint8_t spot, uint16_t restart, uint32_t anim_at, u
  * @routine A5:EF15 EscortWaitSpot0
  * @actor
  * WHAT IT DOES: The escort, flipped, in its first pose at spot 0, then
- * following Aladdin, restarting at $EF2B (code no script runs).
+ * following Aladdin, restarting at EscortWaitSpot4.
  * HOW: Flip 1, AnimStart 0, ActorPlaceAtSpot with X = 0; A = the restart
  * point (XBA'd in); on into EscortFollow.
  * Entry: M 8-bit, X 8-bit; D = the escort's record; reached by the jump
@@ -157,6 +160,23 @@ static void escort_wait_spot(uint8_t spot, uint16_t restart, uint32_t anim_at, u
 void abi_EscortWaitSpot0(void)
 {
     escort_wait_spot(0x00, ESCORT_RESTART_A, 0xA5EF1Bu, 0xEF23);
+}
+
+/*
+ * @routine A5:EF2B EscortWaitSpot4
+ * @actor
+ * WHAT IT DOES: The escort, flipped, in its first pose at spot 4, then
+ * following Aladdin, restarting at EscortStaySpot18: EscortWaitSpot0's
+ * restart point, where it goes once he is far to its left.
+ * HOW: Flip 1, AnimStart 0, ActorPlaceAtSpot with X = 4; A = the restart
+ * point, EscortStaySpot18 (XBA'd in); on into EscortFollow.
+ * Entry: M 8-bit, X 8-bit; D = the escort's record; reached by
+ * ActorRestartIfPlayerFarLeft's RTS to the restart point EscortWaitSpot0
+ * set. Exit: never returns.
+ */
+void abi_EscortWaitSpot4(void)
+{
+    escort_wait_spot(0x04, ESCORT_RESTART_C, 0xA5EF31u, 0xEF39);
 }
 
 /*

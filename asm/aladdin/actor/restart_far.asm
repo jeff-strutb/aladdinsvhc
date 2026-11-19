@@ -11,7 +11,7 @@ arch 65816
 !actor_restart = $4E            ; direct page (the actor): where its code starts again (word)
 !player_x = !player+!actor_x+1  ; the player's x, whole pixels (word)
 !FAR_LEFT = $00C0               ; how far left of the actor the player must be
-!ESCORT_RESTART_A = $EF2B       ; EscortWaitSpot0's restart point (code no script runs)
+!ESCORT_RESTART_A = $EF2B       ; EscortWaitSpot0's restart point: EscortWaitSpot4
 !ESCORT_RESTART_C = $EF0C       ; EscortWaitSpot0C's: EscortStaySpot18
 !ESCORT_RESTART_10 = $EFC5      ; EscortWaitSpot10's: its wait at spot $14
 
@@ -33,7 +33,7 @@ EscortStaySpot18:
 ; @routine A5:EF15 EscortWaitSpot0
 ; @actor
 ; WHAT IT DOES: The escort, flipped, in its first pose at spot 0, then
-; following Aladdin, restarting at $EF2B (code no script runs).
+; following Aladdin, restarting at EscortWaitSpot4.
 ; HOW: Flip 1, AnimStart 0, ActorPlaceAtSpot with X = 0; A = the restart
 ; point (XBA'd in); on into EscortFollow.
 ; Entry: M 8-bit, X 8-bit; D = the escort's record; reached by the jump
@@ -50,6 +50,27 @@ EscortWaitSpot0:
     xba
     lda.b #!ESCORT_RESTART_A&255
     bra EscortFollow
+
+; @routine A5:EF2B EscortWaitSpot4
+; @actor
+; WHAT IT DOES: The escort, flipped, in its first pose at spot 4, then
+; following Aladdin, restarting at EscortStaySpot18: EscortWaitSpot0's
+; restart point, where it goes once he is far to its left.
+; HOW: Flip 1, AnimStart 0, ActorPlaceAtSpot with X = 4; A = the restart
+; point, EscortStaySpot18 (XBA'd in); on into EscortFollow.
+; Entry: M 8-bit, X 8-bit; D = the escort's record; reached by
+; ActorRestartIfPlayerFarLeft's RTS to the restart point EscortWaitSpot0
+; set. Exit: never returns.
+EscortWaitSpot4:
+    lda.b #$01
+    sta.b !actor_flip
+    lda.b #$00
+    jsl.l AnimStart
+    ldx.b #$04
+    jsr.w ActorPlaceAtSpot
+    lda.b #!ESCORT_RESTART_C>>8
+    xba
+    lda.b #!ESCORT_RESTART_C&255
 
 ; @routine A5:EF3F EscortFollow
 ; @actor
