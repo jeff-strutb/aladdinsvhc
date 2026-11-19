@@ -26,28 +26,23 @@ void abi_PlayTimeTick(void);
 void abi_PlayTimeTick(void)
 {
     static const uint8_t limits[5] = { 10, 6, 10, 6, 10 };   /* s, 10 s, min, 10 min, h */
-    uint8_t n;
 
-    n = (uint8_t)(rd8(dba(PLAY_FRAMES)) + 1);
-    wr8(dba(PLAY_FRAMES), n);
-    a8_load(n);
-    cmp8_of(n, 60);
-    if (n < 60)
+    MEM8(inc, dba(PLAY_FRAMES));          /* INC, then LDA: two reads */
+    lda8(dba(PLAY_FRAMES));
+    cmp8_v(0x3C);
+    if (!IF_C)
         return;
-    wr8(dba(PLAY_FRAMES), 0);
-    wr8(dba(V_147D), (uint8_t)(rd8(dba(V_147D)) + 1));
+    stz8(dba(PLAY_FRAMES));
+    MEM8(inc, dba(V_147D));
     for (int i = 0; i < 5; i++) {        /* each digit, carrying into the next */
         uint16_t digit = (uint16_t)(PLAY_DIGITS + i);
 
-        n = (uint8_t)(rd8(dba(digit)) + 1);
-        wr8(dba(digit), n);
-        a8_load(n);
-        cmp8_of(n, limits[i]);
-        if (n < limits[i])
+        MEM8(inc, dba(digit));
+        lda8(dba(digit));
+        cmp8_v(limits[i]);
+        if (!IF_C)
             return;
-        wr8(dba(digit), 0);
+        stz8(dba(digit));
     }
-    n = (uint8_t)(rd8(dba(PLAY_DIGITS + 5)) + 1);
-    wr8(dba(PLAY_DIGITS + 5), n);
-    nz8_of(n);
+    MEM8(inc, dba(PLAY_DIGITS + 5));
 }
