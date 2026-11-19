@@ -1,0 +1,9 @@
+# GuardChasePose ($A5:E812) past its 96-frame wait: as cov_guard_states.box's
+# section "GuardWait state 1 with $146B bit 7" (the first level's guard, record
+# $092B, its state $4D 1 with $146B $80: its code word $E812), played on for
+# 130 frames, so after COP $60 it takes pose $15 and stays ($A5:E81D-E825).
+load build/aladdin/states/level1.state
+wait 10
+poke 00146B 80
+poke 000978 01
+wait 130
