@@ -823,8 +823,23 @@ def assess(addrs, image_ok=None):
         # data): the S-CPU reads every byte it uploads to the APU, so its
         # bits say nothing of what the SPC700 ran.
         cov = 0x80 | 0x2000 | 0x4000 if re.search(r'@spc\s', h) else 0x77
-        covered = bool(span) and all(mp[o] & cov for o in span)
-        gates.append(('C covered', covered, '%d of %d bytes executed or read' % (sum(1 for o in span if mp[o] & cov), len(span))
+        # Exempt by proof (Jeff, 2026-11-19): bytes no valid input can run (a
+        # path that runs data on this cart, a branch that needs ROM bytes
+        # which are not there). The routine's header names each range,
+        # `@unreachable BB:AAAA-BBBB`, with the proof beside it; they count
+        # as covered and the gate says how many. Never for code a poke or a
+        # unit call at a routine's own entry can run.
+        exempt = set()
+        for um in re.finditer(r'@unreachable\s+([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})', h):
+            import codemap as _cm
+            lo = int(um.group(1), 16) << 16 | int(um.group(2), 16)
+            hi = int(um.group(1), 16) << 16 | int(um.group(3), 16)
+            exempt.update(_cm.rom_offset(a) for a in range(lo, hi + 1))
+        exempt &= set(span)
+        ran = sum(1 for o in span if mp[o] & cov)
+        covered = bool(span) and all(mp[o] & cov or o in exempt for o in span)
+        gates.append(('C covered', covered, '%d of %d bytes executed or read%s' % (
+            ran, len(span), ', %d exempt by proof (@unreachable)' % len([o for o in exempt if not mp[o] & cov]) if exempt else '')
                       if span else 'no filed assembly gives the routine\'s extent'))
         lr = live.get(key)
         # A call an interrupt overlapped cannot be judged per call (the handler can
