@@ -16,6 +16,7 @@ void abi_ScratchBelowBy10(void);
 void abi_PlayerStandOnActor(void);
 void abi_SoundQueueAdd(void);
 void abi_ActorStompOrHurt(void);
+void abi_ActorSpawnKind11AtPlayer(void);
 
 #define ACTOR_11 0x11u              /* taken one from as the player stomps it */
 #define HEALTH 0x0367u              /* the player's health */
@@ -27,8 +28,6 @@ void abi_ActorStompOrHurt(void);
 #define STOMPED 0x8Cu               /* the state a stomped actor goes into */
 #define STOMP_SOUND 0x0F            /* the sound of a stomp */
 
-/* Not yet filed */
-#define STOMP_MARK 0x8384F4u        /* an actor of kind $11 started at the player's place */
 
 /*
  * @routine 83:80A1 ActorHurtsPlayerOnTouchLong
@@ -79,8 +78,9 @@ static int rising(void)
 }
 
 /* Not the bouncing actor ($1448 $3C), touching the test box, from above:
-   the tests the bounce routines make first. 0 when one says no. */
-static int touch_from_above(int skip_1448)
+   the tests the bounce routines make first. 0 when one says no. `ret` is
+   the last byte of the caller's JSR ActorHitsTestBoxIfActive. */
+static int touch_from_above(int skip_1448, uint16_t ret)
 {
     if (!skip_1448) {
         uint8_t v = rd8(dba(V_1448));
@@ -90,7 +90,7 @@ static int touch_from_above(int skip_1448)
         if (v == 0x3C)
             return 0;
     }
-    abi_ActorHitsTestBoxIfActive();
+    call_frame(ret, abi_ActorHitsTestBoxIfActive);
     if (cpu.p & P_C)
         return 0;
     op_rep(P_M);
@@ -119,7 +119,7 @@ static int can_stand(void)
  */
 void abi_ActorBouncesPlayer(void)
 {
-    if (!touch_from_above(0))
+    if (!touch_from_above(0, 0x8418))
         goto none;
     call_frame(0x841F, abi_ScratchBelowBy10);
     if ((cpu.p & P_C) || rising() || !can_stand())
@@ -138,7 +138,7 @@ static void stomp_or_hurt(void)
 {
     if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
-        abi_PlayerEnter8CFacing();
+        call_frame(0x83D9, abi_PlayerEnter8CFacing);
         a8_load(0x01);
         return;
     }
@@ -146,15 +146,14 @@ static void stomp_or_hurt(void)
         goto none;
     /* stomped: it can no longer be hit, goes into state $8C, one hit
        less, a mark at his feet */
-    abi_PlayerStandOnActor();
+    call_frame(0x83F8, abi_PlayerStandOnActor);
     op_sep(0x30);
-    nz8_of((uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
-    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
-    flag_set(P_C, 0);
+    MEM8(asl, ea_dp(ACTOR_09));
+    MEM8(lsr, ea_dp(ACTOR_09));
     a8_load(STOMPED);
     wr8(dpa(ACTOR_STATE), STOMPED);
-    dec8_at(dpa(ACTOR_11));
-    call_routine(STOMP_MARK, 0);
+    MEM8(dec, ea_dp(ACTOR_11));
+    call_frame(0x8407, abi_ActorSpawnKind11AtPlayer);
 none:
     op_sep(0x32);
 }
@@ -178,7 +177,7 @@ none:
  */
 void abi_ActorStompOrHurt(void)
 {
-    if (!touch_from_above(1)) {
+    if (!touch_from_above(1, 0x83CB)) {
         op_sep(0x32);
         return;
     }
@@ -199,17 +198,15 @@ void abi_ActorStompOrHurt(void)
  */
 void abi_ActorStompOrHurt16(void)
 {
-    uint16_t a;
-
-    if (!touch_from_above(1)) {
+    if (!touch_from_above(1, 0x83AF)) {
         op_sep(0x32);
         return;
     }
-    a = (uint16_t)cpu.a;
-    wr16(dba(0x0014), a);
-    a16_load(rd16(dba(0x0012)));
-    op_sub16(0x10);
-    op_cmp16(a);
+    sta16(ea_abs(0x0014));                 /* M 16-bit from the test's REP */
+    sec();
+    lda16(ea_abs(0x0012));
+    sbc16_v(0x0010);
+    cmp16_v(rd16(ea_abs(0x0014)));     /* CMP $0014: its own read */
     stomp_or_hurt();
 }
 
@@ -234,7 +231,7 @@ void abi_ActorStompedByPlayer(void)
 {
     uint16_t code;
 
-    if (!touch_from_above(1))
+    if (!touch_from_above(1, 0x8364))
         goto out;
     call_frame(0x836B, abi_ScratchBelowBy10);
     if (cpu.p & P_C) {                    /* from the side: he is hurt */
@@ -251,12 +248,13 @@ void abi_ActorStompedByPlayer(void)
     dp16_set(ACTOR_35, code);
     a16_load(code);
     op_sep(0x30);
-    wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) & 0x7F));
+    MEM8(asl, ea_dp(ACTOR_09));
+    MEM8(lsr, ea_dp(ACTOR_09));
     a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x80));
     wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
     a8_load(STOMPED);
     wr8(dpa(ACTOR_STATE), STOMPED);
-    dec8_at(dpa(ACTOR_11));
+    MEM8(dec, ea_dp(ACTOR_11));
     a8_load(STOMP_SOUND);
     jsl_frame(0x83839Du);
     abi_SoundQueueAdd();
@@ -298,7 +296,7 @@ void abi_ActorStompedByPlayerLong(void)
  */
 void abi_ActorBouncesOrHurtsPlayer(void)
 {
-    if (!touch_from_above(0))
+    if (!touch_from_above(0, 0x8453))
         goto none;
     call_frame(0x845A, abi_ScratchBelowBy10);
     if (cpu.p & P_C) {                    /* from the side: he is hurt */
