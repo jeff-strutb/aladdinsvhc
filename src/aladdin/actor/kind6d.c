@@ -54,9 +54,9 @@ void abi_Kind6DAway(void);
 static void k6d_across(void)
 {
     lda8_v(0x08);
-    abi_AnimStart();
+    jsl_frame(0x83ED35u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x00);
-    abi_ActorMotionReset();
+    jsl_frame(0x83ED3Bu); abi_ActorMotionReset(); cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         lda8_v(0x04);
         sta8(ea_dp(ACTOR_ACCEL_X));
@@ -64,8 +64,8 @@ static void k6d_across(void)
         sta8(ea_dp(K6D_FRAMES));
         do {
             actor_yield(0x83ED47u);
-            abi_ActorMoveX();
-            abi_ActorAccelerateX();
+            jsl_frame(0x83ED49u); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x83ED4Du); abi_ActorAccelerateX(); cpu.s = (uint16_t)(cpu.s + 3);
             op_rep(0x20);
             lda16(ea_dp(ACTOR_SPEED_X));
             cmp16_v(0x00C0);
@@ -81,8 +81,8 @@ static void k6d_across(void)
         sta8(ea_dp(ACTOR_FLIP));
         do {
             actor_yield(0x83ED6Cu);
-            abi_ActorMoveX();
-            abi_ActorDecelerateX();
+            jsl_frame(0x83ED6Eu); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x83ED72u); abi_ActorDecelerateX(); cpu.s = (uint16_t)(cpu.s + 3);
         } while (!IF_N);
         lda8(ea_dp(ACTOR_FACING));
         eor8_v(0x01);
@@ -93,31 +93,31 @@ static void k6d_across(void)
 }
 
 /* ActorStepYBack while facing nonzero, else ActorStepY ($83:ED9A, EDC3) */
-static void k6d_step_y(void)
+static void k6d_step_y(uint32_t brk_at)
 {
     lda8(ea_dp(ACTOR_FACING));
     if (!IF_Z)
-        abi_ActorStepYBack();
+        { jsl_frame(brk_at + 6); abi_ActorStepYBack(); cpu.s = (uint16_t)(cpu.s + 3); }
     else
-        abi_ActorStepY();
+        { jsl_frame(brk_at + 12); abi_ActorStepY(); cpu.s = (uint16_t)(cpu.s + 3); }
 }
 
 /* way 1 ($83:ED84): up and down */
 static void k6d_updown(void)
 {
     lda8_v(0x08);
-    abi_AnimStart();
+    jsl_frame(0x83ED86u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(ACTOR_FACING));
     stz8(ea_dp(ACTOR_49));
     for (;;) {
         lda8_v(0x03);
-        abi_ActorMotionReset();
+        jsl_frame(0x83ED90u); abi_ActorMotionReset(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8_v(0x60);
         sta8(ea_dp(K6D_FRAMES));
         do {
             actor_yield(0x83ED98u);
-            k6d_step_y();
-            abi_ActorAccelerateY();
+            k6d_step_y(0x83ED98u);
+            jsl_frame(0x83EDA8u); abi_ActorAccelerateY(); cpu.s = (uint16_t)(cpu.s + 3);
             op_rep(0x20);
             lda16(ea_dp(ACTOR_SPEED_Y));
             cmp16_v(0x00C0);
@@ -130,8 +130,8 @@ static void k6d_updown(void)
         sta8(ea_dp(ACTOR_ACCEL_Y));
         do {
             actor_yield(0x83EDC1u);
-            k6d_step_y();
-            abi_ActorDecelerateY();
+            k6d_step_y(0x83EDC1u);
+            jsl_frame(0x83EDD1u); abi_ActorDecelerateY(); cpu.s = (uint16_t)(cpu.s + 3);
         } while (!IF_N);
         lda8(ea_dp(ACTOR_FACING));
         eor8_v(0x01);
@@ -143,23 +143,23 @@ static void k6d_updown(void)
 static void k6d_run(void)
 {
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83EDE1u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x04);
-    abi_AnimStart();
+    jsl_frame(0x83EDE7u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x02);
     sta8(ea_dp(ACTOR_ACCEL_X));
     ldy8_v(0x5A);
-    abi_ActorSpeedXSet();
+    jsl_frame(0x83EDF1u); abi_ActorSpeedXSet(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x40);
     sta8(ea_dp(K6D_FRAMES));
     do {
         actor_yield(0x83EDF9u);
-        abi_ActorMoveX();
-        abi_ActorAccelerateX();
+        jsl_frame(0x83EDFBu); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EDFFu); abi_ActorAccelerateX(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(K6D_FRAMES));
     } while (!IF_Z);
     lda8_v(0x08);
-    abi_AnimStart();
+    jsl_frame(0x83EE09u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(ACTOR_ACCEL_X));
     lda8_v(0x30);
     sta8(ea_dp(ACTOR_ACCEL_Y));
@@ -167,16 +167,16 @@ static void k6d_run(void)
     sta8(ea_dp(K6D_FRAMES));
     do {
         actor_yield(0x83EE17u);
-        abi_ActorStepYBack();
-        abi_ActorMoveX();
-        abi_ActorAccelerateY();
+        jsl_frame(0x83EE19u); abi_ActorStepYBack(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EE1Du); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EE21u); abi_ActorAccelerateY(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(K6D_FRAMES));
     } while (!IF_Z);
     do {
         actor_yield(0x83EE29u);
-        abi_ActorStepYBack();
-        abi_ActorMoveX();
-        abi_ActorDecelerateY();
+        jsl_frame(0x83EE2Bu); abi_ActorStepYBack(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EE2Fu); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EE33u); abi_ActorDecelerateY(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8(ea_dp(ACTOR_SPEED_Y + 2));
     } while (!IF_N);
     abi_Kind6DAway();
@@ -187,16 +187,16 @@ static void k6d_run(void)
 static void k6d_hop(uint8_t preset, int seven)
 {
     ldy8_v(preset);
-    abi_ActorMotionPreset();
+    jsl_frame(seven ? 0x83EF47u : 0x83EE45u); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(ACTOR_SPEED_Y));
     stz8(ea_dp(ACTOR_SPEED_Y + 1));
     stz8(ea_dp(ACTOR_SPEED_Y + 2));
     for (;;) {
         lda8_v(0x08);
-        abi_AnimStart();
+        jsl_frame(seven ? 0x83EF5Bu : 0x83EE59u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         do {
             actor_yield(seven ? 0x83EF5Fu : 0x83EE5Du);
-            abi_ActorFly();
+            jsl_frame(seven ? 0x83EF61u : 0x83EE5Fu); abi_ActorFly(); cpu.s = (uint16_t)(cpu.s + 3);
             if (seven) {
                 op_rep(0x20);
                 lda16(ea_dp(ACTOR_SPEED_Y));
@@ -208,7 +208,7 @@ static void k6d_hop(uint8_t preset, int seven)
                 }
                 op_sep(0x20);
             } else {
-                abi_ActorOutOfWallProbe4();
+                jsl_frame(0x83EE63u); abi_ActorOutOfWallProbe4(); cpu.s = (uint16_t)(cpu.s + 3);
                 if (IF_C) {
                     lda8(ea_dp(ACTOR_FACING));
                     eor8_v(0x01);
@@ -216,18 +216,18 @@ static void k6d_hop(uint8_t preset, int seven)
                     sta8(ea_dp(ACTOR_FLIP));
                 }
             }
-            abi_ActorOutOfGround();
+            jsl_frame(seven ? 0x83EF76u : 0x83EE71u); abi_ActorOutOfGround(); cpu.s = (uint16_t)(cpu.s + 3);
         } while (IF_Z);
         lda8_v(0x02);
-        abi_AnimStart();
+        jsl_frame(seven ? 0x83EF7Eu : 0x83EE79u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8_v(0x08);
         actor_wait(seven ? 0x83EF84u : 0x83EE7Fu);
         lda8_v(0x01);
-        abi_AnimStart();
+        jsl_frame(seven ? 0x83EF88u : 0x83EE83u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         lda8_v(0x08);
         actor_wait(seven ? 0x83EF8Eu : 0x83EE89u);
         ldy8_v(preset);
-        abi_ActorMotionPreset();
+        jsl_frame(seven ? 0x83EF55u : 0x83EE53u); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 
@@ -236,7 +236,7 @@ static void k6d_hop(uint8_t preset, int seven)
 static void k6d_homing(void)
 {
     lda8_v(0x08);
-    abi_AnimStart();
+    jsl_frame(0x83EE8Fu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x14);
     sta8(ea_dp(K6D_TURNS));
     lda8(ea_dp(ACTOR_FACING));
@@ -250,13 +250,13 @@ static void k6d_homing(void)
         do {
             actor_yield(0x83EEA2u);
             ldx8_v(0x18);
-            abi_ActorMoveByVector();
+            jsl_frame(0x83EEA6u); abi_ActorMoveByVector(); cpu.s = (uint16_t)(cpu.s + 3);
             MEM8(dec, ea_dp(K6D_FRAMES));
         } while (!IF_Z);
         MEM8(dec, ea_dp(K6D_TURNS));
         if (IF_Z)
             break;
-        abi_ActorDirectionToPlayer();
+        jsl_frame(0x83EEB2u); abi_ActorDirectionToPlayer(); cpu.s = (uint16_t)(cpu.s + 3);
         sec();
         sbc8_v(rd8(ea_dp(ACTOR_FACING)));
         and8_v(0x0F);
@@ -304,7 +304,7 @@ static void k6d_homing(void)
         }
         actor_yield(0x83EEFCu);
         ldx8_v(0x18);
-        abi_ActorMoveByVector();
+        jsl_frame(0x83EF00u); abi_ActorMoveByVector(); cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 
@@ -322,7 +322,7 @@ static void k6d_spawner(void)
         sta8(ea_dp(ACTOR_07));
         stz8(ea_dp(K6D_SPAWN_SLOT));
         lda8(ea_dp(ACTOR_06));
-        abi_ActorSpawnSameLook();
+        jsl_frame(0x83EF19u); abi_ActorSpawnSameLook(); cpu.s = (uint16_t)(cpu.s + 3);
         if (!IF_N) {
             lda8(ea_dp(K6D_STEP));
             sta8(ea_dp(ACTOR_07));
@@ -514,11 +514,11 @@ face:
     }
     do {
         actor_yield(0x83F016u);
-        abi_AnimStep();
+        jsl_frame(0x83F018u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(K6D_FRAMES)));
     for (;;) {
         actor_yield(0x83F020u);
-        abi_AnimStep();
+        jsl_frame(0x83F022u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         jsl_frame(0x83F026u);
         abi_ActorFly();
         cpu.s = (uint16_t)(cpu.s + 3);
