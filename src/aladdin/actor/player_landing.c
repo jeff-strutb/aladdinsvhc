@@ -261,9 +261,7 @@ void abi_LandingPad(void)
         rest = rd8(dpa(PAD_REST));
         a8_load(rest);
         if (rest) {
-            rest--;
-            wr8(dpa(PAD_REST), rest);
-            nz8_of(rest);
+            MEM8(dec, ea_dp(PAD_REST));    /* DEC: its own read and write */
             continue;
         }
         call_frame(0xF9EB, abi_ActorHitsTestBoxIfActive);
