@@ -1,0 +1,54 @@
+# Level 3 (act 0 stage 3, the market's end), which no script plays: its
+# kind $56 (the monkey, $83:D8E2, wait $83:D9B5) and kind $57 (the guard
+# at x $0590, $83:D9BA, wait $83:DAD6), placed at x $0540-$0590, y $01B0.
+# No saved state holds level 3 (stage_a0_s3 is a story screen), so the
+# level is loaded the way the game loads any level: act 1 stage 1 played
+# to its end (cov_level_end_press.box) and START pressed on the screen
+# between acts, with the level ($035E) held at 3 through the next level's
+# load (1300 frames). Then the camera ($1773, last $19E5) put at x $0480
+# and Aladdin at x $04C0; at x $0530 (past $0528) the guard starts its
+# moves; Aladdin then walks at it and presses A, B and Y beside it.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+repeat 1300
+poke 00035E 03
+wait 1
+end
+poke 001773 80,04
+poke 0019E5 80,04
+poke 0008E7 C0,04
+wait 130
+poke 0008E7 30,05
+wait 260
+hold RIGHT 40
+wait 60
+hold A 4
+wait 30
+hold A 4
+wait 30
+hold A 4
+wait 60
+hold B 10
+hold B+RIGHT 30
+wait 60
+hold Y 10
+wait 30
+hold Y 10
+wait 30
+hold Y 10
+wait 60
+hold B+LEFT 30
+wait 60
+hold LEFT 30
+wait 120
+hold RIGHT 60
+wait 200
