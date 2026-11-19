@@ -1,0 +1,14 @@
+# Actor kind $3E's start ($83:B154), which no level the scripts reach
+# places, made where it cannot be hit ($09 bit 6 clear, as its placement
+# may give it): it then makes an actor of look $31 next to it
+# ($83:B174 on) and pauses 128 frames, again and again. The first level's
+# record $0BAB (a kind $20, holding tile slot 3 alone) is made one, its $09
+# 0, state $0C. (The escort record $092B, so poked, had bit 6 of its $09
+# set again before its start ran.)
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 3E
+poke 000BB2 00
+poke 000BB4 00
+poke 000BAB 0C
+wait 400
