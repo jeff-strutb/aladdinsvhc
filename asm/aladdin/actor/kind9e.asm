@@ -7,9 +7,9 @@ incsrc "../include/actor.inc"
 
 arch 65816
 
-!G_AC = $00AC                   ; the Genie's screen: a pick (negative: a pose by G_AF; 1, 2-3, 4 up: animation 3, 4, 5)
+!G_AC = $00AC                   ; the Genie's screen: a pick (negative: a pose, by G_AF when $FF; 1, 2-3, 4 up: animation 3, 4, 5)
 !G_AD = $00AD                   ; nonzero: a pick's animation is 1 instead
-!G_AF = $00AF                   ; with G_AC negative: zero, animation 7; else 9
+!G_AF = $00AF                   ; with G_AC $FF: zero, animation 7; else 9
 !G_B0 = $00B0                   ; the y (word) way 2 follows, less $10
 !G_B5 = $00B5                   ; the screen's end: 1, animation 8; other nonzero, $0A (way 0); way 2's cue
 
@@ -19,7 +19,7 @@ arch 65816
 ; $07. Way 0: animation 0, then each frame by the screen's state: G_B5
 ; nonzero ends the wait with animation 8 (1) or $0A; else a pick in G_AC
 ; (cleared once taken) starts animation 3, 4 or 5 (1 if G_AD is set), or,
-; negative, 7 or 9 by G_AF ($FF: 0). Way 2: ActorPaletteFromRom $52, $10
+; $FF, 7 or 9 by G_AF (other negative: 0). Way 2: ActorPaletteFromRom $52, $10
 ; down by one; once G_B5 is nonzero, animation $0B ($0C when negative);
 ; then each frame its y = G_B0 + $10 and its x $34.
 ; HOW: ACTOR_08 |= 3, ACTOR_09 |= $90; JMP ($A82D,X) by $07: $A831, $A88F.

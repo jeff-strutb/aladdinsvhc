@@ -1,0 +1,51 @@
+# Kind $9E (84:A820 Kind9EStart) on the Genie's screen (level $2F), with
+# the screen's state bytes poked to the values its other ways read:
+# a pick of 1 in $AC (animation 3), of 2-3 (animation 4), $AC = $FF
+# with $AF set (animation 9), then $B5 negative (way 0: animation $0A; way 2: its cue,
+# animation $0C, then its place loop) and $B5 = 1 (way 0: animation 8).
+# Loaded as cov_level2f_genie.box reaches the screen.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+repeat 1300
+poke 00035E 2F
+wait 1
+end
+wait 300
+repeat 4
+poke 0000AC 01
+wait 1
+end
+poke 0000AC 00
+wait 2
+repeat 4
+poke 0000AC 02
+wait 1
+end
+poke 0000AC 00
+wait 2
+repeat 2
+poke 0000AF 01
+poke 0000AC FF
+wait 1
+end
+poke 0000AC 00
+poke 0000AF 00
+wait 2
+repeat 4
+poke 0000B5 80
+wait 1
+end
+repeat 4
+poke 0000B5 01
+wait 1
+end
+wait 60
