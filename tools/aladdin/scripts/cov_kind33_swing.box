@@ -1,0 +1,28 @@
+# Actor kind $33 ($83:B966), a platform swinging under its placed actor,
+# which no level the scripts reach places: the first level's record $092B
+# is made one with $07 0 (kind byte +6, state $0C), as the level's
+# placement would make it: holding tile slot 1 alone ($39 = 1, $15E9 = 1),
+# so it queues its graphics itself ($83:BB37), and at x $0080, y $0120, in
+# the air. Its child ($07 3, record $0BFB) swings below it. Aladdin is put
+# above the child (x $0076, y $0146: the child is at x $0076, y $0162 in
+# that frame, his feet then 27 pixels above its top, inside its landing
+# box) and lands on it ($83:BAB3), rides it ($83:BAB7), and jumps off
+# (B: $83:BADD). Then the placed one's record is freed (state 0), so the
+# child ends itself ($83:BA14).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 33
+poke 000932 00
+poke 000964 01
+poke 0015E9 01
+poke 000937 80,00
+poke 00093A 20,01
+poke 00092B 0C
+wait 5
+poke 0008E7 76,00
+poke 0008EA 46,01
+wait 60
+press B 4
+wait 60
+poke 00092B 00
+wait 30
