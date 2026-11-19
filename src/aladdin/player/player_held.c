@@ -522,3 +522,115 @@ void abi_PlayerBounce(void)
     sta8(ea_abs(PLAYER_BOX_WANTED));
     abi_PlayerAir();
 }
+
+/* The air's frame end of PlayerSprung and PlayerFlung: HOVER_ON,
+   HOVER_HELD and falling: PlayerHover (1 returned); else gravity $38, or
+   $80 rising with the jump not held and not PLAYER_LANDED, and
+   PlayerRunSpeed (its JSR's return address ret). */
+static int air_gravity(uint16_t ret)
+{
+    lda8(ea_abs(HOVER_ON));
+    if (!IF_Z) {
+        lda8(ea_abs(HOVER_HELD));
+        if (!IF_Z) {
+            lda8(ea_dp(ACTOR_SPEED_Y + 2));
+            if (!IF_N) {
+                abi_PlayerHover();
+                return 1;
+            }
+        }
+    }
+    lda8_v(0x38);
+    sta8(ea_dp(ACTOR_ACCEL_Y));
+    lda8(ea_abs(JUMP_HELD));
+    if (IF_Z) {
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+        if (IF_N) {
+            lda8(ea_abs(PLAYER_LANDED));
+            if (IF_Z) {
+                lda8_v(0x80);
+                sta8(ea_dp(ACTOR_ACCEL_Y));
+            }
+        }
+    }
+    call_frame(ret, abi_PlayerRunSpeed);
+    return 0;
+}
+
+/*
+ * @routine 81:D8FD PlayerSprung
+ * @actor
+ * WHAT IT DOES: Aladdin sprung up by a spring (kind $40): he flies up
+ * against the ceiling's pull until he slows to falling, then falls with
+ * the air's settings and pose until he lands (or catches a ledge or
+ * hovers).
+ * HOW: V_1A08 0; gravity $12; vertical speed $00 $01 $00 (byte by byte,
+ * its high byte last); player_ground_y 0 (byte by byte); ActorStopX;
+ * PlayerMoveStart $0F. Each frame (BRK first) ActorFlyAgainst until the
+ * vertical speed's high byte is negative. Then V_141C 1, PLAYER_LANDED 0;
+ * ActorSpeedYSetGravity with gravity $38 and Y = $63; PLAYER_BOX_WANTED 3;
+ * PlayerMoveStart 4; FRAMES_40 7, ACTOR_41 $0E. Each frame (BRK first):
+ * PlayerAirStep, PlayerFlipByPad, PlayerJumpPoseStep; HOVER_ON,
+ * HOVER_HELD and falling: on at PlayerHover. Gravity $38, or $80 rising
+ * with the jump not held and not PLAYER_LANDED; PlayerRunSpeed. Rising:
+ * the next frame. GroundBehindBit3 nonzero: on at PlayerLedgeGrab;
+ * ActorOutOfGround nonzero: on at PlayerLand; else the next frame.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where kind $40 set his resume address. Exit: never
+ * returns.
+ */
+void abi_PlayerSprung(void)
+{
+    stz8(ea_abs(V_1A08));
+    lda8_v(0x12);
+    sta8(ea_dp(ACTOR_ACCEL_Y));
+    lda8_v(0x01);
+    sta8(ea_dp(ACTOR_SPEED_Y + 1));
+    stz8(ea_dp(ACTOR_SPEED_Y));
+    stz8(ea_dp(ACTOR_SPEED_Y + 2));
+    stz8(ea_abs(PLAYER_GROUND_Y));
+    stz8(ea_abs(PLAYER_GROUND_Y + 1));
+    jsl_call(0x81D912u, abi_ActorStopX);
+    lda8_v(0x0F);
+    call_frame(0xD91A, abi_PlayerMoveStart);
+    do {
+        actor_yield(0x81D91Bu);
+        jsl_call(0x81D91Du, abi_ActorFlyAgainst);
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+    } while (!IF_N);
+    lda8_v(0x01);
+    sta8(ea_abs(V_141C));
+    stz8(ea_abs(PLAYER_LANDED));
+    lda8_v(0x38);
+    ldy8_v(0x63);
+    jsl_call(0x81D931u, abi_ActorSpeedYSetGravity);
+    lda8_v(0x03);
+    sta8(ea_abs(PLAYER_BOX_WANTED));
+    lda8_v(0x04);
+    call_frame(0xD93E, abi_PlayerMoveStart);
+    lda8_v(0x07);
+    sta8(ea_dp(FRAMES_40));
+    lda8_v(0x0E);
+    sta8(ea_dp(ACTOR_41));
+    for (;;) {
+        actor_yield(0x81D947u);
+        call_frame(0xD94B, abi_PlayerAirStep);
+        call_frame(0xD94E, abi_PlayerFlipByPad);
+        call_frame(0xD951, abi_PlayerJumpPoseStep);
+        if (air_gravity(0xD97B))
+            return;
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+        if (IF_N)
+            continue;
+        jsl_call(0x81D980u, abi_GroundBehindBit3);
+        if (!IF_Z) {
+            abi_PlayerLedgeGrab();
+            return;
+        }
+        jsl_call(0x81D989u, abi_ActorOutOfGround);
+        if (!IF_Z) {
+            abi_PlayerLand();
+            return;
+        }
+    }
+}

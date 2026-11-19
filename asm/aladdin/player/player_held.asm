@@ -445,3 +445,91 @@ PlayerBounce:
     lda.b #$03
     sta.w !player_box_wanted
     jmp.w PlayerAir
+
+; @routine 81:D8FD PlayerSprung
+; @actor
+; WHAT IT DOES: Aladdin sprung up by a spring (kind $40): he flies up
+; against the ceiling's pull until he slows to falling, then falls with
+; the air's settings and pose until he lands (or catches a ledge or
+; hovers).
+; HOW: V_1A08 0; gravity $12; vertical speed $00 $01 $00 (byte by byte,
+; its high byte last); player_ground_y 0 (byte by byte); ActorStopX;
+; PlayerMoveStart $0F. Each frame (BRK first) ActorFlyAgainst until the
+; vertical speed's high byte is negative. Then V_141C 1, PLAYER_LANDED 0;
+; ActorSpeedYSetGravity with gravity $38 and Y = $63; PLAYER_BOX_WANTED 3;
+; PlayerMoveStart 4; FRAMES_40 7, ACTOR_41 $0E. Each frame (BRK first):
+; PlayerAirStep, PlayerFlipByPad, PlayerJumpPoseStep; HOVER_ON,
+; HOVER_HELD and falling: on at PlayerHover. Gravity $38, or $80 rising
+; with the jump not held and not PLAYER_LANDED; PlayerRunSpeed. Rising:
+; the next frame. GroundBehindBit3 nonzero: on at PlayerLedgeGrab;
+; ActorOutOfGround nonzero: on at PlayerLand; else the next frame.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where kind $40 set his resume address. Exit: never
+; returns.
+%at($81D8FD)
+PlayerSprung:
+    stz.w !v_1a08
+    lda.b #$12
+    sta.b !actor_accel_y
+    lda.b #$01
+    sta.b !actor_speed_y+1
+    stz.b !actor_speed_y
+    stz.b !actor_speed_y+2
+    stz.w !player_ground_y
+    stz.w !player_ground_y+1
+    jsl.l ActorStopX
+    lda.b #$0F
+    jsr.w PlayerMoveStart
+.up:
+    brk.b #$00
+    jsl.l ActorFlyAgainst
+    lda.b !actor_speed_y+2
+    bpl .up
+    lda.b #$01
+    sta.w !V_141C
+    stz.w !PLAYER_LANDED
+    lda.b #$38
+    ldy.b #$63
+    jsl.l ActorSpeedYSetGravity
+    lda.b #$03
+    sta.w !player_box_wanted
+    lda.b #$04
+    jsr.w PlayerMoveStart
+    lda.b #$07
+    sta.b !FRAMES_40
+    lda.b #$0E
+    sta.b !actor_41
+.frame:
+    brk.b #$00
+    jsr.w PlayerAirStep
+    jsr.w PlayerFlipByPad
+    jsr.w PlayerJumpPoseStep
+    lda.w !HOVER_ON
+    beq .gravity
+    lda.w !HOVER_HELD
+    beq .gravity
+    lda.b !actor_speed_y+2
+    bmi .gravity
+    jmp.w PlayerHover
+.gravity:
+    lda.b #$38
+    sta.b !actor_accel_y
+    lda.w !JUMP_HELD
+    bne .speed
+    lda.b !actor_speed_y+2
+    bpl .speed
+    lda.w !PLAYER_LANDED
+    bne .speed
+    lda.b #$80
+    sta.b !actor_accel_y
+.speed:
+    jsr.w PlayerRunSpeed
+    lda.b !actor_speed_y+2
+    bmi .frame
+    jsl.l GroundBehindBit3
+    beq .out_test
+    jmp.w PlayerLedgeGrab
+.out_test:
+    jsl.l ActorOutOfGround
+    beq .frame
+    jmp.w PlayerLand
