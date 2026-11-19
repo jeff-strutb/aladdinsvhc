@@ -1,0 +1,42 @@
+# Kind $5C's path (Kind5CStart $83:E000) as cov_kind5c_bob.box sets it up
+# (stage a3 s0, the view at x $07C0, Aladdin at x $08C0, y $30): first
+# with four lives ($0364), so its path is the third ($83:E237), until it
+# has picked it; then with one life (the first path, all its children
+# clouds of kind $5D, whose code has C). Its record ($0BFB)
+# flies to its first point (x $0970); its x is made $08F0, $80 short of
+# it, so it takes the far speed ($83:E151); 30 frames on its x is made
+# $0980, past the point, with its speed 0: that frame it faces back
+# ($83:E1E8), slows to turn ($83:E18A), turns about ($83:E1A7) and moves
+# left ($83:E1CA). (Both x within $140 of the range point, $08AF, so its
+# wait keeps it.) At its second point it waits for Aladdin to land on its
+# first cloud (record $0C9B): that cloud's $40 is set as his landing sets
+# it, and its path offset ($4A) made $24, its last point's: it makes that
+# point's cloud and, at the path's end, flies off ($83:E100).
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000364 04
+poke 001773 C0,07
+poke 0019E5 C0,07
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C0,08
+poke 0008EA 30,00
+wait 60
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000364 01
+poke 001773 C0,07
+poke 0019E5 C0,07
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C0,08
+poke 0008EA 30,00
+wait 210
+poke 000C07 F0,08
+wait 30
+poke 000C07 80,09
+poke 000C41 00,00
+wait 120
+poke 000C45 24
+poke 000CDB 01
+wait 600
