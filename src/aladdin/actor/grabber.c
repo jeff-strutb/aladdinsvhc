@@ -242,9 +242,7 @@ shake:
             if (IF_C)
                 goto landed;
         }
-        push16(0xC85C);
-        call_frame(0xC85C, abi_ActorFallTileTest);
-        cpu.s = (uint16_t)(cpu.s + 2);
+        call_frame(0xC85C, abi_ActorFallTileTest);  /* 83C85A jsr: it drops this frame when it ends the actor */
         if (IF_Z)
             break;
     }
