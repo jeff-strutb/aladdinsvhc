@@ -665,3 +665,57 @@ void abi_PlayerGrabbedHang(void)
     sta8(ea_abs(PLAYER_BOX_WANTED));
     abi_PlayerHang();
 }
+
+/*
+ * @routine 81:D9C5 PlayerSwitchHang
+ * @actor
+ * WHAT IT DOES: Aladdin hangs from a switch's handle (kind $3B) or is
+ * held by the continue screen's choice: he hangs where he was kept until
+ * V_142E is 0 and down is on the pad, then drops 18 pixels and falls.
+ * HOW: PlayerPosRestore; PLAYER_LANDED and AIR_THROW 0, V_1427 up;
+ * PlayerFlagsClear; ActorStopX, ActorStopY; SoundQueueAdd 6;
+ * PlayerMoveStart 6; PLAYER_BOX_WANTED 4. Each frame (BRK first): V_142E
+ * nonzero or down not on the pad: the next frame. Then (no script runs
+ * it) PlayerGroundYSave; NO_LANDING $10; his y pixels $12 lower (16-bit);
+ * V_1427 0; on at PlayerFall.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where kind $3B or ContinueChoice set his resume
+ * address. Exit: never returns.
+ */
+void abi_PlayerSwitchHang(void)
+{
+    call_frame(0xD9C7, abi_PlayerPosRestore);
+    stz8(ea_abs(PLAYER_LANDED));
+    stz8(ea_abs(AIR_THROW));
+    MEM8(inc, ea_abs(V_1427));
+    call_frame(0xD9D3, abi_PlayerFlagsClear);
+    jsl_call(0x81D9D4u, abi_ActorStopX);
+    jsl_call(0x81D9D8u, abi_ActorStopY);
+    lda8_v(0x06);
+    jsl_call(0x81D9DEu, abi_SoundQueueAdd);
+    lda8_v(0x06);
+    call_frame(0xD9E6, abi_PlayerMoveStart);
+    lda8_v(0x04);
+    sta8(ea_abs(PLAYER_BOX_WANTED));
+    for (;;) {
+        actor_yield(0x81D9ECu);
+        lda8(ea_abs(V_142E));
+        if (!IF_Z)
+            continue;
+        lda8(ea_abs(PAD1_DIRS));
+        and8_v(PAD_DOWN);
+        if (!IF_Z)
+            break;
+    }
+    call_frame(0xD9FC, abi_PlayerGroundYSave);
+    lda8_v(0x10);
+    sta8(ea_abs(NO_LANDING));
+    op_rep(P_M);
+    lda16(ea_dp(ACTOR_Y + 1));
+    clc();
+    adc16_v(0x0012);
+    sta16(ea_dp(ACTOR_Y + 1));
+    op_sep(P_M);
+    stz8(ea_abs(V_1427));
+    abi_PlayerFall();
+}

@@ -561,3 +561,51 @@ PlayerGrabbedHang:
     lda.b #$04
     sta.w !player_box_wanted
     jmp.w PlayerHang
+
+; @routine 81:D9C5 PlayerSwitchHang
+; @actor
+; WHAT IT DOES: Aladdin hangs from a switch's handle (kind $3B) or is
+; held by the continue screen's choice: he hangs where he was kept until
+; V_142E is 0 and down is on the pad, then drops 18 pixels and falls.
+; HOW: PlayerPosRestore; PLAYER_LANDED and AIR_THROW 0, V_1427 up;
+; PlayerFlagsClear; ActorStopX, ActorStopY; SoundQueueAdd 6;
+; PlayerMoveStart 6; PLAYER_BOX_WANTED 4. Each frame (BRK first): V_142E
+; nonzero or down not on the pad: the next frame. Then (no script runs
+; it) PlayerGroundYSave; NO_LANDING $10; his y pixels $12 lower (16-bit);
+; V_1427 0; on at PlayerFall.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where kind $3B or ContinueChoice set his resume
+; address. Exit: never returns.
+%at($81D9C5)
+PlayerSwitchHang:
+    jsr.w PlayerPosRestore
+    stz.w !PLAYER_LANDED
+    stz.w !AIR_THROW
+    inc.w !V_1427
+    jsr.w PlayerFlagsClear
+    jsl.l ActorStopX
+    jsl.l ActorStopY
+    lda.b #$06
+    jsl.l SoundQueueAdd
+    lda.b #$06
+    jsr.w PlayerMoveStart
+    lda.b #$04
+    sta.w !player_box_wanted
+.frame:
+    brk.b #$00
+    lda.w !V_142E
+    bne .frame
+    lda.w !PAD1_DIRS
+    and.b #!PAD_DOWN
+    beq .frame
+    jsr.w PlayerGroundYSave
+    lda.b #$10
+    sta.w !NO_LANDING
+    rep.b #$20
+    lda.b !actor_y+1
+    clc
+    adc.w #$0012
+    sta.b !actor_y+1
+    sep.b #$20
+    stz.w !V_1427
+    jmp.w PlayerFall
