@@ -70,8 +70,11 @@ void abi_ActorWaitAnimIf07Bit4(void)
 
     a8_load(v);
     flag_set(P_Z, !(v & 0x10));
-    if (v & 0x10)
-        jsl_frame(0x83B0C2u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
+    if (v & 0x10) {
+        jsl_frame(0x83B0C2u);
+        abi_AnimStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
+    }
 }
 
 /*
