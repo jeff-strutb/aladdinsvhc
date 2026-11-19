@@ -39,23 +39,9 @@ arch 65816
 ; HOW: K98_HITS 6; K98_DONE and K98_TURNS 0; both scroll holds 1; COP $80;
 ; $08 bits 0-1 and $09 bits $90 set; 16-bit probes K98_PROBES and K98_29
 ; $891B; its x pixels $80, y pixels K98_TOP; K98_RIGHT 1, K98_HIT and
-; facing 0; SoundQueueAdd $46; AnimStart 0; COP $20; AnimStart 2. The
-; cycle (84:A167): y K98_TOP (fraction 0), $49 0, ActorSpeedYClear,
-; gravity 6, ActorSpeedXClear; $60 frames (BRK) ActorBobY; RandomFromList
-; with X = K98_RANDOM_LIST, JMP (table,X). Way 0: facing K98_RIGHT, speed
-; across $0180; $20 frames ActorMoveX and ActorBobY; AnimStart 3,
-; SoundQueueAdd $2F; $10 frames; ActorSpawnFacing kind $9A; $20 frames;
-; AnimStart 2. The flight (84:A1F3): each frame ActorMoveX and ActorBobY
-; until, K98_RIGHT set, its x + $60 is below $20 (K98_RIGHT 0, then the
-; end), or, K98_RIGHT 0, at or past $E0 (K98_RIGHT up; K98_TURNS zero:
-; the end; else way 2). Way 2 (84:A224): K98_TURNS 0; SoundQueueAdd $47;
-; AnimStart 4; $10 frames ActorBobY; ActorSpawnFacing Y = 0 kind $23; $1A
-; frames; AnimStart 2. The end (84:A25F): $20 frames ActorBobY;
-; SoundQueueAdd $50; facing 0, up if x + $60 - $80 leaves no borrow;
-; ActorMotionPreset Y = $70; AnimStart 2; each frame ActorFlyAgainst until
-; its y is at most K98_TOP (y K98_TOP, fraction 0); K98_RIGHT ^= 1; the
-; cycle again. The JMP at 84:A20F, after the flight's JMP to the end, is
-; never reached.
+; facing 0; SoundQueueAdd $46; AnimStart 0; COP $20; AnimStart 2; on into
+; Kind98Cycle (84:A167), whose ways go on in Kind98Flight,
+; Kind98StartSpawn and Kind98StartEnd.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop for kind $98 in state $0C (the stub at $83:93BE). Exit:
 ; never returns.
@@ -98,7 +84,22 @@ Kind98Start:
     cop.b #$00
     lda.b #$02
     jsl.l AnimStart
-.cycle:
+
+; @routine 84:A167 Kind98Cycle
+; @actor
+; WHAT IT DOES: Kind $98's cycle: back at the top, it bobs $60 frames and
+; by a random pick flies across (dropping a kind $9A) or spawns a kind $23.
+; HOW: y K98_TOP (fraction 0), $49 0, ActorSpeedYClear, gravity 6,
+; ActorSpeedXClear; $60 frames (BRK) ActorBobY; RandomFromList with X =
+; K98_RANDOM_LIST, JMP (K98_WAYS,X): way 2 is Kind98StartSpawn; way 0:
+; facing K98_RIGHT, speed across $0180; $20 frames ActorMoveX and
+; ActorBobY; AnimStart 3, SoundQueueAdd $2F; $10 frames; ActorSpawnFacing
+; kind $9A; $20 frames; AnimStart 2; on into Kind98Flight.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached from
+; Kind98Start's end and by Kind98StartEnd's jump (84:A2A3). Exit: never
+; returns.
+%at($84A167)
+Kind98Cycle:
     lda.b #!K98_TOP
     sta.b !actor_y+1
     stz.b !actor_y
@@ -161,6 +162,21 @@ Kind98Start:
     bne .across_3
     lda.b #$02
     jsl.l AnimStart
+
+; @routine 84:A1F3 Kind98Flight
+; @actor
+; WHAT IT DOES: Kind $98's flight across: each frame it moves and bobs
+; until it reaches the far side, then turns (Kind98StartEnd), or spawns a
+; kind $23 first (Kind98StartSpawn) when it last turned after a hit.
+; HOW: Each frame (BRK first) ActorMoveX and ActorBobY until, K98_RIGHT
+; set, its x + $60 is below $20 (K98_RIGHT 0, JMP to Kind98StartEnd), or,
+; K98_RIGHT 0, at or past $E0 (K98_RIGHT up; K98_TURNS zero: JMP to
+; Kind98StartEnd; else on at Kind98StartSpawn). The JMP at 84:A20F, after
+; the first JMP, is never reached.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached from
+; Kind98Cycle's way 0 and by Kind98Hit's jump (84:A36A). Exit: never
+; returns.
+%at($84A1F3)
 Kind98Flight:
     brk.b #$00
     jsl.l ActorMoveX
@@ -174,7 +190,7 @@ Kind98Flight:
     bcs Kind98Flight
     stz.b !K98_RIGHT
     jmp.w Kind98StartEnd
-    jmp.w Kind98Start_clear_x   ; never reached
+    jmp.w Kind98Cycle_clear_x   ; never reached
 .rightward:
     lda.b !actor_x+1
     clc
@@ -185,6 +201,17 @@ Kind98Flight:
     lda.b !K98_TURNS
     bne Kind98StartSpawn
     jmp.w Kind98StartEnd
+
+; @routine 84:A224 Kind98StartSpawn
+; @actor
+; WHAT IT DOES: Kind $98's second way: it spawns a kind $23, then turns.
+; HOW: K98_TURNS 0; SoundQueueAdd $47; AnimStart 4; $10 frames (BRK)
+; ActorBobY; ActorSpawnFacing Y = 0 kind $23; $1A frames; AnimStart 2; JMP
+; to Kind98StartEnd.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; Kind98Cycle's JMP (K98_WAYS,X) and Kind98Flight's branch. Exit: never
+; returns.
+%at($84A224)
 Kind98StartSpawn:
     stz.b !K98_TURNS
     lda.b #$47
@@ -211,6 +238,18 @@ Kind98StartSpawn:
     lda.b #$02
     jsl.l AnimStart
     jmp.w Kind98StartEnd
+
+; @routine 84:A25F Kind98StartEnd
+; @actor
+; WHAT IT DOES: Kind $98's turn: it bobs, faces the middle of the screen,
+; flies back up to its height and goes the other way next.
+; HOW: $20 frames (BRK) ActorBobY; SoundQueueAdd $50; facing 0, up if x +
+; $60 - $80 leaves no borrow; ActorMotionPreset Y = $70; AnimStart 2; each
+; frame (BRK first) ActorFlyAgainst until its y is at most K98_TOP (y
+; K98_TOP, fraction 0); K98_RIGHT ^= 1; JMP to Kind98Cycle.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the JMPs at 84:A20C, 84:A221 and 84:A25C. Exit: never returns.
+%at($84A25F)
 Kind98StartEnd:
     lda.b #$20
     sta.b !K98_STEPS
@@ -245,7 +284,7 @@ Kind98StartEnd:
     lda.b !K98_RIGHT
     eor.b #$01
     sta.b !K98_RIGHT
-    jmp.w Kind98Start_cycle
+    jmp.w Kind98Cycle
 
 ; @routine 84:A2A6 Kind98Hit
 ; @actor
