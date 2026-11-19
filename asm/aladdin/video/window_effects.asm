@@ -389,6 +389,29 @@ HdmaChannelFree:
     rts
 
 
+; @routine 82:870D HdmaTableFill
+; WHAT IT DOES: Fills Y words of the HDMA tables at $7E:F400 with A, from
+; X on (16-bit).
+; HOW: PHP; 16-bit A, X and Y; A stored at band_hdma,X and X up two, Y
+; times; PLP. Only the Genie screen's task (80:A63B, its JSL at 80:A707)
+; calls it, and no script plays that screen's load: unit_hdma_table_fill.box
+; calls it at its own entry.
+; Entry: A = the word, X = the first byte's offset, Y = the count (16-bit,
+; as its caller leaves them); called by JSL. Exit: P as at entry; X past
+; the last word; Y 0.
+%at($82870D)
+HdmaTableFill:
+    php
+    rep.b #$30
+.fill:
+    sta.l !band_hdma,x
+    inx
+    inx
+    dey
+    bne .fill
+    plp
+    rtl
+
 ; @routine 82:873B HdmaStart
 ; WHAT IT DOES: Starts HDMA table set X on register set Y in a free
 ; channel, its table built at $7E:F400 plus HDMA_TABLE_PLACE: C clear,

@@ -1150,6 +1150,31 @@ void abi_HdmaEffect11(void)
 }
 
 /*
+ * @routine 82:870D HdmaTableFill
+ * WHAT IT DOES: Fills Y words of the HDMA tables at $7E:F400 with A, from
+ * X on (16-bit).
+ * HOW: PHP; 16-bit A, X and Y; A stored at band_hdma,X and X up two, Y
+ * times; PLP. Only the Genie screen's task (80:A63B, its JSL at 80:A707)
+ * calls it, and no script plays that screen's load: unit_hdma_table_fill.box
+ * calls it at its own entry.
+ * Entry: A = the word, X = the first byte's offset, Y = the count (16-bit,
+ * as its caller leaves them); called by JSL. Exit: P as at entry; X past
+ * the last word; Y 0.
+ */
+void abi_HdmaTableFill(void)
+{
+    php();
+    op_rep(0x30);
+    do {
+        sta16(ea_longx(0x7EF400u));             /* band_hdma */
+        inx16();
+        inx16();
+        dey16();
+    } while (!IF_Z);
+    plp();
+}
+
+/*
  * @routine 82:86CF HdmaEffect12
  * WHAT IT DOES: Window effect 12: HDMA table set $14 on register set 0
  * from the base, with the layers' window masks and the windows set, then

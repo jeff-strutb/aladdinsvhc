@@ -1,0 +1,8 @@
+# HdmaTableFill ($82:870D): only the Genie screen's task ($80:A63B, its
+# JSL at $80:A707) calls it, and no script plays that screen's load. A unit
+# call at its own entry by JSL with that caller's registers: A = $FF00, X
+# = $0100, Y = $0028 (40 words), 16-bit, DB $80, on the first level at
+# frame 10. (The machine is put back after the call.)
+load build/aladdin/states/level1.state
+wait 10
+call 82870D long a=FF00 x=0100 y=0028 p=00 db=80
