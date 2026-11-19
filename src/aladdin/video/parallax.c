@@ -441,6 +441,11 @@ static void band_table(uint16_t set)
  * and its scroll; a 0 to end. The head: one line at the top band's
  * scroll, which BG2's scroll X takes too. The backdrop's scroll X is the
  * play field's halved; HDMA_TABLE_AT (channel 4) the table.
+ * @unreachable 81:C8B6-C8B8 The "none: one" step: reached only when SBC
+ * edges+2 - line gives 0, but the BCS just before (CMP edges+2,X) leaves
+ * line below edges+2; both reads are of the same ROM word and of
+ * sband_line with no write between, so the 16-bit result is at least 1
+ * (master, 2026-11-19).
  * Entry: M 16-bit, X 16-bit; DB a bank whose $0000-$1FFF is work RAM.
  * Exit: A = the backdrop's scroll X, C the bit shifted out; N and Z from
  * DB (PLB); V from the last add or subtract; X = the last band's edge

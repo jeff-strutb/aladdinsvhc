@@ -262,6 +262,13 @@ void abi_PlayerCarpetStart(void)
  * CarpetLevelOut; CarpetCruiseX (Alt), then direction 10 CarpetCruiseSet
  * (on the first ride a path no script runs), else CarpetSteerX (Alt);
  * CarpetSteadyY, CarpetSteerY (Alt); CARPET_DIRECTION 0, ActorMove; again.
+ * @unreachable 81:E4D2-E4D6 Direction 10 on the first ride: CarpetCruiseX
+ * (81:E643) runs just before the CMP #$0A and stores 8 or 9 to
+ * CARPET_DIRECTION ($14 of his record, $08EF) on both its paths (its $0A
+ * store is reached only from CarpetCruiseXAlt); no frame boundary falls
+ * between, and no interrupt handler writes $08EF (the NMI sets its own D
+ * and only uploads; every store to $08EF is in game or actor code), so no
+ * poke survives to the compare (master, 2026-11-19).
  * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached
  * from PlayerCarpetStart's end and by a jump from its own frame's end
  * and PlayerCarpetSteer. Exit: never returns.

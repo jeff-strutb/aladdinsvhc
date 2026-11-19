@@ -276,6 +276,11 @@ void abi_AnimSetsPlaces(void)
  * copied. Last, AnimSetsPlaces. Scratch $0C counts the sets, $10 indexes
  * the lists, $16 counts bytes or words. The step at $81:8FAD (a count at
  * a bank's last two bytes) is in no set and no script runs it.
+ * @unreachable 81:8FAD-8FB4 The count at a bank's last two bytes: runs only
+ * when a set's picture list starts at offset $7FFE of its bank (the table
+ * at $A6:8000, 3 bytes a set); no set number 0-255 has that offset, and
+ * AnimSetsLoad is entered only at its own start with the level's sets
+ * (master, 2026-11-19).
  * Entry: DB, P kept on the stack; D = 0; called by JSL. Exit: P and DB as
  * at entry; A, X, Y as AnimSetsPlaces leaves them.
  */
