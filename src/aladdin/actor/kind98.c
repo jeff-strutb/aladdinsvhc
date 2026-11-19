@@ -103,6 +103,7 @@ static void speed_across(void)
 }
 
 void abi_Kind98Cycle(void);
+void abi_Kind98CycleClearX(void);
 void abi_Kind98Flight(void);
 void abi_Kind98StartSpawn(void);
 void abi_Kind98StartEnd(void);
@@ -131,6 +132,21 @@ void abi_Kind98Cycle(void)
     jsl_call(0x84A16Fu, abi_ActorSpeedYClear);
     lda8_v(0x06);
     sta8(ea_dp(ACTOR_ACCEL_Y));
+    abi_Kind98CycleClearX();                    /* on into it */
+}
+
+/*
+ * @routine 84:A177 Kind98CycleClearX
+ * @actor
+ * WHAT IT DOES: Kind $98's cycle from its across speed cleared on: it
+ * bobs $60 frames and by a random pick flies across or spawns a kind $23
+ * (Kind98Cycle runs on into it; Kind98FlightDead jumps to it).
+ * HOW: ActorSpeedXClear; then as Kind98Cycle's HOW from there.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached from
+ * Kind98Cycle and by Kind98FlightDead's JMP. Exit: never returns.
+ */
+void abi_Kind98CycleClearX(void)
+{
     jsl_call(0x84A177u, abi_ActorSpeedXClear);
     bob_for(0x60, K98_FRAMES, 0x84A17Fu);
     ldx8_v(K98_RANDOM_LIST);
@@ -190,7 +206,7 @@ void abi_Kind98Flight(void)
             stz8(ea_dp(K98_RIGHT));
             abi_Kind98StartEnd();
             return;
-            /* 84A20F jmp $A177: never reached */
+            /* 84A20F: Kind98FlightDead */
         }
         lda8(ea_dp(ACTOR_X + 1));
         clc();
@@ -207,6 +223,24 @@ void abi_Kind98Flight(void)
         abi_Kind98StartEnd();
         return;
     }
+}
+
+/*
+ * @routine 84:A20F Kind98FlightDead
+ * @actor
+ * WHAT IT DOES: A JMP to Kind98CycleClearX right after Kind98Flight's JMP
+ * to Kind98StartEnd, which no input reaches (nothing in the ROM names
+ * $84:A20F). cov_kind98_dead_jump.box runs it from a kind $98 record whose
+ * resume address is set to it. Kind98Flight's code after it in the ROM
+ * ($A212-A223) is filed under this tag only because it follows it.
+ * HOW: JMP Kind98CycleClearX.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's RTI at a resume address set to it. Exit: never
+ * returns.
+ */
+void abi_Kind98FlightDead(void)
+{
+    abi_Kind98CycleClearX();
 }
 
 /*

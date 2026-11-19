@@ -107,7 +107,16 @@ Kind98Cycle:
     jsl.l ActorSpeedYClear
     lda.b #$06
     sta.b !actor_accel_y
-.clear_x:
+; @routine 84:A177 Kind98CycleClearX
+; @actor
+; WHAT IT DOES: Kind $98's cycle from its across speed cleared on: it
+; bobs $60 frames and by a random pick flies across or spawns a kind $23
+; (Kind98Cycle runs on into it; Kind98FlightDead jumps to it).
+; HOW: ActorSpeedXClear; then as Kind98Cycle's HOW from there.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached from
+; Kind98Cycle and by Kind98FlightDead's JMP. Exit: never returns.
+%at($84A177)
+Kind98CycleClearX:
     jsl.l ActorSpeedXClear
     lda.b #$60
     sta.b !K98_FRAMES
@@ -182,7 +191,7 @@ Kind98Flight:
     jsl.l ActorMoveX
     jsl.l ActorBobY
     lda.b !K98_RIGHT
-    beq .rightward
+    beq Kind98FlightDead_rightward
     lda.b !actor_x+1
     clc
     adc.b #$60
@@ -190,7 +199,20 @@ Kind98Flight:
     bcs Kind98Flight
     stz.b !K98_RIGHT
     jmp.w Kind98StartEnd
-    jmp.w Kind98Cycle_clear_x   ; never reached
+; @routine 84:A20F Kind98FlightDead
+; @actor
+; WHAT IT DOES: A JMP to Kind98CycleClearX right after Kind98Flight's JMP
+; to Kind98StartEnd, which no input reaches (nothing in the ROM names
+; $84:A20F). cov_kind98_dead_jump.box runs it from a kind $98 record whose
+; resume address is set to it. Kind98Flight's code after it in the ROM
+; ($A212-A223) is filed under this tag only because it follows it.
+; HOW: JMP Kind98CycleClearX.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's RTI at a resume address set to it. Exit: never
+; returns.
+%at($84A20F)
+Kind98FlightDead:
+    jmp.w Kind98CycleClearX
 .rightward:
     lda.b !actor_x+1
     clc

@@ -1,0 +1,17 @@
+# Kind98FlightDead ($84:A20F), the JMP to Kind98CycleClearX right after
+# Kind98Flight's JMP to Kind98StartEnd, which no input reaches. Played as
+# cov_kind9a_burst.box (stage a5 s2, view x $1200, Aladdin x $1240) until
+# the kind $98 at record $0B5B bobs in its cycle (frame 390); then its
+# resume address ($03-$04) set to $A20F: the loop's RTI starts it there and
+# it jumps back into its cycle (Kind98CycleClearX), bobs and goes on.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+wait 360
+poke 000B5E 0F,A2
+wait 300
