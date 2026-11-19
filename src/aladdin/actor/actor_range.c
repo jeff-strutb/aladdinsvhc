@@ -211,12 +211,9 @@ void abi_ActorEndDropReturn(void)
  */
 void abi_ActorEndPlaced(void)
 {
-    /* JSR ActorFreePlaced: its return address on the stack while it runs
-       (an interrupt in it stacks below it), pulled by its RTS */
-    wr8(cpu.s, 0x96); cpu.s--;
-    wr8(cpu.s, 0xCC); cpu.s--;
+    /* JSR ActorFreePlaced (its last byte $83:96CC): its return address on
+       the stack while it runs, pulled by its RTS */
     call_frame(0x96CC, abi_ActorFreePlaced);
-    cpu.s += 2;
     actor_leave(ACTOR_LOOP_NEXT);
 }
 
