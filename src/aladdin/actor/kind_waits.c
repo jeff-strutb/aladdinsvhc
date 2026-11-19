@@ -359,11 +359,11 @@ void abi_Kind6DWait(void)
             a8_load(0x80);
             trb_at(dpa(ACTOR_09), 0x80);
         }
-        abi_ActorStompOrHurt();
-        abi_ActorDownedByShot();
+        call_frame(0xEFCB, abi_ActorStompOrHurt);
+        call_frame(0xEFCE, abi_ActorDownedByShot);
         if (!(cpu.p & P_C))
             inc8_at(dpa(ACTOR_48));
-        jsl_frame(0x83EFA8u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EFD3u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(0x20);
         flag_set(P_C, 1);
         d = rd16(dba((uint16_t)RANGE_X_6D));
@@ -384,11 +384,11 @@ void abi_Kind6DWait(void)
     }
     cmp8_of(v, 0x14);
     if (v != 0x14) {
-        abi_ActorStompOrHurt();
-        abi_ActorDownedByShot();
+        call_frame(0xEFA0, abi_ActorStompOrHurt);
+        call_frame(0xEFA3, abi_ActorDownedByShot);
         if (!(cpu.p & P_C))
             inc8_at(dpa(ACTOR_48));
-        jsl_frame(0x83EFD3u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83EFA8u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         v = (uint8_t)(rd8(dpa(ACTOR_07)) & 0x1C);
         a8_load(v);
         cmp8_of(v, 0x04);
