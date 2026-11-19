@@ -253,7 +253,7 @@ ActorProbeAheadInGround:
     plp
     lda.w !PROBE_FLAGS
     bit.w #$0007
-    db $D0,$17                  ; bne to $83:FDAE (SEP #$20, SEC, RTS): in the ground
+    bne .ground
     lda.b !actor_x+1
     sta.w !PROBE_X
     php
@@ -261,7 +261,11 @@ ActorProbeAheadInGround:
     plp
     lda.w !PROBE_FLAGS
     bit.w #$0007
-    db $D0,$04                  ; bne to $83:FDAE
+    bne .ground
     sep.b #$20
     clc
+    rts
+.ground:
+    sep.b #$20
+    sec
     rts
