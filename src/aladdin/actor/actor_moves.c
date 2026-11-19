@@ -16,6 +16,8 @@ void abi_ActorBobAnimate(void);
 void abi_AnimStep(void);
 void abi_ActorBob(void);
 void abi_ActorSpeedUpMove(void);
+void abi_ActorSlowDownMove(void);
+void abi_ActorSlowDownMoveBy20(void);
 void abi_ActorMoveByVectorOver(void);
 void abi_ActorMoveAlong(void);
 void abi_ActorMoveScaled(void);
@@ -45,6 +47,56 @@ void abi_ActorSpeedUpMove(void)
     a8_load(op_adc8(rd8(dpa(0x1B)), 0x00, &cpu.p));
     wr8(dpa(0x1B), (uint8_t)cpu.a);
     abi_ActorMove();
+}
+
+/* ActorSlowDownMoveBy20's borrow on: the speed's middle and top bytes
+   less the borrow, then ActorMove (JMP). */
+static void slow_down_borrow(void)
+{
+    wr8(dpa(0x1A), op_sbc8(rd8(dpa(0x1A)), 0x00, &cpu.p));
+    a8_load(op_sbc8(rd8(dpa(0x1B)), 0x00, &cpu.p));
+    wr8(dpa(0x1B), (uint8_t)cpu.a);
+    abi_ActorMove();
+}
+
+/*
+ * @routine 81:A4C4 ActorSlowDownMove
+ * WHAT IT DOES: Slows the actor down by its acceleration, then moves it.
+ * Nothing in the game calls it (no JSR, JSL, JMP, pointer or word in the
+ * ROM names $81:A4C4; ActorSpeedUpMove's BRA before it goes past it):
+ * unit_bank81_entries.box calls it at its entry.
+ * HOW: The 24-bit horizontal speed less the acceleration (a fraction),
+ * then ActorMove (as ActorSlowDownMoveBy20 from its borrow).
+ * Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMove.
+ */
+void abi_ActorSlowDownMove(void)
+{
+    uint8_t v;
+
+    flag_set(P_C, 1);
+    v = rd8(dpa(0x19));
+    wr8(dpa(0x19), op_sbc8(v, rd8(dpa(0x1C)), &cpu.p));
+    slow_down_borrow();
+}
+
+/*
+ * @routine 81:A4CD ActorSlowDownMoveBy20
+ * WHAT IT DOES: Slows the actor down by its byte at $20 (the vertical
+ * acceleration's place), then moves it. Nothing in the game calls it (no
+ * reference in the ROM; ActorSlowDownMove's BRA goes past it):
+ * unit_bank81_entries.box calls it at its entry.
+ * HOW: The 24-bit horizontal speed less $20 (a fraction), the borrow
+ * carried through, then ActorMove (JMP).
+ * Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMove.
+ */
+void abi_ActorSlowDownMoveBy20(void)
+{
+    uint8_t v;
+
+    flag_set(P_C, 1);
+    v = rd8(dpa(0x19));
+    wr8(dpa(0x19), op_sbc8(v, rd8(dpa(0x20)), &cpu.p));
+    slow_down_borrow();
 }
 
 /* The step at $0C-$12 times the speed: each axis's low and middle bytes

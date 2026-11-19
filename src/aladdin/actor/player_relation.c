@@ -112,16 +112,39 @@ void abi_ActorDirectionToPlayer(void)
  * box's offset for its facing less the player's x, below the box's width
  * (the two offsets' sum), tested only when the height passes.
  * Entry: M 8-bit, X 8-bit; D = the actor; X = the box's byte offset; DB =
- * $81; called by JSL. Exit: M 8-bit; C as above; A = the last sum (16
+ * $80 (its box table at $BC8F); called by JSL. Exit: M 8-bit; C as above; A = the last sum (16
  * bits); Y = the facing less one when the height passed; scratch $0C-$11 the
  * half-height, height and width.
  */
+static void in_front_box(void);
+
 void abi_PlayerInFrontBox(void)
+{
+    y8_load(rd8(dpa(ACTOR_FACING)));
+    in_front_box();
+}
+
+/*
+ * @routine 81:AF01 PlayerInFrontBoxByFlip
+ * WHAT IT DOES: PlayerInFrontBox with the actor's flip ($15) for its
+ * facing. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
+ * in the ROM names $81:AF01; PlayerInFrontBox's BRA goes past it):
+ * unit_bank81_entries.box calls it at its entry.
+ * HOW: Y = the flip; then as PlayerInFrontBox past its facing.
+ * Entry: as PlayerInFrontBox. Exit: as PlayerInFrontBox, Y from the flip.
+ */
+void abi_PlayerInFrontBoxByFlip(void)
+{
+    y8_load(rd8(dpa(ACTOR_FLIP)));
+    in_front_box();
+}
+
+/* PlayerInFrontBox past its LDY (at $81:AF03), Y the facing or flip. */
+static void in_front_box(void)
 {
     uint32_t box = dba(0xBC8F) + cpu.x;
     uint16_t half, d, w;
 
-    y8_load(rd8(dpa(ACTOR_FACING)));
     op_rep(P_M);
     /* the box: half its height, its height, its width */
     half = rd16(box);

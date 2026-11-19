@@ -44,15 +44,34 @@ ActorSpeedUpMove:
     lda.b !actor_speed_x+2
     adc.b #$00
     sta.b !actor_speed_x+2
-    bra .move
-; Code no script reaches: the speed taken down by the acceleration, and
-; by $20.
-.slow:
+    bra ActorSlowDownMoveBy20_move
+
+; @routine 81:A4C4 ActorSlowDownMove
+; WHAT IT DOES: Slows the actor down by its acceleration, then moves it.
+; Nothing in the game calls it (no JSR, JSL, JMP, pointer or word in the
+; ROM names $81:A4C4; ActorSpeedUpMove's BRA before it goes past it):
+; unit_bank81_entries.box calls it at its entry.
+; HOW: The 24-bit horizontal speed less the acceleration (a fraction),
+; then ActorMove (as ActorSlowDownMoveBy20 from its borrow).
+; Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMove.
+%at($81A4C4)
+ActorSlowDownMove:
     sec
     lda.b !actor_speed_x
     sbc.b !actor_accel_x
     sta.b !actor_speed_x
-    bra .borrow
+    bra ActorSlowDownMoveBy20_borrow
+
+; @routine 81:A4CD ActorSlowDownMoveBy20
+; WHAT IT DOES: Slows the actor down by its byte at $20 (the vertical
+; acceleration's place), then moves it. Nothing in the game calls it (no
+; reference in the ROM; ActorSlowDownMove's BRA goes past it):
+; unit_bank81_entries.box calls it at its entry.
+; HOW: The 24-bit horizontal speed less $20 (a fraction), the borrow
+; carried through, then ActorMove (JMP).
+; Entry: M 8-bit; D = the actor; called by JSL. Exit: as ActorMove.
+%at($81A4CD)
+ActorSlowDownMoveBy20:
     sec
     lda.b !actor_speed_x
     sbc.b !actor_accel_y

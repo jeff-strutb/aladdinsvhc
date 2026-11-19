@@ -69,8 +69,15 @@ ActorPictureDone:
     sep.b #$10
 ActorPictureNone:
     rtl
-; ActorPictureSend for kind 4's set-up index only (an entry no script
-; takes).
+; @routine 81:9494 ActorPictureSendKind4
+; WHAT IT DOES: ActorPictureSend for an actor whose kind has set-up index
+; 4 only. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
+; in the ROM names $81:9494): unit_bank81_entries.box calls it at its
+; entry.
+; HOW: The kind's set-up index (kind_setup_of by $06) not 4: out
+; (ActorPictureNone's RTL); else on into ActorPictureSend.
+; Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSL. Exit:
+; not 4: A low = the index, N, Z, C from CMP #4; else as ActorPictureSend.
 ActorPictureSendKind4:
     ldx.b !actor_06
     lda.l !kind_setup_of,x

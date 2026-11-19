@@ -37,6 +37,27 @@ void abi_ActorPictureSend(void)
 }
 
 /*
+ * @routine 81:9494 ActorPictureSendKind4
+ * WHAT IT DOES: ActorPictureSend for an actor whose kind has set-up index
+ * 4 only. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
+ * in the ROM names $81:9494): unit_bank81_entries.box calls it at its
+ * entry.
+ * HOW: The kind's set-up index (kind_setup_of by $06) not 4: out
+ * (ActorPictureNone's RTL); else on into ActorPictureSend.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB = $80; called by JSL. Exit:
+ * not 4: A low = the index, N, Z, C from CMP #4; else as ActorPictureSend.
+ */
+void abi_ActorPictureSendKind4(void)
+{
+    ldx8(ea_dp(0x06));
+    lda8(ea_longx(0x82B000u));
+    cmp8_v(0x04);
+    if (!IF_Z)
+        return;
+    abi_ActorPictureSend();
+}
+
+/*
  * @routine 81:946F ActorFrameIsStep
  * WHAT IT DOES: With A equal to the actor's frame (ACTOR_FRAME, $2F), X =
  * the frame's time (ACTOR_FRAME_TIME, $26) less one. Nothing in the game

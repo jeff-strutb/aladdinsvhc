@@ -100,15 +100,23 @@ ActorDirectionToPoint:
 ; box's offset for its facing less the player's x, below the box's width
 ; (the two offsets' sum), tested only when the height passes.
 ; Entry: M 8-bit, X 8-bit; D = the actor; X = the box's byte offset; DB =
-; $81; called by JSL. Exit: M 8-bit; C as above; A = the last sum (16
+; $80 (its box table at $BC8F); called by JSL. Exit: M 8-bit; C as above; A = the last sum (16
 ; bits); Y = the facing less one when the height passed; scratch $0C-$11 the
 ; half-height, height and width.
 %at($81AEFD)
 PlayerInFrontBox:
     ldy.b !actor_facing
-    bra .lAF03
-; The same with the flip for the facing (an entry no script takes).
-.by_flip:
+    bra PlayerInFrontBoxByFlip_lAF03
+
+; @routine 81:AF01 PlayerInFrontBoxByFlip
+; WHAT IT DOES: PlayerInFrontBox with the actor's flip ($15) for its
+; facing. Nothing in the game calls it (no JSR, JSL, JMP, pointer or word
+; in the ROM names $81:AF01; PlayerInFrontBox's BRA goes past it):
+; unit_bank81_entries.box calls it at its entry.
+; HOW: Y = the flip; then as PlayerInFrontBox past its facing.
+; Entry: as PlayerInFrontBox. Exit: as PlayerInFrontBox, Y from the flip.
+%at($81AF01)
+PlayerInFrontBoxByFlip:
     ldy.b !actor_flip
 .lAF03:
     rep.b #$20

@@ -1,0 +1,18 @@
+# Unit calls of four entries in bank $81 that nothing in the game calls
+# (no JSR, JSL, JMP, pointer or word in the ROM names them; each sits just
+# past a BRA or a routine's end), each at its own entry by JSL:
+# ActorSlowDownMove ($81:A4C4) and ActorSlowDownMoveBy20 ($81:A4CD), the
+# slowing twins of ActorSpeedUpMove; ActorPictureSendKind4 ($81:9494), on
+# a kind whose set-up index is 4 (kind $20) and on one whose is not (kind
+# $51, 2); PlayerInFrontBoxByFlip ($81:AF01), PlayerInFrontBox by the flip.
+# On the first level's state at frame 10, M and X 8-bit, DB $80 (where
+# the callers of these routines read their tables), D the guard at record
+# $0BAB (kind $20) or the kind $51 at $0B5B; box offset X = 0. The machine
+# is put back after each call.
+load build/aladdin/states/level1.state
+wait 10
+call 81A4C4 long p=30 db=80 d=0BAB
+call 81A4CD long p=30 db=80 d=0BAB
+call 819494 long p=30 db=80 d=0BAB
+call 819494 long p=30 db=80 d=0B5B
+call 81AF01 long p=30 db=80 d=0BAB x=00
