@@ -126,7 +126,7 @@ void abi_SteppedShowActor(void)
         a8_load(0xB0);
         tsb_at(dpa(ACTOR_09), 0xB0);
         a8_load(0x01);
-        abi_AnimStart();
+        jsl_frame(0x849F42u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         for (;;)
             actor_yield(0x849F46u);
     }
@@ -153,7 +153,7 @@ void abi_SteppedShowActor(void)
     variant = rd8(dpa(ACTOR_07));
     a8_load((uint8_t)(variant << 1));
     flag_set(P_C, variant & 0x80);
-    abi_AnimStart();
+    jsl_frame(0x849F2Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     for (;;)
         actor_wait(0x849F2Eu);
 }

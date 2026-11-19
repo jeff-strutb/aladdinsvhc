@@ -70,7 +70,7 @@ static void k87_child(void)
         actor_wait(0x83F8BCu);
     MEM8(inc, ea_dp(K87_CHILD));
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83F8C2u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x18);
     actor_wait(0x83F8C8u);
     stz8(ea_dp(ACTOR_SPEED_Y));
@@ -139,7 +139,7 @@ void abi_Kind87Start(void)
     lda8_v(K87_PROBES >> 8);
     sta8(ea_dp(0x17));
     lda8_v(0x03);
-    abi_AnimStart();
+    jsl_frame(0x83F79Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         actor_yield(0x83F7A2u);
         lda8(ea_dp(K87_DONE));
@@ -220,7 +220,7 @@ shake:
     lda8(ea_dp(ACTOR_FACING));
     sta8(ea_dp(ACTOR_FLIP));
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83F835u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x38);
     jsl_frame(0x83F83Bu);
     abi_ActorMotionReset();

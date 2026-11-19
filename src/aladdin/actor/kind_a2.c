@@ -40,7 +40,7 @@ static void fall_away(void)
     abi_ActorPriorityClear();
     do {
         actor_yield(0x848317u);
-        abi_AnimStep();
+        jsl_frame(0x848319u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         abi_ActorFly();
         flags = rd8(dpa(ACTOR_09));
         a8_load(flags);
@@ -115,7 +115,7 @@ void abi_KindA2Sent(void)
     abi_SoundQueueAdd();
     cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x1A);
-    abi_AnimStart();
+    jsl_frame(0x848266u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     jsl_frame(0x84826Au);
     abi_ActorSpeedXClear();
     cpu.s = (uint16_t)(cpu.s + 3);
@@ -153,7 +153,7 @@ void abi_KindA2Sent(void)
         if ((uint8_t)cpu.a) {
             op_sep(0x30);
             a8_load(0x1B);
-            abi_AnimStart();
+            jsl_frame(0x8482EBu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x80);
             trb_at(dpa(ACTOR_09), 0x80);
             fall_away();

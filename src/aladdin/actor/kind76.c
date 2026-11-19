@@ -20,10 +20,10 @@ void abi_SoundQueueAdd(void);
 #define SUB_LAYERS 0x00039Au    /* layers kept for the subscreen while the fade runs */
 #define CUE_1B1F 0x001B1Fu      /* the scene goes on once this is nonzero (kind81_scene.c) */
 
-static void pose(uint8_t n)
+static void pose(uint8_t n, uint32_t site)
 {
     a8_load(n);
-    abi_AnimStart();
+    jsl_frame(site); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -62,10 +62,10 @@ void abi_Kind76Start(void)
     wr8(dpa(ACTOR_FLIP), 0x01);
     a8_load(0xFF);
     wr8(dpa(K76_28), 0xFF);
-    pose(0x02);
+    pose(0x02, 0x848FD5u);
     a8_load(0xBD);
     actor_wait(0x848FDBu);
-    pose(0x01);
+    pose(0x01, 0x848FDFu);
     a8_load(0x16);
     actor_wait(0x848FE5u);
     a8_load(0x46);

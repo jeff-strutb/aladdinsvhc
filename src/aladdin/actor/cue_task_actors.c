@@ -53,7 +53,7 @@ void abi_Kind24Start(void)
     wr8(dpa(ACTOR_FACING), 0);
     wr8(dpa(ACTOR_FLIP), 0);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_frame(0x848012u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x848016u);
         v = rd8(dba(CUE_D7));
@@ -69,7 +69,7 @@ void abi_Kind24Start(void)
     a8_load(0x10);
     wr8(dba(V_0399), 0x10);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_frame(0x848036u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x1C);
     jsl_frame(0x84803Cu);
     abi_SoundQueueAdd();

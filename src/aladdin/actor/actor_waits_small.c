@@ -195,12 +195,12 @@ static void ride_escort(uint8_t anim, uint32_t brk_at)
     uint8_t frames;
 
     a8_load(anim);
-    abi_AnimStart();
+    jsl_frame(brk_at - 8); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* its JSL 8 bytes before the BRK */
     a8_load(0x20);
     wr8(dpa(KIND69_FRAMES), 0x20);
     do {
         actor_yield(brk_at);
-        abi_AnimStep();
+        jsl_frame(brk_at + 2); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         abi_ActorOnEscort();
         frames = (uint8_t)(rd8(dpa(KIND69_FRAMES)) - 1);
         wr8(dpa(KIND69_FRAMES), frames);

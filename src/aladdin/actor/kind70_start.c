@@ -83,7 +83,7 @@ void abi_Kind70Start(void)
         wr8(dpa(ACTOR_FACING), 0x01);
         wr8(dpa(ACTOR_FLIP), 0x01);
         a8_load(0x03);
-        abi_AnimStart();
+        jsl_frame(0x83F341u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         do {
             actor_yield(0x83F345u);
             flags = rd8(dpa(ACTOR_09));
@@ -95,22 +95,22 @@ void abi_Kind70Start(void)
         actor_wait(0x83F352u);
         inc8_at(dba(SCENE_CUE_C2));
         a8_load(0x04);
-        abi_AnimStart();
+        jsl_frame(0x83F359u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x20);
         actor_wait(0x83F35Fu);
         a8_load(0x05);
-        abi_AnimStart();
+        jsl_frame(0x83F363u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         for (;;)
             actor_yield(0x83F367u);
     }
     /* the flyer: two poses, a hop up and right, $28 frames of flight */
     wr8(dpa(KIND70_CARRYING), 0);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83F2A5u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x20);
     actor_wait(0x83F2ABu);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83F2AFu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x17);
     actor_wait(0x83F2B5u);
     op_rep(0x21);
@@ -121,7 +121,7 @@ void abi_Kind70Start(void)
     dp16_set(ACTOR_Y + 1, cpu.a);
     op_sep(P_M);
     a8_load(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83F2CCu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x4F);
     jsl_frame(0x83F2D2u);
     abi_ActorMotionPreset();

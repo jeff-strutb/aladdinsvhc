@@ -99,7 +99,7 @@ void abi_Kind69Start(void)
     a8_load(0x80);
     tsb_at(dpa(ACTOR_09), 0x80);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83EA4Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         a8_load(0x03);
         actor_wait(0x83EA54u);
@@ -142,7 +142,7 @@ void abi_Kind69Start(void)
             continue;
         flag_set(P_C, 0);               /* the LSR's: bit 0 of a doubled value */
         a8_load(pose);
-        abi_AnimStart();
+        jsl_frame(0x83EAA9u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 

@@ -94,7 +94,7 @@ L_83B4F1:
     sta8(ea_dp(ACTOR_FLIP));  /* 83B4F3 sta */
     stz8(ea_dp(KIND2F_HITS));  /* 83B4F5 stz */
     lda8_v(0x00);  /* 83B4F7 lda */
-    abi_AnimStart();  /* 83B4F9 jsl */
+    jsl_frame(0x83B4F9u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B4F9 jsl */
 L_83B4FD:
     actor_yield(0x83B4FDu);  /* 83B4FD brk */
     lda8(ea_dp(ACTOR_09));  /* 83B4FF lda */
@@ -110,7 +110,7 @@ L_83B509:
     lda8_v(0x10);  /* 83B50F lda */
     sta8(ea_dp(KIND2F_FRAMES));  /* 83B511 sta */
     lda8_v(0x01);  /* 83B513 lda */
-    abi_AnimStart();  /* 83B515 jsl */
+    jsl_frame(0x83B515u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B515 jsl */
 L_83B519:
     actor_yield(0x83B519u);  /* 83B519 brk */
     MEM8(dec, ea_dp(KIND2F_FRAMES));  /* 83B51B dec */
@@ -135,13 +135,13 @@ L_83B53A:
     lda8_v(0x05);  /* 83B53A lda */
     sta8(ea_dp(KIND2F_FRAMES));  /* 83B53C sta */
     lda8_v(0x06);  /* 83B53E lda */
-    abi_AnimStart();  /* 83B540 jsl */
+    jsl_frame(0x83B540u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B540 jsl */
 L_83B544:
     actor_yield(0x83B544u);  /* 83B544 brk */
     MEM8(dec, ea_dp(KIND2F_FRAMES));  /* 83B546 dec */
     if (!IF_Z) goto L_83B544;  /* 83B548 bne */
     lda8_v(0x02);  /* 83B54A lda */
-    abi_AnimStart();  /* 83B54C jsl */
+    jsl_frame(0x83B54Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B54C jsl */
     lda8_v(0x10);  /* 83B550 lda */
     sta8(ea_dp(KIND2F_FRAMES));  /* 83B552 sta */
 L_83B554:
@@ -155,7 +155,7 @@ L_83B554:
     ldx8_v(0x04);  /* 83B562 ldx */
 L_83B564:
     txa8();  /* 83B564 txa */
-    abi_AnimStart();  /* 83B565 jsl */
+    jsl_frame(0x83B565u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B565 jsl */
     op_rep(0x20);  /* 83B569 rep */
     lda16_v(0x0100);  /* 83B56B lda */
     sta16(ea_dp(KIND2F_FRAMES));  /* 83B56E sta */
@@ -195,7 +195,7 @@ L_83B5A7:
     lda8_v(0x10);  /* 83B5A7 lda */
     sta8(ea_dp(KIND2F_FRAMES));  /* 83B5A9 sta */
     lda8_v(0x02);  /* 83B5AB lda */
-    abi_AnimStart();  /* 83B5AD jsl */
+    jsl_frame(0x83B5ADu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B5AD jsl */
 L_83B5B1:
     MEM8(dec, ea_dp(KIND2F_FRAMES));  /* 83B5B1 dec */
     if (IF_Z) goto L_83B5B9;  /* 83B5B3 beq */
@@ -203,12 +203,12 @@ L_83B5B1:
     goto L_83B5B1;  /* 83B5B7 bra */
 L_83B5B9:
     lda8_v(0x00);  /* 83B5B9 lda */
-    abi_AnimStart();  /* 83B5BB jsl */
+    jsl_frame(0x83B5BBu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B5BB jsl */
     lda8_v(0xB4);  /* 83B5BF lda */
     goto L_83B507;  /* 83B5C1 jmp */
 L_83B5C4:
     lda8_v(0x02);  /* 83B5C4 lda */
-    abi_AnimStart();  /* 83B5C6 jsl */
+    jsl_frame(0x83B5C6u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B5C6 jsl */
     lda8_v(0x08);  /* 83B5CA lda */
     sta8(ea_dp(KIND2F_FRAMES));  /* 83B5CC sta */
 L_83B5CE:
@@ -216,7 +216,7 @@ L_83B5CE:
     MEM8(dec, ea_dp(KIND2F_FRAMES));  /* 83B5D0 dec */
     if (!IF_Z) goto L_83B5CE;  /* 83B5D2 bne */
     lda8_v(0x05);  /* 83B5D4 lda */
-    abi_AnimStart();  /* 83B5D6 jsl */
+    jsl_frame(0x83B5D6u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B5D6 jsl */
     ldy8_v(0x1D);  /* 83B5DA ldy */
     jsl_frame(0x83B5DCu);  /* 83B5DC jsl */
     abi_ActorMotionPreset();
@@ -255,7 +255,7 @@ void abi_Kind2FSecond(void)
     ldy8_v(0x1F);  /* 83B643 ldy */
     abi_ActorMotionPreset();  /* 83B645 jsl */
     lda8_v(0x07);  /* 83B649 lda */
-    abi_AnimStart();  /* 83B64B jsl */
+    jsl_frame(0x83B64Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B64B jsl */
     lda8_v(0x0A);  /* 83B64F lda */
     sta8(ea_dp(KIND2F_FRAMES));  /* 83B651 sta */
     lda8(ea_dp(KIND2F_HITS));  /* 83B653 lda */
@@ -272,12 +272,12 @@ L_83B661:
     sta8(ea_dp(ACTOR_FACING));  /* 83B667 sta */
 L_83B669:
     actor_yield(0x83B669u);  /* 83B669 brk */
-    abi_AnimStep();  /* 83B66B jsl */
+    jsl_frame(0x83B66Bu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B66B jsl */
     MEM8(dec, ea_dp(KIND2F_FRAMES));  /* 83B66F dec */
     if (!IF_Z) goto L_83B669;  /* 83B671 bne */
 L_83B673:
     actor_yield(0x83B673u);  /* 83B673 brk */
-    abi_AnimStep();  /* 83B675 jsl */
+    jsl_frame(0x83B675u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83B675 jsl */
     abi_ActorFly();  /* 83B679 jsl */
     ldx8_v(0x00);  /* 83B67D ldx */
     push16(0xB681);

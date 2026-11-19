@@ -45,7 +45,7 @@ void abi_GroundPushMark(void)
     a8_load(0x0A);
     wr8(dpa(MARK_ANIM_WANTED), 0x0A);
     wr8(dpa(MARK_ANIM), 0x0A);
-    abi_AnimStart();
+    jsl_frame(0x83E495u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load((uint8_t)((rd8(dpa(ACTOR_08)) | 0x01) & 0xF7));
     wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
     for (;;) {
@@ -71,6 +71,6 @@ void abi_GroundPushMark(void)
         if (anim == rd8(dpa(MARK_ANIM)))
             continue;
         wr8(dpa(MARK_ANIM), anim);
-        abi_AnimStart();
+        jsl_frame(0x83E4D9u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     }
 }

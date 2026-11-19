@@ -177,7 +177,7 @@ static void kind63_from(int at)
     for (;;) {
         if (at == AT_WATCH) {
             a8_load(0x00);
-            abi_AnimStart();
+            jsl_frame(0x8480ACu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x10);
             actor_wait(0x8480B2u);
             for (;;) {
@@ -225,7 +225,7 @@ static void kind63_from(int at)
             a8_load(0x08);
             actor_wait(0x8480F6u);
             a8_load(0x04);
-            abi_AnimStart();
+            jsl_frame(0x8480FAu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x10);
             actor_wait(0x848100u);
             a8_load(0x01);
@@ -236,11 +236,11 @@ static void kind63_from(int at)
         }
         if (at == AT_THROW_AGAIN) {
             a8_load(0x01);
-            abi_AnimStart();
+            jsl_frame(0x84810Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x28);
             actor_wait(0x848113u);
             a8_load(0x05);
-            abi_AnimStart();
+            jsl_frame(0x848117u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x10);
             actor_wait(0x84811Du);
             a8_load(0x00);
@@ -250,7 +250,7 @@ static void kind63_from(int at)
         }
         /* AT_WAIT_THROWS */
         a8_load(0x02);
-        abi_AnimStart();
+        jsl_frame(0x84812Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         do {
             actor_yield(0x84812Eu);
             out = rd8(dpa(KIND63_OUT));
@@ -258,7 +258,7 @@ static void kind63_from(int at)
             cmp8_of(out, 0x02);
         } while (out >= 0x02);
         a8_load(0x01);
-        abi_AnimStart();
+        jsl_frame(0x848138u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         do {
             actor_yield(0x84813Cu);
             out = rd8(dpa(KIND63_OUT));
@@ -289,7 +289,7 @@ void abi_Kind63ShotHit(void)
     a8_load(n);
     if (!n) {
         a8_load(0x06);
-        abi_AnimStart();
+        jsl_frame(0x8481D3u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         call_frame(0x81D9, abi_ActorSpawnPairA3);
         a8_load(0x18);
         actor_wait(0x8481DCu);
@@ -297,7 +297,7 @@ void abi_Kind63ShotHit(void)
     }
     (void)inc8_at(dpa(KIND63_HIT));
     a8_load(0x03);
-    abi_AnimStart();
+    jsl_frame(0x8481E5u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x18);
     actor_wait(0x8481EBu);
     wr8(dpa(KIND63_HIT), 0);

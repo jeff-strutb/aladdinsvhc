@@ -64,12 +64,12 @@ static void k8e_pose(uint8_t n, uint32_t brk_at)
     a8_load((uint8_t)(rd8(dpa(ACTOR_09)) | 0x10));
     wr8(dpa(ACTOR_09), (uint8_t)cpu.a);
     a8_load(n);
-    abi_AnimStart();
+    jsl_frame(brk_at - 8); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* its JSL 8 bytes before the BRK */
     a8_load(0x20);
     wr8(dpa(K8E_FRAMES), 0x20);
     do {
         actor_yield(brk_at);
-        abi_AnimStep();
+        jsl_frame(brk_at + 2); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(K8E_FRAMES)));
     abi_ActorEndPlaced();
 }

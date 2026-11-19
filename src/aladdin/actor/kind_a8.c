@@ -40,7 +40,7 @@ void abi_KindA8Start(void)
     a8_load(0x10);
     tsb_at(dpa(ACTOR_09), 0x10);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83FB24u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83FB28u);
         a8_load(rd8(dba(CUE_AE)));
@@ -52,7 +52,7 @@ void abi_KindA8Start(void)
         a8_load(rd8(dba((uint16_t)(KA8_DELAYS + v07))));
         actor_wait(0x83FB39u);
         a8_load(0x00);
-        abi_AnimStart();
+        jsl_frame(0x83FB3Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x28);
         jsl_frame(0x83FB43u);
         abi_SoundQueueAdd();

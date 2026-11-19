@@ -303,7 +303,7 @@ void abi_Kind72RideAlong(void)
     wr8(dpa(ACTOR_REDRAW), 0xFF);
     cpu.a = 0x8900;
     nz8_of(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83F42Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ALONG_MOVE), 0);
     /* at his place each frame; his move, when it changes, its animation */
     for (;;) {
@@ -322,7 +322,7 @@ void abi_Kind72RideAlong(void)
         if (move == ALONG_LEAVE_MOVE)
             break;
         wr8(dpa(ALONG_MOVE), move);
-        abi_AnimStart();
+        jsl_frame(0x83F451u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         x8_load(rd8(dba(PLAYER + ACTOR_41)));
         uint8_t bits = rd8(dba((uint16_t)(ALONG_08_BY_41 + cpu.x)));
         a8_load(bits);
@@ -337,7 +337,7 @@ void abi_Kind72RideAlong(void)
     abi_ActorCreateChild8();
     cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x05);
-    abi_AnimStart();
+    jsl_frame(0x83F46Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(ALONG_FLY_MOTION);
     jsl_frame(0x83F473u);
     abi_ActorMotionPreset();

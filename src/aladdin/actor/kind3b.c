@@ -86,7 +86,7 @@ static void step8(uint32_t brk_at)
 static void switch_part(void)
 {
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83BFA4u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(P_M);
     lda16(ea_dp(ACTOR_Y + 1));
     sta16(ea_dp(K3B_REST_Y));
@@ -160,7 +160,7 @@ static void marker_part(void)
                 sta8(ea_dp(K3B_TOGGLED));
                 ACC8(inc);
                 ACC8(inc);
-                abi_AnimStart();
+                jsl_frame(0x83C02Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             }
         }
         actor_yield(0x83C019u);
@@ -218,7 +218,7 @@ void abi_Kind3BStart(void)
         return;
     }
     lda8_v(0x04);
-    abi_AnimStart();
+    jsl_frame(0x83C04Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_07));
     ACC8(asl);
     and8_v(0x07);

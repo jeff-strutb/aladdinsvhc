@@ -39,10 +39,10 @@ void abi_Kind95Hops(void);
 #define HOP_UP 0xD8C2u          /* by set * 2: the rise's frames, its speed entry */
 #define HOP_DOWN 0xD8CAu        /* by set * 2: the fall's frames, its speed entry */
 
-static void pose(uint8_t n)
+static void pose(uint8_t n, uint32_t site)
 {
     a8_load(n);
-    abi_AnimStart();
+    jsl_frame(site); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 static void wait(uint8_t frames, uint32_t cop_at)
@@ -104,7 +104,7 @@ static void part0(void)
 {
     uint8_t n;
 
-    pose(0x00);
+    pose(0x00, 0x849C4Cu);
     wait(0x10, 0x849C52u);
     sound(0x43);
     a8_load(0x40);
@@ -115,7 +115,7 @@ static void part0(void)
     a8_load(n);
     for (;;) {
         wr8(dpa(K95_STEP), n);
-        abi_AnimStart();
+        jsl_frame(0x849C6Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         for_frames(0x10, 0x849C74u, abi_ActorSpeedUpMove);
         n = (uint8_t)(rd8(dpa(K95_STEP)) + 1);
         a8_load(n);
@@ -131,7 +131,7 @@ static void part0(void)
    whenever its speed x is $C0 or more; then 88 frames falling; it ends. */
 static void part2(void)
 {
-    pose(0x00);
+    pose(0x00, 0x849C8Du);
     wait(0x28, 0x849C93u);
     a8_load(0xD8);
     wr8(dpa(K95_FRAMES), 0xD8);
@@ -179,7 +179,7 @@ static void part2(void)
    go and starts the story's scene task with scene 6; it ends. */
 static void part4(void)
 {
-    pose(0x00);
+    pose(0x00, 0x849CF6u);
     wait(0x88, 0x849CFCu);
     speed_y(0x1B);
     speed_x(0x12);
@@ -220,7 +220,7 @@ static void part8_steps(uint8_t first)
 
     a8_load(first);
     for (;;) {
-        abi_AnimStart();
+        jsl_frame(0x849DADu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         step = rd8(dpa(K95_STEP));
         x8_load(step);
         n = rd8(dba((uint16_t)(PART8_FRAMES + step)));
@@ -259,7 +259,7 @@ static void part8_steps(uint8_t first)
             tsb_at(dpa(ACTOR_08), 0x03);
             for_frames(0x60, 0x849E01u, abi_ActorStepYBack);
             wait(0x60, 0x849E0Du);
-            pose(0x0D);
+            pose(0x0D, 0x849E11u);
             op_rep(0x20);
             dp16_set(ACTOR_X + 1, 0x00A0);
             a16_load(0x006C);
@@ -430,15 +430,15 @@ void abi_Kind95Start(void)
         part8();
         break;
     case 9:
-        pose(0x08);
+        pose(0x08, 0x849E3Eu);
         stay(0x849E42u);
         break;
     case 10:
-        pose(0x05);
+        pose(0x05, 0x849E48u);
         stay(0x849E4Cu);
         break;
     case 11:
-        pose(0x06);
+        pose(0x06, 0x849E52u);
         stay(0x849E56u);
         break;
     case 12:
@@ -490,7 +490,7 @@ void abi_Kind95Hops(void)
     op_sep(0x20);
     set = (uint8_t)cpu.x;
     wr8(dpa(K95_HOP), set);
-    pose(rd8(dba((uint16_t)(HOP_POSE + set))));
+    pose(rd8(dba((uint16_t)(HOP_POSE + set))), 0x849E84u);
     x8_load(rd8(dpa(K95_HOP)));
     a8_load(rd8(dba((uint16_t)(HOP_COUNT + cpu.x))));
     wr8(dpa(K95_STEP), (uint8_t)cpu.a);

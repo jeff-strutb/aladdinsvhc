@@ -122,17 +122,17 @@ void abi_Kind31Start(void)
 L_AC46:     /* way 0: rise when Aladdin is in reach */
     actor_yield(0x83AC46u);
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AC4Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     tsb8(ea_dp(0x08));
     ldx8_v(0x00);
     call_frame(0xAC56, abi_ActorRiseWhenInReach);   /* JSR at 83:AC54 */
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83AC59u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     actor_wait(0x83AC5Fu);
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AC63u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(inc, ea_dp(0x42));
     abi_ActorFacePlayer();
     abi_Kind31Walk();
@@ -172,7 +172,7 @@ L_AC8E:
         abi_SoundQueueAdd();
     }
     lda8_v(0x06);
-    abi_AnimStart();
+    jsl_frame(0x83AC9Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     tsb8(ea_dp(0x08));
     lda8_v(0x00);
@@ -183,11 +183,11 @@ L_AC8E:
     ldx8_v(0x14);
     call_frame(0xACB3, abi_ActorHopFromTable);      /* JSR at 83:ACB1 */
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83ACB6u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     actor_wait(0x83ACBCu);
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83ACC0u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(inc, ea_dp(0x42));
     abi_ActorFacePlayer();
     abi_Kind31Walk();
@@ -249,17 +249,17 @@ L_AD11:
     lda8_v(0x2E);
     abi_SoundQueueAdd();
     lda8_v(0x03);
-    abi_AnimStart();
+    jsl_frame(0x83AD22u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     tsb8(ea_dp(0x08));
     ldx8_v(0x14);
     call_frame(0xAD2E, abi_ActorHopFromTable);      /* JSR at 83:AD2C */
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83AD31u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     actor_wait(0x83AD37u);
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AD3Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(inc, ea_dp(0x42));
     abi_ActorFacePlayer();
     abi_Kind31Walk();
@@ -396,17 +396,17 @@ L_ADF1:     /* a wall: hop up it unless the wall goes on above */
     call_frame(0xADF7, abi_ActorProbeAheadInGround);  /* JSR at 83:ADF5 */
     if (IF_C) goto L_ADE7;
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83ADFCu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x10);
     actor_wait(0x83AE02u);
     ldx8_v(0x0F);
     call_frame(0xAE08, abi_ActorHopFromTable);      /* JSR at 83:AE06 */
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83AE0Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     actor_wait(0x83AE11u);
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AE15u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     goto L_ADCF;
 
 L_AE1B:     /* wait near Aladdin, then leap at him */
@@ -434,7 +434,7 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
     op_sep(0x20);
     if (IF_C) goto L_ADCF;      /* BCS $AE19, BRA $ADCF */
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83AE4Eu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x38);
     ldy8_v(0x03);
     jsl_frame(0x83AE56u);
@@ -452,7 +452,7 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
     abi_SoundQueueAdd();
     cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x04);
-    abi_AnimStart();
+    jsl_frame(0x83AE6Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x80);
     sta8(ea_dp(0x42));
     lda8_v(0x08);
@@ -509,7 +509,7 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
     ldx8_v(0x00);
     call_frame(0xAED8, abi_ActorRiseWhenInReach);   /* JSR at 83:AED6 */
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AEDBu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x01);
     sta8(ea_dp(0x42));
     lda8(ea_dp(0x15));

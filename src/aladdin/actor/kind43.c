@@ -74,7 +74,7 @@ L_B3BD:     /* ways 0-2: carries, then breaks */
     sta8(ea_dp(0x4C));
     ldx8(ea_dp(0x07));
     lda8(ea_absx(K43_ANIMS));
-    abi_AnimStart();
+    jsl_frame(0x83B3CDu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83B3D1u);
         lda8(ea_dp(0x43));
@@ -90,7 +90,7 @@ L_B3BD:     /* ways 0-2: carries, then breaks */
     ldx8(ea_dp(0x07));
     lda8(ea_absx(K43_ANIMS));
     ACC8(inc);
-    abi_AnimStart();
+    jsl_frame(0x83B3E9u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x15);
     sta8(ea_dp(0x40));
     stz8(ea_dp(0x43));
@@ -124,7 +124,7 @@ L_B3BD:     /* ways 0-2: carries, then breaks */
 L_B426:     /* way 3: rises when Aladdin is in reach */
     stz8(ea_dp(0x42));
     lda8_v(0x06);
-    abi_AnimStart();
+    jsl_frame(0x83B42Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83B42Eu);
         ldx8_v(0x00);

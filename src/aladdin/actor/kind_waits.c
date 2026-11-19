@@ -363,7 +363,7 @@ void abi_Kind6DWait(void)
         abi_ActorDownedByShot();
         if (!(cpu.p & P_C))
             inc8_at(dpa(ACTOR_48));
-        abi_AnimStep();
+        jsl_frame(0x83EFA8u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(0x20);
         flag_set(P_C, 1);
         d = rd16(dba((uint16_t)RANGE_X_6D));
@@ -388,7 +388,7 @@ void abi_Kind6DWait(void)
         abi_ActorDownedByShot();
         if (!(cpu.p & P_C))
             inc8_at(dpa(ACTOR_48));
-        abi_AnimStep();
+        jsl_frame(0x83EFD3u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         v = (uint8_t)(rd8(dpa(ACTOR_07)) & 0x1C);
         a8_load(v);
         cmp8_of(v, 0x04);

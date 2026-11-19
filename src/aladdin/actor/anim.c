@@ -8,6 +8,8 @@
  */
 #include "machine.h"
 #include "cpu_ops.h"
+#include "native.h"
+#include "ops65.h"
 #include "wram.h"
 #include "actor.h"
 #include "actor_anim.h"
@@ -25,13 +27,15 @@ static void set_a8(uint8_t v)
     cpu.p = nz8(cpu.p, v);
 }
 
-/* PHB, LDA #$7E, PHA, PLB: the data bank $7E (the caller's kept by the
-   C); A low = $7E, N and Z from it */
+/* PHB, LDA #$7E, PHA, PLB: the caller's data bank pushed (pulled again
+   by the routine's PLB at its end), the data bank $7E; A low = $7E, N
+   and Z from it */
 static void db_7e(void)
 {
+    phb();
     set_a8(0x7E);
-    cpu.db = 0x7E;
-    cpu.p = nz8(cpu.p, 0x7E);
+    pha8();
+    plb();
 }
 
 /*
@@ -81,8 +85,6 @@ void abi_AnimFrameLookup(void)
 /* AnimStart and AnimResume: `first`, start at the first frame. */
 static void anim_start(int first)
 {
-    uint8_t db = cpu.db;
-
     cpu.x = rd8(dp(ACTOR_06));
     cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
     if (first)
@@ -122,12 +124,11 @@ static void anim_start(int first)
     set_a8((uint8_t)cpu.x);
     wr8(dp(ACTOR_FRAME_TIME), (uint8_t)cpu.a);
     set_a8(rd8(dp(ACTOR_PICTURE)));
-    abi_AnimFrameLookup();
+    call_frame(0x9112, abi_AnimFrameLookup);
     op_sep(0x30);
     set_a8(0xFF);
     wr8(dp(ACTOR_REDRAW), 0xFF);
-    cpu.db = db;
-    cpu.p = nz8(cpu.p, db);
+    plb();
 }
 
 /*
@@ -224,14 +225,13 @@ void abi_AnimStep(void)
  */
 void abi_AnimStepNext(void)
 {
-    uint8_t db, t;
+    uint8_t t;
 
-    db = cpu.db;
     db_7e();
     t = (uint8_t)(rd8_rmw(dp(ACTOR_FRAME)) + 1);
     wr8(dp(ACTOR_FRAME), t);
     cpu.p = nz8(cpu.p, t);
-    abi_AnimFrameLookup();
+    call_frame(0x913A, abi_AnimFrameLookup);
     op_and16(0x00FF);
     if (cpu.a == 0) {
         op_txa16();
@@ -241,11 +241,10 @@ void abi_AnimStepNext(void)
         cpu.p |= P_C;
         set_a8(op_sbc8((uint8_t)cpu.a, rd8(dp(ACTOR_LOOP_BACK)), &cpu.p));
         wr8(dp(ACTOR_FRAME), (uint8_t)cpu.a);
-        abi_AnimFrameLookup();
+        call_frame(0x914E, abi_AnimFrameLookup);
         op_and16(0x00FF);
     }
     op_sep(0x30);
     wr8(dp(ACTOR_FRAME_TIME), (uint8_t)cpu.a);
-    cpu.db = db;
-    cpu.p = nz8(cpu.p, db);
+    plb();
 }

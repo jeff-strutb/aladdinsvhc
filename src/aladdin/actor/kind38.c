@@ -73,7 +73,7 @@ void abi_Kind38Start(void)
     sta8(ea_dp(ACTOR_FACING));  /* 83BE0B sta */
     sta8(ea_dp(ACTOR_FLIP));  /* 83BE0D sta */
     lda8_v(0x00);  /* 83BE0F lda */
-    abi_AnimStart();  /* 83BE11 jsl */
+    jsl_frame(0x83BE11u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83BE11 jsl */
     op_rep(0x20);  /* 83BE15 rep */
     lda16_v(0xD1D6);  /* 83BE17 lda */
     sta16(ea_dp(KIND38_16));  /* 83BE1A sta */
@@ -137,7 +137,7 @@ L_83BE7A:
     if (!IF_Z) goto L_83BE7A;  /* 83BE7E bne */
     MEM8(inc, ea_dp(KIND38_UP));  /* 83BE80 inc */
     lda8_v(0x01);  /* 83BE82 lda */
-    abi_AnimStart();  /* 83BE84 jsl */
+    jsl_frame(0x83BE84u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83BE84 jsl */
     lda8_v(0x20);  /* 83BE88 lda */
     sta8(ea_dp(KIND38_FRAMES));  /* 83BE8A sta */
 L_83BE8C:
@@ -231,7 +231,7 @@ void abi_Kind37Second(void)
     sta8(ea_dp(KIND38_FRAMES));
     do {
         actor_yield(0x83BD87u);
-        abi_AnimStep();
+        jsl_frame(0x83BD89u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(KIND38_FRAMES));
     } while (!IF_Z);
     lda8_v(0x10);
@@ -242,7 +242,7 @@ void abi_Kind37Second(void)
     cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83BD9Bu);
-        abi_AnimStep();
+        jsl_frame(0x83BD9Du); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         jsl_frame(0x83BDA1u);
         abi_ActorFallAgainst();
         cpu.s = (uint16_t)(cpu.s + 3);
@@ -252,7 +252,7 @@ void abi_Kind37Second(void)
     sta8(ea_dp(KIND38_FRAMES));
     do {
         actor_yield(0x83BDADu);
-        abi_AnimStep();
+        jsl_frame(0x83BDAFu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(KIND38_FRAMES));
     } while (!IF_Z);
     ldy8_v(0x27);
@@ -261,7 +261,7 @@ void abi_Kind37Second(void)
     cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         actor_yield(0x83BDBDu);
-        abi_AnimStep();
+        jsl_frame(0x83BDBFu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         jsl_frame(0x83BDC3u);
         abi_ActorMoveY();
         cpu.s = (uint16_t)(cpu.s + 3);
@@ -277,7 +277,7 @@ shot:
     actor_wait(0x83BDD6u);
     for (;;) {
         actor_yield(0x83BDD8u);
-        abi_AnimStep();
+        jsl_frame(0x83BDDAu); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
         jsl_frame(0x83BDDEu);
         abi_ActorFly();
         cpu.s = (uint16_t)(cpu.s + 3);

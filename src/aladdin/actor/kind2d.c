@@ -172,7 +172,7 @@ void abi_Kind2DWatch(void)
             if (!(cpu.p & P_C)) {
                 /* he is in reach: the arc and the pose, then the throw */
                 a8_load(0x02);
-                abi_AnimStart();
+                jsl_frame(0x83A8A6u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
                 op_rep(0x20);
                 flag_set(P_C, 1);
                 d = dp16(ACTOR_X + 1);
@@ -220,7 +220,7 @@ void abi_Kind2DWatch(void)
             wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
             wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
             a8_load(0x01);
-            abi_AnimStart();
+            jsl_frame(0x83A8F8u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         }
         if (!dec8_at(dpa(K2D_FRAMES))) {
             abi_Kind2DRest();
@@ -244,7 +244,7 @@ static void throw_at(int again)
         a8_load(rd8(dba((uint16_t)(K2D_AT_BY + cpu.x))));
         wr8(dpa(K2D_AT), (uint8_t)cpu.a);
         a8_load(rd8(dpa(K2D_POSE)));
-        abi_AnimStart();
+        jsl_frame(0x83A91Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         a8_load((uint8_t)(((rd8(dpa(K2D_POSE)) >> 1) & 0x02) + 0x16));
         flag_set(P_C, 0);
         wr8(dpa(ACTOR_SPAWN_AT), (uint8_t)cpu.a);
@@ -321,7 +321,7 @@ static void throw_at(int again)
 void abi_Kind2DRest(void)
 {
     a8_load(0x07);
-    abi_AnimStart();
+    jsl_frame(0x83A905u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     abi_Kind2DWatch();
 }
 
@@ -388,7 +388,7 @@ void abi_Kind2DThrown(void)
     pose = rd8(dba((uint16_t)(K2D_POSES + cpu.y)));
     a8_load(pose);
     wr8(dpa(K2D_ARC), pose);
-    abi_AnimStart();
+    jsl_frame(0x83A9C1u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x0D);
     wr8(dpa(K2D_FRAMES), 0x0D);
     for (;;) {
@@ -400,7 +400,7 @@ void abi_Kind2DThrown(void)
             a8_load(0x0D);
             wr8(dpa(K2D_FRAMES), 0x0D);
             a8_load(inc8_at(dpa(K2D_ARC)));
-            abi_AnimStart();
+            jsl_frame(0x83A9DDu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         }
         jsl_frame(0x83A9E1u);
         abi_ActorFly();

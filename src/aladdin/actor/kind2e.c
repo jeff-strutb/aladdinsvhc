@@ -74,7 +74,7 @@ static void part0(void)
     face(0x01);
     wr8(dpa(K2E_FACE), 0);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AB0Au); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dba(CUE_146B), 0);
     wait_cue(CUE_146B, 0x83AB11u);
     wr8(dpa(ACTOR_SPEED_X), 0);
@@ -116,7 +116,7 @@ static void part2(void)
 
     face(0x00);
     a8_load(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83AB71u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     wait_cue(CUE_BE, 0x83AB75u);
     place(0x0E80, 0x0148);
     for (;;) {
@@ -143,11 +143,11 @@ static void part3(void)
 {
     face(0x00);
     a8_load(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83ABAFu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     wait_cue(CUE_C0, 0x83ABB3u);
     place(0x0DA0, 0x0238);
     a8_load(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83ABCAu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x05);
     abi_SoundQueueAdd();
     stay(0x83ABD4u);
@@ -196,7 +196,7 @@ void abi_Kind2EStart(void)
     case 1:
         face(0x00);
         a8_load(0x00);
-        abi_AnimStart();
+        jsl_frame(0x83AB63u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
         stay(0x83AB67u);
         break;
     case 2:

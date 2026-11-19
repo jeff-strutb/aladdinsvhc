@@ -107,7 +107,7 @@ void abi_Kind2BStart(void)
     lda8_v(0x90);
     tsb8(ea_dp(0x09));
     lda8_v(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83A478u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(0x40));
     jsl_call(0x83A47Eu, abi_RandomNext);
     if (!IF_N)
@@ -206,7 +206,7 @@ L_A524:     /* its turn */
     lda8(ea_absx(K2B_FLIPS));
     sta8(ea_dp(0x15));
     lda8(ea_absx(K2B_TURNS));
-    abi_AnimStart();
+    jsl_frame(0x83A53Du); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x14);
     actor_wait(0x83A543u);
     lda8(ea_dp(0x40));
@@ -227,7 +227,7 @@ L_A551:
     lda8(ea_absx(K2B_FLIPS));
     sta8(ea_dp(0x15));
     lda8(ea_absx(K2B_WALKS));
-    abi_AnimStart();
+    jsl_frame(0x83A564u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
 L_A568:     /* its step */
     ldx8_v(0x02);
     jsl_frame(0x83A56Au);
@@ -270,7 +270,7 @@ L_A5A4:     /* off the floor: its drop when he is below */
     abi_ActorMotionReset();
     cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x03);
-    abi_AnimStart();
+    jsl_frame(0x83A5B2u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83A5B6u);
         abi_ActorFall();
@@ -289,7 +289,7 @@ L_A5A4:     /* off the floor: its drop when he is below */
     sta8(ea_dp(0x40));
     sta8(ea_dp(0x15));
     lda8_v(0x00);
-    abi_AnimStart();
+    jsl_frame(0x83A5DEu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     goto L_A54D;
 
 L_A5E8:     /* bit 4 */
@@ -298,7 +298,7 @@ L_A5E8:     /* bit 4 */
     lda8_v(0x80);
     tsb8(ea_dp(0x09));
     lda8_v(0x04);
-    abi_AnimStart();
+    jsl_frame(0x83A5F2u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(0x14));
     lda8_v(0x01);
     sta8(ea_dp(0x15));
@@ -346,7 +346,7 @@ L_A628:     /* its shake and fall */
         MEM8(dec, ea_dp(0x46));
     } while (!IF_Z);
     lda8_v(0x03);
-    abi_AnimStart();
+    jsl_frame(0x83A63Cu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x20);
     sta8(ea_dp(0x20));
     stz8(ea_dp(0x1D));
@@ -384,7 +384,7 @@ L_A664:     /* by its partner */
     lda8_v(0x50);
     sta8(ea_dp(0x19));
     lda8_v(0x01);
-    abi_AnimStart();
+    jsl_frame(0x83A684u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         actor_yield(0x83A688u);
         op_rep(0x10);

@@ -73,7 +73,7 @@ static void kind79_taken(void)
     op_sep(0x20);
     actor_yield(0x83F5AFu);
     a8_load(0x02);
-    abi_AnimStart();
+    jsl_frame(0x83F5B3u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     abi_Kind79PlayerToIt();
     a8_load(KIND79_DIP_GRAVITY);
     y8_load(KIND79_DIP);
@@ -156,7 +156,7 @@ void abi_Kind79Rise(void)
     wr8(dpa(ACTOR_08), 0x02);
     cpu.a = (uint16_t)(y & 0xFF00);       /* animation 0; A's high byte the sum's */
     nz8_of(0);
-    abi_AnimStart();
+    jsl_frame(0x83F577u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(KIND79_RISE);
     abi_ActorSpeedYSet();
     wr8(dpa(ACTOR_41), 0);
@@ -449,7 +449,7 @@ void abi_Kind79Second(void)
             a8_load(0x0F);
             abi_SoundQueueAdd();
             a8_load(0x01);
-            abi_AnimStart();
+            jsl_frame(0x83F71Fu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(KIND79_DIP_GRAVITY);
             y8_load(KIND79_DIP);
             jsl_frame(0x83F727u);
@@ -483,7 +483,7 @@ void abi_Kind79Second(void)
     tsb_at(dpa(ACTOR_09), 0x80);
 pose:
     a8_load(0x03);
-    abi_AnimStart();
+    jsl_frame(0x83F73Bu); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x2D);
     abi_SoundQueueAdd();
     a8_load(0x06);

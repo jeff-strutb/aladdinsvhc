@@ -87,7 +87,7 @@ L_83A05C:
     and8_v(0x08);  /* 83A060 and */
     if (IF_Z) goto L_83A06C;  /* 83A062 beq */
     lda8_v(0x01);  /* 83A064 lda */
-    abi_AnimStart();  /* 83A066 jsl */
+    jsl_frame(0x83A066u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83A066 jsl */
     goto L_83A07C;  /* 83A06A bra */
 L_83A06C:
     actor_yield(0x83A06Cu);  /* 83A06C brk */
@@ -95,7 +95,7 @@ L_83A06C:
     abi_ActorNearPlayer();  /* 83A070 jsl */
     if (IF_C) goto L_83A06C;  /* 83A074 bcs */
     lda8_v(0x01);  /* 83A076 lda */
-    abi_AnimStart();  /* 83A078 jsl */
+    jsl_frame(0x83A078u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83A078 jsl */
 L_83A07C:
     lda8(ea_dp(ACTOR_07));  /* 83A07C lda */
     and8_v(0x04);  /* 83A07E and */
@@ -121,7 +121,7 @@ L_83A08C:
     sta16(ea_dp(ACTOR_Y + 1));  /* 83A0A1 sta */
     op_sep(0x20);  /* 83A0A3 sep */
     lda8_v(0x00);  /* 83A0A5 lda */
-    abi_AnimStart();  /* 83A0A7 jsl */
+    jsl_frame(0x83A0A7u); abi_AnimStart(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83A0A7 jsl */
     ldy8_v(0x01);  /* 83A0AB ldy */
     MEM8(lsr, ea_dp(ACTOR_07));  /* 83A0AD lsr */
     if (!IF_C) goto L_83A0B3;  /* 83A0AF bcc */
