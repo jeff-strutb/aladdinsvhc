@@ -320,3 +320,168 @@ one:
     pla8();  /* 83C4E5 pla */
     actor_leave(ACTOR_END_PLACED);  /* 83C4E6 jmp */
 }
+
+void abi_ActorEndDropReturn(void);
+void abi_ActorInRangeX(void);
+void abi_ActorInRangeY(void);
+void abi_ActorFreeOutOfRangeX(void);
+void abi_ActorEndOutOfRangeX(void);
+
+#define X_RANGE_BOXES 0xCEDBu      /* the across-only boxes: offset, span (words), by X */
+#define Y_RANGE_BOXES 0xCEEBu      /* the up-and-down boxes likewise */
+
+/*
+ * @routine 83:964D ActorInRangeLong
+ * WHAT IT DOES: ActorInRange for callers in other banks, with M and X
+ * 8-bit after it. Nothing in the game calls it (no JSL, JMP, pointer or
+ * word names it): unit_bank83_ranges runs it.
+ * HOW: JSR ActorInRange; SEP #$30; RTL.
+ * Entry: as ActorInRange; called by JSL. Exit: C set when out of range;
+ * M and X 8-bit.
+ */
+void abi_ActorInRangeLong(void)
+{
+    call_frame(0x964F, abi_ActorInRange);
+    op_sep(0x30);
+}
+
+/*
+ * @routine 83:9677 ActorFreeOutOfRangeXLong
+ * WHAT IT DOES: ActorFreeOutOfRangeX for callers in other banks. Nothing
+ * in the game calls it (no JSL, JMP, pointer or word names it; the word
+ * at 83:9EEB is an operand byte): unit_bank83_ranges runs it.
+ * HOW: JSR ActorFreeOutOfRangeX, then RTL.
+ * Entry: as ActorFreeOutOfRangeX; called by JSL. Exit: as
+ * ActorFreeOutOfRangeX.
+ */
+void abi_ActorFreeOutOfRangeXLong(void)
+{
+    call_frame(0x9679, abi_ActorFreeOutOfRangeX);
+}
+
+/*
+ * @routine 83:967B ActorFreeOutOfRangeX
+ * WHAT IT DOES: Frees the actor (ActorFreePlaced) when it is out of range
+ * of the camera's point across, by box X; else nothing. Nothing in the
+ * game calls it but its long entry, which nothing calls.
+ * HOW: ActorInRangeX; C set: ActorFreePlaced. SEP #$20.
+ * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
+ * boxes' bank, whose $0000-$1FFF is work RAM; called by JSR. Exit: M
+ * 8-bit; C set when out of range.
+ */
+void abi_ActorFreeOutOfRangeX(void)
+{
+    call_frame(0x967D, abi_ActorInRangeX);
+    if (IF_C)
+        call_frame(0x9682, abi_ActorFreePlaced);
+    op_sep(0x20);
+}
+
+/*
+ * @routine 83:9686 ActorEndOutOfRangeX
+ * WHAT IT DOES: Ends the actor for good when it is out of range of the
+ * camera's point across, by box X (ActorEndDropReturn); else returns.
+ * Nothing in the game calls it but its long entry, which nothing calls:
+ * unit_bank83_ranges runs it in range.
+ * HOW: ActorInRangeX; C set: BCS to ActorEndDropReturn; SEP #$20, RTS.
+ * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
+ * boxes' bank, whose $0000-$1FFF is work RAM; called by JSR from the
+ * actor's code at its own level. Exit: in range: M 8-bit, C clear; else
+ * never returns.
+ */
+void abi_ActorEndOutOfRangeX(void)
+{
+    call_frame(0x9688, abi_ActorInRangeX);
+    if (IF_C) {
+        abi_ActorEndDropReturn();
+        return;
+    }
+    op_sep(0x20);
+}
+
+/*
+ * @routine 83:968E ActorInRangeXLong
+ * WHAT IT DOES: ActorInRangeX for callers in other banks. Nothing in the
+ * game calls it (no JSL, JMP, pointer or word names it):
+ * unit_bank83_ranges runs it.
+ * HOW: JSR ActorInRangeX, then RTL.
+ * Entry: as ActorInRangeX; called by JSL. Exit: as ActorInRangeX.
+ */
+void abi_ActorInRangeXLong(void)
+{
+    call_frame(0x9690, abi_ActorInRangeX);
+}
+
+/* ActorInRangeX and ActorInRangeY: 16-bit, the point's word at point less
+   the actor's pixels word at own, plus the box's offset, compared with its
+   span (the boxes at boxes, by X); SEP #$20. */
+static void in_range_axis(uint16_t point, uint8_t own, uint16_t boxes)
+{
+    op_rep(0x20);
+    sec();
+    lda16(ea_abs(point));
+    sbc16_v(rd16(ea_dp(own)));
+    clc();
+    adc16_v(rd16(ea_absx(boxes)));
+    cmp16_v(rd16(ea_absx((uint16_t)(boxes + 2))));
+    op_sep(0x20);
+}
+
+/*
+ * @routine 83:9692 ActorInRangeX
+ * WHAT IT DOES: Tells whether the actor is out of range of the camera's
+ * point across, by box X of the across-only boxes: C set when it is.
+ * HOW: 16-bit: the point's x less the actor's x pixels, plus the box's
+ * offset (X_RANGE_BOXES), compared unsigned with its span; SEP #$20.
+ * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
+ * boxes' bank, whose $0000-$1FFF is work RAM; called by JSR. Exit: M
+ * 8-bit; C set when out of range; A = the sum (16 bits).
+ */
+void abi_ActorInRangeX(void)
+{
+    in_range_axis((uint16_t)RANGE_X, ACTOR_X + 1, X_RANGE_BOXES);
+}
+
+/*
+ * @routine 83:96A4 ActorInRangeYLong
+ * WHAT IT DOES: ActorInRangeY for callers in other banks. Nothing in the
+ * game calls it (no JSL, JMP, pointer or word names it):
+ * unit_bank83_ranges runs it.
+ * HOW: JSR ActorInRangeY, then RTL.
+ * Entry: as ActorInRangeY; called by JSL. Exit: as ActorInRangeY.
+ */
+void abi_ActorInRangeYLong(void)
+{
+    call_frame(0x96A6, abi_ActorInRangeY);
+}
+
+/*
+ * @routine 83:96A8 ActorInRangeY
+ * WHAT IT DOES: Tells whether the actor is out of range of the camera's
+ * point up or down, by box X of the up-and-down boxes: C set when it is.
+ * Nothing in the game calls it but its long entry, which nothing calls
+ * (the word at 83:897A is an operand byte).
+ * HOW: 16-bit: the point's y less the actor's y pixels, plus the box's
+ * offset (Y_RANGE_BOXES), compared unsigned with its span; SEP #$20.
+ * Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
+ * boxes' bank, whose $0000-$1FFF is work RAM; called by JSR. Exit: M
+ * 8-bit; C set when out of range; A = the sum (16 bits).
+ */
+void abi_ActorInRangeY(void)
+{
+    in_range_axis((uint16_t)RANGE_Y, ACTOR_Y + 1, Y_RANGE_BOXES);
+}
+
+/*
+ * @routine 83:96BA ActorEndOutOfRangeXLong
+ * WHAT IT DOES: ActorEndOutOfRangeX for callers in other banks. Nothing in
+ * the game calls it (no JSL, JMP, pointer or word names it):
+ * unit_bank83_ranges runs it in range.
+ * HOW: JSR ActorEndOutOfRangeX, then RTL.
+ * Entry: as ActorEndOutOfRangeX; called by JSL. Exit: in range as
+ * ActorEndOutOfRangeX; else never returns.
+ */
+void abi_ActorEndOutOfRangeXLong(void)
+{
+    call_frame(0x96BC, abi_ActorEndOutOfRangeX);
+}

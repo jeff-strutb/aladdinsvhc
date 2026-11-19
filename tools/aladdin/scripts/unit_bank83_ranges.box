@@ -1,0 +1,28 @@
+# Unit calls of the range tests in bank $83 that nothing in the game calls
+# (no JSR, JSL, JMP, pointer or word in the ROM names them; the byte
+# search's hits are operand bytes, 83:9EEB and 83:897A): ActorInRangeLong
+# ($83:964D), ActorFreeOutOfRangeXLong ($83:9677), ActorFreeOutOfRangeX
+# ($83:967B), ActorEndOutOfRangeX ($83:9686), ActorInRangeXLong ($83:968E),
+# ActorInRangeX ($83:9692), ActorInRangeYLong ($83:96A4), ActorInRangeY
+# ($83:96A8), ActorEndOutOfRangeXLong ($83:96BA), each at its own entry.
+# On the first level's state at frame 10 (the range point $0080, $0180),
+# M and X 8-bit, DB $80 (the boxes' bank), D the guard at record $0BAB
+# (x $0125, y $01B0): across, box 0 holds it in range and box 8 does not
+# (the free then runs); up and down, box 0 holds it, and not with its y
+# set to $0400. ActorEndOutOfRangeX and its long entry are called in range
+# only: out of range they drop their caller's return and go into the
+# actor loop, which a unit call's stub is not.
+load build/aladdin/states/level1.state
+wait 10
+call 83964D long p=30 db=80 d=0BAB x=00
+call 83964D long p=30 db=80 d=0BAB x=08
+call 839677 long p=30 db=80 d=0BAB x=00
+call 839677 long p=30 db=80 d=0BAB x=08
+call 83967B p=30 db=80 d=0BAB x=00
+call 839686 p=30 db=80 d=0BAB x=00
+call 83968E long p=30 db=80 d=0BAB x=00
+call 839692 p=30 db=80 d=0BAB x=08
+call 8396A4 long p=30 db=80 d=0BAB x=00
+set 000BBA 00,04
+call 8396A8 p=30 db=80 d=0BAB x=00
+call 8396BA long p=30 db=80 d=0BAB x=00
