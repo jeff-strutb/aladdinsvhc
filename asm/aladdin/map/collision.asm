@@ -99,6 +99,19 @@ ProbeRight_y:
     rep.b #$10
     rts
 
+; @routine 81:B799 GroundBehindLong
+; WHAT IT DOES: GroundBehind for callers in other banks: the ground test on
+; the side behind the actor.
+; HOW: ACTOR_FLIP nonzero: on into GroundLeftLong; else GroundRightLong.
+; No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_81.box calls it at its own entry.
+; Entry: as GroundBehind; called by JSL. Exit: as GroundLeft or GroundRight.
+%at($81B799)
+GroundBehindLong:
+    lda.b !actor_flip
+    bne GroundLeftLong
+    bra GroundRightLong
+
 ; @routine 81:B79F GroundInFront
 ; WHAT IT DOES: Says whether the ground is at the probe point in front of
 ; the actor, the way it faces.

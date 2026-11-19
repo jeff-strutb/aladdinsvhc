@@ -9,6 +9,23 @@ arch 65816
 
 !v_032d = $032D                 ; its low three bits 0: a child is started
 
+; @routine 81:DD88 PlayerSettleOrHurt
+; WHAT IT DOES: PlayerLandOrHurt without its pass-through test: settles
+; Aladdin on a floor under him; a floor that hurts him puts him into state
+; $8C and starts his code over.
+; HOW: ActorSettleOnFloor; Z set: back. Else on in PlayerLandOrHurt's tail
+; (81:DD67): ACTOR_08 bit 7 set: back; TILE_BEHAVIOUR bit 5 set:
+; PlayerEnter8CLong, four PLAs, on at PlayerKnockback; else the vertical
+; speed's low word cleared and A = 1. No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_81.box calls it at its own entry.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by JSR.
+; Exit: as PlayerLandOrHurt.
+%at($81DD88)
+PlayerSettleOrHurt:
+    jsl.l ActorSettleOnFloor
+    beq PlayerLandOrHurt_back
+    bra PlayerLandOrHurt_settled
+
 ; @routine 81:DD90 PlayerSpawnEvery8
 ; WHAT IT DOES: Every eighth frame (low three bits of $032D 0) starts a
 ; child of hit box $34 at the player's spawn point 2, facing as the player

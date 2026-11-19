@@ -8,9 +8,53 @@
 #include "ops65.h"
 #include "actor.h"
 
+void abi_PlayerSettleOrHurt(void);
+void abi_ActorSettleOnFloor(void);
+void abi_PlayerEnter8CLong(void);
 void abi_ActorSpawnFacing(void);
 
 #define V_032D 0x032Du  /* the high byte of the word at $032C: a spawn when its low 3 bits are 0 */
+
+/*
+ * @routine 81:DD88 PlayerSettleOrHurt
+ * WHAT IT DOES: PlayerLandOrHurt without its pass-through test: settles
+ * Aladdin on a floor under him; a floor that hurts him puts him into state
+ * $8C and starts his code over.
+ * HOW: ActorSettleOnFloor; Z set: back. Else on in PlayerLandOrHurt's tail
+ * (81:DD67): ACTOR_08 bit 7 set: back; TILE_BEHAVIOUR bit 5 set:
+ * PlayerEnter8CLong, four PLAs, on at PlayerKnockback; else the vertical
+ * speed's low word cleared and A = 1. No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_81.box calls it at its own entry.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by JSR.
+ * Exit: as PlayerLandOrHurt.
+ */
+void abi_PlayerSettleOrHurt(void)
+{
+    jsl_frame(0x81DD88u);
+    abi_ActorSettleOnFloor();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    if (IF_Z)
+        return;                                 /* 81DD84 rts */
+    lda8(ea_dp(ACTOR_08));                      /* 81DD67, PlayerLandOrHurt's tail */
+    if (IF_N)
+        return;
+    lda8(ea_abs(0x0012));                       /* TILE_BEHAVIOUR */
+    bit8_i(0x20);
+    if (!IF_Z) {
+        jsl_frame(0x81DD72u);
+        abi_PlayerEnter8CLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        pla8();
+        pla8();
+        pla8();
+        pla8();
+        actor_leave(0x81DADDu);                 /* JML PlayerKnockback */
+        return;
+    }
+    stz8(ea_dp(ACTOR_SPEED_Y));
+    stz8(ea_dp(ACTOR_SPEED_Y + 1));
+    lda8_v(0x01);
+}
 
 /*
  * @routine 81:DD90 PlayerSpawnEvery8

@@ -86,6 +86,9 @@ static void probe_y(void)
  * A = the point's y; Y = the probe's offset + 2; N, V, Z, C from its ADC;
  * X unchanged.
  */
+void abi_GroundBehindLong(void);
+void abi_GroundLeftLong(void);
+void abi_GroundRightLong(void);
 void abi_ProbeAtActor(void)
 {
     op_rep(P_M);
@@ -470,6 +473,25 @@ void abi_GroundLeft(void)
 {
     call_frame(0xB7AA, abi_ProbeLeft);
     abi_PointInGround();
+}
+
+/*
+ * @routine 81:B799 GroundBehindLong
+ * WHAT IT DOES: GroundBehind for callers in other banks: the ground test on
+ * the side behind the actor.
+ * HOW: ACTOR_FLIP nonzero: on into GroundLeftLong; else GroundRightLong.
+ * No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_81.box calls it at its own entry.
+ * Entry: as GroundBehind; called by JSL. Exit: as GroundLeft or GroundRight.
+ */
+void abi_GroundBehindLong(void)
+{
+    lda8(ea_dp(ACTOR_FLIP));
+    if (!IF_Z) {
+        abi_GroundLeftLong();
+        return;
+    }
+    abi_GroundRightLong();
 }
 
 /*

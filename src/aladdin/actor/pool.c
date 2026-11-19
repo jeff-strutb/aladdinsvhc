@@ -227,6 +227,18 @@ static void sort_passes(uint16_t count, int high_first)
 }
 
 /*
+ * @routine 81:ADF9 ReturnFFLong
+ * WHAT IT DOES: Returns $FF in A.
+ * HOW: LDA #$FF, RTL. No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_81.box calls it at its own entry.
+ * Entry: M 8-bit; called by JSL. Exit: A low byte $FF; N set, Z clear.
+ */
+void abi_ReturnFFLong(void)
+{
+    lda8_v(0xFF);
+}
+
+/*
  * @routine 81:ADFC ActorFreeListSortHigh
  * WHAT IT DOES: Orders the top of the free list so the highest record
  * addresses are taken first, when at least A records are free; with
@@ -439,3 +451,76 @@ void abi_FreeListReadDown(void)
     }
 }
 
+
+#define TILE_ACTOR_INDEX 0x142Au  /* TileActorSpawn's kind index (word) */
+#define TILE_ACTOR_RECORD 0x1425u /* the record it last started (word) */
+#define TILE_ACTOR_X 0x1436u      /* where it starts it: x, y pixels (words) */
+#define TILE_ACTOR_Y 0x1438u
+#define TILE_ACTOR_KINDS 0xC9CDu  /* (data bank $80) by index: the kind, negative none */
+void abi_MapTileRestoreAtOffset(void);
+void abi_ActorCreate(void);
+void abi_TileActorSpawn(void);
+
+/*
+ * @routine 81:EA71 TileActorSpawnLong
+ * WHAT IT DOES: TileActorSpawn for callers in other banks.
+ * HOW: JSR TileActorSpawn, RTL. No code calls it (no JSR, JSL, JMP or table
+ * word reaches it): unit_dead_81.box calls it at its own entry.
+ * Entry: as TileActorSpawn; called by JSL. Exit: as TileActorSpawn.
+ */
+void abi_TileActorSpawnLong(void)
+{
+    call_frame(0xEA73, abi_TileActorSpawn);
+}
+
+/*
+ * @routine 81:EA75 TileActorSpawn
+ * WHAT IT DOES: Puts back the level's own tile at offset X and starts the
+ * actor its kind index A names there (TILE_ACTOR_KINDS), at the place
+ * kept in TILE_ACTOR_X and TILE_ACTOR_Y.
+ * HOW: TILE_ACTOR_INDEX = A (16-bit); MapTileRestoreAtOffset; 8-bit; X =
+ * TILE_ACTOR_INDEX's low byte; TILE_ACTOR_KINDS,X negative: back (A as it
+ * is). ActorCreate with that kind: C set (none free): A = $FF. Else the
+ * record's hit box the kind, POOL_B_1490 the kind, TILE_ACTOR_RECORD = X
+ * (16-bit), state $0C, $0A $C0, $08 2; (16-bit) its x and y pixels from
+ * TILE_ACTOR_X and TILE_ACTOR_Y; 8-bit; A = 0. Only TileActorSpawnLong
+ * calls it.
+ * Entry: M 16-bit, X 16-bit; A = the kind index; X = the tile's offset; DB
+ * = $80; called by JSR. Exit: M and X 8-bit; A = 0 started, $FF none free,
+ * else the kind byte (negative).
+ */
+void abi_TileActorSpawn(void)
+{
+    sta16(ea_abs(TILE_ACTOR_INDEX));
+    jsl_frame(0x81EA78u);
+    abi_MapTileRestoreAtOffset();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    op_sep(0x30);
+    ldx8(ea_abs(TILE_ACTOR_INDEX));
+    lda8(ea_absx(TILE_ACTOR_KINDS));
+    if (IF_N)
+        return;
+    jsl_frame(0x81EA86u);
+    abi_ActorCreate();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    if (IF_C) {
+        lda8_v(0xFF);
+        return;
+    }
+    sta8(ea_absx(ACTOR_06));
+    sta8(ea_abs(POOL_B_1490));
+    stx16(ea_abs(TILE_ACTOR_RECORD));
+    lda8_v(0x0C);
+    sta8(ea_absx(ACTOR_STATE));
+    lda8_v(0xC0);
+    sta8(ea_absx(0x0A));
+    lda8_v(0x02);
+    sta8(ea_absx(ACTOR_08));
+    op_rep(0x20);
+    lda16(ea_abs(TILE_ACTOR_X));
+    sta16(ea_absx(ACTOR_X + 1));
+    lda16(ea_abs(TILE_ACTOR_Y));
+    sta16(ea_absx(ACTOR_Y + 1));
+    op_sep(0x30);
+    lda8_v(0x00);
+}

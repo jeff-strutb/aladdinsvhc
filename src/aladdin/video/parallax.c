@@ -62,6 +62,49 @@ void abi_ParallaxFull(void)
 }
 
 /*
+ * @routine 81:C7B3 ParallaxHalfY
+ * WHAT IT DOES: Scrolls the backdrop with the play field across and at half
+ * its speed up and down.
+ * HOW: The backdrop's scroll X is the play field's; its scroll Y the play
+ * field's halved. Handler 2  of the table at $81:C781 by $083F, which no level sets
+ * to 4 : unit_dead_81.box calls it at its own entry.
+ * Entry: M 16-bit; DB a bank whose $0000-$1FFF is work RAM; called by
+ * ParallaxUpdate's JSR (table,X). Exit: A = the backdrop's scroll Y; N, Z
+ * from it; C the bit shifted out.
+ */
+void abi_ParallaxHalfY(void)
+{
+    lda16(ea_abs(LAYER0 + LAYER_SCROLL_X));
+    sta16(ea_abs(LAYER1 + LAYER_SCROLL_X));
+    lda16(ea_abs(LAYER0 + LAYER_SCROLL_Y));
+    ACC16(lsr);
+    sta16(ea_abs(LAYER1 + LAYER_SCROLL_Y));
+}
+
+/*
+ * @routine 81:C7C1 ParallaxHalfXY80
+ * WHAT IT DOES: Scrolls the backdrop at half the play field's speed both
+ * ways, $80 lower.
+ * HOW: The backdrop's scroll X is the play field's halved; its scroll Y the
+ * play field's halved plus $80. Handler 3 of the table at $81:C781 by $083F, which no level sets
+ * to 6: unit_dead_81.box calls it at its own entry.
+ * Entry: M 16-bit; DB a bank whose $0000-$1FFF is work RAM; called by
+ * ParallaxUpdate's JSR (table,X). Exit: A = the backdrop's scroll Y; N, Z,
+ * C, V from the addition.
+ */
+void abi_ParallaxHalfXY80(void)
+{
+    lda16(ea_abs(LAYER0 + LAYER_SCROLL_X));
+    ACC16(lsr);
+    sta16(ea_abs(LAYER1 + LAYER_SCROLL_X));
+    clc();
+    lda16(ea_abs(LAYER0 + LAYER_SCROLL_Y));
+    ACC16(lsr);
+    adc16_v(0x0080);
+    sta16(ea_abs(LAYER1 + LAYER_SCROLL_Y));
+}
+
+/*
  * @routine 81:C7D4 ParallaxHalfX
  * WHAT IT DOES: Scrolls the backdrop at half the play field's speed across
  * and at its full speed up and down.

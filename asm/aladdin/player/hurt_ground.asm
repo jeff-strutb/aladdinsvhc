@@ -132,6 +132,7 @@ PlayerLandOrHurt:
 .settle:
     jsl.l ActorSettleOnFloor
     beq .back
+.settled:
     lda.b !actor_08
     bmi .back
     lda.w !TILE_BEHAVIOUR

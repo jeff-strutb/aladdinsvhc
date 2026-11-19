@@ -6,6 +6,7 @@
 
 incsrc "../include/macros.inc"
 incsrc "../include/actor.inc"
+incsrc "../include/actor_anim.inc"
 
 incsrc "../include/wram.inc"
 arch 65816
@@ -141,6 +142,16 @@ ActorFreeListSort:
     bne .pass
     sep.b #$20
 .done:
+    rtl
+
+; @routine 81:ADF9 ReturnFFLong
+; WHAT IT DOES: Returns $FF in A.
+; HOW: LDA #$FF, RTL. No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_81.box calls it at its own entry.
+; Entry: M 8-bit; called by JSL. Exit: A low byte $FF; N set, Z clear.
+%at($81ADF9)
+ReturnFFLong:
+    lda.b #$FF
     rtl
 
 ; @routine 81:ADFC ActorFreeListSortHigh
@@ -379,3 +390,65 @@ FreeListReadDown:
     dey
     rts
 %ends_at($83946F)
+
+!TILE_ACTOR_INDEX = $142A       ; TileActorSpawn's kind index (word)
+!TILE_ACTOR_RECORD = $1425      ; the record it last started (word)
+!TILE_ACTOR_X = $1436           ; where it starts it: x, y pixels (words)
+!TILE_ACTOR_Y = $1438
+!TILE_ACTOR_KINDS = $C9CD       ; (data bank $80) by index: the kind, negative none
+
+; @routine 81:EA71 TileActorSpawnLong
+; WHAT IT DOES: TileActorSpawn for callers in other banks.
+; HOW: JSR TileActorSpawn, RTL. No code calls it (no JSR, JSL, JMP or table
+; word reaches it): unit_dead_81.box calls it at its own entry.
+; Entry: as TileActorSpawn; called by JSL. Exit: as TileActorSpawn.
+%at($81EA71)
+TileActorSpawnLong:
+    jsr.w TileActorSpawn
+    rtl
+
+; @routine 81:EA75 TileActorSpawn
+; WHAT IT DOES: Puts back the level's own tile at offset X and starts the
+; actor its kind index A names there (TILE_ACTOR_KINDS), at the place
+; kept in TILE_ACTOR_X and TILE_ACTOR_Y.
+; HOW: TILE_ACTOR_INDEX = A (16-bit); MapTileRestoreAtOffset; 8-bit; X =
+; TILE_ACTOR_INDEX's low byte; TILE_ACTOR_KINDS,X negative: back (A as it
+; is). ActorCreate with that kind: C set (none free): A = $FF. Else the
+; record's hit box the kind, POOL_B_1490 the kind, TILE_ACTOR_RECORD = X
+; (16-bit), state $0C, $0A $C0, $08 2; (16-bit) its x and y pixels from
+; TILE_ACTOR_X and TILE_ACTOR_Y; 8-bit; A = 0. Only TileActorSpawnLong
+; calls it.
+; Entry: M 16-bit, X 16-bit; A = the kind index; X = the tile's offset; DB
+; = $80; called by JSR. Exit: M and X 8-bit; A = 0 started, $FF none free,
+; else the kind byte (negative).
+%at($81EA75)
+TileActorSpawn:
+    sta.w !TILE_ACTOR_INDEX
+    jsl.l MapTileRestoreAtOffset
+    sep.b #$30
+    ldx.w !TILE_ACTOR_INDEX
+    lda.w !TILE_ACTOR_KINDS,x
+    bmi .back
+    jsl.l ActorCreate
+    bcs .none
+    sta.w !actor_06,x
+    sta.w !POOL_B_1490
+    stx.w !TILE_ACTOR_RECORD
+    lda.b #$0C
+    sta.w !actor_state,x
+    lda.b #$C0
+    sta.w !actor_0a,x
+    lda.b #$02
+    sta.w !actor_08,x
+    rep.b #$20
+    lda.w !TILE_ACTOR_X
+    sta.w !actor_x+1,x
+    lda.w !TILE_ACTOR_Y
+    sta.w !actor_y+1,x
+    sep.b #$30
+    lda.b #$00
+.back:
+    rts
+.none:
+    lda.b #$FF
+    rts
