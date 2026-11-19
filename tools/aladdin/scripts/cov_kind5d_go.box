@@ -1,0 +1,18 @@
+# Kind $5D's timed sequence (Kind5DWait, $83:E352): once its K5D_GO
+# ($4A) is set, $B0 frames, its $08 bit 4, $1F frames, animation 1 and
+# its code resumed at $83:E30E, $38 frames, and its end. Its own code sets
+# K5D_GO when Aladdin hits it, which no script does. Placed as
+# cov_kind5c_bob.box (level 8, Aladdin on the Genie's head at x $08C0):
+# 350 frames on, kind $5C's child kind $5D waits at record $0C9B in state
+# 0; its K5D_GO ($0CE5) set to 1, and 600 frames run.
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 001773 C0,07
+poke 0019E5 C0,07
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C0,08
+poke 0008EA 30,00
+wait 350
+poke 000CE5 01
+wait 600
