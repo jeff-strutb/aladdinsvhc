@@ -634,3 +634,34 @@ void abi_PlayerSprung(void)
         }
     }
 }
+
+/*
+ * @routine 81:D99B PlayerGrabbedHang
+ * @actor
+ * WHAT IT DOES: Aladdin taken hold of by an actor he hangs from (the
+ * grabbable ones): stopped where he was kept, the hang's sound and pose,
+ * and he hangs from it.
+ * HOW: PLAYER_LANDED and AIR_THROW 0, V_1427 up; PlayerFlagsClear;
+ * ActorStopX, ActorStopY; PlayerPosRestore; SoundQueueAdd 6;
+ * PlayerMoveStart 6; PLAYER_BOX_WANTED 4; on at PlayerHang.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where ActorHoldPlayer set his resume address.
+ * Exit: never returns.
+ */
+void abi_PlayerGrabbedHang(void)
+{
+    stz8(ea_abs(PLAYER_LANDED));
+    stz8(ea_abs(AIR_THROW));
+    MEM8(inc, ea_abs(V_1427));
+    call_frame(0xD9A6, abi_PlayerFlagsClear);
+    jsl_call(0x81D9A7u, abi_ActorStopX);
+    jsl_call(0x81D9ABu, abi_ActorStopY);
+    call_frame(0xD9B1, abi_PlayerPosRestore);
+    lda8_v(0x06);
+    jsl_call(0x81D9B4u, abi_SoundQueueAdd);
+    lda8_v(0x06);
+    call_frame(0xD9BC, abi_PlayerMoveStart);
+    lda8_v(0x04);
+    sta8(ea_abs(PLAYER_BOX_WANTED));
+    abi_PlayerHang();
+}

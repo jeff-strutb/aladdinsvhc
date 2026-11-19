@@ -533,3 +533,31 @@ PlayerSprung:
     jsl.l ActorOutOfGround
     beq .frame
     jmp.w PlayerLand
+
+; @routine 81:D99B PlayerGrabbedHang
+; @actor
+; WHAT IT DOES: Aladdin taken hold of by an actor he hangs from (the
+; grabbable ones): stopped where he was kept, the hang's sound and pose,
+; and he hangs from it.
+; HOW: PLAYER_LANDED and AIR_THROW 0, V_1427 up; PlayerFlagsClear;
+; ActorStopX, ActorStopY; PlayerPosRestore; SoundQueueAdd 6;
+; PlayerMoveStart 6; PLAYER_BOX_WANTED 4; on at PlayerHang.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where ActorHoldPlayer set his resume address.
+; Exit: never returns.
+%at($81D99B)
+PlayerGrabbedHang:
+    stz.w !PLAYER_LANDED
+    stz.w !AIR_THROW
+    inc.w !V_1427
+    jsr.w PlayerFlagsClear
+    jsl.l ActorStopX
+    jsl.l ActorStopY
+    jsr.w PlayerPosRestore
+    lda.b #$06
+    jsl.l SoundQueueAdd
+    lda.b #$06
+    jsr.w PlayerMoveStart
+    lda.b #$04
+    sta.w !player_box_wanted
+    jmp.w PlayerHang
