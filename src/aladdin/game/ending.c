@@ -69,18 +69,30 @@ void abi_TextNumberTwoDigitsLong(void);
 
 /* A frame of the ending's play-back: the sprites and layers drawn and the
    uploads asked for, with or without the parallax bands. */
-static void ending_frame(int bands)
+static void ending_jsl(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);                    /* the JSL's return address on the stack while fn runs */
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+/* `at` is the routine's first JSL ($82:B51A, or $82:B541 with the bands);
+   the JSLs follow one another, 4 bytes each. */
+static void ending_frame(uint32_t at, int bands)
 {
     wr8(dba((uint16_t)TILE_BLOCKS_LENGTH), 0);
     wr8(dba((uint16_t)(TILE_BLOCKS_LENGTH + 1)), 0);
     wr8(dba((uint16_t)OAM_0857), 0);
-    abi_OamBuildBegin();
-    if (bands)
-        abi_ParallaxUpdateLong();
-    abi_LayersScrollLong();
-    abi_ActorsInView();
-    abi_OamDrawActors();
-    abi_BgFollowLayersLong();
+    ending_jsl(at, abi_OamBuildBegin);
+    at += 4;
+    if (bands) {
+        ending_jsl(at, abi_ParallaxUpdateLong);
+        at += 4;
+    }
+    ending_jsl(at, abi_LayersScrollLong);
+    ending_jsl(at + 4, abi_ActorsInView);
+    ending_jsl(at + 8, abi_OamDrawActors);
+    ending_jsl(at + 12, abi_BgFollowLayersLong);
     (void)inc8_at(dba((uint16_t)OAM_0857));
     (void)inc8_at(dba((uint16_t)TILE_BLOCKS_PENDING));
     (void)inc8_at(dba((uint16_t)VRAM_QUEUE_PENDING));
@@ -100,7 +112,7 @@ static void ending_frame(int bands)
  */
 void abi_EndingStageFrame(void)
 {
-    ending_frame(0);
+    ending_frame(0x82B51Au, 0);
 }
 
 /*
@@ -113,7 +125,7 @@ void abi_EndingStageFrame(void)
  */
 void abi_EndingStageFrameBands(void)
 {
-    ending_frame(1);
+    ending_frame(0x82B541u, 1);
 }
 
 /*
