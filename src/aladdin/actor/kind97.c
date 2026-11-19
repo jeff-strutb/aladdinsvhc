@@ -209,23 +209,19 @@ void abi_Kind97Start(void)
 
 /*
  * @routine 84:9FFB Kind97WaitWork
- * WHAT IT DOES: What actors of kind $97 run each frame they wait, by JSL
- * from the kind's stub ($83:93B9): an RTS on either path ($07 bit 0 clear
- * or set). An RTS pulls only two of the JSL's three return bytes, so it
- * goes on at the word pulled + 1 in this bank ($84:93BD for the stub's
- * JSL) with the JSL's bank byte left on the stack. No script meets it:
- * written from its bytes.
+ * WHAT IT DOES: What actors of kind $97 run each frame they wait: nothing
+ * but an RTS on either path ($07 bit 0 clear or set). Its one caller,
+ * the kind's stub ($83:93B9), reaches it by JSL, so the RTS pulls only
+ * two of the JSL's three bytes and the game goes on at $84:93BD (the
+ * stub's C states it); nothing sets bit 7 of a kind $97's $09, so the
+ * game never runs it. unit_kind_seconds.box calls it by JSR.
  * HOW: LDA $07, AND #1, BNE to the second RTS; RTS.
- * Entry: M 8-bit; D = the actor's record; called by JSL. Exit: at the
- * word pulled + 1 in bank $84; A = $07 AND 1, Z from it.
+ * Entry: M 8-bit; D = the actor's record; called by JSR (its stub: JSL).
+ * Exit: A = $07 AND 1, Z from it; RTS.
  */
 void abi_Kind97WaitWork(void)
 {
-    uint16_t ret;
-
     a8_load((uint8_t)(rd8(dpa(ACTOR_07)) & 0x01));
-    ret = pull16();                             /* RTS: two of the JSL's three bytes */
-    jump_routine(0x840000u | (uint16_t)(ret + 1));
 }
 
 /*

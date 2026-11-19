@@ -667,18 +667,24 @@ void abi_ActorKind8CWait(void)
  * @routine 83:93B9 ActorKind97Wait
  * WHAT IT DOES: The routine actors of kind $97 run each frame they wait
  * (not the last), when bit 7 of their byte at $09 is set: Kind97WaitWork.
- * HOW: JSL Kind97WaitWork ($84:9FFB), then RTS; its C makes the JSL's
- * return frame (jsl_frame), which the work may drop when it ends the
- * actor.
+ * HOW: JSL Kind97WaitWork ($84:9FFB), then RTS; the work's RTS pulls two
+ * of the JSL's three bytes, so the game goes on at $84:93BD, not at this
+ * RTS: nothing sets bit 7 of a kind $97's $09, so the game never runs it.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
  * (its low 7 bits); called by JSR through the actor loop's table by kind.
  * Exit: as Kind97WaitWork leaves them.
  */
 void abi_ActorKind97Wait(void)
 {
+    uint16_t ret;
+
     jsl_frame(0x8393B9u);
     abi_Kind97WaitWork();
-    cpu.s = (uint16_t)(cpu.s + 3);
+    /* The work ends in RTS: it pulls two of the JSL's three bytes, and
+       the game goes on at the word + 1 in bank $84 ($84:93BD), the JSL's
+       bank byte left on the stack. */
+    ret = pull16();
+    jump_routine(0x840000u | (uint16_t)(ret + 1));
 }
 
 /*

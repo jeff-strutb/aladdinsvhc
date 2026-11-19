@@ -1,0 +1,30 @@
+# Unit calls of entries the game reaches only on a path that crashes, each
+# run at its own entry the way its code returns: the seconds of kinds $83,
+# $84, $85, $90, $91, $92 and $93 ($83:92E1-$9395, the table at $83:8DFD;
+# each JMLs to wait work that ends in RTL, so the actor loop's JMP into them
+# returns through its own frame and the game crashes; here by JSL),
+# Kind97WaitWork ($84:9FFB, whose RTS the kind's stub reaches by JSL; here
+# by JSR, both of its RTSs by $07 odd and even). Kind $83 on its own
+# record in stage a2 s1 ($0BAB); the others on stage a5 s1's waiting kind
+# $97 record $0BAB made the kind (as cov_kind84_wait.box). M and X 8-bit,
+# DB $80; the machine put back after each.
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+call 8392E1 long p=30 db=80 d=0BAB
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+set 000BB1 84
+call 8392EE long p=30 db=80 d=0BAB
+set 000BB1 85
+call 8392FB long p=30 db=80 d=0BAB
+set 000BB1 90
+call 83936B long p=30 db=80 d=0BAB
+set 000BB1 91
+call 839378 long p=30 db=80 d=0BAB
+set 000BB1 92
+call 839385 long p=30 db=80 d=0BAB
+set 000BB1 93
+call 839392 long p=30 db=80 d=0BAB
+call 849FFB p=30 db=80 d=0BAB
+set 000BB2 00
+call 849FFB p=30 db=80 d=0BAB
