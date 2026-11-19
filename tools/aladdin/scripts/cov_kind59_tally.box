@@ -1,0 +1,62 @@
+# Kind $59 (Kind59Start, $83:DD10), the figures of the Genie's screen
+# (level $2F): a tally by its $07 of lives ($10), the lamps of a row
+# ($13-$19, by $0365 and $0367), gems ($0364, $07 2) and apples ($035B,
+# $07 8), each waiting for the screen's step ($00B5); $07 4 poses and
+# ends. Loaded as cov_level2f_genie.box loads the screen, where its
+# records wait on a step of 0 that no script moves on. Then:
+# 1. Record $100B ($07 0) restarted with $07 4: it poses, waits 24 frames
+#    and ends.
+# 2. The step set to 1: the lives, rows and gems go on, the apples end.
+#    The lives ($0367) set to 2, then the gems to $0C; with the scene's y
+#    ($00B0) at $FF80 (the figures above the screen, so none spawns) the
+#    lives set to 5, then 1, and the gems to 5. The y put back to 0.
+# 3. The step set to $80: record $0FBB restarted with $07 8 (the apples
+#    go on), $0D8B (a row, its $07 now 6) and $0CEB (with $07 2) restarted
+#    (both end). 8 frames on (the apples shown once, with a spark) the
+#    apples ($035B) set to 3 with the y at $FF80.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+repeat 1300
+poke 00035E 2F
+wait 1
+end
+wait 60
+poke 001012 04
+poke 00100B 0C
+wait 30
+poke 0000B5 01
+wait 3
+poke 000367 02
+wait 3
+poke 000364 0C
+wait 3
+poke 0000B0 80,FF
+poke 000367 05
+wait 2
+poke 000367 01
+poke 000364 05
+wait 2
+poke 0000B0 00,00
+wait 2
+poke 0000B5 80
+poke 000FC2 08
+poke 000FBB 0C
+poke 000D8B 0C
+poke 000CF2 02
+poke 000CEB 0C
+wait 8
+poke 0000B0 80,FF
+poke 00035B 03
+wait 2
+poke 0000B0 00,00
+wait 10
+dump z
