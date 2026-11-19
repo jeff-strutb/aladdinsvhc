@@ -18,6 +18,30 @@ arch 65816
 !PLAYER_X = $08E7               ; Aladdin's x pixels word
 !PLAYER_Y = $08EA               ; Aladdin's y pixels word
 
+; @routine 83:F494 Kind78Start
+; @actor
+; WHAT IT DOES: Actor kind $78: the same platform as kind $77, with its
+; own course: from speed $4B with acceleration 1, up to $0180, until its
+; x reaches $0B90.
+; HOW: K77_SPEED_CAP $0180, K77_END_X $0B90; A = 1, Y = $4B; then on in
+; Kind77Start's code from its ActorSpeedXSetAccel ($83:F4BC, a BRA).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's jump for kind $78 in state $0C (the table at $83:8CAB).
+; Exit: never returns.
+%at($83F494)
+Kind78Start:
+    lda.b #$80
+    sta.b !K77_SPEED_CAP
+    lda.b #$01
+    sta.b !K77_SPEED_CAP+1
+    lda.b #$0B
+    sta.b !K77_END_X+1
+    lda.b #$90
+    sta.b !K77_END_X
+    lda.b #$01
+    ldy.b #$4B
+    bra Kind77Start_run
+
 ; @routine 83:F4AA Kind77Start
 ; @actor
 ; WHAT IT DOES: Actor kind $77: a solid platform (box $28) that Aladdin
@@ -46,6 +70,7 @@ Kind77Start:
     sta.b !K77_END_X
     lda.b #$10
     ldy.b #$48
+.run:
     jsl.l ActorSpeedXSetAccel
     lda.b #$02
     tsb.b !actor_08

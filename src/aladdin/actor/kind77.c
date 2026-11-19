@@ -47,6 +47,8 @@ static void carry(uint16_t own, uint16_t kept, uint16_t at)
     wr16(dba(at), v);
 }
 
+static void k77_run(void);
+
 /*
  * @routine 83:F4AA Kind77Start
  * @actor
@@ -68,9 +70,6 @@ static void carry(uint16_t own, uint16_t kept, uint16_t at)
  */
 void abi_Kind77Start(void)
 {
-    int on = 1;
-    uint16_t v, m;
-
     a8_load(0xC0);
     wr8(dpa(K77_SPEED_CAP), 0xC0);
     wr8(dpa(K77_SPEED_CAP + 1), 0);
@@ -80,6 +79,43 @@ void abi_Kind77Start(void)
     wr8(dpa(K77_END_X), 0x30);
     a8_load(0x10);
     y8_load(0x48);
+    k77_run();
+}
+
+/*
+ * @routine 83:F494 Kind78Start
+ * @actor
+ * WHAT IT DOES: Actor kind $78: the same platform as kind $77, with its
+ * own course: from speed $4B with acceleration 1, up to $0180, until its
+ * x reaches $0B90.
+ * HOW: K77_SPEED_CAP $0180, K77_END_X $0B90; A = 1, Y = $4B; then on in
+ * Kind77Start's code from its ActorSpeedXSetAccel ($83:F4BC, a BRA).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's jump for kind $78 in state $0C (the table at $83:8CAB).
+ * Exit: never returns.
+ */
+void abi_Kind78Start(void)
+{
+    a8_load(0x80);
+    wr8(dpa(K77_SPEED_CAP), 0x80);
+    a8_load(0x01);
+    wr8(dpa(K77_SPEED_CAP + 1), 0x01);
+    a8_load(0x0B);
+    wr8(dpa(K77_END_X + 1), 0x0B);
+    a8_load(0x90);
+    wr8(dpa(K77_END_X), 0x90);
+    a8_load(0x01);
+    y8_load(0x4B);
+    k77_run();
+}
+
+/* Kind77Start's code from its ActorSpeedXSetAccel ($83:F4BC) on, with A
+   and Y its acceleration and speed entry: Kind78Start goes on in it too. */
+static void k77_run(void)
+{
+    int on = 1;
+    uint16_t v, m;
+
     jsl_at(0x83F4BCu, abi_ActorSpeedXSetAccel);
     a8_load(0x02);
     tsb_at(dpa(ACTOR_08), 0x02);

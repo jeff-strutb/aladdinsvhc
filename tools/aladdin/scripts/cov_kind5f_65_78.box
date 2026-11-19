@@ -1,0 +1,34 @@
+# Three small actor starts no level the scripts reach places, each on the
+# first level's record $0BAB (a kind $20) put back in its start state
+# ($0C) as that kind: kind $5F ($83:E465, shown 31 frames, then ended);
+# kind $65 ($83:E5BB, the continues counter: shown, then the count changed
+# to 2 and its picture with it); kind $65 again with no continues left
+# (it ends at once, $83:E5D5); kind $78 ($83:F494, kind $77's platform
+# with its own course, waiting for Aladdin).
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 5F
+poke 000BB2 00
+poke 000BAB 0C
+wait 40
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 65
+poke 000BB2 00
+poke 000BAB 0C
+wait 10
+poke 00035B 02
+wait 10
+load build/aladdin/states/level1.state
+wait 10
+poke 00035B 00
+poke 000BB1 65
+poke 000BB2 00
+poke 000BAB 0C
+wait 10
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 78
+poke 000BB2 00
+poke 000BAB 0C
+wait 30
