@@ -285,8 +285,8 @@ void abi_PlayerEndingRide(void)
  * take it, and ACTOR_08 = ALONG_08_BY_41 by the player's $41. Leaving:
  * facing, flip and $21 cleared; ActorCreateChild8 $7A; animation 5;
  * ActorMotionPreset $54; each frame (BRK first) ActorFly while ACTOR_09
- * bit 6 is set; then ActorEndPlaced (that JML, at 83:F483, no script
- * reaches yet).
+ * bit 6 is set; then ActorEndPlaced (JML, 83:F483; run by
+ * cov_kind72_flight_end, the flier put out of view).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
  * the actor loop's jump for kind $72 in state $0C (the table at
  * $83:8CAB). Exit: never returns.

@@ -1,0 +1,17 @@
+# Kind $72's flight (Kind72RideAlong, $83:F40D) out of the view, where it
+# ends ($83:F483), which no play reaches: in cov_carpet_dive.box's play
+# (its lines below) the rider flies off when Aladdin leaves the carpet,
+# and the level ends about 40 frames on, before it is 160 pixels from the
+# view (its in-view box, box 0 of $80:BA02; its range box $18 is 480).
+# Eight frames into its flight its record ($097B) is put at y $0150, 208
+# pixels below the view point (out of view, still in range): ActorsInView
+# clears its $09 bit 6 and the flight ends.
+load build/aladdin/states/stage_a2_s1.state
+wait 30
+hold DOWN 120
+hold DOWN+RIGHT 120
+hold UP 60
+hold DOWN+LEFT 120
+wait 8
+poke 00098A 50,01
+wait 10
