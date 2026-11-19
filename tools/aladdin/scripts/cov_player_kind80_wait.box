@@ -1,0 +1,12 @@
+# PlayerLoopBack's wait from the second table ($83:9493: JSR through
+# WAITS_80 when the player's record is of a kind from $80): the player's
+# record is always kind 0, so no play takes it. At frame 30 of stage a1 s0
+# (the player waiting, bit 7 of his $09 set) his kind ($08E1) made $80 for
+# one frame: the loop runs kind $80's wait, ActorWaitNothing ($83:91F3,
+# an RTS), in place of kind 0's ($83:91F8); then put back to 0.
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 0008E1 80
+wait 1
+poke 0008E1 00
+wait 30
