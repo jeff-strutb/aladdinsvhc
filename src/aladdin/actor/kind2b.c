@@ -4,6 +4,7 @@
 #include "machine.h"
 #include "native.h"
 #include "ops65.h"
+#include "actor.h"
 
 void abi_ActorAccelerateY(void);
 void abi_ActorEndOutOfRange(void);
@@ -25,6 +26,7 @@ void abi_AnimStart(void);
 void abi_RandomNext(void);
 void abi_TileAtProbeLong(void);
 void abi_Kind2BNearPartner(void);
+void abi_ActorMotionPreset(void);
 
 #define PLAYER_X 0x08E7u        /* Aladdin's x pixels (word) */
 #define K2B_LOOKS 0xD116u       /* its look table */
@@ -461,4 +463,49 @@ void abi_Kind2BNearPartner(void)
     adc16_v(rd16(ea_abs(K2B_PAST)));
     cmp16_v(rd16(ea_abs(K2B_SPAN)));
     op_sep(0x30);
+}
+
+#define K2B_SURFACE 0x47u       /* its surface ($07 bits 0-2 / 2): 1 a floor walker */
+#define K2B_SPEED_Y_TOP 0x04u   /* the vertical speed's middle byte it falls at, at most */
+#define K2B_FALL_RESET 0x38u    /* ActorMotionReset's speed for its fall off a wall or ceiling */
+#define K2B_FALL_PRESET 0x03u   /* ActorMotionPreset's preset for its fall off the floor */
+
+/*
+ * @routine 83:A725 Kind2BSecond
+ * @actor
+ * WHAT IT DOES: Kind $2B downed (its second state, state $8C, as a shot
+ * downs it): its hit pose, then it falls away, a floor walker in an arc
+ * (motion preset 3), one on a wall or ceiling straight off, until it is
+ * out of range.
+ * HOW: AnimStart 3. K2B_SURFACE one less: zero (it was 1): ActorMotionPreset
+ * 3; else ActorMotionReset $38. Each frame (BRK first): its vertical
+ * speed's middle byte other than 4: ActorAccelerateY; ActorMoveX,
+ * ActorStepY; ActorEndOutOfRange with box 8.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's jump for kind $2B in a state with bit 7 set (the table
+ * at $83:8DFD). Exit: never returns.
+ */
+void abi_Kind2BSecond(void)
+{
+    lda8_v(0x03);
+    jsl_call(0x83A727u, abi_AnimStart);
+    MEM8(dec, ea_dp(K2B_SURFACE));
+    if (IF_Z) {
+        ldy8_v(K2B_FALL_PRESET);
+        jsl_call(0x83A731u, abi_ActorMotionPreset);
+    } else {
+        lda8_v(K2B_FALL_RESET);
+        jsl_call(0x83A739u, abi_ActorMotionReset);
+    }
+    for (;;) {
+        actor_yield(0x83A73Du);
+        lda8(ea_dp(ACTOR_SPEED_Y + 1));
+        cmp8_v(K2B_SPEED_Y_TOP);
+        if (!IF_Z)
+            jsl_call(0x83A745u, abi_ActorAccelerateY);
+        jsl_call(0x83A749u, abi_ActorMoveX);
+        jsl_call(0x83A74Du, abi_ActorStepY);
+        ldx8_v(0x08);
+        call_frame(0xA755, abi_ActorEndOutOfRange);
+    }
 }

@@ -1,0 +1,31 @@
+# Kind $2B downed by a shot (its second state, Kind2BSecond $83:A725),
+# which no level the scripts reach places: the first level's record $092B
+# made one (kind byte $2B, state $0C), with $07 2 (a floor walker, its
+# surface $47 1: it falls off in an arc, $83:A72F) and then $07 0 (its
+# surface 0: straight off, $83:A737). Aladdin turns left and throws an
+# apple; it flies at y $019C, so the walker's y is put there two frames
+# before the apple reaches its x ($0015): the apple downs it.
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 02
+poke 00092B 0C
+wait 30
+poke 000369 06
+hold LEFT 6
+hold LEFT+A 1
+wait 6
+poke 00093A 9C,01
+wait 120
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2B
+poke 000932 00
+poke 00092B 0C
+wait 30
+poke 000369 06
+hold LEFT 6
+hold LEFT+A 1
+wait 6
+poke 00093A 9C,01
+wait 120

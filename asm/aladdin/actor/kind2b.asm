@@ -406,3 +406,47 @@ Kind2BNearPartner:
     cmp.w $D2E5
     sep.b #$30
     rts
+
+!K2B_SURFACE = $47              ; its surface ($07 bits 0-2 / 2): 1 a floor walker
+!K2B_SPEED_Y_TOP = $04          ; the vertical speed's middle byte it falls at, at most
+!K2B_FALL_RESET = $38           ; ActorMotionReset's speed for its fall off a wall or ceiling
+!K2B_FALL_PRESET = $03          ; ActorMotionPreset's preset for its fall off the floor
+
+; @routine 83:A725 Kind2BSecond
+; @actor
+; WHAT IT DOES: Kind $2B downed (its second state, state $8C, as a shot
+; downs it): its hit pose, then it falls away, a floor walker in an arc
+; (motion preset 3), one on a wall or ceiling straight off, until it is
+; out of range.
+; HOW: AnimStart 3. K2B_SURFACE one less: zero (it was 1): ActorMotionPreset
+; 3; else ActorMotionReset $38. Each frame (BRK first): its vertical
+; speed's middle byte other than 4: ActorAccelerateY; ActorMoveX,
+; ActorStepY; ActorEndOutOfRange with box 8.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's jump for kind $2B in a state with bit 7 set (the table
+; at $83:8DFD). Exit: never returns.
+%at($83A725)
+Kind2BSecond:
+    lda.b #$03
+    jsl.l AnimStart
+    dec.b !K2B_SURFACE
+    bne .off
+    ldy.b #!K2B_FALL_PRESET
+    jsl.l ActorMotionPreset
+    bra .fall
+.off:
+    lda.b #!K2B_FALL_RESET
+    jsl.l ActorMotionReset
+.fall:
+    brk.b #$00
+    lda.b !actor_speed_y+1
+    cmp.b #!K2B_SPEED_Y_TOP
+    beq .top
+    jsl.l ActorAccelerateY
+.top:
+    jsl.l ActorMoveX
+    jsl.l ActorStepY
+    ldx.b #$08
+    jsr.w ActorEndOutOfRange
+    bra .fall
+%ends_at($83A758)
