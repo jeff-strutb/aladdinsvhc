@@ -1,0 +1,36 @@
+# Actor kind $41's start ($83:B201), which no level the scripts reach
+# places, in its three ways. The first level's record $0BAB (a kind $20)
+# is made one (state $0C): $07 2, at x $0060, y $01B0, near Aladdin: the
+# maker in reach ($83:B22D, $83:B24F), which makes a walker each time he
+# is in reach; $07 $0A at x $0140 (Kind41Wait keeps a timed maker only
+# while its x less $100 is below the range point, $0080 here): the timed
+# maker ($83:B267), which makes one every pause and gives it its own x and
+# y; $07 0 at x $0060: the walker, which rises, hops twice and walks; 80
+# frames on it is lifted to y $0190, 40 pixels above its ground, so
+# ActorSnapToGround finds none and it hops ($83:B2F6).
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 41
+poke 000BB2 02
+poke 000BB7 60,00
+poke 000BBA B0,01
+poke 000BAB 0C
+wait 400
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 41
+poke 000BB2 0A
+poke 000BB7 40,01
+poke 000BBA B0,01
+poke 000BAB 0C
+wait 600
+load build/aladdin/states/level1.state
+wait 10
+poke 000BB1 41
+poke 000BB2 00
+poke 000BB7 60,00
+poke 000BBA B0,01
+poke 000BAB 0C
+wait 80
+poke 000BBA 90,01
+wait 120
