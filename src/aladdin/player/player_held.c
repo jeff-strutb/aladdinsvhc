@@ -150,3 +150,162 @@ void abi_PlayerHeldLetGo(void)
     sta8(ea_dp(FRAMES_40));
     abi_PlayerAirTimed();
 }
+
+/*
+ * @routine 81:D5EC PlayerHeldJumpOff
+ * @actor
+ * WHAT IT DOES: Aladdin jumps off what held him, at the speed its frame
+ * gives, then flies in the air a frame at a time as in PlayerAir until he
+ * lands, catches a ledge or hovers.
+ * HOW: V_1427 0; ActorMotionPreset with Y = HELD_PRESETS by A (the
+ * holder's frame); PlayerGroundYSave; NO_LANDING $10; ACTOR_SPAWN_AT from
+ * HELD_SPAWN_AT by ACTOR_FRAME; top speed $0200 (16-bit X); ActorSpawnPlace
+ * with X = the player; SoundQueueAdd 1; V_1A08 $0A, PLAYER_BOX_WANTED 3,
+ * V_141C up, AIR_FRAMES 0, ACTOR_09 bit 0 cleared, FRAMES_40 6. Each frame
+ * (BRK first from the second): V_1428: TILE_BITS 0, on at PlayerLand.
+ * AIR_FRAMES up while under $80, 0 with JUMP_PRESSED. AIR_THROW counting
+ * down: at 0 FRAMES_40 2 and PlayerJumpPoseStep; else PlayerAppleThrow: a
+ * throw starts move $16 and AIR_THROW $16, else PlayerJumpPoseStep.
+ * PlayerAirStep, PlayerFlipByPad. HOVER_ON, HOVER_HELD and falling: on at
+ * PlayerHover. Gravity $38, or $80 rising with the jump not held and not
+ * PLAYER_LANDED; PlayerRunSpeed; NO_LANDING down. Rising: the next frame.
+ * Level 5: GroundBehindBit4 at probe $18 sets V_1A10 and V_1A12. Not down
+ * on the pad and NO_LANDING 0: GroundBehindBit3 nonzero, on at
+ * PlayerLedgeGrab. NO_LANDING down again; ActorOutOfGround nonzero: on at
+ * PlayerLand; else the next frame.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; A = the
+ * holder's frame (4 to $0C); reached by a jump from PlayerHeld
+ * (81:D779). Exit: never returns.
+ */
+void abi_PlayerHeldJumpOff(void)
+{
+    stz8(ea_abs(V_1427));
+    tax8();
+    ldy8(ea_absx(HELD_PRESETS));
+    jsl_call(0x81D5F3u, abi_ActorMotionPreset);
+    call_frame(0xD5F9, abi_PlayerGroundYSave);
+    lda8_v(0x10);
+    sta8(ea_abs(NO_LANDING));
+    ldx8(ea_dp(ACTOR_FRAME));
+    lda8(ea_absx(HELD_SPAWN_AT));
+    sta8(ea_dp(ACTOR_SPAWN_AT));
+    op_rep(P_X);
+    ldx16_v(0x0200);
+    stx16(ea_abs(PLAYER_TOP_SPEED));
+    ldx16_v(PLAYER);
+    jsl_call(0x81D611u, abi_ActorSpawnPlace);
+    op_sep(P_X);
+    lda8_v(0x01);
+    jsl_call(0x81D619u, abi_SoundQueueAdd);
+    lda8_v(0x0A);
+    sta8(ea_abs(V_1A08));
+    lda8_v(0x03);
+    sta8(ea_abs(PLAYER_BOX_WANTED));
+    MEM8(inc, ea_abs(V_141C));
+    stz8(ea_abs(AIR_FRAMES));
+    lda8(ea_dp(ACTOR_09));
+    and8_v(0xFE);
+    sta8(ea_dp(ACTOR_09));
+    lda8_v(0x06);
+    sta8(ea_dp(FRAMES_40));
+    for (int first = 1;; first = 0) {
+        if (!first)
+            actor_yield(0x81D639u);
+        lda8(ea_abs(V_1428));
+        if (!IF_Z) {
+            stz8(ea_abs(TILE_BITS));
+            abi_PlayerLand();
+            return;
+        }
+        lda8(ea_abs(AIR_FRAMES));
+        if (!IF_N)
+            MEM8(inc, ea_abs(AIR_FRAMES));
+        lda8(ea_abs(JUMP_PRESSED));
+        if (!IF_Z)
+            stz8(ea_abs(AIR_FRAMES));
+        lda8(ea_abs(AIR_THROW));
+        if (!IF_Z) {
+            MEM8(dec, ea_abs(AIR_THROW));
+            if (IF_Z) {
+                lda8_v(0x02);
+                sta8(ea_dp(FRAMES_40));
+                call_frame(0xD679, abi_PlayerJumpPoseStep);
+            }
+        } else {
+            call_frame(0xD668, abi_PlayerAppleThrow);
+            if (IF_C) {
+                lda8_v(0x16);
+                call_frame(0xD66F, abi_PlayerMoveStart);
+                lda8_v(0x16);
+                sta8(ea_abs(AIR_THROW));
+            } else {
+                call_frame(0xD679, abi_PlayerJumpPoseStep);
+            }
+        }
+        call_frame(0xD67C, abi_PlayerAirStep);
+        call_frame(0xD67F, abi_PlayerFlipByPad);
+        lda8(ea_abs(HOVER_ON));
+        if (!IF_Z) {
+            lda8(ea_abs(HOVER_HELD));
+            if (!IF_Z) {
+                lda8(ea_dp(ACTOR_SPEED_Y + 2));
+                if (!IF_N) {
+                    abi_PlayerHover();
+                    return;
+                }
+            }
+        }
+        lda8_v(0x38);
+        sta8(ea_dp(ACTOR_ACCEL_Y));
+        lda8(ea_abs(JUMP_HELD));
+        if (IF_Z) {
+            lda8(ea_dp(ACTOR_SPEED_Y + 2));
+            if (IF_N) {
+                lda8(ea_abs(PLAYER_LANDED));
+                if (IF_Z) {
+                    lda8_v(0x80);
+                    sta8(ea_dp(ACTOR_ACCEL_Y));
+                }
+            }
+        }
+        call_frame(0xD6A9, abi_PlayerRunSpeed);
+        lda8(ea_abs(NO_LANDING));
+        if (!IF_Z)
+            MEM8(dec, ea_abs(NO_LANDING));
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+        if (IF_N)
+            continue;
+        lda8(ea_abs(LEVEL));
+        cmp8_v(0x05);
+        if (IF_Z) {
+            lda8_v(0x18);
+            sta8(ea_dp(ACTOR_18));
+            jsl_call(0x81D6C1u, abi_GroundBehindBit4);
+            if (!IF_Z) {
+                lda8_v(0x01);
+                sta8(ea_abs(V_1A10));
+                sta8(ea_abs(V_1A12));
+            }
+        }
+        lda8(ea_abs(PAD1_DIRS));
+        and8_v(PAD_DOWN);
+        if (IF_Z) {
+            lda8(ea_abs(NO_LANDING));
+            if (IF_Z) {
+                jsl_call(0x81D6DBu, abi_GroundBehindBit3);
+                if (!IF_Z) {
+                    abi_PlayerLedgeGrab();
+                    return;
+                }
+            }
+        }
+        lda8(ea_abs(NO_LANDING));
+        if (!IF_Z)
+            MEM8(dec, ea_abs(NO_LANDING));
+        jsl_call(0x81D6ECu, abi_ActorOutOfGround);
+        if (!IF_Z) {
+            abi_PlayerLand();
+            return;
+        }
+    }
+}

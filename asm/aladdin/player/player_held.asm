@@ -101,3 +101,151 @@ PlayerHeldLetGo:
     lda.b #$03
     sta.b !FRAMES_40
     jmp.w PlayerAirTimed
+
+; @routine 81:D5EC PlayerHeldJumpOff
+; @actor
+; WHAT IT DOES: Aladdin jumps off what held him, at the speed its frame
+; gives, then flies in the air a frame at a time as in PlayerAir until he
+; lands, catches a ledge or hovers.
+; HOW: V_1427 0; ActorMotionPreset with Y = HELD_PRESETS by A (the
+; holder's frame); PlayerGroundYSave; NO_LANDING $10; ACTOR_SPAWN_AT from
+; HELD_SPAWN_AT by ACTOR_FRAME; top speed $0200 (16-bit X); ActorSpawnPlace
+; with X = the player; SoundQueueAdd 1; V_1A08 $0A, PLAYER_BOX_WANTED 3,
+; V_141C up, AIR_FRAMES 0, ACTOR_09 bit 0 cleared, FRAMES_40 6. Each frame
+; (BRK first from the second): V_1428: TILE_BITS 0, on at PlayerLand.
+; AIR_FRAMES up while under $80, 0 with JUMP_PRESSED. AIR_THROW counting
+; down: at 0 FRAMES_40 2 and PlayerJumpPoseStep; else PlayerAppleThrow: a
+; throw starts move $16 and AIR_THROW $16, else PlayerJumpPoseStep.
+; PlayerAirStep, PlayerFlipByPad. HOVER_ON, HOVER_HELD and falling: on at
+; PlayerHover. Gravity $38, or $80 rising with the jump not held and not
+; PLAYER_LANDED; PlayerRunSpeed; NO_LANDING down. Rising: the next frame.
+; Level 5: GroundBehindBit4 at probe $18 sets V_1A10 and V_1A12. Not down
+; on the pad and NO_LANDING 0: GroundBehindBit3 nonzero, on at
+; PlayerLedgeGrab. NO_LANDING down again; ActorOutOfGround nonzero: on at
+; PlayerLand; else the next frame.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; A = the
+; holder's frame (4 to $0C); reached by a jump from PlayerHeld
+; (81:D779). Exit: never returns.
+%at($81D5EC)
+PlayerHeldJumpOff:
+    stz.w !V_1427
+    tax
+    ldy.w !HELD_PRESETS,x
+    jsl.l ActorMotionPreset
+    jsr.w PlayerGroundYSave
+    lda.b #$10
+    sta.w !NO_LANDING
+    ldx.b !ACTOR_FRAME
+    lda.w !HELD_SPAWN_AT,x
+    sta.b !actor_spawn_at
+    rep.b #$10
+    ldx.w #$0200
+    stx.w !player_top_speed
+    ldx.w #!player
+    jsl.l ActorSpawnPlace
+    sep.b #$10
+    lda.b #$01
+    jsl.l SoundQueueAdd
+    lda.b #$0A
+    sta.w !v_1a08
+    lda.b #$03
+    sta.w !player_box_wanted
+    inc.w !V_141C
+    stz.w !AIR_FRAMES
+    lda.b !actor_09
+    and.b #$FE
+    sta.b !actor_09
+    lda.b #$06
+    sta.b !FRAMES_40
+    bra .test
+.frame:
+    brk.b #$00
+.test:
+    lda.w !v_1428
+    beq .counts
+    stz.w !TILE_BITS
+    jmp.w PlayerLand
+.counts:
+    lda.w !AIR_FRAMES
+    bmi .jump_test
+    inc.w !AIR_FRAMES
+.jump_test:
+    lda.w !JUMP_PRESSED
+    beq .throw_test
+    stz.w !AIR_FRAMES
+.throw_test:
+    lda.w !AIR_THROW
+    beq .throw
+    dec.w !AIR_THROW
+    bne .move
+    lda.b #$02
+    sta.b !FRAMES_40
+    bra .pose
+.throw:
+    jsr.w PlayerAppleThrow
+    bcc .pose
+    lda.b #$16
+    jsr.w PlayerMoveStart
+    lda.b #$16
+    sta.w !AIR_THROW
+    bra .move
+.pose:
+    jsr.w PlayerJumpPoseStep
+.move:
+    jsr.w PlayerAirStep
+    jsr.w PlayerFlipByPad
+    lda.w !HOVER_ON
+    beq .gravity
+    lda.w !HOVER_HELD
+    beq .gravity
+    lda.b !actor_speed_y+2
+    bmi .gravity
+    jmp.w PlayerHover
+.gravity:
+    lda.b #$38
+    sta.b !actor_accel_y
+    lda.w !JUMP_HELD
+    bne .speed
+    lda.b !actor_speed_y+2
+    bpl .speed
+    lda.w !PLAYER_LANDED
+    bne .speed
+    lda.b #$80
+    sta.b !actor_accel_y
+.speed:
+    jsr.w PlayerRunSpeed
+    lda.w !NO_LANDING
+    beq .rising_test
+    dec.w !NO_LANDING
+.rising_test:
+    lda.b !actor_speed_y+2
+    bmi .frame
+    lda.w !level
+    cmp.b #$05
+    bne .ledge_test
+    lda.b #$18
+    sta.b !actor_18
+    jsl.l GroundBehindBit4
+    beq .ledge_test
+    lda.b #$01
+    sta.w !V_1A10
+    sta.w !V_1A12
+.ledge_test:
+    lda.w !PAD1_DIRS
+    and.b #!PAD_DOWN
+    bne .ground_test
+    lda.w !NO_LANDING
+    bne .ground_test
+    jsl.l GroundBehindBit3
+    beq .ground_test
+    jmp.w PlayerLedgeGrab
+.ground_test:
+    lda.w !NO_LANDING
+    beq .out_test
+    dec.w !NO_LANDING
+.out_test:
+    jsl.l ActorOutOfGround
+    bne .land
+    jmp.w .frame
+.land:
+    jmp.w PlayerLand
