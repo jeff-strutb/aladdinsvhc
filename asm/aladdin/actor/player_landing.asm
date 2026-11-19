@@ -36,9 +36,6 @@ arch 65816
 !V_0001 = $0001
 !HIT_BOXES = $C29A               ; the hit boxes: 4 bytes each, the half-width first (data bank)
 !TEST_BOX_HALF_W = $1488         ; the test box's half-width
-; Not yet filed (no script reaches it): the pad met from the side, or
-; with a state $8C counted: PlayerPushAside, then its next frame.
-PadFromSide = $83FA40
 
 ; @routine 83:848D PlayerLandsOnActor
 ; WHAT IT DOES: Tells whether Aladdin has come down on top of the actor,
@@ -158,8 +155,8 @@ PlayerStandOnActor:
 ; code $D77C, a yield, his y = its y less $2C (SBC #$2B with the C its
 ; REP #$21 cleared, kept through the yield), his x = its x, and
 ; PLAYER_LANDED = the byte at $0001. Met from the side or with a state
-; $8C counted it goes on at PadFromSide, which no script reaches yet
-; and is not filed.
+; $8C counted it goes on at PadFromSide ($83:FA40): Aladdin put beside
+; it (PlayerPushAside), and the next frame.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
 ; the actor loop's jump through the stub at $83:9315. Exit: never
 ; returns.
@@ -226,6 +223,10 @@ LandingPad:
     lda.w !V_0001
     sta.w !PLAYER_LANDED
     bra .frame
+PadFromSide:
+    jsr.w PlayerPushAside
+    bra LandingPad_frame
+%ends_at($83FA45)
 
 ; @routine 83:80B5 PlayerPushAsideLong
 ; WHAT IT DOES: PlayerPushAside for callers in other banks.

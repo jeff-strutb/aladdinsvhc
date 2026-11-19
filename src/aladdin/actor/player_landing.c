@@ -221,8 +221,8 @@ static void tsb_dp(uint16_t off, uint8_t bits)
  * code $D77C, a yield, his y = its y less $2C (SBC #$2B with the C its
  * REP #$21 cleared, kept through the yield), his x = its x, and
  * PLAYER_LANDED = the byte at $0001. Met from the side or with a state
- * $8C counted it goes on at PAD_FROM_SIDE, which no script reaches yet:
- * its C is not written, and it runs as the original's (jump_routine).
+ * $8C counted it goes on at PadFromSide ($83:FA40): Aladdin put beside it
+ * (PlayerPushAside), and the next frame.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
  * the actor loop's jump through the stub at $83:9315. Exit: never
  * returns.
@@ -233,7 +233,9 @@ void abi_LandingPad(void)
     tsb_dp(ACTOR_09, 0x90);
     wr8(dpa(ACTOR_2C), 0x06);
     a8_load(PAD_LAND_ANIM);
+    jsl_frame(0x83F9C8u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(PAD_REST), 0);
     wr8(dpa(PAD_PRESSED), 0);
     for (;;) {
@@ -248,7 +250,9 @@ void abi_LandingPad(void)
             a8_load((uint8_t)(pressed - 1));
             if (pressed == 1) {
                 a8_load(PAD_AFTER_ANIM);
+                jsl_frame(0x83F9DBu);
                 abi_AnimStart();
+                cpu.s = (uint16_t)(cpu.s + 3);
             }
             pressed = (uint8_t)(rd8(dpa(PAD_PRESSED)) - 1);
             wr8(dpa(PAD_PRESSED), pressed);
@@ -276,15 +280,17 @@ void abi_LandingPad(void)
         cmp16_of(feet, dp16(ACTOR_Y + 1));
         op_sep(0x20);
         if (cpu.p & P_C)
-            break;
+            goto from_side;
         a8_load(PAD_LAND_ANIM);
+        jsl_frame(0x83FA03u);
         abi_AnimStart();
+        cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x01);
         wr8(dba(V_141C), 0x01);
         uint8_t stomped = rd8(dba(PLAYER_STATE_8C_COUNT));
         a8_load(stomped);
         if (stomped)
-            break;
+            goto from_side;
         wr8(dpa(PAD_REST), 20);
         wr8(dpa(PAD_PRESSED), 10);
         a8_load(PAD_SOUND);
@@ -304,8 +310,11 @@ void abi_LandingPad(void)
         uint8_t landed = rd8(dba(V_0001));
         a8_load(landed);
         wr8(dba(PLAYER_LANDED), landed);
+        continue;
+from_side:
+        /* PadFromSide ($83:FA40): Aladdin put beside it, the next frame */
+        call_frame(0xFA42, abi_PlayerPushAside);
     }
-    jump_routine(PAD_FROM_SIDE);
 }
 
 /*
