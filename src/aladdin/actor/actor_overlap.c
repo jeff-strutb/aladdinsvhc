@@ -315,3 +315,271 @@ void abi_ActorZoneHasTestPoint(void)
 out:
     op_sep(0x31);
 }
+
+void abi_ActorOverlapsScratchBox(void);
+void abi_ActorZoneTouchesSecondPool(void);
+
+#define OVL_ACTOR_0A 0x0Au        /* a second-pool record's: bit 7 set, it is not tested */
+
+/*
+ * @routine 83:8521 ActorOverlapsScratchBoxLong
+ * WHAT IT DOES: ActorOverlapsScratchBox for callers in other banks.
+ * Nothing in the game calls it (no JSL, JMP, pointer or word names it):
+ * unit_bank83_entries runs it.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorOverlapsScratchBox; called by JSL. Exit: as
+ * ActorOverlapsScratchBox.
+ */
+void abi_ActorOverlapsScratchBoxLong(void)
+{
+    call_frame(0x8523, abi_ActorOverlapsScratchBox);
+}
+
+/*
+ * @routine 83:8525 ActorOverlapsScratchBox
+ * WHAT IT DOES: Tells whether the actor's hit box overlaps a box given in
+ * the scratch words: C clear when it does. Nothing in the game calls it
+ * but its long entry, which nothing calls: unit_bank83_entries runs it.
+ * HOW: 16-bit: by actor_06, HIT_BOXES' half-width plus scratch+8 (the
+ * box's half-width) to scratch, its double to scratch+2; its half-height
+ * plus scratch+10 to scratch+4, doubled to scratch+6; its x pixels less
+ * scratch+12 (the box's centre x) plus scratch below scratch+2, then its
+ * y pixels less scratch+14 plus scratch+4 below scratch+6, unsigned.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the hit boxes' bank; called by JSR. Exit: M and X 8-bit; C
+ * clear when they overlap; A = the last difference (16 bits); Y = the
+ * box's offset.
+ */
+void abi_ActorOverlapsScratchBox(void)
+{
+    lda8(ea_dp(ACTOR_06));
+    op_rep(0x30);
+    and16_v(0x00FF);
+    ACC16(asl);
+    ACC16(asl);
+    tay16();
+    clc();
+    lda16(ea_absy(HIT_BOXES));
+    adc16_v(rd16(ea_abs(SCRATCH + 8)));
+    sta16(ea_abs(SCRATCH));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 2));
+    clc();
+    lda16(ea_absy(HIT_BOXES + 2));
+    adc16_v(rd16(ea_abs(SCRATCH + 10)));
+    sta16(ea_abs(SCRATCH + 4));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 6));
+    sec();
+    lda16(ea_dp(ACTOR_X + 1));
+    sbc16_v(rd16(ea_abs(SCRATCH + 12)));
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH)));
+    cmp16_v(rd16(ea_abs(SCRATCH + 2)));
+    if (IF_C) {
+        op_sep(0x31);
+        return;
+    }
+    sec();
+    lda16(ea_dp(ACTOR_Y + 1));
+    sbc16_v(rd16(ea_abs(SCRATCH + 14)));
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH + 4)));
+    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
+    op_sep(0x30);
+}
+
+/*
+ * @routine 83:8602 ActorHitsTestBoxBySecondBoxes
+ * WHAT IT DOES: Tells whether the actor overlaps the test box, sized by
+ * the second pool's box table (SECOND_POOL_BOXES, its half-width for both
+ * sizes) rather than its own hit box, when Aladdin and the actor are both
+ * active and it can be hit: C clear when it does. Nothing in the game
+ * calls it (no JSR, JSL, JMP, pointer or word names it):
+ * unit_bank83_entries runs it.
+ * HOW: Aladdin's $08 bit 7, its $08 bit 7 or its $09 bit 6 clear: none.
+ * 16-bit: by actor_06, SECOND_POOL_BOXES' first word plus the test box's
+ * half-width to scratch, doubled to scratch+2; the same first word plus
+ * its half-height to scratch+4, doubled to scratch+6; its x pixels less
+ * the test box's x plus scratch below scratch+2, then its y pixels less
+ * the test box's y plus scratch+4 below scratch+6, unsigned.
+ * Entry: M 8-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
+ * work RAM, the boxes' bank; called by JSR. Exit: M and X 8-bit; C clear
+ * when they overlap.
+ */
+void abi_ActorHitsTestBoxBySecondBoxes(void)
+{
+    lda8(ea_abs(PLAYER + ACTOR_08));
+    if (IF_N)
+        goto none;
+    lda8(ea_dp(ACTOR_08));
+    if (IF_N)
+        goto none;
+    bit8_v(rd8(ea_dp(ACTOR_09)));
+    if (!IF_V)
+        goto none;
+    lda8(ea_dp(ACTOR_06));
+    op_rep(0x30);
+    and16_v(0x00FF);
+    ACC16(asl);
+    ACC16(asl);
+    tay16();
+    clc();
+    lda16(ea_absy(SECOND_POOL_BOXES));
+    adc16_v(rd16(ea_abs(TEST_BOX_HALF_W)));
+    sta16(ea_abs(SCRATCH));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 2));
+    clc();
+    lda16(ea_absy(SECOND_POOL_BOXES));
+    adc16_v(rd16(ea_abs(TEST_BOX_HALF_H)));
+    sta16(ea_abs(SCRATCH + 4));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 6));
+    sec();
+    lda16(ea_dp(ACTOR_X + 1));
+    sbc16_v(rd16(ea_abs(TEST_BOX_X)));
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH)));
+    cmp16_v(rd16(ea_abs(SCRATCH + 2)));
+    if (IF_C)
+        goto none;
+    sec();
+    lda16(ea_dp(ACTOR_Y + 1));
+    sbc16_v(rd16(ea_abs(TEST_BOX_Y)));
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH + 4)));
+    cmp16_v(rd16(ea_abs(SCRATCH + 6)));
+    op_sep(0x30);
+    return;
+none:
+    op_sep(0x31);
+}
+
+/*
+ * @routine 83:88B3 ActorZoneTouchesSecondPoolLong
+ * WHAT IT DOES: ActorZoneTouchesSecondPool for callers in other banks.
+ * Nothing in the game calls it (no JSL, JMP, pointer or word names it):
+ * unit_bank83_entries runs it.
+ * HOW: JSR to it, then RTL.
+ * Entry: as ActorZoneTouchesSecondPool; called by JSL. Exit: as
+ * ActorZoneTouchesSecondPool.
+ */
+void abi_ActorZoneTouchesSecondPoolLong(void)
+{
+    call_frame(0x88B5, abi_ActorZoneTouchesSecondPool);
+}
+
+/*
+ * @routine 83:88B7 ActorZoneTouchesSecondPool
+ * WHAT IT DOES: Tells whether one of the second pool's records (shots and
+ * the like) touches zone Y beside the actor: C clear with Y that record.
+ * Nothing in the game calls it but its long entry, which nothing calls:
+ * unit_bank83_entries runs it.
+ * HOW: The zone's point: its x pixels plus the zone's x byte (less, with
+ * its flip set) to scratch, its y pixels plus the zone's signed y byte to
+ * scratch+2. 16-bit X: by SECOND_POOL_LEFT * 4, SECOND_POOL_BOXES' words
+ * plus the zone's half-width to scratch+4 (doubled to scratch+6), plus
+ * its height to scratch+8 (doubled to scratch+10). Then the five records
+ * from SECOND_POOL: one in use, its $0A bit 7 clear, its $08-$09 AND
+ * $4080 = $4000, and within the box (x less its x plus scratch+4 below
+ * scratch+6; y likewise with scratch+8 and +10): found.
+ * Entry: M 8-bit, X 8-bit; Y = the zone's offset in ZONES; D = the actor;
+ * DB a bank whose $0000-$1FFF is work RAM, the zones' bank; called by JSR.
+ * Exit: M 8-bit; found: C clear, Y = the record (16-bit X); else C set,
+ * X 8-bit.
+ */
+void abi_ActorZoneTouchesSecondPool(void)
+{
+    lda8(ea_dp(ACTOR_FLIP));
+    if (IF_Z) {
+        op_rep(0x20);
+        lda16(ea_absy(ZONES + 2));
+        and16_v(0x00FF);
+        sta16(ea_abs(SCRATCH));
+        lda16(ea_dp(ACTOR_X + 1));
+        clc();
+        adc16_v(rd16(ea_abs(SCRATCH)));
+        sta16(ea_abs(SCRATCH));
+    } else {
+        op_rep(0x20);
+        lda16(ea_absy(ZONES + 2));
+        and16_v(0x00FF);
+        sta16(ea_abs(SCRATCH));
+        lda16(ea_dp(ACTOR_X + 1));
+        sec();
+        sbc16_v(rd16(ea_abs(SCRATCH)));
+        sta16(ea_abs(SCRATCH));
+    }
+    lda16(ea_absy(ZONES + 3));
+    and16_v(0x00FF);
+    bit16_i(0x0080);
+    if (!IF_Z)
+        ora16_v(0xFF00);
+    sta16(ea_abs(SCRATCH + 2));
+    lda16(ea_dp(ACTOR_Y + 1));
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH + 2)));
+    sta16(ea_abs(SCRATCH + 2));
+    op_rep(0x10);
+    lda16(ea_abs(SECOND_POOL_LEFT));
+    ACC16(asl);
+    ACC16(asl);
+    tax16();
+    lda16(ea_absy(ZONES));
+    and16_v(0x00FF);
+    clc();
+    adc16_v(rd16(ea_absx(SECOND_POOL_BOXES)));
+    sta16(ea_abs(SCRATCH + 4));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 6));
+    lda16(ea_absy(ZONES + 1));
+    and16_v(0x00FF);
+    clc();
+    adc16_v(rd16(ea_absx(SECOND_POOL_BOXES + 2)));
+    sta16(ea_abs(SCRATCH + 8));
+    ACC16(asl);
+    sta16(ea_abs(SCRATCH + 10));
+    ldx16_v(0x0005);
+    ldy16_v(SECOND_POOL);
+    do {
+        lda16(ea_absy(ACTOR_STATE));
+        and16_v(0x00FF);
+        if (IF_Z)
+            goto next;
+        lda16(ea_absy(OVL_ACTOR_0A));
+        and16_v(0x0080);
+        if (!IF_Z)
+            goto next;
+        lda16(ea_absy(ACTOR_08));
+        and16_v(0x4080);
+        cmp16_v(0x4000);
+        if (!IF_Z)
+            goto next;
+        sec();
+        lda16(ea_abs(SCRATCH));
+        sbc16_v(rd16(ea_absy(ACTOR_X + 1)));
+        clc();
+        adc16_v(rd16(ea_abs(SCRATCH + 4)));
+        cmp16_v(rd16(ea_abs(SCRATCH + 6)));
+        if (IF_C)
+            goto next;
+        sec();
+        lda16(ea_abs(SCRATCH + 2));
+        sbc16_v(rd16(ea_absy(ACTOR_Y + 1)));
+        clc();
+        adc16_v(rd16(ea_abs(SCRATCH + 8)));
+        cmp16_v(rd16(ea_abs(SCRATCH + 10)));
+        if (!IF_C) {
+            op_sep(0x20);
+            return;
+        }
+next:
+        clc();
+        tya16();
+        adc16_v(0x0050);
+        tay16();
+        dex16();
+    } while (!IF_Z);
+    op_sep(0x31);
+}

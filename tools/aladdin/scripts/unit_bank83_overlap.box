@@ -1,0 +1,53 @@
+# Unit calls of five overlap tests in bank $83 that nothing in the game
+# calls (no JSR, JSL, JMP, pointer or word in the ROM names them; the hits
+# a byte search finds are operand bytes of other instructions):
+# ActorOverlapsScratchBoxLong ($83:8521) and ActorOverlapsScratchBox
+# ($83:8525), ActorHitsTestBoxBySecondBoxes ($83:8602),
+# ActorZoneTouchesSecondPoolLong ($83:88B3) and ActorZoneTouchesSecondPool
+# ($83:88B7), each at its own entry. On the first level's state at frame
+# 10, M and X 8-bit, DB $80 (the boxes' bank), D the guard at record $0BAB
+# (x $0125, y $01B0, hit box $20). The inputs each test reads are set as
+# the call starts, the machine put back after it:
+# - the scratch box ($0014-$001B: half-width, half-height, centre x, y) on
+#   the guard, then far from it;
+# - the guard as it is ($09 $90: it cannot be hit, none), made hittable
+#   ($09 $D0) with the test box where Aladdin is, then on the guard;
+# - zone 0 (its point 4 right of and 6 above the guard), SECOND_POOL_LEFT
+#   ($1490) 0, and the five second-pool records ($09CB up) made: free; in
+#   use with $0A bit 7 set; with $09 bit 6 clear; too far across; too far
+#   down (none found); then the last one on the zone's point (found); then
+#   the guard flipped.
+load build/aladdin/states/level1.state
+wait 10
+set 000014 10,00,10,00,25,01,B0,01
+call 838521 long p=30 db=80 d=0BAB
+set 000014 10,00,10,00,00,04,B0,01
+call 838525 p=30 db=80 d=0BAB
+call 838602 p=30 db=80 d=0BAB
+set 000BB4 D0
+call 838602 p=30 db=80 d=0BAB
+set 000BB4 D0
+set 001484 25,01,B0,01
+call 838602 p=30 db=80 d=0BAB
+set 001490 00,00
+set 000A1B 01
+set 000A25 80
+set 000A6B 01
+set 000A73 00,00
+set 000A75 00
+set 000ABB 01
+set 000AC3 00,40,00
+set 000AC7 00,00
+set 000B0B 01
+set 000B13 00,40,00
+set 000B17 29,01
+set 000B1A 00,00
+call 8388B3 long p=30 db=80 d=0BAB y=00
+set 001490 00,00
+set 000B0B 01
+set 000B13 00,40,00
+set 000B17 29,01
+set 000B1A AA,01
+call 8388B7 p=30 db=80 d=0BAB y=00
+set 000BC0 01
+call 8388B7 p=30 db=80 d=0BAB y=00
