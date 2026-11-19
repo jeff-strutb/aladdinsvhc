@@ -111,3 +111,13 @@ TileSlotClaim:
     sep.b #$20
     clc
     rts
+
+; @routine 82:AB6F TileSlotFillLong
+; WHAT IT DOES: TileSlotFill for callers in other banks.
+; HOW: JSR TileSlotFill, RTL. No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_82.box calls it at its own entry.
+; Entry: as TileSlotFill; called by JSL. Exit: as TileSlotFill.
+%at($82AB6F)
+TileSlotFillLong:
+    jsr.w TileSlotFill
+    rtl

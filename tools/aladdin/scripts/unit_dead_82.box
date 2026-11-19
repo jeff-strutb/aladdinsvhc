@@ -1,0 +1,52 @@
+# Bank $82 routines no code calls (no JSR, JSL, JMP or table word reaches
+# them), each by a unit call at its own entry on the first level at frame
+# 10 (the machine is put back after each call):
+# AddClampFF ($82:87C1) with $002C $20: A $10 (no carry) and $F0 (held to
+# $FF); SubClamp0 ($82:87CA): A $30 and $10 (held to 0);
+# ActorNearEscortMark ($82:8A42) with D the guard ($0BAB): $146B set
+# (back at once), then clear with the guard's x $0200 from the escort's
+# ($092B), with x equal and y $0100 apart, with both equal (marked), and
+# with the guard $10 left of and $10 above it (both differences negated);
+# ActorKindTilesQueueLong ($82:AADD) with X = the guard's kind $20 * 2,
+# X 16-bit; TileSlotFillLong ($82:AB6F) with the map cell and its
+# attribute word ($001C, $0022) 0.
+load build/aladdin/states/level1.state
+wait 10
+set 00002C 20
+call 8287C1 a=10 p=30 db=80
+set 00002C 20
+call 8287C1 a=F0 p=30 db=80
+set 00002C 20
+call 8287CA a=30 p=30 db=80
+set 00002C 20
+call 8287CA a=10 p=30 db=80
+set 00146B 01
+call 828A42 long p=30 db=80 d=0BAB
+set 00146B 00
+set 000937 00,00
+set 00093A 00,01
+set 000BB7 00,02
+set 000BBA 00,01
+call 828A42 long p=30 db=80 d=0BAB
+set 00146B 00
+set 000937 00,02
+set 00093A 00,01
+set 000BB7 00,02
+set 000BBA 00,02
+call 828A42 long p=30 db=80 d=0BAB
+set 00146B 00
+set 000937 00,02
+set 00093A 00,01
+set 000BB7 00,02
+set 000BBA 00,01
+call 828A42 long p=30 db=80 d=0BAB
+set 00146B 00
+set 000937 10,02
+set 00093A 10,01
+set 000BB7 00,02
+set 000BBA 00,01
+call 828A42 long p=30 db=80 d=0BAB
+call 82AADD long x=0040 p=20 db=80 d=0BAB
+set 00001C 00,00
+set 000022 00,00
+call 82AB6F long p=30 db=80

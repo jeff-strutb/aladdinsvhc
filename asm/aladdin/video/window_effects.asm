@@ -1364,3 +1364,35 @@ HdmaEffect6:
     cpx.w !window_shape
     bcc .past
     jmp.w WindowWavesLoop
+
+!CLAMP_BY = $002C               ; AddClampFF's and SubClamp0's operand
+
+; @routine 82:87C1 AddClampFF
+; WHAT IT DOES: A plus the byte at $002C, held to $FF.
+; HOW: CLC, ADC $002C; a carry: A = $FF. No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_82.box calls it at its own entry.
+; Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; called by JSR.
+; Exit: A the sum or $FF; C clear, or set and A $FF.
+%at($8287C1)
+AddClampFF:
+    clc
+    adc.w !CLAMP_BY
+    bcc .done
+    lda.b #$FF
+.done:
+    rts
+
+; @routine 82:87CA SubClamp0
+; WHAT IT DOES: A less the byte at $002C, held to 0.
+; HOW: SEC, SBC $002C; a borrow: A = 0. No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_82.box calls it at its own entry.
+; Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; called by JSR.
+; Exit: A the difference or 0; C set, or clear and A 0.
+%at($8287CA)
+SubClamp0:
+    sec
+    sbc.w !CLAMP_BY
+    bcs .done
+    lda.b #$00
+.done:
+    rts

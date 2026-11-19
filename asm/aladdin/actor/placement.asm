@@ -630,3 +630,19 @@ PlacementsStart:
     plb
     pld
     rtl
+
+; @routine 82:AADD ActorKindTilesQueueLong
+; WHAT IT DOES: ActorKindTilesQueue for callers in other banks, with DB $82.
+; HOW: PHB; DB = $82; JSR ActorKindTilesQueue; PLB; RTL. No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_82.box calls it at its own entry.
+; Entry: as ActorKindTilesQueue; called by JSL. Exit: as ActorKindTilesQueue,
+; DB back.
+%at($82AADD)
+ActorKindTilesQueueLong:
+    phb
+    lda.b #$82
+    pha
+    plb
+    jsr.w ActorKindTilesQueue
+    plb
+    rtl

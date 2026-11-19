@@ -1456,3 +1456,39 @@ off:
 
 
 
+
+#define CLAMP_BY 0x002Cu        /* AddClampFF's and SubClamp0's operand */
+
+/*
+ * @routine 82:87C1 AddClampFF
+ * WHAT IT DOES: A plus the byte at $002C, held to $FF.
+ * HOW: CLC, ADC $002C; a carry: A = $FF. No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_82.box calls it at its own entry.
+ * Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; called by JSR.
+ * Exit: A the sum or $FF; C clear, or set and A $FF.
+ */
+void abi_AddClampFF(void)
+{
+    clc();
+    adc8_v(rd8(ea_abs(CLAMP_BY)));
+    if (!IF_C)
+        return;
+    lda8_v(0xFF);
+}
+
+/*
+ * @routine 82:87CA SubClamp0
+ * WHAT IT DOES: A less the byte at $002C, held to 0.
+ * HOW: SEC, SBC $002C; a borrow: A = 0. No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_82.box calls it at its own entry.
+ * Entry: M 8-bit; DB a bank whose $0000-$1FFF is work RAM; called by JSR.
+ * Exit: A the difference or 0; C set, or clear and A 0.
+ */
+void abi_SubClamp0(void)
+{
+    sec();
+    sbc8_v(rd8(ea_abs(CLAMP_BY)));
+    if (IF_C)
+        return;
+    lda8_v(0x00);
+}

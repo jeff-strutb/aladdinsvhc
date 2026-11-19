@@ -6,6 +6,7 @@
 #include "machine.h"
 #include "cpu_ops.h"
 #include "ops65.h"
+#include "native.h"
 #include "actor.h"
 #include "wram.h"
 
@@ -131,4 +132,17 @@ void abi_TileSlotClaim(void)
     wr16(CELL_ATTRS + x, cpu.a);
     op_sep(P_M);
     cpu.p &= (uint8_t)~P_C;
+}
+
+void abi_TileSlotFill(void);
+/*
+ * @routine 82:AB6F TileSlotFillLong
+ * WHAT IT DOES: TileSlotFill for callers in other banks.
+ * HOW: JSR TileSlotFill, RTL. No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_82.box calls it at its own entry.
+ * Entry: as TileSlotFill; called by JSL. Exit: as TileSlotFill.
+ */
+void abi_TileSlotFillLong(void)
+{
+    call_frame(0xAB71, abi_TileSlotFill);
 }

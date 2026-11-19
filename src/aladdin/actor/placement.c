@@ -664,3 +664,21 @@ void abi_PlacementsStart(void)
     cpu.d = d;
     nz16_of(d);
 }
+
+/*
+ * @routine 82:AADD ActorKindTilesQueueLong
+ * WHAT IT DOES: ActorKindTilesQueue for callers in other banks, with DB $82.
+ * HOW: PHB; DB = $82; JSR ActorKindTilesQueue; PLB; RTL. No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_82.box calls it at its own entry.
+ * Entry: as ActorKindTilesQueue; called by JSL. Exit: as ActorKindTilesQueue,
+ * DB back.
+ */
+void abi_ActorKindTilesQueueLong(void)
+{
+    phb();
+    lda8_v(0x82);
+    pha8();
+    plb();
+    call_frame(0xAAE4, abi_ActorKindTilesQueue);
+    plb();
+}

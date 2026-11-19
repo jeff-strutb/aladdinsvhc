@@ -74,3 +74,50 @@ PlayerLandOnActor:
 .l8A3F:
     sep.b #$31
     rtl
+
+!ESCORT_NEAR = $146B            ; bit 0: an actor near the escort is marked
+!ESCORT_NEAR_ACTOR = $146C      ; the record marked (word)
+
+; @routine 82:8A42 ActorNearEscortMark
+; WHAT IT DOES: Marks the actor as near the escort: unless one is marked
+; already, an actor within $60 across and $30 up or down of the escort
+; ($092B) is kept in ESCORT_NEAR_ACTOR and ESCORT_NEAR bit 0 set.
+; HOW: ESCORT_NEAR nonzero: back. 16-bit: |its x pixels - the escort's|
+; below $60 and |its y pixels - the escort's| below $30: ESCORT_NEAR_ACTOR
+; = D (TDC), 8-bit, ESCORT_NEAR bit 0 set (TSB). No code calls it (no JSR, JSL, JMP or table word reaches it):
+; unit_dead_82.box calls it at its own entry.
+; Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM;
+; called by JSL. Exit: M 8-bit; A as the tests leave it.
+%at($828A42)
+ActorNearEscortMark:
+    lda.w !ESCORT_NEAR
+    beq .test
+    rtl
+.test:
+    rep.b #$20
+    sec
+    lda.b !actor_x+1
+    sbc.w !actor_escort+!actor_x+1
+    bcs .across
+    eor.w #$FFFF
+    inc
+.across:
+    cmp.w #$0060
+    bcs .out
+    sec
+    lda.b !actor_y+1
+    sbc.w !actor_escort+!actor_y+1
+    bcs .down
+    eor.w #$FFFF
+    inc
+.down:
+    cmp.w #$0030
+    bcs .out
+    tdc
+    sta.w !ESCORT_NEAR_ACTOR
+    sep.b #$20
+    lda.b #$01
+    tsb.w !ESCORT_NEAR
+.out:
+    sep.b #$20
+    rtl

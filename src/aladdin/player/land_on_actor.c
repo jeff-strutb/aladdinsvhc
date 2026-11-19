@@ -95,3 +95,53 @@ void abi_PlayerLandOnActor(void)
 no:
     op_sep(0x31);
 }
+
+#define ESCORT_NEAR 0x146Bu       /* bit 0: an actor near the escort is marked */
+#define ESCORT_NEAR_ACTOR 0x146Cu /* the record marked (word) */
+
+/*
+ * @routine 82:8A42 ActorNearEscortMark
+ * WHAT IT DOES: Marks the actor as near the escort: unless one is marked
+ * already, an actor within $60 across and $30 up or down of the escort
+ * ($092B) is kept in ESCORT_NEAR_ACTOR and ESCORT_NEAR bit 0 set.
+ * HOW: ESCORT_NEAR nonzero: back. 16-bit: |its x pixels - the escort's|
+ * below $60 and |its y pixels - the escort's| below $30: ESCORT_NEAR_ACTOR
+ * = D (TDC), 8-bit, ESCORT_NEAR bit 0 set (TSB). No code calls it (no JSR, JSL, JMP or table word reaches it):
+ * unit_dead_82.box calls it at its own entry.
+ * Entry: M 8-bit; D = the actor; DB a bank whose $0000-$1FFF is work RAM;
+ * called by JSL. Exit: M 8-bit; A as the tests leave it.
+ */
+void abi_ActorNearEscortMark(void)
+{
+    lda8(ea_abs(ESCORT_NEAR));
+    if (!IF_Z)
+        return;
+    op_rep(0x20);
+    sec();
+    lda16(ea_dp(ACTOR_X + 1));
+    sbc16_v(rd16(ea_abs(ACTOR_ESCORT + ACTOR_X + 1)));
+    if (!IF_C) {
+        eor16_v(0xFFFF);
+        ACC16(inc);
+    }
+    cmp16_v(0x0060);
+    if (IF_C)
+        goto out;
+    sec();
+    lda16(ea_dp(ACTOR_Y + 1));
+    sbc16_v(rd16(ea_abs(ACTOR_ESCORT + ACTOR_Y + 1)));
+    if (!IF_C) {
+        eor16_v(0xFFFF);
+        ACC16(inc);
+    }
+    cmp16_v(0x0030);
+    if (IF_C)
+        goto out;
+    tdc();
+    sta16(ea_abs(ESCORT_NEAR_ACTOR));
+    op_sep(0x20);
+    lda8_v(0x01);
+    tsb8(ea_abs(ESCORT_NEAR));
+out:
+    op_sep(0x20);
+}
