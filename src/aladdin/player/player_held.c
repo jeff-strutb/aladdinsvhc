@@ -719,3 +719,103 @@ void abi_PlayerSwitchHang(void)
     stz8(ea_abs(V_1427));
     abi_PlayerFall();
 }
+
+/*
+ * @routine 81:DA14 PlayerFlung
+ * @actor
+ * WHAT IT DOES: Aladdin flung up by an actor he landed on (kind $7B): he
+ * flies up against the ceiling's pull until he slows to falling, rests 8
+ * frames, then is in the air as in PlayerAir until he lands, catches a
+ * ledge or hovers.
+ * HOW: V_1A08 0; gravity $10; vertical speed $00 $01 $00 (byte by byte);
+ * ActorStopX; PlayerMoveStart $18. Each frame (BRK first) ActorFlyAgainst
+ * until the vertical speed's high byte is negative. Then V_141C 1,
+ * PLAYER_LANDED 0; ActorSpeedYSetGravity with gravity $38 and Y = $66;
+ * COP 8; FRAMES_40 0; PlayerMoveStart 4; V_1A08 $0A; PlayerGroundYSave.
+ * Each frame (BRK first): AIR_THROW counting down: at 0 FRAMES_40 8 and
+ * ACTOR_41 1, PlayerJumpPoseStep; else PlayerAppleThrow: a throw starts
+ * move $16 and AIR_THROW $14, else PlayerJumpPoseStep. PlayerAirStep,
+ * PlayerFlipByPad; HOVER_ON, HOVER_HELD and falling: on at PlayerHover.
+ * Gravity $38, or $80 rising with the jump not held and not
+ * PLAYER_LANDED; PlayerRunSpeed. Rising: the next frame. GroundBehindBit3
+ * nonzero: on at PlayerLedgeGrab. V_1428, or ActorOutOfGround nonzero: on
+ * at PlayerLand; else the next frame.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where kind $7B set his resume address. Exit: never
+ * returns.
+ */
+void abi_PlayerFlung(void)
+{
+    stz8(ea_abs(V_1A08));
+    lda8_v(0x10);
+    sta8(ea_dp(ACTOR_ACCEL_Y));
+    lda8_v(0x01);
+    sta8(ea_dp(ACTOR_SPEED_Y + 1));
+    stz8(ea_dp(ACTOR_SPEED_Y));
+    stz8(ea_dp(ACTOR_SPEED_Y + 2));
+    jsl_call(0x81DA23u, abi_ActorStopX);
+    lda8_v(0x18);
+    call_frame(0xDA2B, abi_PlayerMoveStart);
+    do {
+        actor_yield(0x81DA2Cu);
+        jsl_call(0x81DA2Eu, abi_ActorFlyAgainst);
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+    } while (!IF_N);
+    lda8_v(0x01);
+    sta8(ea_abs(V_141C));
+    stz8(ea_abs(PLAYER_LANDED));
+    lda8_v(0x38);
+    ldy8_v(0x66);
+    jsl_call(0x81DA42u, abi_ActorSpeedYSetGravity);
+    lda8_v(0x08);
+    actor_wait(0x81DA48u);
+    stz8(ea_dp(FRAMES_40));
+    lda8_v(0x04);
+    call_frame(0xDA50, abi_PlayerMoveStart);
+    lda8_v(0x0A);
+    sta8(ea_abs(V_1A08));
+    call_frame(0xDA58, abi_PlayerGroundYSave);
+    for (;;) {
+        actor_yield(0x81DA59u);
+        lda8(ea_abs(AIR_THROW));
+        if (!IF_Z) {
+            MEM8(dec, ea_abs(AIR_THROW));
+            if (IF_Z) {
+                lda8_v(0x08);
+                sta8(ea_dp(FRAMES_40));
+                lda8_v(0x01);
+                sta8(ea_dp(ACTOR_41));
+                call_frame(0xDA82, abi_PlayerJumpPoseStep);
+            }
+        } else {
+            call_frame(0xDA71, abi_PlayerAppleThrow);
+            if (IF_C) {
+                lda8_v(0x16);
+                call_frame(0xDA78, abi_PlayerMoveStart);
+                lda8_v(0x14);
+                sta8(ea_abs(AIR_THROW));
+            } else {
+                call_frame(0xDA82, abi_PlayerJumpPoseStep);
+            }
+        }
+        call_frame(0xDA85, abi_PlayerAirStep);
+        call_frame(0xDA88, abi_PlayerFlipByPad);
+        if (air_gravity(0xDAB2))
+            return;
+        lda8(ea_dp(ACTOR_SPEED_Y + 2));
+        if (IF_N)
+            continue;
+        jsl_call(0x81DAB7u, abi_GroundBehindBit3);
+        if (!IF_Z) {
+            abi_PlayerLedgeGrab();
+            return;
+        }
+        lda8(ea_abs(V_1428));
+        if (!IF_Z)
+            break;
+        jsl_call(0x81DAC5u, abi_ActorOutOfGround);
+        if (!IF_Z)
+            break;
+    }
+    abi_PlayerLand();
+}
