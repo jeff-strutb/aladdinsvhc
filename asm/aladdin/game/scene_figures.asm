@@ -35,9 +35,8 @@ arch 65816
 !SCENE_STEP_A = $00BD           ; nonzero: the walk-off figure goes on
 !V_035D = $035D
 !V_147B = $147B
-!V_036C = $036C                 ; nonzero: on at $81:CC31, not to the next part
+!V_036C = $036C                 ; nonzero: on at PlayerSceneFigure, not to the next part
 !TASK2_STATE = $009F            ; task slot 2's state: 0 when free
-!LAND_ON_CC31 = $CC31           ; code no routine owns yet (by $81:CC1A)
 !CUE_BE = $00BE                 ; the camera trigger task's second cue: cleared as it starts
 
 ; Kind $72's own fields and tables.
@@ -318,7 +317,7 @@ Kind72RideAlong:
 ; until CUE_BE is nonzero. Cued: the flip up for $80 frames (COP) and
 ; back for $80, SCENE_STEP_A up, PlayerMoveStart 3, speed across $0200 and
 ; $80 frames of ActorMoveX; V_035D and V_147B up; V_036C nonzero: on at
-; $81:CC31 (no script takes it); else TaskCreate (slot 2, parameter 4,
+; PlayerSceneFigure (81:CC31); else TaskCreate (slot 2, parameter 4,
 ; BrightnessDownTask), ActorMoveX each frame while slot 2's task runs,
 ; then TaskExec NextPartTask.
 ; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
@@ -374,7 +373,7 @@ PlayerSceneLand:
     inc.w !V_147B
     lda.w !V_036C
     beq .next_part
-    jmp.w !LAND_ON_CC31
+    jmp.w PlayerSceneFigure
 .next_part:
     jsl.l TaskCreate
     db 2*24, 4                     ; slot 2, parameter 4

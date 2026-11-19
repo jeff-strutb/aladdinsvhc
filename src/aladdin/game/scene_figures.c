@@ -55,7 +55,8 @@ void abi_TaskExec(void);
 #define SCENE_STEP_A 0x00BDu    /* nonzero: the walk-off figure goes on */
 #define V_035D 0x035Du
 #define V_147B 0x147Bu
-#define V_036C 0x036Cu          /* nonzero: on at $81:CC31, not to the next part */
+#define V_036C 0x036Cu          /* nonzero: on at PlayerSceneFigure, not to the next part */
+void abi_PlayerSceneFigure(void);
 #define TASK2_STATE 0x009Fu     /* task slot 2's state: 0 when free */
 
 /* Kind $72's own fields and tables */
@@ -369,7 +370,7 @@ void abi_Kind72RideAlong(void)
  * until CUE_BE is nonzero. Cued ($81:DFEF): the flip up for $80 frames
  * (COP) and back for $80, SCENE_STEP_A up, PlayerMoveStart 3, speed across
  * $0200 and $80 frames of ActorMoveX; V_035D and V_147B up; V_036C nonzero:
- * on at $81:CC31 (code with no C yet: no script takes it); else TaskCreate
+ * on at PlayerSceneFigure (81:CC31); else TaskCreate
  * (slot 2, parameter 4, BrightnessDownTask), ActorMoveX each frame while
  * slot 2's task runs, then TaskExec NextPartTask.
  * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
@@ -432,7 +433,7 @@ void abi_PlayerSceneLand(void)
     MEM8(inc, ea_abs(V_147B));
     lda8(ea_abs(V_036C));
     if (!IF_Z) {
-        jump_routine(0x81CC31u);                 /* 81E024 jmp: code with no C yet */
+        abi_PlayerSceneFigure();                 /* 81E024 jmp */
         return;
     }
     /* BrightnessDownTask in slot 2 (parameter 4); he walks on while it runs */

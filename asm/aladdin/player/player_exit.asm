@@ -21,6 +21,10 @@ arch 65816
 !FRAMES_40 = !actor_40          ; frames left of the walk's first part
 
 ; Tables in the data bank ($80)
+!FIGURE_KIND = $27             ; kind $27, the figure that crosses the screen
+!FIGURE_07 = $08
+!STATE_START = $0C
+!GENIE_SCREEN_TASK = $80A63B   ; the Genie screen's task (no C yet)
 !STAGE_GOES_ON = $C6F2          ; by level: nonzero, the level's end follows; 0 the next part
 
 ; @routine 81:E730 PlayerEscortExit
@@ -133,3 +137,29 @@ PlayerStageEnd:
 .next_part:
     jsl.l TaskExec
     dl NextPartTask
+
+; @routine 81:CC31 PlayerSceneFigure
+; @actor
+; WHAT IT DOES: The end of a level scene when one of kind $27's figures was
+; touched ($036C): Aladdin starts a kind $27 figure ($07 8, the crosser),
+; waits 224 frames, and the running task goes on at the Genie screen's
+; task (80:A63B).
+; HOW: ActorAllocBLong; the record (X 16-bit; no test of N) gets state
+; $0C, kind $27, $07 8; X 8-bit; COP $E0; TaskExec GENIE_SCREEN_TASK.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
+; PlayerSceneLand's jump (81:E024) with $036C nonzero. Exit: never
+; returns.
+%at($81CC31)
+PlayerSceneFigure:
+    jsl.l ActorAllocBLong
+    lda.b #!STATE_START
+    sta.w !actor_state,x
+    lda.b #!FIGURE_KIND
+    sta.w !actor_06,x
+    lda.b #!FIGURE_07
+    sta.w !actor_07,x
+    sep.b #$10
+    lda.b #$E0
+    cop.b #$00
+    jsl.l TaskExec
+    dl !GENIE_SCREEN_TASK

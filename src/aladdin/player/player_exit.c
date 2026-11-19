@@ -16,6 +16,7 @@
 #include "actor.h"
 
 void abi_ActorAccelerateX(void);
+void abi_ActorAllocBLong(void);
 void abi_ActorMoveX(void);
 void abi_ActorSpeedXSetAccel(void);
 void abi_PlayerMoveStart(void);
@@ -157,4 +158,33 @@ void abi_PlayerStageEnd(void)
         lda8(ea_abs(TASK2_STATE));
     } while (!IF_Z);
     stage_goes_on(0x81E7DBu, 0x81E7E2u);
+}
+
+/*
+ * @routine 81:CC31 PlayerSceneFigure
+ * @actor
+ * WHAT IT DOES: The end of a level scene when one of kind $27's figures was
+ * touched ($036C): Aladdin starts a kind $27 figure ($07 8, the crosser),
+ * waits 224 frames, and the running task goes on at the Genie screen's
+ * task (80:A63B).
+ * HOW: ActorAllocBLong; the record (X 16-bit; no test of N) gets state
+ * $0C, kind $27, $07 8; X 8-bit; COP $E0; TaskExec GENIE_SCREEN_TASK.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $81; reached by
+ * PlayerSceneLand's jump (81:E024) with $036C nonzero. Exit: never
+ * returns.
+ */
+void abi_PlayerSceneFigure(void)
+{
+    jsl_call(0x81CC31u, abi_ActorAllocBLong);
+    lda8_v(0x0C);                               /* STATE_START */
+    sta8(ea_absx(ACTOR_STATE));
+    lda8_v(0x27);                               /* the figure's kind */
+    sta8(ea_absx(ACTOR_06));
+    lda8_v(0x08);
+    sta8(ea_absx(ACTOR_07));
+    op_sep(P_X);
+    lda8_v(0xE0);
+    actor_wait(0x81CC48u);
+    jsl_frame(0x81CC4Au);
+    abi_TaskExec();                             /* to the Genie screen's task, 80:A63B */
 }
