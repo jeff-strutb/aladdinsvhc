@@ -65,9 +65,6 @@ arch 65816
 !v_141c_cp = $141C
 !v_1428_cp = $1428
 !v_1434_cp = $1434
-; Not yet filed (no script reaches it): a platform's part of the course in
-; a turn stretch.
-!PLATFORM_IN_TURN = $83CAA8
 
 ; @routine 83:C96E PlatformCourseStart
 ; @actor
@@ -181,11 +178,8 @@ PlatformCourseStart:
 ; PlatformDipClear; LAST_DIRECTION $FF; actor_08 2, actor_09 $90;
 ; COURSE_SPEED $20; BASE_Y the 24-bit y; facing 0. Then yield,
 ; PlatformPositionKeep and PlatformCourseSlower each frame while C is set
-; (out of a turn stretch). In one it goes on at PLATFORM_IN_TURN, which
-; no script reaches yet and is not filed (there it asks for a direction
-; flip each time it enters or leaves a stretch, and PlatformCourseFollow
-; can set its resume address there, $83:CAB0, for direction 1; no script
-; does either).
+; (out of a turn stretch): the yield first, then on in
+; PlatformSlowStretch, where the loop's RTI lands.
 ; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; jumped
 ; to from PlatformCourseStart. Exit: never returns to its caller: it
 ; yields each frame.
@@ -210,12 +204,57 @@ PlatformOnCourseStart:
     lda.b !actor_y+1
     sta.b !BASE_Y+1
     sep.b #$20
+.slow:
     stz.b !actor_facing
 .frame:
     brk.b #$00
+
+; @routine 83:CAA0 PlatformSlowStretch
+; @actor
+; WHAT IT DOES: A platform on the course out of a turn stretch, each
+; frame: kept in place, a step along the course slowing; once a step
+; puts it in a turn stretch it asks for a direction flip, faces 1, and
+; goes on in PlatformTurnStretch.
+; HOW: PlatformPositionKeep; PlatformCourseSlower; C set (out of a
+; stretch): the yield before it (83:CA9E) and again. C clear:
+; DIRECTION_FLIP counted up, facing 1, BRK, and on at
+; PlatformTurnStretch.
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; reached
+; by the actor loop's RTI after the platform's yield at 83:CA9E, or at
+; the resume address PlatformCourseFollow wrote for direction 0
+; ($80:D312). Exit: never returns: it yields each frame.
+PlatformSlowStretch:
     jsr.w PlatformPositionKeep
     jsr.w PlatformCourseSlower
-    bcs .frame
+    bcs PlatformOnCourseStart_frame
+    inc.b !DIRECTION_FLIP
+    lda.b #$01
+    sta.b !actor_facing
+.turn:
+    brk.b #$00
+
+; @routine 83:CAB0 PlatformTurnStretch
+; @actor
+; WHAT IT DOES: A platform on the course in a turn stretch, each frame:
+; kept in place, a step along the course speeding; once a step takes it
+; out of the stretch it asks for a direction flip, starts a dip with
+; sound $1E, faces 0, and goes on in PlatformSlowStretch.
+; HOW: PlatformPositionKeep; PlatformCourseFaster; C clear (in a
+; stretch): the yield before it (83:CAAE) and again. C set:
+; DIRECTION_FLIP counted up, PlatformDipStart with A = $1E, then back to
+; PlatformOnCourseStart's facing 0 and yield (83:CA9C).
+; Entry: M 8-bit, X 8-bit; D = the platform's record; DB = $80; reached
+; by the actor loop's RTI after the platform's yield at 83:CAAE, or at
+; the resume address PlatformCourseFollow wrote for direction 1
+; ($80:D314). Exit: never returns: it yields each frame.
+PlatformTurnStretch:
+    jsr.w PlatformPositionKeep
+    jsr.w PlatformCourseFaster
+    bcc PlatformSlowStretch_turn
+    inc.b !DIRECTION_FLIP
+    lda.b #$1E
+    jsr.w PlatformDipStart
+    bra PlatformOnCourseStart_slow
 
 ; @routine 83:CA11 PlatformSpawnOnCourse
 ; WHAT IT DOES: Starts one more platform on the course: a child of kind

@@ -1,0 +1,17 @@
+# A course platform's turn stretches (PlatformSlowStretch, $83:CAA0, and
+# PlatformTurnStretch, $83:CAB0), which no play reaches: on stage a1 s1
+# the platforms of kind $47 run along the course's start, far below the
+# turn stretches ($80:D2F8: x $0480-$057F and $0680-$077F). Record $12DB
+# (one of them, slowing in PlatformSlowStretch) is put at x $0490, in the
+# first stretch: its next step finds it in, it asks for a direction flip
+# and waits at $83:CAAE. A frame on it is put at x $0590, past the
+# stretch: its next step finds it out, it asks for a flip, starts its dip
+# (sound $1E), faces 0 and waits at $83:CA9E again.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 0012E7 90,04
+wait 1
+poke 0012E7 90,05
+wait 1
+dump c1
+wait 10
