@@ -670,6 +670,17 @@ void abi_ActorKind8CWait(void)
  * HOW: JSL Kind97WaitWork ($84:9FFB), then RTS; the work's RTS pulls two
  * of the JSL's three bytes, so the game goes on at $84:93BD, not at this
  * RTS: nothing sets bit 7 of a kind $97's $09, so the game never runs it.
+ * @unreachable 83:93B9-93BD Nothing sets bit 7 of a kind $97's $09:
+ * kind97.asm never writes $09, its callees (ActorCreate,
+ * ActorFreeListTake, ActorSpawnPlace, CarrierPairSend) touch only the new
+ * record, and the ROM's indexed $09 writers (81:EA52, 83:8267, 84:8CE2,
+ * 83:819A) only clear bit 7 or set bits 4-5. With the bit poked set
+ * (stage a5 s1, $0BB4 = $80), the original cannot run it sanely: the
+ * stub's JSL meets the work's RTS, which lands at $84:93BD (inside
+ * Kind81Scene); LDA $1773, ADC #$03, BRK; ActorYieldEntry JMLs back to
+ * ActorLoopBack on the same record, bit 7 still set, and it loops eating
+ * the stack, 3 bytes a pass: a frame later page 0 is all 83 CB 94 and the
+ * game never ends a frame again (master, 2026-11-19).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; X = twice its kind
  * (its low 7 bits); called by JSR through the actor loop's table by kind.
  * Exit: as Kind97WaitWork leaves them.
