@@ -165,6 +165,19 @@ void abi_Level02ScreenSetup(void)
 
 
 /*
+ * @routine 81:888A LevelNoScreenSetup
+ * WHAT IT DOES: The screen set-up of the levels with none of their own
+ * (levels $1E and $20 on, the Genie's screen $2F among them): nothing (an
+ * RTS).
+ * HOW: RTS.
+ * Entry: reached by the jump through the table by level at $81:8802
+ * (81:87FF). Exit: every register and flag unchanged.
+ */
+void abi_LevelNoScreenSetup(void)
+{
+}
+
+/*
  * @routine 81:888B Level00ScreenSetup
  * WHAT IT DOES: Level 0's (and levels $14 and $1D's) screen set-up: layer
  * set-up mode $0A, layer 2 following $40, five palette cycles, and HDMA
