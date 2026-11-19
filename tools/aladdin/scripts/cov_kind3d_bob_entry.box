@@ -1,0 +1,23 @@
+# Kind3DBob ($83:C363, kind $3D with $07 4 and up: the bobbing ride) as a
+# piece of its own: the game reaches it only by Kind3DStart's branch
+# ($83:C306), inside the piece the loop's jump opened, so no piece starts
+# there. Played as cov_kind3d_set1.box (stage a4 s1, the kind $3D at x
+# $0288, record $0DDB, restarted with $07 = 1: its children $0E7B, $0ECB
+# and $0FBB bob); 60 frames on, the child $0FBB's resume address ($03-$04)
+# set to $C363: when its wait runs out the loop's RTI starts it at
+# Kind3DBob, which sets it up again and bobs.
+load build/aladdin/states/stage_a4_s1.state
+wait 30
+poke 001773 00,02
+poke 0019E5 00,02
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008E7 60,02
+poke 0008EA 40,02
+wait 20
+poke 000DDB 0C
+poke 000DE2 01
+wait 90
+wait 60
+poke 000FBE 63,C3
+wait 200
