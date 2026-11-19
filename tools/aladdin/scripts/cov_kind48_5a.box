@@ -1,0 +1,26 @@
+# Kinds $48 and $5A, which no level the scripts reach places (kind $48 is
+# placed nowhere and spawned by no code; kind $5A only on the Genie's
+# screen), each on stage a5 s1's waiting record $0BAB put in state $0C as
+# the kind (as cov_kind_waits_restarted.box). Kind $48 (Kind48Start
+# $83:CE14), then put in state $8C: its second state ends it (Kind48Second
+# $83:CE22); kind $48 cannot be hit, so no play gives it that state. Kind
+# $5A (Kind5AStart $83:DEBE) with the pose its scene asks for ($00B5,
+# written only by the Genie's screen code) made 1, then 2, then 0.
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 48
+poke 000BAB 0C
+wait 10
+poke 000BAB 8C
+wait 10
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 5A
+poke 000BAB 0C
+wait 5
+poke 0000B5 01
+wait 5
+poke 0000B5 02
+wait 5
+poke 0000B5 00
+wait 5
