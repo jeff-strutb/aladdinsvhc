@@ -471,15 +471,12 @@ void abi_Kind41Wait(void)
  */
 void abi_Kind5AWait(void)
 {
-    uint8_t s;
-
     jsl_frame(0x83DEF3u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
     jsl_frame(0x83DEF7u); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x20);
     trb8(ea_dp(ACTOR_09));
-    s = rd8(ea_dp(K5A_SHAPE));
     lda8(ea_dp(K5A_SHAPE));
-    if (s != 0) {
+    if (!IF_Z) {
         cmp8_v(0x07);
         if (!IF_Z) {
             cmp8_v(0x08);
@@ -718,7 +715,7 @@ void abi_ActorBobAboutLine(void)
         return;
     case 2:
         ldy8_v(0x47);
-        abi_ActorMotionPreset();
+        jsl_frame(0x83E24Cu); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(inc, ea_dp(BOB_STATE));
         /* fall through */
     case 4:
@@ -734,7 +731,7 @@ void abi_ActorBobAboutLine(void)
         return;
     case 6:
         ldy8_v(0x48);
-        abi_ActorMotionPreset();
+        jsl_frame(0x83E265u); abi_ActorMotionPreset(); cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(inc, ea_dp(BOB_STATE));
         /* fall through */
     case 8:
@@ -774,7 +771,7 @@ void abi_Kind5CWait(void)
 {
     call_frame(0xE1F0, abi_ActorBobAboutLine);
     jsl_frame(0x83E1F1u); abi_AnimStep(); cpu.s = (uint16_t)(cpu.s + 3);
-    abi_ActorPictureSend();
+    jsl_frame(0x83E1F5u); abi_ActorPictureSend(); cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(0x20);
     sec();
     lda16(ea_dp(0x0C));
