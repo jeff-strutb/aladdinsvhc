@@ -1,0 +1,32 @@
+# The waits of kinds no script meets, each run by a record restarted as
+# that kind: kind $48 (start $83:CE14, wait $83:CE25) and kind $65 (start
+# $83:E5BB, wait $83:E5EC) are placed in no level and spawned by no code;
+# kinds $59 and $5A (waits $83:DEB9, $83:DEF3) only on the Genie's screen
+# (level $2F, cov_level2f_genie). Each start sets bit 7 of $09, so the
+# loop runs the wait each frame the record waits. From stage a5 s1 at
+# frame 30, its waiting kind $97 record $0BAB made the kind and put in
+# state $0C ($07 stays 1: kind $59's variant 1), 10 frames each, from
+# the state each time; kind $5A's K5A_SHAPE ($0BD2) set to 9 three
+# frames on, so its wait's compares all run.
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 48
+poke 000BAB 0C
+wait 10
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 65
+poke 000BAB 0C
+wait 10
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 59
+poke 000BAB 0C
+wait 10
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000BB1 5A
+poke 000BAB 0C
+wait 3
+poke 000BD2 09
+wait 3
