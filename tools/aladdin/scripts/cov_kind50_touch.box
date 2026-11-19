@@ -1,0 +1,31 @@
+# ActorStompOrHurt16 ($83:83AD), which kind $50's wait ($83:D1B0) calls:
+# no script had Aladdin touch a risen kind $50, so it never got past its
+# test box. Placed as cov_kind50_popup.box (level 0, view x $0700, Aladdin
+# x $0780; records $0CEB and $0C9B restarted), Aladdin walks right then
+# left 8 times into the first one (x $07D8) as it rises: met from
+# the side; then he is dropped onto it (x $07D8, y $0170) 12 times, 25
+# frames apart, his health ($0367) kept at 6: met from above. (Both ways
+# of its compare with the box margin, $83:83BE, run.)
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 00,07
+poke 0019E5 00,07
+poke 0008E7 80,07
+poke 0008EA 80,01
+wait 60
+poke 000CEB 0C
+wait 61
+poke 000C9B 0C
+wait 30
+repeat 8
+hold RIGHT 10
+hold LEFT 10
+end
+wait 60
+repeat 12
+poke 000367 06
+poke 0008E7 D8,07
+poke 0008EA 70,01
+wait 25
+end
+wait 60
