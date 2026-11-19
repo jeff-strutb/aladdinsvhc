@@ -231,6 +231,10 @@ void abi_Kind27Start(void)
  * good when K27_ROUNDS is 0, else with ActorDecelerateX until its
  * horizontal speed's two high bytes add to 0; K27_ROUNDS down, the next
  * round. No script runs it: written from its bytes.
+ * @unreachable 83:9F50-9F59 The copier check's clear: runs only when the
+ * count at $70:2000 stays written (copier RAM); it clears $08F0-$091B of
+ * the player's record and the game then runs data (83:FFBE, 87:C005,
+ * 9F:8000) within frames (Jeff, 2026-11-19: exempt).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $81; reached by
  * a branch from Kind27Start. Exit: never returns.
  */

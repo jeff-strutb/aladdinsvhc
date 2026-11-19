@@ -193,6 +193,9 @@ void abi_VramFillMap(void);
  * RAM's count at $70:1399 up: when it keeps it, LEVEL_035C becomes 1 at
  * or past $0003, else 6. $0373-$0375 0; part 7: TaskExec $81:8181,
  * else TaskExec StoryCardTask.
+ * @unreachable 81:F622-F625 The PAL console's path: taken only with $005D
+ * set, which only a PAL console gives (RegionCheck, 84:AFAE); its JML to
+ * 84:AFCC runs into data at 84:AFFF (Jeff, 2026-11-19: exempt).
  * Entry: M 8-bit, X 8-bit; DB = $81; D = 0; a task's entry (TaskExec).
  * Exit: never returns.
  */

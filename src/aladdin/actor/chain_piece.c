@@ -408,6 +408,10 @@ void abi_ChainPieceGone(void)
  * its $08 bit 4 and $09 bit 7 set, and the actor loop goes on.
  * HOW: ACTOR_03/ACTOR_04 = PIECE_RESUME; ACTOR_08 OR $10; ACTOR_09 OR
  * $80; JML ActorLoopNext.
+ * @unreachable 84:8CA1-8CA7 The PAL console's path: taken only with $005D
+ * set, which RegionCheck (84:AFAE) does only on a PAL console (STAT78
+ * bit 4); its TaskExec to 84:AFCC runs into a JSL to $37:460B at 84:AFFF,
+ * data, so the game then runs garbage (Jeff, 2026-11-19: exempt).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; reached from
  * ChainPieceGone and Kind73Hit, and by the actor loop's jump. Exit: never
  * returns (into the actor loop).

@@ -61,6 +61,11 @@ void abi_SoundQueueAdd(void);
  * pulls its own return address and returns from its caller (M and X
  * 8-bit), code the retail game never runs: each of its five callers
  * ($83:8382, $83F6, $843E, $847E, $84BC) has just found $141B zero.
+ * @unreachable 83:84EF-84F3 The way out with a state $8C counted: all five
+ * callers (83:8382, 83F6, 843E, 847E, 84BC) LDX $141B / BNE just before
+ * their JSR, and only player-state code writes $141B, never an interrupt;
+ * a unit call cannot run it as the game would (it returns through its
+ * caller's frame, which no call option provides) (master, 2026-11-19).
  * Entry: M 16-bit, X 8-bit; D = the actor; DB a bank whose $0000-$1FFF is
  * work RAM; called by JSR. Exit: M 16-bit, X 8-bit; A = his y pixels; X =
  * 1; N, Z from X; C, V from the subtraction; Y unchanged.

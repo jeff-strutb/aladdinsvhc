@@ -69,6 +69,9 @@ static void throw_at(int again);
  * $07 bit 7: Kind2DThrown (JMP). Else K2D_4F 0, ACTOR_08 bit 1 set,
  * K2D_29 $8911, AnimStart 0, ActorPictureQueue, BRK, ACTOR_09 bits $D0
  * set, facing and flip by ActorSideOfPlayer; Kind2DRest (JMP).
+ * @unreachable 83:A83F-A844 The changed-ROM path: runs only when the ROM
+ * bytes at 83:989E or 83:98AC are $EA (NOP); they are $D0 and $80 (Jeff,
+ * 2026-11-19: exempt).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $83; reached by
  * the actor loop's jump for kind $2D in state $0C (the table at $83:8CAB)
  * and for kind $2C with state bit 7 set (the table at $83:8DFD). Exit:

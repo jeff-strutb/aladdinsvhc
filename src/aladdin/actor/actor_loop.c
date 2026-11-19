@@ -261,6 +261,9 @@ void abi_ActorLoopBack(void)
  * into the actor; else JMP through STARTS, SECONDS or THIRDS (or their
  * _80 halves) by the state's bits 7-6 and the kind (THIRDS_80 run by no
  * script).
+ * @unreachable 83:952D-9531 JMP (THIRDS_80,X): THIRDS_80 ($83:91A1) holds
+ * $FFFF for every kind $80-$A8, so the jump always lands on $FFFF (Jeff,
+ * 2026-11-19: exempt).
  * Entry: M 8-bit, X 8-bit; D = the record; the loop's D pushed above
  * ActorLoop's return. Exit: as ActorLoopBack.
  */
