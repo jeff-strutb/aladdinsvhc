@@ -26,6 +26,7 @@ void abi_Kind8EStart(void);
 void abi_Kind90Start(void);
 void abi_KindA1Start(void);
 void abi_KindA8Start(void);
+void abi_Kind66Start(void);
 void abi_ShotHit(void);
 void abi_ActorBriefAnim8(void);
 void abi_Kind12AtPlayer(void);
@@ -794,6 +795,20 @@ void abi_Kind90Enter(void)
 void abi_KindA1Enter(void)
 {
     abi_KindA1Start();
+}
+
+/*
+ * @routine 83:944A Kind66Enter
+ * @actor
+ * WHAT IT DOES: Where actors of kind $66 go on from the actor loop in
+ * state $0C (the table at $83:8CAB): Kind66Start.
+ * HOW: JML to Kind66Start ($84:839E).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never returns: as Kind66Start.
+ */
+void abi_Kind66Enter(void)
+{
+    abi_Kind66Start();
 }
 
 /*

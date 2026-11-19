@@ -698,6 +698,17 @@ Kind7DSecond:
 Kind84Second:
     jml.l Kind84WaitWork
 
+; @routine 83:944A Kind66Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $66 go on from the actor loop in
+; state $0C (the table at $83:8CAB): Kind66Start.
+; HOW: JML to Kind66Start ($84:839E).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind66Start.
+%at($83944A)
+Kind66Enter:
+    jml.l Kind66Start
+
 ; @routine 83:944E ActorKind66Wait
 ; WHAT IT DOES: What actors of kind $66 do each frame they wait, when bit
 ; 7 of their byte at $09 is set: Kind66WaitWork.
