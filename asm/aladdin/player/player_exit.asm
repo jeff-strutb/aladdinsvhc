@@ -23,6 +23,80 @@ arch 65816
 ; Tables in the data bank ($80)
 !STAGE_GOES_ON = $C6F2          ; by level: nonzero, the level's end follows; 0 the next part
 
+; @routine 81:E730 PlayerEscortExit
+; @actor
+; WHAT IT DOES: Aladdin walks out of an escort level's exit (the scroll
+; passed its spot): facing right at a walk's speed, 32 frames, then the
+; screen fades out while he walks on (never past x $2060), and the
+; running task goes on at the level's end or at the story card.
+; HOW: ACTOR_FACING and ACTOR_FLIP 0; SecondPoolFreeAll; SCENE_ON and
+; V_1454 up; ActorSpeedXSetAccel with A $28, Y $57 when LEVEL_035C is 1,
+; else A $16, Y $45; VIEW_EDGE_RULE 4; PlayerMoveStart 0; FRAMES_40 $20
+; frames (BRK first): ActorAccelerateX, ActorMoveX. SoundQueueF6With1;
+; TaskCreate BrightnessDownTask in slot 2 with parameter 4. Each frame
+; (BRK first): ActorAccelerateX, ActorMoveX; his x pixels $2060 at most
+; (16-bit); until TASK2_STATE is 0. STAGE_GOES_ON by LEVEL (X 8-bit):
+; nonzero, TaskExec LevelEndTask; else TaskExec StoryCardTask.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where LevelExitCheck set his code (escort levels,
+; the table at $80:B96B). Exit: never returns.
+%at($81E730)
+PlayerEscortExit:
+    stz.b !actor_facing
+    stz.b !actor_flip
+    jsl.l SecondPoolFreeAll
+    inc.w !SCENE_ON
+    inc.w !V_1454
+    lda.w !level_035c
+    dec
+    bne .slow
+    lda.b #$28
+    ldy.b #$57
+    jsl.l ActorSpeedXSetAccel
+    bra .walk
+.slow:
+    lda.b #$16
+    ldy.b #$45
+    jsl.l ActorSpeedXSetAccel
+.walk:
+    lda.b #!EXIT_VIEW_RULE
+    sta.w !VIEW_EDGE_RULE
+    lda.b #$00
+    jsr.w PlayerMoveStart
+    lda.b #$20
+    sta.b !FRAMES_40
+.walk_frame:
+    brk.b #$00
+    jsl.l ActorAccelerateX
+    jsl.l ActorMoveX
+    dec.b !FRAMES_40
+    bne .walk_frame
+    jsl.l SoundQueueF6With1
+    jsl.l TaskCreate
+    db 2*24, 4                  ; slot 2, parameter 4
+    dl BrightnessDownTask
+.fade_frame:
+    brk.b #$00
+    jsl.l ActorAccelerateX
+    jsl.l ActorMoveX
+    rep.b #$20
+    lda.w #!EXIT_X_MAX
+    cmp.b !actor_x+1
+    bcs .fade_test
+    sta.b !actor_x+1
+.fade_test:
+    sep.b #$20
+    lda.w !TASK2_STATE
+    bne .fade_frame
+    ldx.w !level
+    lda.w !STAGE_GOES_ON,x
+    beq .story
+    jsl.l TaskExec
+    dl LevelEndTask
+.story:
+    jsl.l TaskExec
+    dl StoryCardTask
+
 ; @routine 81:E7B1 PlayerStageEnd
 ; @actor
 ; WHAT IT DOES: Aladdin at a level's end once its end scene is over: the

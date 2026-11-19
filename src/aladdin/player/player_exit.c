@@ -65,6 +65,71 @@ static void stage_goes_on(uint32_t site, uint32_t other)
 }
 
 /*
+ * @routine 81:E730 PlayerEscortExit
+ * @actor
+ * WHAT IT DOES: Aladdin walks out of an escort level's exit (the scroll
+ * passed its spot): facing right at a walk's speed, 32 frames, then the
+ * screen fades out while he walks on (never past x $2060), and the
+ * running task goes on at the level's end or at the story card.
+ * HOW: ACTOR_FACING and ACTOR_FLIP 0; SecondPoolFreeAll; SCENE_ON and
+ * V_1454 up; ActorSpeedXSetAccel with A $28, Y $57 when LEVEL_035C is 1,
+ * else A $16, Y $45; VIEW_EDGE_RULE 4; PlayerMoveStart 0; FRAMES_40 $20
+ * frames (BRK first): ActorAccelerateX, ActorMoveX. SoundQueueF6With1;
+ * TaskCreate BrightnessDownTask in slot 2 with parameter 4. Each frame
+ * (BRK first): ActorAccelerateX, ActorMoveX; his x pixels $2060 at most
+ * (16-bit); until TASK2_STATE is 0. STAGE_GOES_ON by LEVEL (X 8-bit):
+ * nonzero, TaskExec LevelEndTask; else TaskExec StoryCardTask.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where LevelExitCheck set his code (escort levels,
+ * the table at $80:B96B). Exit: never returns.
+ */
+void abi_PlayerEscortExit(void)
+{
+    stz8(ea_dp(ACTOR_FACING));
+    stz8(ea_dp(ACTOR_FLIP));
+    jsl_call(0x81E734u, abi_SecondPoolFreeAll);
+    MEM8(inc, ea_abs(SCENE_ON));
+    MEM8(inc, ea_abs(V_1454));
+    lda8(ea_abs(LEVEL_035C));
+    ACC8(dec);
+    if (IF_Z) {
+        lda8_v(0x28);
+        ldy8_v(0x57);
+        jsl_call(0x81E748u, abi_ActorSpeedXSetAccel);
+    } else {
+        lda8_v(0x16);
+        ldy8_v(0x45);
+        jsl_call(0x81E752u, abi_ActorSpeedXSetAccel);
+    }
+    lda8_v(EXIT_VIEW_RULE);
+    sta8(ea_abs(VIEW_EDGE_RULE));
+    lda8_v(0x00);
+    call_frame(0xE75F, abi_PlayerMoveStart);
+    lda8_v(0x20);
+    sta8(ea_dp(FRAMES_40));
+    do {
+        actor_yield(0x81E764u);
+        jsl_call(0x81E766u, abi_ActorAccelerateX);
+        jsl_call(0x81E76Au, abi_ActorMoveX);
+        MEM8(dec, ea_dp(FRAMES_40));
+    } while (!IF_Z);
+    fade_start(0x81E772u);
+    do {
+        actor_yield(0x81E77Fu);
+        jsl_call(0x81E781u, abi_ActorAccelerateX);
+        jsl_call(0x81E785u, abi_ActorMoveX);
+        op_rep(P_M);
+        lda16_v(EXIT_X_MAX);
+        cmp16_v(rd16(ea_dp(ACTOR_X + 1)));
+        if (!IF_C)
+            sta16(ea_dp(ACTOR_X + 1));
+        op_sep(P_M);
+        lda8(ea_abs(TASK2_STATE));
+    } while (!IF_Z);
+    stage_goes_on(0x81E7A3u, 0x81E7AAu);
+}
+
+/*
  * @routine 81:E7B1 PlayerStageEnd
  * @actor
  * WHAT IT DOES: Aladdin at a level's end once its end scene is over: the
