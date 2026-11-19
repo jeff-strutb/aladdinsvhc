@@ -1,0 +1,33 @@
+# Actor kind $3A's start ($83:BEB3), a hold Aladdin hangs from, which no
+# level the scripts reach places: the first level's record $092B is made
+# one ($07 0, state $0C) and put in the air at x $0080, y $0100. Its zone
+# ($8C: half-width 10, height 36, its point 69 pixels below it) then holds
+# x $0076-$0089, y $0145-$0168; Aladdin is put at x $0080, y $0150 and it
+# takes him ($83:BEE4). 60 frames on, $141C (Aladdin in the air) is set:
+# it lets go ($83:BF04). Then again with his flip set (facing left,
+# $83:BF45, $83:BF5E).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3A
+poke 000932 00
+poke 000937 80,00
+poke 00093A 00,01
+poke 00092B 0C
+wait 5
+poke 0008E7 80,00
+poke 0008EA 50,01
+wait 60
+poke 00141C 01
+wait 40
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 3A
+poke 000932 00
+poke 000937 80,00
+poke 00093A 00,01
+poke 00092B 0C
+wait 5
+poke 0008E7 80,00
+poke 0008EA 50,01
+poke 0008F0 01
+wait 60
