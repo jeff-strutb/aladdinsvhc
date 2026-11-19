@@ -8,6 +8,7 @@
 #include "wram.h"
 #include "actor.h"
 #include "actor_anim.h"
+#include "ops65.h"
 
 /* Where the actor loop takes the next record (docs/aladdin/ACTORS.md) */
 #define ACTOR_LOOP_NEXT 0x8394BFu
@@ -86,45 +87,39 @@ void abi_ActorFree(void)
  * is cleared, and the cell's further slots with it: the next one, or the
  * next two (by the cell's count of further slots). The actor's slot
  * becomes 0.
+ * The cell's number is kept on the stack (PHA, PLX) across the clear.
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
  * $0000-$1FFF is work RAM. Exit: M and X 8-bit; A, X and the flags as
  * the last instructions leave them; Y unchanged.
  */
 void abi_ActorTileSlotRelease(void)
 {
-    uint8_t id, v;
-
-    cpu.x = rd8(dp(ACTOR_TILE_SLOT));
-    cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
-    if (cpu.x == 0)
+    ldx8(ea_dp(ACTOR_TILE_SLOT));
+    if (IF_Z)
         goto done;
-    v = (uint8_t)(rd8_rmw(ACTOR_TILE_SLOT_USERS + cpu.x) - 1);
-    wr8(ACTOR_TILE_SLOT_USERS + cpu.x, v);
-    cpu.p = nz8(cpu.p, v);
-    if (v != 0)
+    MEM8(dec, ea_absx((uint16_t)ACTOR_TILE_SLOT_USERS));
+    if (!IF_Z)
         goto done;
-    set_a8(rd8(TILE_SLOT_CELL - 1 + cpu.x));
-    id = (uint8_t)cpu.a;
+    lda8(ea_absx((uint16_t)(TILE_SLOT_CELL - 1)));
+    pha8();
     op_rep(0x30);
-    op_asl16();
-    op_and16(0x01FF);
-    op_tax16();
-    op_lda16_imm(0);
-    wr16(CELL_ATTRS + cpu.x, 0);
+    ACC16(asl);
+    and16_v(0x01FF);
+    tax16();
+    lda16_v(0x0000);
+    sta16(ea_longx(CELL_ATTRS));
     op_sep(0x30);
-    cpu.x = id;
-    cpu.p = nz8(cpu.p, id);
-    set_a8(rd8(CELL_EXTRA_SLOTS + cpu.x));
-    if ((uint8_t)cpu.a == 0)
+    plx8();
+    lda8(ea_longx(CELL_EXTRA_SLOTS));
+    if (IF_Z)
         goto done;
-    cpu.x = rd8(dp(ACTOR_TILE_SLOT));
-    cpu.p = nz8(cpu.p, (uint8_t)cpu.x);
-    set_a8((uint8_t)(cpu.a - 1));
-    if ((uint8_t)cpu.a != 0)
-        wr8(ACTOR_TILE_SLOT_USERS + 2 + cpu.x, 0);
-    wr8(ACTOR_TILE_SLOT_USERS + 1 + cpu.x, 0);
+    ldx8(ea_dp(ACTOR_TILE_SLOT));
+    ACC8(dec);
+    if (!IF_Z)
+        stz8(ea_absx((uint16_t)(ACTOR_TILE_SLOT_USERS + 2)));
+    stz8(ea_absx((uint16_t)(ACTOR_TILE_SLOT_USERS + 1)));
 done:
-    wr8(dp(ACTOR_TILE_SLOT), 0);
+    stz8(ea_dp(ACTOR_TILE_SLOT));
 }
 
 /*
