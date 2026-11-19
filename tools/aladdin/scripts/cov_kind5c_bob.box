@@ -1,0 +1,33 @@
+# Kind $5C of level 8 (stage a3 s0, placed at x $0800, y 0; start
+# $83:E000, wait $83:E1EE), which waits until Aladdin is right of x $08A0;
+# no script took him there alive. The camera ($1773, last $19E5) put at x
+# $07C0, y 0 and Aladdin at x $08C0, y $30, landing on the Genie's head:
+# it is placed, flies to x $0900 and bobs about its line
+# (ActorBobAboutLine, $83:E239, all four of its states) and starts its
+# kind $5D children. Then Aladdin put at x $0700: it is out of the view
+# (more than $140 from RANGE_X) and its code goes on at $83:E128. Again
+# from the state, and at the bobbing his health ($0367) set to 0: in
+# view, its code goes on at $83:E282.
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 001773 C0,07
+poke 0019E5 C0,07
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C0,08
+poke 0008EA 30,00
+wait 400
+poke 0008E7 00,07
+poke 0008EA 30,00
+wait 60
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 001773 C0,07
+poke 0019E5 C0,07
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 C0,08
+poke 0008EA 30,00
+wait 400
+poke 000367 00
+wait 120
