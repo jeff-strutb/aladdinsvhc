@@ -1,0 +1,69 @@
+# Kind $73 (84:8766 Kind73Hit), the chain's head, beaten: its last
+# bytes (84:87C0, the BRA back to its BRK for good) run only when no piece
+# rewrites its resume. On the frame the head is beaten, the eighth piece
+# (its $40 = 8, record $0E7B) ends the fight and starts the
+# head's list on $84:89CD (ActorListStart) after the head's BRK. Played
+# as the second half of cov_kind73_defeat.box (health 0 before the
+# strike); 313 frames after that poke, one frame before the head is
+# beaten, the eighth piece's record is freed (state 0), so the head's
+# resume stays $84:87C0 and it runs its BRA the next frame.
+load build/aladdin/states/stage_a5_s3.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+hold DOWN+A 31
+hold B+R 57
+hold RIGHT 74
+hold Y+LEFT 19
+hold L 84
+hold RIGHT 77
+hold RIGHT 32
+hold B 41
+hold UP+B 19
+hold UP+B 27
+hold Y+LEFT 85
+hold LEFT 74
+hold Y+LEFT 11
+hold UP 72
+hold Y+RIGHT 63
+hold DOWN 50
+hold B+RIGHT 35
+hold A+RIGHT 71
+hold Y+RIGHT 61
+hold RIGHT 19
+hold B+RIGHT 47
+hold UP 57
+hold RIGHT 75
+hold Y+RIGHT 47
+hold X 67
+hold DOWN 12
+hold A 64
+hold RIGHT 11
+hold A+RIGHT 86
+hold DOWN 40
+hold Y+RIGHT+B 6
+hold Y+RIGHT+B 25
+hold UP 11
+hold A+RIGHT 20
+hold R 54
+hold UP 14
+hold R 74
+hold B 59
+hold A 57
+hold R 33
+poke 000C0C 00
+hold B+RIGHT 23
+hold B+LEFT 5
+hold Y+LEFT 27
+hold RIGHT 22
+hold Y+RIGHT+B 82
+hold B 69
+hold L 10
+hold UP+B 54
+hold R 17
+hold R 4
+poke 000E7B 00
+hold R 7
+hold B+RIGHT 60
+hold Y+RIGHT 80
+wait 60
