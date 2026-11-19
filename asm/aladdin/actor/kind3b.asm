@@ -305,8 +305,11 @@ Kind3BPart2:
     xba
     sta.b !K3B_QUARTER
     jmp.w (!K3B_TRACK_CASES,x)
-; (the case table and cases 6 and 7 lie between, not filed)
-%at($83C118)
+.cases:
+    dw .on, .on, .turn, .spot, .back, .back, .wait, .wait
+.wait:
+    brk.b #$00
+    jmp.w .step
 .on:
     lda.b #$08
     sta.b !K3B_FRAMES

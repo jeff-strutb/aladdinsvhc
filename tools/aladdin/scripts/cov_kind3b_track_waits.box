@@ -1,0 +1,25 @@
+# Kind $3B's track platform (Kind3BPart2, $83:C0D7) waits a frame on a
+# map quarter whose low bits are 6 or 7 (the case table at $83:C103,
+# cases at $83:C113), which no track drawn in the levels the scripts
+# reach has. Stage a5 s2 with Aladdin and the camera at x $0B80 (as
+# unit_kind3b_rest.box): the track platform (record $0D8B, $07 = 2) runs
+# left along the row at y $0080; its next steps read the map tile at x
+# $0C00 (work RAM $7F1900, tile $6B68, case 1). That tile is made $03E0
+# (every quarter case 6), then $0A38 (case 7), each for 20 frames, while
+# the platform waits on it; then $2800 (case 4, the one way back no
+# track here uses: the platform turns back there) for 4 frames; then put
+# back, and the platform goes on.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 0008E7 80,0B
+poke 0008EA 80,00
+poke 001773 00,0B
+wait 100
+poke 7F1900 E0,03
+wait 20
+poke 7F1900 38,0A
+wait 20
+poke 7F1900 00,28
+wait 4
+poke 7F1900 68,6B
+wait 60
