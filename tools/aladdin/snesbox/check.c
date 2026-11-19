@@ -620,6 +620,27 @@ static void seq_compare(Watch *w, const Routine *r)
             return;
         }
     }
+    /* Fewer accesses of a kind to an address than the original makes: the
+       C leaves one out (the return address a JSR or JSL pushes, where the C
+       calls with no frame; a value the C keeps where the original reads
+       memory again; a read-modify-write or a two-byte store made as one
+       write). In a lockstep call the accesses after it are placed one
+       access early. Not a read on the stacks ($0100-$0326, which hold
+       nothing else): the original's returns pull what the C's frames only
+       push. */
+    for (uint32_t i = 0, j = 0; j < no;) {
+        uint32_t v = os[j], ci = 0, oj = 0;
+        while (j < no && os[j] == v) { j++; oj++; }
+        while (i < nc && cs[i] < v) i++;
+        while (i < nc && cs[i] == v) { i++; ci++; }
+        if (ci < oj && ((v >> 24) || (v & 0xFFFFFF) < 0x0100 || (v & 0xFFFFFF) > TASK_SCHEDULER_S)) {
+            if (seq_bad[w->idx]++ < 3)
+                fprintf(report, "SEQ %06X %s call %ld: left out: the original's %s %06X, made %u time(s), the C %u; %d C / %d original accesses\n",
+                        r->addr, r->name, stats[w->idx].calls, (v >> 24) ? "wr" : "rd", v & 0xFFFFFF, oj, ci, w->cseq.n, w->oseq.n);
+            free(cs); free(os);
+            return;
+        }
+    }
     free(cs); free(os);
     /* An original access skipped over that a later C access of the same
        kind and address would have matched: that one now matches later. */
