@@ -1,0 +1,69 @@
+# Kind $66's arms (84:839E Kind66Start) that no play reaches, on stage a1
+# s1 with the view and Aladdin put as cov_kind66_second.box puts them:
+# the lift ($07 4, record $11EB), the rise platform ($07 2, $10FB) and
+# the gates ($07 $0A and $0B, $10AB and $119B).
+# 1. The lift is put at y $0158, Aladdin's test point (his x and y, $0640,
+#    $0198) inside its zone $78: it takes him (his code PlayerSwitchHang),
+#    carries him down and signals the rise platform, which rises and waits.
+#    150 frames on DOWN lets him drop: the lift signals 0, goes back up
+#    and pauses (K66_PAUSE). The rise platform comes back; 65 frames after
+#    the drop, on its way back, its K66_GO ($113F) is set to 1: it waits
+#    $18 frames and rises again.
+# 2. Restarted (state $0C) from the same frames: $10AB with $07 1 (the
+#    short swing, 152 frames of it, with Kind66Wobble's steps), $11EB with
+#    $07 $10 (kind $6C's holder), and the gate $119B with its K66_PARENT
+#    ($11E4) naming the free record $097B: it ends at once.
+# 3. The rise platform alone, Aladdin left on the lift: its K66_GO set to
+#    1 for 200 frames (it rises half a pixel a frame and waits at its
+#    top), then 0: it waits $38 frames and comes back to where it started
+#    (in pass 1 Aladdin walks off after his drop and the platform is ended
+#    out of range before it is back).
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0011FA 58,01
+wait 150
+hold DOWN 4
+wait 65
+poke 00113F 01
+wait 30
+poke 00113F 00
+wait 30
+dump z1
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 0010B2 01
+poke 0010AB 0C
+poke 0011F2 10
+poke 0011EB 0C
+poke 0011E4 7B,09
+poke 00119B 0C
+wait 170
+dump z2
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001773 00,06
+poke 0019E5 00,06
+poke 001777 80,01
+poke 0019E9 80,01
+poke 0008E7 40,06
+poke 0008EA A0,01
+wait 40
+poke 00113F 01
+wait 200
+poke 00113F 00
+wait 200
+dump z3
