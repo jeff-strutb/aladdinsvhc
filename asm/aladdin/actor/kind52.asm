@@ -45,11 +45,9 @@ arch 65816
 ; ActorDirectionToPlayer unless already on it; ActorMoveByVector $12,
 ; AnimStep, ActorEndOutOfRange 0; ActorZoneHasTestBox $34 met:
 ; PlayerEnter8CFacing.
-; The block at $83:D42E-D46B (a COP wait, ActorSpawnSameLook with its hit
-; box and a count up at $7E:FF00 by hit box, setting $42) is reached from
-; nowhere: the table at $D3F7 holds $D3FD, $D46C, $D46C, and no branch,
-; jump or pointer names it. Its C stands where the block does, under a
-; label nothing jumps to.
+; The block at $83:D42E-D46B, which nothing reaches, is Kind52SpareWay;
+; the ways and the variant after it ($D46C-D517) are this routine's code,
+; filed under Kind52SpareWay's tag as they follow it.
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
 ; the actor loop's jump for state $0C. Exit: never returns; the variant
 ; ends in ActorEndOutOfRange.
@@ -60,7 +58,7 @@ Kind52Start:
     tsb.b !actor_08
     lda.b !actor_07
     beq .waiting
-    jmp.w .variant
+    jmp.w Kind52SpareWay_variant
 .waiting:
     lda.b #$90
     tsb.b !actor_09
@@ -139,7 +137,7 @@ Kind52Start:
 .spare_out:
     jmp.w (.ways,x)
 .ways:
-    dw .near, .away, .away
+    dw .near, Kind52SpareWay_away, Kind52SpareWay_away
 .near:
     lda.b !KIND52_REST
     bne .back
@@ -164,8 +162,28 @@ Kind52Start:
     sta.b !KIND52_REST
 .back:
     jmp.w .loop
-; Reached from nowhere (see the header).
-.unreached:
+; @routine 83:D42E Kind52SpareWay
+; @actor
+; WHAT IT DOES: A way of kind $52's loop that nothing in the game takes:
+; with KIND52_SPARE ($42) run out, animation 6, $18 frames, a child of
+; its own kind spawned (ActorSpawnSameLook, counted in its kind's count),
+; animation 0 and KIND52_SPARE = RandomFromList $0E; then the loop
+; (Kind52Start's, at $83:D3B8). No input reaches it: Kind52Start's way
+; table at $D3F7 holds $D3FD, $D46C, $D46C (its X is 0, 2 or 4), and no
+; branch, jump, pointer or resume address in the ROM names $D42E-D46B.
+; cov_kind52_spare_way.box runs it from a kind $52 record whose resume
+; address is set to it. The ways and the variant that follow it in the
+; ROM ($D46C-D517) are Kind52Start's code, filed here only because they
+; come after this entry.
+; HOW: KIND52_SPARE nonzero: the loop. AnimStart 6; COP $18; flip toggled;
+; ActorSpawnSameLook with its kind; spawned (N clear): KIND_COUNT by kind
+; up; flip toggled back; AnimStart 0; RandomFromList $0E to KIND52_SPARE;
+; the loop.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's RTI at a resume address set to it. Exit: never
+; returns.
+%at($83D42E)
+Kind52SpareWay:
     lda.b !KIND52_SPARE
     bne .unreached_back
     lda.b #$06
@@ -192,7 +210,7 @@ Kind52Start:
     jsl.l RandomFromList
     sta.b !KIND52_SPARE
 .unreached_back:
-    jmp.w .loop
+    jmp.w Kind52Start_loop
 .away:
     ldx.b #$10
     jsl.l RandomNext
@@ -209,7 +227,7 @@ Kind52Start:
     ldy.b #$24
     jsl.l ActorNearPlayer
     bcs .idling
-    jmp.w .loop
+    jmp.w Kind52Start_loop
 .idled:
     ldx.b #$20
     jsl.l RandomNext
@@ -226,7 +244,7 @@ Kind52Start:
     ldy.b #$24
     jsl.l ActorNearPlayer
     bcs .posing
-    jmp.w .loop
+    jmp.w Kind52Start_loop
 .variant:
     lda.b #$07
     jsl.l AnimStart

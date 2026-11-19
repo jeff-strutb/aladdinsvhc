@@ -25,7 +25,7 @@ void abi_SoundQueueAdd(void);
 #define KIND52_SHOOTABLE 0x48u     /* nonzero: Kind52Wait tests shots on it */
 #define KIND52_FRAMES 0x40u        /* frames left of what it is doing */
 #define KIND52_REST 0x41u          /* frames left before it may strike again */
-#define KIND52_SPARE 0x42u         /* counted down each frame; set only by the unreached block */
+#define KIND52_SPARE 0x42u         /* counted down each frame; set only by Kind52SpareWay */
 #define KIND52_LIFE 0x44u          /* variant: frames left of turning toward the player */
 #define KIND52_TURN_IN 0x43u       /* variant: frames left to its next turn */
 #define KIND52_DONE_TURNING 0x46u  /* variant: nonzero once its turning time is over */
@@ -61,17 +61,51 @@ void abi_SoundQueueAdd(void);
  * 16) toward ActorDirectionToPlayer unless already on it;
  * ActorMoveByVector $12, AnimStep, ActorEndOutOfRange 0;
  * ActorZoneHasTestBox $34 met: PlayerEnter8CFacing.
- * The block at $83:D42E-D46B (a COP wait, ActorSpawnSameLook with its hit
- * box and a count up at $7E:FF00 by hit box, setting $42) is reached from
- * nowhere: the table at $D3F7 holds $D3FD, $D46C, $D46C, and no branch,
- * jump or pointer names it. Its C stands where the block does, under a
- * label nothing jumps to.
+ * The block at $83:D42E-D46B, which nothing reaches, is Kind52SpareWay
+ * (below); its code and this routine's are one body (kind52).
  * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
  * the actor loop's jump for state $0C. Exit: never returns; the variant
  * ends in ActorEndOutOfRange.
  */
+static void kind52(int spare_way);
+
 void abi_Kind52Start(void)
 {
+    kind52(0);
+}
+
+/*
+ * @routine 83:D42E Kind52SpareWay
+ * @actor
+ * WHAT IT DOES: A way of kind $52's loop that nothing in the game takes:
+ * with KIND52_SPARE ($42) run out, animation 6, $18 frames, a child of its
+ * own kind spawned (ActorSpawnSameLook, counted in its kind's count),
+ * animation 0 and KIND52_SPARE = RandomFromList $0E; then the loop
+ * (Kind52Start's, at $83:D3B8). No input reaches it: Kind52Start's way
+ * table at $D3F7 holds $D3FD, $D46C, $D46C (its X is 0, 2 or 4), and no
+ * branch, jump, pointer or resume address in the ROM names $D42E-D46B.
+ * cov_kind52_spare_way.box runs it from a kind $52 record whose resume
+ * address is set to it. The ways and the variant that follow it in the
+ * ROM ($D46C-D517) are Kind52Start's code, filed under this tag only
+ * because they come after this entry.
+ * HOW: KIND52_SPARE nonzero: the loop. AnimStart 6; COP $18; flip toggled;
+ * ActorSpawnSameLook with its kind; spawned (N clear): KIND_COUNT by kind
+ * up; flip toggled back; AnimStart 0; RandomFromList $0E to KIND52_SPARE;
+ * the loop.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's RTI at a resume address set to it. Exit: never returns.
+ */
+void abi_Kind52SpareWay(void)
+{
+    kind52(1);
+}
+
+/* Kind52Start's code and Kind52SpareWay's: one body, entered at $D359 or
+   at $D42E. */
+static void kind52(int spare_way)
+{
+    if (spare_way)
+        goto L_83D42E;
     stz8(ea_dp(KIND52_SHOOTABLE));  /* 83D359 stz */
     lda8_v(0x02);  /* 83D35B lda */
     tsb8(ea_dp(ACTOR_08));  /* 83D35D tsb */
@@ -179,8 +213,8 @@ L_83D419:
     jsl_frame(0x83D425u); abi_RandomFromList(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D425 jsl */
     sta8(ea_dp(KIND52_REST));  /* 83D429 sta */
     goto L_83D3B8;  /* 83D42B jmp */
-    /* Reached from nowhere (see the header). */
-L_83D42E: __attribute__((unused));
+    /* Kind52SpareWay: reached from nowhere (see its header). */
+L_83D42E:
     lda8(ea_dp(KIND52_SPARE));  /* 83D42E lda */
     if (!IF_Z) goto L_83D3B8;  /* 83D430 bne, 83D469 jmp */
     lda8_v(0x06);  /* 83D432 lda */

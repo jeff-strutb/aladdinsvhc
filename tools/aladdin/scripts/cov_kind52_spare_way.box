@@ -1,0 +1,36 @@
+# Kind52SpareWay ($83:D42E), the way of kind $52's loop no input takes
+# (Kind52Start's way table holds $D3FD, $D46C, $D46C). Played as
+# cov_kind52_start.box (act 1 stage 0's end, the kind $52 at record $0BAB,
+# x $0C70) until it has risen and is in its loop with Aladdin $60 pixels
+# right; then its KIND52_SPARE ($42, $0BED) set to 0 and its resume
+# address ($03-$04) to $D42E: the loop's RTI starts it there. It takes
+# animation 6, waits $18 frames, spawns a kind $52 of its own look (its
+# $07 is $4C: the flying variant), takes animation 0 and a new
+# KIND52_SPARE, and goes back to its loop. The run ends at frame 340,
+# before the scene's figure cues kind $6B (frame 657).
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+wait 70
+poke 001773 00,0C
+poke 0019E5 00,0C
+poke 001A44 80,0C,80,03
+poke 0008E7 D0,0C
+wait 60
+poke 000BED 00
+poke 000BAE 2E,D4
+wait 3
+wait 150
