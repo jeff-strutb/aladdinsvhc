@@ -1,0 +1,18 @@
+# Unit calls of the out-of-view ends in bank $83 that nothing in the game
+# calls (no JSR, JSL, JMP, pointer or word in the ROM names them):
+# ActorEndOutOfView ($83:95FA), ActorEndOutOfViewLong ($83:9604),
+# ActorEndOutOfViewDrop4 ($83:960F) and ActorEndOutOfViewLongDrop8
+# ($83:961A), each at its own entry. On the first level's state at frame
+# 10, M and X 8-bit, DB $80, D the guard at record $0BAB with its $09 set
+# to $40 (in view) for each call: each returns. Out of view they drop their callers'
+# returns and go into the actor loop, which a unit call's stub is not.
+load build/aladdin/states/level1.state
+wait 10
+set 000BB4 40
+call 8395FA p=30 db=80 d=0BAB
+set 000BB4 40
+call 839604 long p=30 db=80 d=0BAB
+set 000BB4 40
+call 83960F p=30 db=80 d=0BAB
+set 000BB4 40
+call 83961A long p=30 db=80 d=0BAB

@@ -12,6 +12,8 @@
 
 /* Where the actor loop takes the next record (docs/aladdin/ACTORS.md) */
 #define ACTOR_LOOP_NEXT 0x8394BFu
+#define ACTOR_SAVED_HIGH 0x35u   /* ActorJumpSaved: its address less one, high byte */
+#define ACTOR_SAVED_LOW 0x36u    /* and low byte */
 
 static uint16_t dp(uint16_t off)
 {
@@ -76,6 +78,34 @@ void abi_ActorFree(void)
     wr8(ACTOR_POOL2 + cpu.y, (uint8_t)cpu.a);
     op_xba();
     wr8(ACTOR_POOL2 + 1 + cpu.y, (uint8_t)cpu.a);
+}
+
+/*
+ * @routine 83:9787 ActorJumpSaved
+ * WHAT IT DOES: Turns the actor's wait routine on ($09 bit 7) and goes on
+ * at the address after the one its $35 and $36 hold (high byte at $35).
+ * Nothing in the game calls it (no JSR, JSL, JMP, pointer or word in the
+ * ROM names it; the BRA at 83:9796 is the only way in):
+ * unit_bank83_keep_paths runs it with an RTS's address less one there.
+ * HOW: $09 ORA $80. $35, then $36 pushed; RTS (to that word plus 1, in
+ * bank $83).
+ * Entry: M 8-bit; D = the actor's record; DB a bank whose $0000-$1FFF is
+ * work RAM; called by JSR. Exit: as the code at that address leaves it,
+ * with the caller's return still on the stack.
+ */
+void abi_ActorJumpSaved(void)
+{
+    uint16_t ret;
+
+    lda8(ea_dp(ACTOR_09));
+    ora8_v(0x80);
+    sta8(ea_dp(ACTOR_09));
+    lda8(ea_dp(ACTOR_SAVED_HIGH));
+    pha8();
+    lda8(ea_dp(ACTOR_SAVED_LOW));
+    pha8();
+    ret = pull16();                     /* the RTS */
+    jump_routine(0x830000u | (uint16_t)(ret + 1));
 }
 
 /*

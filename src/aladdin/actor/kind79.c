@@ -392,6 +392,27 @@ void abi_Kind79SlotClear(void)
 }
 
 /*
+ * @routine 83:F6E9 Kind79EndIfCarry
+ * WHAT IT DOES: Ends actor kind $79 for good when C is set: its slot
+ * cleared, its caller's return dropped, then ActorEndPlaced. C clear, it
+ * returns. Nothing in the game calls it (no JSR, JSL, JMP, pointer or
+ * word in the ROM names it): unit_bank83_keep_paths runs it with C clear.
+ * HOW: BCC to an RTS. Else Kind79SlotClear, then ActorEndDropReturn
+ * (JMP).
+ * Entry: M 8-bit, X 8-bit; C set to end it; D = the actor's record; DB a bank
+ * whose $0000-$1FFF is work RAM; called by JSR from the actor's code at
+ * its own level. Exit: C clear: everything unchanged; else never
+ * returns.
+ */
+void abi_Kind79EndIfCarry(void)
+{
+    if (!(cpu.p & P_C))
+        return;
+    call_frame(0xF6ED, abi_Kind79SlotClear);
+    abi_ActorEndDropReturn();
+}
+
+/*
  * @routine 83:F6F2 Kind79Second
  * @actor
  * WHAT IT DOES: Actor kind $79 in a state with bit 7 set (landed on, or

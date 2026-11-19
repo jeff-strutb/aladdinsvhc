@@ -156,6 +156,30 @@ L_83BE98:
 }
 
 /*
+ * @routine 83:BEA0 Kind38StepEndOutOfRange
+ * WHAT IT DOES: A frame's animation step, then the actor ended for good
+ * when it is out of range of the camera's point by box $10; else it
+ * returns. Nothing in the game calls it (no JSR, JSL, JMP, pointer or
+ * word in the ROM names it): unit_bank83_keep_paths runs it in range.
+ * HOW: Its $07's bit 0 tested, with a BNE to the next instruction (no
+ * effect but the flags); AnimStep; X = $10; on to ActorEndOutOfRange
+ * (JMP).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB the boxes' bank
+ * ($80), whose $0000-$1FFF is work RAM; called by JSR from the actor's
+ * code at its own level. Exit: as ActorEndOutOfRange.
+ */
+void abi_Kind38StepEndOutOfRange(void)
+{
+    lda8(ea_dp(ACTOR_07));
+    and8_v(0x01);                       /* BNE to the next instruction */
+    jsl_frame(0x83BEA6u);
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    ldx8_v(0x10);
+    abi_ActorEndOutOfRange();
+}
+
+/*
  * @routine 83:BD72 Kind37Second
  * @actor
  * WHAT IT DOES: The second state of kinds $37 and $38 (the table at

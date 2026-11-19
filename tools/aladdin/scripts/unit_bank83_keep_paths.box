@@ -1,0 +1,17 @@
+# Unit calls of four routines in bank $83 that nothing in the game calls
+# (no JSR, JSL, JMP, pointer or word in the ROM names them), each at its
+# own entry and on its way that returns: Kind53EndOutOfRange ($83:D665)
+# and Kind38StepEndOutOfRange ($83:BEA0) in range, Kind79EndIfCarry
+# ($83:F6E9) with C clear, and ActorJumpSaved ($83:9787) with $35 and $36
+# naming LoneReturn82C3 ($83:82C3, an RTS) less one. On the first level's
+# state at frame 10 (the range point $0080, $0180), M and X 8-bit, DB
+# $80, D the record at $0BAB (x $0125, y $01B0). Their other ways drop
+# their callers' returns and go into the actor loop, which a unit call's
+# stub is not.
+load build/aladdin/states/level1.state
+wait 10
+call 83D665 p=30 db=80 d=0BAB
+call 83BEA0 p=30 db=80 d=0BAB
+call 83F6E9 p=30 db=80 d=0BAB
+set 000BE0 82,C2
+call 839787 p=30 db=80 d=0BAB

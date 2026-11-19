@@ -15,6 +15,8 @@ arch 65816
 !KIND53_COUNTER = $4C           ; word: the record counting its kind's live ones at $4B
 !KIND53_HOLDER = $4E            ; word: the record of the actor holding it
 !COUNTER_LIVE = $4B             ; in the counting record: how many are live
+!K53_RANGE_X = $1A44            ; the point actors are kept in range of (words)
+!K53_RANGE_Y = $1A46
 ; By its holder's animation frame, 4 bytes each: where it is held, x and
 ; y pixels from the holder's (words).
 !KIND53_HELD_AT = $D394
@@ -144,6 +146,47 @@ Kind53Held:
     lda.b #$80
     trb.b !actor_09
     bra Kind53Thrown_break
+
+; @routine 83:D665 Kind53EndOutOfRange
+; WHAT IT DOES: Ends a kind $53 actor for good when it is $E0 pixels or
+; more from the camera's point across or up and down: the count of live
+; ones in its counting record down by one, its caller's return dropped,
+; then ActorEndPlaced. In range it returns. Nothing in the game calls it
+; (no JSR, JSL, JMP, pointer or word in the ROM names it):
+; unit_bank83_keep_paths runs it in range.
+; HOW: 16-bit A: for x then y, the point ($1A44, $1A46) less its pixels,
+; plus $E0, compared unsigned with $1C0; both below: RTS. Else SEP #$20,
+; 16-bit X from KIND53_COUNTER, COUNTER_LIVE of that record (DEC
+; $004B,X) down by one, SEP #$10, on to ActorEndDropReturn.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+; $0000-$1FFF is work RAM; called by JSR from the actor's code at its own
+; level. Exit: in range: M 16-bit; A = the y sum; N, Z and C (clear) from
+; its compare; else never returns.
+%at($83D665)
+Kind53EndOutOfRange:
+    rep.b #$20
+    sec
+    lda.w !K53_RANGE_X
+    sbc.b !actor_x+1
+    clc
+    adc.w #$00E0
+    cmp.w #$01C0
+    bcs .out
+    sec
+    lda.w !K53_RANGE_Y
+    sbc.b !actor_y+1
+    clc
+    adc.w #$00E0
+    cmp.w #$01C0
+    bcs .out
+    rts
+.out:
+    sep.b #$20
+    rep.b #$10
+    ldx.b !KIND53_COUNTER
+    dec.w !COUNTER_LIVE,x
+    sep.b #$10
+    jmp.w ActorEndDropReturn
 
 ; @routine 83:D694 Kind53Thrown
 ; @actor

@@ -21,9 +21,84 @@ arch 65816
 !X_RANGE_BOXES = $CEDB             ; the across-only boxes: offset, span (words), by X
 !Y_RANGE_BOXES = $CEEB             ; the up-and-down boxes likewise
 
-; The end of the routine before ($83:95FA up, not yet filed), the way out
-; ActorInRange shares: 8-bit registers.
-%at($839629)
+; @routine 83:95FA ActorEndOutOfView
+; WHAT IT DOES: Ends the actor for good when it is out of view (its $09
+; bit 6 clear, as ActorsInView leaves it); else returns. Nothing in the
+; game calls it (no JSR, JSL, JMP, pointer or word in the ROM names it):
+; unit_bank83_out_of_view runs it in view.
+; HOW: BIT $09; V set: RTS. Else two bytes pulled (its JSR's return
+; address) and on to ActorEndPlaced.
+; Entry: M 8-bit; D = the actor's record; DB a bank whose $0000-$1FFF is
+; work RAM; called by JSR from the actor's code at its own level. Exit:
+; in view: N, V and Z from the BIT; else never returns.
+%at($8395FA)
+ActorEndOutOfView:
+    bit.b !actor_09
+    bvs .keep
+    pla
+    pla
+    jmp.w ActorEndPlaced
+.keep:
+    rts
+
+; @routine 83:9604 ActorEndOutOfViewLong
+; WHAT IT DOES: ActorEndOutOfView for callers in other banks. Nothing in
+; the game calls it (no JSL, JMP, pointer or word names it):
+; unit_bank83_out_of_view runs it in view.
+; HOW: BIT $09; V set: RTL. Else three bytes pulled (its JSL's return
+; address) and on to ActorEndPlaced.
+; Entry: as ActorEndOutOfView; called by JSL. Exit: as ActorEndOutOfView.
+ActorEndOutOfViewLong:
+    bit.b !actor_09
+    bvs .keep
+    pla
+    pla
+    pla
+    jmp.w ActorEndPlaced
+.keep:
+    rtl
+
+; @routine 83:960F ActorEndOutOfViewDrop4
+; WHAT IT DOES: ActorEndOutOfView one call further down: out of view it
+; drops its own return and its caller's. Nothing in the game calls it (no
+; JSR, JMP, pointer or word names it): unit_bank83_out_of_view runs it in
+; view.
+; HOW: BIT $09; V set: to ActorEndOutOfView's RTS (83:9603). Else four
+; bytes pulled (two JSRs' return addresses) and on to ActorEndPlaced.
+; Entry: as ActorEndOutOfView; called by JSR from a routine the actor's
+; code called by JSR. Exit: as ActorEndOutOfView.
+ActorEndOutOfViewDrop4:
+    bit.b !actor_09
+    bvs ActorEndOutOfView_keep
+    pla
+    pla
+    pla
+    pla
+    jmp.w ActorEndPlaced
+
+; @routine 83:961A ActorEndOutOfViewLongDrop8
+; WHAT IT DOES: ActorEndOutOfViewLong further down: out of view it drops
+; eight bytes of returns. Nothing in the game calls it (no JSL, JMP,
+; pointer or word names it): unit_bank83_out_of_view runs it in view.
+; HOW: BIT $09; V set: to ActorEndOutOfViewLong's RTL (83:960E). Else
+; eight bytes pulled and on to ActorEndPlaced.
+; Entry: as ActorEndOutOfView; called by JSL, eight bytes of returns
+; above the actor's own level. Exit: as ActorEndOutOfView.
+ActorEndOutOfViewLongDrop8:
+    bit.b !actor_09
+    bvs ActorEndOutOfViewLong_keep
+    pla
+    pla
+    pla
+    pla
+    pla
+    pla
+    pla
+    pla
+    jmp.w ActorEndPlaced
+
+; The way out ActorInRange shares, after the routine before: 8-bit
+; registers.
 WidthsReturn8:
     sep.b #$30
     rts
@@ -33,7 +108,7 @@ WidthsReturn8:
 ; point: C set when it is, on either axis, by the box X picks.
 ; HOW: For x then y: the point less the actor's pixels, plus the box's
 ; offset, compared unsigned with its span. In range: out through the
-; SEP #$30; RTS at $83:9629, the end of the routine before.
+; SEP #$30; RTS at $83:9629, after the routine before.
 ; Entry: M 8-bit, X 8-bit; X = the box's offset; D = the actor; DB the
 ; boxes' bank, whose $0000-$1FFF is work RAM. Exit: as the C states.
 ActorInRange:

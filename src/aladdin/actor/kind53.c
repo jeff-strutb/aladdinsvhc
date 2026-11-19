@@ -23,12 +23,15 @@ void abi_AnimStep(void);
 void abi_SoundQueueAdd(void);
 
 void abi_ActorEndPlaced(void);
+void abi_ActorEndDropReturn(void);
 #define KIND53_16 0x16u           /* word: $D38C */
 #define KIND53_LET_GO 0x45u       /* nonzero: its holder has let it go (copied from the holder's) */
 #define KIND53_BOUNCES 0x40u      /* bounces left; then frames left breaking */
 #define KIND53_COUNTER 0x4Cu      /* word: the record counting its kind's live ones at $4B */
 #define KIND53_HOLDER 0x4Eu       /* word: the record of the actor holding it */
 #define COUNTER_LIVE 0x4Bu        /* in the counting record: how many are live */
+#define K53_RANGE_X 0x1A44u       /* the point actors are kept in range of (words) */
+#define K53_RANGE_Y 0x1A46u
 /* By its holder's animation frame, 4 bytes each: where it is held, x and
    y pixels from the holder's (words). */
 #define KIND53_HELD_AT 0xD394u
@@ -192,6 +195,50 @@ void abi_Kind53Held(void)
     a8_load(0x80);
     trb_at(dpa(ACTOR_09), 0x80);
     kind53_break();
+}
+
+/*
+ * @routine 83:D665 Kind53EndOutOfRange
+ * WHAT IT DOES: Ends a kind $53 actor for good when it is $E0 pixels or
+ * more from the camera's point across or up and down: the count of live
+ * ones in its counting record down by one, its caller's return dropped,
+ * then ActorEndPlaced. In range it returns. Nothing in the game calls it
+ * (no JSR, JSL, JMP, pointer or word in the ROM names it):
+ * unit_bank83_keep_paths runs it in range.
+ * HOW: 16-bit A: for x then y, the point ($1A44, $1A46) less its pixels,
+ * plus $E0, compared unsigned with $1C0; both below: RTS. Else SEP #$20,
+ * 16-bit X from KIND53_COUNTER, COUNTER_LIVE of that record (DEC
+ * $004B,X) down by one, SEP #$10, on to ActorEndDropReturn.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB a bank whose
+ * $0000-$1FFF is work RAM; called by JSR from the actor's code at its own
+ * level. Exit: in range: M 16-bit; A = the y sum; N, Z and C (clear) from
+ * its compare; else never returns.
+ */
+void abi_Kind53EndOutOfRange(void)
+{
+    op_rep(0x20);
+    sec();
+    lda16(ea_abs(K53_RANGE_X));
+    sbc16_v(rd16(ea_dp(ACTOR_X + 1)));
+    clc();
+    adc16_v(0x00E0);
+    cmp16_v(0x01C0);
+    if (!IF_C) {
+        sec();
+        lda16(ea_abs(K53_RANGE_Y));
+        sbc16_v(rd16(ea_dp(ACTOR_Y + 1)));
+        clc();
+        adc16_v(0x00E0);
+        cmp16_v(0x01C0);
+        if (!IF_C)
+            return;
+    }
+    op_sep(0x20);
+    op_rep(0x10);
+    ldx16(ea_dp(KIND53_COUNTER));
+    MEM8(dec, ea_absx(COUNTER_LIVE));
+    op_sep(0x10);
+    abi_ActorEndDropReturn();
 }
 
 /*
