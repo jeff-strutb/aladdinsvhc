@@ -1,7 +1,7 @@
 # Kind $9A's bounce (Kind9AWaitWork, $84:A4F7: sound $12, animation
 # $18): once burst (K9A_BOUNCES set) Aladdin coming down on it bounces
 # off, which no script has him do. Played as cov_kind9a_burst.box (stage
-# a5 s2, view x $1200, Aladdin x $1240): after the burst (frame 617) it
+# a5 s2, view x $1200, Aladdin x $1240): by frame 617, after the burst, it
 # sits at x $1238, y $00AC; Aladdin is put above it (x $1238, y $0070) 8
 # times, 25 frames apart, and falls onto it.
 load build/aladdin/states/stage_a5_s2.state
