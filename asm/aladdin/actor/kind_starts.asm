@@ -807,3 +807,58 @@ Kind75Enter:
 %at($839400)
 KindA0Enter:
     jml.l KindA0Start
+
+; @routine 83:92E5 Kind84Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $84 go on from the actor loop in
+; its start state (the table at $83:8DAB): Kind84Start.
+; HOW: JML to Kind84Start ($84:95E3).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind84Start.
+%at($8392E5)
+Kind84Enter:
+    jml.l Kind84Start
+
+; @routine 83:93BE Kind98Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $98 go on from the actor loop in
+; its start state (the table at $83:8DAB): Kind98Start.
+; HOW: JML to Kind98Start ($84:A112).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind98Start.
+%at($8393BE)
+Kind98Enter:
+    jml.l Kind98Start
+
+; @routine 83:93C7 Kind98Second
+; @actor
+; WHAT IT DOES: Where actors of kind $98 go on from the actor loop in
+; a state with bit 7 set (the table at $83:8EFD): Kind98Hit.
+; HOW: JML to Kind98Hit ($84:A2A6).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind98Hit.
+%at($8393C7)
+Kind98Second:
+    jml.l Kind98Hit
+
+; @routine 83:93CB Kind99Enter
+; @actor
+; WHAT IT DOES: Where actors of kind $99 go on from the actor loop in
+; its start state (the table at $83:8DAB): Kind99Start.
+; HOW: JML to Kind99Start ($84:A3B7).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind99Start.
+%at($8393CB)
+Kind99Enter:
+    jml.l Kind99Start
+
+; @routine 83:93D8 Kind9AEnter
+; @actor
+; WHAT IT DOES: Where actors of kind $9A go on from the actor loop in
+; its start state (the table at $83:8DAB): Kind9AStart.
+; HOW: JML to Kind9AStart ($84:A446).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never returns: as Kind9AStart.
+%at($8393D8)
+Kind9AEnter:
+    jml.l Kind9AStart
