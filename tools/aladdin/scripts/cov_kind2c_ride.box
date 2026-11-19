@@ -1,0 +1,18 @@
+# Actor kind $2C's start ($83:A758), a ride, which no level the scripts
+# reach places: the first level's record $092B made one ($07 0, state $0C)
+# at Aladdin's place (x $003A, y $01A8: its zone $74, half-width 12,
+# height 20 from its own point, holds him at x $003A, y $01B0): it takes
+# him at once ($83:A78B) and flies off right and down. On the first level
+# that course falls out of the level long before its end x ($0CF3, about
+# 800 frames on), so its end x ($40, set at its start) is made $0100: it
+# reaches it about 50 frames on and lets him go ($83:A7DA).
+load build/aladdin/states/level1.state
+wait 10
+poke 000931 2C
+poke 000932 00
+poke 000937 3A,00
+poke 00093A A8,01
+poke 00092B 0C
+wait 2
+poke 00096B 00,01
+wait 200
