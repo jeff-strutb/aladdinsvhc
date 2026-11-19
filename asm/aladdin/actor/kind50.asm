@@ -14,6 +14,9 @@ arch 65816
 !K50_STEP = $42                 ; frames left of a step
 !K50_POSE = $43                 ; its animation: 6 down, 0 up
 !K50_DOWNED = $45               ; counted up by Kind50Wait when a shot downs it
+!K50_LOW = $44                  ; its second state: 7 once its pose came to the lowest of its fall
+!K50_STOMP_SOUND = $0F          ; the sound when it is downed by a stomp, not a shot
+!K50_FALL = $2F                 ; ActorMotionPreset's preset for its fall away
 
 ; @routine 83:D109 Kind50Start
 ; @actor
@@ -150,3 +153,79 @@ Kind50Face:
     sta.b !actor_facing
     sta.b !actor_flip
     rts
+
+; @routine 83:D1C7 Kind50Second
+; @actor
+; WHAT IT DOES: Kind $50 downed (its second state, state $8C): by a stomp
+; it plays sound $0F; it shows its hit poses (7 up to 13) as it sinks a
+; step and rises again, then falls away out of view and ends there.
+; HOW: Its facing negative (set by ActorDownedByShot for a shot whose $11
+; is negative): facing and flip = its bit 0. K50_DOWNED zero:
+; SoundQueueAdd K50_STOMP_SOUND. Pose = 13 less its pose (AnimStart), COP
+; 3; K50_LOW 0; pose one less, or 7 (K50_LOW 7) where that is 6;
+; AnimStart; K50_LOW zero: Kind50Down8; COP 8. Then each step pose one
+; more; at 14: AnimStart, ActorMotionPreset K50_FALL, and each frame (BRK
+; first) AnimStep, ActorFly, ActorEndOutOfRange with box 0. Below 14:
+; AnimStart, Kind50Up8, BRK, the next step.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's jump for kind $50 in a state with bit 7 set (the table
+; at $83:8DFD). Exit: never returns.
+%at($83D1C7)
+Kind50Second:
+    lda.b !actor_facing
+    bpl .side
+    and.b #$01
+    sta.b !actor_facing
+    sta.b !actor_flip
+.side:
+    lda.b !K50_DOWNED
+    bne .shot
+    lda.b #!K50_STOMP_SOUND
+    jsl.l SoundQueueAdd
+.shot:
+    lda.b #$06
+    sec
+    sbc.b !K50_POSE
+    clc
+    adc.b #$07
+    sta.b !K50_POSE
+    jsl.l AnimStart
+    lda.b #$03
+    cop.b #$00
+    stz.b !K50_LOW
+    lda.b !K50_POSE
+    dec a
+    cmp.b #$06
+    bne .pose
+    lda.b #$07
+    sta.b !K50_LOW
+.pose:
+    sta.b !K50_POSE
+    jsl.l AnimStart
+    lda.b !K50_LOW
+    bne .low
+    jsr.w Kind50Down8
+.low:
+    lda.b #$08
+    cop.b #$00
+.rise:
+    inc.b !K50_POSE
+    lda.b !K50_POSE
+    cmp.b #$0E
+    beq .fall
+    jsl.l AnimStart
+    jsr.w Kind50Up8
+    brk.b #$00
+    bra .rise
+.fall:
+    jsl.l AnimStart
+    ldy.b #!K50_FALL
+    jsl.l ActorMotionPreset
+.away:
+    brk.b #$00
+    jsl.l AnimStep
+    jsl.l ActorFly
+    ldx.b #$00
+    jsr.w ActorEndOutOfRange
+    bra .away
+%ends_at($83D239)

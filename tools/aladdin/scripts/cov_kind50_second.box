@@ -1,0 +1,24 @@
+# Kind $50 downed (its second state, Kind50Second $83:D1C7) by a shot whose
+# $11 is negative: ActorDownedByShot then gives it a facing with bit 7 set
+# ($83:8104 on) and leaves its K50_DOWNED 0, so Kind50Second takes its
+# facing from bit 0 and plays the stomp sound ($0F). Level 0 as in
+# cov_kind50_popup.box: the view at x $0700, Aladdin at x $0780; the kind
+# $50 at x $0828 (record $0CEB) restarted; 70 frames on, Aladdin at x
+# $0800 throws an apple (record $09CB) right; four frames into its flight
+# its $11 is made $80; it reaches the kind $50 four frames later, which
+# then shows its hit poses and falls away.
+load build/aladdin/states/level1.state
+wait 30
+poke 001773 00,07
+poke 0019E5 00,07
+poke 0008E7 80,07
+poke 0008EA 80,01
+wait 60
+poke 000CEB 0C
+wait 70
+poke 000369 06
+poke 0008E7 00,08
+hold LEFT+A 1
+wait 4
+poke 0009DC 80
+wait 300

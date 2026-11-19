@@ -16,12 +16,29 @@ void abi_Kind50Still(void);
 void abi_Kind50Up8(void);
 void abi_RandomFromList(void);
 void abi_RandomNext(void);
+void abi_SoundQueueAdd(void);
+void abi_ActorMotionPreset(void);
+void abi_AnimStep(void);
+void abi_ActorFly(void);
+void abi_ActorEndOutOfRange(void);
 
 #define K50_FRAMES 0x40u        /* frames left of its wait below or on top */
 #define K50_TOP 0x41u           /* frames it waits each time ($20 or $40) */
 #define K50_STEP 0x42u          /* frames left of a step */
 #define K50_POSE 0x43u          /* its animation: 6 down, 0 up */
 #define K50_DOWNED 0x45u        /* counted up by Kind50Wait when a shot downs it */
+#define K50_LOW 0x44u           /* its second state: 7 once its pose came to the lowest of its fall */
+#define K50_STOMP_SOUND 0x0Fu   /* the sound when it is downed by a stomp, not a shot */
+#define K50_FALL 0x2Fu          /* ActorMotionPreset's preset for its fall away */
+
+/* A JSL at `site` to fn: its return address on the stack while fn runs,
+   as the original's. */
+static void jsl_call(uint32_t site, void (*fn)(void))
+{
+    jsl_frame(site);
+    fn();
+    cpu.s = (uint16_t)(cpu.s + 3);
+}
 
 /*
  * @routine 83:D109 Kind50Start
@@ -168,4 +185,81 @@ void abi_Kind50Face(void)
     jsl_frame(0x83D1A7u); abi_ActorSideOfPlayer(); cpu.s = (uint16_t)(cpu.s + 3);  /* 83D1A7 jsl */
     sta8(ea_dp(ACTOR_FACING));  /* 83D1AB sta */
     sta8(ea_dp(ACTOR_FLIP));  /* 83D1AD sta */
+}
+
+/*
+ * @routine 83:D1C7 Kind50Second
+ * @actor
+ * WHAT IT DOES: Kind $50 downed (its second state, state $8C): by a stomp
+ * it plays sound $0F; it shows its hit poses (7 up to 13) as it sinks a
+ * step and rises again, then falls away out of view and ends there.
+ * HOW: Its facing negative (set by ActorDownedByShot for a shot whose $11
+ * is negative): facing and flip = its bit 0. K50_DOWNED zero:
+ * SoundQueueAdd K50_STOMP_SOUND. Pose = 13 less its pose (AnimStart), COP
+ * 3; K50_LOW 0; pose one less, or 7 (K50_LOW 7) where that is 6;
+ * AnimStart; K50_LOW zero: Kind50Down8; COP 8. Then each step pose one
+ * more; at 14: AnimStart, ActorMotionPreset K50_FALL, and each frame (BRK
+ * first) AnimStep, ActorFly, ActorEndOutOfRange with box 0. Below 14:
+ * AnimStart, Kind50Up8, BRK, the next step.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's jump for kind $50 in a state with bit 7 set (the table
+ * at $83:8DFD). Exit: never returns.
+ */
+void abi_Kind50Second(void)
+{
+    lda8(ea_dp(ACTOR_FACING));
+    if (IF_N) {
+        and8_v(0x01);
+        sta8(ea_dp(ACTOR_FACING));
+        sta8(ea_dp(ACTOR_FLIP));
+    }
+    lda8(ea_dp(K50_DOWNED));
+    if (IF_Z) {
+        lda8_v(K50_STOMP_SOUND);
+        jsl_call(0x83D1D7u, abi_SoundQueueAdd);
+    }
+    lda8_v(0x06);
+    sec();
+    sbc8_v(rd8(ea_dp(K50_POSE)));
+    clc();
+    adc8_v(0x07);
+    sta8(ea_dp(K50_POSE));
+    jsl_call(0x83D1E5u, abi_AnimStart);
+    lda8_v(0x03);
+    actor_wait(0x83D1EBu);
+    stz8(ea_dp(K50_LOW));
+    lda8(ea_dp(K50_POSE));
+    ACC8(dec);
+    cmp8_v(0x06);
+    if (IF_Z) {
+        lda8_v(0x07);
+        sta8(ea_dp(K50_LOW));
+    }
+    sta8(ea_dp(K50_POSE));
+    jsl_call(0x83D1FCu, abi_AnimStart);
+    lda8(ea_dp(K50_LOW));
+    if (IF_Z)
+        call_frame(0xD206, abi_Kind50Down8);
+    lda8_v(0x08);
+    actor_wait(0x83D209u);
+    for (;;) {
+        MEM8(inc, ea_dp(K50_POSE));
+        lda8(ea_dp(K50_POSE));
+        cmp8_v(0x0E);
+        if (IF_Z)
+            break;
+        jsl_call(0x83D213u, abi_AnimStart);
+        call_frame(0xD219, abi_Kind50Up8);
+        actor_yield(0x83D21Au);
+    }
+    jsl_call(0x83D21Eu, abi_AnimStart);
+    ldy8_v(K50_FALL);
+    jsl_call(0x83D224u, abi_ActorMotionPreset);
+    for (;;) {
+        actor_yield(0x83D228u);
+        jsl_call(0x83D22Au, abi_AnimStep);
+        jsl_call(0x83D22Eu, abi_ActorFly);
+        ldx8_v(0x00);
+        call_frame(0xD236, abi_ActorEndOutOfRange);
+    }
 }
