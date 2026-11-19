@@ -20,17 +20,17 @@ _Snapshot 2026-11-19._
 
 ```
 M1  Behaviour exact (T3 + T4)
-    ████████████████████████████░░░░░░░░░░░░   71.2%   60,526 / 85,031 B of the game's code
+    ███████████████████████████████████░░░░░   88.5%   75,284 / 85,031 B of the game's code
 M2  Byte exact (T4)
-    ████████████████████████████░░░░░░░░░░░░   69.6%   59,151 / 85,031 B of the game's code
+    ███████████████████████████████████░░░░░   86.9%   73,909 / 85,031 B of the game's code
 ```
 
-The bars measure the whole game's S-CPU and SPC700 code, 85,031 B: 83,107 B the scripts have run and 1,924 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 1143 routines behaviour exact, 1132 of them byte exact.
+The bars measure the whole game's S-CPU and SPC700 code, 85,031 B: 83,107 B the scripts have run and 1,924 B the [routine census](docs/aladdin/ROUTINE_CENSUS.md) finds that no script has run yet. Certified so far: 1416 routines behaviour exact, 1405 of them byte exact.
 
 | Processor | M1: behaviour exact | M2: byte exact |
 |---|---|---|
-| **S-CPU (65816)** | `██████████████░░░░░░` 72.2%: 59,694/82,678 B | `██████████████░░░░░░` 70.5%: 58,319/82,678 B |
-| **SPC700 (sound)** | `███████░░░░░░░░░░░░░` 35.4%: 832/2,353 B | `███████░░░░░░░░░░░░░` 35.4%: 832/2,353 B |
+| **S-CPU (65816)** | `██████████████████░░` 88.2%: 72,931/82,678 B | `█████████████████░░░` 86.5%: 71,556/82,678 B |
+| **SPC700 (sound)** | `████████████████████` 100.0%: 2,353/2,353 B | `████████████████████` 100.0%: 2,353/2,353 B |
 <!-- PROGRESS:END -->
 
 ![Progress map](docs/aladdin/progress-map.svg)
@@ -42,7 +42,7 @@ have run and the 1,924 B the routine census (`tools/aladdin/census.py`) finds
 by following the code statically (calls, jumps, tables, handler pointers,
 task entries, orphans) where no script has gone. The numerator is the code
 bytes inside routines whose C is certified behaviour exact (T3) or whose
-assembly is also byte exact (T4), for M1, and T4 only for M2. 330 routine(s)
+assembly is also byte exact (T4), for M1, and T4 only for M2. 57 routine(s)
 are in the tree but not yet certified (T2).
 
 **Why not routines.** A routine count keeps growing as the work goes on:
