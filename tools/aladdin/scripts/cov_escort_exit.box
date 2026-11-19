@@ -1,0 +1,16 @@
+# An escort level's exit walk (PlayerEscortExit, $81:E730). Level $12
+# (stage a6 s0) ends when the camera passes its exit spot (x $1EF0, the
+# table at $80:B96B marks it): LevelExitCheck then sets the player's code
+# to $E730. No script's play reaches the level's far end, so the camera's
+# scroll x ($1773) is put just short of the spot and Aladdin, on his
+# carpet, 192 pixels right of it (on screen, where play can have him);
+# the original's own frame then finds the exit, he walks out, his x is
+# held at $2060 during the fade, and LevelEndTask takes over.
+load build/aladdin/states/stage_a6_s0.state
+wait 2
+poke $001773 F0,1E
+poke $0008E7 B0,1F
+wait 1
+wait 30
+wait 30
+wait 400
