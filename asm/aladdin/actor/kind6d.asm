@@ -104,7 +104,7 @@ Kind6DStart:
     tax
     jmp.w (.ways,x)
 .ways:
-    dw .across, .updown, .run, .hop, .homing, .spawner, .homing6, .hop7
+    dw .across, .updown, .run, Kind6DAway_hop, Kind6DAway_homing, Kind6DAway_spawner, Kind6DAway_homing6, Kind6DAway_hop7
 .across:
     lda.b #$08
     jsl.l AnimStart
@@ -228,6 +228,22 @@ Kind6DStart:
     jsl.l ActorDecelerateY
     lda.b !actor_speed_y+2
     bpl .rising
+
+; @routine 83:EE3B Kind6DAway
+; @actor
+; WHAT IT DOES: Kind $6D's run (way 2) once it has stopped rising: each
+; frame it moves on across, for good. No input reaches it: the run's
+; rise before it loops while its vertical speed's top byte is not
+; negative, right after ActorDecelerateY, which never leaves it negative
+; (a negative result is cleared to 0); nothing else names $83:EE3B.
+; cov_kind6d_away.box runs it from a kind $6D record whose resume address
+; is set to it. The ways after it in the ROM ($EE43-EFEF) are
+; Kind6DStart's code, filed under this tag only because they follow it.
+; HOW: Each frame (BRK first) ActorMoveX; again.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+; the actor loop's RTI at a resume address set to it. Exit: never returns.
+%at($83EE3B)
+Kind6DAway:
 .away:
     brk.b #$00
     jsl.l ActorMoveX

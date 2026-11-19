@@ -48,6 +48,8 @@ void abi_ActorStepYBack(void);
 void abi_ActorStopX(void);
 void abi_ActorStopY(void);
 
+void abi_Kind6DAway(void);
+
 /* way 0 ($83:ED33): back and forth across */
 static void k6d_across(void)
 {
@@ -177,10 +179,7 @@ static void k6d_run(void)
         abi_ActorDecelerateY();
         lda8(ea_dp(ACTOR_SPEED_Y + 2));
     } while (!IF_N);
-    for (;;) {
-        actor_yield(0x83EE3Bu);
-        abi_ActorMoveX();
-    }
+    abi_Kind6DAway();
 }
 
 /* ways 3 ($83:EE43) and 7 ($83:EF45): falls and hops, by preset `preset`;
@@ -345,6 +344,29 @@ static void k6d_spawner(void)
             cmp16_v(0x0090);
             op_sep(0x20);
         } while (!IF_C);
+    }
+}
+
+/*
+ * @routine 83:EE3B Kind6DAway
+ * @actor
+ * WHAT IT DOES: Kind $6D's run (way 2) once it has stopped rising: each
+ * frame it moves on across, for good. No input reaches it: the run's
+ * rise before it loops while its vertical speed's top byte is not
+ * negative, right after ActorDecelerateY, which never leaves it negative
+ * (a negative result is cleared to 0); nothing else names $83:EE3B.
+ * cov_kind6d_away.box runs it from a kind $6D record whose resume address
+ * is set to it. The ways after it in the ROM ($EE43-EFEF) are
+ * Kind6DStart's code, filed under this tag only because they follow it.
+ * HOW: Each frame (BRK first) ActorMoveX; again.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; reached by
+ * the actor loop's RTI at a resume address set to it. Exit: never returns.
+ */
+void abi_Kind6DAway(void)
+{
+    for (;;) {
+        actor_yield(0x83EE3Bu);
+        jsl_frame(0x83EE3Du); abi_ActorMoveX(); cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 

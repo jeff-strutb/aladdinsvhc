@@ -1,0 +1,10 @@
+# Kind6DAway ($83:EE3B), kind $6D's run once it has stopped rising, which
+# no input reaches (the rise loops while its vertical speed's top byte is
+# not negative, just after ActorDecelerateY, which clears a negative
+# result). On stage a3 s0 at frame 30 the kind $6D at record $0B5B
+# (waiting in way 1) has its resume address ($03-$04) set to $EE3B: the
+# loop's RTI starts it there and it moves on across each frame.
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000B5E 3B,EE
+wait 60
