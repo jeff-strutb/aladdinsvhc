@@ -1,0 +1,37 @@
+# Unit calls of routines the game reaches only by a jump or by running on
+# from another routine, so no call of them stands alone: AnimStepNext
+# ($81:9131, AnimStep's rest), ActorPictureQueueNew ($81:94AA,
+# ActorPictureQueue's rest), MapTileRestoreShownTail ($81:9AB4),
+# ActorMapAhead7Down36 ($83:9A11, called only inside kind $20's probes),
+# ActorTestSolid and ActorTestLand ($83:FBAD, $83:FBB1, ActorTestByX's
+# jump), and ActorFlagOnce's four cases FlagDropMaybe, FlagDropAlways,
+# FlagDropFour and FlagDropThree ($83:CF31, CF42, CF51, CF67, its jump)
+# and FlagDropChild ($83:CF53, run on into by three of them; sort 7).
+# On the first level's state at frame 10, M and X 8-bit, DB $80 (the
+# bank its picture lists are read from), D the guard at record $0BAB (kind $20, its
+# animation at frame 0 with 6 frames left, picture 1). The tail by JSL
+# with the caller's D ($0000) pushed above the return, as its callers'
+# PHD leaves it (frame=0000; its PLD pulls it), M and X 16-bit, D 0, X =
+# $0002 (a tile), Y = 0 (the first word at block_tile_words, $57), the
+# point $0050, 0. PlayerLandOnActor by box $50 (Y), as kind $5D calls it.
+# The flag cases with the guard's $41 (the flag's mask) $40. (The machine
+# is put back after each call.)
+load build/aladdin/states/level1.state
+wait 10
+call 819131 long p=30 db=80 d=0BAB
+call 8194AA long a=01 p=30 db=80 d=0BAB
+set 00000C 50,00,00,00
+call 819AB4 long frame=0000 p=00 db=80 d=0000 x=0002 y=0000
+call 839A11 p=30 db=80 d=0BAB
+call 83FBAD long p=30 db=80 d=0BAB
+call 83FBB1 long p=30 db=80 d=0BAB y=50
+set 000BEC 40
+call 83CF31 p=30 db=80 d=0BAB
+set 000BEC 40
+call 83CF42 p=30 db=80 d=0BAB
+set 000BEC 40
+call 83CF51 p=30 db=80 d=0BAB
+set 000BEC 40
+call 83CF67 p=30 db=80 d=0BAB
+set 000BEC 40
+call 83CF53 a=07 p=30 db=80 d=0BAB
