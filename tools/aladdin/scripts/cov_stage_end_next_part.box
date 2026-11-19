@@ -1,0 +1,19 @@
+# PlayerStageEnd's (81:E7B1) exit to NextPartTask, which no level takes
+# (every level that ends at it has a nonzero STAGE_GOES_ON entry,
+# $80:C6F2+level). Act 1 stage 1's end as cov_level_end_press.box: his
+# code is set to $E7B1 at frame 865 and the fade (TASK2_STATE) ends at
+# frame 995. The level ($035E) set to 4, whose entry is 0, just before
+# that frame: the task goes on at NextPartTask (81:E7E3-E7E8), which takes
+# the level from the game's progress again.
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 994
+poke 00035E 04,00
+wait 400
