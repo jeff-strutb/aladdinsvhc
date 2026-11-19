@@ -1,0 +1,25 @@
+# Level $10's scene task (Level10Scene, $80:A5AC) from its start to its
+# end. Every saved state of stage a5 s2 holds the task already waiting at
+# $80:A5BF (Level10ScreenSetup created it before the save), so no script
+# ran its first instructions. Here Aladdin falls out of the map (his y put
+# far below it), loses a life, and the stage starts again: its set-up
+# creates the task anew and the task runs from its entry. Then, as
+# cov_kind98_ways.box, the view is put at x $1200, y 0 and Aladdin at x
+# $1240: he lands past the task's spot (x $1190, y $A8) and the task takes
+# him over. Last, as that script's part C, kind $98 (its record at $0B5B
+# here too) is put in its hit state with its count at 0: its defeat sets
+# the cue $BD, and the task ends.
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke $0008EA 00,04
+wait 660
+poke 001773 00,12
+poke 0019E5 00,12
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 40,12
+poke 0008EA 80,00
+wait 400
+poke 000B6C 00
+poke 000B5B 8C
+wait 200
