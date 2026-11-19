@@ -249,3 +249,80 @@ PlayerHeldJumpOff:
     jmp.w .frame
 .land:
     jmp.w PlayerLand
+
+; @routine 81:D6F8 PlayerHeld
+; @actor
+; WHAT IT DOES: Aladdin held by an actor (it set his code here): his
+; box follows its frame until it lets him go or he lets go (down on the
+; pad) or jumps off (the jump, while its frame is 4 to $0C). On a copier
+; (its cartridge RAM answers the check) he is held for good.
+; HOW: ACTOR_FACING from ACTOR_FLIP; PlayerPosRestore; SoundQueueAdd 6;
+; V_141C, PLAYER_LANDED, AIR_THROW, HOLD_LET_GO and V_141B 0, V_1427 up;
+; PlayerFlagsClear; PlayerMoveStart $10; COPIER_HELD 0; COPIER_MARK
+; stored at COPIER_CHECK and compared: equal, COPIER_HELD up.
+; ActorAllocBLong: a record (N clear, X 16-bit): its state $0C and kind
+; HOLD_KIND, X 8-bit. Each frame (BRK first): PLAYER_BOX_WANTED from
+; HELD_BOXES by ACTOR_FRAME; PlayerBoxUpdate; PlayerOutOfWallsHurt.
+; COPIER_HELD: the next frame. HOLD_LET_GO or down on the pad: on at
+; PlayerHeldLetGo. JUMP_PRESSED with ACTOR_FRAME 4 to $0C: on at
+; PlayerHeldJumpOff with A = the frame. Else the next frame.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where a holder (kinds $6C, $79, $7D, $87 and the
+; grabber) set his resume address. Exit: never returns.
+%at($81D6F8)
+PlayerHeld:
+    lda.b !actor_flip
+    sta.b !actor_facing
+    jsr.w PlayerPosRestore
+    lda.b #$06
+    jsl.l SoundQueueAdd
+    stz.w !V_141C
+    stz.w !PLAYER_LANDED
+    stz.w !AIR_THROW
+    stz.w !HOLD_LET_GO
+    stz.w !V_141B
+    inc.w !V_1427
+    jsr.w PlayerFlagsClear
+    lda.b #$10
+    jsr.w PlayerMoveStart
+    stz.w !COPIER_HELD
+    lda.b #!COPIER_MARK
+    sta.l !COPIER_CHECK
+    cmp.l !COPIER_CHECK
+    bne .start
+    inc.w !COPIER_HELD
+.start:
+    jsl.l ActorAllocBLong
+    bmi .frame
+    lda.b #!STATE_START
+    sta.w !actor_state,x
+    lda.b #!HOLD_KIND
+    sta.w !actor_06,x
+    sep.b #$10
+.frame:
+    brk.b #$00
+    ldx.b !ACTOR_FRAME
+    lda.w !HELD_BOXES,x
+    sta.w !player_box_wanted
+    jsr.w PlayerBoxUpdate
+    jsr.w PlayerOutOfWallsHurt
+    lda.w !COPIER_HELD
+    bne .frame
+    lda.w !HOLD_LET_GO
+    bne .let_go
+    lda.w !PAD1_DIRS
+    and.b #!PAD_DOWN
+    bne .let_go
+    lda.w !JUMP_PRESSED
+    bne .jump_test
+    bra .frame
+.let_go:
+    jmp.w PlayerHeldLetGo
+.jump_test:
+    lda.b !ACTOR_FRAME
+    sec
+    cmp.b #$04
+    bcc .frame
+    cmp.b #$0D
+    bcs .frame
+    jmp.w PlayerHeldJumpOff

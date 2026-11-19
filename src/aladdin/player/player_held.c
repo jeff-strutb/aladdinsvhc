@@ -309,3 +309,91 @@ void abi_PlayerHeldJumpOff(void)
         }
     }
 }
+
+/*
+ * @routine 81:D6F8 PlayerHeld
+ * @actor
+ * WHAT IT DOES: Aladdin held by an actor (it set his code here): his
+ * box follows its frame until it lets him go or he lets go (down on the
+ * pad) or jumps off (the jump, while its frame is 4 to $0C). On a copier
+ * (its cartridge RAM answers the check) he is held for good.
+ * HOW: ACTOR_FACING from ACTOR_FLIP; PlayerPosRestore; SoundQueueAdd 6;
+ * V_141C, PLAYER_LANDED, AIR_THROW, HOLD_LET_GO and V_141B 0, V_1427 up;
+ * PlayerFlagsClear; PlayerMoveStart $10; COPIER_HELD 0; COPIER_MARK
+ * stored at COPIER_CHECK and compared: equal, COPIER_HELD up.
+ * ActorAllocBLong: a record (N clear, X 16-bit): its state $0C and kind
+ * HOLD_KIND, X 8-bit. Each frame (BRK first): PLAYER_BOX_WANTED from
+ * HELD_BOXES by ACTOR_FRAME; PlayerBoxUpdate; PlayerOutOfWallsHurt.
+ * COPIER_HELD: the next frame. HOLD_LET_GO or down on the pad: on at
+ * PlayerHeldLetGo. JUMP_PRESSED with ACTOR_FRAME 4 to $0C: on at
+ * PlayerHeldJumpOff with A = the frame. Else the next frame.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where a holder (kinds $6C, $79, $7D, $87 and the
+ * grabber) set his resume address. Exit: never returns.
+ */
+void abi_PlayerHeld(void)
+{
+    lda8(ea_dp(ACTOR_FLIP));
+    sta8(ea_dp(ACTOR_FACING));
+    call_frame(0xD6FE, abi_PlayerPosRestore);
+    lda8_v(0x06);
+    jsl_call(0x81D701u, abi_SoundQueueAdd);
+    stz8(ea_abs(V_141C));
+    stz8(ea_abs(PLAYER_LANDED));
+    stz8(ea_abs(AIR_THROW));
+    stz8(ea_abs(HOLD_LET_GO));
+    stz8(ea_abs(V_141B));
+    MEM8(inc, ea_abs(V_1427));
+    call_frame(0xD719, abi_PlayerFlagsClear);
+    lda8_v(0x10);
+    call_frame(0xD71E, abi_PlayerMoveStart);
+    stz8(ea_abs(COPIER_HELD));
+    lda8_v(COPIER_MARK);
+    sta8(ea_long(COPIER_CHECK));
+    cmp8_v(rd8(ea_long(COPIER_CHECK)));
+    if (IF_Z)
+        MEM8(inc, ea_abs(COPIER_HELD));
+    jsl_call(0x81D731u, abi_ActorAllocBLong);
+    if (!IF_N) {
+        lda8_v(STATE_START);
+        sta8(ea_absx(ACTOR_STATE));
+        lda8_v(HOLD_KIND);
+        sta8(ea_absx(ACTOR_06));
+        op_sep(P_X);
+    }
+    for (;;) {
+        actor_yield(0x81D743u);
+        ldx8(ea_dp(ACTOR_FRAME));
+        lda8(ea_absx(HELD_BOXES));
+        sta8(ea_abs(PLAYER_BOX_WANTED));
+        call_frame(0xD74F, abi_PlayerBoxUpdate);
+        call_frame(0xD752, abi_PlayerOutOfWallsHurt);
+        lda8(ea_abs(COPIER_HELD));
+        if (!IF_Z)
+            continue;
+        lda8(ea_abs(HOLD_LET_GO));
+        if (!IF_Z) {
+            abi_PlayerHeldLetGo();
+            return;
+        }
+        lda8(ea_abs(PAD1_DIRS));
+        and8_v(PAD_DOWN);
+        if (!IF_Z) {
+            abi_PlayerHeldLetGo();
+            return;
+        }
+        lda8(ea_abs(JUMP_PRESSED));
+        if (IF_Z)
+            continue;
+        lda8(ea_dp(ACTOR_FRAME));
+        sec();
+        cmp8_v(0x04);
+        if (!IF_C)
+            continue;
+        cmp8_v(0x0D);
+        if (IF_C)
+            continue;
+        abi_PlayerHeldJumpOff();
+        return;
+    }
+}
