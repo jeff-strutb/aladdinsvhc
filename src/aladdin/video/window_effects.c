@@ -1323,6 +1323,21 @@ static int on_screen(uint16_t at, uint16_t keep, uint16_t size, uint16_t margin)
 }
 
 /*
+ * @routine 82:8415 WindowBoxOff
+ * WHAT IT DOES: WindowBoxAt's answer for a box off the screen: C set,
+ * nothing added.
+ * HOW: SEC, RTS. It lies just before WindowBoxAt, whose two off-screen
+ * tests branch back to it (82:842D, 82:8445); no call reaches it, so the
+ * script unit_window_box_off.box calls it at its own entry for A5.
+ * Entry: reached by WindowBoxAt's branches (M 16-bit, X 8-bit). Exit: C
+ * set; every other register and flag unchanged.
+ */
+void abi_WindowBoxOff(void)
+{
+    flag_set(P_C, 1);
+}
+
+/*
  * @routine 82:8417 WindowBoxAt
  * WHAT IT DOES: Adds to the HDMA table being built at $7F:5600 the lines
  * of a window 128 pixels wide and up to 96 lines tall whose top left is
@@ -1337,7 +1352,7 @@ static int on_screen(uint16_t at, uint16_t keep, uint16_t size, uint16_t margin)
  * with the window from across to across + 128, clipped to 0 and 255.
  * Entry: M 16-bit, X 8-bit; X = the next entry's offset; DB a bank whose
  * $0000-$1FFF is work RAM; called by JSR. Exit: added: C clear, X past
- * the entries; off: C set (at $82:8415).
+ * the entries; off: C set (WindowBoxOff, 82:8415).
  */
 void abi_WindowBoxAt(void)
 {

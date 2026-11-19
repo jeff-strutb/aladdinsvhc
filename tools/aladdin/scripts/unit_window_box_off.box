@@ -1,0 +1,8 @@
+# WindowBoxOff ($82:8415, SEC/RTS): WindowBoxAt's off-screen answer, which
+# lies before WindowBoxAt and is reached only by its backward branches
+# ($82:842D, $82:8445), so no call of it stands alone. A unit call at its
+# own entry, M 16-bit and X 8-bit as WindowBoxAt's branches leave it, DB
+# $82, on the first level at frame 10. (The machine is put back after.)
+load build/aladdin/states/level1.state
+wait 10
+call 828415 p=10 db=82
