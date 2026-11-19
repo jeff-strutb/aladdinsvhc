@@ -1,0 +1,22 @@
+# PlayerSwitchHang's let-go (81:D9FA-DA13): Aladdin hangs from kind $3B's
+# switch as in cov_kind3b_switch.box (played to its end, where he still
+# hangs with V_142E 0); then DOWN held: he lets go, PlayerGroundYSave,
+# NO_LANDING $10, 18 pixels lower, V_1427 0, on at PlayerFall.
+load build/aladdin/states/stage_a5_s2.state
+wait 30
+poke 001773 40,0B
+poke 0019E5 40,0B
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008E7 20,0B
+poke 0008EA 30,00
+wait 60
+repeat 30
+poke 0008E7 A0,0B
+poke 0008EA 14,00
+wait 1
+end
+wait 100
+poke 001427 00
+wait 100
+hold DOWN 40
