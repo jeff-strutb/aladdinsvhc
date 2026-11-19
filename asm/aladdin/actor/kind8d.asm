@@ -109,10 +109,17 @@ Kind8DCircle:
     dec.b !KIND8D_TURNS
     bne .off
     stz.w !V_1A12
-    jmp.w .gone
+    jmp.w Kind8DGone
 
+; @routine 84:9B43 Kind8DGone
+; @actor
+; WHAT IT DOES: Kind $8D's end: off the screen for good, its record freed.
+; HOW: Its x and y high bytes $FF; ActorEndPlaced.
+; Entry: M 8-bit; D = the actor's record; reached by the jump at the end
+; of Kind8DCircle (84:9A85) and by the stub at $83:934D (a state of kind
+; $8D no script runs). Exit: never returns; ends in ActorEndPlaced.
 %at($849B43)
-.gone:
+Kind8DGone:
     lda.b #$FF
     sta.b !actor_x+2
     sta.b !actor_y+2

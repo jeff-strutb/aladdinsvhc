@@ -5,6 +5,7 @@
 #include "machine.h"
 #include "native.h"
 #include "cpu_ops.h"
+#include "ops65.h"
 #include "actor.h"
 
 void abi_AnimStart(void);
@@ -13,6 +14,7 @@ void abi_ActorMoveByVectorTimes(void);
 void abi_ActorNearPlayer(void);
 void abi_ActorSideOfPlayer(void);
 void abi_ActorEndPlaced(void);
+void abi_Kind8DGone(void);
 
 #define PLAYER_X_AT (PLAYER + ACTOR_X + 1)  /* the player's x, whole pixels (word) */
 #define PLAYER_Y_AT (PLAYER + ACTOR_Y + 1)  /* the player's y, whole pixels (word) */
@@ -129,8 +131,22 @@ void abi_Kind8DCircle(void)
         abi_ActorMoveByVector();
     } while (dec8_at(dpa(KIND8D_TURNS)));
     wr8(dba(V_1A12), 0);
-    a8_load(0xFF);
-    wr8(dpa(ACTOR_X + 2), 0xFF);
-    wr8(dpa(ACTOR_Y + 2), 0xFF);
+    abi_Kind8DGone();
+}
+
+/*
+ * @routine 84:9B43 Kind8DGone
+ * @actor
+ * WHAT IT DOES: Kind $8D's end: off the screen for good, its record freed.
+ * HOW: Its x and y high bytes $FF; ActorEndPlaced.
+ * Entry: M 8-bit; D = the actor's record; reached by the jump at the end
+ * of Kind8DCircle (84:9A85) and by the stub at $83:934D (a state of kind
+ * $8D no script runs). Exit: never returns; ends in ActorEndPlaced.
+ */
+void abi_Kind8DGone(void)
+{
+    lda8_v(0xFF);
+    sta8(ea_dp(ACTOR_X + 2));
+    sta8(ea_dp(ACTOR_Y + 2));
     abi_ActorEndPlaced();
 }
