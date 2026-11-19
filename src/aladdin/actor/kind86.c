@@ -269,7 +269,7 @@ void abi_Kind86Start(void)
         sta8(ea_absx(ACTOR_LOOK + 1));
         op_rep(0x20);
         op_sep(0x20);
-        stx8(ea_dp(K86_PAIR));
+        stx16(ea_dp(K86_PAIR));             /* X is 16-bit here (the SEP #$10 follows): both bytes */
     }
     op_sep(0x10);
     actor_yield(0x84967Cu);
