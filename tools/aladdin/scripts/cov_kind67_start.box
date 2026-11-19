@@ -1,0 +1,10 @@
+# Actor kind $67's start ($83:E5F1), the backdrop drift of stage a5 s2:
+# its actor is live in the state (record $0B5B, waiting in its cycle) and
+# the stage is never started from its beginning by a script, so its start
+# never runs. The record is put back in its start state ($0C) and the
+# actor loop starts it again by its kind's table; then two whole cycles
+# (down, slowing, the rest, up, slowing, the rest: about 610 frames each).
+load build/aladdin/states/stage_a5_s2.state
+wait 2
+poke 000B5B 0C
+wait 1300
