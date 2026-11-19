@@ -90,7 +90,9 @@ void abi_StoryCardTask(void)
     sta8(ea_dp(LOAD_LIST_PTR));  /* 81F119 sta */
     lda8(ea_absx(STORY_LISTS + 1));  /* 81F11B lda */
     sta8(ea_dp(LOAD_LIST_PTR + 1));  /* 81F11E sta */
-    abi_TextLayerClearFront();  /* 81F120 jsl */
+    jsl_frame(0x81F120u);  /* 81F120 jsl */
+    abi_TextLayerClearFront();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x01);  /* 81F124 lda */
     jsl_frame(0x81F126u); abi_TaskWait();  /* 81F126 jsl */
     abi_NmiDisable();  /* 81F12A jsl */
@@ -103,7 +105,9 @@ void abi_StoryCardTask(void)
     op_sep(0x20);  /* 81F140 sep */
     lda8_v(0x30);  /* 81F142 lda */
     sta8(ea_abs(LEVEL));  /* 81F144 sta */
-    abi_LevelRamSetupLong();  /* 81F147 jsl */
+    jsl_frame(0x81F147u);  /* 81F147 jsl */
+    abi_LevelRamSetupLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x01);  /* 81F14B lda */
     abi_UnpackSet();  /* 81F14D jsl */
     ldx8_v(0x00);  /* 81F151 ldx */
@@ -160,16 +164,26 @@ L_81F1A4:
     abi_VramCopy();  /* 81F1BF jsl */
     abi_LoadListNext();  /* 81F1C3 jsr */
     lda8(ea_dpi(LOAD_LIST_PTR));  /* 81F1C6 lda */
-    abi_PaletteLoad();  /* 81F1C8 jsl */
+    jsl_frame(0x81F1C8u);  /* 81F1C8 jsl */
+    abi_PaletteLoad();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_LoadListNext();  /* 81F1CC jsr */
     lda8(ea_dpi(LOAD_LIST_PTR));  /* 81F1CF lda */
     if (IF_Z) goto L_81F1A4;  /* 81F1D1 beq */
-    abi_OamBufferClear();  /* 81F1D3 jsl */
-    abi_ScrollStateClear();  /* 81F1D7 jsl */
+    jsl_frame(0x81F1D3u);  /* 81F1D3 jsl */
+    abi_OamBufferClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81F1D7u);  /* 81F1D7 jsl */
+    abi_ScrollStateClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_NmiEnable();  /* 81F1DB jsl */
     lda8(ea_dpi(LOAD_LIST_PTR));  /* 81F1DF lda */
-    abi_SongPlay();  /* 81F1E1 jsl */
-    abi_SoundQueueF5WithA();  /* 81F1E5 jsl */
+    jsl_frame(0x81F1E1u);  /* 81F1E1 jsl */
+    abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81F1E5u);  /* 81F1E5 jsl */
+    abi_SoundQueueF5WithA();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_LoadListNext();  /* 81F1E9 jsr */
     push16(0xF1EE); abi_BrightnessUpAndWait(); cpu.s = (uint16_t)(cpu.s + 2);  /* 81F1EC jsr */
     lda8_v(0x40);  /* 81F1EF lda */

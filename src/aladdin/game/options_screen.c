@@ -113,8 +113,10 @@ void abi_OptionSettingStep(void)
     wr8(KEPT_OPTIONS, a);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     cpu.p = nz8(cpu.p, a);
-    abi_OptionSettingShow();
+    call_frame(0x8B78, abi_OptionSettingShow);
+    jsl_frame(0x838B79u);
     abi_KeptOptionsSeal();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 #define SOUND_TEST 0x1B15          /* the sound test's number, less one (0-34) */

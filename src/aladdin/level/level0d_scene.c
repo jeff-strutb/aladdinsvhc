@@ -119,7 +119,9 @@ void abi_Level0DScene(void)
     wr8(dba(LIMIT_1A40), 0);
     wait_frames(0x80A577u, 0x01);
     a8_load(0x25);
+    jsl_frame(0x80A57Du);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
 
     /* on cue $BD */
     do {

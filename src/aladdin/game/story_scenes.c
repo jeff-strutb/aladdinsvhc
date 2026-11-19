@@ -144,13 +144,17 @@ void abi_StoryScene2Start(void)
 void abi_StoryScene3Start(void)
 {
     a8_load(0x34);
+    jsl_frame(0x80B0C4u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x00);
-    abi_StoryActorPlace();
+    call_frame(0xB0CC, abi_StoryActorPlace);
     task_create(0x80B0CDu);
     x8_load(0x00);
     a8_load(0x14);
+    jsl_frame(0x80B0DAu);
     abi_PaletteCycleStartLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -169,14 +173,18 @@ void abi_StoryScene3Start(void)
 void abi_StoryScene4Start(void)
 {
     a8_load(0x23);
+    jsl_frame(0x80B0E1u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x24);
-    abi_StoryActorPlace();
+    call_frame(0xB0E9, abi_StoryActorPlace);
     a8_load(0x01);
     jsl_frame(0x80B0ECu);
     abi_TaskWait();
     a8_load(0x20);
+    jsl_frame(0x80B0F2u);
     abi_Mode7ScreenSetup();
+    cpu.s = (uint16_t)(cpu.s + 3);
     task_create(0x80B0F6u);
     a8_load(0x48);
     wr8(PALETTE_BUFFER, 0x48);
@@ -197,7 +205,9 @@ void abi_StoryScene4Start(void)
 void abi_StoryScene6Start(void)
 {
     a8_load(0x13);
+    jsl_frame(0x80B162u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     task_create(0x80B166u);
 }
 
@@ -268,7 +278,9 @@ void abi_StoryActorPlace(void)
     if (kind) {
         op_xba();
         a8_load(rd8(entry + 1));
+        jsl_frame(0x80B1AFu);
         abi_ActorSpawnAtLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         op_sep(0x30);
         return;
     }

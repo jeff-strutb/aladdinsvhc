@@ -56,7 +56,9 @@ void abi_Spawn11AtY(void)
     phx16();
     phy16();
     op_sep(0x10);
+    jsl_frame(0x838281u);
     abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_N) {
         hit_mark_none();
         return;
@@ -78,7 +80,9 @@ void abi_Spawn13AtY(void)
     phx16();
     phy16();
     op_sep(0x10);
+    jsl_frame(0x8382B9u);
     abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_N) {
         hit_mark_none();
         return;

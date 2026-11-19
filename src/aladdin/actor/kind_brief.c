@@ -78,7 +78,9 @@ void abi_ActorBriefAnimB(void)
     uint8_t frames;
 
     a8_load(0x08);
+    jsl_frame(0x81EBB4u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x01));
     wr8(dpa(ACTOR_09), 0x10);
     a8_load(0x0B);

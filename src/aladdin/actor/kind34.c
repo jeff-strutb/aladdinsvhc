@@ -50,7 +50,9 @@ void abi_Kind34Start(void)
     lda8_v(0x04);
     sta8(ea_dp(ACTOR_LOOK + 1));
     lda8_v(0x06);
+    jsl_frame(0x83BBAAu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x15);
     sta8(ea_dp(K34_FRAMES));
     lda8(ea_dp(ACTOR_07));
@@ -79,7 +81,9 @@ void abi_Kind34Part0(void)
 {
     do {
         actor_yield(0x83BBBFu);
+        jsl_frame(0x83BBC1u);
         abi_AnimStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(K34_FRAMES));
     } while (!IF_Z);
     abi_ActorEndPlaced();
@@ -98,15 +102,23 @@ void abi_Kind34Part0(void)
  */
 void abi_Kind34Part1(void)
 {
+    jsl_frame(0x83BBCDu);
     abi_ActorSpeedXClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldy8_v(K34_SPEED_UP);
+    jsl_frame(0x83BBD3u);
     abi_ActorSpeedYSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x02);
     sta8(ea_dp(ACTOR_ACCEL_Y));
     do {
         actor_yield(0x83BBDBu);
+        jsl_frame(0x83BBDDu);
         abi_AnimStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83BBE1u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(K34_FRAMES));
     } while (!IF_Z);
     abi_ActorEndPlaced();

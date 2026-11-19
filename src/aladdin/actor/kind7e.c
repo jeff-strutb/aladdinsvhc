@@ -280,12 +280,14 @@ void abi_Kind7EStart(void)
  */
 void abi_Kind7EStep(void)
 {
+    jsl_frame(0x8492BCu);
     abi_ActorMoveX();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(K7E_DOWN));
     if (IF_Z)
-        abi_ActorStepYBack();
+        { jsl_frame(0x8492C4u); abi_ActorStepYBack(); cpu.s = (uint16_t)(cpu.s + 3); }
     else
-        abi_ActorStepY();
+        { jsl_frame(0x8492C9u); abi_ActorStepY(); cpu.s = (uint16_t)(cpu.s + 3); }
 }
 
 /*
@@ -303,7 +305,9 @@ void abi_Kind7EShow(void)
     lda8_v(0x90);
     tsb8(ea_dp(ACTOR_09));
     lda8_v(0x00);
+    jsl_frame(0x8492D8u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -322,7 +326,9 @@ void abi_Kind7ERing(void)
 {
     do {
         lda8(ea_dp(ACTOR_06));
+        jsl_frame(0x8492DFu);
         abi_ActorSpawn();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!IF_N) {
             lda8(ea_dp(ACTOR_LOOK));
             sta8(ea_absx(ACTOR_LOOK));

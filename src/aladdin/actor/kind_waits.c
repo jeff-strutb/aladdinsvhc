@@ -102,17 +102,23 @@ void abi_ActorCount42Down(void)
  */
 void abi_Kind27Wait(void)
 {
+    jsl_frame(0x83A012u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_42)));
     if (!(uint8_t)cpu.a)
         return;
     a8_load(rd8(dba(HEALTH)));
     if ((uint8_t)cpu.a) {
         y8_load(0x24);
+        jsl_frame(0x83A022u);
         abi_ActorHitsTestBoxLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C)) {             /* touched: sound $4F, counted, it ends */
             a8_load(0x4F);
+            jsl_frame(0x83A02Fu);
             abi_SoundQueueAdd();
+            cpu.s = (uint16_t)(cpu.s + 3);
             inc8_at(dba(0x036C));
             op_sep(0x30);                 /* $83:96C6 */
             pla8();
@@ -161,11 +167,13 @@ void abi_Kind31Wait(void)
                 wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
             }
         }
-        abi_ActorDownedByShot();
+        call_frame(0xAF0C, abi_ActorDownedByShot);
         if (cpu.p & P_C)
-            abi_ActorStompOrHurt();
+            call_frame(0xAF11, abi_ActorStompOrHurt);
     }
+    jsl_frame(0x83AF12u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x38);
     abi_ActorEndOutOfRange();
 }
@@ -186,14 +194,16 @@ void abi_Kind30Wait(void)
 {
     uint8_t variant;
 
+    jsl_frame(0x83B94Au);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     variant = rd8(dpa(ACTOR_07)) & 0x07;
     a8_load(variant);
     cmp8_of(variant, 0x07);
     if (variant == 0x07) {                /* variant 7: one shot counts */
         a8_load(rd8(dpa(ACTOR_43)));
         if (!(uint8_t)cpu.a) {
-            abi_ActorTakesShot();
+            call_frame(0xB95C, abi_ActorTakesShot);
             if (!(cpu.p & P_C))
                 inc8_at(dpa(ACTOR_43));
         }
@@ -301,7 +311,9 @@ void abi_Kind67Wait(void)
         cmp16_of(d, rd16(dba(SCRATCH + 2)));
         if (d < rd16(dba(SCRATCH + 2))) {
             op_sep(0x30);
+            jsl_frame(0x83E6B3u);
             abi_PlayerEnter8CFacingLong();
+            cpu.s = (uint16_t)(cpu.s + 3);
             return;
         }
     }
@@ -381,7 +393,7 @@ void abi_Kind6DWait(void)
         a8_load(v);
         cmp8_of(v, 0x04);
         if (v == 0x04)
-            abi_ActorYByFrame();
+            call_frame(0xEFB6, abi_ActorYByFrame);
     }
     x8_load(0x00);
     abi_ActorEndOutOfRange();
@@ -412,10 +424,12 @@ void abi_Kind6EWait(void)
         a8_load(0x3F);
         wr8(dpa(ACTOR_48), 0x3F);
         a8_load(0x33);
+        jsl_frame(0x83F1E3u);
         abi_SoundQueueAdd();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
-    abi_BackdropPictureStep();
-    abi_BackdropActorShow();
+    call_frame(0xF1E9, abi_BackdropPictureStep);
+    call_frame(0xF1EC, abi_BackdropActorShow);
     /* its touch tested at its x moved by its variant's offset */
     cpu.x = (uint8_t)(rd8(dpa(ACTOR_07)) << 1);
     op_rep(P_M);
@@ -425,9 +439,9 @@ void abi_Kind6EWait(void)
     cpu.a = op_adc16(x, rd16(dba(0xD6AB) + cpu.x), &cpu.p);
     dp16_set(ACTOR_X + 1, cpu.a);
     op_sep(P_M);
-    abi_ActorHitsTestBoxIfPlayerFree();
+    call_frame(0xF201, abi_ActorHitsTestBoxIfPlayerFree);
     if (!(cpu.p & P_C))
-        abi_PlayerEnter8CFacingLong();
+        { jsl_frame(0x83F204u); abi_PlayerEnter8CFacingLong(); cpu.s = (uint16_t)(cpu.s + 3); }
     op_rep(P_M);
     a16_load(dp16(ACTOR_4C));
     dp16_set(ACTOR_X + 1, cpu.a);
@@ -572,12 +586,16 @@ L_83D540:
  */
 void abi_KindWaitF991(void)
 {
-    abi_AnimStep();  /* 83F991 jsl */
+    jsl_frame(0x83F991u);  /* 83F991 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(0x07));  /* 83F995 lda */
     if (!IF_Z) goto L_83F9A9;  /* 83F997 bne */
     lda8(ea_dp(0x43));  /* 83F999 lda */
     if (!IF_Z) goto L_83F9B4;  /* 83F99B bne */
-    abi_ActorStopsShotLong();  /* 83F99D jsl */
+    jsl_frame(0x83F99Du);  /* 83F99D jsl */
+    abi_ActorStopsShotLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83F9B4;  /* 83F9A1 bcs */
     lda8_v(0x01);  /* 83F9A3 lda */
     sta8(ea_dp(0x42));  /* 83F9A5 sta */
@@ -585,8 +603,10 @@ void abi_KindWaitF991(void)
 L_83F9A9:
     lda8(ea_dp(0x44));  /* 83F9A9 lda */
     if (IF_Z) goto L_83F9B4;  /* 83F9AB beq */
-    abi_ActorHurtsPlayerOnTouchLong();  /* 83F9AD jsl */
-    abi_ActorStopsTouchingKind2D();  /* 83F9B1 jsr */
+    jsl_frame(0x83F9ADu);  /* 83F9AD jsl */
+    abi_ActorHurtsPlayerOnTouchLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xF9B3, abi_ActorStopsTouchingKind2D);  /* 83F9B1 jsr */
 L_83F9B4:
     ldx8_v(0x00);  /* 83F9B4 ldx */
     abi_ActorFreeOutOfRangeLong(); return;  /* 83F9B6 jml */
@@ -621,7 +641,7 @@ void abi_Kind68Wait(void)
     MEM8(dec, ea_dp(KIND68_PAUSE));  /* 83E8B9 dec */
     goto L_83E8F2;  /* 83E8BB bra */
 L_83E8BD:
-    abi_Kind68PlayerOn();  /* 83E8BD jsr */
+    call_frame(0xE8BF, abi_Kind68PlayerOn);  /* 83E8BD jsr */
     if (IF_C) goto L_83E8F2;  /* 83E8C0 bcs */
     lda8_v(0x01);  /* 83E8C2 lda */
     sta8(ea_dp(KIND68_ON));  /* 83E8C4 sta */
@@ -633,11 +653,17 @@ L_83E8BD:
     adc16_v(rd16(ea_abs(PLAYER_X)));  /* 83E8CE adc */
     sta16(ea_abs(PLAYER_X));  /* 83E8D1 sta */
     op_sep(0x20);  /* 83E8D4 sep */
-    abi_PlayerOnFirmGroundProbe8();  /* 83E8D6 jsl */
+    jsl_frame(0x83E8D6u);  /* 83E8D6 jsl */
+    abi_PlayerOnFirmGroundProbe8();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83E8E8;  /* 83E8DA bcs */
-    abi_PlayerOnFirmGroundProbe4();  /* 83E8DC jsl */
+    jsl_frame(0x83E8DCu);  /* 83E8DC jsl */
+    abi_PlayerOnFirmGroundProbe4();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83E8E8;  /* 83E8E0 bcs */
-    abi_PlayerOnFirmGround();  /* 83E8E2 jsl */
+    jsl_frame(0x83E8E2u);  /* 83E8E2 jsl */
+    abi_PlayerOnFirmGround();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!IF_C) goto L_83E8F2;  /* 83E8E6 bcc */
 L_83E8E8:
     lda8(ea_dp(KIND68_PLAYER_X));  /* 83E8E8 lda */

@@ -50,14 +50,14 @@ void abi_ActorTurnsShotBack(void)
 {
     uint32_t shot;
 
-    abi_ActorTouchesSecondPool();
+    call_frame(0x819C, abi_ActorTouchesSecondPool);
     if (cpu.p & P_C) {
         op_sep(0x31);
         return;
     }
     /* the shot turns: the other way, its code on at TURNED_BACK_AT, it can
        no longer hit */
-    abi_Spawn13AtY();
+    call_frame(0x81A1, abi_Spawn13AtY);
     shot = dba(0) + cpu.y;
     a8_load((uint8_t)(rd8(shot + ACTOR_FACING) ^ 0x01));
     wr8(shot + ACTOR_FACING, (uint8_t)cpu.a);
@@ -81,7 +81,7 @@ void abi_ActorTurnsShotBack(void)
  */
 void abi_Spawn13AtYLong(void)
 {
-    abi_Spawn13AtY();
+    call_frame(0x82B3, abi_Spawn13AtY);
 }
 /*
  * @routine 83:8196 ActorTurnsShotBackLong
@@ -92,7 +92,7 @@ void abi_Spawn13AtYLong(void)
  */
 void abi_ActorTurnsShotBackLong(void)
 {
-    abi_ActorTurnsShotBack();
+    call_frame(0x8198, abi_ActorTurnsShotBack);
 }
 /*
  * @routine 83:81E8 ActorTakesShot
@@ -110,7 +110,7 @@ void abi_ActorTurnsShotBackLong(void)
  */
 void abi_ActorTakesShot(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x81EA, abi_ActorTouchesSecondPool);
     if (!(cpu.p & P_C)) {
         uint8_t hits;
 
@@ -118,11 +118,11 @@ void abi_ActorTakesShot(void)
         hits = rd8(dba(ACTOR_11) + cpu.y);
         a8_load(hits);
         if (!(hits & 0x80)) {             /* a shot that hits: it faces the shot's way */
-            abi_Spawn11AtY();
+            call_frame(0x81F5, abi_Spawn11AtY);
             a8_load(rd8(dba(ACTOR_FACING) + cpu.y));
             wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
             wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
-            abi_ActorStateSet8C();
+            call_frame(0x81FF, abi_ActorStateSet8C);
             flag_set(P_C, 0);
         }
     }
@@ -180,16 +180,16 @@ static void face_shot(void)
  */
 void abi_ActorDownedByShot(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x80FE, abi_ActorTouchesSecondPool);
     if (!(cpu.p & P_C)) {
-        abi_Spawn11AtY();
+        call_frame(0x8103, abi_Spawn11AtY);
         if (shot_harmless()) {
             facing_away();
         } else {
             face_shot();
-            abi_ActorStateSet8C();
+            call_frame(0x8129, abi_ActorStateSet8C);
         }
-        abi_ActorStateSet8CSelf();
+        call_frame(0x812C, abi_ActorStateSet8CSelf);
         flag_set(P_C, 0);
     }
     op_sep(0x30);
@@ -211,16 +211,16 @@ void abi_ActorDownedByShot(void)
  */
 void abi_ActorHitByShotCC(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x8137, abi_ActorTouchesSecondPool);
     if (!(cpu.p & P_C)) {
-        abi_Spawn11AtY();
+        call_frame(0x813C, abi_Spawn11AtY);
         if (shot_harmless()) {
             facing_away();
-            abi_ActorStateSet8CSelf();
+            call_frame(0x815B, abi_ActorStateSet8CSelf);
         } else {
             face_shot();
-            abi_ActorStateSet8C();
-            abi_ActorStateSetCC();
+            call_frame(0x8165, abi_ActorStateSet8C);
+            call_frame(0x8168, abi_ActorStateSetCC);
         }
         flag_set(P_C, 0);
     }
@@ -235,7 +235,7 @@ void abi_ActorHitByShotCC(void)
  */
 void abi_ActorStopsShotLong(void)
 {
-    abi_ActorStopsShot();
+    call_frame(0x816F, abi_ActorStopsShot);
 }
 
 /*
@@ -251,16 +251,16 @@ void abi_ActorStopsShotLong(void)
  */
 void abi_ActorStopsShot(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x8173, abi_ActorTouchesSecondPool);
     if (!(cpu.p & P_C)) {
-        abi_Spawn11AtY();
+        call_frame(0x8178, abi_Spawn11AtY);
         if (shot_harmless()) {
             face_shot();
             a8_load((uint8_t)(rd8(dba(PLAYER + ACTOR_FLIP)) | 0x80));
             wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
-            abi_ActorStateSet8CSelf();
+            call_frame(0x818C, abi_ActorStateSet8CSelf);
         } else {
-            abi_ActorStateSet8C();
+            call_frame(0x8191, abi_ActorStateSet8C);
         }
         flag_set(P_C, 0);
     }
@@ -275,7 +275,7 @@ void abi_ActorStopsShot(void)
  */
 void abi_ActorDownedByShotLong(void)
 {
-    abi_ActorDownedByShot();
+    call_frame(0x80FA, abi_ActorDownedByShot);
 }
 
 /*
@@ -286,7 +286,7 @@ void abi_ActorDownedByShotLong(void)
  */
 void abi_ActorEndsShotLong(void)
 {
-    abi_ActorEndsShot();
+    call_frame(0x81CD, abi_ActorEndsShot);
 }
 
 /*
@@ -306,11 +306,11 @@ void abi_ActorEndsShotLong(void)
  */
 void abi_ActorEndsShot(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x81D1, abi_ActorTouchesSecondPool);
     if (!(cpu.p & P_C)) {
         uint32_t shot;
 
-        abi_Spawn13AtY();
+        call_frame(0x81D6, abi_Spawn13AtY);
         shot = dba(0) + cpu.y;
         a8_load((uint8_t)SHOT_ENDS_AT);
         wr8(shot + ACTOR_03, (uint8_t)cpu.a);
@@ -337,16 +337,16 @@ void abi_ActorEndsShot(void)
  */
 void abi_ActorDownedByHarmlessShot(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x820A, abi_ActorTouchesSecondPool);
     if (!(cpu.p & P_C)) {
         if (shot_harmless()) {
-            abi_Spawn11AtY();
+            call_frame(0x8214, abi_Spawn11AtY);
             facing_away();
-            abi_ActorStateSet8CSelf();
+            call_frame(0x822E, abi_ActorStateSet8CSelf);
         } else {
             uint32_t shot;
 
-            abi_Spawn13AtY();
+            call_frame(0x8233, abi_Spawn13AtY);
             shot = dba(0) + cpu.y;
             a8_load((uint8_t)SHOT_ENDS_AT);
             wr8(shot + ACTOR_03, (uint8_t)cpu.a);

@@ -27,7 +27,7 @@ void abi_BlockSourceAdd(void);
  */
 void abi_LevelMapBuildLong(void)
 {
-    abi_LevelMapBuild();  /* 81BEEB jsr */
+    call_frame(0xBEED, abi_LevelMapBuild);  /* 81BEEB jsr */
     return;  /* 81BEEE rtl */
 }
 
@@ -78,7 +78,7 @@ void abi_LevelMapBuild(void)
         cpu.y = y;
         op_rep(P_M);
         flag_set(P_C, 0);
-        abi_BlockSourceAdd();
+        call_frame(0xBF55, abi_BlockSourceAdd);
         blocks = rd8(dba(0x0056));
         for (x = 0; x < 0x84; x++)
             wr8(((uint32_t)blocks << 16) + 0x1A94 + x,

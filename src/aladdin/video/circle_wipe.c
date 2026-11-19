@@ -134,7 +134,7 @@ void abi_CircleWipeStep(void)
         cmp16_of(y, x);
         if (y < x)
             return;
-        abi_CircleWipePlot();
+        call_frame(0xB2AB, abi_CircleWipePlot);
         x = rd16(dba(CIRCLE_X));
         term = rd16(dba(CIRCLE_TERM));
         /* the term's step (the original's ADCs leave V) */

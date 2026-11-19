@@ -47,7 +47,9 @@ void abi_ChildChainAdd(void)
     uint32_t child;
     uint8_t n;
 
+    jsl_frame(0x8494EEu);
     abi_ActorCreateChild();
+    cpu.s = (uint16_t)(cpu.s + 3);
     child = dba(0) + cpu.x;
     last = dp16(CHAIN_LAST);
     cpu.y = last;
@@ -92,7 +94,9 @@ void abi_ChainBuildNine(void)
 
     a8_load((uint8_t)(top >> 1));
     flag_set(P_C, top & 1);
+    jsl_frame(0x849492u);
     abi_ActorFreeListSort();
+    cpu.s = (uint16_t)(cpu.s + 3);
     dp16_set(ACTOR_X + 1, 0x02C8);
     dp16_set(ACTOR_Y + 1, 0x00C0);
     cpu.a = 0x00C0;

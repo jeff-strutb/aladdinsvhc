@@ -54,7 +54,9 @@ void abi_LevelActorGraphicsLoad(void)
     phb();
     bank_82();
     a8_load(0x00);
+    jsl_frame(0x81B9FBu);
     abi_AnimSetsFill();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(P_X);
     a8_load(0x00);
     for (int x = 0x05FF; x >= 0; x--)     /* every kind's tables cleared */
@@ -114,7 +116,7 @@ void abi_LevelActorGraphicsLoad(void)
         a8_load(v);
         if (v) {
             a8_load((uint8_t)cpu.x);
-            abi_AnimSetGraphicsUnpack();
+            call_frame(0xBA98, abi_AnimSetGraphicsUnpack);
         }
         x8_load((uint8_t)(cpu.x + 1));
     } while (cpu.x);

@@ -59,21 +59,31 @@ void abi_Kind8FWalk(void)
     a8_load(0x3A);
     actor_wait(0x83FA6Au);
     a8_load(0x27);
+    jsl_frame(0x83FA6Eu);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x06);
     actor_wait(0x83FA74u);
     a8_load(0x00);
+    jsl_frame(0x83FA78u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83FA7Cu);
     abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x5D);
+    jsl_frame(0x83FA82u);
     abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         /* across for $56 frames, its x kept in V_00A5; then back once, lower */
         a8_load(0x56);
         wr8(dpa(ACTOR_40), 0x56);
         do {
             actor_yield(0x83FA8Au);
+            jsl_frame(0x83FA8Cu);
             abi_ActorMoveX();
+            cpu.s = (uint16_t)(cpu.s + 3);
             wr8(dba(V_00A5), rd8(dpa(ACTOR_X + 1)));
             a8_load(rd8(dpa(ACTOR_X + 2)));
             wr8(dba(V_00A5 + 1), (uint8_t)cpu.a);
@@ -121,7 +131,9 @@ void abi_Kind94Spark(void)
         wr8(dpa(ACTOR_X + 2), 0);
         wr8(dpa(ACTOR_Y + 2), 0);
         a8_load(0x00);
+        jsl_frame(0x83FACDu);
         abi_AnimStart();
+        cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x20);
         actor_wait(0x83FAD3u);
         abi_ActorEndPlaced();
@@ -143,7 +155,9 @@ void abi_Kind94Spark(void)
         a8_load(rd8(dba(SPARK_PLACES + 1) + cpu.x));
         wr8(dpa(SPARK_Y), (uint8_t)cpu.a);
         a8_load(rd8(dpa(ACTOR_06)));
+        jsl_frame(0x83FAF4u);
         abi_ActorSpawn();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_N)) {
             uint32_t spark = dba(0) + cpu.x;
 

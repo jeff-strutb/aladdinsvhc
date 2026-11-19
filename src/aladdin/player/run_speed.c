@@ -31,7 +31,7 @@ void abi_PlayerRunSpeed(void)
     uint16_t speed, top;
     uint8_t v;
 
-    abi_PadFacing();
+    call_frame(0xD1A2, abi_PadFacing);
     if (cpu.p & P_N) {                    /* no direction held: slowing */
         v = rd8(dba(PLAYER_SLOWED));
         a8_load(v);

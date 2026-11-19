@@ -412,14 +412,18 @@ void abi_Kind6DStart(void)
     lda16_v(K6D_PROBES);
     sta16(ea_dp(0x16));
     op_sep(0x20);
+    jsl_frame(0x83ECFFu);
     abi_ActorStopX();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83ED03u);
     abi_ActorStopY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_07));
     and8_v(0x03);
     if (!IF_Z)
         ACC8(lsr);
     else
-        abi_ActorSideOfPlayer();
+        { jsl_frame(0x83ED10u); abi_ActorSideOfPlayer(); cpu.s = (uint16_t)(cpu.s + 3); }
     sta8(ea_dp(ACTOR_FACING));
     sta8(ea_dp(ACTOR_FLIP));
     stz8(ea_dp(ACTOR_48));
@@ -459,9 +463,13 @@ void abi_Kind6DSecond(void)
     uint8_t facing;
 
     y8_load(K6D_KNOCKED);
+    jsl_frame(0x83EFF2u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(K6D_POSE);
+    jsl_frame(0x83EFF8u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x0A);
     wr8(dpa(K6D_FRAMES), 0x0A);
     a8_load(rd8(dpa(K6D_DOWNED)));
@@ -472,7 +480,9 @@ void abi_Kind6DSecond(void)
             goto face;
     }
     a8_load(K6D_SOUND);
+    jsl_frame(0x83F00Au);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 face:
     facing = rd8(dpa(ACTOR_FACING));
     a8_load(facing);
@@ -487,7 +497,9 @@ face:
     for (;;) {
         actor_yield(0x83F020u);
         abi_AnimStep();
+        jsl_frame(0x83F026u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         x8_load(0x00);
         /* the JSR's return address on the stack, which ActorEndOutOfRange
            pulls when it ends the actor */

@@ -71,7 +71,9 @@ void abi_Kind24Start(void)
     a8_load(0x01);
     abi_AnimStart();
     a8_load(0x1C);
+    jsl_frame(0x84803Cu);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;)
         actor_yield(0x848040u);
 }
@@ -111,11 +113,15 @@ void abi_Kind9CStart(void)
     task_create(0x84A7FCu);
     x8_load(0x00);
     a8_load(0x24);
+    jsl_frame(0x84A809u);
     abi_PaletteCycleStartLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x80);
     tsb_at(dpa(ACTOR_09), 0x80);
     a8_load(0x00);
+    jsl_frame(0x84A813u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;)
         actor_yield(0x84A817u);
 }

@@ -69,14 +69,18 @@ void abi_Kind76Start(void)
     a8_load(0x16);
     actor_wait(0x848FE5u);
     a8_load(0x46);
+    jsl_frame(0x848FE9u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 
     a8_load(0x20);
     wr8(dpa(ACTOR_09), 0x20);
     a8_load((uint8_t)(((rd8(dpa(ACTOR_LOOK + 1)) & 0x0E) >> 1) | 0x08));
     flag_set(P_C, 0);                   /* the LSR's carry: bit 0 of an even value */
     y8_load(0x01);
+    jsl_frame(0x848FFAu);
     abi_PaletteSave();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x00);
     wr8(dpa(K76_FADE), 0x00);
     y8_load(0x01);

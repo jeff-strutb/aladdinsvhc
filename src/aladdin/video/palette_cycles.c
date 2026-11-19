@@ -58,7 +58,7 @@ void abi_PaletteCycleStart(void)
  */
 void abi_PaletteCycleStartLong(void)
 {
-    abi_PaletteCycleStart();
+    call_frame(0xEC8C, abi_PaletteCycleStart);
 }
 
 /*

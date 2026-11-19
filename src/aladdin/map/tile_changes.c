@@ -440,7 +440,7 @@ void abi_MapTileAt(void)
 
     cpu.a = 0;
     cpu.d = 0;
-    abi_MapTileAddress();
+    call_frame(0x9A8B, abi_MapTileAddress);
     cpu.a = rd16(LEVEL_TILES + cpu.x);
     cpu.d = d;
     nz16_of(d);
@@ -720,7 +720,7 @@ void abi_MapTileSet(void)
 
     cpu.a = 0;
     cpu.d = 0;
-    abi_MapTileAddress();
+    call_frame(0x9B75, abi_MapTileAddress);
     cpu.a = tile;
     wr16(LEVEL_TILES + cpu.x, tile);
     cpu.d = d;
@@ -752,7 +752,7 @@ void abi_MapQuarterAt(void)
     y = dp16(0x0E);
     cpu.x = x;
     cpu.y = y;
-    abi_MapTileAddress();
+    call_frame(0x9B8C, abi_MapTileAddress);
     /* the quarter of the tile the point is in: 2 for right, 4 for down */
     dp16_set(0x0C, x);
     dp16_set(0x0E, y);

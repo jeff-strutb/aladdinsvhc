@@ -53,7 +53,9 @@ void abi_ActorFreeOutOfRangeLong(void);
  */
 void abi_KindAnimateFreeOff(void)
 {
+    jsl_frame(0x849387u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x18);
     abi_ActorFreeOutOfRangeLong();
 }
@@ -66,7 +68,9 @@ void abi_KindAnimateFreeOff(void)
  */
 void abi_KindAnimate9533(void)
 {
-    abi_AnimStep();  /* 849533 jsl */
+    jsl_frame(0x849533u);  /* 849533 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 849537 rtl */
 }
 
@@ -78,7 +82,9 @@ void abi_KindAnimate9533(void)
  */
 void abi_KindAnimate9628(void)
 {
-    abi_AnimStep();  /* 849628 jsl */
+    jsl_frame(0x849628u);  /* 849628 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 84962C rtl */
 }
 
@@ -90,7 +96,9 @@ void abi_KindAnimate9628(void)
  */
 void abi_KindAnimate9EF0(void)
 {
-    abi_AnimStep();  /* 849EF0 jsl */
+    jsl_frame(0x849EF0u);  /* 849EF0 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 849EF4 rtl */
 }
 
@@ -102,7 +110,9 @@ void abi_KindAnimate9EF0(void)
  */
 void abi_KindAnimate9F4A(void)
 {
-    abi_AnimStep();  /* 849F4A jsl */
+    jsl_frame(0x849F4Au);  /* 849F4A jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 849F4E rtl */
 }
 
@@ -114,8 +124,12 @@ void abi_KindAnimate9F4A(void)
  */
 void abi_KindAnimateSend(void)
 {
-    abi_AnimStep();  /* 84903B jsl */
-    abi_ActorPictureSend();  /* 84903F jsl */
+    jsl_frame(0x84903Bu);  /* 84903B jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x84903Fu);  /* 84903F jsl */
+    abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 849043 rtl */
 }
 
@@ -129,7 +143,9 @@ void abi_KindAnimateSend(void)
  */
 void abi_Kind24Animate(void)
 {
+    jsl_frame(0x848048u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -142,7 +158,9 @@ void abi_Kind24Animate(void)
  */
 void abi_KindA3Animate(void)
 {
+    jsl_frame(0x848399u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -155,7 +173,9 @@ void abi_KindA3Animate(void)
  */
 void abi_Kind9CAnimate(void)
 {
+    jsl_frame(0x84A81Bu);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -169,7 +189,9 @@ void abi_Kind9CAnimate(void)
  */
 void abi_KindA0AnimateFreeOff(void)
 {
+    jsl_frame(0x84A975u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x00);
     abi_ActorFreeOutOfRangeLong();
 }
@@ -200,8 +222,12 @@ void abi_Kind91FreeOff(void)
  */
 void abi_Kind21AnimateSend(void)
 {
+    jsl_frame(0xA5F3E3u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0xA5F3E7u);
     abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -215,8 +241,12 @@ void abi_Kind21AnimateSend(void)
  */
 void abi_Kind93AnimateSend(void)
 {
+    jsl_frame(0xA5F434u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0xA5F438u);
     abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -234,7 +264,7 @@ void abi_ActorPathStep(void)
     uint8_t on;
     uint16_t v;
 
-    abi_ActorParityBitsSet();
+    call_frame(0x8CB1, abi_ActorParityBitsSet);
     flag_set(P_C, 0);
     v = dp16(PATH_STEP);
     cpu.a = op_adc16(v, dp16(PATH_AT), &cpu.p);
@@ -242,7 +272,7 @@ void abi_ActorPathStep(void)
     on = rd8(dpa(PATH_ON));
     a8_load(on);
     if (on)
-        abi_ActorPathNext();
+        call_frame(0x8CC3, abi_ActorPathNext);
 }
 
 /*

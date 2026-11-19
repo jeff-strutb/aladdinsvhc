@@ -43,10 +43,14 @@ void abi_Kind85Start(void)
     flag_set(P_Z, !(v & 0x10));
     if (!(v & 0x10)) {
         a8_load(0x36);
+        jsl_frame(0x849616u);
         abi_SoundQueueAdd();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
     a8_load(0x00);
+    jsl_frame(0x84961Cu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x10);
     actor_wait(0x849622u);
     abi_ActorEndPlaced();
@@ -108,13 +112,17 @@ void abi_Kind8EStart(void)
     wr8(dpa(ACTOR_SPAWN_AT), 0);
     do {
         a8_load(rd8(dpa(ACTOR_06)));
+        jsl_frame(0x849BC3u);
         abi_ActorCreateChild8();
+        cpu.s = (uint16_t)(cpu.s + 3);
         a8_load(0x02);
         wr8(dpa(K8E_FRAMES), 0x02);
         do {
             actor_yield(0x849BCBu);
             x8_load(0x20);
+            jsl_frame(0x849BCFu);
             abi_ActorMoveByVector();
+            cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(rd8(dpa(ACTOR_FACING)));
             wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
         } while (dec8_at(dpa(K8E_FRAMES)));

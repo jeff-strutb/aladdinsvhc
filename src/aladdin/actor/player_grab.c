@@ -44,7 +44,9 @@ void abi_ActorGrabbableByPlayer(void)
     uint8_t v;
     uint16_t rise;
 
+    jsl_frame(0x83882Eu);
     abi_PlayerFacesActorClose();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C)
         goto no;
     v = rd8(dba(V_1427));
@@ -92,7 +94,7 @@ no:
  */
 void abi_ActorGrabbableByPlayerLong(void)
 {
-    abi_ActorGrabbableByPlayer();
+    call_frame(0x8863, abi_ActorGrabbableByPlayer);
 }
 
 /*
@@ -141,7 +143,7 @@ void abi_PlayerFacesActorClose(void)
  */
 void abi_ActorHoldPlayerLong(void)
 {
-    abi_ActorHoldPlayer();
+    call_frame(0xBAF1, abi_ActorHoldPlayer);
 }
 
 /*
@@ -173,7 +175,9 @@ void abi_ActorHoldPlayer(void)
     return;  /* 83BB02 rts */
 L_83BB03:
     lda8(ea_dp(HOLD_AT));  /* 83BB03 lda */
-    abi_PlayerToActorAbove();  /* 83BB05 jsl */
+    jsl_frame(0x83BB05u);  /* 83BB05 jsl */
+    abi_PlayerToActorAbove();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 83BB09 rts */
 L_83BB0A:
     lda8(ea_dp(HOLD_PAUSE));  /* 83BB0A lda */
@@ -181,14 +185,18 @@ L_83BB0A:
     MEM8(dec, ea_dp(HOLD_PAUSE));  /* 83BB0E dec */
     goto L_83BB2C;  /* 83BB10 bra */
 L_83BB12:
-    abi_ActorGrabTest();  /* 83BB12 jsl */
+    jsl_frame(0x83BB12u);  /* 83BB12 jsl */
+    abi_ActorGrabTest();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83BB2C;  /* 83BB16 bcs */
     lda8_v((uint8_t)HELD_RESUME);  /* 83BB18 lda */
     sta8(ea_abs(PLAYER + ACTOR_03));  /* 83BB1A sta */
     lda8_v((uint8_t)(HELD_RESUME >> 8));  /* 83BB1D lda */
     sta8(ea_abs(PLAYER + ACTOR_04));  /* 83BB1F sta */
     lda8(ea_dp(HOLD_AT));  /* 83BB22 lda */
-    abi_PlayerSpotAboveActor();  /* 83BB24 jsl */
+    jsl_frame(0x83BB24u);  /* 83BB24 jsl */
+    abi_PlayerSpotAboveActor();
+    cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(inc, ea_dp(HOLDS));  /* 83BB28 inc */
     clc();  /* 83BB2A clc */
     return;  /* 83BB2B rts */

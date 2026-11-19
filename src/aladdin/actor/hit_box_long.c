@@ -3,6 +3,7 @@
  * banks.
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 
 void abi_ActorHitsTestBoxIfPlayerFree(void);
@@ -16,5 +17,5 @@ void abi_ActorHitsTestBoxIfPlayerFree(void);
  */
 void abi_ActorHitsTestBoxIfPlayerFreeLong(void)
 {
-    abi_ActorHitsTestBoxIfPlayerFree();
+    call_frame(0x82F6, abi_ActorHitsTestBoxIfPlayerFree);
 }

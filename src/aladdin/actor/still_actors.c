@@ -57,7 +57,9 @@ void abi_Kind7DKeepSpot(void)
     wr8(dpa(FLYOFF_LEFT), (uint8_t)cpu.a);
     for (;;) {
         actor_yield(0x8490ECu);
+        jsl_frame(0x8490EEu);
         abi_ActorKeepSpot();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 
@@ -111,12 +113,18 @@ void abi_Kind7AFly(void)
     wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
     wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0x10));
     a8_load(0x00);
+    jsl_frame(0x83F769u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x53);
+    jsl_frame(0x83F76Fu);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         actor_yield(0x83F773u);
+        jsl_frame(0x83F775u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 
@@ -139,9 +147,13 @@ void abi_Kind4AShow(void)
     dp16_set(ACTOR_LOOK, 0x0600);
     cpu.a = 0x0600;
     a8_load(0x0A);
+    jsl_frame(0x83B4ABu);
     abi_PaletteLoad();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x06);
+    jsl_frame(0x83B4B1u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;)
         actor_yield(0x83B4B5u);
 }

@@ -122,7 +122,9 @@ void abi_Kind6BWait(void)
     a8_load(0x70);
     wr8(dpa(KIND6B_FRAMES), 0x70);
     y8_load(0x3F);
+    jsl_frame(0x83EC97u);
     abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     kind6b_walk(0x83EC9Bu);
     kind6b_anim(0x04, 0x83ECABu);
     a8_load(0x30);

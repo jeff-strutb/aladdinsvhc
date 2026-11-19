@@ -63,7 +63,7 @@ void abi_PaletteFlash(void)
     flag_set(P_C, phase & 1);
     a8_load(0x02);
     if (phase & 1)
-        abi_PaletteWhite();
+        { jsl_frame(0x848E5Eu); abi_PaletteWhite(); cpu.s = (uint16_t)(cpu.s + 3); }
     else
-        abi_PaletteRestoreReversed();
+        { jsl_frame(0x848E65u); abi_PaletteRestoreReversed(); cpu.s = (uint16_t)(cpu.s + 3); }
 }

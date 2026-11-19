@@ -180,7 +180,9 @@ void abi_SoundQueueF5WithA(void)
     op_xba();                             /* the parameter waits in A's high byte */
     queue_special(SOUND_CMD_F5);
     op_xba();
+    jsl_frame(0x81F9E9u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*

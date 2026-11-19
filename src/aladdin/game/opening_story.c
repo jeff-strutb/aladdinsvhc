@@ -123,7 +123,9 @@ static void jsr_waits(uint16_t ret, void (*f)(void))
 void abi_OpeningScene1Start(void)
 {
     a8_load(0x1C);
+    jsl_frame(0x80ADB8u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     task_create(0x80ADBCu);
 }
 
@@ -181,7 +183,9 @@ void abi_OpeningActorPlace(void)
     a8_load(rd8(entry));                  /* the kind, into A's high byte */
     op_xba();
     a8_load(rd8(entry + 1));              /* its $07 */
+    jsl_frame(0x80AED7u);
     abi_ActorSpawnAtLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_sep(0x30);
 }
 /*
@@ -197,7 +201,9 @@ void abi_OpeningScene2Start(void)
     static const uint8_t entries[4] = { 0x00, 0x0C, 0x12, 0x06 };
 
     a8_load(0x1F);
+    jsl_frame(0x80ADC8u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (int i = 0; i < 4; i++) {
         x8_load(entries[i]);
         abi_OpeningActorPlace();
@@ -235,15 +241,25 @@ static void scene_end(void)
  */
 void abi_OpeningScene5Start(void)
 {
+    jsl_frame(0x80AE63u);
     abi_NmiDisable();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x80AE67u);
     abi_ScreenBlank();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x27);
+    jsl_frame(0x80AE6Du);
     abi_UnpackSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x54);
+    jsl_frame(0x80AE73u);
     abi_VramCopy2();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x80AE77u);
     abi_NmiEnable();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldx8_v(0x72);
-    abi_OpeningActorPlace();
+    call_frame(0xAE7F, abi_OpeningActorPlace);
     task_create(0x80AE80u);
     ldx8_v(0x00);
     lda8_v(0x28);

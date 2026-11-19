@@ -105,9 +105,11 @@ void abi_CameraTriggerTask(void)
     a8_load(0x6B);
     op_xba();
     a8_load(0x01);
-    abi_ActorSpawnAt();
+    call_frame(0xA29B, abi_ActorSpawnAt);
     op_sep(0x30);
     a8_load(0x02);
+    jsl_frame(0x80A2A0u);
     abi_SoundQueueF6();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_TaskExit();
 }

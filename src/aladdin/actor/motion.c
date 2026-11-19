@@ -380,7 +380,7 @@ void abi_ActorMoveX(void)
  */
 void abi_ActorMoveRight(void)
 {
-    abi_ActorMoveRightNear();
+    call_frame(0xA5AD, abi_ActorMoveRightNear);
 }
 
 /*
@@ -392,7 +392,7 @@ void abi_ActorMoveRight(void)
  */
 void abi_ActorMove(void)
 {
-    abi_ActorMoveXNear();
+    call_frame(0xA55F, abi_ActorMoveXNear);
     abi_ActorMoveY();
 }
 
@@ -827,7 +827,9 @@ void abi_ActorBobY(void)
     a8_load(rd8(dpa(ACTOR_49)));
     if (!(uint8_t)cpu.a) {
         /* falling: turn back once faster than $81 */
+        jsl_frame(0x81A578u);
         abi_ActorAccelerateY();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_N)) {
             op_rep(P_M);
             speed = dp16(ACTOR_SPEED_Y);
@@ -840,7 +842,9 @@ void abi_ActorBobY(void)
         }
     } else {
         /* rising: turn back once faster than -$80 */
+        jsl_frame(0x81A58Du);
         abi_ActorAccelerateYBack();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (cpu.p & P_N) {
             op_rep(P_M);
             speed = dp16(ACTOR_SPEED_Y);
@@ -853,7 +857,9 @@ void abi_ActorBobY(void)
         }
     }
     op_sep(P_M);
+    jsl_frame(0x81A5A2u);
     abi_ActorMoveY();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /* Motion helpers no code refers to: each runs only in the unit calls of

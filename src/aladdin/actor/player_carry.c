@@ -163,7 +163,7 @@ void abi_ActorStepToTargetCarry(void)
  */
 void abi_ActorCarryPlayerLong(void)
 {
-    abi_ActorCarryPlayer();  /* 83FBD6 jsr */
+    call_frame(0xFBD8, abi_ActorCarryPlayer);  /* 83FBD6 jsr */
     return;  /* 83FBD9 rtl */
 }
 
@@ -193,20 +193,26 @@ void abi_ActorLiftPlayerStep(void)
 L_83FB66:
     return;  /* 83FB66 rts */
 L_83FB67:
-    abi_ActorGrabTest();  /* 83FB67 jsl */
+    jsl_frame(0x83FB67u);  /* 83FB67 jsl */
+    abi_ActorGrabTest();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83FB66;  /* 83FB6B bcs */
     op_rep(0x20);  /* 83FB6D rep */
     lda16_v(LIFT_RESUME);  /* 83FB6F lda */
     sta16(ea_abs(PLAYER + ACTOR_03));  /* 83FB72 sta */
     op_sep(0x20);  /* 83FB75 sep */
     txa8();  /* 83FB77 txa */
-    abi_PlayerSpotAboveActor();  /* 83FB78 jsl */
+    jsl_frame(0x83FB78u);  /* 83FB78 jsl */
+    abi_PlayerSpotAboveActor();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83FB7C:
     MEM8(inc, ea_dp(LIFT_STEP));  /* 83FB7C inc */
     return;  /* 83FB7E rts */
 L_83FB7F:
     txa8();  /* 83FB7F txa */
-    abi_PlayerToActorAbove();  /* 83FB80 jsl */
+    jsl_frame(0x83FB80u);  /* 83FB80 jsl */
+    abi_PlayerToActorAbove();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 83FB84 rts */
 }
 
@@ -218,7 +224,7 @@ L_83FB7F:
  */
 void abi_ActorTestCarriesLong(void)
 {
-    abi_ActorTestCarries();
+    call_frame(0xFB87, abi_ActorTestCarries);
 }
 
 /*
@@ -237,7 +243,9 @@ void abi_ActorTestCarries(void)
 {
     stz8(ea_dp(CARRIES));  /* 83FB89 stz */
     ldy8(ea_dp(ACTOR_4C));  /* 83FB8B ldy */
-    abi_ActorTestByX();  /* 83FB8D jsl */
+    jsl_frame(0x83FB8Du);  /* 83FB8D jsl */
+    abi_ActorTestByX();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83FB95;  /* 83FB91 bcs */
     MEM8(inc, ea_dp(CARRIES));  /* 83FB93 inc */
 L_83FB95:
@@ -247,5 +255,7 @@ L_83FB95:
     lda16(ea_dp(ACTOR_Y + 1));  /* 83FB9B lda */
     sta16(ea_dp(KEPT_Y));  /* 83FB9D sta */
     op_sep(0x20);  /* 83FB9F sep */
-    abi_AnimStep();  /* 83FBA1 jsl */
+    jsl_frame(0x83FBA1u);  /* 83FBA1 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }

@@ -85,7 +85,9 @@ void abi_Kind2AStart(void)
     lda8_v(0x00);  /* 83A1EB lda */
     abi_AnimStart();  /* 83A1ED jsl */
     ldy8_v(0x06);  /* 83A1F1 ldy */
-    abi_ActorMotionPreset();  /* 83A1F3 jsl */
+    jsl_frame(0x83A1F3u);  /* 83A1F3 jsl */
+    abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     stz8(ea_dp(KIND2A_DOWNS));  /* 83A1F7 stz */
     stz8(ea_dp(KIND2A_HITS));  /* 83A1F9 stz */
     stz8(ea_dp(KIND2A_BOB));  /* 83A1FB stz */
@@ -107,10 +109,14 @@ L_83A208:
     eor8_v(0x01);  /* 83A21B eor */
     sta8(ea_dp(ACTOR_FLIP));  /* 83A21D sta */
 L_83A21F:
-    abi_ActorPlayerBelow();  /* 83A21F jsl */
+    jsl_frame(0x83A21Fu);  /* 83A21F jsl */
+    abi_ActorPlayerBelow();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_Z) goto L_83A240;  /* 83A223 beq */
     ldy8_v(0x0C);  /* 83A225 ldy */
-    abi_ActorNearPlayer();  /* 83A227 jsl */
+    jsl_frame(0x83A227u);  /* 83A227 jsl */
+    abi_ActorNearPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83A240;  /* 83A22B bcs */
     lda8_v(0x01);  /* 83A22D lda */
     abi_AnimStart();  /* 83A22F jsl */
@@ -162,7 +168,9 @@ L_83A284:
     abi_ActorAccelerateX();  /* 83A28F jsl */
 L_83A293:
     abi_ActorDecelerateY();  /* 83A293 jsl */
-    abi_ActorMove();  /* 83A297 jsl */
+    jsl_frame(0x83A297u);  /* 83A297 jsl */
+    abi_ActorMove();
+    cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(dec, ea_dp(KIND2A_LEAP));  /* 83A29B dec */
     if (!IF_Z) goto L_83A2A5;  /* 83A29D bne */
     lda8_v(0x06);  /* 83A29F lda */
@@ -174,14 +182,18 @@ L_83A2A5:
 L_83A2A9:
     abi_ActorAccelerateY();  /* 83A2A9 jsl */
     abi_ActorMoveX();  /* 83A2AD jsl */
-    abi_ActorStepYBack();  /* 83A2B1 jsl */
+    jsl_frame(0x83A2B1u);  /* 83A2B1 jsl */
+    abi_ActorStepYBack();
+    cpu.s = (uint16_t)(cpu.s + 3);
     actor_yield(0x83A2B5u);  /* 83A2B5 brk */
     goto L_83A2A9;  /* 83A2B7 bra */
 L_83A2B9:
     lda8_v(0x18);  /* 83A2B9 lda */
     sta8(ea_dp(ACTOR_ACCEL_Y));  /* 83A2BB sta */
 L_83A2BD:
-    abi_ActorFall();  /* 83A2BD jsl */
+    jsl_frame(0x83A2BDu);  /* 83A2BD jsl */
+    abi_ActorFall();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(0x20);  /* 83A2C1 rep */
     lda16(ea_dp(ACTOR_Y + 1));  /* 83A2C3 lda */
     adc16_v(0x0018);  /* 83A2C5 adc */
@@ -243,7 +255,9 @@ L_83A32D:
 L_83A337:
     actor_yield(0x83A337u);  /* 83A337 brk */
     abi_ActorMoveX();  /* 83A339 jsl */
-    abi_ActorDecelerateX();  /* 83A33D jsl */
+    jsl_frame(0x83A33Du);  /* 83A33D jsl */
+    abi_ActorDecelerateX();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_SPEED_X));  /* 83A341 lda */
     if (!IF_Z) goto L_83A337;  /* 83A343 bne */
     lda8(ea_dp(ACTOR_SPEED_X + 1));  /* 83A345 lda */
@@ -316,7 +330,9 @@ L_83A39B:
     lda8(ea_dp(KIND2A_RIGHT));  /* 83A39B lda */
     if (!IF_Z) goto L_83A3B0;  /* 83A39D bne */
     lda8_v(0x0F);  /* 83A39F lda */
-    abi_SoundQueueAdd();  /* 83A3A1 jsl */
+    jsl_frame(0x83A3A1u);  /* 83A3A1 jsl */
+    abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(0x21);  /* 83A3A5 rep */
     lda16(ea_dp(ACTOR_Y + 1));  /* 83A3A7 lda */
     adc16_v(0x0009);  /* 83A3A9 adc */
@@ -339,22 +355,32 @@ L_83A3C7:
     sta8(ea_dp(KIND2A_FRAMES));  /* 83A3C9 sta */
 L_83A3CB:
     actor_yield(0x83A3CBu);  /* 83A3CB brk */
-    abi_ActorFly();  /* 83A3CD jsl */
+    jsl_frame(0x83A3CDu);  /* 83A3CD jsl */
+    abi_ActorFly();
+    cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(dec, ea_dp(KIND2A_FRAMES));  /* 83A3D1 dec */
     if (!IF_Z) goto L_83A3CB;  /* 83A3D3 bne */
     lda8_v(0x03);  /* 83A3D5 lda */
     abi_AnimStart();  /* 83A3D7 jsl */
     lda8_v(0x10);  /* 83A3DB lda */
-    abi_ActorMotionReset();  /* 83A3DD jsl */
+    jsl_frame(0x83A3DDu);  /* 83A3DD jsl */
+    abi_ActorMotionReset();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83A3E1:
     actor_yield(0x83A3E1u);  /* 83A3E1 brk */
-    abi_AnimStep();  /* 83A3E3 jsl */
+    jsl_frame(0x83A3E3u);  /* 83A3E3 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_SPEED_Y + 1));  /* 83A3E7 lda */
     cmp8_v(0x03);  /* 83A3E9 cmp */
     if (IF_Z) goto L_83A3F1;  /* 83A3EB beq */
-    abi_ActorAccelerateY();  /* 83A3ED jsl */
+    jsl_frame(0x83A3EDu);  /* 83A3ED jsl */
+    abi_ActorAccelerateY();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83A3F1:
-    abi_ActorStepY();  /* 83A3F1 jsl */
+    jsl_frame(0x83A3F1u);  /* 83A3F1 jsl */
+    abi_ActorStepY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_long(COPY_TEST));  /* 83A3F5 lda */
     ACC8(inc);  /* 83A3F9 inc */
     sta8(ea_long(COPY_TEST));  /* 83A3FA sta */

@@ -110,21 +110,29 @@ void abi_Kind86WaitWork(void)
         return;
     lda8_v(0x06);
     sta8(ea_dp(K86_HOLD_AT));
+    jsl_frame(0x849770u);
     abi_ActorHoldPlayerLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldy8_v(K86_ZONE);
+    jsl_frame(0x849776u);
     abi_ActorZoneHurtsPlayerLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!IF_C) {
         lda8_v(0x01);
         sta8(ea_dp(K86_LEFT));
     }
+    jsl_frame(0x849780u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     call_frame(0x9786u, abi_Kind86ChildAbove);
     call_frame(0x9789u, abi_Kind86OutOfView);
     if (!IF_C)
         return;
     op_rep(0x10);
     ldy16(ea_dp(K86_PAIR));
+    jsl_frame(0x849790u);
     abi_ActorFreePlacedAtYLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_sep(0x10);
     lda8_v(0x8C);
     tsb8(ea_dp(ACTOR_STATE));

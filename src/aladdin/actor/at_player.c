@@ -36,8 +36,12 @@ void abi_ActorAtPlayer(void)
     cpu.a = y;
     x8_load(rd8(dba(PLAYER_2F)));
     y8_load(rd8(dba(AT_PLAYER_MOTIONS) + cpu.x));
+    jsl_frame(0x81EC16u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81EC1Au);
     abi_ActorMove();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*

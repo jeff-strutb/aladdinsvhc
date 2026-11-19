@@ -209,7 +209,7 @@ void abi_EndingStageScroll(void)
         a8_load(0x01);
         jsl_frame(0x82B45Fu);
         abi_TaskWait();
-        abi_EndingStageFrame();
+        call_frame(0xB465, abi_EndingStageFrame);
         a8_load((uint8_t)(rd8(dba(ENDING_STEP)) << 2));
         flag_set(P_C, 0);
         x8_load((uint8_t)cpu.a);
@@ -222,8 +222,8 @@ void abi_EndingStageScroll(void)
         a16_load(op_adc16(rd16(dba(BG_SCROLL_X_18C9)), step, &cpu.p));
         wr16(dba(BG_SCROLL_X_18C9), cpu.a);
         op_sep(0x20);
-        abi_EndingWipeLeftStep();
-        abi_EndingWipeRightStep();
+        call_frame(0xB486, abi_EndingWipeLeftStep);
+        call_frame(0xB489, abi_EndingWipeRightStep);
     } while (dec8_at(dba(TASK_PARAM)));
     jsl_frame(0x82B48Fu); abi_TaskCreate(); cpu.unwound = 0;
     stage = rd8(dba(ENDING_STAGE));
@@ -322,7 +322,9 @@ L_80B220:
     lda8_v(0x01);  /* 80B24E lda */
     jsl_frame(0x80B250u); abi_TaskWait();  /* 80B250 jsl */
     lda8(ea_dp(0x06));  /* 80B254 lda */
-    abi_Mode7Rotate();  /* 80B256 jsl */
+    jsl_frame(0x80B256u);  /* 80B256 jsl */
+    abi_Mode7Rotate();
+    cpu.s = (uint16_t)(cpu.s + 3);
     clc();  /* 80B25A clc */
     lda8(ea_dp(0x06));  /* 80B25B lda */
     adc8_v(rd8(ea_dp(0x07)));  /* 80B25D adc */

@@ -37,7 +37,9 @@ void abi_Kind44Start(void)
     lda8_v(0x20);
     sta8(ea_dp(0x40));
     lda8_v(0x04);
+    jsl_frame(0x83B47Au);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83B47Eu);
         MEM8(dec, ea_dp(0x40));

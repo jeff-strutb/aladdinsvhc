@@ -54,10 +54,14 @@ void abi_KindA8Start(void)
         a8_load(0x00);
         abi_AnimStart();
         a8_load(0x28);
+        jsl_frame(0x83FB43u);
         abi_SoundQueueAdd();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
     for (;;) {
         actor_yield(0x83FB47u);
+        jsl_frame(0x83FB49u);
         abi_AnimStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }

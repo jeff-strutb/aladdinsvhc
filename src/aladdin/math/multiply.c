@@ -2,6 +2,7 @@
  * multiply.c: the CPU's 8x8 multiplier and 16/8 divider.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "hw.h"
 #include "ops65.h"
@@ -95,7 +96,7 @@ void abi_MultiplyXA(void)
     uint8_t hi;
 
     stx_w(WRMPYA & 0xFFFF);
-    abi_MultiplyBy();
+    call_frame(0xA80B, abi_MultiplyBy);
     hi = rd8(abs_db(RDMPYH & 0xFFFF));
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | hi);
     cpu.p = nz8(cpu.p, hi);

@@ -33,7 +33,9 @@ void abi_Kind49Carry(void)
     a8_load(flags);
     for (;;) {
         actor_yield(0x848053u);
+        jsl_frame(0x848055u);
         abi_ActorCarryPlayerLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 
@@ -65,7 +67,9 @@ void abi_Kind49Wait(void)
     y8_load(box[v]);
     wr8(dpa(K49_CARRY_BOX), box[v]);
     x8_load(0x00);
+    jsl_frame(0x848076u);
     abi_ActorTestCarriesLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x18);
     abi_ActorFreeOutOfRangeLong();
 }

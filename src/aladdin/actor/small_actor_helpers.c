@@ -72,8 +72,12 @@ void abi_SenderWait8E(void)
 {
     uint8_t phase;
 
+    jsl_frame(0x849B4Du);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x849B51u);
     abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
     phase = rd8(dba(V_032D)) & 0x07;
     a8_load(phase);
     if (phase)
@@ -83,7 +87,9 @@ void abi_SenderWait8E(void)
     a8_load(0x01);
     wr8(dpa(ACTOR_07), 0x01);
     a8_load(0x8E);
+    jsl_frame(0x849B66u);
     abi_ActorCreateChild8();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 

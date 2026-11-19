@@ -301,8 +301,10 @@ void abi_ActorBob(void)
  */
 void abi_ActorBobAnimate(void)
 {
+    jsl_frame(0x84A7A1u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(0x42)));
     if ((uint8_t)cpu.a)
-        abi_ActorBob();
+        call_frame(0xA7AB, abi_ActorBob);
 }

@@ -709,7 +709,7 @@ void abi_EdgePlaceAt(void)
 {
     uint16_t px = cpu.a, py = cpu.y;
 
-    abi_TilemapWord();
+    call_frame(0xC167, abi_TilemapWord);
     op_and16(rd16(dp(LAYER_TILEMAP_MASK)));
     op_ora16(rd16(dp(LAYER_TILEMAP_BASE)));
     wr16(dp(cpu.x + EDGE_TILEMAP), cpu.a);
@@ -742,7 +742,7 @@ void abi_EdgePlace(void)
     op_add16(rd16(EDGE_PLACE + x));
     cpu.x = rd16((SCRATCH + 16));
     cpu.p = nz16(cpu.p, cpu.x);
-    abi_EdgePlaceAt();
+    call_frame(0xC15C, abi_EdgePlaceAt);
     cpu.x = (uint16_t)(x + 4);
     cpu.p = nz16(cpu.p, cpu.x);
 }
@@ -1271,7 +1271,7 @@ void abi_LayersCopyToVram(void)
  */
 void abi_LayersCopyToVramLong(void)
 {
-    abi_LayersCopyToVram();
+    call_frame(0x8364, abi_LayersCopyToVram);
 }
 
 /*
@@ -1319,11 +1319,13 @@ void abi_LayersFill(void)
         do {
             cpu.y = 1;
             cpu.p = nz8(cpu.p, 1);
-            abi_LayerDrawColumn();
+            call_frame(0xC093, abi_LayerDrawColumn);
             cpu.x = 0;
             cpu.p = nz8(cpu.p, 0);
-            abi_EdgeStepRight();
+            call_frame(0xC098, abi_EdgeStepRight);
+            jsl_frame(0x81C099u);
             abi_LayersCopyToVramLong();
+            cpu.s = (uint16_t)(cpu.s + 3);
             columns = (uint8_t)(rd8_rmw(FILL_COLUMNS_LEFT) - 1);
             wr8(FILL_COLUMNS_LEFT, columns);
             cpu.p = nz8(cpu.p, columns);
@@ -1350,5 +1352,5 @@ void abi_LayersFill(void)
  */
 void abi_LayersFillLong(void)
 {
-    abi_LayersFill();
+    call_frame(0xC05E, abi_LayersFill);
 }

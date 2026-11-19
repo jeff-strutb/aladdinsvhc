@@ -216,9 +216,9 @@ void abi_LevelSongPlay(void)
     song = rd8(dba(LEVEL_SONGS) + level);
     a8_load(song);
     if (song & 0x80)
-        abi_SoundQueueF0();
+        { jsl_frame(0x8186EBu); abi_SoundQueueF0(); cpu.s = (uint16_t)(cpu.s + 3); }
     else
-        abi_SongPlay();
+        { jsl_frame(0x8186E6u); abi_SongPlay(); cpu.s = (uint16_t)(cpu.s + 3); }
 }
 
 /*

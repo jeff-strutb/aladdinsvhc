@@ -46,7 +46,9 @@ void abi_ActorCircleWipeStep(void)
     flag_set(P_C, 1);
     cpu.y = op_sbc16(dy, 0x0008, &cpu.p);
     a16_load(dp16(WIPE_RADIUS));
+    jsl_frame(0x83EAC7u);
     abi_CircleWipeStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     /* the window table it drew, $7F:5000, to $7E:F500 */
     phb();
     cpu.x = 0x5000;

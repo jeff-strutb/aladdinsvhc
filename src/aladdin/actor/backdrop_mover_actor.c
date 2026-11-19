@@ -61,7 +61,7 @@ void abi_BackdropMover(void)
                 a8_load(0x30);
                 wr8(dpa(MOVER_HUM), 0x30);
             }
-            abi_BackdropOffsetStep();
+            call_frame(0x906F, abi_BackdropOffsetStep);
         } while (!(cpu.p & P_Z));
         /* its stop's sound, a wait, then the other way */
         a8_load(0x0D);
@@ -104,7 +104,9 @@ void abi_KindA3Shot(void)
     x8_load(variant);
     wr8(dpa(ACTOR_FACING), 0x00);         /* A's low byte, 0 */
     a8_load(rd8(dba(A3_ANIMS) + cpu.x));
+    jsl_frame(0x848367u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x08);
     actor_wait(0x84836Du);
     /* it steps out across by its variant's step, then flies */
@@ -116,10 +118,14 @@ void abi_KindA3Shot(void)
     a8_load(0x08);
     actor_wait(0x848381u);
     y8_load(0x6C);
+    jsl_frame(0x848385u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x848389u);
+        jsl_frame(0x84838Bu);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         flags = rd8(dpa(ACTOR_09));
         a8_load(flags);
         flag_set(P_Z, !(flags & 0x40));

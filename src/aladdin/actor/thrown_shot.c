@@ -97,7 +97,9 @@ void abi_ShotFly(void)
     a8_load(0x04);
     wr8(dpa(ACTOR_2C), 0x04);
     y8_load(rd8(dpa(ACTOR_07)));           /* its course */
+    jsl_frame(0x81EACEu);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_X), 0);
     wr8(dpa(ACTOR_Y), 0);
     dp16_set(SHOT_16, 0xC9FF);
@@ -122,7 +124,9 @@ void abi_ShotFly(void)
             wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
         }
         /* into the ground (not one it passes through): a mark, and gone */
+        jsl_frame(0x81EB29u);
         abi_ActorInGround();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C))
             continue;
         ground = rd8(dba(V_0012));
@@ -133,7 +137,9 @@ void abi_ShotFly(void)
         cpu.a = cpu.y = cpu.d;
         nz16_of(cpu.d);
         op_sep(P_M);
+        jsl_frame(0x81EB3Au);
         abi_Spawn13AtYLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         break;
     }
     op_sep(0x30);
@@ -159,10 +165,14 @@ void abi_ShotHit(void)
 {
     actor_yield(0x81EB44u);
     a8_load(0x08);
+    jsl_frame(0x81EB48u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load((uint8_t)(rd8(dpa(ACTOR_08)) | 0x80));
     wr8(dpa(ACTOR_08), (uint8_t)cpu.a);
+    jsl_frame(0x81EB52u);
     abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_N)) {                 /* a kind $11 mark where it hit */
         uint32_t mark = dba(0) + cpu.x;
         uint16_t y;

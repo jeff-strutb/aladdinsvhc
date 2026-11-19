@@ -4,6 +4,7 @@
  * wait is ActorWaitHitsRange0 ($83:B630).
  */
 #include "machine.h"
+#include "native.h"
 #include "ops65.h"
 #include "actor.h"
 
@@ -85,7 +86,9 @@ L_83B4D3:
     ACC8(lsr);  /* 83B4EA lsr */
     goto L_83B4F1;  /* 83B4EB bra */
 L_83B4ED:
-    abi_ActorSideOfPlayer();  /* 83B4ED jsl */
+    jsl_frame(0x83B4EDu);  /* 83B4ED jsl */
+    abi_ActorSideOfPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83B4F1:
     sta8(ea_dp(ACTOR_FACING));  /* 83B4F1 sta */
     sta8(ea_dp(ACTOR_FLIP));  /* 83B4F3 sta */
@@ -113,12 +116,18 @@ L_83B519:
     MEM8(dec, ea_dp(KIND2F_FRAMES));  /* 83B51B dec */
     if (!IF_Z) goto L_83B519;  /* 83B51D bne */
     ldy8_v(0x1E);  /* 83B51F ldy */
-    abi_ActorMotionPresetY();  /* 83B521 jsl */
+    jsl_frame(0x83B521u);  /* 83B521 jsl */
+    abi_ActorMotionPresetY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x16);  /* 83B525 lda */
-    abi_SoundQueueAdd();  /* 83B527 jsl */
+    jsl_frame(0x83B527u);  /* 83B527 jsl */
+    abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83B52B:
     actor_yield(0x83B52Bu);  /* 83B52B brk */
-    abi_ActorFall();  /* 83B52D jsl */
+    jsl_frame(0x83B52Du);  /* 83B52D jsl */
+    abi_ActorFall();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_ActorFallSpeedCap();  /* 83B531 jsr */
     abi_ActorOutOfGround();  /* 83B534 jsl */
     if (IF_Z) goto L_83B52B;  /* 83B538 beq */
@@ -157,12 +166,18 @@ L_83B564:
     if (IF_Z) goto L_83B57C;  /* 83B578 beq */
     ldy8_v(0x09);  /* 83B57A ldy */
 L_83B57C:
-    abi_ActorSpeedXSet();  /* 83B57C jsl */
+    jsl_frame(0x83B57Cu);  /* 83B57C jsl */
+    abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83B580:
     actor_yield(0x83B580u);  /* 83B580 brk */
-    abi_ActorMoveX();  /* 83B582 jsl */
-    abi_ActorSnapToGround();  /* 83B586 jsl */
-    abi_ActorMapAhead5Down12();  /* 83B58A jsr */
+    jsl_frame(0x83B582u);  /* 83B582 jsl */
+    abi_ActorMoveX();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83B586u);  /* 83B586 jsl */
+    abi_ActorSnapToGround();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xB58C, abi_ActorMapAhead5Down12);  /* 83B58A jsr */
     if (IF_Z) goto L_83B5C4;  /* 83B58D beq */
     abi_ActorOutOfWallProbe4();  /* 83B58F jsl */
     if (!IF_C) goto L_83B59D;  /* 83B593 bcc */
@@ -203,10 +218,14 @@ L_83B5CE:
     lda8_v(0x05);  /* 83B5D4 lda */
     abi_AnimStart();  /* 83B5D6 jsl */
     ldy8_v(0x1D);  /* 83B5DA ldy */
-    abi_ActorMotionPreset();  /* 83B5DC jsl */
+    jsl_frame(0x83B5DCu);  /* 83B5DC jsl */
+    abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83B5E0:
     actor_yield(0x83B5E0u);  /* 83B5E0 brk */
-    abi_ActorFly();  /* 83B5E2 jsl */
+    jsl_frame(0x83B5E2u);  /* 83B5E2 jsl */
+    abi_ActorFly();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_ActorFallSpeedCap();  /* 83B5E6 jsr */
     abi_ActorOutOfWallProbe4();  /* 83B5E9 jsl */
     abi_ActorOutOfGround();  /* 83B5ED jsl */

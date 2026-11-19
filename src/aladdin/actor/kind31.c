@@ -245,7 +245,7 @@ L_AD11:
         actor_yield(0x83AD11u);
         MEM8(dec, ea_dp(0x40));
     } while (!IF_Z);
-    abi_Kind31BreakTiles();
+    call_frame(0xAD19, abi_Kind31BreakTiles);
     lda8_v(0x2E);
     abi_SoundQueueAdd();
     lda8_v(0x03);
@@ -308,19 +308,29 @@ void abi_Kind31Drop(void)
 {
     stz8(ea_dp(0x42));
     lda8_v(0x03);
+    jsl_frame(0x83AD94u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x08);
     tsb8(ea_dp(0x08));
     ldy8_v(0x06);
+    jsl_frame(0x83AD9Eu);
     abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldy8_v(0x0F);
+    jsl_frame(0x83ADA4u);
     abi_ActorSpeedYSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x28);
     sta8(ea_dp(0x20));
     for (;;) {
         actor_yield(0x83ADACu);
+        jsl_frame(0x83ADAEu);
         abi_ActorMoveX();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83ADB2u);
         abi_ActorFall();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }
 
@@ -362,10 +372,14 @@ L_ADC4:
 
 L_ADCF:     /* walk */
     ldy8_v(0x15);
+    jsl_frame(0x83ADD1u);
     abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_ADD5:
     actor_yield(0x83ADD5u);
+    jsl_frame(0x83ADD7u);
     abi_ActorMoveX();
+    cpu.s = (uint16_t)(cpu.s + 3);
     jsl_call(0x83ADDBu, abi_ActorOutOfWallProbe4);
     if (IF_C) goto L_ADF1;
     jsl_call(0x83ADE1u, abi_ActorSnapToGround);
@@ -423,14 +437,20 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
     abi_AnimStart();
     lda8_v(0x38);
     ldy8_v(0x03);
+    jsl_frame(0x83AE56u);
     abi_ActorSpeedYSetGravity();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83AE5Au);
+        jsl_frame(0x83AE5Cu);
         abi_ActorFall();
+        cpu.s = (uint16_t)(cpu.s + 3);
         lda8(ea_dp(0x1F));
     } while (IF_N);
     lda8_v(0x2F);
+    jsl_frame(0x83AE66u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x04);
     abi_AnimStart();
     lda8_v(0x80);
@@ -456,12 +476,16 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
     lda16(ea_dp(0x46));
     sta16(ea_dp(0x4A));
     sta16(ea_abs(V_0012));
+    jsl_frame(0x83AEA3u);
     abi_ActorAimAt();
+    cpu.s = (uint16_t)(cpu.s + 3);
     sta8(ea_dp(0x45));
     eor8_v(0x10);
     sta8(ea_dp(0x14));
     ldx8_v(0x0A);
+    jsl_frame(0x83AEAFu);
     abi_ActorSpeedSetVector();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(0x45));
     sta8(ea_dp(0x14));
     lda8_v(0x30);
@@ -469,9 +493,15 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
     do {
         actor_yield(0x83AEBBu);
         ldx8_v(0x0C);
+        jsl_frame(0x83AEBFu);
         abi_ActorSpeedAddVector();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83AEC3u);
         abi_ActorMoveRight();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83AEC7u);
         abi_ActorMoveY();
+        cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(0x40));
     } while (!IF_Z);
     call_frame(0xAED1, abi_ActorGoToPoint);         /* JSR at 83:AECF */
@@ -502,17 +532,23 @@ L_AE1B:     /* wait near Aladdin, then leap at him */
 void abi_Kind31Second(void)
 {
     lda8_v(0x0F);
+    jsl_frame(0x83AF1Eu);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x0C);
     sta8(ea_dp(0x00));
     stz8(ea_dp(0x11));
     lda8_v(0x0C);
     sta8(ea_dp(0x40));
     lda8_v(0x02);
+    jsl_frame(0x83AF2Eu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83AF32u);
+        jsl_frame(0x83AF34u);
         abi_AnimStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
         MEM8(dec, ea_dp(0x40));
     } while (!IF_Z);
     lda8_v(0x07);
@@ -520,7 +556,9 @@ void abi_Kind31Second(void)
     lda8_v(0x00);
     sta8(ea_dp(0x21));
     lda8(ea_dp(0x06));
+    jsl_frame(0x83AF46u);
     abi_ActorSpawnSameLook();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x01);
     sta8(ea_dp(0x14));
     sta8(ea_dp(0x15));

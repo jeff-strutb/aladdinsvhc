@@ -70,7 +70,9 @@ void abi_ActorSpawnA2(void)
     a8_load(0x82);
     wr8(dpa(ACTOR_SPAWN_AT), 0x82);
     a8_load(0xA2);
+    jsl_frame(0x84814Eu);
     abi_ActorSpawn();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         return;                                  /* none free */
     child = cpu.x;
@@ -104,10 +106,16 @@ void abi_ActorSpawnA2(void)
  */
 void abi_ActorAnimFreeFar(void)
 {
+    jsl_frame(0x84832Bu);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x84832Fu);
     abi_ActorStompOrHurtLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x58);
+    jsl_frame(0x848335u);
     abi_ActorFreeOutOfRangeLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C) {
         /* ended: one fewer counted in its parent's $42 */
         uint16_t parent = dp16(ACTOR_4C);
@@ -162,7 +170,9 @@ void abi_ActorsFollowSteps(void)
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | step);
         if (!step || (step & 0x80))
             a8_load(0x01);
+        jsl_frame(0x848D33u);
         abi_ActorMoveAlong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(0x30);
         before = cpu.d;
         a16_load(before);
@@ -247,7 +257,7 @@ void abi_PlayerFallCheck(void)
     cmp16_of(y, 0x00B8);
     op_sep(0x20);
     if (y >= 0x00B8)
-        abi_PlayerEnter8CFacingLong();
+        { jsl_frame(0x848F94u); abi_PlayerEnter8CFacingLong(); cpu.s = (uint16_t)(cpu.s + 3); }
 }
 
 /*
@@ -281,7 +291,9 @@ void abi_ActorGrabTest(void)
     a8_load(v);
     if (!v)
         goto no;
+    jsl_frame(0x8288DEu);
     abi_ActorHitsTestBoxIfActiveLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C)
         return;                                  /* no touch */
     op_rep(0x30);
@@ -359,7 +371,7 @@ void abi_ActorListStartAD(void)
     x8_load((uint8_t)FOLLOW_LIST);
     y8_load((uint8_t)(FOLLOW_LIST >> 8));
     a8_load(0x08);
-    abi_ActorListStart();
+    call_frame(0x899E, abi_ActorListStart);
 }
 
 /*
@@ -394,8 +406,8 @@ void abi_ActorsFollowIf8(void)
  */
 void abi_Kind88Work(void)
 {
-    abi_PlayerClampAboveFloor();
-    abi_PlayerFallCheck();
+    call_frame(0x8EF2, abi_PlayerClampAboveFloor);
+    call_frame(0x8EF5, abi_PlayerFallCheck);
 }
 
 /*
@@ -444,7 +456,7 @@ void abi_PlayerClampAboveFloor(void)
         }
     }
     a16_load(off);
-    abi_ActorClampAboveFloor();
+    call_frame(0x8F25, abi_ActorClampAboveFloor);
     if (cpu.p & P_C)
         (void)inc16_at(dba(PLAYER_FLOOR_HITS));
 out:
@@ -470,6 +482,6 @@ void abi_ActorClampAboveFloor12(void)
     op_rep(0x20);
     y8_load(0x02);
     a16_load(0x000C);
-    abi_ActorClampAboveFloor();
+    call_frame(0x8F38, abi_ActorClampAboveFloor);
     op_sep(0x30);
 }

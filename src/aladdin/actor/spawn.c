@@ -7,6 +7,7 @@
  * way, sharing its animated-tile slot.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "ops65.h"
 #include "actor.h"
@@ -137,7 +138,9 @@ void abi_ActorSpawnInit(void)
 
     set_a8(ACTOR_NEW);
     wr8(child(ACTOR_STATE), ACTOR_NEW);
+    jsl_frame(0x81AA16u);
     abi_ActorSpawnPlace();
+    cpu.s = (uint16_t)(cpu.s + 3);
     v = rd8(dp(ACTOR_FLIP));
     set_a8(v);
     wr8(child(ACTOR_FACING), v);
@@ -203,11 +206,13 @@ void abi_ActorTileSlotShare(void)
  */
 void abi_ActorSpawn(void)
 {
+    jsl_frame(0x81A9BFu);
     abi_ActorAlloc();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         return;
-    abi_ActorSpawnTyped();
-    abi_ActorTileSlotShare();
+    call_frame(0xA9C7, abi_ActorSpawnTyped);
+    call_frame(0xA9CA, abi_ActorTileSlotShare);
     set_a8(0);
 }
 
@@ -223,15 +228,17 @@ void abi_ActorSpawn(void)
  */
 void abi_ActorSpawnSameLook(void)
 {
+    jsl_frame(0x81A9CEu);
     abi_ActorAlloc();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         return;
-    abi_ActorSpawnTyped();
+    call_frame(0xA9D6, abi_ActorSpawnTyped);
     set_a8(rd8(dp(ACTOR_LOOK)));
     wr8(child(ACTOR_LOOK), (uint8_t)cpu.a);
     set_a8(rd8(dp(ACTOR_LOOK + 1)));
     wr8(child(ACTOR_LOOK + 1), (uint8_t)cpu.a);
-    abi_ActorTileSlotShare();
+    call_frame(0xA9E3, abi_ActorTileSlotShare);
     op_sep(P_M | P_X);
     set_a8(0);
 }
@@ -255,13 +262,17 @@ void abi_ActorSpawnFacing(void)
 
     wr8(abs_db(SCRATCH + 1), (uint8_t)cpu.x);
     wr8(abs_db(SCRATCH + 2), (uint8_t)cpu.y);
+    jsl_frame(0x81AA33u);
     abi_ActorAlloc();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         return;
     wr8(child(ACTOR_06), (uint8_t)cpu.a);
     set_a8(ACTOR_NEW);
     wr8(child(ACTOR_STATE), ACTOR_NEW);
+    jsl_frame(0x81AA41u);
     abi_ActorSpawnPlace();
+    cpu.s = (uint16_t)(cpu.s + 3);
     v = rd8(abs_db(SCRATCH + 1));
     set_a8(v);
     wr8(child(ACTOR_FACING), v);

@@ -108,7 +108,7 @@ void abi_PlayerHurtTimeEnd(void)
  */
 void abi_PlayerHurtTimeEndLong(void)
 {
-    abi_PlayerHurtTimeEnd();
+    call_frame(0xE953, abi_PlayerHurtTimeEnd);
 }
 
 /*

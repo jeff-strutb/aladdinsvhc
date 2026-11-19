@@ -41,7 +41,9 @@ void abi_PlayerSpawnEvery8(void)
     wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.x);
     a8_load(0x34);
     y8_load(0x01);
+    jsl_frame(0x81DDA6u);
     abi_ActorSpawnFacing();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N) {                    /* none free: the flip stays */
         op_sep(P_X);
         pla8();

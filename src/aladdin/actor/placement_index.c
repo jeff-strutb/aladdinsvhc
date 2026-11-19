@@ -7,6 +7,7 @@
  * names; the tables are 256 bytes each from $7E:C100.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "wram.h"
 #include "wram_video.h"
@@ -92,7 +93,7 @@ void abi_PlacementsByColumn(void)
     do {
         cpu.a = rd16(in_db(ENTRY_WORD_2 + (uint32_t)cpu.y));
         cpu.p = nz16(cpu.p, cpu.a);
-        abi_ShiftRight5();
+        call_frame(0xA98B, abi_ShiftRight5);
         op_and16(0x03FF);
         op_cmp16(0x00FF);
         if (!(cpu.p & P_C)) {
@@ -146,7 +147,7 @@ void abi_PlacementsByRow(void)
     do {
         cpu.a = rd16(in_db(ENTRY_WORD_4 + (uint32_t)cpu.y));
         cpu.p = nz16(cpu.p, cpu.a);
-        abi_ShiftRight5();
+        call_frame(0xA9CA, abi_ShiftRight5);
         op_and16(0x07FF);
         op_cmp16(0x00FF);
         if (!(cpu.p & P_C)) {
@@ -229,7 +230,7 @@ void abi_PlacementsIndex(void)
     op_and16(0x00FF);
     if (cpu.a != 0) {
         n = cpu.a;
-        abi_PlacementsByRow();
+        call_frame(0xA962, abi_PlacementsByRow);
         cpu.x = 0x00FE;
         abi_WramC100Clear();
         wr16(dp(DP_LEFT), 0);
@@ -237,7 +238,7 @@ void abi_PlacementsIndex(void)
         cpu.y = rd16(dp(DP_LIST_AT));
         cpu.a = n;
         cpu.p = nz16(cpu.p, n);
-        abi_PlacementsByColumn();
+        call_frame(0xA972, abi_PlacementsByColumn);
     }
     n = (uint16_t)(rd16_rmw(dp(DP_LIST_AT)) + 1);
     wr16_rmw(dp(DP_LIST_AT), n);

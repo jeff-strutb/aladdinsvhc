@@ -2,6 +2,7 @@
  * bg_follow.c: the BG positions taken from the scroll layers each frame.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "wram.h"
 #include "wram_video.h"
@@ -32,7 +33,7 @@ static void copy16(uint16_t from, uint16_t to)
  */
 void abi_BgFollowLayersLong(void)
 {
-    abi_BgFollowLayers();
+    call_frame(0x8566, abi_BgFollowLayers);
 }
 
 /*

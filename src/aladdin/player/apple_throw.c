@@ -60,7 +60,9 @@ void abi_PlayerAppleThrow(void)
     cmp8_of(v, 0x25);
     if (v == 0x25)
         goto none;
+    jsl_frame(0x81CDFAu);
     abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         goto none;
     /* the apple starts at his hand for his pose, going his way */
@@ -113,11 +115,13 @@ void abi_PlayerAppleThrow(void)
     }
     wr8(dba(APPLES), (uint8_t)cpu.a);
     a8_load(0x03);
+    jsl_frame(0x81CE61u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     v = rd8(dba(V_141C));
     a8_load(v);
     if (!v)
-        abi_ActorStopX();
+        { jsl_frame(0x81CE6Au); abi_ActorStopX(); cpu.s = (uint16_t)(cpu.s + 3); }
     flag_set(P_C, 1);
     return;
 none:

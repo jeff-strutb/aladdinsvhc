@@ -407,12 +407,14 @@ static void standing(int throwing)
  */
 void abi_PlayerStand(void)
 {
-    abi_PlayerFlagsClear();
+    call_frame(0xCCB8, abi_PlayerFlagsClear);
     and_d(ACTOR_09, 0xFE);
     move_start(0x00);
     wr8(dba(PLAYER_BOX_WANTED), 0);
     wr8(dba(PLAYER_DASH), 0);
+    jsl_frame(0x81CCCAu);
     abi_ActorSnapToGround();
+    cpu.s = (uint16_t)(cpu.s + 3);
     standing(0);
 }
 
@@ -466,9 +468,9 @@ void abi_PlayerWalk(void)
     for (;;) {
         actor_yield(0x81CD77u);
         if (pushing_ground())
-            abi_PlayerGroundPush();
-        abi_PlayerRunMove();
-        abi_ActorStepX();
+            call_frame(0xCD89, abi_PlayerGroundPush);
+        call_frame(0xCD8C, abi_PlayerRunMove);
+        call_frame(0xCD8F, abi_ActorStepX);
         if ((at = jsr_test(0xCD92, out_of_walls_hurt))) {
             go_on(at);
             return;
@@ -481,7 +483,7 @@ void abi_PlayerWalk(void)
             abi_PlayerFall();
             return;
         }
-        abi_PlayerAirSteer();
+        call_frame(0xCD9D, abi_PlayerAirSteer);
         wr8(dba(PLAYER_DASH), 0);
         if (ld(DASH_HELD))
             put(PLAYER_DASH, 0x01);
@@ -489,7 +491,7 @@ void abi_PlayerWalk(void)
             jump_at_speed();
             return;
         }
-        abi_PadFacing();
+        call_frame(0xCDB9, abi_PadFacing);
         f = rd8(dpa(ACTOR_FACING));
         cmp8_of((uint8_t)cpu.a, f);
         if ((uint8_t)cpu.a != f) {
@@ -497,7 +499,7 @@ void abi_PlayerWalk(void)
             abi_PlayerSkid();
             return;
         }
-        abi_PlayerAppleThrow();
+        call_frame(0xCDC6, abi_PlayerAppleThrow);
         if (cpu.p & P_C) {
             abi_PlayerThrowStanding();
             return;
@@ -523,10 +525,12 @@ void abi_PlayerWalk(void)
 void abi_PlayerFall(void)
 {
     y8_load(0x02);
+    jsl_frame(0x81CDD4u);
     abi_ActorMotionPresetY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     move_start(0x0E);
     putd(FRAMES_40, 0x03);
-    abi_PlayerTopSpeedHold();
+    call_frame(0xCDE3, abi_PlayerTopSpeedHold);
     abi_PlayerAirStart();
 }
 
@@ -551,12 +555,14 @@ void abi_PlayerJump(void)
     wr8(dba(PLAYER_LANDED), 0);
     wr8(dba(PLAYER_TOP_SPEED), (uint8_t)cpu.x);
     wr8(dba(V_141E), (uint8_t)cpu.a);
-    abi_PlayerFlipByPad();
+    call_frame(0xCFEB, abi_PlayerFlipByPad);
     i = (uint8_t)(ldd(ACTOR_SPEED_X + 1) & 0x03);
     a8_load(i);
     x8_load(i);
     y8_load(rd8(dba(JUMP_ROWS + i)));
+    jsl_frame(0x81CFF4u);
     abi_ActorMotionPresetY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(FRAMES_40), 0);
     sound(0x01);
     put(NO_LANDING, 0x04);
@@ -578,8 +584,8 @@ void abi_PlayerAirStart(void)
 {
     wr8(dba(GROUND_PUSHED), 0);
     wr8(dba(V_1427), 0);
-    abi_PlayerTopSpeedCap();
-    abi_PlayerRunRatesSet();
+    call_frame(0xD00D, abi_PlayerTopSpeedCap);
+    call_frame(0xD010, abi_PlayerRunRatesSet);
     abi_PlayerAirTimed();
 }
 
@@ -708,7 +714,7 @@ void abi_PlayerAirTimed(void)
     (void)inc8_at(dba(V_141C));
     wr8(dba(AIR_FRAMES), 0);
     and_d(ACTOR_09, 0xFE);
-    abi_PlayerGroundYSave();
+    call_frame(0xD029, abi_PlayerGroundYSave);
     in_air(0);
 }
 
@@ -752,7 +758,9 @@ void abi_PlayerAir(void)
  */
 void abi_PlayerAirLand(void)
 {
+    jsl_frame(0x81D0E0u);
     abi_ActorOutOfGround();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_Z)) {
         abi_PlayerLand();
         return;
@@ -780,13 +788,17 @@ void abi_PlayerLand(void)
 {
     uint16_t v;
 
+    jsl_frame(0x81D0E9u);
     abi_ActorSnapToGround();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dba(NO_LANDING), 0);
     wr8(dba(AIR_THROW), 0);
     wr8(dba(V_141C), 0);
     wr8(dba(PLAYER_LANDED), 0);
     if (ground_hurts()) {
+        jsl_frame(0x81D10Du);
         abi_PlayerEnter8CLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         abi_PlayerKnockback();
         return;
     }
@@ -806,7 +818,7 @@ void abi_PlayerLand(void)
         while (dec8_at(dpa(FRAMES_47)));
     } else {
         op_sep(P_M);
-        abi_PadFacing();
+        call_frame(0xD12D, abi_PadFacing);
         if (!(cpu.p & P_N)) {
             if (ld(DASH_HELD)) {
                 op_rep(P_M);
@@ -824,7 +836,9 @@ void abi_PlayerLand(void)
             return;
         }
     }
+    jsl_frame(0x81D15Du);
     abi_ActorSpeedXClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_PlayerStand();
 }
 
@@ -857,10 +871,10 @@ void abi_PlayerSkid(void)
 
     putd(ACTOR_ACCEL_X, 0x10);
     for (;;) {
-        abi_PlayerFlipByPad();
+        call_frame(0xD285, abi_PlayerFlipByPad);
         if (cpu.p & P_N) {
             putd(ACTOR_ACCEL_X, 0x20);
-            abi_PlayerAppleThrow();
+            call_frame(0xD2D8, abi_PlayerAppleThrow);
             if (cpu.p & P_C) {
                 move_start(0x14);
                 a8_load(0x14);
@@ -872,7 +886,7 @@ void abi_PlayerSkid(void)
             v = (uint8_t)(((uint8_t)cpu.a ^ rd8(dpa(ACTOR_FACING))) - 1);
             a8_load(v);
             if (!v) {
-                abi_PlayerSpawnEvery8();
+                call_frame(0xD28F, abi_PlayerSpawnEvery8);
                 if (!ld(SKID_STARTED)) {
                     (void)inc8_at(dba(SKID_STARTED));
                     sound(0x0A);
@@ -901,11 +915,15 @@ void abi_PlayerSkid(void)
             }
         }
         actor_yield(0x81D2EDu);
-        abi_ActorStepX();
+        call_frame(0xD2F1, abi_ActorStepX);
+        jsl_frame(0x81D2F2u);
         abi_ActorOutOfWalls();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C)) {
             if (!ld(V_1428)) {
+                jsl_frame(0x81D2FDu);
                 abi_ActorSnapToGround();
+                cpu.s = (uint16_t)(cpu.s + 3);
                 if (cpu.p & P_Z) {
                     abi_PlayerFall();
                     return;
@@ -917,7 +935,7 @@ void abi_PlayerSkid(void)
                 abi_PlayerJump();
                 return;
             }
-            abi_PadFacing();
+            call_frame(0xD314, abi_PadFacing);
             if (!(cpu.p & P_N)) {
                 v = (uint8_t)cpu.a;
                 cmp8_of(v, rd8(dpa(ACTOR_FACING)));
@@ -928,8 +946,10 @@ void abi_PlayerSkid(void)
                 }
             }
             if (!ld(SKID_STARTED))
-                abi_PlayerRunMove();
+                call_frame(0xD327, abi_PlayerRunMove);
+            jsl_frame(0x81D328u);
             abi_ActorDecelerateX();
+            cpu.s = (uint16_t)(cpu.s + 3);
             if (!(cpu.p & P_N)) {
                 op_rep(P_M);
                 s = dp16(ACTOR_SPEED_X);
@@ -1205,9 +1225,13 @@ void abi_PlayerLedgeGrab(void)
     wr8(dba(PLAYER_LANDED), 0);
     wr8(dba(AIR_THROW), 0);
     (void)inc8_at(dba(V_1427));
-    abi_PlayerFlagsClear();
+    call_frame(0xD4B8, abi_PlayerFlagsClear);
+    jsl_frame(0x81D4B9u);
     abi_ActorStopX();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81D4BDu);
     abi_ActorStopY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     sound(0x06);
     move_start(0x06);
     put(PLAYER_BOX_WANTED, 0x04);
@@ -1271,9 +1295,15 @@ void abi_PlayerHang(void)
     a16_load(0xE800);
     dp16_set(ACTOR_SPEED_Y, 0xE800);
     op_sep(P_M);
+    jsl_frame(0x81D529u);
     abi_ActorMove();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81D52Du);
     abi_ActorSpeedXClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x81D531u);
     abi_ActorSpeedYClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_PlayerStand();
 }
 
@@ -1308,23 +1338,29 @@ void abi_PlayerHover(void)
     wr8(dba(V_141B), 0);
     move_start(0x0C);
     y8_load(0x18);
+    jsl_frame(0x81D879u);
     abi_ActorSpeedYSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     put(V_141E, 0x02);
     wr8(dba(PLAYER_TOP_SPEED), 0);
     for (int first = 1;; first = 0) {
         if (!first)
             actor_yield(0x81D887u);
-        abi_ActorStepX();
+        call_frame(0xD88B, abi_ActorStepX);
+        jsl_frame(0x81D88Cu);
         abi_ActorMoveY();
+        cpu.s = (uint16_t)(cpu.s + 3);
         v = ldd(ACTOR_Y + 2);
         if (!(v & 0x80)) {
+            jsl_frame(0x81D894u);
             abi_ActorOutOfWalls();
+            cpu.s = (uint16_t)(cpu.s + 3);
             if ((at = jsr_test(0xD89A, ground_hurt_jump))) {
                 go_on(at);
                 return;
             }
         }
-        abi_PlayerFlipByPad();
+        call_frame(0xD89D, abi_PlayerFlipByPad);
         if (ld(V_1428))
             break;
         if (!ld(HOVER_HELD)) {
@@ -1338,25 +1374,31 @@ void abi_PlayerHover(void)
         cmp8_of(v, 0x05);
         if (v == 0x05) {
             putd(ACTOR_18, 0x18);
+            jsl_frame(0x81D8C0u);
             abi_GroundBehindBit4();
+            cpu.s = (uint16_t)(cpu.s + 3);
             if (!(cpu.p & P_Z)) {
                 put(V_1A10, 0x01);
                 wr8(dba(V_1A12), 0x01);
             }
         }
-        abi_PlayerRunSpeed();
+        call_frame(0xD8D0, abi_PlayerRunSpeed);
         if ((at = jsr_test(0xD8D3, out_of_walls_hurt))) {
             go_on(at);
             return;
         }
+        jsl_frame(0x81D8D4u);
         abi_ActorOutOfGround();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_Z))
             break;
         if (ld(NO_LANDING)) {
             (void)dec8_at(dba(NO_LANDING));
             continue;
         }
+        jsl_frame(0x81D8DFu);
         abi_GroundBehindBit3();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_Z)) {
             abi_PlayerLedgeGrab();
             return;
@@ -1435,11 +1477,13 @@ void abi_PlayerKnockback(void)
         cmp8_of(v, 0x06);
         if (v == 0x06)
             y8_load(0x56);
+        jsl_frame(0x81DB05u);
         abi_ActorMotionPreset();
+        cpu.s = (uint16_t)(cpu.s + 3);
         sound(0x02);
         x8_load(0x06);
         wr8(dba(PLAYER_BOX_WANTED), 0x06);
-        abi_PlayerBoxSet();
+        call_frame(0xDB16, abi_PlayerBoxSet);
         a8_load(0x17);
         abi_PlayerMoveStartAlso();
         putd(ACTOR_ACCEL_Y, 0x30);
@@ -1450,7 +1494,7 @@ void abi_PlayerKnockback(void)
         wr8(dba(V_141C), 0);
         for (;;) {
             actor_yield(0x81DB2Eu);
-            abi_ActorFallCap();
+            call_frame(0xDB32, abi_ActorFallCap);
             abi_ActorFly();
             if ((at = jsr_test(0xDB39, land_or_hurt))) {
                 go_on(at);
@@ -1468,7 +1512,7 @@ void abi_PlayerKnockback(void)
                 break;
             if (ldd(ACTOR_SPEED_Y + 2) & 0x80)
                 continue;
-            abi_PlayerFallenTest();
+            call_frame(0xDB5E, abi_PlayerFallenTest);
             if (!(cpu.p & P_C)) {
                 fallen = 1;
                 break;
@@ -1478,7 +1522,9 @@ void abi_PlayerKnockback(void)
             if (v == 0x05) {
                 /* no script runs this path */
                 putd(ACTOR_18, 0x18);
+                jsl_frame(0x81DB6Cu);
                 abi_GroundBehindBit4();
+                cpu.s = (uint16_t)(cpu.s + 3);
                 if (!(cpu.p & P_Z)) {
                     put(V_1A10, 0x01);
                     wr8(dba(V_1A12), 0x01);
@@ -1533,7 +1579,7 @@ void abi_PlayerKnockback(void)
         or_d(ACTOR_08, 0x10);
         wr8(dba(V_141B), 0);
         or_d(ACTOR_09, 0x80);
-        abi_PlayerFlagsClear();
+        call_frame(0xDBBD, abi_PlayerFlagsClear);
         if (!(ld(HURT_FRAMES) & 0x80)) {
             abi_PlayerStand();
             return;
@@ -1546,12 +1592,16 @@ void abi_PlayerKnockback(void)
     /* the life is lost */
     actor_yield(0x81DC0Bu);
     a8_load(0x2A);
+    jsl_frame(0x81DC0Fu);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     put(VIEW_EDGE_RULE, 0x04);
     put(NO_LANDING, 0xFF);
     put(V_1A10, 0x01);
     y8_load(0x02);
+    jsl_frame(0x81DC24u);
     abi_ActorMotionPresetY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     putd(FRAMES_40, 0xB0);
     do
         ending_frame(0x81DC2Cu);
@@ -1561,7 +1611,9 @@ void abi_PlayerKnockback(void)
         ending_frame(0x81DC4Au);
     while (ld(SCENE_WAIT));
     wr8(dba(V_141B), 0);
+    jsl_frame(0x81DC63u);
     abi_Level035CSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     (void)dec8_at(dba(LIVES));
     if (ld(LIVES))
         task_exec(0x81DC6Fu);

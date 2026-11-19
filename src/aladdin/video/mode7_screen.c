@@ -47,7 +47,9 @@ void abi_Mode7ScreenSetup(void)
     uint8_t v;
 
     wr8(dpa(0x30), (uint8_t)cpu.a);
+    jsl_frame(0x81AF3Du);
     abi_SineTableBuild();
+    cpu.s = (uint16_t)(cpu.s + 3);
     /* the screen off and no NMI while VRAM is written */
     sei();
     wr8(dba((uint16_t)NMITIMEN), rd8(dba(NMITIMEN_SHADOW)) & 0x7F);
@@ -60,8 +62,8 @@ void abi_Mode7ScreenSetup(void)
     wr8(dpa(0x0D), 0x30);
     wr8(dpa(0x0C), 0x00);
     do {
-        abi_VramWordsToBuffer();
-        abi_Mode7GraphicsConvert();
+        call_frame(0xAF60, abi_VramWordsToBuffer);
+        call_frame(0xAF63, abi_Mode7GraphicsConvert);
         flag_set(P_C, 1);
         wr8(dpa(0x0D), op_sbc8(rd8(dpa(0x0D)), 0x10, &cpu.p));
         flag_set(P_C, 1);
@@ -73,11 +75,11 @@ void abi_Mode7ScreenSetup(void)
     a8_load(0x40);
     wr8(dpa(0x0F), 0x40);
     wr8(dpa(0x0E), 0x00);
-    abi_Mode7MapToBuffer();
-    abi_Mode7MapClear();
+    call_frame(0xAF7C, abi_Mode7MapToBuffer);
+    call_frame(0xAF7F, abi_Mode7MapClear);
     wr8(dpa(0x0D), 0x00);
     wr8(dpa(0x0C), 0x00);
-    abi_Mode7MapFromBuffer();
+    call_frame(0xAF86, abi_Mode7MapFromBuffer);
     /* mode 7, its centre (128, 64) and an empty matrix */
     wr8(dba(0x0829), 0x02);
     wr8(dba(0x039D), 0x07);
@@ -111,7 +113,7 @@ void abi_Mode7GraphicsConvert(void)
     uint16_t x;
 
     op_rep(0x30);
-    abi_Mode7TilesConvert();
+    call_frame(0xB05D, abi_Mode7TilesConvert);
     op_sep(P_M);
     /* the $1000 pixels to VRAM's high bytes from the address at $0C */
     wr8(dba((uint16_t)VMAIN), 0x80);
@@ -145,7 +147,7 @@ void abi_Mode7TilesConvert(void)
     a8_load(0x7F);
     cpu.x = 0;
     cpu.y = 0;
-    abi_Mode7TileRowsConvert();
+    call_frame(0xB094, abi_Mode7TileRowsConvert);
     cpu.db = db;
     nz8_of(db);
 }

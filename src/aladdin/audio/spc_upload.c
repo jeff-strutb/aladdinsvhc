@@ -254,7 +254,9 @@ void abi_SongPlay(void)
     cpu.x = cpu.a;
     cpu.a = DRIVER_TO_IPL_SONG;
     op_sep(P_M | P_X);
+    jsl_frame(0x81FA46u);
     abi_SpcUpload();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_sep(P_M | P_X);
     d = op_pull8();
     d |= (uint16_t)(op_pull8() << 8);

@@ -36,7 +36,9 @@ void abi_ActorShotHitFace(void)
     uint16_t x, px, y;
     uint8_t face, hits;
 
+    jsl_frame(0x84821Au);
     abi_ActorTouchesSecondPoolLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C) {
         op_sep(0x30);
         return;
@@ -56,7 +58,7 @@ void abi_ActorShotHitFace(void)
     a8_load(hits);
     wr8(dpa(ACTOR_46), hits);
     if (!hits)
-        abi_ActorStateSet8CLong();
+        { jsl_frame(0x848236u); abi_ActorStateSet8CLong(); cpu.s = (uint16_t)(cpu.s + 3); }
     op_rep(P_M);
     dp16_set(HIT_SHOT_X, rd16(dba(ACTOR_X + 1) + cpu.y));
     y = rd16(dba(ACTOR_Y + 1) + cpu.y);

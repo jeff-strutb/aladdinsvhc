@@ -53,7 +53,9 @@ void abi_TextLayerClear(void)
     op_xba();
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | 0x20);
     cpu.p = nz8(cpu.p, 0x20);
+    jsl_frame(0x8195CDu);
     abi_TextLayerFill();
+    cpu.s = (uint16_t)(cpu.s + 3);
     v = (uint8_t)(rd8_rmw(abs_db(TEXT_TILEMAP_UPLOAD)) + 1);
     wr8(abs_db(TEXT_TILEMAP_UPLOAD), v);
     cpu.p = nz8(cpu.p, v);

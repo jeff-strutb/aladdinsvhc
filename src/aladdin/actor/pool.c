@@ -79,7 +79,7 @@ void abi_ActorAllocB(void)
  */
 void abi_ActorAllocBLong(void)
 {
-    abi_ActorAllocB();
+    call_frame(0xEA3F, abi_ActorAllocB);
 }
 
 /*
@@ -329,7 +329,7 @@ none:
  */
 void abi_ActorSpawnSharedB(void)
 {
-    abi_ActorAllocB();
+    call_frame(0xEA54, abi_ActorAllocB);
     if (IF_N)
         return;
     pha8();
@@ -342,5 +342,7 @@ void abi_ActorSpawnSharedB(void)
     sta8(ea_absx(ACTOR_09));
     pla8();
     sta8(ea_abs(POOL_B_1490));
+    jsl_frame(0x81EA6Cu);
     abi_ActorSpawnSharedAt();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }

@@ -39,7 +39,9 @@ void abi_Kind7FDrift(void)
     dp16_set(KIND7F_16, 0xD832);
     cpu.a = 0xD832;
     a8_load(variant);
+    jsl_frame(0x849364u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_FACING), 0);
     wr8(dpa(ACTOR_FLIP), 0);
     /* right at $70 less 16 per variant (fraction pixels a frame), for good */
@@ -51,6 +53,8 @@ void abi_Kind7FDrift(void)
     wr8(dpa(ACTOR_SPEED_X), speed);
     for (;;) {
         actor_yield(0x84937Bu);
+        jsl_frame(0x84937Du);
         abi_ActorMoveX();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }

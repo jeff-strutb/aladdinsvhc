@@ -153,6 +153,8 @@ void abi_Table15F1Clear(void)
  */
 void abi_LevelTablesClear(void)
 {
+    jsl_frame(0x81967Bu);
     abi_Table15F1Clear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     clear_firsts(TABLE_1645, 10, 0x10);
 }

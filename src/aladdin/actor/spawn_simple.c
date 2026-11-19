@@ -31,7 +31,9 @@ void abi_ActorAlloc(void);
  */
 void abi_ActorSpawnShared(void)
 {
+    jsl_frame(0x81A9E9u);
     abi_ActorAlloc();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         return;
     abi_ActorSpawnSharedAt();
@@ -52,8 +54,8 @@ void abi_ActorSpawnShared(void)
  */
 void abi_ActorSpawnSharedAt(void)
 {
-    abi_ActorSpawnTyped();
-    abi_ActorTileSlotShare();
+    call_frame(0xA9F1, abi_ActorSpawnTyped);
+    call_frame(0xA9F4, abi_ActorTileSlotShare);
     op_sep(0x30);
     a8_load(0x00);
 }
@@ -76,14 +78,18 @@ void abi_ActorSpawnFacingY(void)
 
     wr8(dba(SCRATCH + 1), (uint8_t)cpu.x);
     wr8(dba(SCRATCH + 2), (uint8_t)cpu.y);
+    jsl_frame(0x81AA5Du);
     abi_ActorAlloc();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_N)
         return;
     child = dba(0) + cpu.x;
     wr8(child + ACTOR_06, (uint8_t)cpu.a);
     a8_load(0x0C);
     wr8(child + ACTOR_STATE, 0x0C);
+    jsl_frame(0x81AA6Bu);
     abi_ActorSpawnPlace();
+    cpu.s = (uint16_t)(cpu.s + 3);
     child = dba(0) + cpu.x;
     v = rd8(dba(SCRATCH + 1));
     a8_load(v);
@@ -111,7 +117,9 @@ void abi_ActorsFreeAll(void)
     cpu.y = 0x13CB;
     do {                                  /* each record from the last down */
         phy16();
+        jsl_frame(0x819D8Eu);
         abi_ActorFreePlacedAtYLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(P_M);
         flag_set(P_C, 1);
         pla16();

@@ -410,7 +410,9 @@ void abi_Level0EScreenSetup(void)
     wr8(dba(TS_SHADOW), 0x17);
     a8_load(0x08);
     wr8(dba(V_083F), 0x08);
+    jsl_frame(0x818BEFu);
     abi_Bits035DExpand();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -465,7 +467,7 @@ void abi_Level12ScreenSetup(void)
 void abi_Level1CScreenSetup(void)
 {
     a8_load(0x0E);
-    abi_AutoScrollScreenSetup();
+    call_frame(0x8D65, abi_AutoScrollScreenSetup);
     a8_load(0x04);
     wr8(dba((uint16_t)TMW_SHADOW), 0x04);
 }
@@ -478,7 +480,7 @@ void abi_Level1CScreenSetup(void)
  */
 void abi_Level14ScreenSetup(void)
 {
-    abi_Level00ScreenSetup();
+    call_frame(0x8D6E, abi_Level00ScreenSetup);
 }
 
 /*
@@ -489,7 +491,7 @@ void abi_Level14ScreenSetup(void)
  */
 void abi_Level15ScreenSetup(void)
 {
-    abi_Level02ScreenSetup();
+    call_frame(0x8D44, abi_Level02ScreenSetup);
 }
 
 #define V_03A1 0x03A1u
@@ -522,7 +524,9 @@ void abi_Level07ScreenSetup(void)
     a8_load(0x17);
     wr8(dba(TM_SHADOW), 0x17);
     a8_load(0x1A);
+    jsl_frame(0x818A79u);
     abi_UnpackSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x12);
     wr8(dba(V_083F), 0x12);
     a8_load(0x3B);
@@ -551,7 +555,9 @@ void abi_Level11ScreenSetup(void)
     a8_load(0x02);
     wr8(dba(V_083F), 0x02);
     a8_load(0x21);
+    jsl_frame(0x818C69u);
     abi_UnpackSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x01);
     wr8(dba((uint16_t)(SCROLL_LIMIT_X + 1)), 0x01);
     for (x = 0x7E; x >= 0; x -= 2) {
@@ -670,7 +676,9 @@ void abi_Level0FScreenSetup(void)
     wr8(dba(TS_SHADOW), 0x17);
     a8_load(0x08);
     wr8(dba(V_083F), 0x08);
+    jsl_frame(0x818C0Fu);
     abi_Bits035DExpand();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -709,7 +717,9 @@ void abi_Level10ScreenSetup(void)
     cycle(0x64, 0x24);
     cycle(0x74, 0x27);
     cycle(0x84, 0x2A);
+    jsl_frame(0x818C5Du);
     abi_Bits035DExpand();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -720,7 +730,7 @@ void abi_Level10ScreenSetup(void)
  */
 void abi_Level16ScreenSetup(void)
 {
-    abi_Level04ScreenSetup();
+    call_frame(0x8D48, abi_Level04ScreenSetup);
 }
 
 /*
@@ -731,7 +741,7 @@ void abi_Level16ScreenSetup(void)
  */
 void abi_Level17ScreenSetup(void)
 {
-    abi_Level07ScreenSetup();
+    call_frame(0x8D4C, abi_Level07ScreenSetup);
 }
 
 /*
@@ -742,7 +752,7 @@ void abi_Level17ScreenSetup(void)
  */
 void abi_Level18ScreenSetup(void)
 {
-    abi_Level08ScreenSetup();
+    call_frame(0x8D50, abi_Level08ScreenSetup);
 }
 
 /*
@@ -754,7 +764,7 @@ void abi_Level18ScreenSetup(void)
  */
 void abi_Level19ScreenSetup(void)
 {
-    abi_Level0AScreenSetup();
+    call_frame(0x8D54, abi_Level0AScreenSetup);
 }
 
 /*
@@ -767,8 +777,8 @@ void abi_Level19ScreenSetup(void)
  */
 void abi_Level1AScreenSetup(void)
 {
-    abi_Level0BScreenSetup();
-    abi_LevelStartPlace();
+    call_frame(0x8D58, abi_Level0BScreenSetup);
+    call_frame(0x8D5B, abi_LevelStartPlace);
 }
 
 /*
@@ -780,7 +790,7 @@ void abi_Level1AScreenSetup(void)
  */
 void abi_Level1BScreenSetup(void)
 {
-    abi_Level0FScreenSetup();
+    call_frame(0x8D5F, abi_Level0FScreenSetup);
 }
 
 /*
@@ -948,5 +958,5 @@ void abi_ModeBandsSetup(void)
  */
 void abi_ModeBandsSetupLong(void)
 {
-    abi_ModeBandsSetup();
+    call_frame(0x8EBF, abi_ModeBandsSetup);
 }

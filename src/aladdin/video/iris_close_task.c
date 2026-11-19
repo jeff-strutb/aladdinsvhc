@@ -76,7 +76,9 @@ void abi_IrisCloseTask(void)
         cpu.x = rd16(dba(IRIS_X));
         cpu.y = rd16(dba(IRIS_Y));
         nz16_of(cpu.y);
+        jsl_frame(0x80B2B0u);
         abi_CircleWipeStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
         phb();
         cpu.x = 0x5000;
         cpu.y = 0xF500;

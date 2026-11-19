@@ -95,7 +95,9 @@ void abi_Kind81Scene(void)
 
     for (;;) {
         actor_yield(0x849391u);
+        jsl_frame(0x849393u);
         abi_PlayerOnFirmGround();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C))
             continue;
         op_rep(0x20);
@@ -107,7 +109,9 @@ void abi_Kind81Scene(void)
             break;
     }
     (void)inc8_at(dba(SCENE_ON));
+    jsl_frame(0x8493A8u);
     abi_SoundQueueF6With1();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(0x20);
     a16_load(PLAYER_SCENE_CODE);
     wr16(dba((uint16_t)PLAYER_CODE_AT), PLAYER_SCENE_CODE);
@@ -132,7 +136,7 @@ void abi_Kind81Scene(void)
         a8_load(v);
     } while (!v);
     wr8(dba(SCENE_ON), 0);
-    abi_ChainBuildNine();
+    call_frame(0x93E5, abi_ChainBuildNine);
     a8_load(0x41);
     wr8(dba(V_03A0), 0x41);
     actor_yield(0x8493EBu);
@@ -151,7 +155,9 @@ void abi_Kind81Scene(void)
     a8_load(0x3F);
     actor_wait(0x84940Eu);
     a8_load(0x22);
+    jsl_frame(0x849412u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x12);
     wr8(dba(V_083F), 0x12);
     /* the flash: the fixed colour added, up from black to white */

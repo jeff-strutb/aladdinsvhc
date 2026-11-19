@@ -6,6 +6,7 @@
  * date whenever the options screen changes one.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "wram_state.h"
 
@@ -40,6 +41,6 @@ void abi_KeptOptionsSum(void)
  */
 void abi_KeptOptionsSeal(void)
 {
-    abi_KeptOptionsSum();
+    call_frame(0x810C, abi_KeptOptionsSum);
     wr8(KEPT_OPTIONS_SUM, (uint8_t)cpu.a);
 }

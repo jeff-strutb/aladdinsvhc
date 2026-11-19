@@ -51,12 +51,14 @@ void abi_ActorRiseAfterDelay(void)
         nz16_of(n);
         return;
     }
+    jsl_frame(0x83A187u);
     abi_ActorStepYBack();
+    cpu.s = (uint16_t)(cpu.s + 3);
     speed = rd8(dpa(ACTOR_SPEED_Y + 1));
     a8_load(speed);
     cmp8_of(speed, 0x02);
     if (speed < 0x02)                     /* speeding up to 2 pixels a frame */
-        abi_ActorAccelerateY();
+        { jsl_frame(0x83A191u); abi_ActorAccelerateY(); cpu.s = (uint16_t)(cpu.s + 3); }
 }
 
 /*

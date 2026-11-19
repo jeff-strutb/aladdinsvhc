@@ -152,7 +152,9 @@ void abi_Kind87Start(void)
         if (!IF_Z)
             continue;
         ldy8_v(K87_ZONE);
+        jsl_frame(0x83F7B4u);
         abi_ActorZoneHasTestPointLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!IF_C)
             break;
     }
@@ -166,9 +168,9 @@ void abi_Kind87Start(void)
     lda8_v(K87_HOLD_CODE >> 8);
     sta8(ea_abs(PLAYER + ACTOR_03 + 1));
     MEM8(inc, ea_dp(K87_HELD));
-    abi_Kind87HoldAtIt();
+    call_frame(0xF7D3, abi_Kind87HoldAtIt);
     actor_yield(0x83F7D4u);
-    abi_Kind87PlayerToIt();
+    call_frame(0xF7D8, abi_Kind87PlayerToIt);
     lda8_v(0x30);
     sta8(ea_dp(K87_FRAMES));
     do {
@@ -220,14 +222,20 @@ shake:
     lda8_v(0x01);
     abi_AnimStart();
     lda8_v(0x38);
+    jsl_frame(0x83F83Bu);
     abi_ActorMotionReset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83F83Fu);
+        jsl_frame(0x83F841u);
         abi_ActorFall();
+        cpu.s = (uint16_t)(cpu.s + 3);
         abi_ActorOutOfGround();
     } while (IF_Z);
     lda8_v(0x3D);
+    jsl_frame(0x83F84Du);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_ActorSnapToGround();
     lda8_v(0x05);
     sta8(ea_dp(K87_FRAMES));
@@ -238,7 +246,9 @@ shake:
         MEM8(inc, ea_dp(K87_SLOT));
         MEM8(inc, ea_dp(K87_SLOT));
         lda8(ea_dp(ACTOR_06));
+        jsl_frame(0x83F865u);
         abi_ActorSpawnSameLook();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!IF_N) {
             ldx8(ea_dp(ACTOR_06));
             lda8(ea_longx(K87_COUNTS));

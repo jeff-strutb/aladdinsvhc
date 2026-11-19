@@ -273,7 +273,9 @@ void abi_SoundWhileSlot1Task(void)
 {
     do {
         a8_load(0x4A);
+        jsl_frame(0x81A1C2u);
         abi_SoundQueueAdd();
+        cpu.s = (uint16_t)(cpu.s + 3);
         next_frame(0x81A1C8u, 0x58);
         a8_load(rd8(dba((uint16_t)FADE_SLOT_STATE)));
     } while (cpu.a & 0xFF);
@@ -321,6 +323,8 @@ void abi_RiserCoursesTask(void)
 void abi_SoundLaterTask(void)
 {
     next_frame(0x81A301u, 0xC0);
+    jsl_frame(0x81A305u);
     abi_SoundQueueF6With1();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_TaskExit();
 }

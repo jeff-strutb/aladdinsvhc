@@ -80,10 +80,14 @@ void abi_ActorGoToPoint(void)
         wr16(dba(AIM_X), cpu.a);
         a16_load(dp16(GOTO_Y));
         wr16(dba(AIM_Y), cpu.a);
+        jsl_frame(0x83FC6Eu);
         abi_ActorAimAt();
+        cpu.s = (uint16_t)(cpu.s + 3);
         wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
         x8_load(rd8(dpa(GOTO_SPEED)));
+        jsl_frame(0x83FC76u);
         abi_ActorMoveByVector();
+        cpu.s = (uint16_t)(cpu.s + 3);
         actor_yield(0x83FC7Au);
         op_rep(0x20);
         a16_load(dp16(GOTO_X));
@@ -91,7 +95,9 @@ void abi_ActorGoToPoint(void)
         a16_load(dp16(GOTO_Y));
         wr16(dba(NEAR_Y), cpu.a);
         y8_load(0x20);
+        jsl_frame(0x83FC8Au);
         abi_ActorNearPoint();
+        cpu.s = (uint16_t)(cpu.s + 3);
     } while (cpu.p & P_C);
     a16_load(dp16(GOTO_BACK));
     push16(cpu.a);
@@ -109,7 +115,9 @@ void abi_ActorGoToPoint(void)
  */
 void abi_Kind94Wait(void)
 {
+    jsl_frame(0x83FB15u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -148,7 +156,7 @@ void abi_ActorBackToCaller(void)
  */
 void abi_ActorRiseWhenInReach(void)
 {
-    abi_PlayerInReach();
+    call_frame(0xFCA7, abi_PlayerInReach);
     if (IF_C) {
         op_sep(0x20);
         return;
@@ -185,8 +193,12 @@ void abi_ActorRiseWhenInReach(void)
             lda16(ea_dp(RISE_LIMIT));   /* at the limit or past it: the limit */
         sta16(ea_dp(RISE_SPEED));
         op_sep(0x20);
+        jsl_frame(0x83FCE4u);
         abi_ActorMoveY();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x83FCE8u);
         abi_ActorOutOfGround();
+        cpu.s = (uint16_t)(cpu.s + 3);
     } while (IF_Z);
     clc();
     abi_ActorBackToCaller();
@@ -212,7 +224,9 @@ void abi_ActorSpawnLookWait(void)
     op_sep(0x20);
     for (;;) {
         lda8(ea_dp(SPAWN_LOOK));
+        jsl_frame(0x83FC16u);
         abi_ActorSpawnSameLook();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!IF_N)
             break;
         actor_yield(0x83FC1Fu);         /* no record free: a frame, again */
@@ -256,8 +270,12 @@ void abi_ActorHopFromTable(void)
     do {
         do {
             actor_yield(0x83FD52u);
+            jsl_frame(0x83FD54u);
             abi_ActorMoveX();
+            cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x83FD58u);
             abi_ActorFall();
+            cpu.s = (uint16_t)(cpu.s + 3);
             jsl_call(0x83FD5Cu, abi_ActorOutOfWallProbe4);
             lda8(ea_dp(0x1F));
         } while (IF_N);

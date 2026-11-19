@@ -573,10 +573,12 @@ void abi_TileSlotsClaim3(void)
  */
 void abi_ActorCreateChild(void)
 {
+    jsl_frame(0x81A9A6u);
     abi_ActorCreate();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C)
         return;
-    abi_ActorSpawnInit();
+    call_frame(0xA9AE, abi_ActorSpawnInit);
     flag_set(P_C, 0);
 }
 
@@ -591,10 +593,12 @@ void abi_ActorCreateChild(void)
  */
 void abi_ActorCreateChild8(void)
 {
+    jsl_frame(0x81A9B1u);
     abi_ActorCreate();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C)
         return;
-    abi_ActorSpawnInit();
+    call_frame(0xA9B9, abi_ActorSpawnInit);
     op_sep(0x30);
     a8_load(0x00);
 }
@@ -629,7 +633,7 @@ void abi_PlacementsStart(void)
     cpu.d = 0;
     cpu.db = 0x82;
     a8_load(0x82);
-    abi_PlacementsIndex();
+    call_frame(0xA73B, abi_PlacementsIndex);
     a8_load(0xFF);
     wr8(0x7EC6FFu, 0xFF);
     /* the bands in view from the camera, from $40 before to $120 past */
@@ -651,7 +655,7 @@ void abi_PlacementsStart(void)
     for (n = 0x0C; n; n--) {
         cpu.x = x;
         cpu.y = n;
-        abi_PlacementsDown();
+        call_frame(0xA784, abi_PlacementsDown);
         x++;
     }
     cpu.x = x;

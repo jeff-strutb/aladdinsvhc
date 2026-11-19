@@ -87,10 +87,14 @@ L_83BC31:
     stz8(ea_dp(ACTOR_07));  /* 83BC31 stz */
     lda8_v(0x1C);  /* 83BC33 lda */
 L_83BC35:
-    abi_AnimStart();  /* 83BC35 jsl */
+    jsl_frame(0x83BC35u);  /* 83BC35 jsl */
+    abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83BC39:
     actor_yield(0x83BC39u);  /* 83BC39 brk */
-    abi_ActorHitsTestBoxLong();  /* 83BC3B jsl */
+    jsl_frame(0x83BC3Bu);  /* 83BC3B jsl */
+    abi_ActorHitsTestBoxLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_83BC39;  /* 83BC3F bcs */
     lda8(ea_abs(HEALTH));  /* 83BC41 lda */
     if (IF_Z) goto L_83BC39;  /* 83BC44 beq */
@@ -154,7 +158,9 @@ L_83BCB4:
     if (!IF_Z) goto L_83BCBF;  /* 83BCBB bne */
     lda8_v(0x32);  /* 83BCBD lda */
 L_83BCBF:
-    abi_SoundQueueAdd();  /* 83BCBF jsl */
+    jsl_frame(0x83BCBFu);  /* 83BCBF jsl */
+    abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldx8(ea_dp(ACTOR_34));  /* 83BCC3 ldx */
     lda8_v(0x80);  /* 83BCC5 lda */
     sta8(ea_longx(PLACED_FLAGS));  /* 83BCC7 sta */
@@ -171,7 +177,9 @@ L_83BCD5:
     sta16(ea_dp(ACTOR_Y + 1));  /* 83BCDF sta */
     op_sep(0x20);  /* 83BCE1 sep */
     lda8_v(0x27);  /* 83BCE3 lda */
-    abi_ActorSpawn();  /* 83BCE5 jsl */
+    jsl_frame(0x83BCE5u);  /* 83BCE5 jsl */
+    abi_ActorSpawn();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_N) goto L_83BCFF;  /* 83BCE9 bmi */
     lda8_v(0x10);  /* 83BCEB lda */
     sta8(ea_absx(ACTOR_07));  /* 83BCED sta */

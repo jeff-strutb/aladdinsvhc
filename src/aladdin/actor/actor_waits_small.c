@@ -88,10 +88,14 @@ void abi_PlayerToActorBelow(void);
  */
 void abi_ActorWaitHitsRange8(void)
 {
+    jsl_frame(0x83AA47u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83AA4Bu);
     abi_ActorPictureSend();
-    abi_ActorStompOrHurt();
-    abi_ActorHitByShotCC();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xAA51, abi_ActorStompOrHurt);
+    call_frame(0xAA54, abi_ActorHitByShotCC);
     x8_load(0x08);
     abi_ActorEndOutOfRange();
 }
@@ -111,14 +115,16 @@ void abi_ActorWaitHitsRange8(void)
  */
 void abi_ActorWaitHitsRange0(void)
 {
-    abi_ActorStompOrHurt();
-    abi_ActorDownedByShot();
+    call_frame(0xB632, abi_ActorStompOrHurt);
+    call_frame(0xB635, abi_ActorDownedByShot);
     if (!(cpu.p & P_C)) {
         uint8_t hits = (uint8_t)(rd8(dpa(WAIT_HITS)) + 1);
         wr8(dpa(WAIT_HITS), hits);
         nz8_of(hits);
     }
+    jsl_frame(0x83B63Au);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x00);
     abi_ActorEndOutOfRange();
 }
@@ -139,7 +145,9 @@ void abi_Kind82Show(void)
     wr8(dpa(ACTOR_08), (uint8_t)(rd8(dpa(ACTOR_08)) | 0x02));
     wr8(dpa(ACTOR_09), (uint8_t)(rd8(dpa(ACTOR_09)) | 0xB0));
     a8_load(0x00);
+    jsl_frame(0x84952Bu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;)
         actor_yield(0x84952Fu);
 }
@@ -253,18 +261,26 @@ void abi_Kind3CDrift(void)
     wr8(dpa(ACTOR_FLIP), 0);
     cpu.a = 0xD200;
     nz8_of(0x00);
+    jsl_frame(0x83B0E6u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x15);
+    jsl_frame(0x83B0ECu);
     abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x42);
+    jsl_frame(0x83B0F2u);
     abi_ActorSpeedYSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         a8_load(0x55);
         wr8(dpa(KIND3C_LEG), 0x55);
-        abi_ActorSpeedYTurn();
+        call_frame(0xB0FC, abi_ActorSpeedYTurn);
         do {
             actor_yield(0x83B0FDu);
+            jsl_frame(0x83B0FFu);
             abi_ActorMoveY();
+            cpu.s = (uint16_t)(cpu.s + 3);
         } while (dec8_at(dpa(KIND3C_LEG)));
     }
 }
@@ -287,19 +303,21 @@ void abi_Kind69Wait(void)
 {
     uint8_t riding, bits;
 
+    jsl_frame(0x83EB24u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     riding = rd8(dpa(KIND69_RIDING));
     a8_load(riding);
     if (!riding)
         return;
-    abi_ActorOnEscort();
+    call_frame(0xEB2E, abi_ActorOnEscort);
     /* TRB: Z from A AND the byte, then the bit cleared */
     a8_load(0x08);
     bits = rd8(dba(ACTOR_ESCORT + ACTOR_08));
     flag_set(P_Z, !(bits & 0x08));
     wr8(dba(ACTOR_ESCORT + ACTOR_08), (uint8_t)(bits & ~0x08));
-    abi_ActorStopsShot();
-    abi_PlayerLandsOnActor();
+    call_frame(0xEB36, abi_ActorStopsShot);
+    call_frame(0xEB39, abi_PlayerLandsOnActor);
     if (cpu.p & P_Z)
         return;
     /* Aladdin landed on it: its end, with sound $12 */
@@ -310,7 +328,9 @@ void abi_Kind69Wait(void)
     a8_load(0x8C);
     wr8(dpa(ACTOR_STATE), 0x8C);
     a8_load(0x12);
+    jsl_frame(0x83EB46u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -328,7 +348,9 @@ void abi_ActorWaitEndLowKinds(void)
 {
     uint8_t low;
 
+    jsl_frame(0x83ABD8u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     low = rd8(dpa(ACTOR_07)) & 0x0F;
     a8_load(low);
     cmp8_of(low, 0x02);
@@ -350,10 +372,14 @@ void abi_ActorWaitEndLowKinds(void)
  */
 void abi_ActorWaitGrabsPlayer(void)
 {
+    jsl_frame(0x8495D4u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x8495D8u);
     abi_ActorHitsTestBoxIfPlayerFreeLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!IF_C)
-        abi_PlayerEnter8CFacingLong();
+        { jsl_frame(0x8495DEu); abi_PlayerEnter8CFacingLong(); cpu.s = (uint16_t)(cpu.s + 3); }
 }
 
 /*
@@ -371,7 +397,9 @@ void abi_ActorFlyAgainstNoRise(void)
 {
     uint8_t top;
 
+    jsl_frame(0x84A7D4u);
     abi_ActorFlyAgainst();
+    cpu.s = (uint16_t)(cpu.s + 3);
     top = rd8(dpa(ACTOR_SPEED_Y + 2));
     a8_load(top);
     if (!(top & 0x80))
@@ -443,7 +471,9 @@ void abi_Kind7BWait(void)
  */
 void abi_Kind8AWait(void)
 {
+    jsl_frame(0x83FA45u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x00);
     abi_ActorEndOutOfRange();
 }
@@ -464,18 +494,20 @@ void abi_Kind8AWait(void)
  */
 void abi_Kind28Wait(void)
 {
-    abi_AnimStep();  /* 83A1BD jsl */
-    abi_ActorDownedByShot();  /* 83A1C1 jsr */
+    jsl_frame(0x83A1BDu);  /* 83A1BD jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xA1C3, abi_ActorDownedByShot);  /* 83A1C1 jsr */
     lda8(ea_dp(ACTOR_FACING));  /* 83A1C4 lda */
     if (IF_N) goto L_83A1CA;  /* 83A1C6 bmi */
     MEM8(inc, ea_dp(KIND28_RIGHT));  /* 83A1C8 inc */
 L_83A1CA:
     lda8(ea_dp(KIND28_STOMPS));  /* 83A1CA lda */
     if (IF_Z) goto L_83A1D3;  /* 83A1CC beq */
-    abi_ActorStompOrHurt();  /* 83A1CE jsr */
+    call_frame(0xA1D0, abi_ActorStompOrHurt);  /* 83A1CE jsr */
     goto L_83A1E0;  /* 83A1D1 bra */
 L_83A1D3:
-    abi_ActorBouncesPlayer();  /* 83A1D3 jsr */
+    call_frame(0xA1D5, abi_ActorBouncesPlayer);  /* 83A1D3 jsr */
     if (IF_Z) goto L_83A1E0;  /* 83A1D6 beq */
     lda8_v(0x80);  /* 83A1D8 lda */
     trb8(ea_dp(ACTOR_09));  /* 83A1DA trb */
@@ -510,21 +542,25 @@ void abi_Kind3CWait(void)
     eor8_v(0x01);  /* 83B125 eor */
     sta8(ea_dp(ACTOR_FACING));  /* 83B127 sta */
 L_83B129:
-    abi_ActorMoveX();  /* 83B129 jsl */
+    jsl_frame(0x83B129u);  /* 83B129 jsl */
+    abi_ActorMoveX();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_Y + 1));  /* 83B12D lda */
     cmp8_v(0xD4);  /* 83B12F cmp */
     if (IF_C) goto L_83B14C;  /* 83B131 bcs */
-    abi_ActorBouncesPlayer();  /* 83B133 jsr */
+    call_frame(0xB135, abi_ActorBouncesPlayer);  /* 83B133 jsr */
     if (IF_Z) goto L_83B14C;  /* 83B136 beq */
     lda8_v(0x12);  /* 83B138 lda */
-    abi_SoundQueueAdd();  /* 83B13A jsl */
+    jsl_frame(0x83B13Au);  /* 83B13A jsl */
+    abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_SPEED_Y + 2));  /* 83B13E lda */
     if (!IF_N) goto L_83B14C;  /* 83B140 bpl */
     sec();  /* 83B142 sec */
     lda8_v(0x55);  /* 83B143 lda */
     sbc8_v(rd8(ea_dp(KIND3C_LEG)));  /* 83B145 sbc */
     sta8(ea_dp(KIND3C_LEG));  /* 83B147 sta */
-    abi_ActorSpeedYTurn();  /* 83B149 jsr */
+    call_frame(0xB14B, abi_ActorSpeedYTurn);  /* 83B149 jsr */
 L_83B14C:
     abi_ActorEndIfLeftBehind();  /* 83B14C jml */
 }
@@ -554,7 +590,7 @@ void abi_Kind37Wait(void)
 {
     lda8(ea_dp(ACTOR_07));  /* 83BD22 lda */
     and8_v(0x01);  /* 83BD24 and; 83BD26 bne to the next instruction */
-    abi_ActorBouncesOrHurtsPlayer();  /* 83BD28 jsr */
+    call_frame(0xBD2A, abi_ActorBouncesOrHurtsPlayer);  /* 83BD28 jsr */
     ACC8(dec);  /* 83BD2B dec */
     if (!IF_Z) goto L_83BD3A;  /* 83BD2C bne */
     lda8_v(0x8C);  /* 83BD2E lda */
@@ -564,12 +600,14 @@ void abi_Kind37Wait(void)
     lda8_v(0x01);  /* 83BD36 lda */
     sta8(ea_dp(KIND37_HIT));  /* 83BD38 sta */
 L_83BD3A:
-    abi_ActorDownedByShot();  /* 83BD3A jsr */
+    call_frame(0xBD3C, abi_ActorDownedByShot);  /* 83BD3A jsr */
     if (IF_C) goto L_83BD43;  /* 83BD3D bcs */
     lda8_v(0x02);  /* 83BD3F lda */
     sta8(ea_dp(KIND37_HIT));  /* 83BD41 sta */
 L_83BD43:
-    abi_AnimStep();  /* 83BD43 jsl */
+    jsl_frame(0x83BD43u);  /* 83BD43 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(ACTOR_06));  /* 83BD47 lda */
     cmp8_v(0x38);  /* 83BD49 cmp */
     if (IF_Z) goto L_83BD52;  /* 83BD4B beq */
@@ -583,13 +621,13 @@ L_83BD52:
     abi_ActorEndOutOfRange();  /* 83BD58 jmp */
     return;
 L_83BD5B:
-    abi_ActorInRange();  /* 83BD5B jsr */
+    call_frame(0xBD5D, abi_ActorInRange);  /* 83BD5B jsr */
     if (IF_C) goto L_83BD61;  /* 83BD5E bcs */
     return;  /* 83BD60 rts */
 L_83BD61:
     op_rep(0x10);  /* 83BD61 rep */
     ldy16(ea_dp(KIND37_PARTNER));  /* 83BD63 ldy */
-    abi_ActorFreePlacedAtY();  /* 83BD65 jsr */
+    call_frame(0xBD67, abi_ActorFreePlacedAtY);  /* 83BD65 jsr */
     ldx16(ea_dp(KIND37_MAKER));  /* 83BD68 ldx */
     MEM8(dec, ea_absx(KIND37_MAKER_COUNT));  /* 83BD6A dec */
     op_sep(0x10);  /* 83BD6D sep */
@@ -661,9 +699,11 @@ L_83A448:
 L_83A44A:
     lda8(ea_dp(KIND2A_STILL));  /* 83A44A lda */
     if (!IF_Z) goto L_83A462;  /* 83A44C bne */
-    abi_AnimStep();  /* 83A44E jsl */
-    abi_ActorStompOrHurt();  /* 83A452 jsr */
-    abi_ActorDownedByShot();  /* 83A455 jsr */
+    jsl_frame(0x83A44Eu);  /* 83A44E jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0xA454, abi_ActorStompOrHurt);  /* 83A452 jsr */
+    call_frame(0xA457, abi_ActorDownedByShot);  /* 83A455 jsr */
     if (IF_C) goto L_83A462;  /* 83A458 bcs */
     lda8(ea_dp(ACTOR_FACING));  /* 83A45A lda */
     if (IF_N) goto L_83A460;  /* 83A45C bmi */

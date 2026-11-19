@@ -104,7 +104,9 @@ L_83A07C:
     and8_v(0x01);  /* 83A084 and */
     goto L_83A08C;  /* 83A086 bra */
 L_83A088:
-    abi_ActorSideOfPlayer();  /* 83A088 jsl */
+    jsl_frame(0x83A088u);  /* 83A088 jsl */
+    abi_ActorSideOfPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83A08C:
     sta8(ea_dp(ACTOR_FACING));  /* 83A08C sta */
     eor8_v(0x01);  /* 83A08E eor */
@@ -127,10 +129,14 @@ L_83A08C:
 L_83A0B3:
     sty8(ea_dp(KIND28_STEPS));  /* 83A0B3 sty */
     ldy8_v(0x44);  /* 83A0B5 ldy */
-    abi_ActorMotionPreset();  /* 83A0B7 jsl */
+    jsl_frame(0x83A0B7u);  /* 83A0B7 jsl */
+    abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
 L_83A0BB:
     actor_yield(0x83A0BBu);  /* 83A0BB brk */
-    abi_ActorStepY();  /* 83A0BD jsl */
+    jsl_frame(0x83A0BDu);  /* 83A0BD jsl */
+    abi_ActorStepY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(dec, ea_dp(KIND28_STEPS));  /* 83A0C1 dec */
     if (!IF_Z) goto L_83A0BB;  /* 83A0C3 bne */
     MEM8(inc, ea_dp(KIND28_UP));  /* 83A0C5 inc */
@@ -198,7 +204,9 @@ L_83A130:
     if (IF_C) goto L_83A11E;  /* 83A136 bcs */
 L_83A138:
     lda8(ea_dp(ACTOR_06));  /* 83A138 lda */
-    abi_ActorSpawnSameLook();  /* 83A13A jsl */
+    jsl_frame(0x83A13Au);  /* 83A13A jsl */
+    abi_ActorSpawnSameLook();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_N) goto L_83A14B;  /* 83A13E bmi */
     ldx8(ea_dp(ACTOR_06));  /* 83A140 ldx */
     lda8(ea_longx(SPAWN_COUNTS));  /* 83A142 lda */
@@ -244,12 +252,16 @@ L_83A1A0:
     lda8_v(0x2C);  /* 83A1A0 lda */
     abi_SoundQueueAdd();  /* 83A1A2 jsl */
     lda8_v(0x02);  /* 83A1A6 lda */
-    abi_AnimStart();  /* 83A1A8 jsl */
+    jsl_frame(0x83A1A8u);  /* 83A1A8 jsl */
+    abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x20);  /* 83A1AC lda */
     sta8(ea_dp(KIND28_FRAMES));  /* 83A1AE sta */
 L_83A1B0:
     actor_yield(0x83A1B0u);  /* 83A1B0 brk */
-    abi_AnimStep();  /* 83A1B2 jsl */
+    jsl_frame(0x83A1B2u);  /* 83A1B2 jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(dec, ea_dp(KIND28_FRAMES));  /* 83A1B6 dec */
     if (!IF_Z) goto L_83A1B0;  /* 83A1B8 bne */
     abi_ActorEndPlaced();  /* 83A1BA jmp */

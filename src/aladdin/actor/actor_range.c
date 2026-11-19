@@ -120,7 +120,7 @@ void abi_ActorFreePlaced(void)
  */
 void abi_ActorEndOutOfRange(void)
 {
-    abi_ActorInRange();
+    call_frame(0x96C0, abi_ActorInRange);
     if (IF_C) goto out;
     op_sep(0x30);
     return;

@@ -74,13 +74,17 @@ void abi_MenuMarkMove(void)
     flag_set(P_C, was & 0x80);
     op_rep(0x10);
     choice_place((uint8_t)(was << 1));
+    jsl_frame(0x81EE0Eu);
     abi_MenuMarkErase();
+    cpu.s = (uint16_t)(cpu.s + 3);
     /* the TAY is 16-bit: A's high byte, as the erase left it, comes too */
     now = rd8(dba(MENU_CHOICE));
     a8_load((uint8_t)(now << 1));
     flag_set(P_C, now & 0x80);
     choice_place(cpu.a);
+    jsl_frame(0x81EE1Au);
     abi_MenuMarkDraw();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_sep(0x10);
 }
 
@@ -92,7 +96,7 @@ void abi_MenuMarkMove(void)
  */
 void abi_MenuCursorMoveLong(void)
 {
-    abi_MenuCursorMove();
+    call_frame(0xEE23, abi_MenuCursorMove);
 }
 
 /*

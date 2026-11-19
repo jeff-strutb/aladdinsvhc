@@ -44,7 +44,9 @@ void abi_Kind5EBrief(void)
     a8_load(rd8(dpa(ACTOR_07)) & 0x04);
     a8_load(0x0C);
     wr8(dpa(KIND5E_LEFT), 0x23);
+    jsl_frame(0x83E44Cu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x83E450u);
         left = (uint8_t)(rd8(dpa(KIND5E_LEFT)) - 1);

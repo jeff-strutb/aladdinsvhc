@@ -62,7 +62,9 @@ void abi_Kind6CStart(void)
             a8_load(v);
             if (v)
                 continue;
+            jsl_frame(0x83E57Bu);
             abi_ActorInReachOfPlayer();
+            cpu.s = (uint16_t)(cpu.s + 3);
             if (!(cpu.p & P_C))
                 break;
         }

@@ -43,6 +43,8 @@ void abi_SoundTestStep(void)
         if (n >= SOUND_TEST_LAST + 1)
             wr8(dba(SOUND_TEST), 0);
     }
+    jsl_frame(0x838B99u);
     abi_SoundQueueF2();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_SoundTestShow();
 }

@@ -115,7 +115,7 @@ void abi_DemoTask(void)
  */
 void abi_DemoStartLong(void)
 {
-    abi_DemoStart();  /* 818062 jsr */
+    call_frame(0x8064, abi_DemoStart);  /* 818062 jsr */
     return;  /* 818065 rtl */
 }
 
@@ -199,7 +199,7 @@ void abi_DemoPlayStart(void)
  */
 void abi_PlayStartCountsLong(void)
 {
-    abi_PlayStartCounts();  /* 8180DC jsr */
+    call_frame(0x80DE, abi_PlayStartCounts);  /* 8180DC jsr */
     return;  /* 8180DF rtl */
 }
 
@@ -277,7 +277,7 @@ void abi_PlayStartCounts(void)
  */
 void abi_NewGameStateLong(void)
 {
-    abi_NewGameState();  /* 818114 jsr */
+    call_frame(0x8116, abi_NewGameState);  /* 818114 jsr */
     return;  /* 818117 rtl */
 }
 
@@ -297,8 +297,10 @@ void abi_NewGameState(void)
     static const uint16_t threes[6] = { 0x0362, 0x0363, 0x0364, 0x0365, 0x0366, 0x0367 };
     static const uint16_t zeros[7] = { 0x036B, 0x036A, 0x036E, 0x036D, 0x0358, 0x036C, 0x035A };
 
+    jsl_frame(0x818118u);
     abi_LevelCountersClear();
-    abi_LevelFromProgress();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x811E, abi_LevelFromProgress);
     for (int i = 0; i < 6; i++)           /* 3 lives, health 3, both shown */
         wr8(dba(threes[i]), 0x03);
     wr8(dba(0x0369), 0x10);               /* 10 apples, shown */

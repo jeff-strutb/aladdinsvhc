@@ -226,7 +226,9 @@ void abi_Kind79Held(void)
         }
     }
     a8_load(0x00);
+    jsl_frame(0x83F627u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(KIND79_TAKEN), 0x00);
     wr8(dba(KIND79_HOLDER), 0x00);
     wr8(dba((uint16_t)(KIND79_HOLDER + 1)), 0x00);
@@ -269,7 +271,9 @@ void abi_Kind79Wait(void)
             tsb_at(dpa(ACTOR_STATE), 0x8C);
         }
         y8_load(KIND79_ZONE);
+        jsl_frame(0x83F6A0u);
         abi_ActorZoneHasTestPointLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C)) {
             a8_load(rd8(dba(PLAYER_STATE_8C_COUNT)));
             if (!(uint8_t)cpu.a) {
@@ -284,10 +288,10 @@ void abi_Kind79Wait(void)
                 }
             }
         }
-        abi_ActorDownedByShot();
+        call_frame(0xF6BD, abi_ActorDownedByShot);
         if (!(cpu.p & P_C))
             (void)inc8_at(dpa(KIND79_43));
-        abi_PlayerLandsOnActor();
+        call_frame(0xF6C4, abi_PlayerLandsOnActor);
         if (!(cpu.p & P_Z)) {
             a8_load(0x8C);
             tsb_at(dpa(ACTOR_STATE), 0x8C);
@@ -305,7 +309,9 @@ void abi_Kind79Wait(void)
             }
         }
     }
+    jsl_frame(0x83F6E2u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
     abi_Kind79InRange();
 }
 
@@ -341,7 +347,7 @@ void abi_Kind79InRange(void)
     cmp16_of(cpu.a, 0x01A0);
     op_sep(0x20);
     if (cpu.p & P_C) {
-        abi_Kind79SlotClear();
+        call_frame(0xF64E, abi_Kind79SlotClear);
         abi_ActorEndDropReturn();
         return;
     }
@@ -421,12 +427,16 @@ void abi_Kind79Second(void)
             abi_AnimStart();
             a8_load(KIND79_DIP_GRAVITY);
             y8_load(KIND79_DIP);
+            jsl_frame(0x83F727u);
             abi_ActorSpeedYSetGravity();
+            cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x08);
             wr8(dpa(0x40), 0x08);
             do {
                 actor_yield(0x83F72Fu);
+                jsl_frame(0x83F731u);
                 abi_ActorFallAgainst();
+                cpu.s = (uint16_t)(cpu.s + 3);
             } while (dec8_at(dpa(0x40)));
             goto pose;
         }
@@ -454,9 +464,13 @@ pose:
     a8_load(0x06);
     actor_wait(0x83F747u);
     a8_load(0x30);
+    jsl_frame(0x83F74Bu);
     abi_ActorMotionReset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         actor_yield(0x83F74Fu);
+        jsl_frame(0x83F751u);
         abi_ActorFall();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 }

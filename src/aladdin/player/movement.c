@@ -178,7 +178,7 @@ void abi_PlayerRunRatesSet(void)
  */
 void abi_PlayerFlipByPad(void)
 {
-    abi_PadFacing();
+    call_frame(0xCE72, abi_PadFacing);
     if (!(cpu.p & P_N))
         wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
 }

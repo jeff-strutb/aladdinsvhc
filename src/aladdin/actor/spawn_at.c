@@ -62,5 +62,5 @@ void abi_ActorSpawnAt(void)
  */
 void abi_ActorSpawnAtLong(void)
 {
-    abi_ActorSpawnAt();
+    call_frame(0xA4DA, abi_ActorSpawnAt);
 }

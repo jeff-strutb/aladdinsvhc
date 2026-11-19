@@ -29,7 +29,9 @@ void abi_ActorFlyFallCapped(void)
 {
     uint16_t speed;
 
+    jsl_frame(0xA5EAB3u);
     abi_ActorFly();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(rd8(dpa(ACTOR_SPEED_Y + 2)));
     if (cpu.a & 0x80)
         return;

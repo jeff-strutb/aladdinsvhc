@@ -19,8 +19,12 @@ void abi_AnimStep(void);
  */
 void abi_KindAnimateSendFAAE(void)
 {
-    abi_AnimStep();  /* 83FAAE jsl */
-    abi_ActorPictureSend();  /* 83FAB2 jsl */
+    jsl_frame(0x83FAAEu);  /* 83FAAE jsl */
+    abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83FAB2u);  /* 83FAB2 jsl */
+    abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
     return;  /* 83FAB6 rtl */
 }
 

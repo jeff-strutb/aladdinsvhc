@@ -140,7 +140,7 @@ void abi_PaletteBlinkStep(void)
 void abi_PaletteWhite(void)
 {
     op_rep(0x30);
-    abi_PaletteOffset();
+    call_frame(0x9CDB, abi_PaletteOffset);
     cpu.y = 0x000F;
     cpu.a = 0xFFFF;
     do {                                  /* its 16 colours white */
@@ -165,7 +165,7 @@ void abi_PaletteWhite(void)
 void abi_PaletteRestoreReversed(void)
 {
     op_rep(0x30);
-    abi_PaletteOffset();
+    call_frame(0x9CF5, abi_PaletteOffset);
     cpu.y = 0x001E;
     do {                                  /* the saved colours, last first */
         cpu.a = rd16(dba(PALETTE_SAVED) + cpu.y);

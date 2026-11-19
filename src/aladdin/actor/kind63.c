@@ -62,12 +62,20 @@ void abi_Kind63Work(void)
 
     a8_load(hit);
     if (!hit)
-        abi_ActorShotHitFace();
+        call_frame(0x8202, abi_ActorShotHitFace);
+    jsl_frame(0x848203u);
     abi_ActorStompOrHurtLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x848207u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x84820Bu);
     abi_ActorPictureSend();
+    cpu.s = (uint16_t)(cpu.s + 3);
     x8_load(0x28);
+    jsl_frame(0x848211u);
     abi_ActorFreeOutOfRangeLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_C)
         (void)inc8_at(dpa(KIND63_GONE));
 }
@@ -282,7 +290,7 @@ void abi_Kind63ShotHit(void)
     if (!n) {
         a8_load(0x06);
         abi_AnimStart();
-        abi_ActorSpawnPairA3();
+        call_frame(0x81D9, abi_ActorSpawnPairA3);
         a8_load(0x18);
         actor_wait(0x8481DCu);
         kind63_from(AT_WATCH);
@@ -314,7 +322,7 @@ void abi_Kind63ShotHit(void)
 void abi_Kind63Knocked(void)
 {
     (void)inc8_at(dpa(KIND63_GONE));
-    abi_ActorPriorityClear();
+    call_frame(0x81C2, abi_ActorPriorityClear);
     a8_load(0x08);
     x8_load(0x0F);
     y8_load(0x03);

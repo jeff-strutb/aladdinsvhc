@@ -149,7 +149,7 @@ void abi_PaletteSaveReversed(void)
     int y;
 
     op_rep(P_M | P_X);
-    abi_PaletteOffset();
+    call_frame(0x9CAA, abi_PaletteOffset);
     for (y = 0x1E; y >= 0; y -= 2) {
         cpu.a = rd16(PALETTE_BUFFER + cpu.x);
         wr16(abs_db((uint16_t)(PALETTE_SAVED + y)), cpu.a);
@@ -187,7 +187,9 @@ void abi_LevelPalettesLoad(void)
         op_push8(x);
         op_push8(y);
         cpu.a = (uint16_t)((cpu.a & 0xFF00) | rd8(abs_db((uint16_t)(LEVEL_PALETTES + 1 + x))));
+        jsl_frame(0x8186CFu);
         abi_PaletteLoad();
+        cpu.s = (uint16_t)(cpu.s + 3);
         y = op_pull8();
         x = op_pull8();
         x++;
@@ -224,7 +226,7 @@ void abi_PaletteFadeStep(void)
     cpu.x = rd16(dba((uint16_t)PALETTE_SAVED_AT));
     do {
         cpu.a = rd16((dba((uint16_t)PALETTE_SAVED) + cpu.x) & 0xFFFFFF);
-        abi_PaletteColourStep();
+        call_frame(0x9DE9, abi_PaletteColourStep);
         wr16((PALETTE_BUFFER + cpu.x) & 0xFFFFFF, cpu.a);
         cpu.x = (uint16_t)(cpu.x + 2);
         cpu.y = (uint16_t)(cpu.y - 1);
@@ -301,7 +303,9 @@ void abi_PaletteSequenceTask(void)
     do {                                  /* six palettes, each its frames */
         a8_load(rd8(dba(PALETTE_SEQUENCE_SETS) + cpu.y));
         phy8();
+        jsl_frame(0x819E7Bu);
         abi_PaletteLoad();
+        cpu.s = (uint16_t)(cpu.s + 3);
         ply8();
         a8_load(rd8(dba(PALETTE_SEQUENCE_FRAMES) + cpu.y));
         jsl_frame(0x819E83u);

@@ -111,11 +111,17 @@ void abi_KindA2Sent(void)
     dp16_set(ACTOR_LOOK, 0x0600);
     cpu.a = 0x0600;
     a8_load(0x2F);
+    jsl_frame(0x848260u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x1A);
     abi_AnimStart();
+    jsl_frame(0x84826Au);
     abi_ActorSpeedXClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x84826Eu);
     abi_ActorSpeedYClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     /* out along its heading for 32 frames */
     facing = rd8(dpa(ACTOR_FACING));
     a8_load(facing);
@@ -181,9 +187,13 @@ void abi_KindA2Sent(void)
 void abi_KindA2Hit(void)
 {
     a8_load(0x12);
+    jsl_frame(0x8482F7u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x1B);
+    jsl_frame(0x8482FDu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(P_X);
     cpu.x = dp16(KINDA2_SENDER);           /* one shot fewer out */
     a8_load((uint8_t)(rd8(dba(SENDER_OUT) + cpu.x) - 1));

@@ -145,7 +145,9 @@ void abi_Kind2BStart(void)
 L_A4C4:     /* each frame */
     actor_yield(0x83A4C4u);
     ldy8_v(0x04);
+    jsl_frame(0x83A4C8u);
     abi_ActorNearPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!IF_C) goto L_A4C4;
     op_rep(0x20);
     MEM16(dec, ea_dp(0x41));
@@ -226,7 +228,9 @@ L_A551:
     abi_AnimStart();
 L_A568:     /* its step */
     ldx8_v(0x02);
+    jsl_frame(0x83A56Au);
     abi_ActorMoveByVector();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8(ea_dp(0x47));
     ACC8(dec);
     if (IF_Z)
@@ -246,7 +250,9 @@ L_A57A:     /* bit 3: its test of Aladdin */
     ACC8(dec);
     if (!IF_Z) goto L_A5A4;
     ldy8_v(0x02);
+    jsl_frame(0x83A591u);
     abi_ActorNearPlayerY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_sep(0x10);
     if (IF_C) goto L_A568;
     abi_ActorSideOfPlayer();
@@ -258,7 +264,9 @@ L_A5A4:     /* off the floor: its drop when he is below */
     abi_ActorPlayerBelow();
     if (IF_Z) goto L_A568;
     lda8_v(0x28);
+    jsl_frame(0x83A5ACu);
     abi_ActorMotionReset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x03);
     abi_AnimStart();
     do {
@@ -293,7 +301,9 @@ L_A5E8:     /* bit 4 */
     lda8_v(0x01);
     sta8(ea_dp(0x15));
     ldy8_v(0x42);
+    jsl_frame(0x83A5FEu);
     abi_ActorSpeedXSetAccel();
+    cpu.s = (uint16_t)(cpu.s + 3);
     lda8_v(0x18);
     sta8(ea_dp(0x40));
     ACC8(asl);
@@ -304,7 +314,9 @@ L_A609:
     abi_ActorPlayerBelow();     /* $83:A6F5 */
     if (IF_Z) goto L_A612;
     ldy8_v(0x04);
+    jsl_frame(0x83A6FDu);
     abi_ActorNearPlayerX();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (IF_C) goto L_A612;
     goto L_A628;
 L_A612:
@@ -346,8 +358,10 @@ L_A628:     /* its shake and fall */
         lda8(ea_dp(0x1E));
         cmp8_v(0x03);
         if (!IF_Z)
-            abi_ActorAccelerateY();
+            { jsl_frame(0x83A656u); abi_ActorAccelerateY(); cpu.s = (uint16_t)(cpu.s + 3); }
+        jsl_frame(0x83A65Au);
         abi_ActorStepY();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
     MEM8(inc, ea_dp(0x4E));
     MEM8(inc, ea_dp(0x47));
@@ -391,7 +405,7 @@ L_A664:     /* by its partner */
         sta16(ea_dp(0x44));
         op_sep(0x20);
         abi_ActorMoveX();
-        abi_Kind2BNearPartner();    /* JSR at 83:A6AC */
+        call_frame(0xA6AE, abi_Kind2BNearPartner);    /* JSR at 83:A6AC */
         if (!IF_C)
             continue;
         op_rep(0x20);

@@ -117,11 +117,11 @@ void abi_PlayerLandsOnActor(void)
     cmp8_of(v, 0x3C);
     if (v == 0x3C)
         goto no;
-    abi_ActorHitsTestBoxIfActive();
+    call_frame(0x8496, abi_ActorHitsTestBoxIfActive);
     if (cpu.p & P_C)
         goto no;
     op_rep(P_M);
-    abi_ScratchBelowBy10();
+    call_frame(0x849D, abi_ScratchBelowBy10);
     if (cpu.p & P_C)
         goto no;
     fall = rd16(dba(PLAYER_SPEED_Y_PIXELS));
@@ -144,9 +144,9 @@ void abi_PlayerLandsOnActor(void)
     x8_load(v);
     if (v & 0x80)
         goto no;
-    abi_PlayerStandOnActor();
+    call_frame(0x84BE, abi_PlayerStandOnActor);
     op_sep(0x30);
-    abi_ActorSpawnKind11AtPlayer();
+    call_frame(0x84C3, abi_ActorSpawnKind11AtPlayer);
     a8_load(0x01);
     return;
 no:
@@ -167,7 +167,9 @@ no:
  */
 void abi_ActorSpawnKind11AtPlayer(void)
 {
+    jsl_frame(0x8384F4u);
     abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (!(cpu.p & P_N)) {
         uint32_t rec = dba(0) + cpu.x;
 
@@ -255,7 +257,7 @@ void abi_LandingPad(void)
             nz8_of(rest);
             continue;
         }
-        abi_ActorHitsTestBoxIfActive();
+        call_frame(0xF9EB, abi_ActorHitsTestBoxIfActive);
         if (cpu.p & P_C)
             continue;
         block = rd8(dba(V_145A));
@@ -281,7 +283,9 @@ void abi_LandingPad(void)
         wr8(dpa(PAD_REST), 20);
         wr8(dpa(PAD_PRESSED), 10);
         a8_load(PAD_SOUND);
+        jsl_frame(0x83FA1Bu);
         abi_SoundQueueAdd();
+        cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(0x21);
         a16_load(PLAYER_LANDED_CODE);
         wr16(dba(PLAYER_CODE), PLAYER_LANDED_CODE);

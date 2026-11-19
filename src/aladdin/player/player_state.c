@@ -3,6 +3,7 @@
  * player code enters from several others.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "actor.h"
 
@@ -66,7 +67,9 @@ void abi_PlayerEnter8CFacing(void)
     if (a & 0x80)
         return;
     enter_8c();
+    jsl_frame(0x838044u);
     abi_ActorSideOfPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a = (uint8_t)(((uint8_t)cpu.a & 0x01) ^ 0x01);
     wr8(PLAYER + ACTOR_FACING, a);
     cpu.a &= 0xFF00;
@@ -97,7 +100,7 @@ void abi_PlayerEnter8CFrom1(void)
  */
 void abi_PlayerEnter8CFacingLong(void)
 {
-    abi_PlayerEnter8CFacing();
+    call_frame(0x8002, abi_PlayerEnter8CFacing);
 }
 
 /*
@@ -108,7 +111,7 @@ void abi_PlayerEnter8CFacingLong(void)
  */
 void abi_PlayerEnter8CLong(void)
 {
-    abi_PlayerEnter8C();
+    call_frame(0x8006, abi_PlayerEnter8C);
 }
 
 /*
@@ -120,5 +123,5 @@ void abi_PlayerEnter8CLong(void)
  */
 void abi_PlayerEnter8CFrom1Long(void)
 {
-    abi_PlayerEnter8CFrom1();
+    call_frame(0x8054, abi_PlayerEnter8CFrom1);
 }

@@ -77,17 +77,19 @@ void abi_ChainPieceWork(void)
     uint16_t head;
     uint8_t untouchable, state, bits, v;
 
+    jsl_frame(0x848A78u);
     abi_AnimStep();
-    abi_ActorPathStep();
-    abi_ActorsFollowIf8();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x8A7E, abi_ActorPathStep);
+    call_frame(0x8A81, abi_ActorsFollowIf8);
     untouchable = rd8(dba(CHAIN_UNTOUCHABLE));
     a8_load(untouchable);
     if (!untouchable) {
         a8_load((uint8_t)(rd8(dba(V_032D)) & 0x01));
         if (cpu.a & 0x01)
-            abi_ActorHurtsPlayerOnTouchLong();
+            { jsl_frame(0x848A8Eu); abi_ActorHurtsPlayerOnTouchLong(); cpu.s = (uint16_t)(cpu.s + 3); }
         else
-            abi_ActorTurnsShotBackLong();
+            { jsl_frame(0x848A94u); abi_ActorTurnsShotBackLong(); cpu.s = (uint16_t)(cpu.s + 3); }
     }
 
     op_rep(0x10);
@@ -379,8 +381,8 @@ void abi_ChainPieceGone(void)
 
     do {
         actor_yield(0x848AC2u);
-        abi_ActorLookFlash();
-        abi_ActorParityBitsSet();
+        call_frame(0x8AC6, abi_ActorLookFlash);
+        call_frame(0x8AC9, abi_ActorParityBitsSet);
         call_frame(0x8ACCu, abi_ActorsFollowIf8);
         a8_load(rd8(dba(HEAD_HIT_FRAMES)));
     } while ((uint8_t)cpu.a);

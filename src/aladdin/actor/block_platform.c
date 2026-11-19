@@ -178,7 +178,9 @@ void abi_Kind68Start(void)
     sta8(ea_dp(0x21));  /* 83E6CF sta */
 L_83E6D1:
     lda8_v(0x68);  /* 83E6D1 lda */
-    abi_ActorCreateChild8();  /* 83E6D3 jsl */
+    jsl_frame(0x83E6D3u);  /* 83E6D3 jsl */
+    abi_ActorCreateChild8();
+    cpu.s = (uint16_t)(cpu.s + 3);
     MEM8(dec, ea_dp(0x21));  /* 83E6D7 dec */
     MEM8(dec, ea_dp(0x21));  /* 83E6D9 dec */
     MEM8(dec, ea_dp(0x07));  /* 83E6DB dec */
@@ -264,7 +266,7 @@ L_83E767:
 L_83E76F:
     actor_yield(0x83E76Fu);  /* 83E76F brk */
     abi_ActorKeepSpot();  /* 83E771 jsl */
-    abi_BlockPlatformMove();  /* 83E775 jsr */
+    call_frame(0xE777, abi_BlockPlatformMove);  /* 83E775 jsr */
     ldy8_v(0x10);  /* 83E778 ldy */
     sec();  /* 83E77A sec */
     lda8(ea_dp(0x0C));  /* 83E77B lda */
@@ -280,7 +282,7 @@ L_83E786:
     tya8();  /* 83E78B tya */
     adc8_v(rd8(ea_dp(0x49)));  /* 83E78C adc */
     sta8(ea_dp(0x49));  /* 83E78E sta */
-    abi_BlockPointInBounds();  /* 83E790 jsr */
+    call_frame(0xE792, abi_BlockPointInBounds);  /* 83E790 jsr */
     if (IF_C) goto L_83E798;  /* 83E793 bcs */
     /* the JSR's return on the stack while it runs: its tile lookup pushes
        there (TileAtPlace's PHA), as the original's does */

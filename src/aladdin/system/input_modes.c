@@ -168,7 +168,7 @@ void abi_InputRecord(void)
     /* the buffer full: wait for Select, then record again */
     wr8(dba(RECORD_END), (uint8_t)cpu.x);
     do {
-        abi_JoypadRead();
+        call_frame(0xBEB9, abi_JoypadRead);
         held = rd8(dba(JOY_HELD + 3));
         a8_load(held);
         flag_set(P_Z, !(held & 0x04));

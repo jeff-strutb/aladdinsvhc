@@ -38,5 +38,5 @@ void abi_ActorStateSet8CSelf(void)
  */
 void abi_ActorStateSet8CLong(void)
 {
-    abi_ActorStateSet8C();
+    call_frame(0x8265, abi_ActorStateSet8C);
 }

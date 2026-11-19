@@ -183,7 +183,7 @@ static void fade_out(void)
  */
 void abi_ColourFadeInTask(void)
 {
-    abi_ColourFadeBegin();
+    call_frame(0x9F10, abi_ColourFadeBegin);
     fade_in();
 }
 /*
@@ -198,7 +198,7 @@ void abi_ColourFadeInTask(void)
  */
 void abi_ColourFadeOutTask(void)
 {
-    abi_ColourFadeBegin();
+    call_frame(0x9F54, abi_ColourFadeBegin);
     fade_out();
 }
 
@@ -218,7 +218,7 @@ void abi_ColourFadeOutTask(void)
 void abi_ColourFadeInSprites(void)
 {
     a8_load(0x90);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9EE1, abi_ColourFadeBeginWith);
     fade_in();
 }
 
@@ -309,7 +309,7 @@ void abi_ColourFadeInBg1Sprites(void)
 void abi_ColourFadeInBg1Lit(void)
 {
     a8_load(0x81);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9EF8, abi_ColourFadeBeginWith);
     x8_load(0x1F);
     fade_step(0x9EFD);
     a8_load(0x01);
@@ -332,7 +332,7 @@ void abi_ColourFadeInBg1Lit(void)
  */
 void abi_ColourFadeInKeep(void)
 {
-    abi_ColourFadeBeginKeep();
+    call_frame(0x9F2C, abi_ColourFadeBeginKeep);
     fade_in();
 }
 
@@ -349,7 +349,7 @@ void abi_ColourFadeInKeep(void)
 void abi_ColourFadeOutSprites(void)
 {
     a8_load(0x90);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9F33, abi_ColourFadeBeginWith);
     fade_out();
 }
 
@@ -366,7 +366,7 @@ void abi_ColourFadeOutSprites(void)
 void abi_ColourFadeOutBg1(void)
 {
     a8_load(0x81);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9F3A, abi_ColourFadeBeginWith);
     fade_out();
 }
 
@@ -383,7 +383,7 @@ void abi_ColourFadeOutBg1(void)
 void abi_ColourFadeOutBg2(void)
 {
     a8_load(0x82);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9F41, abi_ColourFadeBeginWith);
     fade_out();
 }
 
@@ -400,7 +400,7 @@ void abi_ColourFadeOutBg2(void)
 void abi_ColourFadeOutBg3(void)
 {
     a8_load(0x84);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9F48, abi_ColourFadeBeginWith);
     fade_out();
 }
 
@@ -417,6 +417,6 @@ void abi_ColourFadeOutBg3(void)
 void abi_ColourFadeOutBg1Sprites(void)
 {
     a8_load(0x91);
-    abi_ColourFadeBeginWith();
+    call_frame(0x9F4F, abi_ColourFadeBeginWith);
     fade_out();
 }

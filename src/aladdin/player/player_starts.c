@@ -216,7 +216,7 @@ void abi_PlayerStart(void)
     wr8(dba(CAMERA_AIM_X + 1), 0);
     x8_load(0x00);
     wr8(dba(PLAYER_BOX_WANTED), 0);
-    abi_PlayerBoxSet();
+    call_frame(0xCB4A, abi_PlayerBoxSet);
     i = index_of(ACTOR_06);
     if (i == 2 || i == 4 || i == 6) {
         abi_PlayerCarpetStart();
@@ -304,21 +304,29 @@ void abi_PlayerStartDropped(void)
     wr8(dpa(ACTOR_FACING), 0);
     wr8(dpa(ACTOR_FLIP), 0);
     y8_load(0x4D);
+    jsl_frame(0x81DE05u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_40), 0);
     wr8(dpa(ACTOR_41), 0);
     for (;;) {
         actor_yield(0x81DE0Du);
-        abi_PlayerJumpPoseStep();
+        call_frame(0xDE11, abi_PlayerJumpPoseStep);
+        jsl_frame(0x81DE12u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (ldd(ACTOR_SPEED_Y + 2) & 0x80)
             continue;
+        jsl_frame(0x81DE1Au);
         abi_ActorOutOfGround();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_Z))
             break;
     }
     a8_load(0x10);
+    jsl_frame(0x81DE22u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     move_start(0x19);
     wait_frames(0x80, 0x81DE2Du);
     abi_PlayerStand();
@@ -470,7 +478,9 @@ void abi_PlayerSceneWalkOn(void)
 {
     uint8_t v;
 
+    jsl_frame(0x81E042u);
     abi_ActorSnapToGround();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_Z) {
         move_start(0x0E);
         putd(ACTOR_SPEED_Y + 1, 0x03);
@@ -478,8 +488,12 @@ void abi_PlayerSceneWalkOn(void)
         wr8(dpa(ACTOR_SPEED_Y + 2), 0);
         do {
             actor_yield(0x81E055u);
+            jsl_frame(0x81E057u);
             abi_ActorMoveY();
+            cpu.s = (uint16_t)(cpu.s + 3);
+            jsl_frame(0x81E05Bu);
             abi_ActorOutOfGround();
+            cpu.s = (uint16_t)(cpu.s + 3);
         } while (cpu.p & P_Z);
     }
     wr8(dpa(ACTOR_FACING), 0);
@@ -495,7 +509,9 @@ void abi_PlayerSceneWalkOn(void)
     wr8(dpa(ACTOR_SPEED_X + 2), 0);
     do {
         actor_yield(0x81E084u);
+        jsl_frame(0x81E086u);
         abi_ActorMoveX();
+        cpu.s = (uint16_t)(cpu.s + 3);
         v = ldd(ACTOR_X + 1);
         cmp8_of(v, 0x70);
     } while (v < 0x70);
@@ -530,10 +546,14 @@ void abi_PlayerSceneWalkRight(void)
     wr8(dpa(ACTOR_FLIP), 0);
     move_start(0x02);
     y8_load(0x03);
+    jsl_frame(0x81E133u);
     abi_ActorSpeedXSet();
+    cpu.s = (uint16_t)(cpu.s + 3);
     do {
         actor_yield(0x81E137u);
+        jsl_frame(0x81E139u);
         abi_ActorMoveX();
+        cpu.s = (uint16_t)(cpu.s + 3);
         op_rep(P_M);
         a16_load(0x0248);
         x = dp16(ACTOR_X + 1);

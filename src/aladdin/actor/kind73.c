@@ -117,7 +117,7 @@ void abi_Kind73Start(void)
     wr8(dpa(ACTOR_SPAWN_AT), 0x88);
     (void)inc8_at(dba(K73_UNTOUCHABLE));
     wr8(dba(K73_POSE), 0);
-    abi_ActorStartBy40();
+    call_frame(0x8663, abi_ActorStartBy40);
     call_frame(0x8666u, abi_ActorAnimBy40);
     op_rep(0x20);
     a16_load(0x8919);
@@ -131,7 +131,9 @@ void abi_Kind73Start(void)
     } while (cpu.x);
     op_sep(0x20);
     a8_load(0x02);
+    jsl_frame(0x84867Fu);
     abi_PaletteSaveReversed();
+    cpu.s = (uint16_t)(cpu.s + 3);
     (void)inc8_at(dba(V_0844));
     a8_load(0xFF);
     wr8(dpa(K73_28), 0xFF);
@@ -207,11 +209,17 @@ void abi_Kind73Work(void)
     cmp8_of(anim, shown);
     if (anim != shown) {
         wr8(dba(K73_ANIM_SHOWN), anim);
+        jsl_frame(0x8486FFu);
         abi_AnimStart();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
+    jsl_frame(0x848703u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x848707u);
     abi_ActorPictureSendFromKind();
-    abi_ActorPathStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    call_frame(0x870D, abi_ActorPathStep);
 
     flash = rd8(dba(K73_FLASH));
     a8_load(flash);
@@ -246,8 +254,12 @@ void abi_Kind73Work(void)
     untouchable = rd8(dba(K73_UNTOUCHABLE));
     a8_load(untouchable);
     if (!untouchable) {
+        jsl_frame(0x84874Au);
         abi_ActorStompedByPlayerLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x84874Eu);
         abi_ActorTurnsShotBackLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
 
     /* back where it is drawn */
@@ -300,10 +312,12 @@ void abi_Kind73Hit(void)
     do {
         actor_yield(0x84877Cu);
         (void)dec8_at(dba(K73_HIT_FRAMES));
-        abi_ActorLookFlash();
-        abi_PaletteFlash();
-        abi_ActorParityBitsSet();
+        call_frame(0x8783, abi_ActorLookFlash);
+        call_frame(0x8786, abi_PaletteFlash);
+        call_frame(0x8789, abi_ActorParityBitsSet);
+        jsl_frame(0x84878Au);
         abi_AnimStep();
+        cpu.s = (uint16_t)(cpu.s + 3);
         jsl_frame(0x84878Eu);
         abi_ActorPictureSendFromKind();
         cpu.s = (uint16_t)(cpu.s + 3);

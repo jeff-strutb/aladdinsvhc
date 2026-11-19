@@ -161,8 +161,12 @@ void abi_Level05EndScene(void)
     wait_cue(0x80A2EEu, CUE_C3);
     wr8(dba((uint16_t)V_1A08), 0);
     a8_load(0x02);
+    jsl_frame(0x80A2FCu);
     abi_SoundQueueF6();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x80A300u);
     abi_ActorsFreeAll();
+    cpu.s = (uint16_t)(cpu.s + 3);
     op_rep(0x20);
     a16_load(0x0E80);
     spawn(0x0E80, 0x0148, 0x20, 0x2E, 0x02);
@@ -255,11 +259,15 @@ void abi_Level05EndScene(void)
             cpu.x = dp16(FROM_X);
             cpu.y = dp16(FROM_Y);
             nz16_of(cpu.y);
+            jsl_frame(0x80A42Bu);
             abi_MapTileAt();
+            cpu.s = (uint16_t)(cpu.s + 3);
             cpu.x = dp16(TO_X);
             cpu.y = dp16(TO_Y);
             nz16_of(cpu.y);
+            jsl_frame(0x80A433u);
             abi_MapTileSet();
+            cpu.s = (uint16_t)(cpu.s + 3);
             flag_set(P_C, 0);
             cpu.a = op_adc16(dp16(FROM_X), 0x0010, &cpu.p);
             dp16_set(FROM_X, cpu.a);

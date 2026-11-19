@@ -82,7 +82,7 @@ void abi_MoverEndSound(void)
 {
     uint8_t sounded, n;
 
-    abi_CameraPastX08E8();
+    call_frame(0x90A4, abi_CameraPastX08E8);
     if (!(cpu.p & P_C)) {
         wr8(dpa(MOVER_SOUNDED), 0);
         return;
@@ -92,7 +92,9 @@ void abi_MoverEndSound(void)
     if (sounded)
         return;
     a8_load(0xF1);
+    jsl_frame(0x8490ADu);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     n = (uint8_t)(rd8(dpa(MOVER_SOUNDED)) + 1);
     wr8(dpa(MOVER_SOUNDED), n);
     nz8_of(n);
@@ -110,9 +112,11 @@ void abi_MoverEndSound(void)
 void abi_MoverSound(void)
 {
     x8_load((uint8_t)cpu.a);              /* the command, kept */
-    abi_CameraPastX08E8();
+    call_frame(0x90C5, abi_CameraPastX08E8);
     if (cpu.p & P_C)
         return;
     a8_load((uint8_t)cpu.x);
+    jsl_frame(0x8490C9u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }

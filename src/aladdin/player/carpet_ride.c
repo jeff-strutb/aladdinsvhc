@@ -195,7 +195,7 @@ void abi_PlayerCarpetStart(void)
     op_sep(P_M);
     putd(ACTOR_REDRAW, 0xFF);
     put(PLAYER_BOX_WANTED, 0x11);
-    abi_PlayerBoxSet();
+    call_frame(0xE419, abi_PlayerBoxSet);
     v = ld(LEVEL);
     cmp8_of(v, 0x07);
     if (v == 0x07) {
@@ -212,7 +212,9 @@ void abi_PlayerCarpetStart(void)
     wr8(dpa(CARPET_SLOWED), 0);
     wr8(dpa(ACTOR_FACING), 0);
     wr8(dpa(ACTOR_FLIP), 0);
+    jsl_frame(0x81E446u);
     abi_ActorStopY();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (first_ride()) {
         putd(ACTOR_SPEED_X, 0xE0);
         putd(ACTOR_SPEED_X + 1, 0x03);
@@ -236,7 +238,7 @@ void abi_PlayerCarpetStart(void)
     if (v != 0x07) {
         cmp8_of(v, 0x17);
         if (v != 0x17) {
-            abi_CarpetCruiseSetAlt();
+            call_frame(0xE487, abi_CarpetCruiseSetAlt);
             do {
                 actor_yield(0x81E488u);
                 abi_ActorMoveX();
@@ -296,18 +298,18 @@ void abi_PlayerCarpet(void)
             abi_PlayerCarpetSteer();
             return;
         }
-        abi_CarpetLevelOut();
+        call_frame(0xE4C2, abi_CarpetLevelOut);
         first = first_ride();
         if (first)
-            abi_CarpetCruiseX();
+            call_frame(0xE4CA, abi_CarpetCruiseX);
         else
-            abi_CarpetCruiseXAlt();
+            call_frame(0xE4E4, abi_CarpetCruiseXAlt);
         if (steered_neither())
             abi_CarpetCruiseSet();
         else if (first)
-            abi_CarpetSteerX();
+            call_frame(0xE4D9, abi_CarpetSteerX);
         else
-            abi_CarpetSteerXAlt();
+            call_frame(0xE4F3, abi_CarpetSteerXAlt);
         frame_end(first);
     }
 }
@@ -332,26 +334,28 @@ void abi_PlayerCarpetSteer(void)
 
     wr8(dpa(CARPET_SPED_UP), 0);
     wr8(dpa(CARPET_SLOWED), 0);
-    abi_CarpetTilt();
+    call_frame(0xE522, abi_CarpetTilt);
     wr8(dpa(CARPET_TILTED), (uint8_t)cpu.a);
     first = first_ride();
     if (first) {
-        abi_CarpetSteerX();
-        abi_CarpetSpeedXLimit();
+        call_frame(0xE52C, abi_CarpetSteerX);
+        call_frame(0xE52F, abi_CarpetSpeedXLimit);
     } else {
-        abi_CarpetSteerXAlt();
-        abi_CarpetSpeedXLimitAlt();
+        call_frame(0xE53E, abi_CarpetSteerXAlt);
+        call_frame(0xE541, abi_CarpetSpeedXLimitAlt);
     }
     if (!ldd(CARPET_TILTED)) {
         frame_end(first);
     } else {
         if (first)
-            abi_CarpetSteerY();
+            call_frame(0xE536, abi_CarpetSteerY);
         else
-            abi_CarpetSteerYAlt();
+            call_frame(0xE548, abi_CarpetSteerYAlt);
         abi_CarpetSpeedYLimit();
         wr8(dpa(CARPET_DIRECTION), 0);
+        jsl_frame(0x81E54Eu);
         abi_ActorMove();
+        cpu.s = (uint16_t)(cpu.s + 3);
     }
     abi_PlayerCarpet();
 }
@@ -424,16 +428,24 @@ void abi_PlayerCarpetCrash(void)
     wr8(dba(HEALTH), 0);
     (void)inc8_at(dba(SCENE_ON));
     a8_load(0x2A);
+    jsl_frame(0x81E807u);
     abi_SongPlay();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x02);
+    jsl_frame(0x81E80Du);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(0x52);
+    jsl_frame(0x81E813u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     move_start(0x05);
     do {
         actor_yield(0x81E81Cu);
+        jsl_frame(0x81E81Eu);
         abi_ActorFly();
-        abi_PlayerFallenTest();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        call_frame(0xE824, abi_PlayerFallenTest);
     } while (cpu.p & P_C);
     task_create(0x81E827u);
     do

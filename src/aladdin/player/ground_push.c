@@ -34,7 +34,9 @@ void abi_PlayerGroundPush(void)
     wr8(dba(GROUND_PUSHED), 0);
     a8_load(0x18);
     wr8(dpa(ACTOR_18), 0x18);
+    jsl_frame(0x81CE8Du);
     abi_GroundBehindBit4();
+    cpu.s = (uint16_t)(cpu.s + 3);
     if (cpu.p & P_Z)
         return;
     pushed_left = cpu.p & P_C;

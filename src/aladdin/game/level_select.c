@@ -144,7 +144,7 @@ void abi_LevelSelect(void)
             goto refused;
         dec8_at(dba(LEVEL_STAGE));
     }
-    abi_LevelNumberText();
+    call_frame(0xA0AC, abi_LevelNumberText);
 refused:
     flag_set(P_C, 0);
 }

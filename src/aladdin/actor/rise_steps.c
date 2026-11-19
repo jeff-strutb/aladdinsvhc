@@ -68,7 +68,9 @@ void abi_RiserActor(void)
             abi_ActorMotionPreset();
             do {
                 actor_yield(0x848E8Cu);
+                jsl_frame(0x848E8Eu);
                 abi_ActorFlyAgainst();
+                cpu.s = (uint16_t)(cpu.s + 3);
                 abi_ActorYHistoryPush();
                 y = dp16(ACTOR_Y + 1);
                 cpu.a = y;
@@ -79,7 +81,9 @@ void abi_RiserActor(void)
             abi_ActorMotionPreset();
             do {
                 actor_yield(0x848EA8u);
+                jsl_frame(0x848EAAu);
                 abi_ActorFly();
+                cpu.s = (uint16_t)(cpu.s + 3);
                 abi_ActorYHistoryPush();
                 y = dp16(ACTOR_Y + 1);
                 cpu.a = y;
@@ -143,7 +147,9 @@ void abi_SteppedShowActor(void)
     a8_load(0x80);
     tsb_at(dpa(ACTOR_09), 0x80);
     a8_load(0x44);
+    jsl_frame(0x849F23u);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     variant = rd8(dpa(ACTOR_07));
     a8_load((uint8_t)(variant << 1));
     flag_set(P_C, variant & 0x80);

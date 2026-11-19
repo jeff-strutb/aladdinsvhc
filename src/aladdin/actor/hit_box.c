@@ -3,6 +3,7 @@
  * against.
  */
 #include "machine.h"
+#include "native.h"
 #include "cpu_ops.h"
 #include "actor.h"
 #include "wram.h"
@@ -105,7 +106,7 @@ void abi_ActorHitsTestBox(void)
  */
 void abi_ActorHitsTestBoxLong(void)
 {
-    abi_ActorHitsTestBox();
+    call_frame(0x8302, abi_ActorHitsTestBox);
 }
 
 /*
@@ -166,7 +167,7 @@ void abi_ActorHitsTestBoxIfPlayerFree(void)
  */
 void abi_ActorHitsTestBoxIfActiveLong(void)
 {
-    abi_ActorHitsTestBoxIfActive();
+    call_frame(0x82FA, abi_ActorHitsTestBoxIfActive);
 }
 
 /*
@@ -180,7 +181,7 @@ void abi_ActorHitsTestBoxIfActiveLong(void)
  */
 void abi_ActorHurtsPlayerOnTouch(void)
 {
-    abi_ActorHitsTestBoxIfPlayerFree();
+    call_frame(0x80A7, abi_ActorHitsTestBoxIfPlayerFree);
     if (cpu.p & P_C)
         return;
     abi_PlayerEnter8CFacing();

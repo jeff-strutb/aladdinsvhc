@@ -76,7 +76,7 @@ void abi_Kind7DWait(void)
     a16_load(op_sbc16(d, rd16(dba(K7D_SCROLL_Y)), &cpu.p));
     dp16_set(ACTOR_Y + 1, cpu.a);
     op_sep(0x20);
-    abi_Kind7DStep();
+    call_frame(0x9102, abi_Kind7DStep);
     op_rep(0x20);
     flag_set(P_C, 1);
     d = dp16(ACTOR_X + 1);

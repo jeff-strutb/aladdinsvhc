@@ -151,7 +151,7 @@ void abi_PlayerSceneStand(void)
     wr8(dpa(ACTOR_FACING), 0);
     wr8(dpa(ACTOR_FLIP), 0);
     a8_load(0x08);
-    abi_PlayerMoveStart();
+    call_frame(0xE25E, abi_PlayerMoveStart);
     inc8_at(dba(V_1430));
     a8_load(0xD0);
     wr8(dpa(ACTOR_09), 0xD0);
@@ -222,7 +222,7 @@ void abi_PlayerEndingRide(void)
     wr8(dpa(ACTOR_SPEED_X + 2), 0x00);
     wr8(dpa(RIDE_41), 0);
     a8_load(0x00);
-    abi_PlayerMoveStart();
+    call_frame(0xE29C, abi_PlayerMoveStart);
     wr8(dba(PLAYER_MOVE), 0);
     frames = 0x57;
     a8_load(frames);
@@ -239,7 +239,9 @@ void abi_PlayerEndingRide(void)
     wr8(dpa(ACTOR_SPEED_X + 1), 0x00);
     wr8(dpa(ACTOR_49), 1);
     a8_load(0x01);
+    jsl_frame(0x81E2B8u);
     abi_ActorSpeedYClear();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x01);
     wr8(dpa(ACTOR_ACCEL_Y), 1);
     wr8(dpa(RIDE_41), 0);
@@ -330,14 +332,20 @@ void abi_Kind72RideAlong(void)
     wr8(dpa(ACTOR_FLIP), 0);
     wr8(dpa(ACTOR_SPAWN_AT), 0);
     a8_load(KIND_7A);
+    jsl_frame(0x83F467u);
     abi_ActorCreateChild8();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x05);
     abi_AnimStart();
     y8_load(ALONG_FLY_MOTION);
+    jsl_frame(0x83F473u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     for (;;) {
         actor_yield(0x83F477u);
+        jsl_frame(0x83F479u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         uint8_t flags = rd8(dpa(ACTOR_09));
         a8_load(flags);
         flag_set(P_Z, !(flags & 0x40));

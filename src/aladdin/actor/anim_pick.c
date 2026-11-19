@@ -36,7 +36,9 @@ void abi_ActorAnimBy40(void)
     a = rd8(in_db(ANIM_BY_40 + x));
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | a);
     cpu.p = nz8(cpu.p, a);
+    jsl_frame(0x848A4Du);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -63,5 +65,7 @@ void abi_ActorAnimChange(void)
     d = (uint8_t)(d >> 1);
     cpu.a = (uint16_t)((cpu.a & 0xFF00) | d);
     cpu.p = nz8(cpu.p, d);
+    jsl_frame(0xA5EA1Bu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }

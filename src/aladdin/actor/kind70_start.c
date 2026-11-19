@@ -123,12 +123,16 @@ void abi_Kind70Start(void)
     a8_load(0x02);
     abi_AnimStart();
     y8_load(0x4F);
+    jsl_frame(0x83F2D2u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x28);
     wr8(dpa(KIND70_CARRYING), 0x28);
     do {
         actor_yield(0x83F2DAu);
+        jsl_frame(0x83F2DCu);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
     } while (dec8_at(dpa(KIND70_CARRYING)));
     /* then up, till out of range; it takes the escort (falling) when in
        reach, and carries it */
@@ -136,7 +140,9 @@ void abi_Kind70Start(void)
     wr8(dpa(ACTOR_ACCEL_Y), 0x18);
     for (;;) {
         actor_yield(0x83F2E8u);
+        jsl_frame(0x83F2EAu);
         abi_ActorFlyAgainst();
+        cpu.s = (uint16_t)(cpu.s + 3);
         x8_load(0x00);
         call_frame(0xF2F2, abi_ActorEndOutOfRange);
         carrying = rd8(dpa(KIND70_CARRYING));

@@ -19,7 +19,7 @@ void abi_TextNumberTwoDigits(void);
  */
 void abi_TextNumberTwoDigitsLong(void)
 {
-    abi_TextNumberTwoDigits();
+    call_frame(0x8BDC, abi_TextNumberTwoDigits);
 }
 
 /*

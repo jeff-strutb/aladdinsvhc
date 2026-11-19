@@ -226,10 +226,10 @@ void abi_AnimSetGraphicsUnpack(void)
         dp16_set(UNPACK_SOURCE, 0);
         dp16_set(UNPACK_SOURCE + 2, rd16(ANIM_GFX_PARTS + 4 + x));
         a16_load(rd16(ANIM_GFX_PARTS + 2 + x));
-        abi_UnpackBegin();
+        call_frame(0xBAE0, abi_UnpackBegin);
         cpu.x = dp16(UNPACK_NEXT);
         do
-            abi_UnpackGroup();
+            call_frame(0xBAE5, abi_UnpackGroup);
         while (!(cpu.p & P_Z));
         dp16_set(UNPACK_NEXT, cpu.x);
     }
@@ -345,10 +345,10 @@ void abi_UnpackSet(void)
     phb();  /* 81BAF2 phb */
     php();  /* 81BAF3 php */
     op_rep(0x30);  /* 81BAF4 rep */
-    abi_UnpackSetBegin();  /* 81BAF6 jsr */
+    call_frame(0xBAF8, abi_UnpackSetBegin);  /* 81BAF6 jsr */
     if (IF_Z) goto L_81BB00;  /* 81BAF9 beq */
 L_81BAFB:
-    abi_UnpackGroup();  /* 81BAFB jsr */
+    call_frame(0xBAFD, abi_UnpackGroup);  /* 81BAFB jsr */
     if (!IF_Z) goto L_81BAFB;  /* 81BAFE bne */
 L_81BB00:
     plp();  /* 81BB00 plp */
@@ -399,10 +399,10 @@ void abi_UnpackTask(void)
     lda16(ea_absy(UNPACK_TASK_ENTRIES + 2));
     ldx16(ea_absy(UNPACK_TASK_ENTRIES));
     ldx16(ea_absy(UNPACK_TASK_ENTRIES));
-    abi_UnpackBegin();
+    call_frame(0xBC44, abi_UnpackBegin);
     if (IF_Z) goto done;
 group:
-    abi_UnpackGroup();
+    call_frame(0xBC49, abi_UnpackGroup);
     if (IF_Z) goto done;
     lda8(ea_long(SLHV));
     lda8(ea_long(OPVCT));

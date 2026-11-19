@@ -160,7 +160,9 @@ void abi_Kind84Start(void)
  */
 void abi_Kind84WaitWork(void)
 {
+    jsl_frame(0x8495FDu);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -174,7 +176,9 @@ void abi_Kind84WaitWork(void)
  */
 void abi_Kind8CWaitWork(void)
 {
+    jsl_frame(0x8499E7u);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }
 
 /*
@@ -237,7 +241,7 @@ void abi_KindA5WaitWork(void)
  */
 void abi_ActorBouncesPlayerLong(void)
 {
-    abi_ActorBouncesPlayer();
+    call_frame(0x840D, abi_ActorBouncesPlayer);
 }
 
 /*
@@ -328,10 +332,14 @@ void abi_Kind7EWaitWork(void)
         wr16(dba(PLAYER + ACTOR_Y + 1), cpu.a);
         op_sep(0x20);
     } else {
+        jsl_frame(0x849330u);
         abi_ActorBouncesPlayerLong();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_Z)) {
             a8_load(0x12);
+            jsl_frame(0x849338u);
             abi_SoundQueueAdd();
+            cpu.s = (uint16_t)(cpu.s + 3);
             a8_load(0x08);
             wr8(dpa(K7E_BOUNCE), 0x08);
         }

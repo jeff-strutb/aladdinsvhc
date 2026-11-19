@@ -140,7 +140,7 @@ none:
  */
 void abi_ActorTouchesSecondPoolLong(void)
 {
-    abi_ActorTouchesSecondPool();
+    call_frame(0x8572, abi_ActorTouchesSecondPool);
 }
 
 /* A zone's signed byte at `at` as a word. */
@@ -201,7 +201,7 @@ void abi_ActorZoneHasTestBox(void)
 {
     uint16_t sum, v, w, s;
 
-    abi_ActorZonePlace();
+    call_frame(0x8754, abi_ActorZonePlace);
     flag_set(P_C, 0);
     v = db16((uint16_t)(ZONES + cpu.y)) & 0x00FF;
     sum = op_adc16(v, db16((uint16_t)TEST_BOX_HALF_W), &cpu.p);
@@ -233,7 +233,7 @@ void abi_ActorZoneHasTestBox(void)
  */
 void abi_ActorZoneHurtsPlayerLong(void)
 {
-    abi_ActorZoneHurtsPlayer();
+    call_frame(0x8741, abi_ActorZoneHurtsPlayer);
 }
 
 /*
@@ -246,10 +246,10 @@ void abi_ActorZoneHurtsPlayerLong(void)
  */
 void abi_ActorZoneHurtsPlayer(void)
 {
-    abi_ActorZoneHasTestBox();
+    call_frame(0x8745, abi_ActorZoneHasTestBox);
     if (cpu.p & P_C)
         return;
-    abi_PlayerEnter8CFacing();
+    call_frame(0x874A, abi_PlayerEnter8CFacing);
     flag_set(P_C, 0);
 }
 
@@ -262,7 +262,7 @@ void abi_ActorZoneHurtsPlayer(void)
  */
 void abi_ActorZoneHasTestPointLong(void)
 {
-    abi_ActorZoneHasTestPoint();
+    call_frame(0x87EA, abi_ActorZoneHasTestPoint);
 }
 /*
  * @routine 83:87EC ActorZoneHasTestPoint
@@ -286,7 +286,7 @@ void abi_ActorZoneHasTestPoint(void)
     flag_set(P_C, 0);
     a8_load(op_adc8((uint8_t)cpu.y, ZONE_FIRST, &cpu.p));
     cpu.y = (uint8_t)cpu.a;
-    abi_ActorZonePlace();
+    call_frame(0x87F3, abi_ActorZonePlace);
     /* the zone's half-width, width and height */
     half = db16((uint16_t)(ZONES + cpu.y)) & 0x00FF;
     wr16(dba(SCRATCH + 4), half);

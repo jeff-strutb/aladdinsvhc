@@ -62,7 +62,9 @@ void abi_Kind83Start(void)
     dp16_set(K83_16, 0xD836);
     op_sep(0x20);
     a8_load(0x00);
+    jsl_frame(0x849549u);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(K83_NO_CHILD), 0);
     v = rd8(dpa(ACTOR_07));
     a8_load(v);
@@ -99,12 +101,16 @@ void abi_Kind83Start(void)
     a8_load(rd8(dba((uint16_t)(K83_TOP_SPEEDS + cpu.x))));
     wr8(dpa(K83_TOP_SPEED), (uint8_t)cpu.a);
     y8_load(rd8(dba((uint16_t)(K83_PRESETS + cpu.x))));
+    jsl_frame(0x84958Fu);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
 
     /* flying, to its line */
     for (;;) {
         actor_yield(0x849593u);
+        jsl_frame(0x849595u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         y = rd8(dpa(ACTOR_Y + 1));
         line = rd8(dpa(K83_LINE));
         a8_load(y);
@@ -128,7 +134,9 @@ void abi_Kind83Start(void)
     wr8(dpa(ACTOR_ACCEL_Y), 0x08);
     do {
         actor_yield(0x8495B4u);
+        jsl_frame(0x8495B6u);
         abi_ActorFall();
+        cpu.s = (uint16_t)(cpu.s + 3);
         y = rd8(dpa(ACTOR_Y + 1));
         line = rd8(dpa(K83_LINE));
         a8_load(y);
@@ -144,7 +152,9 @@ there:
         actor_yield(0x8495C4u);
         wr8(dpa(ACTOR_SPAWN_AT), 0);
         a8_load(KIND_5E);
+        jsl_frame(0x8495CAu);
         abi_ActorCreateChild8();
+        cpu.s = (uint16_t)(cpu.s + 3);
         if (!(cpu.p & P_C))
             break;
     }

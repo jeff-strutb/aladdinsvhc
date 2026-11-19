@@ -84,7 +84,9 @@ void abi_Kind2DStart(void)
     }
     if ((uint8_t)cpu.a == 0xEA) {
         /* a changed ROM ($83:A83F, which no script runs): a random hit box */
+        jsl_frame(0x83A83Fu);
         abi_RandomNext();
+        cpu.s = (uint16_t)(cpu.s + 3);
         wr8(dpa(ACTOR_06), (uint8_t)cpu.a);
     }
     a8_load(rd8(dpa(ACTOR_07)));
@@ -100,12 +102,18 @@ void abi_Kind2DStart(void)
     a8_load(0x89);
     wr8(dpa(K2D_29 + 1), 0x89);
     a8_load(0x00);
+    jsl_frame(0x83A85Cu);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    jsl_frame(0x83A860u);
     abi_ActorPictureQueue();
+    cpu.s = (uint16_t)(cpu.s + 3);
     actor_yield(0x83A864u);
     a8_load(0xD0);
     tsb_at(dpa(ACTOR_09), 0xD0);
+    jsl_frame(0x83A86Au);
     abi_ActorSideOfPlayer();
+    cpu.s = (uint16_t)(cpu.s + 3);
     wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
     wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
     abi_Kind2DRest();
@@ -203,7 +211,9 @@ void abi_Kind2DWatch(void)
         a8_load(rd8(dpa(K2D_FRAMES)));
         cmp8_of((uint8_t)cpu.a, 0x20);
         if ((uint8_t)cpu.a == 0x20) {
+            jsl_frame(0x83A8EEu);
             abi_ActorSideOfPlayer();
+            cpu.s = (uint16_t)(cpu.s + 3);
             wr8(dpa(ACTOR_FACING), (uint8_t)cpu.a);
             wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
             a8_load(0x01);
@@ -323,7 +333,9 @@ void abi_Kind2DRest(void)
 void abi_Kind2DAfterThrow(void)
 {
     a8_load(0x07);
+    jsl_frame(0x83A98Au);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x48);
     actor_wait(0x83A990u);
     abi_Kind2DWatch();
@@ -366,7 +378,9 @@ void abi_Kind2DThrown(void)
     flag_set(P_C, 0);
     a8_load(op_adc8((uint8_t)cpu.a, 0x17, &cpu.p));
     y8_load((uint8_t)cpu.a);
+    jsl_frame(0x83A9B6u);
     abi_ActorMotionPreset();
+    cpu.s = (uint16_t)(cpu.s + 3);
     y8_load(rd8(dpa(ACTOR_07)));
     pose = rd8(dba((uint16_t)(K2D_POSES + cpu.y)));
     a8_load(pose);
@@ -385,12 +399,14 @@ void abi_Kind2DThrown(void)
             a8_load(inc8_at(dpa(K2D_ARC)));
             abi_AnimStart();
         }
+        jsl_frame(0x83A9E1u);
         abi_ActorFly();
+        cpu.s = (uint16_t)(cpu.s + 3);
         flag_set(P_C, 1);
         a8_load(op_sbc8(rd8(dpa(K2D_ARC)), 0x08, &cpu.p));
         a8_load((uint8_t)(cpu.a << 2));
         y8_load((uint8_t)cpu.a);
-        abi_ActorZoneHurtsPlayer();
+        call_frame(0xA9EF, abi_ActorZoneHurtsPlayer);
         x8_load(0x00);
         /* the JSR's return address on the stack, which ActorEndOutOfRange
            pulls when it ends the actor */

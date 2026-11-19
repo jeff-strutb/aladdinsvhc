@@ -516,7 +516,7 @@ void abi_PlayField3Stages(void)
     nz16_of(cpu.x);
     switch (cpu.x) {
     case 0:
-        abi_BackdropFollowOffsetY();
+        call_frame(0xCA00, abi_BackdropFollowOffsetY);
         v = rd16(dba((uint16_t)PLAYER_X_AT));
         cpu.a = v;
         cmp16_of(v, STAGE1_X);
@@ -527,7 +527,9 @@ void abi_PlayField3Stages(void)
         cmp16_of(v, STAGE1_SCROLL);
         if (v < STAGE1_SCROLL) {
             op_sep(0x30);
+            jsl_frame(0x81CA13u);
             abi_PlayerOnFirmGround();
+            cpu.s = (uint16_t)(cpu.s + 3);
             op_rep(0x30);
             if (!(cpu.p & P_C))
                 return;

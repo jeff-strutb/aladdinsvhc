@@ -98,7 +98,9 @@ void abi_PlayerJumpPoseStep(void)
     case 10:
         /* no script runs these steps */
         a8_load(0x02);
+        jsl_frame(0x81D247u);
         abi_SoundQueueAdd();
+        cpu.s = (uint16_t)(cpu.s + 3);
         move_start(0x09);
         a8_load(0x10);
         wr8(dpa(POSE_TIMER), 0x10);

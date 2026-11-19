@@ -65,7 +65,9 @@ void abi_Kind8DCircle(void)
     dp16_set(ACTOR_Y + 1, cpu.a);
     op_sep(0x20);
     a8_load(0x00);
+    jsl_frame(0x849A1Au);
     abi_AnimStart();
+    cpu.s = (uint16_t)(cpu.s + 3);
     a8_load(0x1B);
     wr8(dpa(KIND8D_ANGLE), 0x1B);
     wr8(dpa(ACTOR_FLIP), 0);
@@ -76,7 +78,9 @@ void abi_Kind8DCircle(void)
         x8_load(0x1E);
         abi_ActorMoveByVector();
         y8_load(0x2C);
+        jsl_frame(0x849A2Eu);
         abi_ActorNearPlayer();
+        cpu.s = (uint16_t)(cpu.s + 3);
     } while (cpu.p & P_C);
 
     /* twice round him */
@@ -96,8 +100,12 @@ void abi_Kind8DCircle(void)
         wr8(dpa(KIND8D_ANGLE), angle);
         x8_load(0x10);
         a8_load(0x48);
+        jsl_frame(0x849A57u);
         abi_ActorMoveByVectorTimes();
+        cpu.s = (uint16_t)(cpu.s + 3);
+        jsl_frame(0x849A5Bu);
         abi_ActorSideOfPlayer();
+        cpu.s = (uint16_t)(cpu.s + 3);
         wr8(dpa(ACTOR_FLIP), (uint8_t)cpu.a);
         angle = rd8(dpa(KIND8D_ANGLE));
         a8_load(angle);

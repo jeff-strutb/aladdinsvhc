@@ -22,5 +22,7 @@ void abi_AnimStep(void);
  */
 void abi_ActorKind70Wait(void)
 {
+    jsl_frame(0x83F36Bu);
     abi_AnimStep();
+    cpu.s = (uint16_t)(cpu.s + 3);
 }

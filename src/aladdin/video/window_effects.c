@@ -154,7 +154,7 @@ void abi_HdmaStart(void)
     wr8(dba(HDMA_VALUE_ADD + 1), 0);
     wr8(dba(HDMA_TABLE_SET), (uint8_t)cpu.x);
     reg_set = (uint8_t)cpu.y;
-    abi_HdmaChannelFree();
+    call_frame(0x8746, abi_HdmaChannelFree);
     if (cpu.p & P_C)
         return;
     ch = (uint8_t)cpu.x;

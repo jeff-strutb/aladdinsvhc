@@ -84,7 +84,9 @@ L_B3BD:     /* ways 0-2: carries, then breaks */
         MEM8(dec, ea_dp(0x42));
     } while (!IF_Z);
     lda8_v(0x1A);
+    jsl_frame(0x83B3DFu);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
     ldx8(ea_dp(0x07));
     lda8(ea_absx(K43_ANIMS));
     ACC8(inc);

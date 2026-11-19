@@ -39,7 +39,7 @@ void abi_ActorStompOrHurt(void);
  */
 void abi_ActorHurtsPlayerOnTouchLong(void)
 {
-    abi_ActorHurtsPlayerOnTouch();
+    call_frame(0x80A3, abi_ActorHurtsPlayerOnTouch);
 }
 
 
@@ -59,7 +59,7 @@ void abi_ActorHurtsPlayerOnTouchLong(void)
  */
 void abi_ActorStompOrHurtLong(void)
 {
-    abi_ActorStompOrHurt();
+    call_frame(0x83C7, abi_ActorStompOrHurt);
 }
 /* The player's tests, each as its LDX (or LDA) leaves the registers. */
 static uint8_t x_from(uint16_t addr)
@@ -121,10 +121,10 @@ void abi_ActorBouncesPlayer(void)
 {
     if (!touch_from_above(0))
         goto none;
-    abi_ScratchBelowBy10();
+    call_frame(0x841F, abi_ScratchBelowBy10);
     if ((cpu.p & P_C) || rising() || !can_stand())
         goto none;
-    abi_PlayerStandOnActor();
+    call_frame(0x8440, abi_PlayerStandOnActor);
     op_sep(0x30);
     a8_load(0x01);
     return;
@@ -182,7 +182,7 @@ void abi_ActorStompOrHurt(void)
         op_sep(0x32);
         return;
     }
-    abi_ScratchBelowBy10();
+    call_frame(0x83D2, abi_ScratchBelowBy10);
     stomp_or_hurt();
 }
 
@@ -236,17 +236,17 @@ void abi_ActorStompedByPlayer(void)
 
     if (!touch_from_above(1))
         goto out;
-    abi_ScratchBelowBy10();
+    call_frame(0x836B, abi_ScratchBelowBy10);
     if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
-        abi_PlayerEnter8CFacing();
+        call_frame(0x83A8, abi_PlayerEnter8CFacing);
         return;
     }
     if ((x_from(V_145A) & 0x80) || !x_from(V_141C) || rising() || x_from(V_141B))
         goto refused;
     /* stomped: its code kept, it can no longer be hit, state $8C, one hit
        less, the stomp's sound */
-    abi_PlayerStandOnActor();
+    call_frame(0x8384, abi_PlayerStandOnActor);
     code = dp16(ACTOR_03);
     dp16_set(ACTOR_35, code);
     a16_load(code);
@@ -258,7 +258,9 @@ void abi_ActorStompedByPlayer(void)
     wr8(dpa(ACTOR_STATE), STOMPED);
     dec8_at(dpa(ACTOR_11));
     a8_load(STOMP_SOUND);
+    jsl_frame(0x83839Du);
     abi_SoundQueueAdd();
+    cpu.s = (uint16_t)(cpu.s + 3);
 out:
     op_sep(0x30);
     return;
@@ -275,7 +277,7 @@ refused:
  */
 void abi_ActorStompedByPlayerLong(void)
 {
-    abi_ActorStompedByPlayer();
+    call_frame(0x8360, abi_ActorStompedByPlayer);
 }
 
 /*
@@ -298,16 +300,16 @@ void abi_ActorBouncesOrHurtsPlayer(void)
 {
     if (!touch_from_above(0))
         goto none;
-    abi_ScratchBelowBy10();
+    call_frame(0x845A, abi_ScratchBelowBy10);
     if (cpu.p & P_C) {                    /* from the side: he is hurt */
         op_sep(0x30);
-        abi_PlayerEnter8CFacing();
+        call_frame(0x8461, abi_PlayerEnter8CFacing);
         a8_load(0x02);
         return;
     }
     if (!can_stand() || rising())
         goto none;
-    abi_PlayerStandOnActor();
+    call_frame(0x8480, abi_PlayerStandOnActor);
     op_sep(0x30);
     a8_load(0x01);
     return;
@@ -324,5 +326,5 @@ none:
  */
 void abi_ActorBouncesOrHurtsPlayerLong(void)
 {
-    abi_ActorBouncesOrHurtsPlayer();
+    call_frame(0x8448, abi_ActorBouncesOrHurtsPlayer);
 }
