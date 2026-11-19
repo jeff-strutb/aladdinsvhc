@@ -36,7 +36,7 @@ void abi_PlayerLandOnActor(void)
 {
     uint32_t box = dba(LAND_BOXES) + cpu.y;
     uint8_t flags = rd8(dpa(ACTOR_09));
-    uint16_t d, py;
+    uint16_t d, py, top;
     uint8_t v;
 
     bit8_of((uint8_t)cpu.a, flags);
@@ -75,8 +75,9 @@ void abi_PlayerLandOnActor(void)
     py = rd16(dba(PLAYER + ACTOR_Y + 1));
     py = op_adc16(py, rd16(box + 8), &cpu.p);
     cpu.a = py;
-    cmp16_of(py, dp16(ACTOR_Y + 1));
-    if (py >= dp16(ACTOR_Y + 1))
+    top = dp16(ACTOR_Y + 1);            /* one read, as the CMP makes */
+    cmp16_of(py, top);
+    if (py >= top)
         goto no;
     flag_set(P_C, 1);
     d = dp16(ACTOR_Y + 1);
