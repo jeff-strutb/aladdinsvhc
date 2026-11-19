@@ -446,6 +446,28 @@ GuardWalk:
     bra .idle
 %ends_by($A5E812)
 
+; @routine A5:E812 GuardChasePose
+; @actor
+; WHAT IT DOES: The guard's chase (its code word $E812, set while $146B
+; bit 7 is set): pose $14 for 96 frames, then pose $15 for good.
+; HOW: G_MOVING up; ActorAnimChange $14; COP $60; ActorAnimChange $15
+; (no script runs that far); BRK for good.
+; Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; resumed by
+; the actor loop at its code word (set at A5:F05D). Exit: never returns.
+%at($A5E812)
+GuardChasePose:
+    inc.b !G_MOVING
+    lda.b #$14
+    jsr.w ActorAnimChange
+    lda.b #$60
+    cop.b #$00
+    lda.b #$15
+    jsr.w ActorAnimChange
+.idle:
+    brk.b #$00
+    bra .idle
+%ends_by($A5E826)
+
 ; @routine A5:EAB3 ActorFlyFallCapped
 ; WHAT IT DOES: ActorFly, with the fall held to G_FALL_MAX at most.
 ; HOW: ActorFly; falling (the speed's top byte not negative): 16-bit, the

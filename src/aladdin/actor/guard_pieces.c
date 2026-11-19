@@ -549,6 +549,29 @@ void abi_GuardWalk(void)
         actor_yield(0xA5E80Eu);
 }
 
+/*
+ * @routine A5:E812 GuardChasePose
+ * @actor
+ * WHAT IT DOES: The guard's chase (its code word $E812, set while $146B
+ * bit 7 is set): pose $14 for 96 frames, then pose $15 for good.
+ * HOW: G_MOVING up; ActorAnimChange $14; COP $60; ActorAnimChange $15
+ * (no script runs that far); BRK for good.
+ * Entry: M 8-bit, X 8-bit; D = the guard's record; DB = $A5; resumed by
+ * the actor loop at its code word (set at A5:F05D). Exit: never returns.
+ */
+void abi_GuardChasePose(void)
+{
+    MEM8(inc, ea_dp(G_MOVING));
+    lda8_v(0x14);
+    call_frame(0xE818, abi_ActorAnimChange);
+    lda8_v(0x60);
+    actor_wait(0xA5E81Bu);
+    lda8_v(0x15);
+    call_frame(0xE821, abi_ActorAnimChange);
+    for (;;)
+        actor_yield(0xA5E822u);
+}
+
 /* GuardStepAhead's work, for a caller that has pushed its JSR's return:
    0 when the ground ahead is clear (the routine's RTS, the return not yet
    pulled); else, with the return pulled and the rise's speed set, where
