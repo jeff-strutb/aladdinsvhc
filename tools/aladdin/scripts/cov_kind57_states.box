@@ -1,0 +1,59 @@
+# Kind $57's states the guard's play leaves out (Kind57Second $83:DB43,
+# Kind57Third $83:DB9A), after cov_level3_guard.box's run on level 3 (its
+# lines below, unchanged): the guard (record $0BAB) is put in its shot
+# state ($CC) with $00C0 set (it goes on hurt, $83:DBA5, and while $00C0
+# stays set hurt again); $00C0 cleared, it goes back to its rounds; then in
+# its stomped state ($8C) with no health left ($11 0, as after its fourth
+# stomp): it is knocked away ($83:DB8E).
+load build/aladdin/states/stage_a1_s1.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 0008EA 80,00
+wait 10
+poke 001773 00,0E
+poke 0019E5 00,0E
+poke 0008E7 80,0E
+wait 1800
+press START
+repeat 1300
+poke 00035E 03
+wait 1
+end
+poke 001773 80,04
+poke 0019E5 80,04
+poke 0008E7 C0,04
+wait 130
+poke 0008E7 30,05
+wait 260
+hold RIGHT 40
+wait 60
+hold A 4
+wait 30
+hold A 4
+wait 30
+hold A 4
+wait 60
+hold B 10
+hold B+RIGHT 30
+wait 60
+hold Y 10
+wait 30
+hold Y 10
+wait 30
+hold Y 10
+wait 60
+hold B+LEFT 30
+wait 60
+hold LEFT 30
+wait 120
+hold RIGHT 60
+wait 200
+poke 0000C0 01
+poke 000BAB CC
+wait 150
+poke 0000C0 00
+wait 150
+poke 000BBC 00
+poke 000BAB 8C
+wait 120
