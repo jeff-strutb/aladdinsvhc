@@ -397,3 +397,128 @@ void abi_PlayerHeld(void)
         return;
     }
 }
+
+/* A frame of the bounce's rise (BRK at brk_at): PlayerAirStep,
+   PlayerFlipByPad, PlayerRunSpeed (their JSRs at ret, ret + 3, ret + 6). */
+static void bounce_frame(uint32_t brk_at, uint16_t ret)
+{
+    actor_yield(brk_at);
+    call_frame(ret, abi_PlayerAirStep);
+    call_frame((uint16_t)(ret + 3), abi_PlayerFlipByPad);
+    call_frame((uint16_t)(ret + 6), abi_PlayerRunSpeed);
+}
+
+/*
+ * @routine 81:D77C PlayerBounce
+ * @actor
+ * WHAT IT DOES: Aladdin lands on an actor's top and bounces off it: a
+ * short squat, then up at a speed by how long he fell (with the jump
+ * held) or by when the jump is pressed in the squat, through the
+ * bounce's two poses, and on in the air.
+ * HOW: V_141B 0; PlayerGroundYSave; PLAYER_LANDED 1; V_1427 and AIR_THROW
+ * 0; PlayerFlipByPad, PlayerTopSpeedCap, PlayerRunRatesSet; V_1A08 0;
+ * PLAYER_BOX_WANTED $10; PlayerMoveStart 9; BOUNCE_FRAMES 9, BOUNCE_ROW
+ * 0, player_slowed 0. JUMP_HELD: BOUNCE_ROW from BOUNCE_ROWS by
+ * AIR_FRAMES (8 at most), FRAMES_47 $0A frames (BRK each). Else 9 frames
+ * (BRK each; JUMP_PRESSED: BOUNCE_ROW from BOUNCE_ROWS by BOUNCE_FRAMES)
+ * and PlayerSpeedLeast. Then V_1A08 $0A; ActorSpeedYSetGravity with
+ * gravity $38 and Y = (BOUNCE_ROW + 4) * 3 (BOUNCE_SUM kept); BOUNCE_ROW
+ * 0: top speed $0270 (byte by byte). PlayerMoveStart $0A and 7 frames,
+ * PlayerMoveStart $0B and 7 frames, each frame (BRK first)
+ * PlayerAirStep, PlayerFlipByPad, PlayerRunSpeed. player_slowed 0,
+ * FRAMES_40 and ACTOR_41 1, PLAYER_BOX_WANTED 3; on at PlayerAir.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where PlayerLandOnActor and other actors set his
+ * resume address. Exit: never returns.
+ */
+void abi_PlayerBounce(void)
+{
+    stz8(ea_abs(V_141B));
+    call_frame(0xD781, abi_PlayerGroundYSave);
+    lda8_v(0x01);
+    sta8(ea_abs(PLAYER_LANDED));
+    stz8(ea_abs(V_1427));
+    stz8(ea_abs(AIR_THROW));
+    call_frame(0xD78F, abi_PlayerFlipByPad);
+    call_frame(0xD792, abi_PlayerTopSpeedCap);
+    call_frame(0xD795, abi_PlayerRunRatesSet);
+    stz8(ea_abs(V_1A08));
+    lda8_v(0x10);
+    sta8(ea_abs(PLAYER_BOX_WANTED));
+    lda8_v(0x09);
+    call_frame(0xD7A2, abi_PlayerMoveStart);
+    lda8_v(0x09);
+    sta8(ea_abs(BOUNCE_FRAMES));
+    stz8(ea_abs(BOUNCE_ROW));
+    stz8(ea_abs(PLAYER_SLOWED));
+    lda8(ea_abs(JUMP_HELD));
+    if (!IF_Z) {
+        lda8(ea_abs(AIR_FRAMES));
+        tax8();
+        sec();
+        sbc8_v(0x08);
+        if (IF_C)
+            ldx8_v(0x08);
+        lda8(ea_absx(BOUNCE_ROWS));
+        sta8(ea_abs(BOUNCE_ROW));
+        lda8_v(0x0A);
+        sta8(ea_dp(FRAMES_47));
+        do {
+            actor_yield(0x81D7C8u);
+            MEM8(dec, ea_dp(FRAMES_47));
+        } while (!IF_Z);
+    } else {
+        do {
+            actor_yield(0x81D7D0u);
+            lda8(ea_abs(JUMP_PRESSED));
+            if (!IF_Z) {
+                ldx8(ea_abs(BOUNCE_FRAMES));
+                lda8(ea_absx(BOUNCE_ROWS));
+                sta8(ea_abs(BOUNCE_ROW));
+            }
+            MEM8(dec, ea_abs(BOUNCE_FRAMES));
+        } while (!IF_Z);
+        call_frame(0xD7E7, abi_PlayerSpeedLeast);
+    }
+    lda8_v(0x0A);
+    sta8(ea_abs(V_1A08));
+    lda8(ea_abs(BOUNCE_ROW));
+    clc();
+    adc8_v(0x04);
+    sta8(ea_abs(BOUNCE_SUM));
+    ACC8(asl);
+    adc8_v(rd8(ea_abs(BOUNCE_SUM)));
+    tay8();
+    lda8_v(0x38);
+    jsl_call(0x81D7FDu, abi_ActorSpeedYSetGravity);
+    lda8(ea_abs(BOUNCE_ROW));
+    if (IF_Z) {
+        lda8_v(0x70);
+        sta8(ea_abs(PLAYER_TOP_SPEED));
+        lda8_v(0x02);
+        sta8(ea_abs(V_141E));
+    }
+    lda8_v(0x0A);
+    call_frame(0xD814, abi_PlayerMoveStart);
+    lda8_v(0x07);
+    sta8(ea_abs(BOUNCE_FRAMES));
+    do {
+        bounce_frame(0x81D81Au, 0xD81E);
+        MEM8(dec, ea_abs(BOUNCE_FRAMES));
+    } while (!IF_Z);
+    lda8_v(0x0B);
+    call_frame(0xD82E, abi_PlayerMoveStart);
+    lda8_v(0x07);
+    sta8(ea_abs(BOUNCE_FRAMES));
+    do {
+        bounce_frame(0x81D834u, 0xD838);
+        MEM8(dec, ea_abs(BOUNCE_FRAMES));
+    } while (!IF_Z);
+    stz8(ea_abs(PLAYER_SLOWED));
+    lda8_v(0x01);
+    sta8(ea_dp(FRAMES_40));
+    sta8(ea_dp(ACTOR_41));
+    lda8_v(0x03);
+    sta8(ea_abs(PLAYER_BOX_WANTED));
+    abi_PlayerAir();
+}

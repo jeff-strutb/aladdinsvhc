@@ -326,3 +326,122 @@ PlayerHeld:
     cmp.b #$0D
     bcs .frame
     jmp.w PlayerHeldJumpOff
+
+; @routine 81:D77C PlayerBounce
+; @actor
+; WHAT IT DOES: Aladdin lands on an actor's top and bounces off it: a
+; short squat, then up at a speed by how long he fell (with the jump
+; held) or by when the jump is pressed in the squat, through the
+; bounce's two poses, and on in the air.
+; HOW: V_141B 0; PlayerGroundYSave; PLAYER_LANDED 1; V_1427 and AIR_THROW
+; 0; PlayerFlipByPad, PlayerTopSpeedCap, PlayerRunRatesSet; V_1A08 0;
+; PLAYER_BOX_WANTED $10; PlayerMoveStart 9; BOUNCE_FRAMES 9, BOUNCE_ROW
+; 0, player_slowed 0. JUMP_HELD: BOUNCE_ROW from BOUNCE_ROWS by
+; AIR_FRAMES (8 at most), FRAMES_47 $0A frames (BRK each). Else 9 frames
+; (BRK each; JUMP_PRESSED: BOUNCE_ROW from BOUNCE_ROWS by BOUNCE_FRAMES)
+; and PlayerSpeedLeast. Then V_1A08 $0A; ActorSpeedYSetGravity with
+; gravity $38 and Y = (BOUNCE_ROW + 4) * 3 (BOUNCE_SUM kept); BOUNCE_ROW
+; 0: top speed $0270 (byte by byte). PlayerMoveStart $0A and 7 frames,
+; PlayerMoveStart $0B and 7 frames, each frame (BRK first)
+; PlayerAirStep, PlayerFlipByPad, PlayerRunSpeed. player_slowed 0,
+; FRAMES_40 and ACTOR_41 1, PLAYER_BOX_WANTED 3; on at PlayerAir.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where PlayerLandOnActor and other actors set his
+; resume address. Exit: never returns.
+%at($81D77C)
+PlayerBounce:
+    stz.w !V_141B
+    jsr.w PlayerGroundYSave
+    lda.b #$01
+    sta.w !PLAYER_LANDED
+    stz.w !V_1427
+    stz.w !AIR_THROW
+    jsr.w PlayerFlipByPad
+    jsr.w PlayerTopSpeedCap
+    jsr.w PlayerRunRatesSet
+    stz.w !v_1a08
+    lda.b #$10
+    sta.w !player_box_wanted
+    lda.b #$09
+    jsr.w PlayerMoveStart
+    lda.b #$09
+    sta.w !BOUNCE_FRAMES
+    stz.w !BOUNCE_ROW
+    stz.w !player_slowed
+    lda.w !JUMP_HELD
+    beq .squat
+    lda.w !AIR_FRAMES
+    tax
+    sec
+    sbc.b #$08
+    bcc .row
+    ldx.b #$08
+.row:
+    lda.w !BOUNCE_ROWS,x
+    sta.w !BOUNCE_ROW
+    lda.b #$0A
+    sta.b !FRAMES_47
+.held_frame:
+    brk.b #$00
+    dec.b !FRAMES_47
+    bne .held_frame
+    bra .up
+.squat:
+    brk.b #$00
+    lda.w !JUMP_PRESSED
+    beq .squat_count
+    ldx.w !BOUNCE_FRAMES
+    lda.w !BOUNCE_ROWS,x
+    sta.w !BOUNCE_ROW
+.squat_count:
+    dec.w !BOUNCE_FRAMES
+    bne .squat
+    jsr.w PlayerSpeedLeast
+.up:
+    lda.b #$0A
+    sta.w !v_1a08
+    lda.w !BOUNCE_ROW
+    clc
+    adc.b #$04
+    sta.w !BOUNCE_SUM
+    asl
+    adc.w !BOUNCE_SUM
+    tay
+    lda.b #$38
+    jsl.l ActorSpeedYSetGravity
+    lda.w !BOUNCE_ROW
+    bne .rise
+    lda.b #$70
+    sta.w !player_top_speed
+    lda.b #$02
+    sta.w !V_141E
+.rise:
+    lda.b #$0A
+    jsr.w PlayerMoveStart
+    lda.b #$07
+    sta.w !BOUNCE_FRAMES
+.rise_frame:
+    brk.b #$00
+    jsr.w PlayerAirStep
+    jsr.w PlayerFlipByPad
+    jsr.w PlayerRunSpeed
+    dec.w !BOUNCE_FRAMES
+    bne .rise_frame
+    lda.b #$0B
+    jsr.w PlayerMoveStart
+    lda.b #$07
+    sta.w !BOUNCE_FRAMES
+.top_frame:
+    brk.b #$00
+    jsr.w PlayerAirStep
+    jsr.w PlayerFlipByPad
+    jsr.w PlayerRunSpeed
+    dec.w !BOUNCE_FRAMES
+    bne .top_frame
+    stz.w !player_slowed
+    lda.b #$01
+    sta.b !FRAMES_40
+    sta.b !actor_41
+    lda.b #$03
+    sta.w !player_box_wanted
+    jmp.w PlayerAir
