@@ -15,6 +15,7 @@ int Kind20Start(Actor *a);      /* 83:97AF: the guard (and 83:9C19 Kind20Hit, 83
 int Kind30Start(Actor *a);      /* 83:B684: the pickups */
 int Kind34Start(Actor *a);      /* 83:BB97 */
 int Kind51Start(Actor *a);      /* 83:D239, and 83:D2BE Kind51Second */
+int Kind6CStart(Actor *a);      /* 83:E55E: the spot that holds Aladdin */
 
 /* ---- wait routines (kind_waits.c; each: ACTOR_GOES_ON or ACTOR_ENDED) ---- */
 
