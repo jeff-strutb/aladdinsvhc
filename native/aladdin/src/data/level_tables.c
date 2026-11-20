@@ -20,7 +20,11 @@
  * (the record says bank $81, the task runs with DB = $80): step addresses
  * $FDC5 (words), column limits $FDCD, palettes $FDD1 (4 a part), pictures
  * $FDD5 (4 a part from 1), picture tiles $FDF1, column attributes $FDF7,
- * blocks $FDFA (a byte a part), blank blocks $FE02 (16 words).
+ * blocks $FDFA (a byte a part), blank blocks $FE02 (16 words). The
+ * password screen reads the same bytes: the start pictures at $FDD1, the
+ * passwords at $FDD5 (4 pictures each, eight of them: the level end's
+ * pictures of its parts), the parts at $FE36, the health at $FE3C, the
+ * pictures' map bits at $FE22 and the slots' addresses at $FE2E (words).
  */
 #include "data/data_internal.h"
 #include "data/level_tables.h"
@@ -136,3 +140,17 @@ uint8_t level_end_picture_tile(uint8_t picture) { return at8((uint16_t)(END_PICT
 uint8_t level_end_column_attr(unsigned column) { return at8((uint16_t)(END_COLUMN_ATTRS + column)); }
 uint8_t level_end_block(uint8_t part) { return at8((uint16_t)(END_BLOCKS + part)); }
 uint16_t level_end_blank_block(unsigned i) { return at16((uint16_t)(END_BLANKS + 2 * i)); }
+
+#define PASSWORD_START 0xFDD1
+#define PASSWORD_LIST 0xFDD5
+#define PASSWORD_PARTS 0xFE36
+#define PASSWORD_HEALTH 0xFE3C
+#define PASSWORD_ROW_BITS 0xFE22
+#define PASSWORD_SLOT_VRAM 0xFE2E
+
+uint8_t password_start_picture(unsigned slot) { return at8((uint16_t)(PASSWORD_START + slot)); }
+uint8_t password_entry(unsigned password, unsigned slot) { return at8((uint16_t)(PASSWORD_LIST + 4 * password + slot)); }
+uint8_t password_part(unsigned password) { return at8((uint16_t)(PASSWORD_PARTS + password)); }
+uint8_t password_health(uint8_t part) { return at8((uint16_t)(PASSWORD_HEALTH + part)); }
+uint16_t password_row_bits(unsigned picture) { return at16((uint16_t)(PASSWORD_ROW_BITS + 2 * picture)); }
+uint16_t password_slot_vram(unsigned slot) { return at16((uint16_t)(PASSWORD_SLOT_VRAM + 2 * slot)); }

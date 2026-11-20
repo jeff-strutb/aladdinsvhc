@@ -80,4 +80,15 @@ uint8_t level_end_column_attr(unsigned column);     /* the column's tile attribu
 uint8_t level_end_block(uint8_t part);              /* the part's block offset (the offset from $04C0 its tiles are at) */
 uint16_t level_end_blank_block(unsigned i);         /* the VRAM word address of blank block i (0-15) */
 
+/* ---- the password screen (game/password_screen.c; $80:FDD1 on) ---- */
+#define PASSWORDS 8
+#define PASSWORD_SLOTS 4
+#define PASSWORD_PICTURES 6
+uint8_t password_start_picture(unsigned slot);          /* the picture each slot starts with */
+uint8_t password_entry(unsigned password, unsigned slot);   /* the pictures of password 0-7 (the eighth cannot be made) */
+uint8_t password_part(unsigned password);               /* the part it leads to */
+uint8_t password_health(uint8_t part);                  /* the health marks a part starts with */
+uint16_t password_row_bits(unsigned picture);           /* the picture's map bits */
+uint16_t password_slot_vram(unsigned slot);             /* the slot's VRAM word address */
+
 #endif

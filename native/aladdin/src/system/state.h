@@ -79,6 +79,12 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
+        struct {                /* PasswordScreen (game/password_screen.c): the original's $A5-$AD */
+            uint8_t slot;           /* $A5: the slot being changed (0-3) */
+            uint8_t picture[4];     /* $A6-$A9: each slot's picture (0-5) */
+            uint8_t matched;        /* $AC: nonzero once the pictures were a password */
+            uint8_t count;          /* $AD: frames of the message left */
+        } password;
         struct {                /* ContinueScreenTask (game/continue_screen.c) */
             uint8_t wait_left;      /* $7E: frames the wait with no continues left still runs */
         } continue_screen;

@@ -50,11 +50,6 @@ PLACEHOLDER TaskRun OptionsTask(Task *t)
     return task_exit(t);
 }
 
-PLACEHOLDER TaskRun PasswordScreen(Task *t)
-{
-    unconverted("PasswordScreen");
-    return task_exit(t);
-}
 
 
 /* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
