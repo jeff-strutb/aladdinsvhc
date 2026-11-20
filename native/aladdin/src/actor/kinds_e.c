@@ -4,9 +4,22 @@
  * again if it has a second entry, again if a third, its wait routine }
  * (actor_own.h's KindCode; actor-core.md section 3); the last row's code
  * and wait NULL. This file is n5-kinds-e's alone.
+ *
+ * Each row's entries are the ROM's tables' ($83:8CAB on; the notes'
+ * kind-entries.txt lists every kind's): a start, second or third entry that
+ * is a stub jumping to the kind's code is the row's code, and a wait stub
+ * (kind_wait.c) is the row's wait.
  */
 #include "actor/actor_own.h"
+#include "actor/kinds_e.h"
 
 const KindCode kinds_e[] = {
+    /* $21: second entry 83:922F jumps to A5:F3EC, which no record routine
+       holds and no script reaches: not converted (reported if reached) */
+    { 0x21, Kind21Start, NULL, NULL, KindAnimateSend },
+    /* $2E: its second entry is its wait routine (83:ABD8) entered as
+       code, which no script reaches: not converted */
+    { 0x2E, Kind2EStart, NULL, NULL, ActorWaitEndLowKinds },
+    { 0x35, Kind35Start, Kind35Start, NULL, ActorWaitAnimEnd10 },
     { 0, NULL, NULL, NULL, NULL }
 };
