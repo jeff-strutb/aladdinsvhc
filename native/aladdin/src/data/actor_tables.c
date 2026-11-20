@@ -140,3 +140,22 @@ Kind95Hops k95_hops(uint8_t set)
 }
 
 uint8_t k96_first_wait(uint8_t variant) { return at8(0x80, (uint16_t)(0xD8FC + variant)); }
+
+/* ---- vectors: by direction set, its first vector (a word at $BBB9 in the
+   data bank: $80, as every task runs and no caller of the vector routines
+   changes it); per vector, six tables of a byte in bank $82, $409 apart:
+   x fraction, pixels low, high; y fraction, pixels low, high ---- */
+
+uint16_t vector_set_first(uint8_t at) { return at16(0x80, (uint16_t)(0xBBB9 + at)); }
+
+uint32_t vector_x(uint16_t v)
+{
+    return (uint32_t)at8(0x82, (uint16_t)(0xC000 + v)) | (uint32_t)at8(0x82, (uint16_t)(0xC409 + v)) << 8
+         | (uint32_t)at8(0x82, (uint16_t)(0xC812 + v)) << 16;
+}
+
+uint32_t vector_y(uint16_t v)
+{
+    return (uint32_t)at8(0x82, (uint16_t)(0xCC1B + v)) | (uint32_t)at8(0x82, (uint16_t)(0xD024 + v)) << 8
+         | (uint32_t)at8(0x82, (uint16_t)(0xD42D + v)) << 16;
+}

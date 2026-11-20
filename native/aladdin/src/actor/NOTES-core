@@ -1,0 +1,41 @@
+actor/NOTES-core: the record routines of the actor core's record files (actor_end.c, anim.c, motion.c,
+placement.c, pool.c, spawn.c) that are not converted, each with its proof that nothing reaches it. The proof is
+the record's own ("no JSR, JSL, JMP, pointer or word names it", found by the decomp's census over the ROM) unless
+said otherwise.
+
+Dead (nothing in the game reaches them):
+  81:A401 ActorMotionPresetX          motion.c     "No code refers to it"
+  81:A447 PlayerCarryX                motion.c     "No code refers to it"
+  81:A481 ActorSpeedXDownFlyAgainst   motion.c     "No code refers to it"
+  81:A498 ActorSpeedXUpFlyAgainst     motion.c     "No code refers to it"
+  81:A520 ActorFallAgainst            motion.c     "No code refers to it"
+  81:A5DB ActorSpeedXCap              motion.c     "No code refers to it"
+  81:A5ED ActorSpeedYCap              motion.c     "No code refers to it"
+  81:911B AnimStepBy                  anim.c       "Nothing in the game calls it"
+  81:AAAE ActorPlaceAtRecord          spawn.c      "No code refers to it"
+  82:AADD ActorKindTilesQueueLong     placement.c  "No code calls it (no JSR, JSL, JMP or table word reaches it)"
+  81:ADF9 ReturnFFLong                pool.c       "No code calls it"; ActorFreeListSort's too-few path goes on
+                                                   into its bytes, and returns -1 here
+  83:9457 FreeListReadUpLong          pool.c       "Nothing in the game calls it"
+  83:945D FreeListReadUp              pool.c       "Nothing in the game calls it"
+  83:9463 FreeListReadDownLong        pool.c       "Nothing in the game calls it"
+  83:9469 FreeListReadDown            pool.c       "Nothing in the game calls it"
+  83:946F NopLoop946F                 pool.c       "Nothing in the game reaches it (its own BRA is the only reference)"
+  83:9787 ActorJumpSaved              actor_end.c  "Nothing in the game calls it ... the BRA at 83:9796 is the only way in"
+  83:9794 ActorJumpSavedDrop2         actor_end.c  @unreachable (master, 2026-11-19)
+  83:9798 ActorEndKeepCount           actor_end.c  "No branch, jump, word or resume address in the ROM leads to it"
+  81:EA52 ActorSpawnSharedB           pool.c       no JSL/JML to it and no 3-byte pointer ($52 $EA $81 is nowhere in
+                                                   the ROM); its 2-byte word $EA52 occurs only outside bank $81 (at
+                                                   $85:DCE7, $90:DD07, $96:F03D, $9C:FB11), so no JSR, JMP or JMP
+                                                   (abs,X) in its bank names it (searched 2026-11-19)
+  81:EA71 TileActorSpawnLong          pool.c       the same search: no $71 $EA $81 anywhere; the word $EA71 only
+                                                   outside bank $81 ($93:99FD, $98:C856, $9D:D00C, $9D:D200)
+  81:EA75 TileActorSpawn              pool.c       its only caller is TileActorSpawnLong (the JSR at 81:EA71)
+
+Converted inside other routines (no function of their own):
+  82:AC10 TileSlotsClaim2, 82:AC34 TileSlotsClaim3   placement.c slots_claim
+  82:A78E ShiftRight5, 82:A978 WramC100Clear, 82:AA87 CarryClearReturn (system/helpers.c)   placement.c
+
+Not converted, reached by no recorded play (each prints its name once if reached):
+  83:AF8E Kind36Start's six parts with +$07 bit 4 clear (the menus' figures)
+  83:B0C7 kind $36's second entry, 83:B4B9 kind $4A's, 83:92FB Kind85Second

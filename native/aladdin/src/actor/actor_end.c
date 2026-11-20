@@ -117,3 +117,15 @@ int ActorEndPlaced(Actor *a)
     ActorFreePlaced(a);
     return ACTOR_ENDED;
 }
+
+/*
+ * @routine 83:95B8 ActorEnd
+ * WHAT IT DOES: Ends an actor of the second pool for good: its record
+ * cleared and back on the pool's free stack, its palette slot let go.
+ */
+int ActorEnd(Actor *a)
+{
+    ActorFree(a);
+    ActorTileSlotRelease(a);
+    return ACTOR_ENDED;
+}

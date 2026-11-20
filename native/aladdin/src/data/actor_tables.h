@@ -52,6 +52,13 @@ typedef struct MotionPreset {
 } MotionPreset;
 MotionPreset motion_preset(uint8_t preset);
 
+/* vectors: a direction set's first vector (`at`: the set's byte offset;
+   the next vector is the set's for facing left), and a vector's 24-bit x
+   and y parts (a fraction byte, then pixels) */
+uint16_t vector_set_first(uint8_t at);
+uint32_t vector_x(uint16_t v);
+uint32_t vector_y(uint16_t v);
+
 /* ---- spawning and view ---- */
 
 uint16_t spawn_offset_x(uint8_t at);           /* a child's place from its spawner: across, at byte offset `at` */

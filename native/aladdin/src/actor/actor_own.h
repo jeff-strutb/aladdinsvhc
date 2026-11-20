@@ -33,6 +33,14 @@ _Static_assert(sizeof(FigureOwn) <= sizeof(((Actor *)0)->own.bytes), "a view fit
 
 static inline FigureOwn *figure(Actor *a) { return (FigureOwn *)a->own.bytes; }
 
+/* ActorBobY's byte, +$49: which way the bob goes (0 down) */
+typedef struct {
+    uint8_t before[25];
+    uint8_t rising;             /* +$49 */
+} BobOwn;
+
+static inline BobOwn *bob(Actor *a) { return (BobOwn *)a->own.bytes; }
+
 /* own bytes ActorClearFields clears besides the named fields: +$0A and +$13 */
 #define OWN_0A 0
 #define OWN_13 2
@@ -84,6 +92,15 @@ void ActorTileSlotRelease(Actor *a);    /* 83:9706 */
 Actor *ActorCreateChild8(Actor *spawner, uint8_t kind);    /* 81:A9B1: NULL none */
 void ActorSpawnInit(Actor *spawner, Actor *child);         /* 81:AA11 */
 void ActorSpawnPlace(Actor *spawner, Actor *child);        /* 81:AA81 */
+void ActorTileSlotShare(Actor *spawner, Actor *child);     /* 81:A9FA */
+Actor *ActorSpawn(Actor *spawner, uint8_t kind);           /* 81:A9BF: NULL none (no kind count, no set-up) */
+Actor *ActorSpawnSameLook(Actor *spawner, uint8_t kind);   /* 81:A9CE */
+Actor *ActorSpawnFacing(Actor *spawner, uint8_t kind, uint8_t facing, uint8_t byte07);   /* 81:AA2D */
+int ActorEnd(Actor *a);             /* 83:95B8: the second pool's; returns ACTOR_ENDED */
+Actor *ActorCreateChild(Actor *spawner, uint8_t kind);     /* 81:A9A6 */
+int ActorFreeListSort(uint8_t passes);      /* 81:ADC0: lowest on top; -1 none or too few */
+int ActorFreeListSortHigh(uint8_t passes);  /* 81:ADFC: highest on top; -1 none or too few */
+int ActorFreeListTake(uint8_t count);       /* 81:AE38: the first taken's place in g.free_pool; -1 too few */
 
 void ActorMotionPreset(Actor *a, uint8_t preset);   /* 81:A3DD */
 void ActorSpeedXSet(Actor *a, uint8_t at);          /* 81:A413 */
@@ -97,5 +114,28 @@ void ActorMoveX(Actor *a);          /* 81:A5A7 */
 void ActorMoveY(Actor *a);          /* 81:A560 */
 void ActorFly(Actor *a);            /* 81:A54A */
 void ActorStepYBack(Actor *a);      /* 81:A4F7 */
+void ActorSpeedYSetGravity(Actor *a, uint8_t gravity, uint8_t at);  /* 81:A423 */
+void ActorSpeedXClear(Actor *a);    /* 81:A437 */
+void ActorStopX(Actor *a);          /* 81:A435: and its acceleration */
+void ActorSpeedYClear(Actor *a);    /* 81:A440 */
+void ActorStopY(Actor *a);          /* 81:A43E: and its gravity */
+void ActorFall(Actor *a);           /* 81:A50B: gravity, then ActorMoveY */
+void ActorDecelerateX(Actor *a);    /* 81:A63B: never below 0 */
+void ActorMotionReset(Actor *a, uint8_t gravity);  /* 81:A3CE */
+void ActorStepY(Actor *a);          /* 81:A4E3 */
+void ActorMoveRight(Actor *a);      /* 81:A5AB: right whichever way it faces */
+void ActorAccelerateY(Actor *a);    /* 81:A613 */
+void ActorAccelerateXBack(Actor *a);    /* 81:A627 */
+void ActorAccelerateYBack(Actor *a);    /* 81:A657 */
+void ActorDecelerateY(Actor *a);    /* 81:A66B: never below 0 */
+void ActorFlyAgainst(Actor *a);     /* 81:A535 */
+void ActorBobY(Actor *a);           /* 81:A574: its +$49 the bob's way */
+void ActorMoveByVector(Actor *a, uint8_t set);         /* 81:A854: `set` the direction set's byte offset */
+void ActorMoveBackByVector(Actor *a, uint8_t set);     /* 81:A897 */
+void ActorSpeedAddVector(Actor *a, uint8_t set);       /* 81:A8DA */
+void ActorSpeedSetVector(Actor *a, uint8_t set);       /* 81:A91D */
+void ActorMoveByVectorX(Actor *a, uint8_t set);        /* 81:A952 */
+void ActorMoveByVectorY(Actor *a, uint8_t set);        /* 81:A97C */
+void ActorMoveByVectorTimes(Actor *a, uint8_t set, uint8_t times);  /* 81:A74C */
 
 #endif
