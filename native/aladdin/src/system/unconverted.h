@@ -17,6 +17,7 @@
 
 #include "actor/actor.h"
 #include "audio/sound.h"
+#include "input/input.h"
 #include "map/map.h"
 #include "system/task.h"
 #include "video/video.h"
@@ -32,7 +33,6 @@ void LevelActorGraphicsLoad(void);          /* 81:B9F4 */
 TaskRun WindowEffectTask(Task *t);          /* 82:8000 */
 
 /* ---- game/, map/, level/, input/: this session's, not yet converted ---- */
-int PadConfirmPressed(void);                /* 80:A04F: A, X, B, Y or START newly pressed (input/pad_buttons.c) */
 
 /* ---- past the title (stage 5) ---- */
 void LevelNumberText(void);                 /* 80:A0B1 */

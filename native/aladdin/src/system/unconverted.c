@@ -50,12 +50,6 @@ PLACEHOLDER void BlockSourceAdd(uint16_t source)
     (void)source;
 }
 
-PLACEHOLDER int PadConfirmPressed(void)
-{
-    unconverted("PadConfirmPressed");
-    return 0;
-}
-
 PLACEHOLDER void LevelNumberText(void)
 {
     unconverted("LevelNumberText");
