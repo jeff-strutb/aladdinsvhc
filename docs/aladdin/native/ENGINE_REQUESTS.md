@@ -18,13 +18,13 @@ block with the end flag. `nshvc_voice_key_on` sets the voice's sample too. In na
 `src/engine/sound.c` (a voice's `source` in place of the sample queued for key-on), `docs/api.md` (section 6.3 and the
 stability rules), `README.md`, `docs/native-engine-plan.md`, `tests/scenes/voice_sample.c`.
 
-**API version.** 6.6.
+**API version.** 6.6, nativeshvc `fce4dc0`.
 
 **Jeff's approval**, 2026-11-19, in this session, answering whether to accept the difference or add an engine call:
 "if you cloned nativesvhc, you can add this engine call in nativesvhc as a new spec and i'll commit. I own nativesvhc
 so that's fine (if it's proper console architecture)", then "we already cloned nativesvhc in
-projects\strutb\nativesvhc. do it there, properly". The change was made in that checkout and left uncommitted, for
-him to commit.
+projects\strutb\nativesvhc. do it there, properly". The change was made in that checkout; it is nativeshvc's commit
+`fce4dc0` (committed on Jeff's instruction), API 6.6.
 
 **How it was checked on the engine's own tests.** `tests/scenes/voice_sample.c`, headless on Linux: a voice keyed on
 sample A and given sample B before A's first end is the same, level, output and end flag, in each of 64,079 samples,

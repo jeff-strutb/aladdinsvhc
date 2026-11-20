@@ -2,7 +2,7 @@
 
 The driver is the game's music code in `native/aladdin/src/audio` (`driver.c`, the original's SPC700 driver as typed C;
 `music.c`, the engine's `nshvc_music.tick`; `sound.c`, the game's side; `sound.h`, what the rest of the game calls;
-`ROUTINES.md`, every routine of the record and where it went). It needs nativeshvc API 6.6 (`nshvc_voice_sample`).
+`ROUTINES.md`, every routine of the record and where it went). It needs nativeshvc API 6.6 (`nshvc_voice_sample`, nativeshvc `fce4dc0`).
 
 ## What the driver does
 
