@@ -245,11 +245,11 @@ void ActorMoveAlong(Actor *a, uint16_t direction, uint8_t speed);  /* 81:A73D: a
 /* 81:A9E9: a child of `kind` at the spawner's spawn point, sharing its animated-tile slot, started at its next turn; NULL none free */
 Actor *ActorSpawnShared(Actor *spawner, uint8_t kind);
 void SecondPoolFreeAll(void);           /* 83:95C1: every record of the second pool in use freed (ActorFree, ActorTileSlotRelease), as a level ends */
-/* (n5-kinds-e, for kind $3B; player_carry.c) */
+/* (player_carry.c) */
 void ActorLiftPlayerStep(Actor *a, uint8_t offset);  /* 83:FB57: by its +$44: 0 and ActorGrabTest finds him, his code to his
                                                lift (PLAYER_AT_*) and he is placed on it, +$44 up; negative, up; positive, kept on it
                                                while g.player_no_actor_landing, else +$44 = $F0 */
-/* (n5-kinds-e, for kinds $61 and $64; wait_step.c: kinds $61, $64, $6C share it) */
+/* (wait_step.c: kinds $61, $64, $6C share it) */
 int ActorWaitRange00(Actor *a);             /* 83:E5B6: a wait routine: ended once out of range by box 0 (ActorEndOutOfRange) */
 /* (n5-kinds-e, for kind $73, from n5-kinds-b's chain files and the anim files: stand-ins in actor/wanted_e.c) */
 int ChainPieceEnd(Actor *a);                /* 84:8ADE (chain_piece.c): the head goes back to what it was doing; its result is the head's */

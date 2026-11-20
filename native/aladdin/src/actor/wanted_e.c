@@ -19,12 +19,6 @@
 
 
 
-__attribute__((weak)) void ActorLiftPlayerStep(Actor *a, uint8_t offset)
-{
-    (void)a;
-    (void)offset;
-    TELL_ONCE("ActorLiftPlayerStep (83:FB57)");
-}
 
 
 
