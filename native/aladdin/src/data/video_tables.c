@@ -143,3 +143,12 @@ static uint32_t layout_at(DataRef at, unsigned i)
 
 uint8_t text_layout_byte(DataRef at, unsigned i) { return cart8(layout_at(at, i)); }
 uint16_t text_layout_word(DataRef at, unsigned i) { return (uint16_t)(cart8(layout_at(at, i)) | cart8(layout_at(at, i + 1)) << 8); }
+
+#define PALETTE_CYCLES_BANK 0x84
+#define PALETTE_CYCLES_ADDR 0xE000
+#define PALETTE_FRAMES_ADDR 0xE004
+
+uint16_t palette_cycle_script(uint8_t cycle) { return palette_cycle_table16((uint16_t)(cycle * 2u)); }
+uint16_t palette_cycle_table16(uint16_t at) { return cart16(cart_offset(PALETTE_CYCLES_BANK, (uint16_t)(PALETTE_CYCLES_ADDR + at))); }
+uint8_t palette_cycle_frame8(uint16_t at) { return cart8(cart_offset(PALETTE_CYCLES_BANK, (uint16_t)(PALETTE_FRAMES_ADDR + at))); }
+uint16_t palette_cycle_frame16(uint16_t at) { return cart16(cart_offset(PALETTE_CYCLES_BANK, (uint16_t)(PALETTE_FRAMES_ADDR + at))); }

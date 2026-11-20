@@ -157,6 +157,21 @@ typedef struct ScrollLayer {
     uint16_t row[64];           /* +$D6: its tiles, a ring from its column */
 } ScrollLayer;
 
+/* A palette cycle's record ($15F1 + 14 n; its running byte, +$00, is
+   g.palette_cycle_running[n]): a script of colour frames played into the
+   palette, round and round. */
+typedef struct PaletteCycle {
+    uint8_t cycle;              /* +$01: its number, in the cycle table */
+    uint8_t frames;             /* +$02: the frames in its script */
+    uint8_t colours;            /* +$03: the colours in a frame */
+    uint8_t wait;               /* +$05: frames before the next frame */
+    uint16_t first;             /* +$06: the script's first frame, an offset in the frames' data */
+    uint16_t next;              /* +$08: the next frame, the same */
+    uint16_t at;                /* +$0A: the first colour it sets, a byte offset in the palette */
+    uint8_t step;               /* +$0C: 0 find its script, 1 restart, 2 a frame, 3 wait */
+    uint8_t left;               /* +$0D: frames left before a restart */
+} PaletteCycle;
+
 /* A column or row queued to draw ($1A48, $1A68: rings of 8 of 4 bytes). */
 typedef struct LayerEdge {
     uint8_t layer;              /* +$00: the layer's record, as 0 (play field) or 1 (backdrop) */
@@ -313,6 +328,7 @@ typedef struct GameState {
     uint32_t band_drift;        /* $1A2F-$1A31: 24 bits from its fraction byte */
     uint8_t palette_cycle_running[6]; /* $15F1 + 14 n: nonzero while palette cycle record n runs (its other
                                          bytes are video/'s to add) */
+    PaletteCycle palette_cycle[6]; /* $15F1 + 14 n: the rest of palette cycle record n (video/palette_cycles.c) */
 
     /* -- level and map -- */
     uint16_t level;             /* $035E: the level being played */

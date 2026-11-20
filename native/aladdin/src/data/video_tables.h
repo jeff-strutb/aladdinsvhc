@@ -87,4 +87,13 @@ DataRef text_layout(uint8_t layout);
 uint8_t text_layout_byte(DataRef at, unsigned i);
 uint16_t text_layout_word(DataRef at, unsigned i);  /* the word at byte i */
 
+/* the palette cycles (video/palette_cycles.c): $84:E000 + cycle * 2 gives
+   a script's offset from $84:E000; there its frames (byte), colours (byte)
+   and the palette byte offset (word). Frames are at $84:E004 + an offset: a
+   wait byte, then the colours (words). The original's offsets are kept. */
+uint16_t palette_cycle_script(uint8_t cycle);
+uint16_t palette_cycle_table16(uint16_t at);    /* the word at $84:E000 + at */
+uint8_t palette_cycle_frame8(uint16_t at);      /* the byte at $84:E004 + at */
+uint16_t palette_cycle_frame16(uint16_t at);    /* the word at $84:E004 + at */
+
 #endif

@@ -90,6 +90,7 @@ void PaletteSave(uint8_t first, uint8_t count);         /* 81:9DAA: palettes fir
 void PaletteFadeStep(int8_t step, uint8_t count);       /* 81:9DCD */
 void LevelPalettesLoad(void);               /* 81:86BF */
 void PaletteCycleStart(uint8_t slot, uint8_t cycle);    /* 81:EC8E */
+void PaletteCyclesStep(void);               /* 81:EC98: once a frame */
 
 /* ---- sprites (video/oam.c) ---- */
 
