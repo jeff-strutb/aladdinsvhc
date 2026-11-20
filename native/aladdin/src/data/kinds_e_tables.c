@@ -51,3 +51,10 @@ uint16_t k3b_ahead_y(uint8_t at) { return at16(0x80, (uint16_t)(0xD224 + at)); }
 uint8_t k3b_turn(uint8_t at) { return at8(0x80, (uint16_t)(0xD232 + at)); }
 uint8_t k3b_spot_dir(uint8_t at) { return at8(0x80, (uint16_t)(0xD23A + at)); }
 uint8_t k3b_spot_turn(uint8_t at) { return at8(0x80, (uint16_t)(0xD242 + at)); }
+
+/* ---- kind $2A: $80:D0A2 (bytes by +$07), $80:D0A4 (words), $80:D0B0
+   (bytes); the traces read them in bank $80 ---- */
+
+uint8_t k2a_reach(uint8_t at) { return at8(0x80, (uint16_t)(0xD0A2 + at)); }
+uint16_t k2a_speed(uint8_t at) { return at16(0x80, (uint16_t)(0xD0A4 + at)); }
+uint8_t k2a_leg(uint8_t variant) { return at8(0x80, (uint16_t)(0xD0B0 + variant)); }

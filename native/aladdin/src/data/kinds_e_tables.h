@@ -36,6 +36,12 @@ uint8_t k3b_turn(uint8_t at);       /* the direction after a turn, by the quarte
 uint8_t k3b_spot_dir(uint8_t at);   /* the direction out of a spot, by its direction * 2 and the flag's bit 0 */
 uint8_t k3b_spot_turn(uint8_t at);  /* the turn added at each of its steps to a spot, the same */
 
+/* ---- kind $2A ---- */
+
+uint8_t k2a_reach(uint8_t at);      /* the leaper's distance below it Aladdin must be, by its +$07 */
+uint16_t k2a_speed(uint8_t at);     /* the pacer's speed by its variant times 2 (16.8) */
+uint8_t k2a_leg(uint8_t variant);   /* the frames of its first pace by its variant (each later one twice that) */
+
 /* ---- kind $35, the gem ---- */
 
 /* a set gem's bit in g.gem_sets_found, by `at` (its +$07's low digit, a

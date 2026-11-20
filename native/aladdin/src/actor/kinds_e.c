@@ -19,6 +19,7 @@ const KindCode kinds_e[] = {
     { 0x21, Kind21Start, NULL, NULL, KindAnimateSend },
     /* $2E: its second entry is its wait routine (83:ABD8) entered as
        code, which no script reaches: not converted */
+    { 0x2A, Kind2AStart, Kind2AStart, NULL, Kind2AWait },
     { 0x2E, Kind2EStart, NULL, NULL, ActorWaitEndLowKinds },
     { 0x31, Kind31Start, Kind31Start, NULL, Kind31Wait },
     { 0x35, Kind35Start, Kind35Start, NULL, ActorWaitAnimEnd10 },
