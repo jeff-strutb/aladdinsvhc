@@ -313,7 +313,7 @@ static int throw_standing_done(Actor *a)
  */
 static int walk(Actor *a)
 {
-    g.player_no_actor_landing = 0;
+    no_actor_landing_set(0);
     g.player_in_air = 0;
     g.camera_window = 0;
     g.player_box_wanted = 0;
@@ -452,7 +452,7 @@ static int fall(Actor *a)
 static int air_start(Actor *a)
 {
     g.player_ground_pushed = 0;
-    g.player_no_actor_landing = 0;
+    no_actor_landing_set(0);
     PlayerTopSpeedCap();
     PlayerRunRatesSet();
     return PlayerGoTo(a, P_AIR_TIMED);
@@ -613,7 +613,7 @@ static int ledge_grab(Actor *a)
     set_y_pixels(a, (uint16_t)((player_point.y & 0xFFF0) + 0x0001));
     g.player_landed = 0;
     g.player_air_throw = 0;
-    g.player_no_actor_landing++;
+    no_actor_landing_set((uint8_t)(no_actor_landing() + 1));
     PlayerFlagsClear();
     ActorStopX(a);
     ActorStopY(a);
@@ -641,7 +641,7 @@ static int hang_frame(Actor *a)
         a->facing = a->flip;
         g.player_no_landing = 0x10;
         set_y_pixels(a, (uint16_t)(y_pixels(a) + 0x0012));
-        g.player_no_actor_landing = 0;
+        no_actor_landing_set(0);
         return PlayerGoTo(a, PLAYER_AT_FALL);
     }
     return 1;
@@ -649,7 +649,7 @@ static int hang_frame(Actor *a)
 
 static int hang_climbed(Actor *a)
 {
-    g.player_no_actor_landing = 0;
+    no_actor_landing_set(0);
     a->facing = a->flip;
     a->speed_x = 8 << 8;                /* 8 pixels across */
     a->speed_y = -(24 << 8);            /* 24 up */
@@ -780,7 +780,7 @@ static int knockback(Actor *a)
     if (!g.health)
         g.player_no_landing = 0xFF;
     g.player_ground_pushed = 0;
-    g.player_no_actor_landing = 0;
+    no_actor_landing_set(0);
     if (g.player_fallen_out)
         return fallen(a);
     if (g.level == LEVEL_SLOW_KNOCK)

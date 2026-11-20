@@ -41,7 +41,7 @@ int PlayerCode(Actor *a)
     case 2:
         return player_states_code(a);
     case 3:
-        return player_unconverted(a, "the held states (81:D59A-81:DA14, player_held.c)");
+        return player_held_code(a);
     case 4:
         return player_unconverted(a, "the exits (81:CBF9-81:E7B1, player_exit.c)");
     case 5:

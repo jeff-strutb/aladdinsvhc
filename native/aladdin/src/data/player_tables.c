@@ -78,3 +78,9 @@ LandBox land_box(uint16_t box)
    8-bit as the original's X) */
 uint8_t attach_offset_x(uint8_t n) { return at8((uint16_t)(0xFE44 + (uint8_t)(n << 1))); }
 uint8_t attach_offset_y(uint8_t n) { return at8((uint16_t)(0xFE45 + (uint8_t)(n << 1))); }
+
+/* $80:C734, $80:C748, $80:C75C, $80:C770: bytes by an 8-bit index */
+uint8_t held_preset(uint8_t frame) { return at8((uint16_t)(0xC734 + frame)); }
+uint8_t held_spawn_at(uint8_t frame) { return at8((uint16_t)(0xC748 + frame)); }
+uint8_t held_box(uint8_t frame) { return at8((uint16_t)(0xC75C + frame)); }
+uint8_t bounce_row(uint8_t at) { return at8((uint16_t)(0xC770 + at)); }

@@ -66,4 +66,11 @@ LandBox land_box(uint16_t box);
 uint8_t attach_offset_x(uint8_t n);
 uint8_t attach_offset_y(uint8_t n);
 
+/* the held states (81:D59A-81:D77C), by his animation's frame while held,
+   and the bounce's rows */
+uint8_t held_preset(uint8_t frame);     /* PlayerHeldJumpOff: the motion preset he jumps off with */
+uint8_t held_spawn_at(uint8_t frame);   /* the spawn point his place is set from as he leaves */
+uint8_t held_box(uint8_t frame);        /* his box wanted while held */
+uint8_t bounce_row(uint8_t at);         /* PlayerBounce: the bounce's row by frames in the air or left */
+
 #endif

@@ -37,6 +37,10 @@
 #define LAND_FRAMES(a) ((a)->own.bytes[OWN_47])     /* +$47: frames left of a landing's pose */
 #define WAIT_FRAMES(a) ((a)->own.bytes[OWN_4A])     /* +$4A: frames left of the walk in or the standing throw */
 
+/* $1427, a byte: video/ keeps it as the low byte of a word (g.player_no_actor_landing) */
+static inline uint8_t no_actor_landing(void) { return (uint8_t)g.player_no_actor_landing; }
+static inline void no_actor_landing_set(uint8_t v) { g.player_no_actor_landing = (uint16_t)((g.player_no_actor_landing & 0xFF00) | v); }
+
 static inline uint16_t top_y(Actor *a) { return (uint16_t)(TOP_Y_LOW(a) | TOP_Y_HIGH(a) << 8); }
 
 /* ---- 24-bit motion ---- */
@@ -79,6 +83,23 @@ enum {
     P_WALK_IN_FRAME = PLAYER_BLOCK(1),
     P_START_TASKS,
     P_START_UNCONVERTED,
+
+    /* held.c (its entries in player.h from PLAYER_BLOCK(3)) */
+    P_HELD_FRAME = PLAYER_BLOCK(3) + 0x10,
+    P_HELD_LET_GO,
+    P_HELD_JUMP_OFF,
+    P_JUMP_OFF_FRAME,
+    P_BOUNCE_SQUAT_HELD,
+    P_BOUNCE_SQUAT,
+    P_BOUNCE_RISE_1,
+    P_BOUNCE_RISE_2,
+    P_SPRUNG_UP,
+    P_SPRUNG_AIR,
+    P_CARRIED_FRAME,
+    P_SWITCH_HANG_FRAME,
+    P_FLUNG_UP,
+    P_FLUNG_REST,
+    P_FLUNG_AIR,
 
     /* player_states.c (its entries in player.h from PLAYER_BLOCK(2)) */
     P_STAND_FRAME = PLAYER_BLOCK(2) + 0x10,

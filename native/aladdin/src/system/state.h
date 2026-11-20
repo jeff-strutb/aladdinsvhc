@@ -522,6 +522,9 @@ typedef struct GameState {
     uint8_t player_no_crouch_jump; /* $1446: nonzero, no jump from a crouch */
     uint8_t player_air_throw;   /* $144B: frames left of a throw in the air */
     uint8_t player_air_frames;  /* $1451: frames in the air, counted up to $80 */
+    uint8_t player_bounce_frames; /* $144F: frames left of a part of his bounce off an actor */
+    uint8_t player_bounce_row;  /* $1450: the bounce's row of rising speeds (0 the lowest) */
+    uint8_t player_let_go;      /* $1458: nonzero, what holds him lets him go */
     int16_t test_box_offset_x;  /* $148C: its centre from his place */
     int16_t test_box_offset_y;  /* $148E */
 
