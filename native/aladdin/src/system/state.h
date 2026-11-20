@@ -59,6 +59,18 @@ typedef struct Task {
             uint8_t end_sound;      /* $007C: nonzero, the parameter of sound command $F6 queued as the scene ends */
             uint8_t end_wait;       /* $007D: the frames waited after it */
         } ending_story;
+        struct {                /* GenieScreen (game/genie_screen.c): its working bytes $A5-$AB and $B3-$B4, and the prize it ends with */
+            uint8_t a5, a6, a7, a8; /* the lamp's speed is $A5-$A7 (24 bits) and $A8 its step; the wheel's speed is $A5-$A6, its
+                                       angle accumulator $A7-$A8 (the angle is $A8) */
+            uint8_t slot;           /* $A9: the zoom's phase 0-3; the wheel's slot count 0-7 */
+            uint8_t zoom;           /* $AA: the zoom's value; on the wheel, nonzero once it has slowed into a slot */
+            uint8_t reset_wait;     /* $AB: frames before the scale resets */
+            uint8_t count_fraction; /* $1A1B: the lamp's count's fraction (its whole part is layer_offset_y) */
+            uint8_t gems;           /* $B3: the prize still to give */
+            uint8_t song;           /* $B4: the prize's song */
+            uint8_t prize;          /* the prize the wheel stopped at (0-6) */
+            uint8_t signal;         /* the figure's cue for it ($B5: 2, or $80 for a continue) */
+        } genie;
         struct {                /* SceneSpinZoomTask (game/ending.c); its angle is the task's parameter */
             uint8_t speed;          /* +$07: the angle's step */
             int8_t zoom;            /* +$08 */

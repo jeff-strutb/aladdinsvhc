@@ -41,12 +41,6 @@ void unconverted(const char *name)
 /* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
 
 
-PLACEHOLDER TaskRun GenieScreen(Task *t)
-{
-    unconverted("GenieScreen");
-    return task_exit(t);
-}
-
 PLACEHOLDER int PlayerSceneCode(Actor *a)
 {
     unconverted("PlayerSceneCode");

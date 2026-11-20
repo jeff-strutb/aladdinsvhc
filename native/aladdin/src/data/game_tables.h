@@ -38,6 +38,26 @@ uint16_t ending_scene_frames(unsigned scene);   /* the frames scene 0-5 runs */
 OpeningScene ending_scene(unsigned scene);      /* scene 0-5 */
 OpeningActor ending_actor(unsigned entry);      /* entry 0-7: kind 0 is the player */
 
+/* ---- the Genie screen (game/genie_screen.c): its wheel's slots and the lamp's zoom, in bank $80 ---- */
+
+typedef enum {
+    GENIE_LAMP_START,           /* $DA73 by phase: the zoom's first value ($AA) */
+    GENIE_LAMP_LIMIT,           /* $DA77: the zoom's limit */
+    GENIE_LAMP_WAIT,            /* $DA79: frames before the scale resets */
+    GENIE_LAMP_ZOOM_STEP,       /* $DA7B: the step ($10 of the record's scratch) */
+    GENIE_LAMP_RISE,            /* $DA7D: added to the zoom each frame */
+    GENIE_LAMP_SPEED_0,         /* $DA7F, $DA83, $DA87: the count's speed, low byte first, by phase */
+    GENIE_LAMP_SPEED_1,
+    GENIE_LAMP_SPEED_2,
+    GENIE_LAMP_ACCEL,           /* $DA8B: the speed's step */
+    GENIE_LAMP_FIELDS
+} GenieLamp;
+uint8_t genie_lamp(unsigned phase, GenieLamp field);    /* phase 0-3 */
+uint8_t genie_slot_start(unsigned slot);        /* the wheel's angle at which slot 0-6 starts ($DA64) */
+uint8_t genie_slot_end(unsigned slot);          /* the angle slot 0-7's end is compared with ($DA6B) */
+uint8_t genie_pointer_end(unsigned slot);       /* the angle the pointer's window of slot 0-6 ends at ($DA8F) */
+uint8_t genie_prize_bound(unsigned i);          /* the angle below which prize i 0-6 is given ($DA96) */
+
 /* ---- the title's menu (game/menu_mark.c, menu_mark_draw.c) ---- */
 
 #define MENU_CHOICES 3

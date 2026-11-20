@@ -23,6 +23,18 @@
 #define ENDING_COPY_ADDR 0xDB51
 #define ENDING_PALETTE_ADDR 0xDB57
 #define ENDING_ACTORS_ADDR 0xDB5D
+#define GENIE_BANK 0x80
+#define GENIE_SLOT_START_ADDR 0xDA64
+#define GENIE_SLOT_END_ADDR 0xDA6B
+#define GENIE_LAMP_A_ADDR 0xDA73
+#define GENIE_LAMP_LIMIT_ADDR 0xDA77
+#define GENIE_LAMP_B_ADDR 0xDA79
+#define GENIE_LAMP_ZOOM_ADDR 0xDA7B
+#define GENIE_LAMP_STEP_ADDR 0xDA7D
+#define GENIE_LAMP_SPEED_ADDR 0xDA7F    /* three tables of 4: the speed's three bytes */
+#define GENIE_LAMP_ACCEL_ADDR 0xDA8B
+#define GENIE_POINTER_END_ADDR 0xDA8F
+#define GENIE_PRIZE_BOUND_ADDR 0xDA96
 #define MENU_BANK 0x80
 #define MENU_LINES_ADDR 0xCE25
 #define MENU_PLACES_ADDR 0xCE28
@@ -79,6 +91,21 @@ OpeningActor ending_actor(unsigned entry)
     a.x = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 2)));
     a.y = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 4)));
     return a;
+}
+
+uint8_t genie_slot_start(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_SLOT_START_ADDR + slot))); }
+uint8_t genie_slot_end(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_SLOT_END_ADDR + slot))); }
+uint8_t genie_pointer_end(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_POINTER_END_ADDR + slot))); }
+uint8_t genie_prize_bound(unsigned i) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_PRIZE_BOUND_ADDR + i))); }
+
+uint8_t genie_lamp(unsigned phase, GenieLamp field)
+{
+    static const uint16_t tables[GENIE_LAMP_FIELDS] = {
+        GENIE_LAMP_A_ADDR, GENIE_LAMP_LIMIT_ADDR, GENIE_LAMP_B_ADDR, GENIE_LAMP_ZOOM_ADDR, GENIE_LAMP_STEP_ADDR,
+        GENIE_LAMP_SPEED_ADDR, GENIE_LAMP_SPEED_ADDR + 4, GENIE_LAMP_SPEED_ADDR + 8, GENIE_LAMP_ACCEL_ADDR
+    };
+
+    return cart8(cart_offset(GENIE_BANK, (uint16_t)(tables[field] + phase)));
 }
 
 uint8_t menu_line_layout(unsigned choice)
