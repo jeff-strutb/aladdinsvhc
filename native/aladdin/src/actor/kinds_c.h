@@ -34,6 +34,8 @@ static inline int kind_lost(Actor *a, const char *code)
 
 int Kind2BCode(Actor *a);       /* kind $2B: 83:A467, 83:A725 */
 int Kind33Code(Actor *a);       /* kind $33: 83:B966 */
+void Kind33Look(Actor *a);      /* 83:BAE0: its look, which kind $3A takes too */
+int Kind3ACode(Actor *a);       /* kind $3A: 83:BEB3; its second entry runs kind $3B's start */
 int Kind2CCode(Actor *a);       /* kind $2C: 83:A758; its second entry runs kind $2D's start */
 int Kind2DCode(Actor *a);       /* kind $2D: 83:A82F, 83:AA5A, 83:AA95 */
 int Kind2DStart(Actor *a);      /* 83:A82F, also kind $2C's second entry */
@@ -43,6 +45,7 @@ int Kind50Code(Actor *a);       /* kind $50: 83:D109, 83:D1C7 */
 int Kind59Code(Actor *a);       /* kind $59: 83:DD10 */
 int Kind63Code(Actor *a);       /* kind $63: 84:8080, 84:81BE, 84:81CD */
 int Kind6BCode(Actor *a);       /* kind $6B: 83:EC2C */
+int Kind83Code(Actor *a);       /* kind $83: 84:9538 */
 int Kind7ECode(Actor *a);       /* kind $7E: 84:91A5, its second 84:934B */
 int Kind7FCode(Actor *a);       /* kind $7F: 84:934B */
 int Kind90Code(Actor *a);       /* kind $90: A5:F4D2 */
@@ -61,6 +64,7 @@ int ActorWaitHitsRange8(Actor *a);  /* 83:AA47: kind $2D's */
 int ActorWaitHitsRange0(Actor *a);  /* 83:B630: kind $2F's */
 int ActorWaitTest42Anim2(Actor *a); /* 83:D0EF: kind $4F's */
 int Kind63Wait(Actor *a);           /* 83:924D, 84:81FC */
+int Kind83Wait(Actor *a);           /* 83:92DC, 84:95D4 */
 int Kind7EWait(Actor *a);           /* 83:92AC, 84:931C */
 int Kind7FWait(Actor *a);           /* 83:92B9, 84:9387 */
 

@@ -72,6 +72,19 @@ uint8_t k63_aim_mid(uint8_t at);            /* then below this, aim 1; else 0 */
 
 DataRef k6b_probes(void);
 
+/* ---- kind $83: by its +$07 ---- */
+
+DataRef k83_probes(void);
+uint8_t k83_delay(uint8_t variant);         /* frames before it shows (0: 256) */
+uint8_t k83_top_speed(uint8_t variant);     /* the most its vertical speed's fraction may reach */
+uint8_t k83_preset(uint8_t variant);        /* its motion preset */
+
+/* ---- kind $3A, the hold ---- */
+
+int16_t k3a_hold_x(uint8_t picture);        /* where he is held, from its x, by its picture */
+int16_t k3a_hold_y(uint8_t picture);
+uint8_t k3a_frame(uint8_t frame, int facing_left);  /* his frame while held, by its frame */
+
 /* ---- kinds $7E, $7F ---- */
 
 uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */

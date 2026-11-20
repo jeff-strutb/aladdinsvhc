@@ -92,6 +92,21 @@ uint8_t k63_aim_mid(uint8_t at) { return at8((uint16_t)(0xD4F8 + at)); }
 
 DataRef k6b_probes(void) { return ref(0xD663); }
 
+/* ---- kind $83: its probe list at $D836; by +$07 its delays at $D83A, its
+   top speeds at $D83D, its presets at $D840 ---- */
+
+DataRef k83_probes(void) { return ref(0xD836); }
+uint8_t k83_delay(uint8_t variant) { return at8((uint16_t)(0xD83A + variant)); }
+uint8_t k83_top_speed(uint8_t variant) { return at8((uint16_t)(0xD83D + variant)); }
+uint8_t k83_preset(uint8_t variant) { return at8((uint16_t)(0xD840 + variant)); }
+
+/* ---- kind $3A: by its picture * 2 the hold's offsets at $D1FE (x) and $D210
+   (y) (words); by its frame his frame at $D1DE, facing left at $D1EE ---- */
+
+int16_t k3a_hold_x(uint8_t picture) { return (int16_t)at16((uint16_t)(0xD1FE + 2u * picture)); }
+int16_t k3a_hold_y(uint8_t picture) { return (int16_t)at16((uint16_t)(0xD210 + 2u * picture)); }
+uint8_t k3a_frame(uint8_t frame, int facing_left) { return at8((uint16_t)((facing_left ? 0xD1EE : 0xD1DE) + frame)); }
+
 /* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
    $7F's probe list at $D832 ---- */
 

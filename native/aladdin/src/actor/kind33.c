@@ -95,7 +95,7 @@ static int graphics(Actor *a)
  * WHAT IT DOES: The placed one of kind $33's look: +$08 bit 1 and +$09
  * bits 7 and 4 set, animation 0 from its start.
  */
-static void look(Actor *a)
+void Kind33Look(Actor *a)
 {
     a->anim_flags |= 0x02;
     a->flags |= 0x90;
@@ -123,7 +123,7 @@ static int hub(Actor *a)
         set_word(own(p)->hub_y, pixels(a->y));
         p->look = a->look;
     }
-    look(a);
+    Kind33Look(a);
     a->resume = HUB_LOOKED;
     return 1;
 }
