@@ -226,7 +226,8 @@ int Kind81Code(Actor *a)
         if (colour_step(0))
             return 1;
         g.blend_prevent = 0x03;             /* colour math off again: the original's $30 */
-        g.anim_set_of_kind[0x47] = 0x0C;
+        /* $7F:F047: the high byte of the screen map's place $23 (the map and the animation sets share those bytes) */
+        g.screen_map.places[0x23] = (uint16_t)((g.screen_map.places[0x23] & 0x00FF) | 0x0C00);
         g.chain_go++;
         return ActorEndPlaced(a);
     default:
