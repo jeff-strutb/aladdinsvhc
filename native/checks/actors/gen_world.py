@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
-"""gen_world.py state_fields.csv OUT.inc: the check's table of the game's
-state `g` outside the actors, as C initialisers, from the one source that
-maps each field to the original's work RAM (tools/state_fields.csv, made
-from state.h): { name, offset in g, element size, count, address in the dump,
+"""gen_world.py GAME_DIR OUT.inc: the check's table of the game's state `g`
+outside the actors, as C initialisers, from the one source that maps each
+field to the original's work RAM: tools/make_state_csv.py's CSV of state.h.
+The CSV is made afresh from GAME_DIR's state.h in a scratch directory (the
+committed tools/state_fields.csv can be a landing behind state.h): { name, offset in g, element size, count, address in the dump,
 step in the dump, bytes the original keeps }. A field is in it when it is a
 whole top-level value or array of integers: a plain path (no [], no packed
 bits), how = value, 8.8, 16.8 or 24.8, with an address and, for an array, a
 step equal to its element's bytes."""
-import csv, re, sys
+import csv, os, re, shutil, subprocess, sys, tempfile
+
+game = sys.argv[1]
+scratch = tempfile.mkdtemp()
+os.makedirs(os.path.join(scratch, 'tools'))
+os.makedirs(os.path.join(scratch, 'src', 'system'))
+shutil.copy(os.path.join(game, 'tools', 'make_state_csv.py'), os.path.join(scratch, 'tools'))
+shutil.copy(os.path.join(game, 'src', 'system', 'state.h'), os.path.join(scratch, 'src', 'system'))
+subprocess.run([sys.executable, os.path.join(scratch, 'tools', 'make_state_csv.py')], check=True, stdout=subprocess.DEVNULL)
+csv_path = os.path.join(scratch, 'tools', 'state_fields.csv')
 
 rows = []
-for r in csv.DictReader(open(sys.argv[1])):
+for r in csv.DictReader(open(csv_path)):
     f = r['field']
     if '[' in f or r['bits'] or not r['address'] or r['how'] not in ('value', '8.8', '16.8', '24.8'):
         continue
@@ -30,3 +40,4 @@ with open(sys.argv[2], 'w') as o:
         elem = 'sizeof(((GameState *)0)->%s%s)' % (f, '[0]' if count > 1 else '')
         o.write('{ "%s", offsetof(GameState, %s), %s, %d, 0x%05X, %d },\n' % (f, f, elem, count, at, nb))
 print('%d world fields' % len(rows))
+shutil.rmtree(scratch)

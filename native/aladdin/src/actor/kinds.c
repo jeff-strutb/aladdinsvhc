@@ -14,10 +14,10 @@
 /* this file's kinds (the actor core's); the other sessions' are in their own
    files, searched in turn */
 const KindCode kinds_core[] = {
-    { 0x36, Kind36Start, NULL, NULL, AnimateWhileWaitingIf07Bit4 },   /* second entry $83:B0C7: not converted */
-    { 0x4A, Kind4AShow, NULL, NULL, AnimateWhileWaiting },            /* second entry $83:B4B9: not converted */
+    { 0x36, Kind36Start, NULL, NULL, AnimateWhileWaitingIf07Bit4 },   /* second entry $83:B0C7: dead (NOTES-core) */
+    { 0x4A, Kind4AShow, NULL, NULL, AnimateWhileWaiting },            /* second entry $83:B4B9: dead (NOTES-core) */
     { 0x82, Kind82Show, NULL, NULL, AnimateWhileWaiting },
-    { 0x85, Kind85Start, NULL, NULL, AnimateWhileWaiting },           /* second entry 83:92FB Kind85Second: not converted */
+    { 0x85, Kind85Start, NULL, NULL, AnimateWhileWaiting },           /* second entry 83:92FB Kind85Second: dead (NOTES-core) */
     { 0x95, Kind95Start, NULL, NULL, AnimateWhileWaiting },
     { 0x96, SteppedShowActor, NULL, NULL, AnimateWhileWaiting },
     { 0, NULL, NULL, NULL, NULL }

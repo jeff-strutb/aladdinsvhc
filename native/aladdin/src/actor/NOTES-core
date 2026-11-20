@@ -40,6 +40,13 @@ Converted inside other routines (no function of their own):
   82:AC10 TileSlotsClaim2, 82:AC34 TileSlotsClaim3   placement.c slots_claim
   82:A78E ShiftRight5, 82:A978 WramC100Clear, 82:AA87 CarryClearReturn (system/helpers.c)   placement.c
 
-Not converted, reached by no recorded play (each prints its name once if reached):
-  83:AF8E Kind36Start's six parts with +$07 bit 4 clear (the menus' figures)
-  83:B0C7 kind $36's second entry, 83:B4B9 kind $4A's, 83:92FB Kind85Second
+Second entries of kinds $36 (83:B0C7), $4A (83:B4B9) and $85 (83:92FB): dead, and would crash the original. Each stub
+jumps (JMP, not JSR) into a wait routine that ends in RTS or RTL (ActorWaitAnimIf07Bit4, ActorWaitAnim,
+KindAnimate9628), which pulls the actor loop's own saved D as a return address. A record reaches a second entry
+only with state $80-$BF, which only ActorStateSet8C/8CSelf/CC and the shot-hit routines (shot_hit.c) set, on an actor
+whose own code calls them; none of kinds $36, $4A, $85 does (checked in the record's C; no script runs them).
+
+Not converted, no creator or past a table (each prints its name once if reached):
+  83:AF8E Kind36Start's +$07 values 0 and 2 (it stands; it follows a cursor by $00A5): no placement lists them and
+          no routine of the record creates a $36 with them; the odd values and moves 3 and 4 (levels $41, $44's
+          placements) index the words past the tables in the original, which are code bytes.

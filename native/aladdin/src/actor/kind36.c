@@ -13,6 +13,8 @@ enum {
     PUFF_WAIT,                      /* move 1: after pose 3's 16 frames */
     RISE_SET,                       /* move 1: after pose 4's 16 frames */
     RISE,                           /* move 1: each frame of the rise, for good */
+    PICK_WAIT,                      /* menu parts: each frame until the pick is made */
+    SPEED_OFF,                      /* menu parts: each frame of the speed-off */
 };
 
 /*
@@ -24,8 +26,13 @@ enum {
  * pose 1, then sound $42, a puff (kind $85, ActorCreateChild8), poses 3 and
  * 4 for 16 frames each, then rises for good; 2 turned round with pose 2,
  * then ends. With bit 4 clear it plays one of six parts the menus use
- * (stands, follows a cursor, or speeds off): not converted (it reports
- * itself and stays).
+ * 4, 6, 8 and $A (the Genie's screen's figures, +$07 as the record's table
+ * indexes it): the pose (4 facing left, 6 right, 8 left with pose 2, $A pose
+ * 1, the others pose 0) until the Genie's pick (g.genie_pick) is made, then
+ * a speed-off sideways for 13 frames with sound $42, and it stays. Parts 0
+ * and 2 (it stands; it follows a cursor) have no placement and no creator
+ * in the ROM, and the odd values lie past the table's words: each reports
+ * itself and stays if reached.
  */
 int Kind36Start(Actor *a)
 {
@@ -40,9 +47,30 @@ int Kind36Start(Actor *a)
         if (!(a->spawn_byte & 0x10)) {
             static int told;
 
-            if (!told++)
-                fprintf(stderr, "Kind36Start: the menus' parts (+$07 bit 4 clear) not converted\n");
-            a->resume = STAY;
+            switch (a->spawn_byte) {
+            case 4:
+                a->facing = 1;
+                a->flip = 1;
+                AnimStart(a, 0);
+                break;
+            case 6:
+                AnimStart(a, 0);
+                break;
+            case 8:
+                a->facing = 1;
+                AnimStart(a, 2);
+                break;
+            case 10:
+                AnimStart(a, 1);
+                break;
+            default:
+                if (!told++)
+                    fprintf(stderr, "Kind36Start: +$07 %u (no placement or creator; or past its table) not converted\n",
+                            a->spawn_byte);
+                a->resume = STAY;
+                return 1;
+            }
+            a->resume = PICK_WAIT;
             return 1;
         }
         f->frames = 0x16;
@@ -90,6 +118,22 @@ int Kind36Start(Actor *a)
         AnimStart(a, 3);
         a->resume = PUFF_WAIT;
         return 0x10;
+    case PICK_WAIT:
+        if (!g.genie_pick)
+            return 1;
+        a->speed_x = 0;
+        ActorSpeedXSetAccel(a, 0x40, 0x60);
+        f->frames = 0x0D;
+        a->resume = SPEED_OFF;
+        return 1;
+    case SPEED_OFF:
+        ActorAccelerateX(a);
+        ActorMoveX(a);
+        if (--f->frames)
+            return 1;
+        SoundQueueAdd(0x42);
+        a->resume = STAY;
+        return 1;
     case PUFF_WAIT:
         ActorSpeedYSet(a, 0x57);
         AnimStart(a, 4);
