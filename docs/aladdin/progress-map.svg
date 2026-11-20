@@ -2,10 +2,10 @@
 <rect width="1600" height="930" fill="#161b22"/>
 <text x="3.0" y="10.5" font-size="10" fill="#8b949e">actor</text>
 <rect x="1.5" y="15.5" width="121.1" height="86.3" fill="#3fb950"><title>Kind30Start  83B684  678B  T4  [actor]</title></rect>
-<rect x="123.2" y="15.5" width="120.4" height="86.3" fill="#58a6ff"><title>Kind2BStart  83A467  674B  T3  [actor]</title></rect>
+<rect x="123.2" y="15.5" width="120.4" height="86.3" fill="#3fb950"><title>Kind2BStart  83A467  674B  T4  [actor]</title></rect>
 <rect x="244.2" y="15.5" width="110.9" height="86.3" fill="#3fb950"><title>Kind9BStory  84A509  621B  T4  [actor]</title></rect>
 <rect x="355.7" y="15.5" width="108.7" height="86.3" fill="#3fb950"><title>Kind95Start  849BE3  609B  T4  [actor]</title></rect>
-<rect x="465.0" y="15.5" width="77.3" height="86.3" fill="#58a6ff"><title>ChainPieceEnd  848ADE  434B  T3  [actor]</title></rect>
+<rect x="465.0" y="15.5" width="77.3" height="86.3" fill="#3fb950"><title>ChainPieceEnd  848ADE  434B  T4  [actor]</title></rect>
 <rect x="543.0" y="15.5" width="75.3" height="86.3" fill="#3fb950"><title>Kind75Start  8487D1  423B  T4  [actor]</title></rect>
 <rect x="618.9" y="15.5" width="73.9" height="86.3" fill="#3fb950"><title>Kind59Start  83DD10  415B  T4  [actor]</title></rect>
 <rect x="693.4" y="15.5" width="72.3" height="86.3" fill="#3fb950"><title>Kind2AStart  83A1E5  406B  T4  [actor]</title></rect>
@@ -21,7 +21,7 @@
 <rect x="1.5" y="708.9" width="73.0" height="63.4" fill="#3fb950"><title>Kind31Walk  83ADB8  302B  T4  [actor]</title></rect>
 <rect x="1.5" y="772.9" width="73.0" height="62.3" fill="#3fb950"><title>Kind28Start  83A03E  297B  T4  [actor]</title></rect>
 <rect x="1.5" y="835.8" width="73.0" height="62.1" fill="#3fb950"><title>Kind5CStart  83E000  296B  T4  [actor]</title></rect>
-<rect x="75.1" y="102.4" width="71.6" height="62.2" fill="#58a6ff"><title>Kind68Start  83E6BB  291B  T3  [actor]</title></rect>
+<rect x="75.1" y="102.4" width="71.6" height="62.2" fill="#3fb950"><title>Kind68Start  83E6BB  291B  T4  [actor]</title></rect>
 <rect x="147.4" y="102.4" width="69.6" height="62.2" fill="#3fb950"><title>Kind36Start  83AF8E  283B  T4  [actor]</title></rect>
 <rect x="217.6" y="102.4" width="69.1" height="62.2" fill="#3fb950"><title>Kind35Start  83BBF2  281B  T4  [actor]</title></rect>
 <rect x="287.3" y="102.4" width="64.2" height="62.2" fill="#3fb950"><title>Kind7EStart  8491A5  261B  T4  [actor]</title></rect>
@@ -54,15 +54,15 @@
 <rect x="468.2" y="165.2" width="53.7" height="51.4" fill="#3fb950"><title>Kind33Swing  83B9C1  181B  T4  [actor]</title></rect>
 <rect x="522.5" y="165.2" width="53.1" height="51.4" fill="#3fb950"><title>PlatformCarriesRecordY  83CD5E  179B  T4  [actor]</title></rect>
 <rect x="576.1" y="165.2" width="53.1" height="51.4" fill="#3fb950"><title>Kind69Start  83E9F7  179B  T4  [actor]</title></rect>
-<rect x="629.8" y="165.2" width="51.6" height="51.4" fill="#58a6ff"><title>Kind2CStart  83A758  174B  T3  [actor]</title></rect>
+<rect x="629.8" y="165.2" width="51.6" height="51.4" fill="#3fb950"><title>Kind2CStart  83A758  174B  T4  [actor]</title></rect>
 <rect x="681.9" y="165.2" width="51.0" height="51.4" fill="#3fb950"><title>KindA2Sent  848249  172B  T4  [actor]</title></rect>
 <rect x="733.5" y="165.2" width="51.0" height="51.4" fill="#3fb950"><title>Kind97Start  849F4F  172B  T4  [actor]</title></rect>
 <rect x="785.1" y="165.2" width="50.7" height="51.4" fill="#3fb950"><title>Kind27Waiter  839F2F  171B  T4  [actor]</title></rect>
 <rect x="131.0" y="217.2" width="50.0" height="50.3" fill="#3fb950"><title>GuardLedgeJump  A5F19D  165B  T4  [actor]</title></rect>
-<rect x="131.0" y="268.1" width="50.0" height="50.0" fill="#58a6ff"><title>Kind3AStart  83BEB3  164B  T3  [actor]</title></rect>
+<rect x="131.0" y="268.1" width="50.0" height="50.0" fill="#3fb950"><title>Kind3AStart  83BEB3  164B  T4  [actor]</title></rect>
 <rect x="131.0" y="318.6" width="50.0" height="49.6" fill="#3fb950"><title>Kind6BWait  83EC2C  163B  T4  [actor]</title></rect>
 <rect x="131.0" y="368.9" width="50.0" height="49.3" fill="#3fb950"><title>PlacementsScroll  82A79C  162B  T4  [actor]</title></rect>
-<rect x="131.0" y="418.8" width="50.0" height="48.7" fill="#58a6ff"><title>Kind43Start  83B393  160B  T3  [actor]</title></rect>
+<rect x="131.0" y="418.8" width="50.0" height="48.7" fill="#3fb950"><title>Kind43Start  83B393  160B  T4  [actor]</title></rect>
 <rect x="131.0" y="468.2" width="50.0" height="48.4" fill="#3fb950"><title>Kind38Start  83BE01  159B  T4  [actor]</title></rect>
 <rect x="131.0" y="517.2" width="50.0" height="48.1" fill="#3fb950"><title>PlatformCourseStart  83C96E  158B  T4  [actor]</title></rect>
 <rect x="131.0" y="565.9" width="50.0" height="47.5" fill="#3fb950"><title>Kind83Start  849538  156B  T4  [actor]</title></rect>
@@ -70,7 +70,7 @@
 <rect x="131.0" y="661.7" width="50.0" height="47.2" fill="#3fb950"><title>GuardJump  A5E6A0  155B  T4  [actor]</title></rect>
 <rect x="131.0" y="709.5" width="50.0" height="46.9" fill="#3fb950"><title>ActorMoveByVectorTimes  81A74C  154B  T4  [actor]</title></rect>
 <rect x="131.0" y="757.0" width="50.0" height="46.9" fill="#3fb950"><title>Kind3DPlayerContact  83C3E4  154B  T4  [actor]</title></rect>
-<rect x="131.0" y="804.5" width="50.0" height="46.6" fill="#58a6ff"><title>Kind9EStart  84A820  153B  T3  [actor]</title></rect>
+<rect x="131.0" y="804.5" width="50.0" height="46.6" fill="#3fb950"><title>Kind9EStart  84A820  153B  T4  [actor]</title></rect>
 <rect x="131.0" y="851.6" width="50.0" height="46.3" fill="#3fb950"><title>ActorsInView  819198  152B  T4  [actor]</title></rect>
 <rect x="181.6" y="217.2" width="48.4" height="47.8" fill="#3fb950"><title>Kind20Halt  839956  152B  T4  [actor]</title></rect>
 <rect x="230.6" y="217.2" width="48.4" height="47.8" fill="#3fb950"><title>Kind2ASecond  83A37B  152B  T4  [actor]</title></rect>
@@ -105,7 +105,7 @@
 <rect x="318.2" y="265.6" width="44.4" height="40.6" fill="#3fb950"><title>Kind37Second  83BD72  119B  T4  [actor]</title></rect>
 <rect x="363.2" y="265.6" width="44.4" height="40.6" fill="#3fb950"><title>Kind5CMove  83E167  119B  T4  [actor]</title></rect>
 <rect x="408.3" y="265.6" width="44.1" height="40.6" fill="#3fb950"><title>ActorAimAt  81AC68  118B  T4  [actor]</title></rect>
-<rect x="452.9" y="265.6" width="43.7" height="40.6" fill="#58a6ff"><title>Kind58Wait  83DC9B  117B  T3  [actor]</title></rect>
+<rect x="452.9" y="265.6" width="43.7" height="40.6" fill="#3fb950"><title>Kind58Wait  83DC9B  117B  T4  [actor]</title></rect>
 <rect x="497.2" y="265.6" width="42.9" height="40.6" fill="#3fb950"><title>Kind5DStart  83E29B  115B  T4  [actor]</title></rect>
 <rect x="540.7" y="265.6" width="42.5" height="40.6" fill="#3fb950"><title>Kind50Second  83D1C7  114B  T4  [actor]</title></rect>
 <rect x="583.9" y="265.6" width="42.5" height="40.6" fill="#3fb950"><title>Kind73Work  8486F4  114B  T4  [actor]</title></rect>
@@ -417,7 +417,7 @@
 <rect x="527.9" y="685.0" width="19.9" height="20.7" fill="#3fb950"><title>ActorDecelerateY  81A66B  28B  T4  [actor]</title></rect>
 <rect x="527.9" y="706.4" width="19.9" height="20.7" fill="#3fb950"><title>ActorSpawnInit  81AA11  28B  T4  [actor]</title></rect>
 <rect x="527.9" y="727.7" width="19.9" height="20.7" fill="#3fb950"><title>ActorNearPlayerX  81AD68  28B  T4  [actor]</title></rect>
-<rect x="527.9" y="749.1" width="19.9" height="20.7" fill="#58a6ff"><title>ActorNearPlayerY  81ADA4  28B  T3  [actor]</title></rect>
+<rect x="527.9" y="749.1" width="19.9" height="20.7" fill="#3fb950"><title>ActorNearPlayerY  81ADA4  28B  T4  [actor]</title></rect>
 <rect x="527.9" y="770.4" width="19.9" height="20.7" fill="#3fb950"><title>ActorTakesShot  8381E8  28B  T4  [actor]</title></rect>
 <rect x="527.9" y="791.8" width="19.9" height="20.7" fill="#3fb950"><title>ActorRiseAfterDelay  83A17A  28B  T4  [actor]</title></rect>
 <rect x="527.9" y="813.1" width="19.9" height="20.7" fill="#3fb950"><title>Kind2BWait  83A709  28B  T4  [actor]</title></rect>
@@ -457,7 +457,7 @@
 <rect x="606.7" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>Kind2CWait  83A818  23B  T4  [actor]</title></rect>
 <rect x="626.2" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>ActorWaitAnimEnd10  83BD0B  23B  T4  [actor]</title></rect>
 <rect x="645.7" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>PlatformDipStep  83CCBA  23B  T4  [actor]</title></rect>
-<rect x="665.2" y="618.1" width="18.9" height="17.8" fill="#58a6ff"><title>Kind2BNearPartner  83CD47  23B  T3  [actor]</title></rect>
+<rect x="665.2" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>Kind2BNearPartner  83CD47  23B  T4  [actor]</title></rect>
 <rect x="684.7" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>Kind50Wait  83D1B0  23B  T4  [actor]</title></rect>
 <rect x="704.2" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>EscortWaitSpot0C  A5EF97  23B  T4  [actor]</title></rect>
 <rect x="723.6" y="618.1" width="18.9" height="17.8" fill="#3fb950"><title>ActorEndKeepCount  839798  23B  T4  [actor]</title></rect>
@@ -561,7 +561,7 @@
 <rect x="620.4" y="866.7" width="16.1" height="15.3" fill="#3fb950"><title>Kind51Start  83D239  17B  T4  [actor]</title></rect>
 <rect x="620.4" y="882.6" width="16.1" height="15.3" fill="#3fb950"><title>ActorFlyAgainstNoRise  84A7D4  17B  T4  [actor]</title></rect>
 <rect x="637.0" y="688.1" width="15.6" height="15.8" fill="#3fb950"><title>PlatformTurnStretch  83CAB0  17B  T4  [actor]</title></rect>
-<rect x="653.2" y="688.1" width="14.7" height="15.8" fill="#58a6ff"><title>AnimStepBy  81911B  16B  T3  [actor]</title></rect>
+<rect x="653.2" y="688.1" width="14.7" height="15.8" fill="#3fb950"><title>AnimStepBy  81911B  16B  T4  [actor]</title></rect>
 <rect x="668.5" y="688.1" width="14.7" height="15.8" fill="#3fb950"><title>SignExtend  81945F  16B  T4  [actor]</title></rect>
 <rect x="683.8" y="688.1" width="14.7" height="15.8" fill="#3fb950"><title>ActorMotionPresetX  81A401  16B  T4  [actor]</title></rect>
 <rect x="699.0" y="688.1" width="14.7" height="15.8" fill="#3fb950"><title>ActorSpeedXSet  81A413  16B  T4  [actor]</title></rect>
@@ -1095,7 +1095,7 @@
 <rect x="1089.7" y="471.8" width="21.1" height="17.7" fill="#3fb950"><title>ColourFadeStep  819F7E  26B  T4  [video]</title></rect>
 <rect x="1089.7" y="490.1" width="21.1" height="17.7" fill="#3fb950"><title>BackdropFollowOffsetY  81CA6A  26B  T4  [video]</title></rect>
 <rect x="1111.4" y="377.9" width="18.6" height="20.1" fill="#3fb950"><title>HdmaChannelFree  82871B  26B  T4  [video]</title></rect>
-<rect x="1130.6" y="377.9" width="17.9" height="20.1" fill="#58a6ff"><title>ActorFramePictureOnce  81947B  25B  T3  [video]</title></rect>
+<rect x="1130.6" y="377.9" width="17.9" height="20.1" fill="#3fb950"><title>ActorFramePictureOnce  81947B  25B  T4  [video]</title></rect>
 <rect x="1149.0" y="377.9" width="17.9" height="20.1" fill="#3fb950"><title>PaletteSequenceTask  819E75  25B  T4  [video]</title></rect>
 <rect x="1167.5" y="377.9" width="17.9" height="20.1" fill="#3fb950"><title>Mode7TilesConvert  81B07E  25B  T4  [video]</title></rect>
 <rect x="1185.9" y="377.9" width="17.1" height="20.1" fill="#3fb950"><title>PaletteSaveReversed  819CA6  24B  T4  [video]</title></rect>
@@ -1118,7 +1118,7 @@
 <rect x="1127.2" y="478.4" width="15.7" height="14.4" fill="#3fb950"><title>BrightnessDownAndWait  81F31C  16B  T4  [video]</title></rect>
 <rect x="1127.2" y="493.5" width="15.7" height="14.4" fill="#3fb950"><title>HudDigitPut  81F5CC  16B  T4  [video]</title></rect>
 <rect x="1143.5" y="416.5" width="16.3" height="13.9" fill="#3fb950"><title>VramCopy2  81F60D  16B  T4  [video]</title></rect>
-<rect x="1160.4" y="416.5" width="15.3" height="13.9" fill="#58a6ff"><title>PaletteBlinkStep  819CC8  15B  T3  [video]</title></rect>
+<rect x="1160.4" y="416.5" width="15.3" height="13.9" fill="#3fb950"><title>PaletteBlinkStep  819CC8  15B  T4  [video]</title></rect>
 <rect x="1176.2" y="416.5" width="14.2" height="13.9" fill="#3fb950"><title>ParallaxHalf  81C797  14B  T4  [video]</title></rect>
 <rect x="1191.0" y="416.5" width="14.2" height="13.9" fill="#3fb950"><title>ParallaxHalfY  81C7B3  14B  T4  [video]</title></rect>
 <rect x="1205.8" y="416.5" width="14.2" height="13.9" fill="#3fb950"><title>ParallaxHalfX  81C7D4  14B  T4  [video]</title></rect>
@@ -1129,7 +1129,7 @@
 <rect x="1205.6" y="430.9" width="14.4" height="12.7" fill="#3fb950"><title>BlockSourceAdd  81C025  13B  T4  [video]</title></rect>
 <rect x="1143.5" y="444.2" width="13.4" height="13.6" fill="#3fb950"><title>ParallaxFull  81C7A6  13B  T4  [video]</title></rect>
 <rect x="1143.5" y="458.4" width="13.4" height="12.5" fill="#3fb950"><title>TextBufferPartsUpload  80849E  12B  T4  [video]</title></rect>
-<rect x="1143.5" y="471.5" width="13.4" height="12.5" fill="#58a6ff"><title>ActorFrameIsStep  81946F  12B  T3  [video]</title></rect>
+<rect x="1143.5" y="471.5" width="13.4" height="12.5" fill="#3fb950"><title>ActorFrameIsStep  81946F  12B  T4  [video]</title></rect>
 <rect x="1143.5" y="484.5" width="13.4" height="12.5" fill="#3fb950"><title>UnpackBegin  81BB3D  12B  T4  [video]</title></rect>
 <rect x="1143.5" y="497.6" width="13.4" height="10.3" fill="#3fb950"><title>ActorPictureSendKind4  819494  10B  T4  [video]</title></rect>
 <rect x="1157.5" y="444.2" width="12.8" height="10.8" fill="#3fb950"><title>PaletteOffset  819CBE  10B  T4  [video]</title></rect>
@@ -1179,9 +1179,9 @@
 <rect x="1213.0" y="502.5" width="4.5" height="5.4" fill="#3fb950"><title>WindowBoxOff  828415  2B  T4  [video]</title></rect>
 <rect x="1218.1" y="502.5" width="2.0" height="5.4" fill="#3fb950"><title>ParallaxNone  81C7A5  1B  T4  [video]</title></rect>
 <text x="1225.1" y="10.5" font-size="10" fill="#8b949e">game</text>
-<rect x="1223.6" y="15.5" width="150.8" height="117.5" fill="#58a6ff"><title>GenieScreen  80A63B  1168B  T3  [game]</title></rect>
+<rect x="1223.6" y="15.5" width="150.8" height="117.5" fill="#3fb950"><title>GenieScreen  80A63B  1168B  T4  [game]</title></rect>
 <rect x="1375.0" y="15.5" width="117.8" height="117.5" fill="#3fb950"><title>TitleTask  809C91  914B  T4  [game]</title></rect>
-<rect x="1493.4" y="15.5" width="104.5" height="117.5" fill="#58a6ff"><title>LevelEndTask  81F61D  811B  T3  [game]</title></rect>
+<rect x="1493.4" y="15.5" width="104.5" height="117.5" fill="#3fb950"><title>LevelEndTask  81F61D  811B  T4  [game]</title></rect>
 <rect x="1223.6" y="133.6" width="97.8" height="76.3" fill="#3fb950"><title>PasswordScreen  84AD50  495B  T4  [game]</title></rect>
 <rect x="1322.1" y="133.6" width="96.1" height="76.3" fill="#3fb950"><title>StoryCardTask  81F10D  486B  T4  [game]</title></rect>
 <rect x="1418.7" y="133.6" width="93.9" height="76.3" fill="#3fb950"><title>OptionsTask  838979  475B  T4  [game]</title></rect>
@@ -1580,7 +1580,7 @@
 <rect x="1515.7" y="655.3" width="21.5" height="18.4" fill="#3fb950"><title>PointInGround  81B7D5  29B  T4  [map]</title></rect>
 <rect x="1515.7" y="674.3" width="21.5" height="17.1" fill="#3fb950"><title>ProbeRight  81B4C9  27B  T4  [map]</title></rect>
 <rect x="1515.7" y="692.0" width="21.5" height="16.4" fill="#3fb950"><title>TileChangeQueueQuarter  819A64  26B  T4  [map]</title></rect>
-<rect x="1515.7" y="709.0" width="21.5" height="15.8" fill="#58a6ff"><title>PointOffsetAt  819C8D  25B  T3  [map]</title></rect>
+<rect x="1515.7" y="709.0" width="21.5" height="15.8" fill="#3fb950"><title>PointOffsetAt  819C8D  25B  T4  [map]</title></rect>
 <rect x="1537.8" y="655.3" width="14.8" height="14.4" fill="#3fb950"><title>MapTileRestore  819A9C  16B  T4  [map]</title></rect>
 <rect x="1553.2" y="655.3" width="14.8" height="14.4" fill="#3fb950"><title>MapTileSet  819B6D  16B  T4  [map]</title></rect>
 <rect x="1568.6" y="655.3" width="14.8" height="14.4" fill="#3fb950"><title>ProbeLeft  81B4B9  16B  T4  [map]</title></rect>
@@ -1638,7 +1638,7 @@
 <rect x="1571.3" y="830.5" width="15.2" height="14.6" fill="#3fb950"><title>TaskExit  81BD20  17B  T4  [system]</title></rect>
 <rect x="1536.9" y="845.7" width="16.9" height="12.3" fill="#3fb950"><title>FrameEndTimes  80B2D3  16B  T4  [system]</title></rect>
 <rect x="1554.4" y="845.7" width="16.9" height="12.3" fill="#3fb950"><title>Table15F1Clear  81968F  16B  T4  [system]</title></rect>
-<rect x="1571.9" y="845.7" width="14.7" height="12.3" fill="#58a6ff"><title>LowRamClear  819639  14B  T3  [system]</title></rect>
+<rect x="1571.9" y="845.7" width="14.7" height="12.3" fill="#3fb950"><title>LowRamClear  819639  14B  T4  [system]</title></rect>
 <rect x="1536.9" y="858.6" width="13.6" height="13.4" fill="#3fb950"><title>LevelCountersClear  819647  14B  T4  [system]</title></rect>
 <rect x="1536.9" y="872.6" width="13.6" height="13.4" fill="#3fb950"><title>ScratchBelowBy10  8384C7  14B  T4  [system]</title></rect>
 <rect x="1536.9" y="886.5" width="13.6" height="11.4" fill="#3fb950"><title>KeptOptionsSum  8080FE  12B  T4  [system]</title></rect>
@@ -1663,4 +1663,4 @@
 <rect x="1590.2" y="848.5" width="7.7" height="16.0" fill="#3fb950"><title>MultiplyXA  81A806  12B  T4  [math]</title></rect>
 <rect x="1590.2" y="865.0" width="7.7" height="14.6" fill="#3fb950"><title>MultiplyBy  81A7E6  11B  T4  [math]</title></rect>
 <rect x="1590.2" y="883.2" width="7.7" height="14.7" fill="#3fb950"><title>PadConfirmPressed  80A04F  13B  T4  [input]</title></rect>
-<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 1637 &#183; T3 behaviour-exact 18 &#183; 85,965/90,269 bytes exact (95.2%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
+<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 1655 &#183; T3 behaviour-exact 0 &#183; 90,269/90,269 bytes exact (100.0%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
