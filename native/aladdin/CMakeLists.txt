@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.20)
+project(aladdin C)
+add_subdirectory(${NSHVC_ROOT} nshvc)
+include(${NSHVC_ROOT}/cmake/NshvcGame.cmake)
+file(GLOB_RECURSE game_sources CONFIGURE_DEPENDS src/*.c)
+nshvc_game(aladdin SOURCES ${game_sources} ASSETS assets TITLE "Aladdin")
+target_include_directories(aladdin PRIVATE src)
+target_compile_options(aladdin PRIVATE -std=gnu11 -Wall -Wextra)
