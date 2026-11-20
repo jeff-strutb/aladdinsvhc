@@ -9,6 +9,9 @@
 
 int Kind3CDrift(Actor *a);              /* kind3c.c */
 int Kind3CWait(Actor *a);
+int Kind46Start(Actor *a);              /* kind46.c */
+int Kind46Wait(Actor *a);
+int Kind62Wait(Actor *a);
 int Kind7AFly(Actor *a);                /* kind7a.c */
 int Kind7DKeepSpot(Actor *a);           /* kind7d.c */
 int Kind7DWait(Actor *a);
@@ -30,6 +33,10 @@ const KindCode kinds_a[] = {
     { 0x17, ShotCode, NULL, NULL, NULL },
     { 0xB9, ShotCode, NULL, NULL, NULL },
     { 0x3C, Kind3CDrift, Kind3CDrift, NULL, Kind3CWait },
+    /* $46: its second entry is Kind62Start, which Kind46Start runs as kind $62 (+$42 = 1);
+       $62: its second entry PlatformCourseStart (course_platform.c) is left aside */
+    { 0x46, Kind46Start, Kind46Start, NULL, Kind46Wait },
+    { 0x62, Kind46Start, NULL, NULL, Kind62Wait },
     { 0x7A, Kind7AFly, NULL, NULL, NULL },
     { 0x7D, Kind7DKeepSpot, Kind7DKeepSpot, NULL, Kind7DWait },
     { 0x88, Kind88Start, Kind88Start, NULL, Kind88Work },

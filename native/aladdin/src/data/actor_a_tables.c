@@ -185,3 +185,9 @@ uint16_t k7d_height(uint8_t spot) { return at16(0x80, (uint16_t)(0xD7D2 + 2u * s
 uint8_t riser_up(uint8_t course) { return at8(0x80, (uint16_t)(0xD7BE + course)); }
 uint8_t riser_down(uint8_t course) { return at8(0x80, (uint16_t)(0xD7C1 + course)); }
 uint8_t k89_priority(uint8_t side) { return at8(0x80, (uint16_t)(0xD7C8 + side)); }
+
+/* ---- the grabber's shake (83:C763): the traces read $80:D2CA-D2D2 and $80:D2D3 on as data ---- */
+int16_t grabber_shake(uint8_t step)
+{
+    return (int16_t)at16(0x80, (uint16_t)(0xD2D3 + at8(0x80, (uint16_t)(0xD2CA + step))));
+}

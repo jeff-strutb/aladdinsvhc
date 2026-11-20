@@ -32,3 +32,15 @@ actor_overlap.c (no JSR, JSL, JMP, pointer or word names them; a unit script alo
   83:88B7 ActorZoneTouchesSecondPool
 hit_marks.c (likewise): 83:82C3 LoneReturn82C3, 83:82C4 Spawn11At1Long, 83:82C8 Spawn11At1
 shot_hit.c (likewise): 83:80ED ActorDownedByShotUnmarkedLong, 83:80F1 ActorDownedByShotUnmarked
+
+Settled by n5-kinds-b (2026-11-20), the record's own proof at each @routine tag
+(no JSR, JSL, JMP, pointer or word in the ROM names it; a unit script alone runs it):
+  actor_moves.c: 81:A4C4 ActorSlowDownMove, 81:A4CD ActorSlowDownMoveBy20, 81:A687 ActorMoveByVectorOver
+  view_near.c:   81:AD48 ActorNearViewX, 81:AD84 ActorNearViewY
+  actor_fields.c: 83:8242 ActorStateSet8CUnhit, 84:8A65 ActorList4EFindIdle
+Folded, no function of its own:
+  actor_yield.c: 80:88E5 ActorYieldEntry, 80:88E9 ActorWaitEntry (the BRK and COP entries: the kinds' codes return their waits)
+  actor_84_misc.c: 84:8992 ActorYieldForever (a kind's own resume point that returns a wait of 1)
+  actor_moves.c: 81:945F SignExtend (C's (int8_t) conversion)
+  point_moves.c: 83:FB4F ActorBackToCaller (ACTOR_RETURNS), 83:FCF5 PlayerInReach (in_reach, ActorRiseWhenInReach's)
+  player_grab.c: 83:8861 ActorGrabbableByPlayerLong (the same function), 83:888C PlayerFacesActorClose (static)

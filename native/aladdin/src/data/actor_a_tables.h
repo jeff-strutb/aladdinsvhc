@@ -107,4 +107,7 @@ uint8_t riser_down(uint8_t course);
 /* kind $89's priority bits for Aladdin by the side of x $0934 he is on ($80:D7C8) */
 uint8_t k89_priority(uint8_t side);
 
+/* kinds $46 and $62's shake ($80:D2CA, a byte by step 1-8: the offset into the steps; $80:D2D3: the steps, words added to its x) */
+int16_t grabber_shake(uint8_t step);
+
 #endif
