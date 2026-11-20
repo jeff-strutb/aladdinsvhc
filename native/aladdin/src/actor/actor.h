@@ -238,6 +238,7 @@ int ActorAnimFreeFar(Actor *a);         /* 84:832B (actor_84_misc.c): ACTOR_ENDE
 /* (n5-kinds-c, for kinds $2B, $2F, $4F, $7E; the first two landed in map_probe.c and children_start.c) */
 uint8_t ActorMapAhead5Down12(Actor *a);             /* 83:B5F6: the class of the map's block 5 ahead of it and 12 below */
 void ActorVariantChildStep(Actor *a);               /* 83:D078 */
+bool PlayerInReach(const Actor *a, uint8_t at);       /* 83:FCF5: the player is within entry `at`'s reach of it (83:FCF5, the reach table at $80:D9B0) */
 void ActorSpeedXSetAccel(Actor *a, uint8_t accel, uint8_t at);    /* 81:A411: acceleration `accel`, speed entry `at` */
 void ActorMoveAlong(Actor *a, uint16_t direction, uint8_t speed);  /* 81:A73D: along direction `direction` (0-$1FF) of the direction table, at `speed` */
 

@@ -117,6 +117,13 @@ uint8_t k23_next_byte07(uint8_t part) { return at8((uint16_t)(0xD076 + part)); }
 
 DataRef k8d_pictures(void) { return ref(0x890B); }
 
+/* ---- kind $41: its probe list at $D29F; by +$07 bits 1-2 the maker's pause at
+   $D2A7; by bits 3-4 the timed maker's spawn point at $D2AE ---- */
+
+DataRef k41_probes(void) { return ref(0xD29F); }
+uint8_t k41_pause(uint8_t n) { return at8((uint16_t)(0xD2A7 + n)); }
+uint8_t k41_spawn_at(uint8_t n) { return at8((uint16_t)(0xD2AE + n)); }
+
 /* ---- kind $3D: by +$07 at $D296 the records needed; the bob's moves at
    $D286, 4 bytes an entry (a word, then its high byte and a pad) ---- */
 

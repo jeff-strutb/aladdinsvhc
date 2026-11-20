@@ -39,6 +39,7 @@ int Kind23Code(Actor *a);       /* kind $23: 83:9CEB */
 int Kind25Code(Actor *a);       /* kind $25: 83:9D4B */
 int Kind8DCode(Actor *a);       /* kind $8D: 84:99ED; its second 84:9B43 */
 int Kind8ECode(Actor *a);       /* kind $8E: 84:9B6B */
+int Kind41Code(Actor *a);       /* kind $41: 83:B201 */
 int Kind3ECode(Actor *a);       /* kind $3E: 83:B154 */
 int Kind3DCode(Actor *a);       /* kind $3D: 83:C302 */
 int Kind3ACode(Actor *a);       /* kind $3A: 83:BEB3; its second entry runs kind $3B's start */

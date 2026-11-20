@@ -94,6 +94,12 @@ uint8_t k23_next_byte07(uint8_t part);      /* the +$07 it gives its kind $6D, b
 
 DataRef k8d_pictures(void);
 
+/* ---- kind $41 ---- */
+
+DataRef k41_probes(void);
+uint8_t k41_pause(uint8_t n);               /* the maker's pause, by its +$07 bits 1-2 (1-3) */
+uint8_t k41_spawn_at(uint8_t n);            /* the timed maker's spawn point, by its +$07 bits 3-4 (1-3) */
+
 /* ---- kind $3D ---- */
 
 uint8_t k3d_records_needed(uint8_t set);    /* by its +$07 (0-2): the free list's top it needs at least, as the original's byte offset (2 a record) */
