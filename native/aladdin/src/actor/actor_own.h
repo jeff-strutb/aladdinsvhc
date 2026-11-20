@@ -18,7 +18,11 @@
 
    Where each of the record's bytes is in own.bytes: the one place the
    layout is written (it follows state.h's comment). A change to own's
-   layout changes this list, and every view below follows. */
+   layout changes this list, and every view below follows. +$16-$17 and
+   +$29-$2A stay here for the kinds that keep their own bytes there (kinds
+   $41, $57, $5C, $5D, $68 and the course platforms do); a kind whose +$16
+   is a probe list uses Actor.probes, one whose +$29 is its picture list
+   Actor.own_pictures, as stream and +$4A-$4B. */
 enum OwnPlace {
     OWN_0A, OWN_11, OWN_13, OWN_16, OWN_17, OWN_18, OWN_29, OWN_2A, OWN_35, OWN_36,
     OWN_3A, OWN_3B, OWN_3C, OWN_3D, OWN_3E, OWN_3F, OWN_40, OWN_41, OWN_42, OWN_43,

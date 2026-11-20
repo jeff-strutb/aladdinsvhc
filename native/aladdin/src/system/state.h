@@ -135,6 +135,8 @@ typedef struct Actor {
     DataRef stream;             /* +$4A: where its byte stream goes on */
     uint16_t call_at;           /* native: where a shared routine that waits inside it goes on (actor.h), 0 none;
                                    the original kept its caller's return at +$4E and its own place in +$02-$05 */
+    DataRef own_pictures;       /* +$29-$2A, for the kinds that send their own pictures: the list ActorPictureSend sends them
+                                   from (the original's word in the data bank); those kinds' +$29 is this, the others' own.bytes */
     union {
         /* the bytes each kind keeps for itself; each kind's named view is
            in actor/ (actor_own.h; tools/state_fields.csv lists them) */
@@ -544,6 +546,8 @@ typedef struct GameState {
     uint8_t menu_choice;        /* $0849: the title menu's choice (0 start, 1 password, 2 options) */
     uint8_t menu_choice_was;    /* $084A: the choice the mark was drawn at */
     uint8_t menu_cursor_moves;  /* $084B: counted up at each move of the cursor */
+    uint8_t scene_cue;          /* $00BE: a scene's cue: its task or figures count it up or set it as the scene goes on */
+    uint8_t scene_cue_2;        /* $00C0: a scene's second cue (level 5's closing scene: set as its map is rebuilt) */
     uint16_t range_x;           /* $1A44: the point actors are kept in range of (FrameStep: the view's corner + $80) */
     uint16_t range_y;           /* $1A46 */
     uint16_t demo_frames_left;  /* $0341: frames the demo still plays */
