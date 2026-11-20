@@ -59,6 +59,52 @@ that copy that gives the core's hook and its `snesbox_memory` under the oracle's
 `--core`. The core itself is not changed or rebuilt. The copy is refreshed whenever the main checkout's core
 differs, so a rebuild of the shared core never lands in the middle of a run.
 
+## Recordings of the original
+
+`native/checks/record.sh` records the original on input-only scripts, for the stage 1 replay, the sound driver's check
+(stage 3) and the state comparison (stage 5). Recordings find bugs; they are never a target (PLAN.md decision 3).
+Run from the repository root with `ALADDIN_CPU_RUN` set:
+
+```bash
+native/checks/record.sh attract level1_walk
+```
+
+```bash
+JOBS=4 native/checks/record.sh --all
+```
+
+Each recording is `build/aladdin/native/recordings/NAME/` (from the ROM, never committed). Its files and their formats
+are in `native/checks/record/record.c`'s header:
+
+- `state.bin`: the machine at each frame's end, as changes from the frame before: work RAM, VRAM, the sprite table
+  (OAM), the palette (CGRAM), APU RAM.
+- `ppu.bin`: every write that reaches a PPU register, by the CPU, DMA or HDMA, with its update, line and dot. With
+  `state.bin` this gives the per-line picture state.
+- `pictures.txt`: the update and DSP sample count at each picture's line 0.
+- `sound.raw`: the DSP's samples at 32,040 Hz, as `check.sh` compares.
+- `apu.bin`: the APU RAM after power-on, then every SPC700 write (so every DSP register write, through `$F2`/`$F3`)
+  with its DSP sample time. The voice events (key-ons, pitch, volumes) are read from these.
+- `ports.bin`: every S-CPU or DMA write to an APU port, with its update and DSP sample time: the port commands.
+- `frames.txt`: the DSP samples made by each frame's end.
+- `shots/F.ppm`: bsnes's picture at the end of frame F, every `SHOT_EVERY` frames (default 60) and at the frames in
+  `SHOTS`.
+- `voices.bin`, with `VOICES=1`: each voice's state at every sample (160 bytes a sample).
+
+**The core.** The project's core has no hook for PPU register writes. `native/checks/core/build.sh` builds a private
+copy into `build/aladdin/native/checks/`: the main checkout's patched source (`tools/toolchains/src/bsnes`) copied with
+its objects, `native/checks/core/0001-ppu-writes.patch` applied, and what it touches rebuilt. The patch adds two hooks,
+`snesbox_ppu_write` and `snesbox_ppu_picture`, defined in the PPU's own file. The project's core, its source and the
+gates are not changed. `record.sh` runs the build each time; when nothing changed, it only relinks the
+library. The first build recompiled 10 of the 36 objects, not only the PPU's. The main checkout's source had its patch
+set applied again at 2026-11-18 10:05 (its `.patch-stamp` and every patched file carry that time), and its `obj/` is
+from 2026-11-17, so every object that includes a patched file was out of date. The private core exports the same
+symbols as the installed project core plus the two hooks. On `attract` its sound is byte for byte the oracle's sound
+from the installed core (4,798,023 samples).
+
+**Measured, `attract`** (9,000 frames): 45 s, 225 MB (`apu.bin` 81 MB, `ppu.bin` 78 MB, `state.bin` 29 MB, `sound.raw`
+19 MB), 150 pictures. 6,536,848 PPU writes, most of them in lines 224-255 (the sprite table and VRAM by DMA in the
+vertical blank); 113,751 port writes; 9,000 picture starts.
+
 ## What a result means
 
 - `FAIL sound: the first difference is at sample S of N`, exit 1: the first sample where the two sounds differ. At
