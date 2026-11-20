@@ -141,6 +141,9 @@ void LayersFill(void);                      /* 81:C060 */
 int TileSlotClaim(uint8_t kind, Actor *a);  /* 82:ABCE: a free palette slot, tried from 4 down to 1, for `kind` and `a` (its slot, look; the kind's slot and look; the slot's user and kind); 0 claimed, -1 none */
 void TileSlotFill(uint8_t kind);            /* 82:AB77: the kind's palette (32 bytes at its kind_palette * 32 in the actors' palettes) into its slot's place in g.palette; palette_upload up */
 
+/* ---- the per-line tables (video/window_effects.c) ---- */
+void HdmaTableFill(uint16_t at, uint16_t word, unsigned words);   /* 82:870D: `words` words of `word` into the per-line tables (g.line_data) from byte `at` (the Genie screen's) */
+
 /* ---- the circle wipe (video/circle_wipe.c) ---- */
 int CircleWipeStep(uint16_t radius, uint16_t x, uint16_t y);   /* 81:B264: the circle of that radius round the level point x, y into the window table (the window effect's table 4 shows it); 1 when drawn */
 void ActorCircleWipeStep(Actor *a);         /* 83:EAAF: a's radius (+$45) one more and the circle round it (8 pixels up) drawn */
@@ -148,6 +151,7 @@ void ActorCircleWipeStep(Actor *a);         /* 83:EAAF: a's radius (+$45) one mo
 /* ---- an actor's own pictures (video/actor_pictures.c), for actor/ ---- */
 void ActorPictureSend(Actor *a);            /* 81:949E: with flags bit 6 and its picture changed, its picture queued for video
                                                memory from its own list (a->own_pictures) */
+void ActorPictureSendFromKind(Actor *a);    /* 81:9527: as ActorPictureSend, the parts' sources offsets in the actor's kind's unpacked graphics (kind $73's) */
 void ActorPictureQueue(Actor *a);           /* 81:94A4: its picture, when it has changed, queued for its tile slot */
 
 /* ---- for map/ (video/scroll_layer.c, level_blocks.c) and the camera (video/camera.c) ---- */

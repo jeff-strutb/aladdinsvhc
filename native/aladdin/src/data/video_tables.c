@@ -261,6 +261,7 @@ unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, un
         uint32_t at = cart_offset(PICTURE_LIST_BANK, y);
         PicturePart *p = &parts[n++];
 
+        p->address = cart16(at);
         p->source = source_at(cart8(cart_offset(PICTURE_LIST_BANK, (uint16_t)(y + 2))), cart16(at));
         p->bytes = cart16(cart_offset(PICTURE_LIST_BANK, (uint16_t)(y + 3)));
         p->step = step;

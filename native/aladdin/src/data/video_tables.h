@@ -157,6 +157,7 @@ uint8_t colour_band_buffer(uint8_t buffer);
 typedef struct PicturePart {
     UploadSource source;
     uint16_t bytes;
+    uint16_t address;           /* the list's own word for the source: an offset where the graphics are kept by their kind */
     uint16_t step;              /* words after the part before; 0 for the first */
 } PicturePart;
 unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, unsigned max);

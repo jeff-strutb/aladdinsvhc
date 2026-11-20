@@ -65,3 +65,13 @@ Dead (second pass)
 ------------------
   81:B38E LineRows: "No code refers to it" (the record); a line stepped into rows at $7F:5200, never called.
   81:B2D9 CircleWipePlot -> circle_wipe.c plot (inline)
+
+Dead (checked in the ROM, 2026-11-20: no JSL or JML naming the address, no JSR or JMP to it in its bank)
+-------------------------------------------------------------------------------------------------
+  81:9494 ActorPictureSendKind4, 81:946F ActorFrameIsStep, 81:947B ActorFramePictureOnce,
+  81:95B0 ActorFramePictureParts, 82:87C1 AddClampFF, 82:87CA SubClamp0
+
+Folded into callers
+-------------------
+  81:F303 LoadListNext, 81:F30A TextTypeNext: a pointer stepped one byte; the lists and the typed text are
+         read through typed readers (data/), which step their own place. Nothing to convert.

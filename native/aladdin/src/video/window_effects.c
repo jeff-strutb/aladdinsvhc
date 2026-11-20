@@ -308,6 +308,21 @@ static TaskRun effect_6(Task *t, uint16_t *at)
     return opening_step(t, at);
 }
 
+/*
+ * @routine 82:870D HdmaTableFill
+ * WHAT IT DOES: Fills `words` words of the per-line tables with `word`, from
+ * byte `at` of them on.
+ */
+void HdmaTableFill(uint16_t at, uint16_t word, unsigned words)
+{
+    for (unsigned i = 0; i < words; i++, at = (uint16_t)(at + 2)) {
+        if ((unsigned)at + 1 < LINE_DATA_SIZE) {
+            g.line_data[at] = (uint8_t)word;
+            g.line_data[at + 1] = (uint8_t)(word >> 8);
+        }
+    }
+}
+
 /* the play field's scroll, whole pixels */
 static uint16_t view_x(void) { return (uint16_t)(g.layers[0].scroll_x >> 8); }
 static uint16_t view_y(void) { return (uint16_t)(g.layers[0].scroll_y >> 8); }

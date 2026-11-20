@@ -69,6 +69,37 @@ void ActorPictureQueue(Actor *a)
 }
 
 /*
+ * @routine 81:9527 ActorPictureSendFromKind
+ * WHAT IT DOES: As ActorPictureSend, for an actor whose graphics were
+ * unpacked for its kind: when it shows its own picture (bit 6 of its flags)
+ * and the picture has changed, queues the picture's graphics, each part's
+ * source its list word as an offset from where its kind's graphics went
+ * (g.kind_gfx_at).
+ */
+void ActorPictureSendFromKind(Actor *a)
+{
+    PicturePart parts[PICTURE_PARTS_MAX];
+    unsigned n;
+    uint16_t to;
+
+    if (!(a->flags & 0x40) || a->picture == a->redraw)
+        return;
+    a->redraw = a->picture;
+    n = picture_parts(a->own_pictures, a->picture, parts, PICTURE_PARTS_MAX);
+    to = (uint16_t)(((a->look & 0x01FF) << 4) + 0x6000);
+    for (unsigned i = 0; i < n && g.vram_queue_count < VRAM_QUEUE_SIZE; i++) {
+        VramQueueEntry *c = &g.vram_queue[g.vram_queue_count++];
+        uint32_t from = (uint32_t)g.kind_gfx_at[a->kind] + parts[i].address;
+
+        to = (uint16_t)(to + parts[i].step);
+        c->to = to;
+        c->from = &g.unpacked[from % sizeof g.unpacked];
+        c->bytes = parts[i].bytes;
+        c->step = 0x80;
+    }
+}
+
+/*
  * @routine 81:949E ActorPictureSend
  * WHAT IT DOES: When the actor shows its own picture (bit 6 of $09) and
  * the picture has changed, queues its graphics for VRAM.
