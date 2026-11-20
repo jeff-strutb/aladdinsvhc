@@ -85,7 +85,7 @@ Kind2CStart:
     trb.b !actor_08
     stz.w !player+!actor_facing
     stz.w !player+!actor_flip
-    lda.b #!K2C_RIDE_CODE&$FF
+    lda.b #!K2C_RIDE_CODE&255
     sta.w !player+!actor_03
     lda.b #!K2C_RIDE_CODE>>8
     sta.w !player+!actor_03+1
@@ -121,7 +121,7 @@ Kind2CStart:
     lda.b !actor_speed_x+1
     sta.w !player+!actor_speed_x+1
     sep.b #$20
-    lda.b #!K2C_OFF_CODE&$FF
+    lda.b #!K2C_OFF_CODE&255
     sta.w !player+!actor_03
     lda.b #!K2C_OFF_CODE>>8
     sta.w !player+!actor_03+1

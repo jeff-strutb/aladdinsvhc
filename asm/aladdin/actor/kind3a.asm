@@ -73,7 +73,7 @@ Kind3AStart:
     tay
     jsl.l ActorZoneHasTestPointLong
     bcs .free
-    lda.b #!K3A_HELD_CODE&$FF
+    lda.b #!K3A_HELD_CODE&255
     sta.w !player+!actor_03
     lda.b #!K3A_HELD_CODE>>8
     sta.w !player+!actor_03+1

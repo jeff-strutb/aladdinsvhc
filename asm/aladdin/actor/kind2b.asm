@@ -6,6 +6,46 @@ incsrc "../include/actor.inc"
 
 arch 65816
 
+; Its record's fields (the same names as the C's, where it names them).
+!K2B_DIR = $40                  ; walker: its direction along its surface (0 or 1)
+!K2B_LEG = $41                  ; walker: frames left of its leg (word)
+!K2B_LEG_DOUBLE = $43           ; walker: twice its leg (word)
+!K2B_LEG_FIRST = $45            ; walker: its leg from K2B_LEGS (word)
+!K2B_SURFACE = $47              ; its surface ($07 bits 0-2 / 2): 1 a floor walker
+!K2B_HOME_X = $48               ; walker: the x pixels its range is from (word)
+!K2B_RANGE_DOUBLE = $4A         ; walker: twice its range across
+!K2B_4B = $4B                   ; nonzero: its fall ends (only cleared here)
+!K2B_RANGE = $4C                ; walker: its range across, from K2B_RANGES
+!K2B_4D = $4D                   ; cleared at its start; purpose not yet established
+!K2B_STAYS = $4E                ; nonzero: it is never ended out of range
+!K2B_LOOK_TABLE = $16           ; its look table (word)
+; With $07 bit 4 (the same bytes put to other use):
+!K2B_WIDE_FRAMES = $40          ; frames left of its leg
+!K2B_WIDE_LEG = $41             ; its leg's frames
+!K2B_PACE_X = $42               ; its x pixels before its step (word)
+!K2B_PACE_Y = $44               ; and its y pixels (word)
+!K2B_SHAKES = $46               ; shakes left before its fall
+!K2B_PARTNER = $49              ; its partner's record (word; its maker sets it)
+!K2B_PARTNER_JUMPS = $0013      ; the partner's byte: 3, it jumps
+!K2B_PARTNER_ENDS = $0016       ; the partner's byte: nonzero, it ends
+
+; Elsewhere (the same names as the C's).
+!PLAYER_X = $08E7               ; Aladdin's x pixels (word)
+!K2B_POINT_X = $000C            ; the point TileAtProbeLong reads: x (word)
+!K2B_POINT_Y = $000E            ; and y (word)
+!K2B_LOOKS = $D116              ; its look table
+!K2B_LEGS = $D11A               ; its leg by way (bytes, DB)
+!K2B_RANGES = $D11E             ; its range across by way (bytes, DB)
+!K2B_AHEAD = $D0D6              ; the point ahead by surface and direction (x, y words, DB)
+!K2B_ON = $D0F6                 ; the point ahead on its surface (x, y words, DB)
+!K2B_FLIPS = $D0CE              ; its flip by surface and direction (bytes, DB)
+!K2B_TURNS = $D0C6              ; its animation as it turns (bytes, DB)
+!K2B_DIRS = $D0B6               ; its direction ($14) (bytes, DB)
+!K2B_WALKS = $D0BE              ; its walking animation (bytes, DB)
+!K2B_PAST = $D2E3               ; Kind2BNearPartner's half-span (word, DB)
+!K2B_SPAN = $D2E5               ; and span (word, DB)
+
+
 ; @routine 83:A467 Kind2BStart
 ; @actor
 ; WHAT IT DOES: Actor kind $2B: a walker along a floor, a wall or a ceiling
@@ -54,51 +94,51 @@ arch 65816
 ; actor loop's jump for kind $2B in state $0C. Exit: never returns.
 %at($83A467)
 Kind2BStart:
-    stz.b $4E
-    lda.b $07
+    stz.b !K2B_STAYS
+    lda.b !actor_07
     and.b #$10
     beq .walker
     jmp.w .wide
 .walker:
     lda.b #$90
-    tsb.b $09
+    tsb.b !actor_09
     lda.b #$02
     jsl.l AnimStart
-    stz.b $40
+    stz.b !K2B_DIR
     jsl.l RandomNext
     bmi .sides
-    inc.b $40
+    inc.b !K2B_DIR
 .sides:
     rep.b #$20
-    lda.w #$D116
-    sta.b $16
-    lda.b $0C
-    sta.b $48
+    lda.w #!K2B_LOOKS
+    sta.b !K2B_LOOK_TABLE
+    lda.b !actor_x+1
+    sta.b !K2B_HOME_X
     sep.b #$20
-    lda.b $07
+    lda.b !actor_07
     and.b #$07
     lsr a
-    sta.b $47
-    lda.b $07
+    sta.b !K2B_SURFACE
+    lda.b !actor_07
     and.b #$02
     adc.b #$00
     tax
-    lda.w $D11A,x
-    sta.b $41
-    stz.b $42
-    sta.b $45
-    stz.b $46
+    lda.w !K2B_LEGS,x
+    sta.b !K2B_LEG
+    stz.b !K2B_LEG+1
+    sta.b !K2B_LEG_FIRST
+    stz.b !K2B_LEG_FIRST+1
     rep.b #$20
     and.w #$00FF
     asl a
-    sta.b $43
+    sta.b !K2B_LEG_DOUBLE
     sep.b #$20
-    lda.w $D11E,x
-    sta.b $4C
+    lda.w !K2B_RANGES,x
+    sta.b !K2B_RANGE
     asl a
-    sta.b $4A
-    stz.b $4D
-    stz.b $4B
+    sta.b !K2B_RANGE_DOUBLE
+    stz.b !K2B_4D
+    stz.b !K2B_4B
     bra .turn
 .frame:
     brk.b #$00
@@ -106,86 +146,86 @@ Kind2BStart:
     jsl.l ActorNearPlayer
     bcc .frame
     rep.b #$20
-    dec.b $41
+    dec.b !K2B_LEG
     sep.b #$20
     beq .turn
-    lda.b $47
+    lda.b !K2B_SURFACE
     asl a
-    adc.b $40
+    adc.b !K2B_DIR
     asl a
     asl a
     tax
     rep.b #$21
-    lda.w $D0D6,x
-    adc.b $0C
-    sta.w $000C
-    lda.w $D0D8,x
-    adc.b $0F
-    sta.w $000E
+    lda.w !K2B_AHEAD,x
+    adc.b !actor_x+1
+    sta.w !K2B_POINT_X
+    lda.w !K2B_AHEAD+2,x
+    adc.b !actor_y+1
+    sta.w !K2B_POINT_Y
     jsl.l TileAtProbeLong
     cmp.b #$70
     bne .ahead
     bra .turn
 .ahead:
-    lda.b $47
+    lda.b !K2B_SURFACE
     asl a
-    adc.b $40
+    adc.b !K2B_DIR
     asl a
     asl a
     tax
     rep.b #$21
-    lda.w $D0F6,x
-    adc.b $0C
-    sta.w $000C
-    lda.w $D0F8,x
+    lda.w !K2B_ON,x
+    adc.b !actor_x+1
+    sta.w !K2B_POINT_X
+    lda.w !K2B_ON+2,x
     clc
-    adc.b $0F
-    sta.w $000E
+    adc.b !actor_y+1
+    sta.w !K2B_POINT_Y
     jsl.l TileAtProbeLong
     beq .turn
-    lda.b $07
+    lda.b !actor_07
     and.b #$08
     beq .move
     jmp.w .test
 .turn:
     rep.b #$20
-    lda.b $43
+    lda.b !K2B_LEG_DOUBLE
     sec
-    sbc.b $41
-    sta.b $41
+    sbc.b !K2B_LEG
+    sta.b !K2B_LEG
     sep.b #$20
-    lda.b $47
+    lda.b !K2B_SURFACE
     asl a
-    adc.b $40
+    adc.b !K2B_DIR
     tax
-    lda.w $D0CE,x
-    sta.b $15
-    lda.w $D0C6,x
+    lda.w !K2B_FLIPS,x
+    sta.b !actor_flip
+    lda.w !K2B_TURNS,x
     jsl.l AnimStart
     lda.b #$14
     cop.b #$00
-    lda.b $40
+    lda.b !K2B_DIR
     eor.b #$01
-    sta.b $40
+    sta.b !K2B_DIR
     bra .go
 .dropped:
     lda.b #$20
     cop.b #$00
 .go:
-    lda.b $47
+    lda.b !K2B_SURFACE
     asl a
-    adc.b $40
+    adc.b !K2B_DIR
     tax
-    lda.w $D0B6,x
-    sta.b $14
-    lda.w $D0CE,x
-    sta.b $15
-    lda.w $D0BE,x
+    lda.w !K2B_DIRS,x
+    sta.b !actor_facing
+    lda.w !K2B_FLIPS,x
+    sta.b !actor_flip
+    lda.w !K2B_WALKS,x
     jsl.l AnimStart
 .move:
     ldx.b #$02
     jsl.l ActorMoveByVector
-    lda.b $47
+    lda.b !K2B_SURFACE
     dec a
     bne .next
     jsl.l ActorSnapToGround
@@ -193,14 +233,14 @@ Kind2BStart:
     jmp.w .frame
 .test:
     rep.b #$21
-    lda.b $48
-    adc.b $4C
+    lda.b !K2B_HOME_X
+    adc.b !K2B_RANGE
     sec
-    sbc.w $08E7
-    cmp.b $4A
+    sbc.w !PLAYER_X
+    cmp.b !K2B_RANGE_DOUBLE
     sep.b #$20
     bcs .on
-    lda.b $47
+    lda.b !K2B_SURFACE
     dec a
     bne .above
     ldy.b #$02
@@ -208,7 +248,7 @@ Kind2BStart:
     sep.b #$10
     bcs .on
     jsl.l ActorSideOfPlayer
-    cmp.b $40
+    cmp.b !K2B_DIR
     beq .on
     jmp.w .turn
 .above:
@@ -224,77 +264,77 @@ Kind2BStart:
     jsl.l ActorOutOfGround
     beq .drop
     lda.b #$01
-    sta.b $47
-    lda.b $45
-    sta.b $41
-    stz.b $42
-    lda.b $0C
-    sta.b $48
-    lda.b $0D
-    sta.b $49
+    sta.b !K2B_SURFACE
+    lda.b !K2B_LEG_FIRST
+    sta.b !K2B_LEG
+    stz.b !K2B_LEG+1
+    lda.b !actor_x+1
+    sta.b !K2B_HOME_X
+    lda.b !actor_x+2
+    sta.b !K2B_HOME_X+1
     jsl.l ActorSideOfPlayer
-    sta.b $40
-    sta.b $15
+    sta.b !K2B_DIR
+    sta.b !actor_flip
     lda.b #$00
     jsl.l AnimStart
     jmp.w .dropped
 .on:
     jmp.w .move
 .wide:
-    stz.b $4B
-    stz.b $47
+    stz.b !K2B_4B
+    stz.b !K2B_SURFACE
     lda.b #$80
-    tsb.b $09
+    tsb.b !actor_09
     lda.b #$04
     jsl.l AnimStart
-    stz.b $14
+    stz.b !actor_facing
     lda.b #$01
-    sta.b $15
+    sta.b !actor_flip
     ldy.b #$42
     jsl.l ActorSpeedXSetAccel
     lda.b #$18
-    sta.b $40
+    sta.b !K2B_WIDE_FRAMES
     asl a
-    sta.b $41
+    sta.b !K2B_WIDE_LEG
 .wide_frame:
     brk.b #$00
     jsl.l ActorMoveX
     jmp.w .wide_test
 .wide_count:
-    dec.b $40
+    dec.b !K2B_WIDE_FRAMES
     bne .wide_frame
-    lda.b $41
-    sta.b $40
-    lda.b $14
-    sta.b $15
+    lda.b !K2B_WIDE_LEG
+    sta.b !K2B_WIDE_FRAMES
+    lda.b !actor_facing
+    sta.b !actor_flip
     eor.b #$01
-    sta.b $14
+    sta.b !actor_facing
     lda.b #$10
     cop.b #$00
     bra .wide_frame
 .shake:
     lda.b #$08
-    sta.b $46
+    sta.b !K2B_SHAKES
 .shake_frame:
     lda.b #$06
     cop.b #$00
-    lda.b $15
+    lda.b !actor_flip
     eor.b #$01
-    sta.b $15
-    dec.b $46
+    sta.b !actor_flip
+    dec.b !K2B_SHAKES
     bne .shake_frame
     lda.b #$03
     jsl.l AnimStart
     lda.b #$20
-    sta.b $20
-    stz.b $1D
-    stz.b $1E
-    stz.b $1F
+    sta.b !actor_accel_y
+    stz.b !actor_speed_y
+    stz.b !actor_speed_y+1
+    stz.b !actor_speed_y+2
 .fall:
     brk.b #$00
-    lda.b $4B
+    lda.b !K2B_4B
     bne .landed
-    lda.b $1E
+    lda.b !actor_speed_y+1
     cmp.b #$03
     beq .fall_step
     jsl.l ActorAccelerateY
@@ -302,78 +342,78 @@ Kind2BStart:
     jsl.l ActorStepY
     bra .fall
 .landed:
-    inc.b $4E
-    inc.b $47
+    inc.b !K2B_STAYS
+    inc.b !K2B_SURFACE
 .partner:
     rep.b #$30
-    ldx.b $49
+    ldx.b !K2B_PARTNER
     ldy.w #$0000
-    lda.b $0C
-    cmp.w $000C,x
+    lda.b !actor_x+1
+    cmp.w !actor_x+1,x
     bcs .partner_left
     ldy.w #$0001
 .partner_left:
     sep.b #$30
     tya
-    sta.b $14
+    sta.b !actor_facing
     eor.b #$01
-    sta.b $15
+    sta.b !actor_flip
     lda.b #$50
-    sta.b $19
+    sta.b !actor_speed_x
     lda.b #$01
     jsl.l AnimStart
 .pace:
     brk.b #$00
     rep.b #$10
-    ldx.b $49
-    lda.w $0016,x
+    ldx.b !K2B_PARTNER
+    lda.w !K2B_PARTNER_ENDS,x
     bne .end
-    lda.w $0013,x
+    lda.w !K2B_PARTNER_JUMPS,x
     cmp.b #$03
     beq .jump
     sep.b #$10
     rep.b #$20
-    lda.b $0C
-    sta.b $42
-    lda.b $0F
-    sta.b $44
+    lda.b !actor_x+1
+    sta.b !K2B_PACE_X
+    lda.b !actor_y+1
+    sta.b !K2B_PACE_Y
     sep.b #$20
     jsl.l ActorMoveX
     jsr.w Kind2BNearPartner
     bcc .pace
     rep.b #$20
-    lda.b $42
-    ldy.b $14
+    lda.b !K2B_PACE_X
+    ldy.b !actor_facing
     beq .back
     adc.w #$0004
 .back:
-    sta.b $0C
-    lda.b $44
-    sta.b $0F
+    sta.b !actor_x+1
+    lda.b !K2B_PACE_Y
+    sta.b !actor_y+1
     sep.b #$20
-    lda.b $14
-    sta.b $15
+    lda.b !actor_facing
+    sta.b !actor_flip
     eor.b #$01
-    sta.b $14
+    sta.b !actor_facing
     bra .pace
 .end:
     sep.b #$10
     jmp.w ActorEndPlaced
 .jump:
     sep.b #$10
-    stz.b $1D
+    stz.b !actor_speed_y
     lda.b #$FC
-    sta.b $1E
+    sta.b !actor_speed_y+1
     lda.b #$FF
-    sta.b $1F
+    sta.b !actor_speed_y+2
     lda.b #$40
-    sta.b $20
+    sta.b !actor_accel_y
 .jump_frame:
     brk.b #$00
     jsl.l ActorFall
     ldx.b #$08
     jsr.w ActorEndOutOfRange
-    lda.b $4B
+    lda.b !K2B_4B
     beq .jump_frame
     jmp.w .partner
 .wide_test:
@@ -397,17 +437,16 @@ Kind2BStart:
 %at($83CD47)
 Kind2BNearPartner:
     rep.b #$30
-    ldx.b $49
+    ldx.b !K2B_PARTNER
     sec
-    lda.b $0C
-    sbc.w $000C,x
+    lda.b !actor_x+1
+    sbc.w !actor_x+1,x
     clc
-    adc.w $D2E3
-    cmp.w $D2E5
+    adc.w !K2B_PAST
+    cmp.w !K2B_SPAN
     sep.b #$30
     rts
 
-!K2B_SURFACE = $47              ; its surface ($07 bits 0-2 / 2): 1 a floor walker
 !K2B_SPEED_Y_TOP = $04          ; the vertical speed's middle byte it falls at, at most
 !K2B_FALL_RESET = $38           ; ActorMotionReset's speed for its fall off a wall or ceiling
 !K2B_FALL_PRESET = $03          ; ActorMotionPreset's preset for its fall off the floor

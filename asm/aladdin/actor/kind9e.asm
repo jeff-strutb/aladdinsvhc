@@ -96,7 +96,7 @@ Kind9EStart:
 .follow:
     ldy.b #$52
     jsl.l ActorPaletteFromRom
-    dec.b $10
+    dec.b !actor_y+2
 .cued:
     brk.b #$00
     ldx.b #$0B

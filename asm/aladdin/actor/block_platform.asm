@@ -32,6 +32,9 @@ arch 65816
 !K68_CHILD_SLOT = $21           ; the spawner's: the slot byte its children are made with
 !K68_WAIT = $40                 ; frames left before it moves (word), or of its pause at a leg's end
 !K68_CHECK = $700040            ; the copier check's bytes ($70:0040, $70:0080): none on the cartridge
+!K68_CHECK_FIRST = $0000       ; with DB $70 and X $40: K68_CHECK's first byte ($70:0040)
+!K68_CHECK_SECOND = $0040      ; and its second ($70:0080)
+!K68_16 = $16                  ; cleared (word) at its start; purpose not yet established
 !K68_BLOCKS_AT = $D5C7          ; (data bank) by $07: its first block's x, y (words)
 !K68_LEG = $D5E7                ; (data bank) by $07: blocks in each leg
 !K68_WAYS = $D50D               ; (data bank) by $07: bits 2 up its facing, bit 0 its actor_47
@@ -95,12 +98,12 @@ Kind68Start:
     pha
     plb
     lda.b #$AB
-    sta.w $0000,x
-    cmp.w $0000,x
+    sta.w !K68_CHECK_FIRST,x
+    cmp.w !K68_CHECK_FIRST,x
     bne .cart
     lda.b #$CD
-    sta.w $0040,x
-    cmp.w $0040,x
+    sta.w !K68_CHECK_SECOND,x
+    cmp.w !K68_CHECK_SECOND,x
     bne .cart
     plb
     inc.b !K68_COPIER
@@ -116,8 +119,8 @@ Kind68Start:
     stz.b !BACK_LEG
     stz.b !BACK_LEG+1
     stz.b !actor_accel_y
-    stz.b $16
-    stz.b $17
+    stz.b !K68_16
+    stz.b !K68_16+1
     rep.b #$20
     lda.b !actor_07
     asl a

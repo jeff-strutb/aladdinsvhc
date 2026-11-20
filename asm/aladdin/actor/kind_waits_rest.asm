@@ -59,6 +59,9 @@ arch 65816
 !KWR_K58_Y_COPY = $4A          ; its y (word), copied each frame
 !KWR_LEVEL_035E = $035E        ; 8: the level where it ends past $7D0
 !KWR_VIEW_X = $1773            ; the view's left edge (word)
+!KWR_COPIER_RAM = $701000      ; cartridge RAM a copier has and a retail cartridge lacks
+!KWR_PLAYER_X_PIXELS = $08E7   ; the player's x pixels (word)
+!KWR_PLAYER_Y_PIXELS = $08EA   ; the player's y pixels (word)
 !KWR_RANGE_X = $1A44           ; the point actors are kept in range of (x, word)
 
 ; @routine 83:91F3 ActorWaitNothing
@@ -810,18 +813,18 @@ Kind58Wait:
     beq .carry
     dec.b !KWR_K58_COUNT
     bne .carry
-    lda.l $701000
+    lda.l !KWR_COPIER_RAM
     inc
-    sta.l $701000
-    cmp.l $701000
+    sta.l !KWR_COPIER_RAM
+    cmp.l !KWR_COPIER_RAM
     bne .carry
     rep #$20
     lda.b !KWR_X
-    sta.w $08E7
+    sta.w !KWR_PLAYER_X_PIXELS
     clc
     lda.b !KWR_K41_Y
     adc.w #$FFE8
-    sta.w $08EA
+    sta.w !KWR_PLAYER_Y_PIXELS
 .carry:
     rep #$20
     lda.b !KWR_K41_Y

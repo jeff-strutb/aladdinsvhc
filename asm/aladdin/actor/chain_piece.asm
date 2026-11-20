@@ -221,7 +221,7 @@ ChainPieceEnd:
     brk.b #$00
     lda.w !v_1428
     beq .alive
-    lda.b #!PLAYER_CODE_AFTER&$FF
+    lda.b #!PLAYER_CODE_AFTER&255
     sta.w !player+!actor_03
     lda.b #!PLAYER_CODE_AFTER>>8
     sta.w !player+!actor_04

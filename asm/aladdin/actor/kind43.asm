@@ -6,6 +6,20 @@ incsrc "../include/actor.inc"
 
 arch 65816
 
+; Its record's fields (actor.inc has the shared ones).
+!K43_LOOK_TABLE = $16           ; its look table (word)
+!K43_COUNT = $40                ; frames left of its shake, then pieces left to spawn
+!K43_CARRY_COUNT = $42          ; the carry count, which Kind43Wait's carry test runs on
+!K43_CARRIES = $43              ; nonzero: Aladdin rides it (its wait's carry test sets it)
+!K43_TEST_BOX = $4C             ; the carry test's box
+
+; Tables (the same names as the C's).
+!K43_BOXES = $D2BE              ; the carry test's box by $07 (bytes, DB)
+!K43_PIECES = $D2C1             ; by $07: pieces, then the first look (byte pairs, DB)
+!K43_ANIMS = $D2C7              ; its animation by $07 (bytes, DB)
+!K43_PLACEMENT_FLAGS = $7EC600  ; by placement: $80 once it is gone
+
+
 ; @routine 83:B393 Kind43Start
 ; @actor
 ; WHAT IT DOES: Actor kind $43: a platform the player can ride. Ways 0-2
@@ -29,20 +43,20 @@ arch 65816
 ; actor loop's jump for kind $43 in state $0C. Exit: never returns.
 %at($83B393)
 Kind43Start:
-    lda.b $08
+    lda.b !actor_08
     ora.b #$02
-    sta.b $08
-    lda.b $09
+    sta.b !actor_08
+    lda.b !actor_09
     ora.b #$90
-    sta.b $09
-    stz.b $14
-    stz.b $15
-    stz.b $43
+    sta.b !actor_09
+    stz.b !actor_facing
+    stz.b !actor_flip
+    stz.b !K43_CARRIES
     rep.b #$20
     lda.w #$D2BA
-    sta.b $16
+    sta.b !K43_LOOK_TABLE
     sep.b #$20
-    lda.b $07
+    lda.b !actor_07
     asl a
     tax
     jmp.w (.ways,x)
@@ -50,57 +64,57 @@ Kind43Start:
     dw .carry, .carry, .carry, .rise
 .carry:
     lda.b #$18
-    sta.b $42
-    ldx.b $07
-    lda.w $D2BE,x
-    sta.b $4C
-    ldx.b $07
-    lda.w $D2C7,x
+    sta.b !K43_CARRY_COUNT
+    ldx.b !actor_07
+    lda.w !K43_BOXES,x
+    sta.b !K43_TEST_BOX
+    ldx.b !actor_07
+    lda.w !K43_ANIMS,x
     jsl.l AnimStart
 .wait_on:
     brk.b #$00
-    lda.b $43
+    lda.b !K43_CARRIES
     beq .wait_on
 .ride:
     brk.b #$00
-    dec.b $42
+    dec.b !K43_CARRY_COUNT
     bne .ride
     lda.b #$1A
     jsl.l SoundQueueAdd
-    ldx.b $07
-    lda.w $D2C7,x
+    ldx.b !actor_07
+    lda.w !K43_ANIMS,x
     inc a
     jsl.l AnimStart
     lda.b #$15
-    sta.b $40
-    stz.b $43
+    sta.b !K43_COUNT
+    stz.b !K43_CARRIES
 .shake:
     brk.b #$00
-    dec.b $40
+    dec.b !K43_COUNT
     bne .shake
-    lda.b $07
+    lda.b !actor_07
     asl a
     tax
-    lda.w $D2C1,x
-    sta.b $40
-    lda.w $D2C2,x
-    sta.b $21
+    lda.w !K43_PIECES,x
+    sta.b !K43_COUNT
+    lda.w !K43_PIECES+1,x
+    sta.b !actor_spawn_at
     lda.b #$03
-    sta.b $07
-    lda.b $06
-    sta.b $4D
+    sta.b !actor_07
+    lda.b !actor_06
+    sta.b !actor_4d
 .pieces:
     jsr.w ActorSpawnLookWait
-    inc.b $21
-    inc.b $21
-    dec.b $40
+    inc.b !actor_spawn_at
+    inc.b !actor_spawn_at
+    dec.b !K43_COUNT
     bne .pieces
-    ldx.b $34
+    ldx.b !actor_34
     lda.b #$80
-    sta.l $7EC600,x
+    sta.l !K43_PLACEMENT_FLAGS,x
     jml.l ActorEndPlaced
 .rise:
-    stz.b $42
+    stz.b !K43_CARRY_COUNT
     lda.b #$06
     jsl.l AnimStart
 .rise_frame:
