@@ -517,14 +517,12 @@ typedef struct GameState {
     uint16_t test_box_y;        /* $1486 */
     uint16_t test_box_half_w;   /* $1488 */
     uint16_t test_box_half_h;   /* $148A */
-    uint8_t player_hurt_count;  /* $141B: counted up on entering state $8C; nonzero, he cannot land or be hit */
-    uint8_t player_in_air;      /* $141C: set by his jumps, cleared as he lands; zero, he cannot land on an actor */
+    uint8_t player_hurt_count;  /* $141B: counted up as he enters state $8C (hurt), 0 as the knockback ends; nonzero, he cannot land or be hit, and no level exit */
+    uint8_t player_in_air;      /* $141C: counted up as he leaves the ground (jumps, falls), 0 as he lands or walks, and while an actor holds him; zero, he cannot land on an actor; nonzero, no level exit */
     uint8_t player_no_landing;  /* $145A: nonzero, frames with no hold on a ledge; bit 7, no landing on an actor */
     uint8_t player_landed;      /* $144E: 1 once he has landed on an actor */
     uint8_t player_on_actor;    /* $1428: counted up each frame a solid actor bears him (ActorSolidForPlayer); nonzero, no other tests him */
     uint8_t player_hurt_time;   /* $03F5: frames before it can be hit again */
-    uint8_t player_hurts;       /* $141B: counted up as he enters state $8C (hurt); nonzero, no level exit */
-    uint8_t player_held;        /* $141C: nonzero while an actor holds him; no level exit then */
     uint8_t view_edge_rule;     /* $145B: what the view's sides do to him (level/view_edges.c: 0-4) */
     uint8_t health;             /* $0367 */
     uint8_t player_move_was;    /* $141F: the move whose animation his frame work last started */

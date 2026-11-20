@@ -110,7 +110,7 @@ static int ride(Actor *a)
     if (pixels(a->x) < end_x(a))
         return 1;
     g.player_flags &= (uint8_t)~0xFE;
-    g.player_hurts = 0;
+    g.player_hurt_count = 0;
     a->anim_flags |= 0x08;
     a->x = with_pixels(a->x, end_x(a));
     player->x = with_pixels(player->x, end_x(a));

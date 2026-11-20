@@ -181,7 +181,7 @@ void LevelExitCheck(void)
     uint8_t to, left;
     unsigned n;
 
-    if (g.player_held | g.level_exiting | g.player_hurts)
+    if (g.player_in_air | g.level_exiting | g.player_hurt_count)
         return;
     if (!g.level_spot_count)
         return;

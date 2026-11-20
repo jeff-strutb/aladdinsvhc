@@ -7,18 +7,10 @@
 #include <stdio.h>
 
 #include "player/player_own.h"
-#include "level/level.h"
 
 #define TELL_ONCE(name) do { static int told; if (!told++) fprintf(stderr, "%s not converted (player/wanted_player.c stand-in)\n", name); } while (0)
 
 /* actor/ (n5-actors-a) */
-__attribute__((weak)) void ActorMotionPresetY(Actor *a, uint8_t preset)
-{
-    (void)a;
-    (void)preset;
-    TELL_ONCE("ActorMotionPresetY (81:A3EC)");
-}
-
 __attribute__((weak)) Actor *ActorSpawnShared(Actor *spawner, uint8_t kind)
 {
     (void)spawner;
@@ -32,8 +24,3 @@ __attribute__((weak)) void SecondPoolFreeAll(void)
     TELL_ONCE("SecondPoolFreeAll (83:95C1)");
 }
 
-/* level/ (n5-levels) */
-__attribute__((weak)) void Level035CSet(void)
-{
-    TELL_ONCE("Level035CSet (81:878B)");
-}
