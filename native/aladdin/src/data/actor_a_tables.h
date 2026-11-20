@@ -35,6 +35,14 @@ HitBox second_pool_box(uint8_t n);  /* $80:C580, by a second-pool kind's low 4 b
    down (signed) */
 typedef struct Zone { uint8_t half_w, half_h; int8_t ahead, down; } Zone;
 Zone zone_at(uint8_t at);
-DataRef shot_probes(void);          /* the shots' probe list ($80:C9FF; Actor.probes) */
+DataRef shot_probes(void);
+/* ActorSpawnRing's points ($80:D36E, 4 bytes from `at`): each from the last, across and down */
+typedef struct RingStep { uint16_t dx, dy; } RingStep;
+RingStep ring_step(uint8_t at);
+/* FlagDropMaybe's and FlagDropAlways' child sorts by chance ($80:D31E and
+   $80:D33E, 32 bytes each; the first's 0: none) */
+HitBox solid_box(uint8_t at);       /* $80:BD66, 4 bytes from `at`: a solid actor's half-width, half-height */
+uint8_t drop_sort_maybe(uint8_t chance);
+uint8_t drop_sort_always(uint8_t chance);          /* the shots' probe list ($80:C9FF; Actor.probes) */
 
 #endif

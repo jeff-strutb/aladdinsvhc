@@ -41,4 +41,6 @@ enum {
 };
 int ShotCode(Actor *a);
 
+void flag_drop_case(Actor *a);      /* flag_drops.c: ActorFlagOnce's cases */
+
 #endif

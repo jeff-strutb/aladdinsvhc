@@ -15,7 +15,6 @@ PENDING int ActorEndFarWithChildren(Actor *a) { (void)a; unconverted("ActorEndFa
 
 PENDING void ActorFacePlayer(Actor *a) { (void)a; unconverted("ActorFacePlayer"); }
 
-PENDING ActorSolid ActorSolidForPlayer(Actor *a, uint8_t at) { (void)a; (void)at; unconverted("ActorSolidForPlayer"); return ACTOR_SOLID_BESIDE; }
 PENDING void ActorCarryPlayer(Actor *a) { (void)a; unconverted("ActorCarryPlayer"); }
 
 

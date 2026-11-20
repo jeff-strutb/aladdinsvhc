@@ -80,3 +80,24 @@ DataRef shot_probes(void)
     r.at = cart_offset(0x80, 0xC9FF);
     return r;
 }
+
+RingStep ring_step(uint8_t at)
+{
+    RingStep r;
+
+    r.dx = at16(0x80, (uint16_t)(0xD36E + at));
+    r.dy = at16(0x80, (uint16_t)(0xD370 + at));
+    return r;
+}
+
+uint8_t drop_sort_maybe(uint8_t chance) { return at8(0x80, (uint16_t)(0xD31E + (chance & 0x1F))); }
+uint8_t drop_sort_always(uint8_t chance) { return at8(0x80, (uint16_t)(0xD33E + (chance & 0x1F))); }
+
+HitBox solid_box(uint8_t at)
+{
+    HitBox b;
+
+    b.half_w = at16(0x80, (uint16_t)(0xBD66 + at));
+    b.half_h = at16(0x80, (uint16_t)(0xBD68 + at));
+    return b;
+}
