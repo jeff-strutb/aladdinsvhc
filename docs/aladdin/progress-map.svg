@@ -1214,7 +1214,7 @@
 <rect x="1564.8" y="256.5" width="33.1" height="38.0" fill="#3fb950"><title>LevelSelect  80A05C  85B  T4  [game]</title></rect>
 <rect x="1384.2" y="295.2" width="34.3" height="36.7" fill="#3fb950"><title>PlayTimeTick  8185CE  85B  T4  [game]</title></rect>
 <rect x="1384.2" y="332.5" width="34.3" height="36.3" fill="#3fb950"><title>MirrorCheckTask  81A37A  84B  T4  [game]</title></rect>
-<rect x="1384.2" y="369.4" width="34.3" height="35.8" fill="#d29922"><title>GenieScreenEnd  80AB35  83B  T2  [game]</title></rect>
+<rect x="1384.2" y="369.4" width="34.3" height="35.8" fill="#3fb950"><title>GenieScreenEnd  80AB35  83B  T4  [game]</title></rect>
 <rect x="1384.2" y="405.8" width="34.3" height="35.4" fill="#3fb950"><title>EndingStageScroll  82B458  82B  T4  [game]</title></rect>
 <rect x="1384.2" y="441.8" width="34.3" height="35.0" fill="#3fb950"><title>LevelNumberText  80A0B1  81B  T4  [game]</title></rect>
 <rect x="1384.2" y="477.3" width="34.3" height="30.6" fill="#3fb950"><title>StoryScene5Start  80B10F  71B  T4  [game]</title></rect>
@@ -1663,4 +1663,4 @@
 <rect x="1590.2" y="848.5" width="7.7" height="16.0" fill="#3fb950"><title>MultiplyXA  81A806  12B  T4  [math]</title></rect>
 <rect x="1590.2" y="865.0" width="7.7" height="14.6" fill="#3fb950"><title>MultiplyBy  81A7E6  11B  T4  [math]</title></rect>
 <rect x="1590.2" y="883.2" width="7.7" height="14.7" fill="#3fb950"><title>PadConfirmPressed  80A04F  13B  T4  [input]</title></rect>
-<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 1636 &#183; T3 behaviour-exact 18 &#183; 85,882/90,269 bytes exact (95.1%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
+<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 1637 &#183; T3 behaviour-exact 18 &#183; 85,965/90,269 bytes exact (95.2%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
