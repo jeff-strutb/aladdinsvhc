@@ -160,31 +160,48 @@ engine has no line change for the offsets. Fixed on the way, found by act 7: the
 (1,024 rows). A vertical scroll or offset past 512 (act 7's offsets wrap below 0: `$1FF`, `$1FE`, ...) ran into
 region 1 instead of back to the top, so region 1 now starts as a copy of region 0.
 
-| Run (2026-11-20) | Pictures | The same | Differ | Pixels |
+The replay gives the engine the console's own limits (`nshvc_limits`: 32 sprites and 34 sprite tiles a line, the
+wrap, and engine 6.7's `blank_hides_sprites`), as it replays the console's state.
+
+| Run (2026-11-20, engine 6.7 uncommitted, see below) | Pictures | The same | Differ | Pixels |
 |---|---:|---:|---:|---:|
-| `attract` | 150 | 150 | 0 | 0 |
-| `cov_title_idle` (title, Mode 7) | 198 | 194 | 4 | 5,059 |
-| `rand_pw7_1` (act 7, mode 2) | 145 | 118 | 27 | 28,528 |
+| `attract` (on 6.6, before the limits) | 150 | 150 | 0 | 0 |
+| `cov_title_idle` (title, Mode 7) | 198 | 196 | 2 | 5,038 |
+| `rand_pw7_1` (act 7, mode 2) | 145 | 145 | 0 | 0 |
 
-Each difference, from the recording:
+The 2 title pictures, 5160 and 5220 (195 and 4,843 pixels): Mode 7 drawn smaller than its texels (the matrix's a and d
+`$08D0` and `$0150`); the engine area-filters the plane there by its design (api.md section 3.4) and bsnes point-samples.
+Not a bug.
 
-- **Title 5160 and 5220** (4,843 and 195 pixels): Mode 7 drawn smaller than its texels (the matrix's a and d are
-  `$08D0` and `$0150`). The engine area-filters the plane there by its design (api.md section 3.4) and bsnes
-  point-samples. Not a bug.
-- **Title 3720 and 4500** (12 and 9 pixels): picture row 8, the first line shown after forced blank ends (`INIDISP`
-  written in line 8's H-blank). The engine draws a sprite's row there; bsnes draws none, as the console does: a line's
-  sprites are found during the line before, and none are found during forced blank. An engine difference.
-- **Act 7, 25 pictures from 7140 on** (about 1,025 to 1,090 pixels each): rows 8-42, columns 48-87 only, the mode 1 HUD
-  lines. BG3's map row 1 holds five HUD words with bit 13 set (`$2C60`, the tiles' priority), and the engine takes them
-  as BG1's offsets in mode 1 too (`compose.c`'s `opt_on` does not look at the mode); the console has no offsets in mode
-  1. Predicted from the map before the run, then seen. An engine difference, reported to the session that owns the
-  engine; nativeshvc is not changed for one game.
-- **Act 7, 8340 and 8400** (about 170 and 5 pixels besides the HUD band): rows 164-174, where the snake sprite meets the
-  top of the offset-shifted spike band. bsnes shows BG2's colour there; the engine shows the sprite's. Not settled: a
-  calculation by hand of the BG2 tile under the first pixel gives a transparent priority-0 tile under a priority-1
-  sprite, which would make the engine right, so that model of the console's offset rules is wrong somewhere.
+What the runs before found, and how each was settled:
 
-**Not covered yet:** the other 27 recordings have not been replayed (only attract, the title and one act 7 play). The
+- **Engine: offset-per-tile on mode 1 lines** (act 7, 25 pictures from 7140 on, rows 8-42, columns 48-87). BG3's map
+  row 1 holds five HUD words with bit 13 set (`$2C60`), and the engine took them as BG1's offsets on the HUD's mode 1
+  lines (`compose.c` `opt_on` did not look at the line's mode); the console has no offsets in mode 1. Predicted from the
+  map before the run, then seen. Fixed in the engine (6.7).
+- **Engine: sprites on the first line after forced blank** (title 3720 and 4500, 12 and 9 pixels on picture row 8). The
+  console finds a line's sprites during the line above and none while blanked (bsnes `sfc/ppu/object.cpp` lines 37 and
+  101). Engine 6.7 has it as a limit, `nshvc_limits.blank_hides_sprites`, off by default as the API's limits are
+  (Jeff's choice); the replay turns it on.
+- **Replay: the sprite tile limit** (act 7 8340 and 8400, about 170 and 5 pixels at the snake's edge). Rows 164-170
+  need 39-40 sprite tiles and rows 173-174 need 35, past the console's 34 a line, exactly the rows that differed; bsnes
+  drops the excess and the replay set no limits. Settled by the limits above.
+- **Replay: offsets from a mode switched partway** and **maps that did not wrap at 512 rows** (act 7): fixed in the
+  replay (1bf75c8).
+
+**The engine change** (Jeff, 2026-11-19: "The bug should be fixed wherever owns it"), left uncommitted in the nativeshvc
+checkout for the session that commits it: `compose.c` `opt_on` requires mode 2, 4 or 6; `picture.c` `build` gives a row
+below a line blanked anywhere no sprites when `blank_hides_sprites` is set; `nshvc_limits.blank_hides_sprites` at the
+struct's end; two scenes in `tests/scenes/scenes.py`. API 6.7: `docs/contract.md`'s rule "A **minor** release may only add
+calls, settings, or fields at the end of a struct that a zeroed struct leaves off" for the new field, the offset fix
+being a patch-level fix ("fixes where the engine differs from what `docs/api.md` describes": api.md gives offsets for
+modes 2, 4 and 6) inside it. Its 118 scenes on Linux Vulkan (dzn), compared through the core's gamma (the scenes'
+byte comparison cannot pass with this project's core, which draws through a gamma of 1.5): on 6.6 112 match and 4 KNOWN
+of the first 116, and the two new scenes differ by 19 and 23,980 pixels; on 6.7 114 match and the same 4 KNOWN, no other
+picture changed.
+
+**Not covered yet:** the other 27 recordings have not been replayed (only attract, the title and one act 7 play), and
+attract has not been replayed since the limits were set. The
 pictures every 60 frames are a sample: a difference in the frames between is not seen.
 
 ## What a result means

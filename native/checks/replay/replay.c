@@ -563,6 +563,16 @@ static void draw(float between)
     if (pic_modes & OPT_MODES)
         send_offsets();
     set_mode7();
+    {
+        /* the console's own limits: the replay is of the console's state (engine 6.7 for blank_hides_sprites) */
+        nshvc_limits lim;
+        memset(&lim, 0, sizeof lim);
+        lim.sprites_per_line = 32;
+        lim.sprite_tiles_per_line = 34;
+        lim.sprite_wrap = 1;
+        lim.blank_hides_sprites = 1;
+        nshvc_limits_set(&lim);
+    }
     send_sprites();
     set_base();
     for (i = 0; i < 4; i++)
