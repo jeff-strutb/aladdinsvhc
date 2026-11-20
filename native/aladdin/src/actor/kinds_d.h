@@ -53,6 +53,9 @@ int Kind5FSecond(Actor *a);     /* its second entry: on in Kind60Start */      /
 int Kind84Start(Actor *a);      /* 84:95E3 */
 int Kind22Start(Actor *a);      /* 83:9CD2 (second 83:9CDE ends it) */
 int PlatformCourseStart(Actor *a);      /* 83:C96E: kind $47, the carpet course's platforms; kind $62's second goes on in it */
+int Kind24Start(Actor *a);      /* 84:8000 */
+int Kind9CStart(Actor *a);      /* 84:A7E5 */
+int Kind9BStory(Actor *a);      /* 84:A509: the ending's story figure */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
 int Kind87Start(Actor *a);
 int Kind87Second(Actor *a);     /* its second entry: on in LandingPad */      /* 83:F77F: the catcher */
@@ -87,6 +90,7 @@ int Kind4EWait(Actor *a);       /* 83:CFF8 */
 int ActorKind84Wait(Actor *a);  /* 83:92E9 */
 int Kind22Wait(Actor *a);       /* 83:9CE2 */
 int PlatformWait(Actor *a);     /* 83:CAD1 */
+int ActorKind9BWait(Actor *a);  /* 83:93E9 (84:A7A1 ActorBobAnimate) */
 int Kind27Wait(Actor *a);       /* 83:A012: kind $27's (kinds B's kind27.c has its start) */
 int Kind30Wait(Actor *a);       /* 83:B94A */
 int ActorWaitWake(Actor *a);    /* 83:D2A2: kind $51's (kind51.c) */
