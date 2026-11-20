@@ -195,3 +195,63 @@ Trial and error is banned on this owner's projects, and it is also slower.
 6. Coverage for the unreached, by section 5's order.
 7. Symbolic assembly last: it changes no bytes and no behaviour, so it is
    quick once a list names the offending lines.
+
+## 12. Design the decomp's C for the native target from the first day
+
+Added after starting Aladdin's native conversion. This is the lesson that would
+have saved the most work, and it applies before any C is written.
+
+**What happened.** The decomp's C was shaped only by what the proof needed:
+a CPU register file, memory read and written by address, return addresses
+pushed where the assembly pushes them, and tasks and actors that pause in the
+middle of a routine with their stack in work RAM. That C is certified, but it
+is not native-shaped. Moving it onto a native engine then meant rewriting
+every routine a second time. On Aladdin that was 86,000 lines, of which only
+about 630 touch hardware; the rest is the rewrite.
+
+**The record is still worth having.** Do not skip it and convert from the
+assembly:
+- It is the only proof of what each routine does. Native code has a different
+  memory layout and cannot be run in step with the original, so each native
+  routine is written from a certified description.
+- It supplies the names (routines, addresses, tables) and the dead-code proofs.
+- Its traces, recordings and scripts do real work in the conversion: they
+  settle which bank a table is in, they are what the native actor checker
+  compares against, and they are the replay inputs.
+
+**What to do differently.** Decide the two steps together.
+- Write the C against named, typed fields laid over the original memory
+  layout (a struct whose members sit at the original addresses), not raw
+  addresses, wherever the proof allows. It is still certifiable, since the
+  accesses land on the same bytes in the same order.
+- Give records their own types from the start: an actor record, a task
+  record, the upload queue.
+- Keep the register file and the pushed frames only where the proof needs
+  them: at a routine's exits, at its pauses, and at calls that can be
+  interrupted. Everything between is ordinary C.
+- Read ROM tables through one data layer with typed readers, not by bank and
+  address in the routine. The bank a table is read in then gets settled once,
+  from traces. On Aladdin the comments naming a table's bank were wrong more
+  than a dozen times, always found the same way: a routine running with the
+  data bank at $80 commented as $81 or $83.
+- Record, per routine, whether it can pause and how deep. That list is what
+  the native step needs to turn pauses into explicit states.
+
+**What still has to be rewritten whatever you do:** the hardware touches,
+the pauses, and sound. Those are small next to the rest.
+
+**If the second step is already under way,** what made it workable:
+- One typed state file every area builds on, landed before anything else.
+- One owner per unit of behaviour, not per source file. A kind of actor
+  whose code is spread over four files is one piece of work. Splitting by
+  file caused a day of ownership questions.
+- A landing script that builds the game and runs its boot under the lock.
+  Two landings that each built cleanly on their own tip broke main twice
+  before this was added.
+- Temporary stand-ins that print their name once, each in its owner's own
+  file, so sessions can land in parallel and nothing is silent.
+- Get one end-to-end path running early (boot, then one level) before
+  converting widely. Code that compiles but is never reached is not tested,
+  and a session working past that point is spending without proof.
+- A message to a running session waits for its turn to end. A stop
+  instruction that matters has to interrupt the turn.
