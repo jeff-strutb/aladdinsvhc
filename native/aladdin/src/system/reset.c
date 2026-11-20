@@ -34,7 +34,16 @@ void GameRamClear(void)
 {
     uint8_t slot;
 
+    CLEAR(g.play_starts);               /* $03FA */
+    CLEAR(g.pause_block);               /* $0404 */
+    CLEAR(g.paused);                    /* $0405 */
     CLEAR(g.palette_saved);             /* $0406 */
+    CLEAR(g.vram_words_pending);        /* $0616 */
+    CLEAR(g.vram_words_count);          /* $0617 */
+    CLEAR(g.vram_words);                /* $0619 */
+    CLEAR(g.tile_changes_count);        /* $0719 */
+    CLEAR(g.tile_changes_end);          /* $071B */
+    CLEAR(g.tile_changes);              /* $071D */
     CLEAR(g.palette_saved_at);          /* $0606 */
     CLEAR(g.level_spot_count);          /* $0821 */
     CLEAR(g.level_spots);               /* $0822 */
@@ -42,12 +51,14 @@ void GameRamClear(void)
     CLEAR(g.text_map_upload);           /* $0835 */
     CLEAR(g.text_parts_pending);        /* $0836 */
     CLEAR(g.bg2_x_held);                /* $083C */
+    CLEAR(g.layer_setup_mode);          /* $083F */
     CLEAR(g.palette_upload);            /* $0844 */
     CLEAR(g.menu_blink_hidden);         /* $0847 */
     CLEAR(g.menu_blink_frames);         /* $0848 */
     CLEAR(g.menu_choice);               /* $0849 */
     CLEAR(g.menu_choice_was);           /* $084A */
     CLEAR(g.menu_cursor_moves);         /* $084B */
+    CLEAR(g.frame_ready);               /* $0857 */
     CLEAR(g.vram_queue_pending);        /* $0858 */
     CLEAR(g.vram_queue_count);          /* $0859 */
     CLEAR(g.vram_queue);                /* $085A */
@@ -58,6 +69,8 @@ void GameRamClear(void)
     CLEAR(g.player_run_decel);          /* $1442 */
     CLEAR(g.player_turn_decel);         /* $1444 */
     CLEAR(g.continue_frames);           /* $142E */
+    CLEAR(g.frame_start_x);             /* $143A */
+    CLEAR(g.frame_start_y);             /* $143D */
     CLEAR(g.screen_signal);             /* $146B */
     CLEAR(g.player_box_wanted);         /* $1448 */
     CLEAR(g.player_box);                /* $1449 */
@@ -66,14 +79,17 @@ void GameRamClear(void)
     CLEAR(g.player_dash);               /* $1459 */
     CLEAR(g.player_saved_x);            /* $145D */
     CLEAR(g.player_saved_y);            /* $145F */
+    CLEAR(g.play_frames);               /* $147C */
+    CLEAR(g.play_seconds);              /* $147D */
+    CLEAR(g.play_digits);               /* $147E */
     CLEAR(g.free_pool);                 /* $15A2 */
     CLEAR(g.free_pool_b);               /* $15DA */
     CLEAR(g.free_pool_top);             /* $15E4 */
     CLEAR(g.free_pool_b_top);           /* $15E6 */
     CLEAR(g.palette_cycle_running);     /* $15F1 */
-    CLEAR(g.sequence_running);          /* $1645 */
-    CLEAR(g.vram_list_pending);         /* $1649 */
-    CLEAR(g.vram_list);                 /* $164D */
+    CLEAR(g.sequences);                 /* $1645 */
+    CLEAR(g.vram_list_pending);         /* $1649 + $10 n */
+    CLEAR(g.vram_list);                 /* $164D + $10 n */
     CLEAR(g.layers);                    /* $1738, $188E */
     CLEAR(g.scroll_x_before);           /* $19E5 */
     CLEAR(g.scroll_y_before);           /* $19E9 */
@@ -92,6 +108,10 @@ void GameRamClear(void)
     CLEAR(g.bg2_y_shift);               /* $1A24 */
     CLEAR(g.backdrop_offset_y);         /* $1A2B */
     CLEAR(g.band_drift);                /* $1A2F */
+    CLEAR(g.scroll_x_min);              /* $1A40 */
+    CLEAR(g.scroll_x_max);              /* $1A42 */
+    CLEAR(g.range_x);                   /* $1A44 */
+    CLEAR(g.range_y);                   /* $1A46 */
     CLEAR(g.column_queue);              /* $1A48 */
     CLEAR(g.row_queue);                 /* $1A68 */
     CLEAR(g.column_queue_head);         /* $1A88 */
@@ -103,6 +123,7 @@ void GameRamClear(void)
     CLEAR(g.tile_blocks);               /* $1B44 */
     CLEAR(g.tile_blocks_count);         /* $1BE4 */
     CLEAR(g.tile_blocks_pending);       /* $1BE6 */
+    CLEAR(g.block_sources);             /* $1BF5 */
     CLEAR(g.band_pos);                  /* $7E:F800 */
     for (slot = TASK_SLOTS - 1; slot >= 1; slot--)
         TaskSlotFree(slot);
@@ -120,10 +141,13 @@ void Table15F1Clear(void)
 /*
  * @routine 81:967B LevelTablesClear
  * WHAT IT DOES: Stops the level's palette cycles and its ten value
- * sequences.
+ * sequences (each one's running byte cleared).
  */
 void LevelTablesClear(void)
 {
+    unsigned n;
+
     Table15F1Clear();
-    CLEAR(g.sequence_running);
+    for (n = 0; n < SEQUENCES; n++)
+        g.sequences[n].running = 0;
 }

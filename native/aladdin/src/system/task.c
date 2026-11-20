@@ -5,6 +5,7 @@
  * the task's chain, and a turn is a call of the task's entry.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "game/game.h"
@@ -16,6 +17,21 @@
 
 /* the running task's chain: how many routines on it have entered this turn */
 static unsigned chain_depth;
+
+/* ALADDIN_TASK_TRACE=1: each task created, started again and ended, with
+   its update, on stderr (a check's sight of the boot; the game is the same) */
+static void trace(const char *what, unsigned slot, unsigned entry)
+{
+    static int on = -1;
+
+    if (on < 0) {
+        const char *e = getenv("ALADDIN_TASK_TRACE");
+
+        on = e && *e == '1';
+    }
+    if (on)
+        fprintf(stderr, "update %llu: slot %u %s entry %u\n", (unsigned long long)nshvc_updates(), slot, what, entry);
+}
 
 uint16_t *task_enter(Task *t)
 {
@@ -63,6 +79,7 @@ TaskRun task_wait(Task *t, uint8_t frames)
  */
 TaskRun task_exec(Task *t, TaskEntry entry)
 {
+    trace("exec", (unsigned)(t - g.tasks), (unsigned)entry);
     t->entry = (uint16_t)entry;
     t->state = TASK_NEW;
     return TASK_EXECS;
@@ -74,6 +91,7 @@ TaskRun task_exec(Task *t, TaskEntry entry)
  */
 TaskRun task_exit(Task *t)
 {
+    trace("ends", (unsigned)(t - g.tasks), t->entry);
     TaskSlotFree((uint8_t)(t - g.tasks));
     return TASK_ENDS;
 }
@@ -87,6 +105,7 @@ void TaskCreate(uint8_t slot, uint8_t param, TaskEntry entry)
 {
     Task *t = &g.tasks[slot];
 
+    trace("create", slot, (unsigned)entry);
     t->state = TASK_NEW;
     t->param = param;
     t->entry = (uint16_t)entry;

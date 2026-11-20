@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include "data/data.h"
+
 /* ---- the opening story (game/opening_story.c) ---- */
 
 #define OPENING_SCENES 6
@@ -27,5 +29,48 @@ typedef struct OpeningActor {
 uint16_t opening_scene_frames(unsigned scene);  /* the frames scene 0-5 runs */
 OpeningScene opening_scene(unsigned scene);     /* scene 0-5 */
 OpeningActor opening_actor(unsigned entry);     /* entry 0-21 */
+
+/* ---- the title's menu (game/menu_mark.c, menu_mark_draw.c) ---- */
+
+#define MENU_CHOICES 3
+
+uint8_t menu_line_layout(unsigned choice);      /* the text layout of choice 0-2's line */
+uint16_t menu_mark_place(unsigned choice);      /* the text map's word index of choice 0-2's mark */
+
+/* ---- the story's texts (game/story_text.c) ---- */
+
+/* where text `text` of set `set` (0 the opening story's, 1 the later
+   scenes') starts, as a place story_text_byte reads from */
+uint16_t story_text_start(unsigned set, uint8_t text);
+/* the text's byte at place `at`: a character (below $FB), a code ($FB place,
+   $FC palette, $FD wait, $FE page, $FF next row), or 0, its end; the codes'
+   bytes follow at at + 1 on */
+uint8_t story_text_byte(uint16_t at);
+
+/* ---- the level's value sequences (level/sequences.c) ---- */
+
+typedef struct SequenceList {
+    uint8_t length;             /* its length in bytes, 3 an entry */
+    DataRef list;
+} SequenceList;
+typedef struct SequenceEntry {
+    uint8_t frames;             /* frames the word is held; bit 7 set: the list ends here */
+    DataRef vram_list;          /* the word: the VRAM list it names */
+} SequenceEntry;
+SequenceList sequence_list(uint8_t number);     /* number: the table's offset, 3 an entry */
+SequenceEntry sequence_entry(DataRef list, uint8_t index);  /* index: the entry's offset in the list */
+
+/* ---- the map's tile changes (map/tile_changes.c) ---- */
+
+/* a map tile's quarter (its 8 x 8 tiles: 0 top left, 1 top right, 2 bottom
+   left, 3 bottom right), as TileChangeQueueQuarter writes it */
+typedef struct TileQuarter {
+    int16_t vram_offset;        /* from the VRAM word of the tile's bottom right quarter */
+    uint8_t place;              /* its word in the metatile: 0-3 */
+} TileQuarter;
+TileQuarter tile_quarter(unsigned quarter);     /* quarter 0-3 */
+/* the word `offset` bytes into the metatiles `metatiles` names (from the
+   start of their bank, level_metatiles in data.h) */
+uint16_t metatile_word(DataRef metatiles, uint16_t offset);
 
 #endif

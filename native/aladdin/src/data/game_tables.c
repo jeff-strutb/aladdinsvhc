@@ -3,7 +3,10 @@
  * opening story's scene frames at $DA9D (6 words), its scenes' graphics
  * sets, second-table copies and palettes at $DAA9, $DAAF and $DAB5 (6 bytes
  * each), and its 22 actor placements at $DABB (6 bytes each: kind, the byte
- * for $07, x word, y word).
+ * for $07, x word, y word). The title menu's line layouts at $CE25 (3
+ * bytes) and its mark's places at $CE28 (3 words, byte offsets in the text
+ * map); the record's comment puts the layouts in bank $81, but the menu
+ * runs with DB = $80 and $80:CE25 holds the title's layouts $0E, $10, $12.
  */
 #include "data/data_internal.h"
 #include "data/game_tables.h"
@@ -15,6 +18,9 @@
 #define SCENE_PALETTE_ADDR 0xDAB5
 #define STORY_ACTORS_ADDR 0xDABB
 #define STORY_ACTOR_BYTES 6
+#define MENU_BANK 0x80
+#define MENU_LINES_ADDR 0xCE25
+#define MENU_PLACES_ADDR 0xCE28
 
 uint16_t opening_scene_frames(unsigned scene)
 {
@@ -41,4 +47,83 @@ OpeningActor opening_actor(unsigned entry)
     a.x = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 2)));
     a.y = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 4)));
     return a;
+}
+
+uint8_t menu_line_layout(unsigned choice)
+{
+    return cart8(cart_offset(MENU_BANK, (uint16_t)(MENU_LINES_ADDR + choice)));
+}
+
+uint16_t menu_mark_place(unsigned choice)
+{
+    return (uint16_t)(cart16(cart_offset(MENU_BANK, (uint16_t)(MENU_PLACES_ADDR + 2 * choice))) / 2);
+}
+
+#define STORY_SETS_ADDR 0xFD8D
+#define STORY_TEXT_BANK 0xA5
+#define SEQUENCES_BANK 0x80
+#define SEQUENCES_TABLE_ADDR 0xCA17
+
+uint16_t story_text_start(unsigned set, uint8_t text)
+{
+    uint8_t list = cart8(cart_offset(STORY_BANK, (uint16_t)(STORY_SETS_ADDR + set)));
+    uint8_t at = (uint8_t)(list + 2 * text);        /* the original's 8-bit index */
+
+    return cart16(cart_offset(STORY_BANK, (uint16_t)(STORY_SETS_ADDR + at)));
+}
+
+uint8_t story_text_byte(uint16_t at)
+{
+    return cart8(cart_offset(STORY_TEXT_BANK, at));
+}
+
+/* a place in bank $80, as the sequences' words name them */
+static DataRef ref_in_sequences_bank(uint16_t addr)
+{
+    DataRef r;
+
+    r.at = cart_offset(SEQUENCES_BANK, addr);
+    return r;
+}
+
+SequenceList sequence_list(uint8_t number)
+{
+    uint16_t at = (uint16_t)(SEQUENCES_TABLE_ADDR + number);
+    SequenceList l;
+
+    l.length = cart8(cart_offset(SEQUENCES_BANK, at));
+    l.list = ref_in_sequences_bank(cart16(cart_offset(SEQUENCES_BANK, (uint16_t)(at + 1))));
+    return l;
+}
+
+SequenceEntry sequence_entry(DataRef list, uint8_t index)
+{
+    SequenceEntry e;
+
+    e.frames = cart8(list.at + index);
+    e.vram_list = ref_in_sequences_bank(cart16(list.at + index + 1u));
+    return e;
+}
+
+/* The map's tile quarters at $80:BA46 (TileChangeQueueQuarter, read with
+   DB = $80; the record's comment names bank $81, where the bytes are code):
+   per quarter, 8 bytes apart, the VRAM offset (word) and the quarter's
+   byte offset in the metatile (word). The other four bytes of each 8 are
+   another table's. */
+#define QUARTERS_BANK 0x80
+#define QUARTERS_ADDR 0xBA46
+
+TileQuarter tile_quarter(unsigned quarter)
+{
+    uint16_t at = (uint16_t)(QUARTERS_ADDR + 8u * quarter);
+    TileQuarter q;
+
+    q.vram_offset = (int16_t)cart16(cart_offset(QUARTERS_BANK, at));
+    q.place = (uint8_t)(cart16(cart_offset(QUARTERS_BANK, (uint16_t)(at + 2))) / 2);
+    return q;
+}
+
+uint16_t metatile_word(DataRef metatiles, uint16_t offset)
+{
+    return cart16(metatiles.at + offset);
 }

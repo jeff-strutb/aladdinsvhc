@@ -133,4 +133,10 @@ void LayersFill(void);                      /* 81:C060 */
 int TileSlotClaim(uint8_t kind, Actor *a);  /* 82:ABCE: a free palette slot, tried from 4 down to 1, for `kind` and `a` (its slot, look; the kind's slot and look; the slot's user and kind); 0 claimed, -1 none */
 void TileSlotFill(uint8_t kind);            /* 82:AB77: the kind's palette (32 bytes at its kind_palette * 32 in the actors' palettes) into its slot's place in g.palette; palette_upload up */
 
+/* wanted (map/, the stage 4 system session) */
+uint16_t TilemapWord(uint16_t x, uint16_t y);   /* 81:C177 (TilemapWordLong 81:C173): the VRAM word address of
+                                                   BG1's 64 x 32 map word at pixel x, y */
+void BlockSourceAdd(uint16_t source);           /* 81:C025: g.block_sources[g.block_sources_end++] = source,
+                                                   the screen's block list (its number * $80) */
+
 #endif

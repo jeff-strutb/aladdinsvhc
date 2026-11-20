@@ -161,7 +161,10 @@ TaskRun TitleTask(Task *t)
             *at = TITLE_MODE7;
             return task_wait(t, 1);
         case TITLE_MODE7:
-            Mode7ScreenSetup(0);
+            /* 81:AF3B Mode7ScreenSetup, from the sources: set 4's tiles (unpacked at
+               $0800, VramCopy 7 sent them to video address 0) and its map ($0000, sent
+               to $4000 by VramCopy 3) */
+            video_mode7_screen_setup(0, &g.unpacked[0x0800], &g.unpacked[0x0000]);
             g.blank = 0;
             g.brightness = 0;
             FrameStep();

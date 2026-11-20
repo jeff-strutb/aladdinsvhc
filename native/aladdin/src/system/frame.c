@@ -3,6 +3,7 @@
  * followed by a frame's wait, once or many times. Each is a routine that
  * waits (task.h): its resume point says how far it has got.
  */
+#include "game/game.h"
 #include "system/system.h"
 #include "system/task.h"
 #include "system/unconverted.h"

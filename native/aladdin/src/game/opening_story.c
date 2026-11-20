@@ -255,8 +255,8 @@ static void scene_screen(uint8_t scene)
     LevelTablesClear();
     ActorsFreeAll();
     g.line_effects_on = 0;
-    vram_fill(0x4000, 0, 32 * 32);      /* 81:95F5 VramFillMap: BG2's map and BG1's emptied */
-    vram_fill(0x4800, 0, 32 * 32);
+    VramFillMap(VIDEO_MAP_BACK, 0);     /* BG2's map and BG1's emptied */
+    VramFillMap(VIDEO_MAP_FRONT, 0);
     TextLayerClear();
     UnpackSet(0x0E);
     VramCopy(18);

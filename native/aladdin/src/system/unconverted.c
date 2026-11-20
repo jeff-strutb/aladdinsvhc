@@ -30,148 +30,24 @@ void unconverted(const char *name)
     fprintf(stderr, "unconverted: %s\n", name);
 }
 
-PLACEHOLDER void PaletteSave(uint8_t first, uint8_t count)
-{
-    unconverted("PaletteSave");
-    (void)first;
-    (void)count;
-}
-
-PLACEHOLDER void PaletteFadeStep(int8_t step, uint8_t count)
-{
-    unconverted("PaletteFadeStep");
-    (void)step;
-    (void)count;
-}
-
-PLACEHOLDER void PaletteCycleStart(uint8_t slot, uint8_t cycle)
-{
-    unconverted("PaletteCycleStart");
-    (void)slot;
-    (void)cycle;
-}
-
-PLACEHOLDER void LayersFill(void)
-{
-    unconverted("LayersFill");
-}
-
-PLACEHOLDER TaskRun ColourFadeInTask(Task *t)
-{
-    unconverted("ColourFadeInTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun ColourFadeOutTask(Task *t)
-{
-    unconverted("ColourFadeOutTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun PaletteSequenceTask(Task *t)
-{
-    unconverted("PaletteSequenceTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun BrightnessUpTask(Task *t)
-{
-    unconverted("BrightnessUpTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun BrightnessDownTask(Task *t)
-{
-    unconverted("BrightnessDownTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun Mode7ZoomInTask(Task *t)
-{
-    unconverted("Mode7ZoomInTask");
-    return task_exit(t);
-}
-
 PLACEHOLDER TaskRun WindowEffectTask(Task *t)
 {
     unconverted("WindowEffectTask");
     return task_exit(t);
 }
 
-PLACEHOLDER void SoundSetsLoad(void)
+PLACEHOLDER uint16_t TilemapWord(uint16_t x, uint16_t y)
 {
-    unconverted("SoundSetsLoad");
+    unconverted("TilemapWord");
+    (void)x;
+    (void)y;
+    return 0;
 }
 
-PLACEHOLDER void SongPlay(uint8_t song)
+PLACEHOLDER void BlockSourceAdd(uint16_t source)
 {
-    unconverted("SongPlay");
-    (void)song;
-}
-
-PLACEHOLDER void SoundQueueAdd(uint8_t command)
-{
-    unconverted("SoundQueueAdd");
-    (void)command;
-}
-
-PLACEHOLDER void SoundQueueF6(uint8_t param)
-{
-    unconverted("SoundQueueF6");
-    (void)param;
-}
-
-PLACEHOLDER void SoundQueueF6With1(void)
-{
-    unconverted("SoundQueueF6With1");
-}
-
-PLACEHOLDER void SoundCommandSend(void)
-{
-    unconverted("SoundCommandSend");
-}
-
-PLACEHOLDER void FrameStep(void)
-{
-    unconverted("FrameStep");
-}
-
-PLACEHOLDER void LevelRamSetup(void)
-{
-    unconverted("LevelRamSetup");
-}
-
-PLACEHOLDER TaskRun TextCardScreen(Task *t)
-{
-    unconverted("TextCardScreen");
-    (void)t;
-    return TASK_GOES_ON;
-}
-
-PLACEHOLDER void RegionCheck(void)
-{
-    unconverted("RegionCheck");
-}
-
-PLACEHOLDER void LevelMapBuild(void)
-{
-    unconverted("LevelMapBuild");
-}
-
-PLACEHOLDER TaskRun StoryTextTask(Task *t)
-{
-    unconverted("StoryTextTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER void TitleMenuCursor(void)
-{
-    unconverted("TitleMenuCursor");
-}
-
-PLACEHOLDER void MenuMarkMove(void)
-{
-    unconverted("MenuMarkMove");
+    unconverted("BlockSourceAdd");
+    (void)source;
 }
 
 PLACEHOLDER int PadConfirmPressed(void)
@@ -215,127 +91,32 @@ PLACEHOLDER TaskRun DemoTask(Task *t)
     return task_exit(t);
 }
 
-PLACEHOLDER void video_init(void)
+PLACEHOLDER void ScrollUpdate(void)
 {
-    unconverted("video_init");
+    unconverted("ScrollUpdate");
 }
 
-PLACEHOLDER void video_vblank(void)
+PLACEHOLDER void LayersScroll(void)
 {
-    unconverted("video_vblank");
+    unconverted("LayersScroll");
 }
 
-PLACEHOLDER void video_draw(void)
+PLACEHOLDER void BgFollowLayers(void)
 {
-    unconverted("video_draw");
+    unconverted("BgFollowLayers");
 }
 
-PLACEHOLDER void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how)
+PLACEHOLDER void PaletteCyclesStep(void)
 {
-    unconverted("vram_write");
-    (void)address;
-    (void)data;
-    (void)count;
-    (void)how;
+    unconverted("PaletteCyclesStep");
 }
 
-PLACEHOLDER void vram_fill(uint16_t address, uint16_t word, uint32_t count)
+PLACEHOLDER void LevelScrollLimits(void)
 {
-    unconverted("vram_fill");
-    (void)address;
-    (void)word;
-    (void)count;
+    unconverted("LevelScrollLimits");
 }
 
-PLACEHOLDER void ScrollStateClear(void)
+PLACEHOLDER void LevelActorGraphicsLoad(void)
 {
-    unconverted("ScrollStateClear");
-}
-
-PLACEHOLDER void DisplayDefaults(void)
-{
-    unconverted("DisplayDefaults");
-}
-
-PLACEHOLDER void VramCopy(int entry)
-{
-    unconverted("VramCopy");
-    (void)entry;
-}
-
-PLACEHOLDER void VramCopy2(int entry)
-{
-    unconverted("VramCopy2");
-    (void)entry;
-}
-
-PLACEHOLDER void UnpackSet(int set)
-{
-    unconverted("UnpackSet");
-    (void)set;
-}
-
-PLACEHOLDER void LevelGraphicsLoad(void)
-{
-    unconverted("LevelGraphicsLoad");
-}
-
-PLACEHOLDER void Mode7ScreenSetup(uint8_t row_flag)
-{
-    unconverted("Mode7ScreenSetup");
-    (void)row_flag;
-}
-
-PLACEHOLDER void PaletteLoad(int set)
-{
-    unconverted("PaletteLoad");
-    (void)set;
-}
-
-PLACEHOLDER void OamBufferClear(void)
-{
-    unconverted("OamBufferClear");
-}
-
-PLACEHOLDER void OamBuildBegin(void)
-{
-    unconverted("OamBuildBegin");
-}
-
-PLACEHOLDER void OamDrawActors(void)
-{
-    unconverted("OamDrawActors");
-}
-
-PLACEHOLDER void TextLayerClear(void)
-{
-    unconverted("TextLayerClear");
-}
-
-PLACEHOLDER void TextLayoutShow(int layout)
-{
-    unconverted("TextLayoutShow");
-    (void)layout;
-}
-
-PLACEHOLDER void ActorsFreeAll(void)
-{
-    unconverted("ActorsFreeAll");
-}
-
-PLACEHOLDER Actor *ActorCreate(uint8_t kind)
-{
-    unconverted("ActorCreate");
-    (void)kind;
-    return NULL;
-}
-
-PLACEHOLDER Actor *ActorSpawnAt(uint8_t kind, uint8_t byte07, uint16_t x, uint16_t y)
-{
-    unconverted("ActorSpawnAt");
-    (void)kind;
-    (void)byte07;
-    (void)x;
-    (void)y;
-    return NULL;
+    unconverted("LevelActorGraphicsLoad");
 }

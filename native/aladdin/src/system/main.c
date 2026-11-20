@@ -11,6 +11,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include "audio/music.h"
 #include "data/data.h"
 #include "nshvc/nshvc.h"
 #include "system/system.h"
@@ -56,5 +57,8 @@ int main(int argc, char **argv)
     game.update = update;
     game.draw = draw;
     game.shutdown = shutdown;
+    game.music.hz = MUSIC_HZ;
+    game.music.tick = music_tick;
+    game.music.queue_bytes = MUSIC_QUEUE_BYTES;
     return nshvc_run(&game, argc, argv);
 }

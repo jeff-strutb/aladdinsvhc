@@ -13,9 +13,12 @@ enum { BOOT_START, BOOT_WAITED, BOOT_TEXT_CARD, BOOT_LOGO, BOOT_TITLE };
 /*
  * @routine 81:8000 BootTask
  * WHAT IT DOES: The first task (slot 0, made by PowerOn): the text upload's
- * VRAM address and size set, a frame's wait, then the region check, the
- * text card, the sound sets, the logo screen, the NMI on, and on to the
- * title (TitleStartTask, the same task going on).
+ * VRAM address and size set, a frame's wait, then the text card, the
+ * sound sets, the logo screen, the NMI on, and on to the title
+ * (TitleStartTask, the same task going on).
+ * HOW: The region check (84:AFAE RegionCheck) is dead here: it clears $005D
+ * and sets it on a PAL console only (the board is NTSC, the branch never
+ * runs), and nothing in the game reads $005D; so it is not converted.
  */
 TaskRun BootTask(Task *t)
 {
@@ -29,7 +32,6 @@ TaskRun BootTask(Task *t)
         *at = BOOT_WAITED;
         return task_wait(t, 1);
     case BOOT_WAITED:
-        RegionCheck();
         *at = BOOT_TEXT_CARD;
         /* fall through */
     case BOOT_TEXT_CARD:

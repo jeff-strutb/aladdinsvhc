@@ -56,6 +56,14 @@ typedef struct Task {
                                    original kept on the task's stack across its waits, so no address (native only) */
             int8_t step;            /* the fade's grey level, or the sequence's step */
         } video;
+        struct {                /* the story's text task (game/story_text.c); its frames between characters
+                                   are the slot's parameter, as the original's */
+            uint8_t palette;        /* +$07: the palette bits of the tile's high byte */
+            uint8_t column;         /* +$08 */
+            uint8_t row;            /* +$09: each two of the text layer's rows */
+            uint16_t origin;        /* +$0A: the text layer's byte offset of the first row and column */
+            uint16_t at;            /* the next byte of the text (the original kept it on the task's stack) */
+        } story_text;
     } own;
 } Task;
 
@@ -130,6 +138,19 @@ typedef struct TileBlock {
 
 #define TILE_BLOCK_QUEUE_SIZE 16
 
+/* A queued change of a map tile ($071D, 8 bytes each), made by
+   TileChangesApply: 32 fit before $0821; the original checks no bound. */
+typedef struct TileChange {
+    uint16_t x, y;              /* +$00, +$02: the point, pixels (bit 3 set: the tile's middle) */
+    uint16_t tile;              /* +$04: the new map tile (an offset in the level's metatiles) */
+} TileChange;
+
+#define TILE_CHANGES_SIZE 32
+
+#define LEVEL_TILES_WORDS 0x8000    /* the original's bank $7F, a word a tile, as far as a screen's offset reaches */
+#define SCREEN_MAP_PLACES (32 * 32)
+#define BLOCK_SOURCES_SIZE 40       /* the most screens a level builds (40, from the map headers) */
+
 /* A scroll layer's record ($156 bytes: the play field's at $1738, the
    backdrop's at $188E). Offsets in the record; the bytes $00-$27 and the
    rest not named in wram_video.h are the layer session's to add. */
@@ -201,6 +222,20 @@ typedef struct VramWord {
 } VramWord;
 
 #define VRAM_WORDS_SIZE 64      /* the upload sends count * 4 bytes as one byte's length (80:884C), so 63 at most */
+/* A value sequence ($1645 + 16 n, ten; level/sequences.c): a list of
+   words, each held for some frames. Its new-word byte (+$04) and its word
+   (+$08), the VRAM list it names, are video's g.vram_list_pending[n] and
+   g.vram_list[n], which the NMI's upload reads and clears. */
+#define SEQUENCES 10
+typedef struct Sequence {
+    uint8_t running;            /* +$00: nonzero while it runs */
+    uint8_t number;             /* +$01: its list in the sequences' table (an offset, 3 bytes an entry) */
+    uint8_t length;             /* +$02: its list's length in bytes */
+    uint8_t index;              /* +$03: its entry's offset in the list */
+    uint8_t wait;               /* +$05: frames left of the word */
+    DataRef list;               /* +$06: its list */
+    uint8_t started;            /* +$0C: nonzero once started */
+} Sequence;
 
 /* ---- the state ---- */
 
@@ -268,6 +303,8 @@ typedef struct GameState {
     int16_t m7_matrix[4];       /* $038D, $038F, $0391, $0393: Mode 7's a, b, c, d, 8.8 */
     uint16_t m7_centre_x;       /* $0395 */
     uint16_t m7_centre_y;       /* $0397 */
+    uint16_t scroll_x_min;      /* $1A40: the play field's scroll x at its least */
+    uint16_t scroll_x_max;      /* $1A42: and at its most */
     int8_t camera_window;       /* $1A08: with $1A09, the camera's window in the scroll's table; negative, the
                                    camera does not follow the player */
     uint8_t screen_signal;      /* $146B: a byte the screens' code signals with; on the title, bit 7 set when the
@@ -337,8 +374,28 @@ typedef struct GameState {
     uint8_t level_spot_count;   /* $0821: the level's trigger spots */
     DataRef level_spots;        /* $0822: their list */
     uint8_t tile_behaviour[4096]; /* $7E:C800: per map tile, how it behaves */
-    uint8_t sequence_running[10]; /* $1645 + 16 n: nonzero while value sequence record n runs (its other
-                                     bytes are level/'s to add) */
+    uint16_t map_level;         /* the level LevelMapBuild last built: the banks it noted for its block lists,
+                                   block tiles and metatiles ($0056, $0059, $005C, and the pointer $005A-$005C
+                                   at $8000 of the metatiles) are that level's (g.level changes after) */
+    uint16_t level_tiles[LEVEL_TILES_WORDS]; /* $7F:0000: the level's map, a map word a 16 x 16 tile, each screen
+                                   16 x 16 tiles ($200 bytes) one after another as LevelMapBuild built them.
+                                   Read at the byte offsets the screen map gives (up to $FFFF); past the screens
+                                   built the original reads whatever else its bank $7F holds there (the graphics
+                                   buffer from $5800, the screen map from $F000), which this array does not */
+    union {                     /* $7F:F000-$F7FF: two uses of the same bytes in the original */
+        uint16_t places[SCREEN_MAP_PLACES]; /* the screen map: 32 x 32 places, row by row; a place's high byte the
+                                   byte offset of its screen's tiles in level_tiles over 256, its low byte 0 */
+        uint8_t anim_set_of_kind[256];      /* $7F:F000 + kind: each kind's animation set (AnimSetsLoad, $FF none);
+                                   LevelMapBuild clears these bytes and lays the screen map over them */
+    } screen_map;
+    uint16_t block_sources[BLOCK_SOURCES_SIZE]; /* $1BF5: per screen built, its block list (screen number * $80) */
+    uint16_t block_sources_end; /* $0016 while a level's map is built: the entries listed (the original: their
+                                   byte offset); LevelMapBuild empties the list */
+    uint16_t tile_changes_count;    /* $0719: tile changes queued */
+    uint16_t tile_changes_end;  /* $071B: the next record to fill (the original: its byte offset, 8 a record) */
+    TileChange tile_changes[TILE_CHANGES_SIZE]; /* $071D */
+    Sequence sequences[SEQUENCES]; /* $1645 + 16 n: the value sequences (their +$04 and +$08 are video's
+                                      vram_list_pending[n] and vram_list[n]) */
 
     /* -- player -- */
     uint16_t player_top_speed;  /* $141D: 8.8 */
@@ -361,6 +418,14 @@ typedef struct GameState {
     uint8_t continues;          /* $035B: continues left */
     uint8_t cheat_start;        /* $0009: nonzero, play starts with 10 health marks (the title acts on it too) */
     uint8_t pause_block;        /* $0404: nonzero, no pause, and the actor loop runs only actors[1..7] past the player */
+    uint8_t paused;             /* $0405: counted up while the game is paused */
+    uint8_t play_starts;        /* $03FA: counted up each time a level's play is set up */
+    uint8_t layer_setup_mode;   /* $083F: the level's layer set-up mode */
+    uint32_t frame_start_x;     /* $143A-$143C: the player's x as the frame began, 16.8 */
+    uint32_t frame_start_y;     /* $143D-$143F: its y */
+    uint8_t play_frames;        /* $147C: frames of the play time's second, 0-59 */
+    uint8_t play_seconds;       /* $147D: counted up each second, unbounded */
+    uint8_t play_digits[6];     /* $147E: the play time's digits, seconds' units up to the hours' tens */
     uint8_t game_begun;         /* $036F: nonzero once a game has begun */
     uint8_t level_restart;      /* $0360: the restart point the level starts at (0 or 1) */
     uint16_t play_countdown;    /* $0343: a countdown the title and the play loop step down each frame */
