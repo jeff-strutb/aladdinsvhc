@@ -4,8 +4,9 @@
  * some the line data it reads changed each frame (the waves).
  *
  * Converted so far: the task, the channel search and start, effects 2, 3
- * (with the waves), 4 and 12. The other nine effects print their name once
- * and end the task (listed in the report).
+ * (with the waves), 4, 7 and 12. Effects 0, 1 and 5 are dead (video/NOTES).
+ * Effects 6, 8, 9, 10 and 11 print their name once and end the task (not
+ * converted yet).
  */
 #include <stdio.h>
 
@@ -212,6 +213,8 @@ static TaskRun waves_frame(Task *t)
  *     window edges; the channel on; the waves for good.
  *   effect 4 (82:82DB): set 6 on register set 8 at $20; the line data's
  *     $80 = 7 and $81 = 0; the channel on; a 2-frame wait for good.
+ *   effect 7 (82:8307): set $0C on register set 8 at $20; the line data's
+ *     $80 = 1 and $81 = 7; the channel on; a 2-frame wait for good.
  *   effect 12 (82:86CF): set $14 on register set 0 from the base; the line
  *     data's $80 = the main screen's layers and $81 their BG bits; the
  *     channel on; the sprites masked by window 1 on both screens (inverted),
@@ -256,6 +259,14 @@ TaskRun WindowEffectTask(Task *t)
             return task_wait(t, 1);
         g.line_data[0x80] = 0x07;
         g.line_data[0x81] = 0x00;
+        channel_on(ch);
+        *at = 10;
+        return task_wait(t, 2);
+    case 0x0E:
+        if ((ch = hdma_start(0x0C, 0x08, 0x0020)) == NO_CHANNEL)
+            return task_wait(t, 1);
+        g.line_data[0x80] = 0x01;
+        g.line_data[0x81] = 0x07;
         channel_on(ch);
         *at = 10;
         return task_wait(t, 2);

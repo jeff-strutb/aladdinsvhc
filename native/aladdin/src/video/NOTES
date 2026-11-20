@@ -40,6 +40,10 @@ Dead
          (81:A343) is a BCS operand and the STZ after it.
   81:B0FB Mode7RotateByTable: no long pointer to 81:B0FB in the cartridge, no
          word $B0FB in bank $81 (the record: "No code refers to it").
+  82:8031 HdmaEffect0, 82:8092 HdmaEffect1, 82:8333 HdmaEffect5: WindowEffectTask's
+         effects 0, 1 and 5. Every TaskCreate of WindowEffectTask in the cartridge
+         (its entry $00 $80 $82 after the slot and parameter) passes parameter
+         4, 6, 8, $0C, $0E, $10, $12, $14, $16 or $18: none 0, 2 or $0A.
   81:BC16 UnpackTask: its address as a long ($16 $BC $81) is nowhere in the
          cartridge, so no task is created at it.
   81:9EDD ColourFadeInSprites, 81:9EE4 ColourFadeInBg1, 81:9EE8 ColourFadeInBg2,
