@@ -66,6 +66,22 @@ void LevelGraphicsLoad(void)
 }
 
 /*
+ * @routine 81:BA9E AnimSetGraphicsUnpack
+ * WHAT IT DOES: Unpacks animation set `set`'s graphics into the unpack
+ * buffer where the last unpack stopped (g.unpack_next), noting where they
+ * went (g.kind_gfx_at); a set whose entry's word is 0 has none.
+ */
+void AnimSetGraphicsUnpack(uint8_t set)
+{
+    AnimSetGraphics a;
+
+    g.kind_gfx_at[set] = g.unpack_next;
+    a = anim_set_graphics(set);
+    if (a.length)
+        g.unpack_next = unpack(a.packed, g.unpack_next);
+}
+
+/*
  * @routine 81:BC16 UnpackTask
  * Dead: no task is created at it (the record: "Nothing found creates it");
  * the bytes $16 $BC $81 (its address, as a task's entry or a long pointer

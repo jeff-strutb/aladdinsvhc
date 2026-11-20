@@ -74,6 +74,7 @@ void DisplayDefaults(void);                 /* 81:9865 */
 void VramCopy(int entry);               /* 81:F5DC: entry of the first copy table (the record's X / 7) */
 void VramCopy2(int entry);              /* 81:F60D: entry of the second */
 void UnpackSet(int set);                /* 81:BAF1: packed set to g.unpacked */
+void AnimSetGraphicsUnpack(uint8_t set);    /* 81:BA9E */
 void LevelGraphicsLoad(void);               /* 81:B92D: g.level's graphics */
 /* 81:AF3B Mode7ScreenSetup: Mode 7 from 256 4bpp tiles (8,192 bytes, as the
    original's video memory held them from 0) and a 32 x 32 map's words (2,048
