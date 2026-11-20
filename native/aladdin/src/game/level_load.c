@@ -36,7 +36,7 @@
  * second (copy 6), each unless negative (none, and then neither);
  * LevelGraphicsLoad, LevelActorGraphicsLoad.
  */
-static void LevelGraphicsLoadAll(void)
+void LevelGraphicsLoadAll(void)
 {
     UnpackSet(1);
     VramCopy(0);

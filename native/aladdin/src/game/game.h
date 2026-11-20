@@ -25,6 +25,7 @@ TaskRun NextPartTask(Task *t);          /* 81:8181: task entry (the story card's
 /* continue_screen.c, genie_screen.c: task entries */
 TaskRun ContinueScreenTask(Task *t);    /* 80:B2E3 */
 TaskRun GenieScreen(Task *t);           /* 80:A63B */
+void ContinuesShow(void);               /* 80:B441: the continues left on the continue screen */
 
 /* level_end.c, story_card.c: task entries */
 TaskRun LevelEndTask(Task *t);          /* 81:F61D */
@@ -42,6 +43,7 @@ TaskRun PauseCheck(Task *t);            /* 81:8398: once a frame of play; waits 
 bool FrameStep(void);                   /* 81:8311, 81:830D FrameStepLong: true when an actor's TaskExec
                                            ended the frame (system/task.h: the chain returns task_exec_take) */
 void PlayTimeTick(void);                /* 81:85CE */
+void LevelGraphicsLoadAll(void);        /* 81:8668 (81:8664 Long): g.level's graphics, to video memory */
 void LevelRamSetup(void);               /* 81:825F, 81:825B LevelRamSetupLong: for g.level */
 TaskRun LevelLoad(Task *t);             /* 81:81A7 (81:81A3 Long): g.level loaded and started; it waits */
 TaskRun TextCardScreen(Task *t);        /* 81:ED33 */

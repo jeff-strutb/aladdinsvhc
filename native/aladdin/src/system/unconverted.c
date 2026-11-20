@@ -59,11 +59,6 @@ PLACEHOLDER TaskRun PasswordScreen(Task *t)
 
 /* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
 
-PLACEHOLDER TaskRun ContinueScreenTask(Task *t)
-{
-    unconverted("ContinueScreenTask");
-    return task_exit(t);
-}
 
 PLACEHOLDER TaskRun GenieScreen(Task *t)
 {

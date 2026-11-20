@@ -79,6 +79,9 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
+        struct {                /* ContinueScreenTask (game/continue_screen.c) */
+            uint8_t wait_left;      /* $7E: frames the wait with no continues left still runs */
+        } continue_screen;
         struct {                /* StoryCardTask (game/story_card.c): the original's direct page $4C-$54 */
             uint16_t list;          /* $4C: the list's current byte */
             uint16_t text_at;       /* $4E: the next character's byte offset in the text map */
@@ -565,6 +568,8 @@ typedef struct GameState {
     /* -- game: progress -- */
     uint8_t health_marks;       /* $0365: the most health */
     uint8_t continues;          /* $035B: continues left */
+    uint8_t continue_yes;       /* $0076: nonzero once Aladdin has stepped into the continue screen's Continue (kind $26) */
+    uint8_t continue_no;        /* $0077: and into its End */
     uint8_t cheat_start;        /* $0009: nonzero, play starts with 10 health marks (the title acts on it too) */
     uint8_t pause_block;        /* $0404: nonzero, no pause, and the actor loop runs only actors[1..7] past the player */
     uint8_t paused;             /* $0405: counted up while the game is paused */

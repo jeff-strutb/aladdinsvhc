@@ -73,6 +73,7 @@ typedef enum {
     TASK_ENTRY_LEVEL_PLAY_START,    /* 81:80A3 LevelPlayStartTask (game/progress.c) */
     TASK_ENTRY_NEXT_PART,           /* 81:8181 NextPartTask (game/progress.c) */
     TASK_ENTRY_PLAY_LOOP_START,     /* 81:8191 PlayLoopStart (game/play_loop.c) */
+    TASK_ENTRY_TITLE_START,         /* 80:9C64 TitleStartTask (game/title_task.c) */
     TASK_ENTRY_LEVEL_END,           /* 81:F61D LevelEndTask (game/level_end.c) */
     TASK_ENTRY_ENDING_STORY,        /* 80:AF42 EndingStory (game/story_scenes.c) */
     TASK_ENTRY_STORY_CARD,          /* 81:F10D StoryCardTask (game/story_card.c) */
