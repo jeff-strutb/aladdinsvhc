@@ -36,3 +36,19 @@ DataRef k20_pictures(void) { return ref(0x80, 0x890F); }
 /* $80:D062: per entry (4 bytes), the word for facing right then left:
    entry 0 11 and -11, entry 4 7 and -7 */
 int16_t k20_ahead_x(uint8_t at) { return (int16_t)cart16(cart_offset(0x80, (uint16_t)(0xD062 + at))); }
+
+/* ---- kind $5C (83:E000 Kind5CStart, 83:E13F Kind5CSpeedPick) ---- */
+
+/* the word $890B it stores at +$29, in bank $80 */
+DataRef k5c_pictures(void) { return ref(0x80, 0x890B); }
+
+/* $80:D428: three words, each a path's place in bank $80; at a path, 4
+   bytes a point (x word, the child's kind, 0), $FF ending it */
+uint16_t k5c_path(uint8_t n) { return cart16(cart_offset(0x80, (uint16_t)(0xD428 + 2u * n))); }
+uint16_t k5c_path_x(uint16_t path, uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(path + at))); }
+uint8_t k5c_path_kind(uint16_t path, uint8_t at) { return at8(0x80, (uint16_t)(path + at + 2u)); }
+bool k5c_path_end(uint16_t path, uint8_t at) { return at8(0x80, (uint16_t)(path + at)) == 0xFF; }
+
+/* $80:D408: 4 bytes an entry, a word (the limit) and a byte (the step) */
+uint16_t k5c_speed_limit(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xD408 + at))); }
+uint8_t k5c_speed_step(uint8_t at) { return at8(0x80, (uint16_t)(0xD408 + at + 2u)); }

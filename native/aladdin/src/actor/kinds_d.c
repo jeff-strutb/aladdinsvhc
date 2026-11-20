@@ -13,6 +13,7 @@ const KindCode kinds_d[] = {
     { 0x30, Kind30Start, Kind30Start, NULL, Kind30Wait },
     { 0x34, Kind34Start, Kind34Start, NULL, NULL },             /* wait 83:BBF1 Kind34Wait: its flags never ask for it */
     { 0x51, Kind51Start, Kind51Start, NULL, ActorWaitWake },
+    { 0x5C, Kind5CStart, Kind5CStart, NULL, Kind5CWait },
     { 0x66, Kind66Start, NULL, NULL, ActorKind66Wait },   /* left aside: second 84:8629 Kind73Start (kind $73's start) */
     { 0x6C, Kind6CStart, NULL, NULL, NULL },   /* left aside: second 83:E5BB Kind65Start, wait 83:E5B6 ActorWaitRange00 (shared) */
     { 0, NULL, NULL, NULL, NULL }
