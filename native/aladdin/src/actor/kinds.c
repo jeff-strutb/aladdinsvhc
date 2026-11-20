@@ -23,8 +23,8 @@ const KindCode kinds_core[] = {
     { 0, NULL, NULL, NULL, NULL }
 };
 
-static const KindCode *const tables[] = { kinds_core, kinds_a, kinds_b, kinds_c, kinds_d, kinds_e, kinds_player };
-static const char *const table_names[] = { "kinds.c", "kinds_a.c", "kinds_b.c", "kinds_c.c", "kinds_d.c", "kinds_e.c",
+static const KindCode *const tables[] = { kinds_core, kinds_game, kinds_a, kinds_b, kinds_c, kinds_d, kinds_e, kinds_player };
+static const char *const table_names[] = { "kinds.c", "kinds_game.c", "kinds_a.c", "kinds_b.c", "kinds_c.c", "kinds_d.c", "kinds_e.c",
                                             "kinds_player.c" };
 
 /* Every table's rows, once: a kind in two rows ends the run with both

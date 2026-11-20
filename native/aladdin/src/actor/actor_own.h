@@ -93,7 +93,7 @@ typedef struct KindCode {
     ActorWaitCode wait;         /* its wait routine (flags bit 7), NULL none */
 } KindCode;
 
-extern const KindCode kinds_core[], kinds_a[], kinds_b[], kinds_c[], kinds_d[], kinds_e[], kinds_player[];
+extern const KindCode kinds_core[], kinds_game[], kinds_a[], kinds_b[], kinds_c[], kinds_d[], kinds_e[], kinds_player[];
 
 /* the kind's code for an entry (ACTOR_START, _SECOND, _THIRD); NULL: no
    code for it yet (reported once) */
