@@ -93,3 +93,9 @@ __attribute__((weak)) void ActorSpawnCopy(Actor *a)
     (void)a;
     TELL_ONCE("ActorSpawnCopy (83:D7D4)");
 }
+
+__attribute__((weak)) void CarrierPairSend(Actor *sender)
+{
+    (void)sender;
+    TELL_ONCE("CarrierPairSend (84:A056)");
+}

@@ -22,6 +22,7 @@ int Kind2AStart(Actor *a);      /* 83:A1E5, and its second entry */
 int Kind2ASecond(Actor *a);     /* 83:A37B: its second entry's start */
 int Kind54Start(Actor *a);      /* 83:D6D7, and its second entry (83:D7F7: ActorEndPlaced) */
 int Kind55Start(Actor *a);      /* 83:D7FB, and its second entry (83:D8DE: ActorEndPlaced) */
+int Kind97Start(Actor *a);      /* 84:9F4F (its start stub 83:93B5 Kind97Enter) */
 int Kind98Hit(Actor *a);        /* 84:A2A6: its second entry's start */
 
 /* ---- wait routines (kind2e.c, kind35.c, kind_steps.c): ACTOR_GOES_ON, or

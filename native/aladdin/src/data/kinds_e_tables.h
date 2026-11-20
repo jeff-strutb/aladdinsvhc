@@ -49,6 +49,14 @@ uint8_t k2a_leg(uint8_t variant);   /* the frames of its first pace by its varia
 uint8_t k54_rise(uint8_t way);      /* kind $54's speed up (ActorSpeedYSet's entry) by +$07 bits 0-1 */
 uint8_t k55_across(uint8_t way);    /* kind $55's speed across (ActorSpeedXSet's entry) by +$07 bits 0-1 */
 
+/* ---- kind $97: the windows of the range point's x it acts in, a low and a
+   high word each, by `at` a byte offset ---- */
+
+#define K97_DROP_WINDOW 0       /* the dropper's */
+#define K97_PAIR_WINDOW_A 4     /* the sender's, +$07 AND $11 nonzero */
+#define K97_PAIR_WINDOW_B 8     /* the sender's, +$07 AND $11 zero */
+uint16_t k97_window(uint8_t at);
+
 /* ---- kind $35, the gem ---- */
 
 /* a set gem's bit in g.gem_sets_found, by `at` (its +$07's low digit, a

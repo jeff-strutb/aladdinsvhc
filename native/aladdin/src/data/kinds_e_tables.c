@@ -66,3 +66,9 @@ uint8_t k2a_leg(uint8_t variant) { return at8(0x80, (uint16_t)(0xD0B0 + variant)
 
 uint8_t k54_rise(uint8_t way) { return at8(0x80, (uint16_t)(0xD3A8 + way)); }
 uint8_t k55_across(uint8_t way) { return at8(0x80, (uint16_t)(0xD3B0 + way)); }
+
+/* ---- kind $97: words at $80:D8FE-$80:D909. No trace reads them (no
+   script meets kind $97); bank $80 is the data bank the actor loop runs
+   every kind with, as the traces show for the other kinds' tables ---- */
+
+uint16_t k97_window(uint8_t at) { return at16(0x80, (uint16_t)(0xD8FE + at)); }

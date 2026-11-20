@@ -244,4 +244,9 @@ void ActorLiftPlayerStep(Actor *a, uint8_t offset);  /* 83:FB57: by its +$44: 0 
 /* (n5-kinds-e, for kinds $54 and $55; spawn_group.c: their only caller) */
 void ActorSpawn5E(Actor *a);                /* 83:D7C9: a child of kind $5E at spawn point $4E (ActorCreateChild8) */
 void ActorSpawnCopy(Actor *a);              /* 83:D7D4: a child of its own kind and look at spawn point 0, +$07 bit 3 set for it */
+/* (n5-kinds-e, for kind $97; carrier_pair.c: kind $97 its only caller) */
+void CarrierPairSend(Actor *sender);        /* 84:A056: a carrier (kind $38) 40 pixels above the range point and the thing it
+                                               holds (kind $53), from the two free records the sender's +$4A names; each the other's
+                                               record (index in g.actors) in its +$4E, the carrier's in the sender's +$4E; the sender's
+                                               +$41 and +$4B up, +$40 = $3C */
 #endif
