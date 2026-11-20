@@ -1,6 +1,15 @@
 /*
  * tile_changes.c: changing a tile of the level's map while it is played
  * (a door opening, a block broken), in the map and on screen.
+ *
+ * Not converted, with their proof (no JSR, JSL, JMP or table word names
+ * them; the record's own notes): TileRectQueue (81:9BAE), PointOffsetAt
+ * (81:9C8D), MapTileRestore (81:9A9C), MapTileRestoreShown (81:9AAC),
+ * MapTileSetShown (81:9B2A). MapTileRestoreAtOffset (81:9A92) and the
+ * routines only it reaches (MapTileRestoreShownTail 81:9AB4,
+ * MapTileSourceOf 81:9ABF, MapTileSourceAt 81:9AC2, MapTileBlockQueue
+ * 81:9AF6): its one caller is in actor/pool.c (81:EA78); converted when
+ * that caller is.
  */
 #include "data/data.h"
 #include "data/game_tables.h"
@@ -95,4 +104,57 @@ void TileChangesApply(void)
     g.tile_changes_end = 0;
     if (g.vram_words_count & 0xFFu)
         g.vram_words_pending++;
+}
+
+/*
+ * @routine 81:9978 TileChangeAdd
+ * WHAT IT DOES: Queues a change of the map tile at a point to a new tile,
+ * for TileChangesApply to make.
+ * HOW: The record at the queue's end gets the point's x and y, each with
+ * bit 3 set (the tile's middle), and the new tile; the end moves on a
+ * record and the count steps up (no bound, as the original's).
+ */
+void TileChangeAdd(uint16_t tile, uint16_t x, uint16_t y)
+{
+    TileChange *c = &g.tile_changes[g.tile_changes_end % TILE_CHANGES_SIZE];
+
+    c->tile = tile;
+    c->y = (uint16_t)(y | 0x0008);
+    c->x = (uint16_t)(x | 0x0008);
+    g.tile_changes_end++;
+    g.tile_changes_count++;
+}
+
+/*
+ * @routine 81:9A84 MapTileAt
+ * WHAT IT DOES: The level's map tile under point x, y.
+ */
+uint16_t MapTileAt(uint16_t x, uint16_t y)
+{
+    return g.level_tiles[MapTileAddress(x, y) % LEVEL_TILES_WORDS];
+}
+
+/*
+ * @routine 81:9B6D MapTileSet
+ * WHAT IT DOES: Puts tile `tile` into the level's map under point x, y
+ * (not on screen: TileChangeAdd does both).
+ */
+void MapTileSet(uint16_t tile, uint16_t x, uint16_t y)
+{
+    g.level_tiles[MapTileAddress(x, y) % LEVEL_TILES_WORDS] = tile;
+}
+
+/*
+ * @routine 81:9B7D MapQuarterAt
+ * WHAT IT DOES: The tilemap word of the 8 x 8 quarter of the map tile
+ * under point x, y.
+ * HOW: The tile's word plus the quarter's offset (x bit 3 gives 2, y bit 3
+ * gives 4) indexes the level's metatiles. (The original also leaves the
+ * offset at $12; its one caller, kind $3B, does not read it.)
+ */
+uint16_t MapQuarterAt(uint16_t x, uint16_t y)
+{
+    uint16_t quarter = (uint16_t)(((x & 0x0008) >> 2) | ((y & 0x0008) >> 1));
+
+    return metatile_word(level_metatiles(g.map_level), (uint16_t)(MapTileAt(x, y) + quarter));
 }

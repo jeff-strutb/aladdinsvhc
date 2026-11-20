@@ -23,6 +23,8 @@ void TileChangesApply(void);            /* 81:999A */
 uint16_t MapTileAddress(uint16_t x, uint16_t y);    /* 81:9C50: the tile under the point, its index in g.level_tiles */
 void TileChangeAdd(uint16_t tile, uint16_t x, uint16_t y);  /* 81:9978: the map tile at the point to become `tile`, queued */
 uint16_t MapQuarterAt(uint16_t x, uint16_t y);      /* 81:9B7D: the map word of the 8 x 8 quarter of the tile at the point */
+uint16_t MapTileAt(uint16_t x, uint16_t y);         /* 81:9A84: the level's map tile at the point */
+void MapTileSet(uint16_t tile, uint16_t x, uint16_t y);     /* 81:9B6D: in the map only, not on screen */
 
 /* ---- collision.c: what map tile is at a point, and how high its surface is ----
 

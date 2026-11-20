@@ -78,19 +78,3 @@ PLACEHOLDER int PlayerSceneCode(Actor *a)
     return 1;
 }
 
-PLACEHOLDER void TileChangeAdd(uint16_t tile, uint16_t x, uint16_t y)
-{
-    unconverted("TileChangeAdd");
-    (void)tile;
-    (void)x;
-    (void)y;
-}
-
-PLACEHOLDER uint16_t MapQuarterAt(uint16_t x, uint16_t y)
-{
-    unconverted("MapQuarterAt");
-    (void)x;
-    (void)y;
-    return 0;
-}
-
