@@ -236,20 +236,12 @@ void ActorVariantChildStep(Actor *a);               /* 83:D078 */
 void ActorSpeedXSetAccel(Actor *a, uint8_t accel, uint8_t at);    /* 81:A411: acceleration `accel`, speed entry `at` */
 void ActorMoveAlong(Actor *a, uint16_t direction, uint8_t speed);  /* 81:A73D: along direction `direction` (0-$1FF) of the direction table, at `speed` */
 
-/* (n5-kinds-e, for kind $31; point_moves.c: kind $31 is their only caller) */
-int ActorGoToPoint(Actor *a);       /* 83:FC5D: waits inside (ACTOR_RETURNS once within box $20 of the point): a step a frame
-                                       toward the point at its +$48, +$4A (pixels) by direction set +$4C, facing the way it goes */
-bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up);  /* 83:FD6D: true when the point `ahead` in front
-                                       (by its facing) and `up` above, or `up` above its own x, is in the ground */
 
 /* (player/) */
 /* 81:A9E9: a child of `kind` at the spawner's spawn point, sharing its animated-tile slot, started at its next turn; NULL none free */
 Actor *ActorSpawnShared(Actor *spawner, uint8_t kind);
 void SecondPoolFreeAll(void);           /* 83:95C1: every record of the second pool in use freed (ActorFree, ActorTileSlotRelease), as a level ends */
 /* (n5-kinds-e, for kind $3B; player_carry.c) */
-void ActorStepCarry(Actor *a);              /* 83:C1EC: a step along its facing (vector set $0E), carrying the player riding it */
-void ActorStepToTargetCarry(Actor *a);      /* 83:C1F6: a step (vector set 8) on each axis toward its target, the pixel words
-                                               of its speed_x and speed_y (the original's $1A, $1E), carrying the player */
 void ActorLiftPlayerStep(Actor *a, uint8_t offset);  /* 83:FB57: by its +$44: 0 and ActorGrabTest finds him, his code to his
                                                lift (PLAYER_AT_*) and he is placed on it, +$44 up; negative, up; positive, kept on it
                                                while g.player_no_actor_landing, else +$44 = $F0 */

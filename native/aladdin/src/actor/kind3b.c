@@ -138,6 +138,34 @@ static void set_target(Actor *a, uint16_t x, uint16_t y)
 
 static int track_step(Actor *a);
 
+/*
+ * @routine 83:C1EC ActorStepCarry
+ * WHAT IT DOES: Moves the actor a step along its facing (vector set $0E)
+ * and carries Aladdin riding it along. Kind $3B is its only caller
+ * (player_carry.c's record; its piece).
+ */
+static void step_carry(Actor *a)
+{
+    ActorMoveByVector(a, 0x0E);
+    ActorCarryPlayer(a);
+}
+
+/*
+ * @routine 83:C1F6 ActorStepToTargetCarry
+ * WHAT IT DOES: Moves the actor a step toward its target (the speeds'
+ * pixel words, the original's $1A and $1E) by vector set 8 on each axis it
+ * has not reached, then carries Aladdin riding it along. Kind $3B is its
+ * only caller (player_carry.c's record; its piece).
+ */
+static void step_to_target_carry(Actor *a)
+{
+    if (pixels(a->x) != target_x(a))
+        ActorMoveByVectorX(a, 0x08);
+    if (pixels(a->y) != target_y(a))
+        ActorMoveByVectorY(a, 0x08);
+    ActorCarryPlayer(a);
+}
+
 /* part 2's travel to a flagged spot at (x, y) (case 3) */
 static int to_spot(Actor *a, uint16_t x, uint16_t y)
 {
@@ -204,7 +232,7 @@ static int track_step(Actor *a)
 /* one of part 2's 8 steps; nonzero when they are done */
 static int track_8(Actor *a)
 {
-    ActorStepCarry(a);
+    step_carry(a);
     return --own(a)->frames == 0;
 }
 
@@ -349,11 +377,11 @@ int Kind3BStart(Actor *a)
         return track_step(a);
     case SPOT_1:
     case SPOT_2:
-        ActorStepToTargetCarry(a);
+        step_to_target_carry(a);
         a->resume++;
         return 1;
     case SPOT_3:
-        ActorStepToTargetCarry(a);
+        step_to_target_carry(a);
         a->facing = (uint8_t)((a->facing + o->turn) & 0x0F);
         if (--o->frames) {
             a->resume = SPOT_1;
