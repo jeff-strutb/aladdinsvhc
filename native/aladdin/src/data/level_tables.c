@@ -15,7 +15,8 @@
  * $D24A (a byte a level: the offset of its list from $D24A; there the
  * count, then 4 bytes a spot: x, y); each level's progress sequence and
  * stage at $B933 (2 bytes a level; the record says $81, the routine runs
- * with DB = $80).
+ * with DB = $80); level 6's bands' speeds at $C5D6, steps at $C5C0 and
+ * most at $C5EC (11 words each).
  */
 #include "data/data_internal.h"
 #include "data/level_tables.h"
@@ -105,3 +106,11 @@ uint16_t flag_spot_y(uint8_t level, unsigned i) { return at16((uint16_t)(FLAG_SP
 
 uint8_t level_progress_sequence(uint8_t level) { return at8((uint16_t)(LEVEL_PROGRESS + (uint8_t)(level << 1))); }
 uint8_t level_progress_stage(uint8_t level) { return at8((uint16_t)(LEVEL_PROGRESS + 1 + (uint8_t)(level << 1))); }
+
+#define BAND_STARTS 0xC5D6
+#define BAND_STEPS 0xC5C0
+#define BAND_MOST 0xC5EC
+
+uint16_t band_start_speed(unsigned band) { return at16((uint16_t)(BAND_STARTS + 2 * band)); }
+uint16_t band_speed_step(unsigned band) { return at16((uint16_t)(BAND_STEPS + 2 * band)); }
+uint16_t band_most_speed(unsigned band) { return at16((uint16_t)(BAND_MOST + 2 * band)); }

@@ -109,26 +109,6 @@ PLACEHOLDER TaskRun Level10Scene(Task *t)
     return task_exit(t);
 }
 
-PLACEHOLDER TaskRun BandsSpeedUpTask(Task *t)
-{
-    unconverted("BandsSpeedUpTask");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun GreyPastTask(Task *t)
-{
-    unconverted("GreyPastTask");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun RedOutTask(Task *t)
-{
-    unconverted("RedOutTask");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun ClimbTopTask(Task *t)
-{
-    unconverted("ClimbTopTask");
-    return task_exit(t);
-}

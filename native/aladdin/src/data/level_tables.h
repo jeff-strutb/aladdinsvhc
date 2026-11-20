@@ -61,4 +61,11 @@ uint16_t flag_spot_y(uint8_t level, unsigned i);
 uint8_t level_progress_sequence(uint8_t level);
 uint8_t level_progress_stage(uint8_t level);
 
+/* ---- level 6's backdrop bands (BandsSpeedUpTask): 11 bands' speeds at
+   the start, their steps and their most ---- */
+#define BANDS 11
+uint16_t band_start_speed(unsigned band);
+uint16_t band_speed_step(unsigned band);
+uint16_t band_most_speed(unsigned band);
+
 #endif
