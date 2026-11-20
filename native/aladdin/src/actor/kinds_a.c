@@ -7,6 +7,14 @@
  */
 #include "actor/actor_a.h"
 
+int Kind3CDrift(Actor *a);              /* kind3c.c */
+int Kind3CWait(Actor *a);
+int Kind7AFly(Actor *a);                /* kind7a.c */
+int Kind7DKeepSpot(Actor *a);           /* kind7d.c */
+int Kind7DWait(Actor *a);
+int Kind88Start(Actor *a);              /* kind88.c */
+int Kind89Start(Actor *a);
+
 const KindCode kinds_a[] = {
     /* the shots (thrown_shot.c): the record's tables give kinds $10 and
        $14-$17 the start 83:920E (ShotFly), kind $10 the second 83:9212
@@ -21,5 +29,10 @@ const KindCode kinds_a[] = {
     { 0x16, ShotCode, NULL, NULL, NULL },
     { 0x17, ShotCode, NULL, NULL, NULL },
     { 0xB9, ShotCode, NULL, NULL, NULL },
+    { 0x3C, Kind3CDrift, Kind3CDrift, NULL, Kind3CWait },
+    { 0x7A, Kind7AFly, NULL, NULL, NULL },
+    { 0x7D, Kind7DKeepSpot, Kind7DKeepSpot, NULL, Kind7DWait },
+    { 0x88, Kind88Start, Kind88Start, NULL, Kind88Work },
+    { 0x89, Kind89Start, NULL, NULL, NULL },
     { 0, NULL, NULL, NULL, NULL }
 };

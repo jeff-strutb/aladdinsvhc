@@ -174,3 +174,14 @@ uint8_t anim_by_40(uint8_t index) { return at8(0x80, (uint16_t)(0xD714 + index))
 uint16_t start_by_40_word(uint8_t index) { return at16(0x80, (uint16_t)(0xD6EB + 2u * index)); }
 uint8_t start_by_40_byte(uint8_t index) { return at8(0x80, (uint16_t)(0xD70B + index)); }
 uint8_t parity_bits(uint8_t parity) { return at8(0x80, (uint16_t)(0xD6B9 + parity)); }
+
+/* ---- kind $3C (83:B0CB): its probe list at $80:D282, which the map's tests read in the data bank $80 ---- */
+DataRef k3c_probes(void) { DataRef r = { cart_offset(0x80, 0xD282) }; return r; }
+
+/* ---- kinds $7D, $88, $89: read in the data bank $80 the actor loop leaves (the traces read all of these at $80:; the
+   record's comments say DB = $84, as for kinds $95 and $96) ---- */
+DataRef k7d_probes(void) { DataRef r = { cart_offset(0x80, 0xD820) }; return r; }
+uint16_t k7d_height(uint8_t spot) { return at16(0x80, (uint16_t)(0xD7D2 + 2u * spot)); }
+uint8_t riser_up(uint8_t course) { return at8(0x80, (uint16_t)(0xD7BE + course)); }
+uint8_t riser_down(uint8_t course) { return at8(0x80, (uint16_t)(0xD7C1 + course)); }
+uint8_t k89_priority(uint8_t side) { return at8(0x80, (uint16_t)(0xD7C8 + side)); }

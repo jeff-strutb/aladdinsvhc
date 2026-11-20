@@ -638,6 +638,8 @@ typedef struct GameState {
     uint8_t scene_cue_close;    /* $00C1: nonzero, window effect 10's spot window closes (level 5's closing scene sets it) */
     uint8_t scene_cue_waited;   /* $00C2: counted up by a scripted actor when it has waited (kind $70's hit one, after $80 frames) */
     uint8_t scripted_cue;       /* $146C: counted up by scripted actors as the scene goes on (player/land_on_actor.c uses the word as a record mark) */
+    uint8_t riser_send;         /* $1B1A: nonzero, kind $88 is sent up its course (another actor sets it) */
+    uint8_t riser_course;       /* $1B1B: the course kind $88 is sent on */
     uint8_t scene_go_on;        /* $1B1F: kind $81's scene goes on once it is nonzero (kind $76 counts it up) */
     uint8_t chain_go;           /* $1B18: nonzero once the chain is built: its pieces (and the head, kind $73) start */
     uint8_t chain_round_or;     /* $1B1E: ORed with the round for the chain's pick lists (kind $73 sets 4 once hurt past 4) */

@@ -88,3 +88,57 @@ bool ActorGrabTest(Actor *a)
         return false;
     return (uint16_t)(ax - half_w + 0x0F) >= px;
 }
+
+/*
+ * @routine 84:8EF7 PlayerClampAboveFloor
+ * WHAT IT DOES: Keeps Aladdin above the floor line once he is at x $200 or
+ * more, by an offset of 30 pixels (24 with no state $8C counted and he in
+ * the air); not while he rises, except with no state $8C counted and not in
+ * the air. A hold of the line counts g.player_on_actor.
+ */
+static void PlayerClampAboveFloor(void)
+{
+    Actor *p = &g.actors[0];
+    uint16_t offset = 0x001E;
+
+    if (pixels(p->x) < 0x0200)
+        return;
+    if (g.player_hurt_count) {
+        if (p->speed_y < 0)
+            return;
+    } else if (g.player_in_air) {
+        if (p->speed_y < 0)
+            return;
+        offset = 0x0018;
+    }
+    if (ActorClampAboveFloor(p, offset))
+        g.player_on_actor++;
+}
+
+/*
+ * @routine 84:8F81 PlayerFallCheck
+ * WHAT IT DOES: With the player's fall check on (g.chain_head_struck, $1B2B,
+ * clear) and him at or below y $B8, puts him into state $8C facing as he is:
+ * the fall. `by` is the actor whose code runs it.
+ */
+static void PlayerFallCheck(const Actor *by)
+{
+    uint16_t y = pixels(g.actors[0].y);
+
+    if (g.chain_head_struck || (y & 0x8000))
+        return;
+    if (y >= 0x00B8)
+        (void)PlayerEnter8CFacing(by);
+}
+
+/*
+ * @routine 84:8EF0 Kind88Work
+ * WHAT IT DOES: What actors of kind $88 do each frame they wait: keep
+ * Aladdin above the floor line, and put him into his fall below it.
+ */
+int Kind88Work(Actor *a)
+{
+    PlayerClampAboveFloor();
+    PlayerFallCheck(a);
+    return ACTOR_GOES_ON;
+}

@@ -30,6 +30,13 @@ static inline bool touch_from_above(const TestBoxTouch *t, uint16_t margin)
    its reach on the side he faces */
 bool ActorGrabTest(Actor *a);
 
+/* 83:882E (also 83:8861 Long): Aladdin can take hold of it: he is close in front of it and either g.player_no_actor_landing is set
+   or he is not hurt, may land, is in the air and not rising faster than 2 pixels a frame */
+bool ActorGrabbableByPlayer(const Actor *a);
+
+/* 84:8EF0 kind $88's wait: Aladdin kept above the floor line, and put into his fall below it */
+int Kind88Work(Actor *a);
+
 void PlayerStandOnActor(const Actor *a, const TestBoxTouch *t);    /* 83:84D5 */
 void ActorSpawnKind11AtPlayer(void);                               /* 83:84F4 */
 

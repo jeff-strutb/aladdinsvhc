@@ -92,4 +92,19 @@ uint8_t start_by_40_byte(uint8_t index);
 /* ActorParityBitsSet's two settings of +$08's low bits by the frame count's parity ($80:D6B9) */
 uint8_t parity_bits(uint8_t parity);
 
+/* kind $3C's probe list ($80:D282; Actor.probes) */
+DataRef k3c_probes(void);
+
+/* kind $7D ($80:D820, $80:D7D2): its probe list (Actor.probes) and by its y's low six bits the two bytes
+   (low, high) of the height it keeps */
+DataRef k7d_probes(void);
+uint16_t k7d_height(uint8_t spot);
+
+/* kind $88's course: its motion presets up ($80:D7BE) and down ($80:D7C1), by course */
+uint8_t riser_up(uint8_t course);
+uint8_t riser_down(uint8_t course);
+
+/* kind $89's priority bits for Aladdin by the side of x $0934 he is on ($80:D7C8) */
+uint8_t k89_priority(uint8_t side);
+
 #endif
