@@ -587,6 +587,8 @@ typedef struct GameState {
     uint8_t scene_cue_waited;   /* $00C2: counted up by a scripted actor when it has waited (kind $70's hit one, after $80 frames) */
     uint8_t scripted_cue;       /* $146C: counted up by scripted actors as the scene goes on (player/land_on_actor.c uses the word as a record mark) */
     uint8_t scene_go_on;        /* $1B1F: kind $81's scene goes on once it is nonzero (kind $76 counts it up) */
+    uint8_t chain_head_struck;  /* $1B2B in play: counted up each time kind $73 (the chain's head) is struck below 0; nonzero,
+                                   kind $A1 goes down untested (the player's fall check reads the same byte) */
     uint8_t boss_beaten;        /* $1B14 in play: kind $98 clears it as it starts and counts it up when beaten (the options
                                    screen and others use the same byte for their own) */
     uint16_t range_x;           /* $1A44: the point actors are kept in range of (FrameStep: the view's corner + $80) */

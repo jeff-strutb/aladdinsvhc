@@ -30,5 +30,7 @@ const KindCode kinds_e[] = {
     /* $97: its wait (83:93B9) is dead: nothing sets its +$09 bit 7 */
     { 0x97, Kind97Start, NULL, NULL, NULL },
     { 0x98, Kind98Start, Kind98Start, NULL, Kind98WaitWork },
+    { 0xA1, KindA1Start, KindA1Start, NULL, KindA1Touch },
+    { 0xA6, KindA6Stay, NULL, NULL, NULL },
     { 0, NULL, NULL, NULL, NULL }
 };

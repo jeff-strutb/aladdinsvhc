@@ -99,3 +99,10 @@ __attribute__((weak)) void CarrierPairSend(Actor *sender)
     (void)sender;
     TELL_ONCE("CarrierPairSend (84:A056)");
 }
+
+__attribute__((weak)) bool ActorClampAboveFloor12(Actor *a)
+{
+    (void)a;
+    TELL_ONCE("ActorClampAboveFloor12 (84:8F2F)");
+    return false;
+}
