@@ -12,10 +12,13 @@
 /* ---- the kinds' code (each: frames to wait, or ACTOR_ENDED) ---- */
 
 int Kind30Start(Actor *a);      /* 83:B684: the pickups */
+int Kind34Start(Actor *a);      /* 83:BB97 */
+int Kind51Start(Actor *a);      /* 83:D239, and 83:D2BE Kind51Second */
 
 /* ---- wait routines (kind_waits.c; each: ACTOR_GOES_ON or ACTOR_ENDED) ---- */
 
 int Kind27Wait(Actor *a);       /* 83:A012: kind $27's (kinds B's kind27.c has its start) */
 int Kind30Wait(Actor *a);       /* 83:B94A */
+int ActorWaitWake(Actor *a);    /* 83:D2A2: kind $51's (kind51.c) */
 
 #endif

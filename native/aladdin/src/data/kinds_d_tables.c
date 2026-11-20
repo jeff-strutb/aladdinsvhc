@@ -10,6 +10,16 @@ static uint8_t at8(uint8_t bank, uint16_t addr) { return cart8(cart_offset(bank,
 
 /* ---- kind $30 (83:B684 Kind30Start) ---- */
 
+/* its probe list: the word $D17A it stores at +$16, read by the map's tests
+   in their data bank $80 (four bytes a probe: x, y offsets as words) */
+DataRef k30_probes(void)
+{
+    DataRef r;
+
+    r.at = cart_offset(0x80, 0xD17A);
+    return r;
+}
+
 /* $80:D182: a byte a progress sequence, the bit of each (01 02 04 08 10 20) */
 uint8_t k30_level_mark_bit(uint8_t sequence) { return at8(0x80, (uint16_t)(0xD182 + sequence)); }
 

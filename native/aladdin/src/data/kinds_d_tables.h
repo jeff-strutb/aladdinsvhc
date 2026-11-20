@@ -8,7 +8,11 @@
 
 #include <stdint.h>
 
+#include "data/data.h"
+
 /* ---- kind $30, the pickups ---- */
+
+DataRef k30_probes(void);           /* its probe list (Actor.probes; map/'s tests read it) */
 
 /* the progress sequence's bit in g.level_marks_taken: whose health mark is taken */
 uint8_t k30_level_mark_bit(uint8_t sequence);

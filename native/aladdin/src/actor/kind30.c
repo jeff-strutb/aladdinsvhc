@@ -10,17 +10,8 @@
 #include "data/kinds_d_tables.h"
 #include "map/map.h"
 
-/* its own bytes */
-typedef struct {
-    uint8_t before[3];
-    uint16_t word16;            /* +$16-$17: $D17A (read by nothing of its own) */
-    uint8_t between[14];
-    uint8_t shot;               /* +$43: nonzero once a shot has hit it (type 7's wait sets it) */
-} Kind30Own;
-
-_Static_assert(sizeof(Kind30Own) <= sizeof(((Actor *)0)->own.bytes), "a view fits the own bytes");
-
-static inline Kind30Own *own30(Actor *a) { return (Kind30Own *)a->own.bytes; }
+/* its own byte +$43: nonzero once a shot has hit it (type 7's wait sets it) */
+#define SHOT OWN_43
 
 /* its types, $07 bits 0-2 */
 enum {
@@ -78,7 +69,7 @@ static int appear(Actor *a, uint8_t preset)
    cleared, then as it appears; the first drop by its spawn point. */
 static int tens_appear(Actor *a)
 {
-    own30(a)->shot = 0;
+    a->own.bytes[SHOT] = 0;
     return appear(a, k30_fall_motion(a->spawn_at));
 }
 
@@ -158,14 +149,15 @@ static int take(Actor *a)
  * 99 (sound $0B), and they may be placed again. Type 6 that has dropped
  * drops again; type 7 waits (type 6 too with $10), and once a shot has hit
  * it (its wait sees to that) it hops ($2C, then $29), turning at a wall.
+ * Its second entry (state $80-$BF) is 83:96CA ActorEndPlaced: it ends.
  */
 int Kind30Start(Actor *a)
 {
-    Kind30Own *o = own30(a);
-
     switch (a->resume) {
+    case ACTOR_START_SECOND:
+        return ActorEndPlaced(a);
     case ACTOR_START:
-        o->word16 = 0xD17A;
+        a->probes = k30_probes();
         a->look = 0x0400;
         a->anim_flags = 0x03;
         a->flags |= 0x90;
@@ -212,7 +204,7 @@ int Kind30Start(Actor *a)
         return 1;
     case TENS_WAIT:
         if (!ActorHitsTestBox(a)) {
-            if (o->shot) {
+            if (a->own.bytes[SHOT]) {
                 a->flip = 0;
                 ActorMotionPreset(a, 0x2C);
                 a->resume = HOP_FIRST;
@@ -239,7 +231,7 @@ int Kind30Start(Actor *a)
         return 1;
     case HOP_SECOND:
         if (fall(a)) {
-            o->shot = 0;
+            a->own.bytes[SHOT] = 0;
             a->resume = TENS_WAIT;
         }
         return 1;

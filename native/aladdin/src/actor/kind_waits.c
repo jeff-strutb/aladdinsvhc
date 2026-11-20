@@ -7,10 +7,6 @@
 #include "actor/kinds_d.h"
 #include "audio/sound.h"
 
-/* the own bytes these routines read, by record offset (+$3A on at 10) */
-#define OWN_42 18
-#define OWN_43 19
-
 /*
  * @routine 83:A012 Kind27Wait
  * WHAT IT DOES: Kind $27's wait: animates; once its +$42 is set, touching
