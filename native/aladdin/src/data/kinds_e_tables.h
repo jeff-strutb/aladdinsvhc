@@ -69,6 +69,10 @@ uint8_t k28_wave(uint8_t at);       /* its wave: the step down (a signed byte) a
 uint8_t k94_spark_x(uint8_t at);
 uint8_t k94_spark_y(uint8_t at);
 
+/* ---- kind $A8 ---- */
+
+uint8_t k_a8_delay(uint8_t at);     /* the frames before it poses again, by its +$07 (0 is 256) */
+
 /* ---- kind $35, the gem ---- */
 
 /* a set gem's bit in g.gem_sets_found, by `at` (its +$07's low digit, a

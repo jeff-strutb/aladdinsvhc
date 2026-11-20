@@ -69,8 +69,8 @@ static int pad_frame(Actor *a)
  * of 7 runs with the carry its REP #$21 cleared before the frame's wait),
  * his x its x for kind $61 (+$41 0), and g.player_landed the byte at $0001
  * (1 in every frame of the recorded attract play's work RAM, and the
- * value the core's other landings store). Its second entry is Kind65Start,
- * another kind's routine: left aside (kinds-d-shared-kinds.md section 2).
+ * value the core's other landings store). Its second entry is Kind65Start
+ * (Kind64Second, Kind61Second).
  */
 int Kind64Start(Actor *a)
 {
@@ -94,6 +94,11 @@ int Kind64Start(Actor *a)
         return 1;
     }
 }
+
+/* kinds $61 and $64's second entry (state $80 up, 83:8DFD): Kind65Start, the
+   continues counter's start, which then owns the record (ActorRunAs) */
+int Kind64Second(Actor *a) { return ActorRunAs(a, Kind65Start, ACTOR_START); }
+int Kind61Second(Actor *a) { return ActorRunAs(a, Kind65Start, ACTOR_START); }
 
 /*
  * @routine 83:E4EC Kind61Start

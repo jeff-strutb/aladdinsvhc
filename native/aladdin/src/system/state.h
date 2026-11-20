@@ -599,6 +599,7 @@ typedef struct GameState {
     uint8_t genie_screen_step;  /* $00B5: its step: 0 waits; positive or negative, the way its figures go on */
     uint16_t scene_walker_x;    /* $00A5: kind $8F's x pixels as it crosses, kept for the scene */
     uint8_t scene_count;        /* $00AD: a count the scene steps; kind $94 starts a spark at each new value */
+    uint8_t level_end_cue;      /* $00AE: the level-end screen's cue: kinds $A8 and $A4 show once it is set */
     uint8_t scene_cue_first;    /* $00BD: a scene's first cue (kind $98 sets it when it is beaten) */
     uint8_t scene_cue;          /* $00BE: a scene's cue: its task or figures count it up or set it as the scene goes on */
     uint8_t scene_cue_bf;       /* $00BF: a scene's cue, counted up by Aladdin's scene code (level 5's end: after his pose) */

@@ -32,16 +32,15 @@ const KindCode kinds_e[] = {
     /* $56: its second entry is its wait routine (83:D9B5) entered as code,
        which no script reaches: not converted; that wait is AnimStep only */
     { 0x56, Kind56Start, NULL, NULL, AnimateWhileWaiting },
-    /* $61, $64: their second entry is Kind65Start, another kind's routine:
-       left aside (kinds-d-shared-kinds.md section 2) */
-    { 0x61, Kind61Start, NULL, NULL, ActorWaitRange00 },
-    { 0x64, Kind64Start, NULL, NULL, ActorWaitRange00 },
+    { 0x61, Kind61Start, Kind61Second, NULL, ActorWaitRange00 },
+    { 0x64, Kind64Start, Kind64Second, NULL, ActorWaitRange00 },
     { 0x65, Kind65Start, NULL, NULL, AnimateWhileWaiting },
     { 0x8F, Kind8FWalk, Kind8FWalk, NULL, KindAnimateSend },
-    /* $94: its second entry is KindA8Start, another kind's routine: left
-       aside (kinds-d-shared-kinds.md section 2); its wait 83:FB15
-       Kind94Wait is AnimateWhileWaiting's code */
-    { 0x94, Kind94Spark, NULL, NULL, AnimateWhileWaiting },
+    /* $94: its wait 83:FB15 Kind94Wait is AnimateWhileWaiting's code */
+    { 0x94, Kind94Spark, Kind94Second, NULL, AnimateWhileWaiting },
+    { 0x40, Kind40Start, Kind40Start, NULL, Kind40Wait },
+    { 0x7B, Kind7BStart, Kind7BStart, NULL, Kind7BWait },
+    { 0xA8, KindA8Start, NULL, NULL, NULL },
     { 0x97, Kind97Start, NULL, NULL, NULL },
     { 0x98, Kind98Start, Kind98Start, NULL, Kind98WaitWork },
     { 0x9E, Kind9EStart, NULL, NULL, Kind9EWaitWork },

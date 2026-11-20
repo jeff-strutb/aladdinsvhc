@@ -35,6 +35,12 @@ int Kind9EStart(Actor *a);      /* 84:A820 */
 int Kind61Start(Actor *a);      /* 83:E4EC */
 int Kind64Start(Actor *a);      /* 83:E4F0 */
 int Kind65Start(Actor *a);      /* 83:E5BB */
+int Kind40Start(Actor *a);      /* 83:C507, and its second entry (83:C565: ActorEndPlaced) */
+int Kind7BStart(Actor *a);      /* 83:C572, and its second entry (83:C5D1) */
+int KindA8Start(Actor *a);      /* 83:FB1A */
+int Kind61Second(Actor *a);     /* 83:8DFD: kinds $61 and $64's second entry: Kind65Start */
+int Kind64Second(Actor *a);
+int Kind94Second(Actor *a);     /* kind $94's second entry: KindA8Start */
 int Kind98Hit(Actor *a);        /* 84:A2A6: its second entry's start */
 
 /* ---- wait routines (kind2e.c, kind35.c, kind_steps.c): ACTOR_GOES_ON, or
@@ -49,6 +55,8 @@ int ActorWaitHurtOnTouch(Actor *a);  /* 83:D8CE: kind $55's wait, and kind $54's
 int Kind28Wait(Actor *a);            /* 83:A1BD: kind $28's wait */
 int KindA1Touch(Actor *a);           /* 84:A9C7: kind $A1's wait */
 int Kind9EWaitWork(Actor *a);        /* 84:A8BD: kind $9E's wait */
+int Kind40Wait(Actor *a);            /* 83:C569: kind $40's wait */
+int Kind7BWait(Actor *a);            /* 83:C5D5: kind $7B's wait */
 int Kind98WaitWork(Actor *a);        /* 84:A39C: kind $98's wait */
 int Kind91FreeOff(Actor *a);         /* A5:F603: kinds $91 and $92's wait */
 int KindAnimateSend(Actor *a);      /* 84:903B: kinds $21, $76 and $93's wait (A5:F3E3 and A5:F434 the same) */

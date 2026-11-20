@@ -85,3 +85,8 @@ uint8_t k28_wave(uint8_t at) { return at8(0x80, (uint16_t)(0xD07A + at)); }
 
 uint8_t k94_spark_x(uint8_t at) { return at8(0x80, (uint16_t)(0xD87C + at)); }
 uint8_t k94_spark_y(uint8_t at) { return at8(0x80, (uint16_t)(0xD87D + at)); }
+
+/* ---- kind $A8: bytes by +$07 at $80:D9A6 (the traces read them in bank
+   $80) ---- */
+
+uint8_t k_a8_delay(uint8_t at) { return at8(0x80, (uint16_t)(0xD9A6 + at)); }

@@ -88,14 +88,18 @@ int Kind8FWalk(Actor *a)
  * which kind $8F's row names: one kind's piece, written as that.
  */
 
+/* kind $94's second entry (state $80 up, 83:8DFD): KindA8Start, kind $A8's
+   start, which then owns the record (ActorRunAs) */
+int Kind94Second(Actor *a) { return ActorRunAs(a, KindA8Start, ACTOR_START); }
+
 /*
  * @routine 83:FABB Kind94Spark
  * WHAT IT DOES: Actor kind $94. With +$07 zero, one spark: +$08 bit 0 and
  * its wait routine on, its x and y's top bytes cleared, pose 0, shown $20
  * frames, then ended. Else the spawner: each frame g.scene_count has a new
  * value, it starts a spark (its own kind, +$07 0, its own look) at the
- * place the spark table gives for it. Its second entry, KindA8Start, is
- * another kind's routine: left aside (kinds-d-shared-kinds.md section 2).
+ * place the spark table gives for it. Its second entry is KindA8Start
+ * (Kind94Second).
  */
 int Kind94Spark(Actor *a)
 {
