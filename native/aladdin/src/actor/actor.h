@@ -27,6 +27,7 @@
 #ifndef ALADDIN_ACTOR_H
 #define ALADDIN_ACTOR_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "system/state.h"
@@ -89,6 +90,85 @@ void AnimSetsFill(uint8_t set); /* 81:9D4C: every kind's animation set = `set` (
 void AnimStart(Actor *a, uint8_t anim);     /* 81:90C2: animation `anim` from its first frame */
 void AnimResume(Actor *a, uint8_t anim);    /* 81:90BE: animation `anim` at the frame it is on */
 void AnimStep(Actor *a);        /* 81:912B: one frame of time on */
+
+/* ---- the shared routines the kinds call (actors A: the record's actor_*.c,
+   hit_box.c, player_*.c, shot_hit.c and the rest that are not kind*.c) ----
+
+   How they answer:
+   - A routine that may end its actor returns ACTOR_ENDED when it did (its
+     record freed; the caller returns ACTOR_ENDED at once), else
+     ACTOR_GOES_ON. A wait routine passes it on as its own answer.
+   - A test the original answers in the carry is a bool, true for the case
+     its comment names.
+   - `at` is a table entry's byte offset, as the original's X or Y holds it.
+   - A routine that waits inside it (the original's helpers that keep their
+     caller's return at +$4E and yield, and those a kind jumps into for
+     good) is called again at the same resume point of its caller each
+     time the actor goes on, until it returns ACTOR_RETURNS (or
+     ACTOR_RETURNS_C). Meanwhile it returns a wait (1-256), or
+     ACTOR_ENDED. Where it is inside it is a->call_at (0: not inside it). */
+
+#define ACTOR_RETURNS (-1)      /* back to its caller (the original's C clear where it says) */
+#define ACTOR_RETURNS_C (-2)    /* back to its caller with the original's C set */
+
+/* range of the camera's point (actor_range.c, wait_step.c) */
+bool ActorInRange(const Actor *a, uint8_t at);      /* 83:962C: true in range of the point by box `at` (8 bytes a box) */
+int ActorEndOutOfRange(Actor *a, uint8_t at);       /* 83:96BE, 83:9659 Long: ended when out of range */
+bool ActorFreeOutOfRange(Actor *a, uint8_t at);     /* 83:966C, 83:9668 Long: true when out of range and freed (ActorFreePlaced; its code goes on) */
+int ActorEndIfLeftBehind(Actor *a);                 /* 83:9738: ended once the camera has left it behind */
+int ActorEndFarWithChildren(Actor *a);              /* 83:C4AB */
+
+/* where it is against the player or a point (player_near.c, player_relation.c, player_carry.c) */
+uint8_t ActorSideOfPlayer(const Actor *a);          /* 81:AB85: the facing that looks at him: 0 right, 1 left */
+uint8_t ActorPlayerBelow(const Actor *a);           /* 81:AB62: 1 when he is level with or below it */
+bool ActorNearPlayer(const Actor *a, uint8_t at);   /* 81:ACDE: he is inside box `at` round it (4 bytes a box) */
+bool ActorNearPlayerX(const Actor *a, uint8_t at);  /* 81:AD68: within span `at` across (2 bytes a span) */
+bool ActorNearPlayerY(const Actor *a, uint8_t at);  /* 81:ADA4: within span `at` up or down */
+bool ActorNearPoint(const Actor *a, uint8_t at, uint16_t x, uint16_t y);   /* 81:AD17: it is inside box `at` round (x, y) */
+uint8_t ActorDirectionToPlayer(const Actor *a);     /* 81:ABEA: a direction of the table at $81:BBE3 */
+uint8_t ActorDirectionToPoint(const Actor *a, uint16_t x, uint16_t y);     /* 81:ABFB */
+uint8_t ActorAimAt(const Actor *a, uint16_t x, uint16_t y);                /* 81:AC68: a direction of the table at $80:BC03 */
+void ActorFacePlayer(Actor *a);                     /* 83:FC96 */
+
+/* touches: the test box, zones, the player's (hit_box.c, actor_overlap.c, player_touch.c, solid_actor.c) */
+bool ActorHitsTestBox(const Actor *a);              /* 83:8312, 83:8300 Long: it can be hit and overlaps the test box */
+bool ActorHitsTestBoxIfActive(const Actor *a);      /* 83:830E: the same, its +$08 bit 7 clear */
+bool ActorHitsTestBoxIfPlayerFree(const Actor *a);  /* 83:8304, 83:82F4 Long: the same, while Aladdin can be hit */
+bool ActorHurtsPlayerOnTouch(Actor *a);             /* 83:80A5, 83:80A1 Long: true when he was hurt */
+bool ActorStompOrHurt(Actor *a);                    /* 83:83C9, 83:83C5 Long: true when he was hurt (false: stomped, or no touch) */
+bool ActorBouncesPlayer(Actor *a);                  /* 83:840F: true when he bounced off it */
+bool ActorZoneHasTestBox(const Actor *a, uint8_t zone_at);     /* 83:8752 */
+bool ActorZoneHasTestPoint(const Actor *a, uint8_t zone_at);   /* 83:87EC, 83:87E8 Long */
+bool ActorZoneHurtsPlayer(Actor *a, uint8_t zone_at);          /* 83:8743: true when he was hurt */
+Actor *ActorTouchesSecondPool(const Actor *a);      /* 83:8578: the second pool's record that overlaps it, or NULL */
+typedef enum {
+    ACTOR_SOLID_BESIDE,         /* not tested, missed, or pushed out of its side (the original's C set, V clear) */
+    ACTOR_SOLID_ON_TOP,         /* he stands on it (C, V clear) */
+    ACTOR_SOLID_UNDER           /* he is under it or inside (C, V set) */
+} ActorSolid;
+ActorSolid ActorSolidForPlayer(Actor *a, uint8_t at);   /* 83:865E, 83:8657 Long: box `at` of the boxes at $80:BD66 */
+void ActorCarryPlayer(Actor *a);                    /* 83:FBDA */
+
+/* shots from the second pool (shot_hit.c): the shot that reached it, or NULL */
+Actor *ActorDownedByShot(Actor *a);                 /* 83:80FC */
+Actor *ActorHitByShotCC(Actor *a);                  /* 83:8135 */
+Actor *ActorTurnsShotBack(Actor *a);                /* 83:819A, 83:8196 Long */
+Actor *ActorEndsShot(Actor *a);                     /* 83:81CF */
+Actor *ActorDownedByHarmlessShot(Actor *a);         /* 83:8208 */
+
+/* the record's state and fields (actor_fields.c, actor_state_8c.c, priority_clear.c) */
+void ActorStateSet8C(Actor *a);                     /* 83:8267: state $8C, +$08 bit 7 set, +$09 bit 7 clear */
+void ActorStateSet8CSelf(Actor *a);                 /* 83:8254: the same */
+void ActorStateSetCC(Actor *a);                     /* 83:824B: state $CC */
+void ActorPriorityClear(Actor *a);                  /* 84:81B2 */
+void Spawn11AtY(const Actor *at);                   /* 83:827D: a kind $11 started at its place, when the second pool has a record */
+void Spawn13AtY(const Actor *at);                   /* 83:82B5: kind $13 */
+
+/* routines that wait inside them (point_moves.c, knocked_away.c) */
+int ActorHopFromTable(Actor *a, uint8_t at);        /* 83:FD2C: hop `at` of the table at $83:D9BF, back on the ground */
+int ActorSpawnLookWait(Actor *a);                   /* 83:FC0D */
+int ActorRiseWhenInReach(Actor *a, uint8_t at);     /* 83:FCA5: ACTOR_RETURNS once risen; ACTOR_RETURNS_C out of reach */
+int ActorKnockedAway(Actor *a, uint8_t anim, uint8_t sound, uint8_t preset);    /* 83:9532: never returns; ends it */
 
 /* ---- for video (OamDrawActor, 81:9309) ---- */
 

@@ -127,6 +127,8 @@ typedef struct Actor {
     struct Actor *next;         /* +$37-$38: the next record in its list; NULL ends it (0 in the original) */
     uint8_t tile_slot;          /* +$39: the animated-tile slot it holds (1-4), 0 none */
     DataRef stream;             /* +$4A: where its byte stream goes on */
+    uint16_t call_at;           /* native: where a shared routine that waits inside it goes on (actor.h), 0 none;
+                                   the original kept its caller's return at +$4E and its own place in +$02-$05 */
     union {
         /* the bytes each kind keeps for itself; each kind's named view is
            in actor/ (actor_own.h; tools/state_fields.csv lists them) */
