@@ -79,6 +79,11 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
+        struct {                /* WindowEffectTask's waves (video/window_effects.c) */
+            uint16_t phase;         /* +$06 of the slot (word): the sine's start */
+            uint8_t step;           /* +$08: lines a step of the sine lasts */
+            uint8_t count;          /* +$09 */
+        } waves;
     } own;
 } Task;
 
@@ -264,6 +269,34 @@ typedef struct Sequence {
     uint8_t started;            /* +$0C: nonzero once started */
 } Sequence;
 
+/* A per-line effect (the original's HDMA channel 1-7): what it changes, and
+   its runs. A run is so many lines, each taking its value from the line
+   data (`from`, an offset from $7E:F400): all the run's lines one value
+   (`repeat` 0), or each line the next (`repeat` 1). The data is the work
+   RAM the game writes ($7E:F400-$7E:F9FF, g.line_data); video_draw turns
+   the runs and the data into the engine's per-line values. */
+typedef enum {
+    LINE_TM, LINE_TS, LINE_PALETTE, LINE_BG1_Y, LINE_BG2_X, LINE_BG3_Y, LINE_WINDOW1, LINE_WINDOW2,
+    LINE_MODE, LINE_M7_A, LINE_FIXED, LINE_WINDOW_USE_BG34, LINE_TARGETS
+} LineTarget;
+
+typedef struct LineRun {
+    uint8_t lines;              /* 1-128 */
+    uint8_t repeat;             /* each line its own value */
+    uint16_t from;              /* the data's offset from $7E:F400 */
+} LineRun;
+
+#define LINE_RUNS 16
+
+typedef struct LineChannel {
+    uint8_t target;             /* LineTarget */
+    uint8_t direct;             /* the values are in the runs' `from` themselves (the original's direct HDMA) */
+    uint8_t runs;
+    LineRun run[LINE_RUNS];
+} LineChannel;
+
+#define LINE_DATA_SIZE 0x600
+
 /* ---- the state ---- */
 
 typedef struct GameState {
@@ -322,6 +355,10 @@ typedef struct GameState {
     uint8_t fixed_blue;         /* $03B4 bits 0-4 */
     uint8_t mosaic_size;        /* $03B1 bits 4-7 */
     uint8_t mosaic_layers;      /* $03B1 bits 0-3 */
+    LineChannel line_channel[8]; /* by the original's HDMA channel; g.line_effects_on's bit n turns channel n on */
+    uint8_t line_data[LINE_DATA_SIZE]; /* $7E:F400-$7E:F9FF: the per-line effects' tables and data (the window edges at
+                                   $F800 among them; g.band_pos is the parallax's view of $F800 on) */
+    uint8_t line_channels_kept; /* $03B5 high nibble: channels 4-7 other code keeps, not for the window effects */
     uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
     uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */
     uint16_t bg_map_at[3];      /* $03A0-$03A2 bits 2-7: BG1-3's map, as its VRAM word address */

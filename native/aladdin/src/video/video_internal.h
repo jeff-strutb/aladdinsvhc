@@ -30,5 +30,6 @@ void LayersCopyToVram(void);                /* 80:8366 */
 
 /* lines.c: the per-line effects */
 void video_lines_send(uint32_t top);        /* from video_draw: each effect that is on, from line `top` */
+int video_lines_tile_mode(void);            /* the first mode other than 7 a per-line mode change gives (1 if none) */
 
 #endif

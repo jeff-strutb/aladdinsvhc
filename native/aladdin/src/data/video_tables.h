@@ -116,4 +116,18 @@ WobbleEntry wobble_entry(uint8_t at);
    status line ($81:F58D + n) */
 uint8_t health_mark_place(uint8_t n);
 
+/* the window effects (video/window_effects.c). Their tables are read
+   through the data bank $80, as tasks run (the record's comments say $82):
+   table set `set` (a byte offset, as the effect names it) of $80:BCBB:
+   entry i's line count (0 ends) and its word; register set `regs` (a byte
+   offset) of $80:BCA9: the transfer's mode and target register as bytes.
+   The window's shape is read with the data bank $82 (the effects set it):
+   $82:BBAE the offset of its last pair, then left, right pairs. */
+typedef struct WindowTableEntry { uint8_t count; uint16_t word; } WindowTableEntry;
+WindowTableEntry window_table_entry(uint8_t set, unsigned i);
+uint8_t window_register_mode(uint8_t regs);
+uint8_t window_register_target(uint8_t regs);
+uint16_t window_shape_last(void);
+uint8_t window_shape_byte(uint16_t at);         /* the byte at $82:BBAE + at */
+
 #endif

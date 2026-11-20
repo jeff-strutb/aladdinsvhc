@@ -254,6 +254,15 @@ void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *m
             mode7_cells[y * 128 + x] = map_words[2 * (y * 32 + x)];
     mode7_cells_changed = mode7_pixels_changed = 1;
     mode7_up = 1;
+    /* the original's staging left in its bank $7F, which the title's waves
+       read later (window_effects.c): the last block's pixels (tiles 0-63) at
+       $5800, the map's low bytes at $5000 (its first page; the second page's
+       1,024 bytes the original read back from video memory, which no caller
+       holds: left as they are, a known difference) */
+    for (int i = 0; i < 64 * 64; i++)
+        g.unpacked[0x5800 + i] = mode7_pixels[i];
+    for (int i = 0; i < 32 * 32; i++)
+        g.unpacked[0x5000 + i] = map_words[2 * i];
     mode7_outside = 1;
 }
 
@@ -338,6 +347,21 @@ static uint8_t window_use(uint8_t nibble, uint8_t logic)
                      (nibble & 8 ? NSHVC_WIN2 : 0) | (nibble & 4 ? NSHVC_WIN2_INVERT : 0) | (logic & 3) << 4);
 }
 
+/* The bits a pixel BG layer `layer`'s tiles have, in the mode its tiles are
+   drawn in: the picture's, or when that is Mode 7, the other mode a per-line
+   mode change gives (the title's mode 0 above and below its Mode 7 band) */
+static int video_tile_bpp(int layer)
+{
+    static const uint8_t bpp_of[8][3] = {
+        { 2, 2, 2 }, { 4, 4, 2 }, { 4, 4, 0 }, { 8, 4, 0 }, { 8, 2, 0 }, { 4, 2, 0 }, { 4, 0, 0 }, { 0, 0, 0 }
+    };
+    int mode = g.mode;
+
+    if (mode == 7)
+        mode = video_lines_tile_mode();
+    return bpp_of[mode & 7][layer];
+}
+
 /* The object a layer's map and tiles are, from the video addresses the game
    gives them (g.bg_map_at, g.bg_tiles_at); one no screen of the record uses
    is reported once and the layer left off. */
@@ -348,11 +372,13 @@ static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
     int map = map_at == 0x4000 ? VIDEO_MAP_BACK : map_at == 0x4800 ? VIDEO_MAP_FRONT : map_at == 0x5C00 ? VIDEO_MAP_TEXT : -1;
     int set = -1;
 
-    if (layer == 2 && tiles_at == 0x5000)
+    int bpp = video_tile_bpp(layer);
+
+    if (bpp == 2 && tiles_at == 0x5000)
         set = VIDEO_TILES_TEXT;
-    else if (layer < 2 && tiles_at == 0x0000)
+    else if (bpp == 4 && tiles_at == 0x0000)
         set = VIDEO_TILES_LOW;
-    else if (layer < 2 && tiles_at == 0x5000)
+    else if (bpp == 4 && tiles_at == 0x5000)
         set = VIDEO_TILES_HIGH;
     if (map < 0 || set < 0) {
         if (!told && !g.blank) {        /* power-on's zeroed bases while the screen is still blank are no screen */

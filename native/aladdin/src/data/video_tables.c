@@ -193,3 +193,23 @@ WobbleEntry wobble_entry(uint8_t at)
 #define HEALTH_MARKS_ADDR 0xF58D
 
 uint8_t health_mark_place(uint8_t n) { return cart8(cart_offset(HEALTH_MARKS_BANK, (uint16_t)(HEALTH_MARKS_ADDR + n))); }
+
+#define WINDOW_TABLES_BANK 0x80
+#define WINDOW_REGISTER_SETS 0xBCA9
+#define WINDOW_TABLE_SETS 0xBCBB
+#define WINDOW_SHAPE_BANK 0x82
+#define WINDOW_SHAPE_ADDR 0xBBAE
+
+WindowTableEntry window_table_entry(uint8_t set, unsigned i)
+{
+    uint16_t at = (uint16_t)(cart16(cart_offset(WINDOW_TABLES_BANK, (uint16_t)(WINDOW_TABLE_SETS + set))) + 3u * i);
+    uint32_t e = cart_offset(WINDOW_TABLES_BANK, (uint16_t)(WINDOW_TABLE_SETS + at));
+    WindowTableEntry w = { cart8(e), cart16(e + 1) };
+
+    return w;
+}
+
+uint8_t window_register_mode(uint8_t regs) { return cart8(cart_offset(WINDOW_TABLES_BANK, (uint16_t)(WINDOW_REGISTER_SETS + regs))); }
+uint8_t window_register_target(uint8_t regs) { return cart8(cart_offset(WINDOW_TABLES_BANK, (uint16_t)(WINDOW_REGISTER_SETS + 1 + regs))); }
+uint16_t window_shape_last(void) { return cart16(cart_offset(WINDOW_SHAPE_BANK, WINDOW_SHAPE_ADDR)); }
+uint8_t window_shape_byte(uint16_t at) { return cart8(cart_offset(WINDOW_SHAPE_BANK, (uint16_t)(WINDOW_SHAPE_ADDR + at))); }

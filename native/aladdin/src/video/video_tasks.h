@@ -14,6 +14,7 @@ TaskRun BrightnessDownTask(Task *t);        /* 81:9EB9 */
 TaskRun Mode7ZoomInTask(Task *t);           /* 81:B157 */
 TaskRun ShakeTask(Task *t);                 /* 81:A1D5 */
 TaskRun Bg1WobbleTask(Task *t);             /* 81:9F98 */
+TaskRun WindowEffectTask(Task *t);          /* 82:8000 */
 
 /* routines a task's chain calls that wait (TASK_GOES_ON when done) */
 TaskRun BrightnessUpAndWait(Task *t);       /* 81:F311 */

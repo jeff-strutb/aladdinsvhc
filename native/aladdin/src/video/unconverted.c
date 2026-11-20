@@ -19,7 +19,6 @@ static void unconverted(const char *name, int *told)
 
 #define UNCONVERTED(decl, name) decl { static int told; unconverted(name, &told); }
 
-UNCONVERTED(void video_lines_send(uint32_t top __attribute__((unused))), "the per-line effects")
 
 /* another area's, wanted by video/: a weak placeholder until it lands */
 __attribute__((weak)) unsigned actor_pieces(const Actor *a __attribute__((unused)), const SpritePiece **pieces)

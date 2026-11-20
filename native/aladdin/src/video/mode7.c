@@ -35,6 +35,11 @@ static void sine_table_build(void)
         sine[48 + j] = n;
         cosine[32 + j] = n;
     }
+    /* where the original keeps them, its bank $7F's $4F00 on (g.unpacked) */
+    for (int i = 0; i < 129; i++) {
+        g.unpacked[0x4F00 + 2 * i] = (uint8_t)table[i];
+        g.unpacked[0x4F00 + 2 * i + 1] = (uint8_t)((uint16_t)table[i] >> 8);
+    }
 }
 
 int16_t video_sine(unsigned step)
