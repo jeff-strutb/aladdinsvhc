@@ -220,6 +220,9 @@ struct MapPoint;
 bool ActorOutOfWall8(Actor *a, struct MapPoint *p);  /* A5:EB17 (ground_probes.c): out of a wall at probe 8 in front, true when
                                                        moved; the probe's findings in *p */
 
+/* (n5-kinds-d, for kind $71; wait_step.c) */
+int ActorEndIfAhead(Actor *a);                      /* 83:9749: ended once more than $120 pixels right of the view's left edge */
+
 /* (n5-kinds-d, for kind $5D; actor_moves.c) */
 void ActorKeepSpot(Actor *a);           /* 81:9D56: its x and y pixels kept (its +$4C, +$4E), for PlayerMoveWithActor */
 

@@ -24,6 +24,16 @@ int KindA4Start(Actor *a);      /* 84:AA24: the Genie's screen's figures */
 int Kind53Held(Actor *a);       /* 83:D566: a thing held then dropped; its second entry 83:D694 Kind53Thrown */
 int Kind6AStart(Actor *a);      /* 83:EB5E: its spawners and children */
 int Kind69Start(Actor *a);      /* 83:E9F7 (and 83:EADC Kind69EscortEnd); also kind $68's second */
+int KindA7Start(Actor *a);      /* 84:AC66: a figure of the ending */
+int KindA5Start(Actor *a);      /* 84:AB9C: the bombs and their column */
+int KindA0Start(Actor *a);      /* 84:A8E0: a ledge that gives way */
+int Kind91Start(Actor *a);      /* A5:F534: a marker steering the escort */
+int Kind44Start(Actor *a);      /* 83:B45B */
+int Kind71Start(Actor *a);      /* 83:F370 */
+int Kind4BStart(Actor *a);      /* 83:CE2A */
+int Kind4EStart(Actor *a);      /* 83:CFA9 (and 83:CFC1 Kind4EBounced) */
+int Kind5FStart(Actor *a);      /* 83:E465 */
+int Kind84Start(Actor *a);      /* 84:95E3 */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
 int Kind87Start(Actor *a);      /* 83:F77F: the catcher */
 int Kind5DStart(Actor *a);      /* 83:E29B: kind $5C's cloud */
@@ -48,6 +58,12 @@ int ActorKind66Wait(Actor *a);  /* 83:944E: kind $66's (kind66.c) */
 int Kind53Wait(Actor *a);       /* 83:D64A */
 int Kind6AWait(Actor *a);       /* 83:EC20 */
 int Kind69Wait(Actor *a);       /* 83:EB24 */
+int ActorKindA5Wait(Actor *a);  /* 83:9439 (84:AC31 KindA5WaitWork) */
+int ActorKindA0Wait(Actor *a);  /* 83:9404 (84:A975 KindA0AnimateFreeOff) */
+int Kind44Wait(Actor *a);       /* 83:B488 */
+int Kind71Wait(Actor *a);       /* 83:F3F1 */
+int Kind4EWait(Actor *a);       /* 83:CFF8 */
+int ActorKind84Wait(Actor *a);  /* 83:92E9 */
 int Kind27Wait(Actor *a);       /* 83:A012: kind $27's (kinds B's kind27.c has its start) */
 int Kind30Wait(Actor *a);       /* 83:B94A */
 int ActorWaitWake(Actor *a);    /* 83:D2A2: kind $51's (kind51.c) */

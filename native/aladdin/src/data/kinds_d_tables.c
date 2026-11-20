@@ -105,3 +105,14 @@ uint8_t k6a_pause(uint8_t spawner) { return at8(0x80, (uint16_t)(0xD65B + spawne
 /* ---- kind $69 (83:E9F7 Kind69Start): the word $D657 it stores at +$16 ---- */
 
 DataRef k69_probes(void) { return ref(0x80, 0xD657); }
+
+/* ---- kind $A7 (84:AC66 KindA7Start): $80:D99E, 4 bytes by $07 ---- */
+
+uint16_t ka7_place_x(uint8_t v07) { return cart16(cart_offset(0x80, (uint16_t)(0xD99E + 4u * v07))); }
+uint16_t ka7_place_y(uint8_t v07) { return cart16(cart_offset(0x80, (uint16_t)(0xD9A0 + 4u * v07))); }
+
+/* ---- kind $A5 (84:AB9C KindA5Start), in bank $80 ---- */
+
+DataRef ka5_probes(void) { return ref(0x80, 0xD984); }
+uint16_t ka5_place_x(uint8_t n) { return cart16(cart_offset(0x80, (uint16_t)(0xD988 + 2u * n))); }
+uint8_t ka5_height(uint8_t n) { return at8(0x80, (uint16_t)(0xD98E + n)); }

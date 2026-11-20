@@ -87,4 +87,17 @@ uint8_t k6a_pause(uint8_t spawner);     /* the frames a spawner ($07 0-3) waits 
 
 DataRef k69_probes(void);       /* its probe list */
 
+/* ---- kind $A7, a figure of the ending ---- */
+
+/* its place by its $07 (4 bytes: x, y words): from the play field's scroll
+   for $07 above 0 */
+uint16_t ka7_place_x(uint8_t v07);
+uint16_t ka7_place_y(uint8_t v07);
+
+/* ---- kind $A5, the bombs and their column ---- */
+
+DataRef ka5_probes(void);       /* the bomb's probe list */
+uint16_t ka5_place_x(uint8_t n);        /* the column's x by its $07 less one */
+uint8_t ka5_height(uint8_t n);          /* a piece's y (the pixels' low byte) by its $07's low four bits */
+
 #endif

@@ -26,3 +26,11 @@ __attribute__((weak)) int ActorOutOfWallAt(Actor *a, uint8_t probe, MapPoint *p)
     p->behaviour = 0;
     return ActorOutOfWall(a, probe);
 }
+
+/* kinds B's: never ended */
+__attribute__((weak)) int ActorEndIfAhead(Actor *a)
+{
+    (void)a;
+    TELL_ONCE("ActorEndIfAhead (83:9749)");
+    return ACTOR_GOES_ON;
+}
