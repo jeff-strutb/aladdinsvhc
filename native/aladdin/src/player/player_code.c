@@ -43,7 +43,7 @@ int PlayerCode(Actor *a)
     case 3:
         return player_held_code(a);
     case 4:
-        return player_unconverted(a, "the exits (81:CBF9-81:E7B1, player_exit.c)");
+        return player_exit_code(a);
     case 5:
         return player_unconverted(a, "the scenes' states (81:DDC1-81:E154, scene_starts.c)");
     case 6:

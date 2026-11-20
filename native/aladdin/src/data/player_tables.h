@@ -87,5 +87,8 @@ uint8_t carpet_tilt(uint8_t direction);
    the carpet ride's */
 DataRef player_pictures(void);
 DataRef player_carpet_pictures(void);
+/* the exits (81:E730, 81:E7B1, 81:CC51): by level, what follows its end:
+   positive the level's end, negative the story card, 0 the next part */
+uint8_t stage_goes_on(uint16_t level);
 
 #endif

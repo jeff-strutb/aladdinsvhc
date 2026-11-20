@@ -27,6 +27,11 @@ __attribute__((weak)) Actor *ActorSpawnShared(Actor *spawner, uint8_t kind)
     return NULL;
 }
 
+__attribute__((weak)) void SecondPoolFreeAll(void)
+{
+    TELL_ONCE("SecondPoolFreeAll (83:95C1)");
+}
+
 /* level/ (n5-levels) */
 __attribute__((weak)) void Level035CSet(void)
 {

@@ -101,6 +101,15 @@ enum {
     P_FLUNG_REST,
     P_FLUNG_AIR,
 
+    /* exits.c (its entries in player.h from PLAYER_BLOCK(4)) */
+    P_ESCORT_WALK = PLAYER_BLOCK(4) + 0x10,
+    P_ESCORT_FADE,
+    P_STAGE_END_FADE,
+    P_SPOT_EXIT_SONG,
+    P_SPOT_EXIT_POSED,
+    P_SPOT_EXIT_FADE,
+    P_SCENE_FIGURE_DONE,
+
     /* carpet.c */
     P_CARPET_START = PLAYER_BLOCK(7),
     P_CARPET_FLY_IN,

@@ -245,6 +245,7 @@ bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up);  /* 8
 /* (player/) */
 /* 81:A9E9: a child of `kind` at the spawner's spawn point, sharing its animated-tile slot, started at its next turn; NULL none free */
 Actor *ActorSpawnShared(Actor *spawner, uint8_t kind);
+void SecondPoolFreeAll(void);           /* 83:95C1: every record of the second pool in use freed (ActorFree, ActorTileSlotRelease), as a level ends */
 /* (n5-kinds-e, for kind $3B; player_carry.c) */
 void ActorStepCarry(Actor *a);              /* 83:C1EC: a step along its facing (vector set $0E), carrying the player riding it */
 void ActorStepToTargetCarry(Actor *a);      /* 83:C1F6: a step (vector set 8) on each axis toward its target, the pixel words

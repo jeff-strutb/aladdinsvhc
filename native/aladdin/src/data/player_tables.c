@@ -97,3 +97,5 @@ uint8_t carpet_tilt(uint8_t direction) { return at8((uint16_t)(0xC7E1 + directio
    (the original's word at +$29, read with the data bank at $80) */
 DataRef player_pictures(void) { DataRef r = { cart_offset(0x80, 0x8907) }; return r; }
 DataRef player_carpet_pictures(void) { DataRef r = { cart_offset(0x80, 0x8917) }; return r; }
+/* $80:C6F2: a byte by level (8-bit, as the original's X) */
+uint8_t stage_goes_on(uint16_t level) { return at8((uint16_t)(0xC6F2 + (uint8_t)level)); }
