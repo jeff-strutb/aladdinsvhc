@@ -6,7 +6,8 @@ or a field of every record of an array:
 
   field     the C path (actors[].x: every element of actors)
   address   the original's first byte, as $7E:xxxx (the low 8 KB of bank $00 is the same RAM)
-  count     elements, stride their distance in the original (hex bytes, or N bits for packed fields)
+  count     elements, stride their distance in the original (hex bytes, outer + inner for records in
+            records, as 156+A; or N bits for packed fields)
   bytes     the original's bytes per element
   bits      the bits of those bytes the field holds, when not all
   how       value; NN.8 (a fraction byte below the pixels); pointer (a record's address in the original);
@@ -20,13 +21,14 @@ SRC = os.path.join(HERE, '..', 'src', 'system', 'state.h')
 OUT = os.path.join(HERE, 'state_fields.csv')
 SIZE = {'uint8_t': 1, 'int8_t': 1, 'uint16_t': 2, 'int16_t': 2, 'uint32_t': 4, 'int32_t': 4}
 # the original's record sizes (state.h's comments)
-RECORDS = {'Task': 0x18, 'Actor': 0x50, 'VramCopy': 8, 'TileBlock': 10, 'ScrollLayer': 0x156, 'LayerEdge': 4}
+RECORDS = {'Task': 0x18, 'Actor': 0x50, 'VramQueueEntry': 8, 'TileBlock': 10, 'TileChange': 8, 'ScrollEdge': 10,
+           'ScrollLayer': 0x156, 'PaletteCycle': 14, 'LayerEdge': 4, 'VramWord': 4, 'Sequence': 0x10}
 DECL = re.compile(r'^\s*((?:const\s+)?(?:struct\s+)?\w+\s*\*?)\s*(\w+)((?:\[[^\]]+\])?)\s*;\s*/\*\s*(.*?)\s*(?:\*/)?\s*$')
 
 
 def parse():
     text = open(SRC).read()
-    consts = {m.group(1): int(m.group(2)) for m in re.finditer(r'#define (\w+) (\d+)', text)}
+    consts = {m.group(1): int(m.group(2), 0) for m in re.finditer(r'#define (\w+) (0x[0-9A-Fa-f]+|\d+)\b', text)}
     structs, cur, body = {}, None, []
     lines = text.split('\n')
     i = 0
@@ -72,9 +74,9 @@ def where(comment):
         absa = (int(m2.group(1), 16) << 16 if m2.group(1) else 0x7E0000) | int(m2.group(2), 16)
         if m2.group(3):
             nbytes = int(m2.group(3), 16) - int(m2.group(2), 16) + 1
-    s = re.search(r'every (\d+) bytes', comment)
+    s = re.search(r'every (\d+) bytes', comment) or re.search(r'\+ (\$[0-9A-F]+|\d+) n\b', comment)
     if s:
-        stride = int(s.group(1))
+        stride = int(s.group(1)[1:], 16) if s.group(1).startswith('$') else int(s.group(1))
     # bits only where the comment names them right after the address ("$03B8 bits 0-3")
     b = re.match(r'\+?\$(?:[0-9A-F]{2}:)?[0-9A-F]+(?:-\$[0-9A-F]+)? bits? (\d+)(?:-(\d+))?', comment)
     bits = (b.group(1) + ('-' + b.group(2) if b.group(2) else '')) if b else ''
@@ -106,10 +108,13 @@ def main():
             rows.append([path, '', outer_count * n, '', '', '', 'native'])
             return
         addr = absa if absa is not None else base + rel
+        if t in structs and t not in RECORDS and '*' not in typ:
+            raise SystemExit(f'make_state_csv: record type {t} has no size in RECORDS; add the original\'s record size')
         if t in RECORDS and t in structs and '*' not in typ:
+            inner = f'{RECORDS[t]:X}' if n > 1 else ''
+            chain = '+'.join(x for x in (outer_stride, inner) if x)
             for ft, fn, fd, fc in structs[t]:
-                emit(f'{path}[].{fn}' if n > 1 or outer_count > 1 else f'{path}.{fn}', ft, fc, addr,
-                     outer_count * n, RECORDS[t], fd)
+                emit(f'{path}[].{fn}' if n > 1 else f'{path}.{fn}', ft, fc, addr, outer_count * n, chain, fd)
             return
         if fn_own(path):
             # the actor's own bytes: the offsets its comment lists, in order
@@ -117,7 +122,7 @@ def main():
             for a, b in re.findall(r'\$([0-9A-F]{2})(?:-\$([0-9A-F]{2}))?', comment):
                 offs += list(range(int(a, 16), int(b or a, 16) + 1))
             for k, o in enumerate(offs):
-                rows.append([f'{path}[{k}]', f'{base + o:06X}', outer_count, f'{outer_stride:X}', 1, '', 'value'])
+                rows.append([f'{path}[{k}]', f'{base + o:06X}', outer_count, outer_stride, 1, '', 'value'])
             return
         size = SIZE.get(t, 2 if '*' in typ or t == 'DataRef' else None)
         elem = nbytes if nbytes and n == 1 else size
@@ -131,17 +136,16 @@ def main():
             return
         if n > 1:
             st = stride or (elem if elem else 1)
-            rows.append([path, f'{addr:06X}', outer_count * n if outer_count > 1 else n,
-                         f'{outer_stride:X}+{st:X}' if outer_count > 1 else f'{st:X}', elem, bits, how_of(typ, comment)])
+            rows.append([path, f'{addr:06X}', outer_count * n,
+                         '+'.join(x for x in (outer_stride, f'{st:X}') if x), elem, bits, how_of(typ, comment)])
         else:
-            rows.append([path, f'{addr:06X}', outer_count, f'{outer_stride:X}' if outer_count > 1 else '',
-                         elem, bits, how_of(typ, comment)])
+            rows.append([path, f'{addr:06X}', outer_count, outer_stride, elem, bits, how_of(typ, comment)])
 
     def fn_own(path):
         return path.endswith('.bytes') and path.startswith('actors')
 
     for typ, name, dim, comment in structs['GameState']:
-        emit(name, typ, comment, 0x7E0000, 1, 0, dim)
+        emit(name, typ, comment, 0x7E0000, 1, '', dim)
     # the union members sit one line below their own declaration: emit them through their parent record
     with open(OUT, 'w', newline='') as f:
         w = csv.writer(f)
