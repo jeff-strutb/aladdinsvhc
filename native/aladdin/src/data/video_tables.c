@@ -165,3 +165,28 @@ uint16_t rotate_sine_word(unsigned at) { return cart16(cart_offset(ROTATE_SINES_
 
 uint16_t actor_palette_colour(uint8_t n, unsigned i) { return cart16(cart_offset(ACTOR_PALETTES_BANK, (uint16_t)(ACTOR_PALETTES_ADDR + 32u * n + 2u * i))); }
 uint16_t rom_palette_colour(uint8_t n, unsigned i) { return cart16(cart_offset(ROM_PALETTES_BANK, (uint16_t)(ROM_PALETTES_ADDR + 32u * n + 2u * i))); }
+
+#define SHAKES_BANK 0x80
+#define SHAKES_ADDR 0xBAA3
+#define WOBBLES_ADDR 0xBA76
+
+ShakeEntry shake_entry(uint8_t at)
+{
+    uint32_t e = cart_offset(SHAKES_BANK, (uint16_t)(SHAKES_ADDR + at));
+    ShakeEntry s = { cart8(e), cart8(e + 1), cart8(e + 2), cart8(e + 3) };
+
+    return s;
+}
+
+WobbleEntry wobble_entry(uint8_t at)
+{
+    uint32_t e = cart_offset(SHAKES_BANK, (uint16_t)(WOBBLES_ADDR + at));
+    WobbleEntry w = { cart8(e), cart8(e + 1), cart8(e + 2), cart8(e + 3) };
+
+    return w;
+}
+
+#define HEALTH_MARKS_BANK 0x81
+#define HEALTH_MARKS_ADDR 0xF58D
+
+uint8_t health_mark_place(uint8_t n) { return cart8(cart_offset(HEALTH_MARKS_BANK, (uint16_t)(HEALTH_MARKS_ADDR + n))); }

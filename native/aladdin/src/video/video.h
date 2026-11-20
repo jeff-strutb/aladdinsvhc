@@ -117,6 +117,7 @@ void TextLayoutShowSecond(uint8_t layout);  /* 81:971F */
 void TextLayoutShowThird(uint8_t layout);   /* 81:9726 */
 void TextLayoutDrawBig(uint8_t layout);     /* 81:979A */
 void TextLayerClearFront(void);             /* 81:9607 */
+void TextNumberTwoDigits(uint8_t number, uint16_t at);   /* 83:8BDE: at the text map's byte offset `at` */
 void PaletteSaveReversed(uint8_t palette);  /* 81:9CA6 */
 void PaletteFromRom(uint8_t rom, uint8_t palette);      /* 81:9941: palette 4 + `palette` */
 void PaletteWhite(uint8_t palette);         /* 81:9CD7 */

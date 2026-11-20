@@ -19,8 +19,6 @@ static void unconverted(const char *name, int *told)
 
 #define UNCONVERTED(decl, name) decl { static int told; unconverted(name, &told); }
 
-UNCONVERTED(void LayersCopyToVram(void), "LayersCopyToVram (80:8366)")
-UNCONVERTED(void LayersFill(void), "LayersFill (81:C060)")
 UNCONVERTED(void video_lines_send(uint32_t top __attribute__((unused))), "the per-line effects")
 
 /* another area's, wanted by video/: a weak placeholder until it lands */

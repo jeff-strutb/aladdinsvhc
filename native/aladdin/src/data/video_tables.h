@@ -105,4 +105,15 @@ uint16_t rotate_sine_word(unsigned at);
 uint16_t actor_palette_colour(uint8_t n, unsigned i);
 uint16_t rom_palette_colour(uint8_t n, unsigned i);
 
+/* ShakeTask's shakes ($80:BAA3) and Bg1WobbleTask's wobbles ($80:BA76), 4
+   bytes each, by the task's parameter (a byte offset) */
+typedef struct ShakeEntry { uint8_t layer, sways, frames, step; } ShakeEntry;
+typedef struct WobbleEntry { uint8_t step_x, step_y, swing, frames; } WobbleEntry;
+ShakeEntry shake_entry(uint8_t at);
+WobbleEntry wobble_entry(uint8_t at);
+
+/* the status line's health marks: mark n's place, a byte offset in the
+   status line ($81:F58D + n) */
+uint8_t health_mark_place(uint8_t n);
+
 #endif

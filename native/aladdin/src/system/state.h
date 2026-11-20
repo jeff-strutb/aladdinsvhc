@@ -64,6 +64,21 @@ typedef struct Task {
             uint16_t origin;        /* +$0A: the text layer's byte offset of the first row and column */
             uint16_t at;            /* the next byte of the text (the original kept it on the task's stack) */
         } story_text;
+        struct {                /* ShakeTask (video/shake.c): its record at $75-$78 of its slot, and the count the
+                                   original kept in Y across its waits (native only) */
+            uint8_t layer;          /* $0075 (slot 0's; +$06 of the slot): the layer, an offset from $1A1C */
+            uint8_t sways;          /* +$07 */
+            uint8_t frames;         /* +$08: frames a half-sway */
+            uint8_t step;           /* +$09: pixels a frame */
+            uint8_t left;           /* frames left of the half-sway (Y) */
+        } shake;
+        struct {                /* Bg1WobbleTask (video/shake.c) */
+            int16_t step_x;         /* +$07 of the slot (word) */
+            int16_t step_y;         /* +$09 (word) */
+            uint8_t swing;          /* +$0B: frames a swing */
+            uint8_t swing_left;     /* +$0C */
+            uint8_t left;           /* +$0D: frames in all left */
+        } wobble;
     } own;
 } Task;
 
@@ -150,11 +165,22 @@ typedef struct TileChange {
 #define LEVEL_TILES_WORDS 0x8000    /* the original's bank $7F, a word a tile, as far as a screen's offset reaches */
 #define SCREEN_MAP_PLACES (32 * 32)
 #define BLOCK_SOURCES_SIZE 40       /* the most screens a level builds (40, from the map headers) */
+/* One of a scroll layer's four edges (+$00 left, +$0A right, +$14 top,
+   +$1E bottom of its record, 10 bytes each): a place in its video map and
+   the same place in the level's map. Its +$06 is read and written by
+   nothing. */
+typedef struct ScrollEdge {
+    uint16_t tilemap;           /* +$00: its map word address: column bits 0-4, row 5-9, the second screen bit 10, the layer's base */
+    uint16_t map;               /* +$02: its screen's place in the screen map (g.block_map), a byte offset: 2 across, $40 down */
+    uint16_t block;             /* +$04: its metatile in the screen, a byte offset: 2 across, $20 down */
+    uint16_t half;              /* +$08: its tile in the metatile: 2 the right half, 4 the bottom */
+} ScrollEdge;
 
 /* A scroll layer's record ($156 bytes: the play field's at $1738, the
-   backdrop's at $188E). Offsets in the record; the bytes $00-$27 and the
-   rest not named in wram_video.h are the layer session's to add. */
+   backdrop's at $188E). Offsets in the record. +$3D, +$41 and +$47-$49
+   are read by nothing. */
 typedef struct ScrollLayer {
+    ScrollEdge edge[4];         /* +$00: left, right, top, bottom */
     uint16_t column_length;     /* +$28: tiles a column draws */
     uint16_t row_length;        /* +$2A: tiles a row draws */
     uint16_t tilemap_base;      /* +$2E: bits every map word of the layer carries */
@@ -167,8 +193,9 @@ typedef struct ScrollLayer {
     uint32_t scroll_x;          /* +$3A-$3C: 16.8, pixels */
     uint32_t scroll_y;          /* +$3E-$40: 16.8, pixels */
     uint16_t map_base;          /* +$42: the layer's block map in the level map, a word offset */
-    DataRef block;              /* +$44: a block's metatile list */
-    DataRef metatile;           /* +$4A: a metatile's four tiles */
+    uint16_t block;             /* +$44-$45: a screen's metatile list, its offset in the level tiles (+$46, its bank: always the original's $7F) */
+    uint16_t metatile;          /* +$4A-$4B: a metatile's four tiles, its address in the level's metatiles' bank */
+    DataRef metatiles;          /* +$4C: the level's metatiles' bank (LayerSetup: the bank LevelMapBuild left at $005C) */
     uint8_t edges;              /* +$4F: the edges it draws: 1 right, 2 left, 4 bottom, 8 top */
     uint8_t column_parts;       /* +$50: a drawn column to copy: 1, or 2 past 32 tiles */
     uint16_t column_to;         /* +$51: its map word address */
@@ -438,6 +465,11 @@ typedef struct GameState {
     uint8_t progress_stage;     /* $035D: the stage in it */
     uint8_t lives_start;        /* $0362: the lives a level's play starts with */
     uint8_t lives;              /* $0364: lives left (the status line shows it, less 1) */
+    uint8_t health_shown;       /* $0366: the health the status line's marks show (video/hud.c) */
+    uint8_t lives_shown;        /* $0363: the lives as the status line shows them */
+    uint8_t apples_shown;       /* $0368 */
+    uint8_t hud_count_2_shown;  /* $036A */
+    uint8_t hover_shown;        /* $036D */
     uint8_t apples;             /* $0369: apples left, two decimal digits */
     uint8_t hud_count_2;        /* $036B: the status line's second counter */
     uint8_t figures_touched;    /* $036C: counted up as kind $27's figures are touched */
