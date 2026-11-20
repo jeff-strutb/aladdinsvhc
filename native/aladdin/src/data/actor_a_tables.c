@@ -162,3 +162,6 @@ DirectionStep direction_step(uint16_t direction)
     s.y[2] = at8(0x82, (uint16_t)(0xD42D + at));
     return s;
 }
+
+uint16_t a5_spot_x(uint8_t spot) { return cart16(cart_offset(0x80, (uint16_t)(0xD02C + spot))); }
+uint16_t a5_spot_y(uint8_t spot) { return cart16(cart_offset(0x80, (uint16_t)(0xD02E + spot))); }

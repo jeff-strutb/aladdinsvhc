@@ -27,9 +27,10 @@ static int guard(Actor *a)
  * @routine A5:E554 GuardRestart
  * WHAT IT DOES: GuardStart past its setting up: its fields cleared and on
  * by its $07: 0 and 12 the guard (12: shown at once, it never gives up the
- * chase); 2-5 the player's scene moves, 7-10 the escort's spots and 11 a
- * guard held at a spot, which are other code: not converted here (each
- * reported once; they hand the record over when their owners have them).
+ * chase); 11 a guard put at a spot and held (A5:F00E GuardPlacedHold); 2-5
+ * the player's scene moves and 7-10 the escort's spots are other code:
+ * not converted here (each reported once; they hand the record over when
+ * their owners have them).
  */
 static int restart(Actor *a)
 {
@@ -47,6 +48,13 @@ static int restart(Actor *a)
     case 12:
         a->own.bytes[G_SHOWN] = 0x01;
         return guard(a);
+    case 11:
+        /* A5:F00E GuardPlacedHold: put at spot $20, in state 4 (holding
+           back while the player is to its left), stopped */
+        a->own.bytes[G_STATE] = 0x04;
+        ActorPlaceAtSpot(a, 0x20);
+        AnimStart(a, 0);
+        return guard_stop(a);
     default: {
         static uint8_t told[128];
 

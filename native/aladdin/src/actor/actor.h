@@ -220,6 +220,9 @@ struct MapPoint;
 bool ActorOutOfWall8(Actor *a, struct MapPoint *p);  /* A5:EB17 (ground_probes.c): out of a wall at probe 8 in front, true when
                                                        moved; the probe's findings in *p */
 
+/* (n5-kinds-d for the guard's $07 11 and the scenes; actors A's rise_fall.c, written by n5-kinds-d) */
+void ActorPlaceAtSpot(Actor *a, uint8_t spot);      /* A5:EB1E: on whole pixels at spot `spot` (a byte offset, 4 bytes a spot) of the table at $80:D02C */
+
 /* (n5-kinds-d, for kind $71; wait_step.c) */
 int ActorEndIfAhead(Actor *a);                      /* 83:9749: ended once more than $120 pixels right of the view's left edge */
 

@@ -76,4 +76,9 @@ uint16_t floor_clearance(void);
 typedef struct DirectionStep { uint8_t x[3], y[3]; } DirectionStep;
 DirectionStep direction_step(uint16_t direction);
 
+/* the spots A5:EB1E ActorPlaceAtSpot puts an actor at ($80:D02C, 4 bytes a
+   spot: x then y, words) */
+uint16_t a5_spot_x(uint8_t spot);
+uint16_t a5_spot_y(uint8_t spot);
+
 #endif
