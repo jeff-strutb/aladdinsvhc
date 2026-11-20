@@ -24,6 +24,8 @@ Folded into other converted code
          tiles and map back from video memory; the caller passes them (Jeff,
          2026-11-19)
   81:B120 SineTableBuild -> mode7.c sine_table_build
+  81:B25B RotateSine -> mode7_rotate.c rotate_sine
+  81:8564 BgFollowLayersLong -> bg_follow.c BgFollowLayers
 
 Replaced by the engine (no counterpart by intent)
 -------------------------------------------------
@@ -34,6 +36,8 @@ Dead
   81:984A DisplayShadowsClear: no JSL or JML to 81:984A, no JSR or JMP to $984A
          in bank $81; the one $4A $98 pair there (81:C18F) is the instructions
          XBA, LSR, TYA.
+  81:B0FB Mode7RotateByTable: no long pointer to 81:B0FB in the cartridge, no
+         word $B0FB in bank $81 (the record: "No code refers to it").
   81:BC16 UnpackTask: its address as a long ($16 $BC $81) is nowhere in the
          cartridge, so no task is created at it.
   81:9EDD ColourFadeInSprites, 81:9EE4 ColourFadeInBg1, 81:9EE8 ColourFadeInBg2,

@@ -152,3 +152,8 @@ uint16_t palette_cycle_script(uint8_t cycle) { return palette_cycle_table16((uin
 uint16_t palette_cycle_table16(uint16_t at) { return cart16(cart_offset(PALETTE_CYCLES_BANK, (uint16_t)(PALETTE_CYCLES_ADDR + at))); }
 uint8_t palette_cycle_frame8(uint16_t at) { return cart8(cart_offset(PALETTE_CYCLES_BANK, (uint16_t)(PALETTE_FRAMES_ADDR + at))); }
 uint16_t palette_cycle_frame16(uint16_t at) { return cart16(cart_offset(PALETTE_CYCLES_BANK, (uint16_t)(PALETTE_FRAMES_ADDR + at))); }
+
+#define ROTATE_SINES_BANK 0x82
+#define ROTATE_SINES_ADDR 0x87D3
+
+uint16_t rotate_sine_word(unsigned at) { return cart16(cart_offset(ROTATE_SINES_BANK, (uint16_t)(ROTATE_SINES_ADDR + at))); }

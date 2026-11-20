@@ -96,4 +96,8 @@ uint16_t palette_cycle_table16(uint16_t at);    /* the word at $84:E000 + at */
 uint8_t palette_cycle_frame8(uint16_t at);      /* the byte at $84:E004 + at */
 uint16_t palette_cycle_frame16(uint16_t at);    /* the word at $84:E004 + at */
 
+/* Mode7Rotate's sines (RotateSine 81:B25B): the word at $82:87D3 + at, at
+   0-$80 (even): 65 entries of a quarter turn, the value in its top 12 bits */
+uint16_t rotate_sine_word(unsigned at);
+
 #endif

@@ -92,6 +92,14 @@ void LevelPalettesLoad(void);               /* 81:86BF */
 void PaletteCycleStart(uint8_t slot, uint8_t cycle);    /* 81:EC8E */
 void PaletteCyclesStep(void);               /* 81:EC98: once a frame */
 
+void Mode7Rotate(uint8_t angle);            /* 81:B1CD: 256 to a turn */
+
+/* ---- the tile-block queue (video/tile_blocks.c): 16 x 16 blocks of map words ---- */
+
+void TileBlockQueueRun(uint16_t to, uint16_t t);    /* 81:A23C */
+void TileBlockQueueOne(uint16_t to, uint16_t t);    /* 81:A260 */
+void TileBlockQueue(uint16_t to, uint16_t t);       /* 81:A287 */
+
 /* ---- sprites (video/oam.c) ---- */
 
 void OamBufferClear(void);                  /* 81:95D5 */
@@ -112,6 +120,8 @@ void TextLayerClearFront(void);             /* 81:9607 */
 void PaletteSaveReversed(uint8_t palette);  /* 81:9CA6 */
 
 /* ---- the scroll layers (video/scroll_layer.c) ---- */
+
+void BgFollowLayers(void);                  /* 81:8568 */
 
 void LayersFill(void);                      /* 81:C060 */
 
