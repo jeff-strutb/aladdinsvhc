@@ -236,6 +236,14 @@ After stage 4 lands, these sessions work at once, each owning only its directori
 in its header. Sound (stage 3) is finished before this and owns `audio/` and `sound_tables` alone. Stage 4's sessions own
 `system_tables`, `game_tables` (the loop's) and `video_tables` (video's) already (the master's work split, 2026-11-19).
 
+**The cut to five sessions (2026-11-20, the master on Jeff's decision; `build/aladdin/writers/NATIVE-STAGE5-BRIEF.txt`,
+"FIVE SESSIONS, ONE GOAL").** Until the attract demo plays level 1 natively, only five sessions work, and only on the
+routines the demo's level 1 play reaches: `n5-levels` (`game/`, `level/`, `map/`, `system/`, `input/`: DemoTask, the play
+loop, LevelLoad), `n5-player` (`player/`), `n5-video` (`video/`, a fresh session from the hand-over), `native-setup` (the
+actor loop and record) and `n5-actors-a` (the shared actor code; the guard, kind $08). The kind sessions B, C, D and E and
+the replay session are paused; `n5-kinds-d` finishes only the carrier guard's hand-over. Shared-format readers in `data/`
+are written only when one of the five asks.
+
 ## 6. Recording and comparing
 
 Built in stage 1, as SRFX's section 6, with `snesbox` (`tools/aladdin/snesbox`, the patched bsnes core `setup.sh` stages)
