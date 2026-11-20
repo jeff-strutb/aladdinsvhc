@@ -32,6 +32,11 @@ const KindCode kinds_e[] = {
     /* $56: its second entry is its wait routine (83:D9B5) entered as code,
        which no script reaches: not converted; that wait is AnimStep only */
     { 0x56, Kind56Start, NULL, NULL, AnimateWhileWaiting },
+    /* $61, $64: their second entry is Kind65Start, another kind's routine:
+       left aside (kinds-d-shared-kinds.md section 2) */
+    { 0x61, Kind61Start, NULL, NULL, ActorWaitRange00 },
+    { 0x64, Kind64Start, NULL, NULL, ActorWaitRange00 },
+    { 0x65, Kind65Start, NULL, NULL, AnimateWhileWaiting },
     { 0x8F, Kind8FWalk, Kind8FWalk, NULL, KindAnimateSend },
     /* $94: its second entry is KindA8Start, another kind's routine: left
        aside (kinds-d-shared-kinds.md section 2); its wait 83:FB15

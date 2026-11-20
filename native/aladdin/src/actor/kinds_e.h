@@ -32,6 +32,9 @@ int Kind8FWalk(Actor *a);       /* 83:FA4F, and its second entry (83:FAB7: Actor
 int Kind94Spark(Actor *a);      /* 83:FABB */
 int Kind56Start(Actor *a);      /* 83:D8E2 */
 int Kind9EStart(Actor *a);      /* 84:A820 */
+int Kind61Start(Actor *a);      /* 83:E4EC */
+int Kind64Start(Actor *a);      /* 83:E4F0 */
+int Kind65Start(Actor *a);      /* 83:E5BB */
 int Kind98Hit(Actor *a);        /* 84:A2A6: its second entry's start */
 
 /* ---- wait routines (kind2e.c, kind35.c, kind_steps.c): ACTOR_GOES_ON, or

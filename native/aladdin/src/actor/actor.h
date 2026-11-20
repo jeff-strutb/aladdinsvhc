@@ -259,4 +259,6 @@ void CarrierPairSend(Actor *sender);        /* 84:A056: a carrier (kind $38) 40 
 /* (n5-kinds-e, for kind $A1; actor_84_misc.c: kind $A1 its only caller) */
 bool ActorClampAboveFloor12(Actor *a);      /* 84:8F2F (with 84:8F3C ActorClampAboveFloor): its y plus 12 kept above the floor
                                                line at its x (the table at $7E:DFC0); true when it reached it (moved up onto it) */
+/* (n5-kinds-e, for kinds $61 and $64; wait_step.c: kinds $61, $64, $6C share it) */
+int ActorWaitRange00(Actor *a);             /* 83:E5B6: a wait routine: ended once out of range by box 0 (ActorEndOutOfRange) */
 #endif

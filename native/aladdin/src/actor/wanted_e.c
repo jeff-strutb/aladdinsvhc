@@ -106,3 +106,10 @@ __attribute__((weak)) bool ActorClampAboveFloor12(Actor *a)
     TELL_ONCE("ActorClampAboveFloor12 (84:8F2F)");
     return false;
 }
+
+__attribute__((weak)) int ActorWaitRange00(Actor *a)
+{
+    (void)a;
+    TELL_ONCE("ActorWaitRange00 (83:E5B6)");
+    return ACTOR_GOES_ON;
+}
