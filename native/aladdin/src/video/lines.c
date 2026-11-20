@@ -120,6 +120,27 @@ static void send_channel(const LineChannel *c, uint32_t top)
                                                                                          : NSHVC_LINE_SCROLL_Y + 2,
              field, set);
         break;
+    case LINE_FIXED: {
+        /* each write sets the channels its bits 5-7 name (red, green, blue)
+           to its low 5 bits; the others keep theirs, from the frame's */
+        uint8_t r = g.fixed_red, gr = g.fixed_green, b = g.fixed_blue;
+
+        for (int i = 0; i < LINES; i++) {
+            if (set[i]) {
+                uint8_t v = (uint8_t)value[i];
+
+                if (v & 0x20)
+                    r = v & 0x1F;
+                if (v & 0x40)
+                    gr = v & 0x1F;
+                if (v & 0x80)
+                    b = v & 0x1F;
+            }
+            field[i] = (int32_t)(r | gr << 5 | b << 10);
+        }
+        send(NSHVC_LINE_FIXED, field, set);
+        break;
+    }
     case LINE_M7_A:
         for (int i = 0; i < LINES; i++)
             field[i] = (int16_t)value[i];
