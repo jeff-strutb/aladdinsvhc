@@ -32,6 +32,7 @@ static inline int kind_lost(Actor *a, const char *code)
 
 /* ---- the kinds' code (each: frames to wait, or ACTOR_ENDED) ---- */
 
+int Kind2BCode(Actor *a);       /* kind $2B: 83:A467, 83:A725 */
 int Kind2DCode(Actor *a);       /* kind $2D: 83:A82F, 83:AA5A, 83:AA95 */
 int Kind2DStart(Actor *a);      /* 83:A82F, also kind $2C's second entry */
 int Kind2FCode(Actor *a);       /* kind $2F: 83:B4BE, 83:B643 */

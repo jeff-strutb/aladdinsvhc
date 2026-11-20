@@ -10,6 +10,22 @@
 
 #include "data/data.h"
 
+/* ---- kind $2B, the walker: by way (its surface * 2 + its direction) ---- */
+
+uint8_t k2b_direction(uint8_t way);         /* its facing byte: the direction set's way */
+uint8_t k2b_flip(uint8_t way);
+uint8_t k2b_walk_anim(uint8_t way);
+uint8_t k2b_turn_anim(uint8_t way);
+/* the point it tests, from its place: ahead (on_surface 0), or ahead on its
+   surface (1) */
+uint16_t k2b_point_x(uint8_t way, int on_surface);
+uint16_t k2b_point_y(uint8_t way, int on_surface);
+DataRef k2b_probes(void);
+uint8_t k2b_leg(uint8_t n);                 /* n: its +$07's low two bits */
+uint8_t k2b_range(uint8_t n);
+uint16_t k2b_partner_half(void);            /* how far from its partner's x it keeps */
+uint16_t k2b_partner_span(void);            /* twice that */
+
 /* ---- kind $2D, the thrower ---- */
 
 /* by facing * 4 (0 right, 4 left): where its reach starts, from its x, and

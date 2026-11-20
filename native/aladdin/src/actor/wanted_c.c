@@ -11,11 +11,9 @@
 #define STAND_IN __attribute__((weak))
 
 /* n5-actors-a (actor.h) */
-STAND_IN void ActorMotionPresetY(Actor *a, uint8_t p) { (void)a; (void)p; unconverted("ActorMotionPresetY"); }
-STAND_IN void ActorFallSpeedCap(Actor *a) { (void)a; unconverted("ActorFallSpeedCap"); }
 STAND_IN uint8_t ActorMapAhead5Down12(Actor *a) { (void)a; unconverted("ActorMapAhead5Down12"); return 1; }
-STAND_IN void ActorSpawnRing(Actor *a) { (void)a; unconverted("ActorSpawnRing"); }
 STAND_IN void ActorVariantChildStep(Actor *a) { (void)a; unconverted("ActorVariantChildStep"); }
+STAND_IN void ActorSpeedXSetAccel(Actor *a, uint8_t c, uint8_t at) { (void)a; (void)c; (void)at; unconverted("ActorSpeedXSetAccel"); }
 
 /* native-video (video.h) */
 STAND_IN void ActorPictureQueue(Actor *a) { (void)a; unconverted("ActorPictureQueue"); }

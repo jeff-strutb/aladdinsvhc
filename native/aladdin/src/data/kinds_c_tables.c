@@ -27,6 +27,24 @@ static DataRef ref(uint16_t addr)
     return r;
 }
 
+/* ---- kind $2B: by way at $D0B6 its direction, $D0BE its walk, $D0C6 its
+   turn, $D0CE its flip; by way * 4 at $D0D6 the point ahead and at $D0F6 the
+   point on its surface (x, y words); its probe list at $D116; by n at
+   $D11A its leg and $D11E its range; its partner's half-span $D2E3, span
+   $D2E5 (words) ---- */
+
+uint8_t k2b_direction(uint8_t way) { return at8((uint16_t)(0xD0B6 + way)); }
+uint8_t k2b_walk_anim(uint8_t way) { return at8((uint16_t)(0xD0BE + way)); }
+uint8_t k2b_turn_anim(uint8_t way) { return at8((uint16_t)(0xD0C6 + way)); }
+uint8_t k2b_flip(uint8_t way) { return at8((uint16_t)(0xD0CE + way)); }
+uint16_t k2b_point_x(uint8_t way, int on_surface) { return at16((uint16_t)((on_surface ? 0xD0F6 : 0xD0D6) + 4u * way)); }
+uint16_t k2b_point_y(uint8_t way, int on_surface) { return at16((uint16_t)((on_surface ? 0xD0F6 : 0xD0D6) + 4u * way + 2)); }
+DataRef k2b_probes(void) { return ref(0xD116); }
+uint8_t k2b_leg(uint8_t n) { return at8((uint16_t)(0xD11A + n)); }
+uint8_t k2b_range(uint8_t n) { return at8((uint16_t)(0xD11E + n)); }
+uint16_t k2b_partner_half(void) { return at16(0xD2E3); }
+uint16_t k2b_partner_span(void) { return at16(0xD2E5); }
+
 /* ---- kind $2D: by facing * 4 at $D122 a word (where its reach starts)
    then a word (how far); by +$07 at $D130 the throw's frames and at $D133
    the frame its copy leaves; by arc at $D136 the second arc and at $D12A

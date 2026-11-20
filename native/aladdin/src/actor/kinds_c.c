@@ -8,6 +8,7 @@
 #include "actor/kinds_c.h"
 
 const KindCode kinds_c[] = {
+    { 0x2B, Kind2BCode, Kind2BCode, NULL, Kind2BWait },
     { 0x2D, Kind2DCode, Kind2DCode, Kind2DCode, ActorWaitHitsRange8 },
     { 0x2F, Kind2FCode, Kind2FCode, NULL, ActorWaitHitsRange0 },
     { 0x4F, Kind4FCode, NULL, NULL, ActorWaitTest42Anim2 },    /* its second (83:D108) is an RTS no state reaches */
