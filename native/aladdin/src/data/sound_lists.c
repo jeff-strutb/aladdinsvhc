@@ -1,5 +1,5 @@
 /*
- * sound_tables.c: the sound upload lists. The table at $85:8000 has 3 bytes
+ * sound_lists.c: the sound upload lists (a shared format, data.h). The table at $85:8000 has 3 bytes
  * a list: the list's address (bit 15 dropped) and its bank (bit 7 set). A
  * list is blocks of a length word, a sound-memory address word and the
  * bytes; a length of 0 ends it, its address where the driver goes on. The

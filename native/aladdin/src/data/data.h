@@ -5,9 +5,15 @@
  * own cartridge, checked by SHA-1, with the code left out) once, at init,
  * through nshvc_asset_*. Every table's place in the cartridge is written
  * once, in data/ only; the rest of the game sees each table by what it holds,
- * through a reader here, and never a bank, an address or a raw read. Data
- * that names other data in its own format is passed on as a DataRef, which
- * only data/ looks inside.
+ * through a reader, and never a bank, an address or a raw read. Data that
+ * names other data in its own format is passed on as a DataRef, which only
+ * data/ looks inside.
+ *
+ * Who writes a reader (the master's work split, 2026-11-19, PLAN.md): this
+ * header holds the loader and the formats more than one area reads (sound
+ * lists, palettes, packed graphics, level graphics, unpack sets); each area's
+ * own tables are in data/<area>_tables.{c,h}, written by the session that
+ * converts the routine reading them, from that routine's code.
  */
 #ifndef ALADDIN_DATA_H
 #define ALADDIN_DATA_H
@@ -39,11 +45,7 @@ int sound_list_blocks(unsigned list);
 SoundBlock sound_list_block(unsigned list, unsigned block);  /* block < sound_list_blocks(list) */
 uint16_t sound_list_start(unsigned list);   /* the address its end names: where the driver goes on */
 
-/* ---- video ---- */
-
-/* the window effects' quarter sine: 64 steps rising 0 to 15
-   (video/window_effects.c's HalfSineBuild) */
-uint8_t quarter_sine_step(unsigned step);   /* step < 64 */
+/* ---- graphics ---- */
 
 /* the palette loads (video/palette.c's PaletteLoad): load `set` copies
    palette_load_count(set) colours to the palette from colour
@@ -84,15 +86,5 @@ typedef struct UnpackSetEntry {
 } UnpackSetEntry;
 #define UNPACK_SETS 50          /* $80:F039 on, 7 bytes each; from set 50 the bytes are not sets (banks below $80) */
 UnpackSetEntry unpack_set(uint8_t set);    /* set < UNPACK_SETS */
-
-/* ---- input: the demos' pad scripts (system/input_modes.c) ---- */
-
-typedef struct DemoStep {
-    uint8_t buttons;            /* pad 1's high byte: B Y Select Start Up Down Left Right */
-    uint8_t frames;             /* how long it is held */
-} DemoStep;
-
-/* the entry at byte offset `at` of the scripts, as g.demo_input_at keeps it */
-DemoStep demo_step_at(uint16_t at);
 
 #endif

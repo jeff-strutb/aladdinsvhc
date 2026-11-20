@@ -4,7 +4,8 @@ section 4, decision 2) over the native game's files: nshvc-find-hardware
 reports nothing for them, and their code (comments left out) has none of
 what the finder does not look for: the SPC700's register file, flag helpers,
 pushed return frames, the decomp's yields and hand-offs, goto, the hardware's
-register names, or a 24-bit SNES address outside data/. Prints each finding;
+register names, or a ROM place outside data/ (a 24-bit address, or
+data/'s own access to the cartridge). Prints each finding;
 exits 1 when there is one. NSHVC_ROOT names the engine's checkout."""
 import os, re, subprocess, sys
 
@@ -34,6 +35,27 @@ CHECKS = [
     (r'\b(' + '|'.join(sorted(HW, key=len, reverse=True)) + r')\b', 'a hardware register name'),
 ]
 ADDR24 = re.compile(r'\b0x[0-9A-Fa-f]{6}u?\b')
+# a ROM place held outside data/: a long address, or data/'s own access to the image
+ROM_PLACE = [(ADDR24, 'an SNES address outside data/'),
+             (re.compile(r'\b(cart_offset|cart_at|cart8|cart16)\s*\('), "data/'s own access to the cartridge outside data/")]
+INTERNAL = re.compile(r'#\s*include\s*"data/data_internal\.h"')
+
+
+def rom_places(paths):
+    """the findings of the one rule data_check.py runs over the whole game: no ROM place outside data/"""
+    found = []
+    for p in paths:
+        if os.sep + 'data' + os.sep in os.path.abspath(p):
+            continue
+        text = open(p, errors='replace').read()
+        for no, line in enumerate(text.split('\n'), 1):
+            if INTERNAL.search(line):
+                found.append(f'{p}:{no}: data_internal.h included outside data/')
+        for no, line in enumerate(code_of(text).split('\n'), 1):
+            for rx, what in ROM_PLACE:
+                if rx.search(line):
+                    found.append(f'{p}:{no}: {what}: {line.strip()[:100]}')
+    return found
 
 
 def files(paths):
@@ -68,13 +90,12 @@ def main():
         if m and os.path.abspath(m.group(1)) in want:
             print(line); found += 1
     for p in paths:
-        in_data = os.sep + 'data' + os.sep in os.path.abspath(p)
         for no, line in enumerate(code_of(open(p, errors='replace').read()).split('\n'), 1):
             for rx, what in CHECKS:
                 if re.search(rx, line):
                     print(f'{p}:{no}: {what}: {line.strip()[:100]}'); found += 1
-            if not in_data and ADDR24.search(line):
-                print(f'{p}:{no}: an SNES address outside data/: {line.strip()[:100]}'); found += 1
+    for f in rom_places(paths):
+        print(f); found += 1
     print(f'clean check: {len(paths)} files, {found} findings')
     return 1 if found else 0
 

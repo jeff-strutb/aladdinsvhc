@@ -9,6 +9,8 @@
 
 #include "nshvc/nshvc.h"
 #include "data/data.h"
+#include "data/video_tables.h"
+#include "data/input_tables.h"
 
 static FILE *asset_file;
 

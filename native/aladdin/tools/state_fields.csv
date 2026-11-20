@@ -83,8 +83,6 @@ tile_blocks_pending,7E1BE6,1,,1,,value
 tile_blocks_count,7E1BE4,1,,2,,value
 tile_blocks[].to,7E1B44,16,A,2,,value
 tile_blocks[].words,7E1B46,64,A+2,2,,value
-vram_list_pending,7E1649,4,1,1,,value
-vram_list,7E164D,4,2,2,,ref
 layers[].column_length,7E1760,2,156,2,,value
 layers[].row_length,7E1762,2,156,2,,value
 layers[].tilemap_base,7E1766,2,156,2,,value
@@ -145,6 +143,7 @@ health,7E0367,1,,1,,value
 health_marks,7E0365,1,,1,,value
 continues,7E035B,1,,1,,value
 cheat_start,7E0009,1,,1,,value
+pause_block,7E0404,1,,1,,value
 actors[].state,7E08DB,36,50,1,,value
 actors[].wait,7E08DC,36,50,1,,value
 actors[].resume,7E08DD,36,50,4,,native (a resume point for the original's PC)

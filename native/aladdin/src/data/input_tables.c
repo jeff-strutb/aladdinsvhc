@@ -3,6 +3,7 @@
  * pad 1's high byte, then its frame count.
  */
 #include "data/data.h"
+#include "data/input_tables.h"
 #include "data/data_internal.h"
 
 #define DEMO_SCRIPTS_BANK 0x84

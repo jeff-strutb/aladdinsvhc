@@ -37,7 +37,12 @@ The rules are SRFX's ("How the conversion is shared between sessions"), for this
   one is added under `/* wanted */` in the owner's header; the owner implements it. No silent stubs: an unconverted routine
   prints its name once to stderr and is listed in the report.
 - **Files.** Each session owns the directories in its brief and edits no other but `state.h` and `/* wanted */` lines. Save a
-  file only when it compiles. Commit with `git commit -- <paths>`. No pushes. No attribution of any kind.
+  file only when it compiles. **`data/`** (the master's work split, 2026-11-19, not a decision of Jeff's): the stage 2
+  session owns `data.c`, `data.h`, `data_internal.h`, `DataRef`, the shared formats (`sound_lists.c`, `graphics.c`: the
+  sound lists, palettes, packed graphics, level graphics lists, unpack sets, and the level maps when they come) and the
+  checks; each converting session owns `data/<area>_tables.{c,h}` and adds a reader there when it converts the routine that
+  reads the table, from that routine's code, never from a guessed format. Every table's place is still written once, in
+  `data/` only. Commit with `git commit -- <paths>`. No pushes. No attribution of any kind.
 - **Reporting.** Lead with what is not done, with counts.
 
 ## 1. What this plan cannot promise
@@ -187,7 +192,7 @@ is not done; there is no interim register-style form.
 |---|---|---:|---|---|
 | 0 | **Set up** (done: `b941e4e`, `d9fcb02`): `native/aladdin` with its `CMakeLists.txt`, the icon, the extractor and an empty game | 0 | builds for Linux (Vulkan) and headless; a blank screen | BUILD.md's runs: headless 120 updates print `updates 120 pictures 120` with every pixel black; the window opens for 8 s (ended by `timeout`) |
 | 1 | **Record and replay** of the original, for finding bugs only | 0 (tooling) | `snesbox` records, per frame of an input-only play, the per-line picture state, palette, sprite table and video-memory changes, the DSP writes and the port commands; `native/checks/replay` makes from a recording the API calls a converted game would, through the engine | the replay's pictures beside bsnes's on the attract play; a planted change shown to make it differ |
-| 2 | **Data and state**: `src/data` over the `assets.csv` and `extract_assets.py` already on main, `state.h`, `math` | 1,892 (`math` 153, `include` 1,739, not brought over but read for names) | every table the game reads has a `data/` reader; `state.h` holds the shared fields with their addresses in comments; the stage's files clean | every extracted range against the ROM's bytes; a CSV of `g`'s fields to original addresses, for stage 5's state comparison; the clean check; compiles |
+| 2 | **Data and state**: `src/data` over the `assets.csv` and `extract_assets.py` already on main, `state.h`, `math` | 1,892 (`math` 153, `include` 1,739, not brought over but read for names) | the loader, the shared formats and their checks; `state.h` holds the shared fields with their addresses in comments; the stage's files clean. Every table the game reads is read through `data/` (the master's work split, 2026-11-19): each area's tables land with the area that converts their reader, each area's table count reported as it lands | `tools/data_check.py`: every extracted range against the ROM's bytes, every reader against a second reading of the ROM, and no ROM place in game code outside `data/` (it fails the run); `tools/state_fields.csv` of `g`'s fields to original addresses, for stage 5's state comparison; the clean check; compiles |
 | 3 | **Sound**: the driver as music code, the queue, the loads | 2,755 (`audio`) | the driver runs on the audio thread from commands; sample sets and songs load by message; `audio/` clean (no `spc.`, `spc_rd`/`spc_wr`) | the recorded port commands fed to the driver give the recorded voice events (key-ons, pitch, volumes, per tick; SRFX's `music_check`); then `tools/nshvc-check` sound against bsnes on the attract play. Expected: the same events, with differences only in write order inside a tick; the clean check on `audio/` |
 | 4 | **Loop, video, boot to title** (the first end-to-end) | about 13,700: `system` 1,956, `video` 10,673, `game/logo_screen.c` 119, `opening_story.c` 502, `title_task.c` 473; plus the actor loop and the kinds the story places (counted in this stage's first step, from `OpeningActorPlace`'s table) | the game runs from power-on through the logo and the opening story (or Start) to the title with its music; every file of the stage clean | headless runs with `--shots` and `--sound`, looked at against the original's recording; `nshvc-check` sound on the boot; the clean check. Expected: the same screens and music, reached sooner (section 1 item 3) |
 | 5 | **Player, actors and levels** | about 67,500: `actor` 47,012, `player` 7,261, `level` 3,075, `map` 2,471, the rest of `game` 7,699 | every level, scene, the Genie screen, continue, password and ending playable by input; every live routine converted or listed dead; every file clean | for each level, a new input-only play of the original (section 1 item 7); the native game's state against the recording at each frame through stage 2's CSV, each masked field with its reason; no crash or unconverted-routine message; the clean check on each area as it lands |
@@ -209,17 +214,19 @@ Aladdin has none, so those times do not carry over.
 
 After stage 4 lands, these sessions work at once, each owning only its directories (both under `native/aladdin/src`):
 
-| Session | Owns | Lines of the record | Starts from |
-|---|---|---:|---|
-| actors A | `actor/` core: loop, pool, spawning, motion, boxes, the shared kind helpers (`actor_*.c`, `pool.c`, `spawn*.c`, `motion.c`, `hit_*.c` ...) | the core's files, counted when the split is made | stage 4's actor loop |
-| actors B, C | `actor/kind*.c` by kind number, split by file list in the brief (each its own files) | the rest of `actor`, 47,012 in all with A | A's `actor.h` |
-| player and map | `player/`, `map/` | 9,732 | `actor.h`, `state.h` |
-| levels and screens | `level/`, `game/` but the stage 4 screens | 10,774 | stage 4's screens |
-| video | `video/` (the window effects, parallax and HUD the levels add) | inside stage 4's 10,673 | stage 4 |
-| input | `input/`, `system/controls.c`, `joypad.c`, `input_modes.c` | about 324 | stage 4's loop |
+| Session | Owns | Its tables in `data/` | Lines of the record | Starts from |
+|---|---|---|---:|---|
+| actors A | `actor/` core: loop, pool, spawning, motion, boxes, the shared kind helpers (`actor_*.c`, `pool.c`, `spawn*.c`, `motion.c`, `hit_*.c` ...) | `actor_tables` | the core's files, counted when the split is made | stage 4's actor loop |
+| actors B, C | `actor/kind*.c` by kind number, split by file list in the brief (each its own files) | `actor_tables` through A, or a `kind*_tables` file of their own named in the brief | the rest of `actor`, 47,012 in all with A | A's `actor.h` |
+| player and map | `player/`, `map/` | `player_tables`, `map_tables` | 9,732 | `actor.h`, `state.h` |
+| levels and screens | `level/`, `game/` but the stage 4 screens | `level_tables`, `game_tables` (with stage 4's) | 10,774 | stage 4's screens |
+| video | `video/` (the window effects, parallax and HUD the levels add) | `video_tables` | inside stage 4's 10,673 | stage 4 |
+| input | `input/`, `system/controls.c`, `joypad.c`, `input_modes.c` | `input_tables` | about 324 | stage 4's loop |
+| data (stage 2's) | `data.c`, `data.h`, `data_internal.h`, `sound_lists.c`, `graphics.c`, `tools/*check*.py` but stage 1's, `tools/make_assets_csv.py`, `tools/assets.csv` | the shared formats | | stage 2 |
 
 `state.h` is the one shared file: small exact edits only. A routine another session owns is asked for under `/* wanted */`
-in its header. Sound (stage 3) is finished before this and owns `audio/` alone.
+in its header. Sound (stage 3) is finished before this and owns `audio/` and `sound_tables` alone. Stage 4's sessions own
+`system_tables`, `game_tables` (the loop's) and `video_tables` (video's) already (the master's work split, 2026-11-19).
 
 ## 6. Recording and comparing
 

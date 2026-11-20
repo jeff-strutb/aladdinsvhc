@@ -228,8 +228,6 @@ typedef struct GameState {
     uint8_t tile_blocks_pending;/* $1BE6 */
     uint16_t tile_blocks_count; /* $1BE4: the original keeps its length in bytes, 10 a record */
     TileBlock tile_blocks[TILE_BLOCK_QUEUE_SIZE]; /* $1B44 */
-    uint8_t vram_list_pending[4];  /* $1649: per slot, nonzero: upload the slot's list */
-    DataRef vram_list[4];       /* $164D: per slot, its list */
     ScrollLayer layers[2];      /* $1738 the play field, $188E the backdrop */
     LayerEdge column_queue[8];  /* $1A48 */
     LayerEdge row_queue[8];     /* $1A68 */

@@ -8,7 +8,8 @@
    readers' comments state: every sound list the decomp knows
    (config/aladdin/spclists.csv), the quarter sine, the demo scripts' range,
    the 98 palette loads.
-3. With PLANT=1 one byte of a read range is changed in cart.dat first: the
+3. No game code outside data/ holds a ROM place (clean_check.rom_places over src/).
+4. With PLANT=1 one byte of a read range is changed in cart.dat first: the
    checks must then fail (they can).
 Exits 0 when everything matches. CC names the compiler (default cc); NSHVC_ROOT the engine."""
 import csv, os, shutil, subprocess, sys, tempfile
@@ -191,6 +192,14 @@ def main():
     print(f'readers: sound lists {len(numbers) - lists_bad} of {len(numbers)} match; quarter sine {"matches" if sine_ok else "DIFFERS"}; '
           f'demo scripts {"match" if demo_ok else "DIFFER"}')
     fails += lists_bad + (not sine_ok) + (not demo_ok)
+    # no ROM place in game code outside data/ (the master's work split, PLAN.md)
+    sys.path.insert(0, HERE)
+    import clean_check
+    places = clean_check.rom_places(list(clean_check.files([os.path.join(GAME, 'src')])))
+    for f in places:
+        print('  ', f)
+    print(f'ROM places outside data/: {len(places)}')
+    fails += len(places)
     shutil.rmtree(tmp)
     print('data check:', 'PASS' if not fails else f'FAIL ({fails})')
     return 1 if fails else 0
