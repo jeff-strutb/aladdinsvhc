@@ -72,6 +72,16 @@ typedef enum {
     TASK_ENTRY_LEVEL_PLAY_START,    /* 81:80A3 LevelPlayStartTask (game/progress.c) */
     TASK_ENTRY_NEXT_PART,           /* 81:8181 NextPartTask (game/progress.c) */
     TASK_ENTRY_PLAY_LOOP_START,     /* 81:8191 PlayLoopStart (game/play_loop.c) */
+    TASK_ENTRY_COLOUR_BAND,         /* 81:A00C ColourBandTask (video/) */
+    TASK_ENTRY_CAMERA_TRIGGER,      /* 80:A22D CameraTriggerTask (level/camera_trigger.c) */
+    TASK_ENTRY_LEVEL03_SCENE,       /* 80:A12D Level03Scene (level/level03_scene.c) */
+    TASK_ENTRY_LEVEL05_END_SCENE,   /* 80:A2A8 Level05EndScene (level/level05_end_scene.c) */
+    TASK_ENTRY_LEVEL0D_SCENE,       /* 80:A501 Level0DScene (level/level0d_scene.c) */
+    TASK_ENTRY_LEVEL10_SCENE,       /* 80:A5AC Level10Scene (level/level10_scene.c) */
+    TASK_ENTRY_BANDS_SPEED_UP,      /* 81:A0C3 BandsSpeedUpTask (level/level_events.c) */
+    TASK_ENTRY_GREY_PAST,           /* 81:A128 GreyPastTask (level/level_events.c) */
+    TASK_ENTRY_RED_OUT,             /* 81:A15B RedOutTask (level/level_events.c) */
+    TASK_ENTRY_CLIMB_TOP,           /* 81:A30D ClimbTopTask (level/level_events.c) */
     TASK_ENTRY_CONTINUE_SCREEN,     /* 80:B2E3 ContinueScreenTask (game/) */
     TASK_ENTRY_GENIE_SCREEN,        /* 80:A63B GenieScreen (game/) */
     TASK_ENTRIES

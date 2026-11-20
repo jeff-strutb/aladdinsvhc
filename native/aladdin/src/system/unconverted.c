@@ -78,3 +78,57 @@ PLACEHOLDER int PlayerSceneCode(Actor *a)
     return 1;
 }
 
+
+PLACEHOLDER TaskRun CameraTriggerTask(Task *t)
+{
+    unconverted("CameraTriggerTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun Level03Scene(Task *t)
+{
+    unconverted("Level03Scene");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun Level05EndScene(Task *t)
+{
+    unconverted("Level05EndScene");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun Level0DScene(Task *t)
+{
+    unconverted("Level0DScene");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun Level10Scene(Task *t)
+{
+    unconverted("Level10Scene");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun BandsSpeedUpTask(Task *t)
+{
+    unconverted("BandsSpeedUpTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun GreyPastTask(Task *t)
+{
+    unconverted("GreyPastTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun RedOutTask(Task *t)
+{
+    unconverted("RedOutTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun ClimbTopTask(Task *t)
+{
+    unconverted("ClimbTopTask");
+    return task_exit(t);
+}

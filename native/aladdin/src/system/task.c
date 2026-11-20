@@ -9,6 +9,8 @@
 #include <string.h>
 
 #include "game/game.h"
+#include "level/level.h"
+#include "video/video_tasks.h"
 #include "system/system.h"
 #include "system/task.h"
 #include "system/unconverted.h"
@@ -183,6 +185,16 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_LEVEL_PLAY_START:   return LevelPlayStartTask(t);
     case TASK_ENTRY_NEXT_PART:          return NextPartTask(t);
     case TASK_ENTRY_PLAY_LOOP_START:    return PlayLoopStart(t);
+    case TASK_ENTRY_COLOUR_BAND:        return ColourBandTask(t);
+    case TASK_ENTRY_CAMERA_TRIGGER:     return CameraTriggerTask(t);
+    case TASK_ENTRY_LEVEL03_SCENE:      return Level03Scene(t);
+    case TASK_ENTRY_LEVEL05_END_SCENE:  return Level05EndScene(t);
+    case TASK_ENTRY_LEVEL0D_SCENE:      return Level0DScene(t);
+    case TASK_ENTRY_LEVEL10_SCENE:      return Level10Scene(t);
+    case TASK_ENTRY_BANDS_SPEED_UP:     return BandsSpeedUpTask(t);
+    case TASK_ENTRY_GREY_PAST:          return GreyPastTask(t);
+    case TASK_ENTRY_RED_OUT:            return RedOutTask(t);
+    case TASK_ENTRY_CLIMB_TOP:          return ClimbTopTask(t);
     case TASK_ENTRY_CONTINUE_SCREEN:    return ContinueScreenTask(t);
     case TASK_ENTRY_GENIE_SCREEN:       return GenieScreen(t);
     case TASK_ENTRY_NONE:

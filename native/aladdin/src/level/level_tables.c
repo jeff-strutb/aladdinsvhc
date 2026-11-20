@@ -213,3 +213,14 @@ void LevelExitCheck(void)
     g.stages_ended++;
     g.level_restart = 0;
 }
+
+/*
+ * @routine 81:878B Level035CSet
+ * WHAT IT DOES: Sets the progress sequence and stage from the level's own
+ * entry.
+ */
+void Level035CSet(void)
+{
+    g.progress_sequence = level_progress_sequence((uint8_t)g.level);
+    g.progress_stage = level_progress_stage((uint8_t)g.level);
+}

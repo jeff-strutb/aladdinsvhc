@@ -10,7 +10,12 @@
  * word an option); the view's edge limits at $C9B9; the spot lists at
  * $EC1E (a word a level: its list's offset from there; at it the count,
  * then 6 bytes a spot: x, y, a byte, where it leads); the restart points'
- * x at $F015 (a word a level).
+ * x at $F015 (a word a level); the switch flags' masks by stage at $D27E
+ * and the eight bits at $BCA1; the flagged spots by level from $0E at
+ * $D24A (a byte a level: the offset of its list from $D24A; there the
+ * count, then 4 bytes a spot: x, y); each level's progress sequence and
+ * stage at $B933 (2 bytes a level; the record says $81, the routine runs
+ * with DB = $80).
  */
 #include "data/data_internal.h"
 #include "data/level_tables.h"
@@ -79,3 +84,24 @@ uint16_t spot_y(DataRef list, unsigned spot) { return cart16(list.at + SPOT_BYTE
 uint8_t spot_leads_to(DataRef list, unsigned spot) { return cart8(list.at + SPOT_BYTES * spot + 5); }
 
 uint16_t view_edge_limit(unsigned which) { return at16((uint16_t)(VIEW_EDGE_LIMITS + 2 * which)); }
+
+#define FLAG_MASKS 0xD27E
+#define FLAG_BITS 0xBCA1
+
+uint8_t level_flag_mask(uint8_t stage) { return at8((uint16_t)(FLAG_MASKS + stage)); }
+uint8_t flag_bit(unsigned flag) { return at8((uint16_t)(FLAG_BITS + (flag & 7))); }
+
+#define FLAG_SPOTS 0xD24A
+#define LEVEL_PROGRESS 0xB933
+
+static uint8_t flag_spots_at(uint8_t level)
+{
+    return at8((uint16_t)(FLAG_SPOTS + (uint8_t)((uint8_t)(level - 0x0E) << 1)));
+}
+
+uint8_t flag_spot_count(uint8_t level) { return at8((uint16_t)(FLAG_SPOTS + flag_spots_at(level))); }
+uint16_t flag_spot_x(uint8_t level, unsigned i) { return at16((uint16_t)(FLAG_SPOTS + 1 + (uint8_t)(flag_spots_at(level) + 4 * i))); }
+uint16_t flag_spot_y(uint8_t level, unsigned i) { return at16((uint16_t)(FLAG_SPOTS + 3 + (uint8_t)(flag_spots_at(level) + 4 * i))); }
+
+uint8_t level_progress_sequence(uint8_t level) { return at8((uint16_t)(LEVEL_PROGRESS + (uint8_t)(level << 1))); }
+uint8_t level_progress_stage(uint8_t level) { return at8((uint16_t)(LEVEL_PROGRESS + 1 + (uint8_t)(level << 1))); }

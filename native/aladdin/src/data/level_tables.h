@@ -48,4 +48,17 @@ uint8_t spot_leads_to(DataRef list, unsigned spot);   /* bits 0-6 the next stage
    left kept within: 16, 240; and the hurt edge, 0 ---- */
 uint16_t view_edge_limit(unsigned which);   /* 0 the least, 1 the most, 4 the hurt edge (the record's word offsets / 2) */
 
+/* ---- the level's switch flags (level/level_flags.c): a stage's mask of
+   the eight, and each flag's bit ---- */
+uint8_t level_flag_mask(uint8_t stage);
+uint8_t flag_bit(unsigned flag);            /* 1 << flag, from the table */
+/* the flagged spots of a level from $0E on: how many, and spot i's x, y */
+uint8_t flag_spot_count(uint8_t level);
+uint16_t flag_spot_x(uint8_t level, unsigned i);
+uint16_t flag_spot_y(uint8_t level, unsigned i);
+
+/* ---- a level's own progress entry (Level035CSet) ---- */
+uint8_t level_progress_sequence(uint8_t level);
+uint8_t level_progress_stage(uint8_t level);
+
 #endif
