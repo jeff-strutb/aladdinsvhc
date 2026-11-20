@@ -156,7 +156,7 @@ int Kind42Start(Actor *a)
             return Kind42Break(a);
         if (a->flags & 0x40)
             SoundQueueAdd(0x14);
-        (void)ActorSnapToGround(a);
+        (void)ActorSnapToGround(a, NULL);
         a->resume = ROLL;
         return 1;
     case ROLL:
@@ -164,7 +164,7 @@ int Kind42Start(Actor *a)
         Kind42PastPlayer(a);
         if (Kind42Ahead(a))
             return Kind42Break(a);
-        if (ActorSnapToGround(a))
+        if (ActorSnapToGround(a, NULL))
             return 1;
         a->speed_y = 0;                 /* off an edge: in flight again */
         return flight(a);
@@ -175,7 +175,7 @@ int Kind42Start(Actor *a)
         Kind42PastPlayer(a);
         if (!ActorOutOfGround(a))
             return 1;
-        (void)ActorSnapToGround(a);
+        (void)ActorSnapToGround(a, NULL);
         a->resume = BOUNCE_SPRING;
         return 2;
     case BOUNCE_SPRING:
