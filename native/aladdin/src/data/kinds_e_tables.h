@@ -16,6 +16,7 @@
 DataRef k21_pictures(void);     /* kind $21's */
 DataRef k98_pictures(void);     /* kind $98's */
 DataRef k8f_pictures(void);     /* kind $8F's */
+DataRef k5a_pictures(void);     /* kind $5A's */
 
 /* ---- kind $2E, level 5's closing scene ---- */
 
@@ -72,6 +73,11 @@ uint8_t k94_spark_y(uint8_t at);
 /* ---- kind $A8 ---- */
 
 uint8_t k_a8_delay(uint8_t at);     /* the frames before it poses again, by its +$07 (0 is 256) */
+
+/* ---- kind $58, by its +$07 ---- */
+
+uint8_t k58_leg(uint8_t at);        /* the frames of its first leg */
+uint8_t k58_direction(uint8_t at);  /* its direction (the vector set's index) */
 
 /* ---- kind $35, the gem ---- */
 

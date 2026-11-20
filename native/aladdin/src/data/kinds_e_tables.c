@@ -21,6 +21,7 @@ static DataRef ref(uint8_t bank, uint16_t addr) { DataRef r = { cart_offset(bank
 
 DataRef k21_pictures(void) { return ref(0x80, 0x8909); }
 DataRef k98_pictures(void) { return ref(0x80, 0x891B); }
+DataRef k5a_pictures(void) { return ref(0x80, 0x8915); }   /* the traces read $80:8915 as data */
 DataRef k8f_pictures(void) { return ref(0x80, 0x890B); }   /* the traces read $80:890B as data, $81:890B never */   /* the traces read $80:891B as data, $81:891B never */
 
 /* ---- kind $2E: the offsets at $80:D152 (x) and $80:D160 (y), words by
@@ -90,3 +91,9 @@ uint8_t k94_spark_y(uint8_t at) { return at8(0x80, (uint16_t)(0xD87D + at)); }
    $80) ---- */
 
 uint8_t k_a8_delay(uint8_t at) { return at8(0x80, (uint16_t)(0xD9A6 + at)); }
+
+/* ---- kind $58: bytes by +$07 at $80:D3C4 and $80:D3CA (the traces read
+   them in bank $80) ---- */
+
+uint8_t k58_leg(uint8_t at) { return at8(0x80, (uint16_t)(0xD3C4 + at)); }
+uint8_t k58_direction(uint8_t at) { return at8(0x80, (uint16_t)(0xD3CA + at)); }

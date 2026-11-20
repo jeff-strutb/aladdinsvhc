@@ -41,6 +41,10 @@ const KindCode kinds_e[] = {
     { 0x40, Kind40Start, Kind40Start, NULL, Kind40Wait },
     { 0x7B, Kind7BStart, Kind7BStart, NULL, Kind7BWait },
     { 0xA8, KindA8Start, NULL, NULL, NULL },
+    /* $48's wait 83:CE25 Kind48Wait is AnimStep only: AnimateWhileWaiting */
+    { 0x48, Kind48Start, Kind48Start, NULL, AnimateWhileWaiting },
+    { 0x58, Kind58Start, NULL, NULL, Kind58Wait },
+    { 0x5A, Kind5AStart, NULL, NULL, Kind5AWait },
     { 0x97, Kind97Start, NULL, NULL, NULL },
     { 0x98, Kind98Start, Kind98Start, NULL, Kind98WaitWork },
     { 0x9E, Kind9EStart, NULL, NULL, Kind9EWaitWork },
