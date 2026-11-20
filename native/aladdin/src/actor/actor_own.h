@@ -14,36 +14,41 @@
 #include "system/unconverted.h"
 #include "video/video.h"           /* TileSlotClaim, TileSlotFill (wanted there), PaletteLoad */     /* SoundQueueAdd (audio's, not converted yet) */
 
-/* ---- each kind's own bytes (Actor.own.bytes, in record order: +$0A, $11,
-   $13, $16-$18, $29-$2A, $35-$36, $3A-$49, $4C-$4F) ---- */
+/* ---- each kind's own bytes (Actor.own.bytes) ----
 
-/* the place in own.bytes of the record's +$40 on, which the story's
-   figures use for their counts */
-#define OWN_FROM_0A_TO_3F 16
+   Where each of the record's bytes is in own.bytes: the one place the
+   layout is written (it follows state.h's comment). A change to own's
+   layout changes this list, and every view below follows. */
+enum OwnPlace {
+    OWN_0A, OWN_11, OWN_13, OWN_16, OWN_17, OWN_18, OWN_29, OWN_2A, OWN_35, OWN_36,
+    OWN_3A, OWN_3B, OWN_3C, OWN_3D, OWN_3E, OWN_3F, OWN_40, OWN_41, OWN_42, OWN_43,
+    OWN_44, OWN_45, OWN_46, OWN_47, OWN_48, OWN_49, OWN_4C, OWN_4D, OWN_4E, OWN_4F,
+    OWN_4A, OWN_4B,         /* the same bytes as Actor.stream: a kind uses one or the other */
+    OWN_BYTES
+};
 
+_Static_assert(OWN_BYTES == sizeof(((Actor *)0)->own.bytes), "OwnPlace follows own.bytes");
+
+/* the story's figures (kinds $36, $95, $96): their counts */
 typedef struct {
-    uint8_t before[OWN_FROM_0A_TO_3F];
+    uint8_t before[OWN_40];
     uint8_t frames;             /* +$40: frames left of its walk or step */
     uint8_t step;               /* +$41: kind $95: part 8's step; the hops left */
-    uint8_t between[8];         /* +$42-$49 */
+    uint8_t between[OWN_4C - OWN_42];
     uint8_t hop;                /* +$4C: kind $95: the hops' set, then its offset (set * 2) */
 } FigureOwn;
 
-_Static_assert(sizeof(FigureOwn) <= sizeof(((Actor *)0)->own.bytes), "a view fits the own bytes");
+_Static_assert(sizeof(FigureOwn) <= OWN_BYTES, "a view fits the own bytes");
 
 static inline FigureOwn *figure(Actor *a) { return (FigureOwn *)a->own.bytes; }
 
 /* ActorBobY's byte, +$49: which way the bob goes (0 down) */
 typedef struct {
-    uint8_t before[25];
+    uint8_t before[OWN_49];
     uint8_t rising;             /* +$49 */
 } BobOwn;
 
 static inline BobOwn *bob(Actor *a) { return (BobOwn *)a->own.bytes; }
-
-/* own bytes ActorClearFields clears besides the named fields: +$0A and +$13 */
-#define OWN_0A 0
-#define OWN_13 2
 
 /* ---- 24-bit motion: positions 16.8 that wrap at 24 bits, speeds 16.8
    kept sign-extended from 24 ---- */
@@ -56,17 +61,21 @@ static inline uint32_t with_pixels(uint32_t v, uint16_t px) { return (v & 0xFFu)
 /* ---- the kinds' code (kinds.c) ---- */
 
 /* One kind's code, as a session registers it in its own table (kinds.c's
-   own, kinds_b.c ... kinds_e.c, kinds_player.c): each table ends with a row
-   whose start and wait are both NULL. */
+   own, kinds_a.c ... kinds_e.c, kinds_player.c): each table ends with a row
+   whose start and wait are both NULL. A kind is in one table only, and its
+   entries are one function (the loop resumes it there whichever entry it
+   started at): second and third name the start's function, or are NULL
+   when the record's table has no such entry. kinds.c checks both at the
+   first lookup and ends the run, naming the rows, when either is broken. */
 typedef struct KindCode {
     uint8_t kind;
     ActorCode start;            /* its code: start entry (state $0C-$7F) and every resume point */
-    ActorCode second;           /* the same function if it has a second entry (state $80-$BF), else NULL */
-    ActorCode third;            /* the same if it has a third (state $C0 up: kinds $20, $2D, $57, $63), else NULL */
+    ActorCode second;           /* start's function if it has a second entry (state $80-$BF; $83:8DFD/8EFD), else NULL */
+    ActorCode third;            /* start's function if it has a third (state $C0 up; $83:90A1/91A1: kinds $20, $2D, $57, $63), else NULL */
     ActorWaitCode wait;         /* its wait routine (flags bit 7), NULL none */
 } KindCode;
 
-extern const KindCode kinds_core[], kinds_b[], kinds_c[], kinds_d[], kinds_e[], kinds_player[];
+extern const KindCode kinds_core[], kinds_a[], kinds_b[], kinds_c[], kinds_d[], kinds_e[], kinds_player[];
 
 /* the kind's code for a start entry (ACTOR_START, _SECOND, _THIRD) or, with
    ACTOR_RESUME_OWN, for going on where it stopped; NULL: no code for it yet

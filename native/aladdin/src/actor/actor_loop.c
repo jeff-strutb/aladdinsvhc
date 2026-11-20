@@ -23,6 +23,7 @@ static int run_record(Actor *a)
         uint8_t start = !(was & 0x80) ? ACTOR_START : !(was & 0x40) ? ACTOR_START_SECOND : ACTOR_START_THIRD;
 
         a->resume = start;
+        a->call_at = 0;                 /* no shared routine's place carried from the record's last actor */
         code = actor_kind_code(a->kind, start);
     } else {
         code = actor_kind_code(a->kind, ACTOR_RESUME_OWN);    /* where it stopped */

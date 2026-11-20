@@ -71,10 +71,10 @@ static Actor *record_at(uint16_t addr)
 }
 
 /* the record offsets of own.bytes, in order */
-static const uint8_t own_at[30] = {
+static const uint8_t own_at[32] = {
     0x0A, 0x11, 0x13, 0x16, 0x17, 0x18, 0x29, 0x2A, 0x35, 0x36,
     0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49,
-    0x4C, 0x4D, 0x4E, 0x4F,
+    0x4C, 0x4D, 0x4E, 0x4F, 0x4A, 0x4B,
 };
 
 static void record_from(Actor *a, const uint8_t *w, int i)
@@ -114,7 +114,7 @@ static void record_from(Actor *a, const uint8_t *w, int i)
     a->placement = r[0x34];
     a->next = record_at(w16(r, 0x37));
     a->tile_slot = r[0x39];
-    for (k = 0; k < 30; k++)
+    for (k = 0; k < 32; k++)
         a->own.bytes[k] = r[own_at[k]];
 }
 
@@ -233,7 +233,7 @@ static void compare(int i)
     SAME("placement", a->placement, r[0x34]);
     SAME("next", a->next ? (long)(a->next - g.actors) : -1, next ? (long)(next - g.actors) : -1);
     SAME("tile_slot", a->tile_slot, r[0x39]);
-    for (k = 0; k < 30; k++) {
+    for (k = 0; k < 32; k++) {
         char name[16];
 
         snprintf(name, sizeof name, "+$%02X", own_at[k]);

@@ -7,6 +7,7 @@
  * resume point. A kind or entry not converted yet prints its number once.
  */
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "actor/actor_own.h"
 
@@ -22,13 +23,44 @@ const KindCode kinds_core[] = {
     { 0, NULL, NULL, NULL, NULL }
 };
 
-static const KindCode *const tables[] = { kinds_core, kinds_b, kinds_c, kinds_d, kinds_e, kinds_player };
+static const KindCode *const tables[] = { kinds_core, kinds_a, kinds_b, kinds_c, kinds_d, kinds_e, kinds_player };
+static const char *const table_names[] = { "kinds.c", "kinds_a.c", "kinds_b.c", "kinds_c.c", "kinds_d.c", "kinds_e.c",
+                                            "kinds_player.c" };
+
+/* Every table's rows, once: a kind in two rows, or an entry that is not its
+   start's function, ends the run with each such row named. */
+static void tables_check(void)
+{
+    const char *where[256] = { 0 };
+    unsigned t, faults = 0;
+    const KindCode *k;
+
+    for (t = 0; t < sizeof tables / sizeof tables[0]; t++)
+        for (k = tables[t]; k->start || k->wait; k++) {
+            if (where[k->kind]) {
+                fprintf(stderr, "actor kinds: kind $%02X is registered in %s and in %s\n", k->kind, where[k->kind],
+                        table_names[t]);
+                faults++;
+            }
+            where[k->kind] = table_names[t];
+            if ((k->second && k->second != k->start) || (k->third && k->third != k->start)) {
+                fprintf(stderr, "actor kinds: kind $%02X in %s: its second or third entry is not its start's function\n",
+                        k->kind, table_names[t]);
+                faults++;
+            }
+        }
+    if (faults)
+        exit(1);
+}
 
 static const KindCode *find(uint8_t kind)
 {
+    static int checked;
     unsigned t;
     const KindCode *k;
 
+    if (!checked++)
+        tables_check();
     for (t = 0; t < sizeof tables / sizeof tables[0]; t++)
         for (k = tables[t]; k->start || k->wait; k++)
             if (k->kind == kind)

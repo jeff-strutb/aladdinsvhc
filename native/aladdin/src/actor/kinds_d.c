@@ -1,7 +1,8 @@
 /*
  * kinds_d.c: the kinds n5-kinds-d converts, registered for the actor loop
  * (kinds.c searches this table). One row a kind: { kind, its code, its code
- * again if it has a second entry, again if a third, its wait routine }; the last row's code
+ * again if it has a second entry, again if a third, its wait routine }
+ * (actor_own.h's KindCode; actor-core.md section 3); the last row's code
  * and wait NULL. This file is n5-kinds-d's alone.
  *
  * Below the table: stand-ins for the routines of other sessions these kinds

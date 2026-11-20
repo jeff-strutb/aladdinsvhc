@@ -138,7 +138,7 @@ typedef struct Actor {
     union {
         /* the bytes each kind keeps for itself; each kind's named view is
            in actor/ (actor_own.h; tools/state_fields.csv lists them) */
-        uint8_t bytes[30];      /* +$0A, $11, $13, $16-$18, $29-$2A, $35-$36, $3A-$49, $4C-$4F, in record order */
+        uint8_t bytes[32];      /* +$0A, $11, $13, $16-$18, $29-$2A, $35-$36, $3A-$49, $4C-$4F, $4A-$4B: in record order, then the stream's two bytes, which a kind that keeps no stream uses for its own */
     } own;
 } Actor;
 
