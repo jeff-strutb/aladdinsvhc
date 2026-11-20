@@ -1,0 +1,19 @@
+# PlayerSettleOrHurt (81:DD88), which nothing in the game calls, settled:
+# unit_dead_81.box's calls (level 1) find no floor under its probe 8
+# (x+-5, y-16). Here, stage a3 s1 as cov_held_jump_off.box to frame 86,
+# Aladdin hanging from the ledge at x $007F, y $00A1; in its frame 87 he
+# drops and PlayerLandOrHurt settles him on that ledge at y $00C0. Its
+# tile is the column x $0070-$007F, rows $00A0-$00AF (behaviour $8A: kind
+# $70, a floor, not passed through, not hurting; at x $0084 the map is
+# empty). A unit call by JSR, M and X 8-bit, DB $80, D the player's
+# record, with his x $0078 and y $00B8 (probe 8, x+-5 and his own x at y
+# $00A8, all in that tile): settled at y $00C0, the ground not
+# hurting (TILE_BEHAVIOUR bit 5 clear), back with A = 1 (81:DD8E, its BRA
+# to PlayerLandOrHurt's settled tail); the machine put back after.
+load build/aladdin/states/stage_a3_s1.state
+hold Y+RIGHT 23
+hold RIGHT 13
+hold LEFT 50
+set 0008E7 78,00
+set 0008EA B8,00
+call 81DD88 p=30 db=80 d=08DB
