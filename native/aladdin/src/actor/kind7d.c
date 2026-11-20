@@ -5,11 +5,10 @@
  * once it is far from the point actors are kept in range of.
  */
 #include "actor/actor_a.h"
+#include "actor/kinds_c.h"             /* Kind7ECode (kind $7E, n5-kinds-c's) */
 #include "data/actor_a_tables.h"
 #include "map/map.h"
 #include "player/player.h"
-
-int Kind7EStart(Actor *a);      /* kind $7E's start (kind7e.c): this kind's second entry */
 
 #define STATE OWN_13            /* +$13: its state: 0 waiting, 1 holding him, 2 a pause */
 #define PAUSE OWN_42            /* +$42: frames left in state 2 */
@@ -22,7 +21,7 @@ enum { KEEP = ACTOR_RESUME_OWN };
  * six bits of its y (the spot) and the height it keeps from the table by it
  * (its own +$40-$41); each frame it keeps its place in +$4C and +$4E
  * (ActorKeepSpot), for good. Its second entry (83:92A4) goes on as kind
- * $7E's start (Kind7EStart).
+ * $7E's start (Kind7ECode).
  */
 int Kind7DKeepSpot(Actor *a)
 {
@@ -39,7 +38,7 @@ int Kind7DKeepSpot(Actor *a)
         a->resume = KEEP;
         return 1;
     case ACTOR_START_SECOND:
-        return ActorRunAs(a, Kind7EStart, ACTOR_START);
+        return ActorRunAs(a, Kind7ECode, ACTOR_START);
     default:
         ActorKeepSpot(a);
         return 1;
