@@ -109,7 +109,7 @@ typedef struct Actor {
     uint32_t y;                 /* +$0E-$10: 16.8, pixels */
     uint8_t view_box;           /* +$12: its box for ActorsInView, 8 bytes a box (0, 8, 16, 24, 32) */
     uint8_t facing;             /* +$14: 0 right (x grows), else left */
-    uint8_t flip;               /* +$15: the facing's opposite: bit 0 set when facing right */
+    uint8_t flip;               /* +$15: how it is drawn: bit 0 set, turned left (its sprites mirrored, a child's spawn point to its left); mostly equal to facing (1 left), though some code turns only facing */
     DataRef probes;             /* +$16-$17: its probe list (map/'s collision tests read it: map/map.h) */
     uint8_t probe_at;           /* +$18: the probe the next test uses, a byte offset in the list (4 a probe) */
     int32_t speed_x;          /* +$19-$1B: 16.8, along the facing */

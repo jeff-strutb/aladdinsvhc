@@ -28,6 +28,17 @@ enum OwnPlace {
     OWN_3A, OWN_3B, OWN_3C, OWN_3D, OWN_3E, OWN_3F, OWN_40, OWN_41, OWN_42, OWN_43,
     OWN_44, OWN_45, OWN_46, OWN_47, OWN_48, OWN_49, OWN_4C, OWN_4D, OWN_4E, OWN_4F,
     OWN_4A, OWN_4B,         /* the same bytes as Actor.stream: a kind uses one or the other */
+    /* Shared places: OWN_16-OWN_18 are the bytes of Actor.probes and probe_at,
+       OWN_29-OWN_2A those of own_pictures, as OWN_4A-OWN_4B are stream's. A
+       kind uses each place either as the named field or as its own, never
+       both (the record, 2026-11-20: of the kinds whose code names +$16-$18
+       or +$29-$2A for itself, $5C (its path, +$18 a flag), $68 (riding
+       flags), the chain's row, the course platforms' flag and $5D (+$29 its
+       land sound) reach no routine that reads those places as probes or a
+       picture list; $41, $56 and $57's "look table" at +$16 is read only by
+       ActorSnapToGround on their own record: it is their probe list, a
+       $D2xx list among the other kinds'; kind $57's K57_SHOT_SOUND is the
+       sound $17, an immediate, not the byte at +$17) */
     OWN_BYTES
 };
 

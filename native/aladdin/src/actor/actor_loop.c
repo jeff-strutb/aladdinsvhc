@@ -10,6 +10,9 @@
 #include <stdio.h>
 
 #include "actor/actor_own.h"
+#include "system/task.h"
+
+#define ACTOR_EXEC (-100)       /* run_record: the actor's code made a TaskExec; the walk stops */
 
 /* A record's turn of its code: the start entry its state picks ($0C-$7F,
    $80-$BF, $C0 up), or where it stopped. Returns ACTOR_ENDED, or the wait
@@ -44,7 +47,23 @@ static int run_record(Actor *a)
         a->wait = 1;
         return 1;
     }
-    r = code(a);
+    {
+        uint16_t resume_was = a->resume;
+        ActorCode code_was = a->code;
+
+        r = code(a);
+        if (task_exec_pending()) {
+            /* 81:BCF6 TaskExec from its code: the original never comes back
+               (it empties the task's stack), so no yield saved a new place:
+               the record keeps state 8 and goes on next time where its last
+               yield left it. (A record that does it on its first turn has no
+               yield behind it; the original resumes at whatever its +$02-$05
+               held. Here it starts its entry again.) */
+            a->resume = resume_was;
+            a->code = code_was;
+            return ACTOR_EXEC;
+        }
+    }
     if (r == ACTOR_ENDED)
         return ACTOR_ENDED;
     a->state = ACTOR_STATE_WAITING;
@@ -65,17 +84,25 @@ static void wait_work(Actor *a)
         (void)w(a);                     /* a wait routine that ends its actor leaves it free: nothing follows either way */
 }
 
-/* One record's turn, as both loops take it. */
-static void record_turn(Actor *a)
+/* One record's turn, as both loops take it. Returns 0 when a TaskExec from
+   the actor's code or its wait routine stops the walk (the later records do
+   not run: the original left the loop for the task scheduler). */
+static int record_turn(Actor *a)
 {
+    int r;
+
     if (a->state == ACTOR_STATE_FREE)
-        return;
+        return 1;
     if (a->state == ACTOR_STATE_WAITING && --a->wait != 0) {
         wait_work(a);
-        return;
+        return !task_exec_pending();
     }
-    if (run_record(a) != ACTOR_ENDED)
+    r = run_record(a);
+    if (r == ACTOR_EXEC)
+        return 0;
+    if (r != ACTOR_ENDED)
         wait_work(a);
+    return !task_exec_pending();
 }
 
 /*
@@ -86,7 +113,7 @@ static void record_turn(Actor *a)
  */
 void PlayerLoop(void)
 {
-    record_turn(&g.actors[0]);
+    (void)record_turn(&g.actors[0]);    /* a TaskExec: FrameStep stops after it (task_exec_pending) */
 }
 
 /*
@@ -102,7 +129,8 @@ void ActorLoop(void)
     int i;
 
     for (i = 1; i < ACTOR_RECORDS; i++) {
-        record_turn(&g.actors[i]);
+        if (!record_turn(&g.actors[i]))
+            return;                     /* a TaskExec: the walk stops here, FrameStep after it */
         if (i + 1 >= ACTOR_RECORDS - ACTOR_POOL_SIZE && g.pause_block)
             return;
     }
