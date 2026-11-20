@@ -127,3 +127,42 @@ uint16_t metatile_word(DataRef metatiles, uint16_t offset)
 {
     return cart16(metatiles.at + offset);
 }
+
+/* ---- the map's collision tests: four tables of 8 bytes in bank $80 (the
+   record's comments say $81; the routines run with DB = $80, and $81:BF0A
+   on is code), and the behaviour tables in bank $82: $E000 for the map
+   whose metatiles are in bank $9C, the last 4 KB of $E000-$FFFF for the
+   others (TileBehaviourLoad) ---- */
+
+#define TILE_TABLES_BANK 0x80
+#define WALL_KINDS_ADDR 0xBF0A
+#define FLOOR_KINDS_ADDR 0xBF12
+#define SOFT_KINDS_ADDR 0xBF1A
+#define TILE_KINDS_ADDR 0xBF22
+#define BEHAVIOUR_BANK 0x82
+#define BEHAVIOUR_FIRST_ADDR 0xE000
+#define BEHAVIOUR_OTHERS_ADDR 0xF000
+#define BEHAVIOUR_FIRST_SET_BANK 0x9C
+
+static uint8_t tile_table(uint16_t addr, uint8_t low3)
+{
+    return cart8(cart_offset(TILE_TABLES_BANK, (uint16_t)(addr + (low3 & 7))));
+}
+
+bool tile_is_wall(uint8_t low3) { return tile_table(WALL_KINDS_ADDR, low3) != 0; }
+bool tile_is_floor(uint8_t low3) { return tile_table(FLOOR_KINDS_ADDR, low3) != 0; }
+bool tile_is_soft(uint8_t low3) { return tile_table(SOFT_KINDS_ADDR, low3) != 0; }
+uint8_t tile_kind(uint8_t low3) { return tile_table(TILE_KINDS_ADDR, low3); }
+
+uint16_t probe_word(DataRef list, uint16_t at)
+{
+    return cart16(list.at + at);
+}
+
+uint8_t tile_behaviour_byte(DataRef metatiles, uint16_t i)
+{
+    uint16_t from = metatiles.at == cart_offset(BEHAVIOUR_FIRST_SET_BANK, 0x8000) ? BEHAVIOUR_FIRST_ADDR
+                                                                                  : BEHAVIOUR_OTHERS_ADDR;
+
+    return cart8(cart_offset(BEHAVIOUR_BANK, (uint16_t)(from + (i & 0x0FFF))));
+}

@@ -5,6 +5,7 @@
 #ifndef ALADDIN_GAME_TABLES_H
 #define ALADDIN_GAME_TABLES_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "data/data.h"
@@ -72,5 +73,21 @@ TileQuarter tile_quarter(unsigned quarter);     /* quarter 0-3 */
 /* the word `offset` bytes into the metatiles `metatiles` names (from the
    start of their bank, level_metatiles in data.h) */
 uint16_t metatile_word(DataRef metatiles, uint16_t offset);
+
+/* ---- the map's collision tests (map/collision.c, tile_behaviour.c) ---- */
+
+/* by a tile behaviour's low 3 bits (the tables at $80:BF0A, $BF12, $BF1A,
+   $BF22): a wall actors are pushed out of, a floor they settle on, ground
+   the player does not stand firm on, and the tile's kind (map.h) */
+bool tile_is_wall(uint8_t low3);
+bool tile_is_floor(uint8_t low3);
+bool tile_is_soft(uint8_t low3);
+uint8_t tile_kind(uint8_t low3);
+/* the word `at` bytes into a probe list (Actor.probes): at a probe's
+   offset its x offset, at + 2 its y offset */
+uint16_t probe_word(DataRef list, uint16_t at);
+/* byte i (0-4095) of the tile behaviour table of the map whose metatiles
+   `metatiles` names (level_metatiles in data.h) */
+uint8_t tile_behaviour_byte(DataRef metatiles, uint16_t i);
 
 #endif

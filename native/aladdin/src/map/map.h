@@ -85,13 +85,15 @@ int GroundBehindBit4(Actor *a, MapPoint *p);     /* 81:B5F6 */
    that bit (0 or 8) of the last tile tested */
 uint8_t GroundBehindBit3(Actor *a, MapPoint *p); /* 81:B5B3 */
 
-/* moves: 1 when the actor was moved */
+/* moves: 1 when the actor was moved. Those with a MapPoint leave in it the
+   last point they tested, as the original leaves its scratch (the player
+   reads the behaviour and kind after them); NULL when not wanted */
 int ActorOutOfWall(Actor *a, uint8_t probe);     /* 81:B60C (81:B608 Long): out of a wall at `probe` in front */
 int ActorOutOfWallProbe4(Actor *a);              /* 81:B5AD */
-int ActorOutOfWalls(Actor *a);                   /* 81:B59F: probes $0C, 8, then 4 */
-int ActorSnapToGround(Actor *a);                 /* 81:B44F: onto ground within 3 pixels below */
+int ActorOutOfWalls(Actor *a, MapPoint *p);      /* 81:B59F: probes $0C, 8, then 4 */
+int ActorSnapToGround(Actor *a, MapPoint *p);    /* 81:B44F: onto ground within 3 pixels below */
 int ActorOutOfGround(Actor *a);                  /* 81:B4F3: raised out of the ground (0: no tile, or not in it) */
-int ActorSettleOnFloor(Actor *a);                /* 81:B673: its fall stopped on a floor under probe 8 */
+int ActorSettleOnFloor(Actor *a, MapPoint *p);   /* 81:B673: its fall stopped on a floor under probe 8 */
 
 /* 1 when the player stands on firm ground at probe 0, 8 or 4 */
 int PlayerOnFirmGround(void);                    /* 81:B756 */
