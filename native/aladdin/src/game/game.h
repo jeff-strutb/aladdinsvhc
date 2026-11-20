@@ -76,6 +76,10 @@ TaskRun EndingStagesTask(Task *t);      /* 82:B29C */
 TaskRun TitleStartTask(Task *t);        /* 80:9C64 */
 TaskRun TitleTask(Task *t);             /* 80:9C91: task entry */
 
+/* continue_choice.c: kind $26 */
+int ContinueChoiceStart(Actor *a);      /* 83:9D62 */
+int ActorWaitHoldPlayer(Actor *a);      /* 83:9E0A: its wait */
+
 /* level_select.c */
 void LevelNumberText(void);             /* 80:A0B1 */
 int LevelSelect(void);                  /* 80:A05C: 1 when L or R was held with a direction newly pressed (the original's C clear) */
