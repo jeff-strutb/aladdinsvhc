@@ -52,3 +52,37 @@ bool ActorFreeOutOfRange(Actor *a, uint8_t at)
     ActorFreePlaced(a);
     return true;
 }
+
+/*
+ * @routine 83:9738 ActorEndIfLeftBehind
+ * WHAT IT DOES: The tail some actors' per-frame routines end in: the actor
+ * ends once the camera has left it behind (the view's left edge less 32 not
+ * negative and at or past its x pixels), else it goes on.
+ */
+int ActorEndIfLeftBehind(Actor *a)
+{
+    uint16_t edge = (uint16_t)(pixels(g.layers[0].scroll_x) - 0x20);
+
+    if (!(edge & 0x8000) && edge >= pixels(a->x))
+        return ActorEndPlaced(a);
+    return ACTOR_GOES_ON;
+}
+
+/*
+ * @routine 83:C4AB ActorEndFarWithChildren
+ * WHAT IT DOES: Ends an actor and its one or two children for good once it
+ * is 256 pixels or more from the range point, across or up and down,
+ * unless it can be hit (flags bit 6). Its children are held as their index
+ * in g.actors in its own $40 and $42, how many in $44 (1 or 2).
+ */
+int ActorEndFarWithChildren(Actor *a)
+{
+    if (a->flags & 0x40)
+        return ACTOR_GOES_ON;
+    if ((uint16_t)(g.range_x - pixels(a->x) + 0x100) < 0x200 && (uint16_t)(g.range_y - pixels(a->y) + 0x100) < 0x200)
+        return ACTOR_GOES_ON;
+    ActorFreePlaced(&g.actors[a->own.bytes[OWN_40]]);
+    if (a->own.bytes[OWN_44] != 1)
+        ActorFreePlaced(&g.actors[a->own.bytes[OWN_42]]);
+    return ActorEndPlaced(a);
+}

@@ -53,4 +53,27 @@ uint8_t drop_sort_always(uint8_t chance);          /* the shots' probe list ($80
 uint32_t a5_speed_x(uint8_t at);
 uint32_t a5_speed_y(uint8_t at);
 
+/* ActorRiseWhenInReach's and PlayerInReach's reach table ($80:D9B0, 8 bytes
+   an entry at byte offset `at`): his reach across and down (0: not tested),
+   the rise's start speed and step (each in 16ths) and its top speed */
+typedef struct ReachEntry { uint8_t across, down, speed, step, limit; } ReachEntry;
+ReachEntry reach_entry(uint8_t at);
+
+/* ActorHopFromTable's hops ($80:D9BF, 5 bytes an entry at byte offset `at`):
+   its gravity, the vertical speed's low two bytes (the third is $FF, up)
+   and the horizontal speed's two bytes */
+typedef struct HopEntry { uint8_t gravity; uint16_t up; uint16_t across; } HopEntry;
+HopEntry hop_entry(uint8_t at);
+
+/* ActorYByFrame's step down by the animation frame ($80:D673, a word by frame) */
+uint16_t frame_y_step_83(uint8_t frame);
+
+/* the floor's clearance ActorClampAboveFloor takes from the floor line ($80:D7C4, a word) */
+uint16_t floor_clearance(void);
+
+/* ActorMoveAlong's direction table (bank $82, from $01B6 + direction): the
+   step along it as three bytes each across and down (low, middle, high) */
+typedef struct DirectionStep { uint8_t x[3], y[3]; } DirectionStep;
+DirectionStep direction_step(uint16_t direction);
+
 #endif

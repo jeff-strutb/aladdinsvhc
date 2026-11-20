@@ -8,23 +8,8 @@
 #include "actor/actor_own.h"
 
 /* n5-actors-a (motion.c) */
-__attribute__((weak)) void ActorFallAgainst(Actor *a)
-{
-    (void)a;
-    unconverted("ActorFallAgainst (81:A520)");
-}
 
 /* n5-actors-a (player_grab.c) */
-__attribute__((weak)) void ActorHoldPlayer(Actor *a)
-{
-    (void)a;
-    unconverted("ActorHoldPlayer (83:BAF3)");
-}
 
 /* n5-actors-a (actor_steps.c) */
-__attribute__((weak)) void ActorYByFrame(Actor *a)
-{
-    (void)a;
-    unconverted("ActorYByFrame (83:F031)");
-}
 

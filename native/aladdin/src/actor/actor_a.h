@@ -26,6 +26,10 @@ static inline bool touch_from_above(const TestBoxTouch *t, uint16_t margin)
     return (uint16_t)(t->height - margin) < t->y_sum;
 }
 
+/* 82:88CF: it can grab Aladdin: he may be grabbed, touches it, is below it, and is within
+   its reach on the side he faces */
+bool ActorGrabTest(Actor *a);
+
 void PlayerStandOnActor(const Actor *a, const TestBoxTouch *t);    /* 83:84D5 */
 void ActorSpawnKind11AtPlayer(void);                               /* 83:84F4 */
 

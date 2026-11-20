@@ -117,3 +117,48 @@ static uint32_t at24(uint8_t bank, uint16_t addr)
 
 uint32_t a5_speed_x(uint8_t at) { return at24(0x80, (uint16_t)(0xCFB7 + at)); }
 uint32_t a5_speed_y(uint8_t at) { return at24(0x80, (uint16_t)(0xCFCF + at)); }
+
+/* ---- the reach and hop tables of 83:FCA5 and 83:FD2C: the traces read
+   $80:D9B0-D9B4 and $80:D9BF-D9E7 as data; the same offsets in banks $81
+   and $83 are code ---- */
+ReachEntry reach_entry(uint8_t at)
+{
+    ReachEntry e;
+
+    e.across = at8(0x80, (uint16_t)(0xD9B0 + at));
+    e.down = at8(0x80, (uint16_t)(0xD9B1 + at));
+    e.speed = at8(0x80, (uint16_t)(0xD9B2 + at));
+    e.step = at8(0x80, (uint16_t)(0xD9B3 + at));
+    e.limit = at8(0x80, (uint16_t)(0xD9B4 + at));
+    return e;
+}
+
+HopEntry hop_entry(uint8_t at)
+{
+    HopEntry e;
+
+    e.gravity = at8(0x80, (uint16_t)(0xD9BF + at));
+    e.up = at16(0x80, (uint16_t)(0xD9C0 + at));
+    e.across = at16(0x80, (uint16_t)(0xD9C2 + at));
+    return e;
+}
+
+/* ---- 81:A73D ActorMoveAlong, 83:F031 ActorYByFrame, 84:8F3C ActorClampAboveFloor:
+   the traces read $80:D673-D68A, $80:D7C4-D7C7 and the six direction tables
+   (bank $82 as the record names it) as data; $81:D673 and $83:D673 on are code ---- */
+uint16_t frame_y_step_83(uint8_t frame) { return at16(0x80, (uint16_t)(0xD673 + 2u * frame)); }
+uint16_t floor_clearance(void) { return at16(0x80, 0xD7C4); }
+
+DirectionStep direction_step(uint16_t direction)
+{
+    DirectionStep s;
+    uint16_t at = (uint16_t)(direction + 0x01B6);
+
+    s.x[0] = at8(0x82, (uint16_t)(0xC000 + at));
+    s.x[1] = at8(0x82, (uint16_t)(0xC409 + at));
+    s.x[2] = at8(0x82, (uint16_t)(0xC812 + at));
+    s.y[0] = at8(0x82, (uint16_t)(0xCC1B + at));
+    s.y[1] = at8(0x82, (uint16_t)(0xD024 + at));
+    s.y[2] = at8(0x82, (uint16_t)(0xD42D + at));
+    return s;
+}

@@ -60,3 +60,26 @@ void ActorSpawnPair(Actor *a)
     }
     a->spawn_byte &= 0x01;
 }
+
+/*
+ * @routine 83:D7C9 ActorSpawn5E
+ * WHAT IT DOES: Spawns a child of kind $5E at spawn point $4E.
+ */
+void ActorSpawn5E(Actor *a)
+{
+    a->spawn_at = 0x4E;
+    (void)ActorCreateChild8(a, 0x5E);
+}
+
+/*
+ * @routine 83:D7D4 ActorSpawnCopy
+ * WHAT IT DOES: Spawns a child of its own kind that looks like the actor,
+ * at spawn point 0, with bit 3 of its +$07 set for it.
+ */
+void ActorSpawnCopy(Actor *a)
+{
+    a->spawn_byte |= 0x08;
+    a->spawn_at = 0;
+    (void)ActorSpawnSameLook(a, a->kind);
+    a->spawn_byte &= (uint8_t)~0x08;
+}

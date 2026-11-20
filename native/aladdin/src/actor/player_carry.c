@@ -73,3 +73,56 @@ void ActorTestCarries(Actor *a, uint8_t test)
     own_word_set(a, OWN_4A, pixels(a->y));
     AnimStep(a);
 }
+
+/*
+ * @routine 83:C1EC ActorStepCarry
+ * WHAT IT DOES: Moves the actor a step along its facing (vector set $0E)
+ * and carries the player riding it along.
+ */
+void ActorStepCarry(Actor *a)
+{
+    ActorMoveByVector(a, 0x0E);
+    ActorCarryPlayer(a);
+}
+
+/*
+ * @routine 83:C1F6 ActorStepToTargetCarry
+ * WHAT IT DOES: Moves the actor a step toward its target (the pixel words
+ * of its speed_x and speed_y): across and up or down by vector set 8 on each
+ * axis it has not reached; then carries the player riding it along.
+ */
+void ActorStepToTargetCarry(Actor *a)
+{
+    if (pixels(a->x) != pixels((uint32_t)a->speed_x))
+        ActorMoveByVectorX(a, 0x08);
+    if (pixels(a->y) != pixels((uint32_t)a->speed_y))
+        ActorMoveByVectorY(a, 0x08);
+    ActorCarryPlayer(a);
+}
+
+/*
+ * @routine 83:FB57 ActorLiftPlayerStep
+ * WHAT IT DOES: A step of an actor that lifts the player: at its +$44 = 0,
+ * when ActorGrabTest finds him he goes to hang from it (his code to
+ * PLAYER_AT_GRABBED_HANG, his place kept above it by `offset`) and +$44
+ * counts on; negative, +$44 counts on; positive, he is kept on it while
+ * g.player_no_actor_landing is set, else +$44 becomes $F0.
+ */
+void ActorLiftPlayerStep(Actor *a, uint8_t offset)
+{
+    int8_t *step = (int8_t *)&a->own.bytes[OWN_44];
+
+    if (*step == 0) {
+        if (!ActorGrabTest(a))
+            return;
+        g.actors[0].resume = PLAYER_AT_GRABBED_HANG;
+        PlayerSpotAboveActor(a, offset);
+        (*step)++;
+    } else if (*step < 0) {
+        (*step)++;
+    } else if ((uint8_t)g.player_no_actor_landing) {
+        PlayerToActorAbove(a, offset);
+    } else {
+        *step = (int8_t)0xF0;
+    }
+}

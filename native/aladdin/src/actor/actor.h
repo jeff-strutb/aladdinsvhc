@@ -71,6 +71,7 @@ Actor *ActorAllocB(void);       /* 81:EA41: a free record of the second pool (ac
 
 /* ---- creating and spawning ---- */
 
+Actor *ActorCreateIn(Actor *a, uint8_t kind);   /* 82:AA30: the same in the record a (the caller took it off the free list) */
 Actor *ActorCreate(uint8_t kind);   /* 82:AA2B: an actor of the kind, its set-up run; NULL: none free, or its set-up failed */
 /* 80:A4DC: a new actor of the kind at (x, y) pixels with `byte07` its +$07, started at its next turn; NULL: none */
 Actor *ActorSpawnAt(uint8_t kind, uint8_t byte07, uint16_t x, uint16_t y);

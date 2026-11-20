@@ -371,12 +371,27 @@ static int ActorKindSetup(uint8_t kind, Actor *a)
 }
 
 /*
+ * @routine 82:AA30 ActorCreateIn
+ * WHAT IT DOES: Creates an actor of `kind` in the record `a` (one free:
+ * the caller took it off the list, or it is the list's top): its kind's
+ * set-up, and one more of the kind live; NULL when the set-up fails (the
+ * kind stays in the record). The list is the caller's.
+ */
+Actor *ActorCreateIn(Actor *a, uint8_t kind)
+{
+    a->kind = kind;
+    if (ActorKindSetup(kind, a))
+        return NULL;
+    g.kind_count[kind]++;
+    return a;
+}
+
+/*
  * @routine 82:AA2B ActorCreate
  * WHAT IT DOES: Creates an actor of `kind` in the free list's top record,
  * if one is free and its kind's set-up succeeds: the record leaves the list
  * and one more of the kind is live. NULL otherwise (the kind stays in the
  * top record, which stays free).
- * Also 82:AA30 ActorCreateIn, its part once a record is free.
  */
 Actor *ActorCreate(uint8_t kind)
 {
@@ -384,11 +399,8 @@ Actor *ActorCreate(uint8_t kind)
 
     if (g.free_pool_top < 0)
         return NULL;
-    a = g.free_pool[g.free_pool_top];
-    a->kind = kind;
-    if (ActorKindSetup(kind, a))
-        return NULL;
-    g.free_pool_top--;
-    g.kind_count[kind]++;
+    a = ActorCreateIn(g.free_pool[g.free_pool_top], kind);
+    if (a)
+        g.free_pool_top--;
     return a;
 }
