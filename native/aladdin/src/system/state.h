@@ -648,6 +648,8 @@ typedef struct GameState {
     uint8_t riser_send;         /* $1B1A: nonzero, kind $88 is sent up its course (another actor sets it) */
     uint8_t riser_course;       /* $1B1B: the course kind $88 is sent on */
     uint8_t scene_go_on;        /* $1B1F: kind $81's scene goes on once it is nonzero (kind $76 counts it up) */
+    Actor *chain_head;          /* $1B14: the nine-piece chain's head (kind $73), which kind $81 builds it with */
+    Actor *chain_tail;          /* $1B16: its tail */
     uint8_t chain_go;           /* $1B18: nonzero once the chain is built: its pieces (and the head, kind $73) start */
     uint8_t chain_round_or;     /* $1B1E: ORed with the round for the chain's pick lists (kind $73 sets 4 once hurt past 4) */
     uint8_t head_anim;          /* $1B20: the animation the chain's head should show */

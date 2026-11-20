@@ -26,6 +26,7 @@ const KindCode kinds_c[] = {
     { 0x6B, Kind6BCode, NULL, NULL, AnimateWhileWaiting },     /* its wait 83:ECCF is AnimStep and an RTS */
     { 0x7E, Kind7ECode, Kind7ECode, NULL, Kind7EWait },        /* its second entry is kind $7F's start: the same code here */
     { 0x7F, Kind7FCode, Kind7FCode, NULL, Kind7FWait },
+    { 0x81, Kind81Code, Kind81Code, NULL, NULL },              /* its wait 84:951C does nothing */
     { 0x83, Kind83Code, NULL, NULL, Kind83Wait },              /* its second entry is its wait routine's code: no state reaches it */
     { 0x8D, Kind8DCode, Kind8DCode, NULL, Kind8DWait },
     { 0x8E, Kind8ECode, NULL, NULL, NULL },
