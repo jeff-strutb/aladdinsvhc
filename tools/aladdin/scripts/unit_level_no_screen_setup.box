@@ -1,0 +1,8 @@
+# LevelNoScreenSetup (81:888A, an RTS), which the game reaches only by the
+# jump through the screen set-up table by level ($81:8802, 81:87FF), where
+# the per-call check opens no call: a unit call at its entry by JSR, M and
+# X 8-bit, DB $80, in the first level 10 frames in; the machine put back
+# after.
+load build/aladdin/states/level1.state
+wait 10
+call 81888A p=30 db=80
