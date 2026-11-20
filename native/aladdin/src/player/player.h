@@ -17,11 +17,6 @@
  * value, and he goes on there when his wait runs out. Code that runs on
  * his record and jumps to one of his states (the scenes' code in game/)
  * calls PlayerGoTo, which runs that state's code at once, as the jump.
- *
- * Resume points from PLAYER_RESUME_GAME up belong to the player's code
- * filed in game/ (game/scene_figures.c's PlayerSceneLand, PlayerSceneStand
- * and PlayerEndingRide): PlayerCode passes them to PlayerSceneCode
- * (wanted in game/game.h).
  */
 #ifndef ALADDIN_PLAYER_H
 #define ALADDIN_PLAYER_H
@@ -44,7 +39,6 @@ enum {
 
     PLAYER_AT_STAND = PLAYER_BLOCK(2),              /* 81:CCB6 PlayerStand */
     PLAYER_AT_FALL,                                 /* 81:CDD2 PlayerFall */
-    PLAYER_AT_JUMP,                                 /* 81:CFE0 PlayerJump */
 
     PLAYER_AT_HELD = PLAYER_BLOCK(3),               /* 81:D6F8 PlayerHeld: an actor holds him */
     PLAYER_AT_BOUNCE,                               /* 81:D77C PlayerBounce: a pad bounces him */
@@ -61,8 +55,7 @@ enum {
 
     PLAYER_AT_SCENE_CUED = PLAYER_BLOCK(5),         /* 81:E154 PlayerSceneCued: a scene's actor has him */
 
-    PLAYER_RESUME_GAME = PLAYER_BLOCK(0x40),        /* from here: game/'s (PlayerSceneCode) */
-    PLAYER_AT_SCENE_LAND = PLAYER_RESUME_GAME,      /* 81:DFBB PlayerSceneLand ($07 9) */
+    PLAYER_AT_SCENE_LAND = PLAYER_BLOCK(6),         /* 81:DFBB PlayerSceneLand ($07 9; filed in the record's game/scene_figures.c) */
     PLAYER_AT_SCENE_STAND,                          /* 81:E23E PlayerSceneStand ($07 15) */
     PLAYER_AT_ENDING_RIDE,                          /* 81:E27A PlayerEndingRide ($07 14) */
 };

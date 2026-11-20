@@ -483,7 +483,7 @@ typedef struct GameState {
     int16_t player_turn_decel;  /* $1444: negative */
     uint8_t player_move;        /* $1420: standing, running, jumping ...: picks its animation */
     uint8_t player_dash;        /* $1459: 1 while the dash is held */
-    uint8_t player_slowed;      /* $1457: frames the speed was held up to its least */
+    uint16_t player_slowed;     /* $1457: frames the speed was held up to its least (counted as a word, read as its low byte) */
     uint16_t player_saved_x;    /* $145D: a position kept for the player, pixels */
     uint16_t player_saved_y;    /* $145F */
     uint16_t player_ground_y;   /* $1455: where it last stood, pixels */
@@ -504,6 +504,21 @@ typedef struct GameState {
     uint8_t player_held;        /* $141C: nonzero while an actor holds him; no level exit then */
     uint8_t view_edge_rule;     /* $145B: what the view's sides do to him (level/view_edges.c: 0-4) */
     uint8_t health;             /* $0367 */
+    uint8_t player_move_was;    /* $141F: the move whose animation his frame work last started */
+    uint8_t player_skid_started;/* $1422: nonzero once the skid's sound and pose have started */
+    uint8_t player_fallen_out;  /* $1424: nonzero, he fell out of the map (PlayerEnter8CFrom1) */
+    uint8_t player_ground_pushed; /* $1429: 2 on ground that pushes him, 1 on ground he slides on, else 0 */
+    uint8_t player_stand_held;  /* $142B: nonzero, standing, he neither turns nor walks */
+    uint8_t player_anim_held;   /* $142D: nonzero, his frame work does not step his animation */
+    uint8_t player_hurt_frames; /* $142F: frames the knockback lasts while he has health */
+    uint8_t player_scene;       /* $1430: nonzero, a scene moves him (bit 6: his animation held; bit 7: held while $081E is 0) */
+    uint8_t player_actor_ground;/* $1434: while he stands on an actor, the ground's direction bits it gives (in place of the map's) */
+    uint8_t player_touched_66;  /* $1435: set while he touches a kind $66; his frame work clears it */
+    uint8_t player_no_crouch_jump; /* $1446: nonzero, no jump from a crouch */
+    uint8_t player_air_throw;   /* $144B: frames left of a throw in the air */
+    uint8_t player_air_frames;  /* $1451: frames in the air, counted up to $80 */
+    int16_t test_box_offset_x;  /* $148C: its centre from his place */
+    int16_t test_box_offset_y;  /* $148E */
 
     /* -- game: progress -- */
     uint8_t health_marks;       /* $0365: the most health */

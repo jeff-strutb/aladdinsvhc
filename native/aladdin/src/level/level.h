@@ -29,4 +29,10 @@ void ViewEdgeRuleRun(Actor *player);    /* 81:E97D: the rule g.view_edge_rule pi
 void SequenceStart(Sequence *s);        /* 81:EC6F */
 void SequencesStep(void);               /* 81:EC23 */
 
+
+/* wanted */
+
+/* (player/: level/level_tables.c's) */
+void Level035CSet(void);                /* 81:878B: g.progress_sequence and g.progress_stage from the level's entry (the table at $81:B933) */
+
 #endif

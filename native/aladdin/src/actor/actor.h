@@ -225,4 +225,8 @@ int ActorGoToPoint(Actor *a);       /* 83:FC5D: waits inside (ACTOR_RETURNS once
                                        toward the point at its +$48, +$4A (pixels) by direction set +$4C, facing the way it goes */
 bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up);  /* 83:FD6D: true when the point `ahead` in front
                                        (by its facing) and `up` above, or `up` above its own x, is in the ground */
+
+/* (player/) */
+/* 81:A9E9: a child of `kind` at the spawner's spawn point, sharing its animated-tile slot, started at its next turn; NULL none free */
+Actor *ActorSpawnShared(Actor *spawner, uint8_t kind);
 #endif

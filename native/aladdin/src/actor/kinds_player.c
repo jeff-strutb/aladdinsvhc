@@ -6,7 +6,16 @@
  * and wait NULL. This file is n5-player's alone.
  */
 #include "actor/actor_own.h"
+#include "player/player.h"
 
 const KindCode kinds_player[] = {
+    /* Aladdin (player/player_code.c): start 83:91F4 Kind00Start, second
+       83:91FD Kind00Second (kind $01: 83:9201 Kind01Second), wait 83:91F8
+       ActorKind00Wait; the record's tables give these kinds no third entry */
+    { 0x00, PlayerCode, PlayerCode, NULL, PlayerWait },
+    { 0x01, PlayerCode, PlayerCode, NULL, PlayerWait },
+    { 0x02, PlayerCode, PlayerCode, NULL, PlayerWait },
+    { 0x03, PlayerCode, PlayerCode, NULL, PlayerWait },
+    { 0x07, PlayerCode, PlayerCode, NULL, PlayerWait },
     { 0, NULL, NULL, NULL, NULL }
 };
