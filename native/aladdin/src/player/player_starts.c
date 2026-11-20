@@ -4,6 +4,7 @@
  * level's own start (a walk in, then the level's tasks) or one of the
  * scenes that place him.
  */
+#include "data/player_tables.h"
 #include "player/player_own.h"
 #include "system/task.h"
 
@@ -55,8 +56,7 @@ static int level_start(Actor *a)
 
     a->flags = 0xD0;
     a->own.bytes[OWN_0A] = 0x40;
-    a->own.bytes[OWN_29] = 0x07;        /* his picture list's word, $8907 */
-    a->own.bytes[OWN_2A] = 0x89;
+    a->own_pictures = player_pictures();    /* his picture list (+$29) */
     a->redraw = 0xFF;
     g.player_flags &= 0x7F;
     if (g.level_restart)

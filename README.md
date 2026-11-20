@@ -132,7 +132,8 @@ and the project's clean check report nothing in them.
 
 What runs, on Linux, from power-on with no input: the copyright card, the
 logo, the opening story with its scenes and text, the title with its menu and
-music, and the attract demo, which loads level 1 and plays it.
+music, and the attract demo, which loads level 1 and plays it: Aladdin runs
+and jumps through the market with Abu, past the stall keepers and the guards.
 
 | | |
 |---|---|
@@ -144,9 +145,6 @@ repository's build (`--shots`) at the console's size and doubled.
 
 ### Not done
 
-- **Aladdin is not drawn in the level yet.** His state moves and the camera
-  follows him, but his start does not set his picture list, so his pictures
-  are not sent. The cause is known and the fix is in hand.
 - **Nothing past the attract demo is playable.** Starting a game from the
   menu, the password, options, continue and Genie screens, the scenes
   between levels and the ending are not converted.

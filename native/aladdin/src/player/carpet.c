@@ -11,6 +11,7 @@
  * right, clockwise to 7 (2 down, 4 left, 6 up); 8 slow down across, 9
  * speed up, 10 neither; negative none.
  */
+#include "data/player_tables.h"
 #include "player/player_own.h"
 #include "system/task.h"
 
@@ -243,8 +244,7 @@ static int carpet_start(Actor *a)
         return PlayerGoTo(a, PLAYER_AT_ENDING_RIDE);
     a->flags = 0xD0;
     a->own.bytes[OWN_0A] = 0x40;
-    a->own.bytes[OWN_29] = 0x17;        /* his picture list's word, $8917 */
-    a->own.bytes[OWN_2A] = 0x89;
+    a->own_pictures = player_carpet_pictures(); /* his picture list (+$29) */
     CLIMBING(a) = 0;
     TILTED(a) = 0;
     a->redraw = 0xFF;

@@ -92,3 +92,8 @@ uint8_t carpet_direction(uint8_t pad_low4) { return at8((uint16_t)(0xC7AA + (pad
 uint8_t carpet_rate_x(int alt, uint8_t direction) { return at8((uint16_t)((alt ? 0xC7CB : 0xC7B5) + (uint8_t)(direction << 1))); }
 uint8_t carpet_rate_y(int alt, uint8_t direction) { return at8((uint16_t)((alt ? 0xC7CC : 0xC7B6) + (uint8_t)(direction << 1))); }
 uint8_t carpet_tilt(uint8_t direction) { return at8((uint16_t)(0xC7E1 + direction)); }
+
+/* $80:8907 and $80:8917: the picture lists his starts give his record
+   (the original's word at +$29, read with the data bank at $80) */
+DataRef player_pictures(void) { DataRef r = { cart_offset(0x80, 0x8907) }; return r; }
+DataRef player_carpet_pictures(void) { DataRef r = { cart_offset(0x80, 0x8917) }; return r; }

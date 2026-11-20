@@ -82,4 +82,10 @@ uint8_t carpet_rate_x(int alt, uint8_t direction);
 uint8_t carpet_rate_y(int alt, uint8_t direction);
 uint8_t carpet_tilt(uint8_t direction);
 
+/* his picture lists, as his record's +$29 gets them (Actor.own_pictures;
+   video/'s ActorPictureSend and ActorPictureQueue read them): his own, and
+   the carpet ride's */
+DataRef player_pictures(void);
+DataRef player_carpet_pictures(void);
+
 #endif
