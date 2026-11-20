@@ -87,6 +87,8 @@ typedef enum {
     TASK_ENTRY_GREY_PAST,           /* 81:A128 GreyPastTask (level/level_events.c) */
     TASK_ENTRY_RED_OUT,             /* 81:A15B RedOutTask (level/level_events.c) */
     TASK_ENTRY_CLIMB_TOP,           /* 81:A30D ClimbTopTask (level/level_events.c) */
+    TASK_ENTRY_BG1_WOBBLE,          /* 81:9F98 Bg1WobbleTask (video/) */
+    TASK_ENTRY_SHAKE,               /* 81:A1D5 ShakeTask (video/) */
     TASK_ENTRY_CONTINUE_SCREEN,     /* 80:B2E3 ContinueScreenTask (game/) */
     TASK_ENTRY_GENIE_SCREEN,        /* 80:A63B GenieScreen (game/) */
     TASK_ENTRIES

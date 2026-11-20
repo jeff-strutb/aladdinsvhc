@@ -154,3 +154,8 @@ uint8_t password_part(unsigned password) { return at8((uint16_t)(PASSWORD_PARTS 
 uint8_t password_health(uint8_t part) { return at8((uint16_t)(PASSWORD_HEALTH + part)); }
 uint16_t password_row_bits(unsigned picture) { return at16((uint16_t)(PASSWORD_ROW_BITS + 2 * picture)); }
 uint16_t password_slot_vram(unsigned slot) { return at16((uint16_t)(PASSWORD_SLOT_VRAM + 2 * slot)); }
+
+#define LEVEL6_BANDS 0xB991
+
+uint8_t level6_band_count(void) { return at8(LEVEL6_BANDS); }
+uint8_t level6_band_lines(unsigned band) { return at8((uint16_t)(LEVEL6_BANDS + 1 + band)); }

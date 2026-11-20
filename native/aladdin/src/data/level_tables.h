@@ -91,4 +91,8 @@ uint8_t password_health(uint8_t part);                  /* the health marks a pa
 uint16_t password_row_bits(unsigned picture);           /* the picture's map bits */
 uint16_t password_slot_vram(unsigned slot);             /* the slot's VRAM word address */
 
+/* ---- level 6's bands (level/level_screen_setups.c): how many, and each band's lines ($80:B991) ---- */
+uint8_t level6_band_count(void);
+uint8_t level6_band_lines(unsigned band);
+
 #endif

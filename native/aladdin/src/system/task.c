@@ -200,6 +200,8 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_GREY_PAST:          return GreyPastTask(t);
     case TASK_ENTRY_RED_OUT:            return RedOutTask(t);
     case TASK_ENTRY_CLIMB_TOP:          return ClimbTopTask(t);
+    case TASK_ENTRY_BG1_WOBBLE:         return Bg1WobbleTask(t);
+    case TASK_ENTRY_SHAKE:              return ShakeTask(t);
     case TASK_ENTRY_CONTINUE_SCREEN:    return ContinueScreenTask(t);
     case TASK_ENTRY_GENIE_SCREEN:       return GenieScreen(t);
     case TASK_ENTRY_NONE:

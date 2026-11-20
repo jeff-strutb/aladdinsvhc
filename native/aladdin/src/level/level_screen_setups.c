@@ -9,6 +9,8 @@
  */
 #include <stdio.h>
 
+#include "data/level_tables.h"
+#include "data/video_tables.h"
 #include "level/level.h"
 #include "system/state.h"
 #include "system/task.h"
@@ -51,8 +53,27 @@ static void bg2_scroll_lines(void)
     g.line_channel[LINE_CHANNEL_BG2].target = LINE_BG2_X;
     g.line_channel[LINE_CHANNEL_BG2].direct = 1;
     g.line_channel[LINE_CHANNEL_BG2].table_at = 0;
+    g.line_channel[LINE_CHANNEL_BG2].cart.at = 0;
     g.line_table_at[LINE_CHANNEL_BG2 - 4] = 0;
     g.line_effects_on = 1u << LINE_CHANNEL_BG2;
+}
+
+/* the same effect on channel `channel` (level 6 uses 2) */
+static void bg2_scroll_lines_on(unsigned channel)
+{
+    g.line_channel[channel].target = LINE_BG2_X;
+    g.line_channel[channel].direct = 1;
+    g.line_channel[channel].table_at = 0;
+    g.line_channel[channel].cart.at = 0;
+}
+
+/* a per-line effect whose direct table is in the cartridge, set up on
+   `channel` (the caller turns it on) */
+static void line_effect(unsigned channel, uint8_t target, DataRef table)
+{
+    g.line_channel[channel].target = target;
+    g.line_channel[channel].direct = 1;
+    g.line_channel[channel].cart = table;
 }
 
 /*
@@ -202,7 +223,11 @@ static void Level06ScreenSetup(void)
     g.scroll_kind = 0x02;
     g.layer_setup_mode = 0x0C;
     g.bg2_follows = BG2_FOLLOWS_Y;
-    unconverted("Level06ScreenSetup: its per-line bands (a table in the cartridge)");
+    line_effect(1, LINE_TM, line_table_at(0x80, 0xB99E));
+    bg2_scroll_lines_on(2);
+    for (unsigned band = 0; band < level6_band_count(); band++)
+        g.line_data[3 * band] = level6_band_lines(band);
+    g.line_effects_on = 0x06;
 }
 
 /*
@@ -388,8 +413,9 @@ static void Level10ScreenSetup(void)
  * $21 unpacked; the scroll limit's high byte 1; the text map's last 64
  * words $4000 ($7E:DF80); per-line effects from tables in the cartridge
  * (the mode $80:B9C3, BG3's y $80:B9CA, the main layers $80:B9D4); layers 2, 3 and
- * sprites on the main screen; value sequences $24, $27, $2A. The per-line
- * part waits, as level 6's: reported, not made.
+ * sprites on the main screen; value sequences $24, $27, $2A. The three
+ * per-line effects (channels 1-3) are only set up here: kind $81's scene
+ * turns them on.
  */
 static void Level11ScreenSetup(void)
 {
@@ -398,7 +424,9 @@ static void Level11ScreenSetup(void)
     g.scroll_limit_x = (uint16_t)((g.scroll_limit_x & 0x00FF) | 0x0100);
     for (unsigned i = 0x3C0; i < 0x400; i++)
         g.text_map[i] = 0x4000;
-    unconverted("Level11ScreenSetup: its per-line modes, BG3 y and layers (tables in the cartridge)");
+    line_effect(1, LINE_MODE, line_table_at(0x80, 0xB9C3));
+    line_effect(2, LINE_BG3_Y, line_table_at(0x80, 0xB9CA));
+    line_effect(3, LINE_TM, line_table_at(0x80, 0xB9D4));
     g.main_layers = 0x16;
     cycle(0x64, 0x24);
     cycle(0x74, 0x27);
