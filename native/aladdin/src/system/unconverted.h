@@ -27,8 +27,6 @@
 /* ---- game/, map/, level/, input/: this session's, not yet converted ---- */
 
 /* ---- past the title (stage 5) ---- */
-void LevelNumberText(void);                 /* 80:A0B1 */
-int LevelSelect(void);                      /* 80:A05C: 1 when it changed the level (the record's C clear) */
 TaskRun OptionsTask(Task *t);               /* 83:8979 */
 TaskRun PasswordScreen(Task *t);            /* 84:AD50 */
 

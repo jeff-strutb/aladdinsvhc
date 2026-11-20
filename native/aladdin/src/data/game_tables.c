@@ -214,3 +214,11 @@ uint16_t option_code_press(unsigned i)
 {
     return cart16(cart_offset(OPTIONS_BANK, (uint16_t)(OPTION_CODE_ADDR + 2 * i)));
 }
+
+/* the level select's last stage of each part: $80:CE2E (the title's bank) */
+#define LAST_STAGE_ADDR 0xCE2E
+
+uint8_t level_select_last_stage(uint8_t part)
+{
+    return cart8(cart_offset(MENU_BANK, (uint16_t)(LAST_STAGE_ADDR + part)));
+}

@@ -66,6 +66,10 @@ TaskRun StoryTextTask(Task *t);         /* 81:F332: task entry */
 TaskRun TitleStartTask(Task *t);        /* 80:9C64 */
 TaskRun TitleTask(Task *t);             /* 80:9C91: task entry */
 
+/* level_select.c */
+void LevelNumberText(void);             /* 80:A0B1 */
+int LevelSelect(void);                  /* 80:A05C: 1 when L or R was held with a direction newly pressed (the original's C clear) */
+
 /* menu_mark.c */
 #define MENU_MARK_CELLS 7
 extern const uint16_t menu_mark_cells[MENU_MARK_CELLS];  /* the mark's cells, words from its place */

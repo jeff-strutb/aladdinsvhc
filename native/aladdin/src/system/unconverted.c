@@ -33,16 +33,7 @@ void unconverted(const char *name)
     fprintf(stderr, "unconverted: %s\n", name);
 }
 
-PLACEHOLDER void LevelNumberText(void)
-{
-    unconverted("LevelNumberText");
-}
 
-PLACEHOLDER int LevelSelect(void)
-{
-    unconverted("LevelSelect");
-    return 0;
-}
 
 
 

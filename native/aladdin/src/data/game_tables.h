@@ -74,6 +74,9 @@ TileQuarter tile_quarter(unsigned quarter);     /* quarter 0-3 */
    start of their bank, level_metatiles in data.h) */
 uint16_t metatile_word(DataRef metatiles, uint16_t offset);
 
+/* ---- the level select (game/level_select.c) ---- */
+uint8_t level_select_last_stage(uint8_t part);          /* by part (0-6): its last stage ($80:CE2E) */
+
 /* ---- the options screen (game/options.c; $80:CE35 on) ---- */
 #define OPTION_ITEMS 4
 uint16_t option_setting_word(unsigned line, unsigned setting);  /* the map word of line 0-4 of a setting 0-3 */
