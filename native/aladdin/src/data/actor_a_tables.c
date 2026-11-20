@@ -101,3 +101,6 @@ HitBox solid_box(uint8_t at)
     b.half_h = at16(0x80, (uint16_t)(0xBD68 + at));
     return b;
 }
+
+uint16_t frame_y_step(uint8_t frame) { return at16(0x80, (uint16_t)(0xD1CE + 2u * frame)); }
+uint16_t ahead_5(uint8_t facing) { return at16(0x80, (uint16_t)(0xD176 + 2u * facing)); }

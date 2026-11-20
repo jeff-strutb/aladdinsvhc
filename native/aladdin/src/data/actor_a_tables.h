@@ -41,7 +41,9 @@ typedef struct RingStep { uint16_t dx, dy; } RingStep;
 RingStep ring_step(uint8_t at);
 /* FlagDropMaybe's and FlagDropAlways' child sorts by chance ($80:D31E and
    $80:D33E, 32 bytes each; the first's 0: none) */
-HitBox solid_box(uint8_t at);       /* $80:BD66, 4 bytes from `at`: a solid actor's half-width, half-height */
+HitBox solid_box(uint8_t at);
+uint16_t frame_y_step(uint8_t frame);   /* $80:D1CE, a word by frame: ActorYByFrame47's step down */
+uint16_t ahead_5(uint8_t facing);       /* $80:D176, a word by facing: 5 pixels ahead */       /* $80:BD66, 4 bytes from `at`: a solid actor's half-width, half-height */
 uint8_t drop_sort_maybe(uint8_t chance);
 uint8_t drop_sort_always(uint8_t chance);          /* the shots' probe list ($80:C9FF; Actor.probes) */
 
