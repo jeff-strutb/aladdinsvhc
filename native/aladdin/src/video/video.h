@@ -161,5 +161,8 @@ void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll 
 
 /* wanted */
 void LevelActorGraphicsLoad(void);          /* 81:B9F4: the level's actors' sprite graphics (LevelRamSetup) */
+/* (levels and screens: defined in video/hud.c, for LevelLoad and the play loop) */
+void HudRedrawAll(void);                    /* 81:F433 */
+void HudRefresh(void);                      /* 81:F456: once a frame of play */
 
 #endif

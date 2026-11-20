@@ -59,24 +59,6 @@ PLACEHOLDER TaskRun PasswordScreen(Task *t)
 
 /* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
 
-PLACEHOLDER TaskRun DemoTask(Task *t)
-{
-    unconverted("DemoTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun GameStartTask(Task *t)
-{
-    unconverted("GameStartTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun LevelPlayStartTask(Task *t)
-{
-    unconverted("LevelPlayStartTask");
-    return task_exit(t);
-}
-
 PLACEHOLDER TaskRun ContinueScreenTask(Task *t)
 {
     unconverted("ContinueScreenTask");
@@ -86,12 +68,6 @@ PLACEHOLDER TaskRun ContinueScreenTask(Task *t)
 PLACEHOLDER TaskRun GenieScreen(Task *t)
 {
     unconverted("GenieScreen");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun NextPartTask(Task *t)
-{
-    unconverted("NextPartTask");
     return task_exit(t);
 }
 
@@ -118,43 +94,3 @@ PLACEHOLDER uint16_t MapQuarterAt(uint16_t x, uint16_t y)
     return 0;
 }
 
-PLACEHOLDER void LevelCompanionStart(void)
-{
-    unconverted("LevelCompanionStart");
-}
-
-PLACEHOLDER void LevelSongPlay(void)
-{
-    unconverted("LevelSongPlay");
-}
-
-PLACEHOLDER void RestartPointCheck(void)
-{
-    unconverted("RestartPointCheck");
-}
-
-PLACEHOLDER void LevelSpotsSet(void)
-{
-    unconverted("LevelSpotsSet");
-}
-
-PLACEHOLDER void LevelExitCheck(void)
-{
-    unconverted("LevelExitCheck");
-}
-
-PLACEHOLDER void LevelScreenSetup(void)
-{
-    unconverted("LevelScreenSetup");
-}
-
-PLACEHOLDER void LevelBackdropStart(void)
-{
-    unconverted("LevelBackdropStart");
-}
-
-PLACEHOLDER void ViewEdgeRuleRun(Actor *player)
-{
-    unconverted("ViewEdgeRuleRun");
-    (void)player;
-}

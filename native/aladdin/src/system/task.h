@@ -71,6 +71,7 @@ typedef enum {
     TASK_ENTRY_TEXT_BLINK,          /* 81:9E3B TextBlinkTask (video/) */
     TASK_ENTRY_LEVEL_PLAY_START,    /* 81:80A3 LevelPlayStartTask (game/progress.c) */
     TASK_ENTRY_NEXT_PART,           /* 81:8181 NextPartTask (game/progress.c) */
+    TASK_ENTRY_PLAY_LOOP_START,     /* 81:8191 PlayLoopStart (game/play_loop.c) */
     TASK_ENTRY_CONTINUE_SCREEN,     /* 80:B2E3 ContinueScreenTask (game/) */
     TASK_ENTRY_GENIE_SCREEN,        /* 80:A63B GenieScreen (game/) */
     TASK_ENTRIES

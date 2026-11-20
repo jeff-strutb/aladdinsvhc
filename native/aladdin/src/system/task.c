@@ -182,6 +182,7 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_TEXT_BLINK:         return TextBlinkTask(t);
     case TASK_ENTRY_LEVEL_PLAY_START:   return LevelPlayStartTask(t);
     case TASK_ENTRY_NEXT_PART:          return NextPartTask(t);
+    case TASK_ENTRY_PLAY_LOOP_START:    return PlayLoopStart(t);
     case TASK_ENTRY_CONTINUE_SCREEN:    return ContinueScreenTask(t);
     case TASK_ENTRY_GENIE_SCREEN:       return GenieScreen(t);
     case TASK_ENTRY_NONE:

@@ -1,8 +1,12 @@
 /*
- * level_tables.c: where a level's play starts. (The record's level_tables.c
- * holds the levels' other tables: stage 5's.)
+ * level_tables.c: where a level's play starts, its companion and song, its
+ * restart point and its exit.
  */
+#include "audio/sound.h"
+#include "data/level_tables.h"
 #include "data/system_tables.h"
+#include "player/player.h"
+#include "video/video.h"
 #include "level/level.h"
 #include "system/state.h"
 
@@ -56,4 +60,156 @@ void LevelStartPlace(void)
     g.range_y = (uint16_t)(s.camera_y + VIEW_HALF);
     g.scroll_x_min = 0;
     g.scroll_x_max = 0x7F00;
+}
+
+#define COMPANION 2             /* its record: actors[2] ($097B) */
+#define COMPANION_KIND 0x72
+#define COMPANION_LOOK 0x0240
+#define COMPANION_PALETTE 0x3A
+#define LEVEL_TWO_COMPANION_PALETTES 0x12
+#define COMPANION_PALETTE_2 0x48
+#define ACTOR_NEW 0x0C          /* a record's state: to start */
+#define SONG_NONE 0x80
+#define SPOT_REACH 8            /* the player within this of a spot */
+#define LEADS_FACING_LEFT 0x80
+#define EXITING 0x80            /* g.player_flags: his exit walk */
+
+static uint16_t view_x(void)
+{
+    return (uint16_t)(g.layers[0].scroll_x >> 8);
+}
+
+/*
+ * @routine 81:8623 LevelCompanionStart
+ * WHAT IT DOES: On a level with a companion actor, starts it at the
+ * player's place, and loads its palettes.
+ * HOW: The level's byte, less one, is the companion's $07; record 2 made
+ * new, kind $72, look $0240, the player's place (pixels); palette $3A, and
+ * on level $12 $48 too.
+ */
+void LevelCompanionStart(void)
+{
+    uint8_t c = level_companion((uint8_t)g.level);
+    Actor *a = &g.actors[COMPANION], *player = &g.actors[0];
+
+    if (!c)
+        return;
+    a->spawn_byte = (uint8_t)(c - 1);
+    a->state = ACTOR_NEW;
+    a->kind = COMPANION_KIND;
+    a->look = COMPANION_LOOK;
+    a->x = whole_set(a->x, (uint16_t)(player->x >> 8));
+    a->y = whole_set(a->y, (uint16_t)(player->y >> 8));
+    PaletteLoad(COMPANION_PALETTE);
+    if (g.level == LEVEL_TWO_COMPANION_PALETTES)
+        PaletteLoad(COMPANION_PALETTE_2);
+}
+
+/*
+ * @routine 81:86DE LevelSongPlay
+ * WHAT IT DOES: Plays the level's song, or, when its entry has none, sends
+ * sound command $F0 instead.
+ */
+void LevelSongPlay(void)
+{
+    uint8_t song = level_song((uint8_t)g.level);
+
+    if (song & SONG_NONE)
+        SoundQueueF0();
+    else
+        SongPlay(song);
+}
+
+/*
+ * @routine 81:86F0 RestartPointCheck
+ * WHAT IT DOES: Sets the level's restart point once the view has passed
+ * it: from there a lost life starts the level at its second start.
+ * HOW: With no restart point yet, and neither the exit reached nor a fall
+ * out of the map ($1423-$1424 as one word), the level's restart x (bit 15:
+ * none) below the view's x sets the restart point to 1.
+ */
+void RestartPointCheck(void)
+{
+    uint16_t x;
+
+    if (g.level_restart || g.level_exiting || g.player_fallen_out)
+        return;
+    x = level_restart_x((uint8_t)g.level);
+    if ((x & 0x8000) || x >= view_x())
+        return;
+    g.level_restart = 1;
+}
+
+/*
+ * @routine 81:8716 LevelSpotsSet
+ * WHAT IT DOES: Finds the level's exit spots: how many, and their list.
+ */
+void LevelSpotsSet(void)
+{
+    g.level_spot_count = level_spot_count(g.level);
+    g.level_spots = level_spot_list(g.level);
+}
+
+/* within SPOT_REACH of `at`, either way (the original's unsigned
+   at - v + 8 < 16) */
+static bool near(uint16_t at, uint16_t v)
+{
+    return (uint16_t)(at - v + SPOT_REACH) < 2 * SPOT_REACH;
+}
+
+/*
+ * @routine 81:872E LevelExitCheck
+ * WHAT IT DOES: Ends the level when the player reaches its exit spot (on
+ * some levels, when the view passes it): sets the next stage and starts
+ * the player's exit walk.
+ * HOW: Not while he is held or hurt, the exit is reached, or there are no
+ * spots. Levels that exit by the view: the first spot's x below the view's
+ * x. Others: each spot's x in turn within 8 of the player's, and then the
+ * FIRST spot's y within 8 of his (as the original reads it), one test a
+ * spot. Reached: the
+ * first spot's byte gives the stage (0: the progress sequence moves on);
+ * his code to the escort's exit (levels by the view) or the spot's exit,
+ * his facing and flip from the byte's bit 7 (both the same byte, as the
+ * original writes them); his exit flag, the exit and the stages ended
+ * counted up; the restart point cleared.
+ */
+void LevelExitCheck(void)
+{
+    Actor *player = &g.actors[0];
+    DataRef spots = g.level_spots;
+    bool by_view = level_exit_by_view((uint8_t)g.level);
+    uint8_t to, left;
+    unsigned n;
+
+    if (g.player_held | g.level_exiting | g.player_hurts)
+        return;
+    if (!g.level_spot_count)
+        return;
+    if (by_view) {
+        if (spot_x(spots, 0) >= view_x())
+            return;
+    } else {
+        /* as many tests as spots; an x match whose y fails sends the walk
+           back to the first spot (the original's list pointer reset for the
+           y test), so the next tested is spot 1 */
+        for (n = 0, left = g.level_spot_count;; n++) {
+            if (near(spot_x(spots, n), (uint16_t)(player->x >> 8))) {
+                if (near(spot_y(spots, 0), (uint16_t)(player->y >> 8)))
+                    break;
+                n = 0;
+            }
+            if (--left == 0)
+                return;
+        }
+    }
+    to = spot_leads_to(spots, 0);
+    g.progress_stage = (uint8_t)(to & 0x7F);
+    if (!(to & 0x7F))
+        g.progress_sequence = progress_next_sequence(g.progress_sequence);
+    player->resume = by_view ? PLAYER_AT_ESCORT_EXIT : PLAYER_AT_SPOT_EXIT;
+    g.player_flags |= EXITING;
+    player->flip = player->facing = (uint8_t)(to >> 7);
+    g.level_exiting++;
+    g.stages_ended++;
+    g.level_restart = 0;
 }

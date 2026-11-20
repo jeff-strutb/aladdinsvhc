@@ -1,14 +1,22 @@
 /*
- * level_load.c: setting a level up in memory and video memory, and the card
- * of text shown on its own. (The record's level_load.c holds more of the
- * level's load: stage 5's.)
+ * level_load.c: loading a level: its graphics, its RAM and VRAM, its
+ * screen, then Aladdin; and a card of text shown on its own.
+ *
+ * Not converted: MirrorCheckTask (81:A37A, game/mirror_check_task.c), the
+ * copier check LevelLoad starts in slot 7: on the retail board the ROM
+ * reads the same through banks $80 and $00 and there is no cartridge RAM
+ * at $70, so it ends at its first turn (TaskExit), changing nothing
+ * (plan section 1 item 8: the copier branches are dead).
  */
 #include <string.h>
 
 #include "actor/actor.h"
+#include "audio/sound.h"
+#include "data/level_tables.h"
 #include "data/system_tables.h"
 #include "game/game.h"
 #include "level/level.h"
+#include "map/map.h"
 #include "system/state.h"
 #include "system/system.h"
 #include "system/task.h"
@@ -86,6 +94,74 @@ void LevelRamSetup(void)
     LevelStartPlace();
     PlacementsStart();
     LevelPalettesLoad();
+}
+
+#define PLAY_DEMO_MASKS { 0x8000, 0x4000, 0x0080, 0x0010 }    /* a demo's buttons by action: B, Y, A, R */
+#define HUD_LEVELS 0x14         /* levels below this show the status line */
+#define PLAYER_NEW 0x0C         /* a record's state: to start */
+
+enum { LOAD_START, LOAD_BUILD, LOAD_SONG };
+
+/*
+ * @routine 81:81A7 LevelLoad
+ * @routine 81:81A3 LevelLoadLong
+ * WHAT IT DOES: Loads and starts the level: the buttons each action takes
+ * (fixed ones in a demo, else by the control option), the screen blanked
+ * while LevelRamSetup, the status line, the map, the screen set-up, the
+ * layers, spots, tile behaviours and backdrop are made, then the screen
+ * back on, its song (not in a demo), Aladdin's start, his escort and
+ * companion.
+ * HOW: TextLayerClearFront, a frame's wait, NmiDisable, ScreenBlank,
+ * LevelRamSetup, DisplayDefaults, HudRedrawAll (levels below $14),
+ * LevelMapBuild, LevelScreenSetup, LayersFill, LevelSpotsSet,
+ * TileBehaviourLoad, LevelBackdropStart, NmiEnable; with no demo, a frame's
+ * wait and LevelSongPlay; Aladdin's record to start, his kind and $07 by
+ * level; EscortStart, LevelCompanionStart. (The original also clears $03E9,
+ * which nothing reads, and starts the copier check: see above.)
+ */
+TaskRun LevelLoad(Task *t)
+{
+    static const uint16_t demo_masks[4] = PLAY_DEMO_MASKS;
+    uint16_t *at = task_enter(t);
+    Actor *player = &g.actors[0];
+    unsigned i;
+
+    switch (*at) {
+    case LOAD_START:
+        for (i = 0; i < 4; i++)
+            g.control_masks[i] = g.play_mode ? demo_masks[i] : control_option_mask(g.kept_options[0], i);
+        TextLayerClearFront();
+        *at = LOAD_BUILD;
+        return task_wait(t, 1);
+    case LOAD_BUILD:
+        NmiDisable();
+        ScreenBlank();
+        LevelRamSetup();
+        DisplayDefaults();
+        if (g.level < HUD_LEVELS)
+            HudRedrawAll();
+        LevelMapBuild();
+        LevelScreenSetup();
+        LayersFill();
+        LevelSpotsSet();
+        TileBehaviourLoad();
+        LevelBackdropStart();
+        NmiEnable();
+        if (!g.play_mode) {
+            *at = LOAD_SONG;
+            return task_wait(t, 1);
+        }
+        break;
+    case LOAD_SONG:
+        LevelSongPlay();
+        break;
+    }
+    player->state = PLAYER_NEW;
+    player->kind = level_player_kind((uint8_t)g.level);
+    player->spawn_byte = level_player_byte((uint8_t)g.level);
+    EscortStart();
+    LevelCompanionStart();
+    return task_return(t);
 }
 
 enum { CARD_START, CARD_FADE_IN, CARD_HOLD, CARD_FADE_OUT };

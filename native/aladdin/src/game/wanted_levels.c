@@ -5,9 +5,9 @@
  * nothing; the owner's definition replaces it at link time. Delete each
  * when its owner lands it.
  */
+#include "player/player.h"
 #include "system/task.h"
 #include "system/unconverted.h"
-#include "video/video.h"
 #include "video/video_tasks.h"
 
 #define STAND_IN __attribute__((weak))
@@ -19,7 +19,20 @@ STAND_IN TaskRun TextBlinkTask(Task *t)
     return task_exit(t);
 }
 
-STAND_IN void LevelActorGraphicsLoad(void)
+/* player/'s (n5-player) */
+STAND_IN void PlayerKeepOnScreenX(Actor *a)
 {
-    unconverted("LevelActorGraphicsLoad");
+    unconverted("PlayerKeepOnScreenX");
+    (void)a;
+}
+
+STAND_IN void PlayerKeepOnScreen(Actor *a)
+{
+    unconverted("PlayerKeepOnScreen");
+    (void)a;
+}
+
+STAND_IN void PlayerEnter8CFrom1(void)
+{
+    unconverted("PlayerEnter8CFrom1");
 }
