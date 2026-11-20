@@ -50,6 +50,35 @@ PlayerGroundSnapHurt:
     sta.w !V_0013
     rts
 
+; @routine 81:DCE4 PlayerOutOfWallsLedgeHurt
+; WHAT IT DOES: PlayerOutOfWallsHurt for a hang: moves Aladdin out of a
+; wall in front of him; when the ground last probed hurts him, puts him
+; into state $8C and on at the knockback from a ledge. Nothing in the
+; game calls it: no JSR, JMP, JSL or JML names 81:DCE4, no word in bank
+; $81 does, and the branches that seem to (81:DD23, 81:DD74) are operand
+; bytes; unit_out_of_walls_ledge calls it at its own entry.
+; HOW: ActorOutOfWalls; ACTOR_08 bit 7 or bit 4 set, or TILE_BEHAVIOUR
+; bit 5 clear: back, by the RTS that ends PlayerOutOfWallsHurt (81:DD1D).
+; Else PlayerEnter8CLong, the call's return address dropped (PLA PLA) and
+; on at PlayerKnockbackFromLedge (81:DAEB).
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by
+; JSR. Exit: M and X as ActorOutOfWalls left them; A low, N and Z as the
+; last test left them. Hurt: never returns.
+%at($81DCE4)
+PlayerOutOfWallsLedgeHurt:
+    jsl.l ActorOutOfWalls
+    lda.b !actor_08
+    bmi PlayerOutOfWallsHurt_back
+    bit.b #$10
+    bne PlayerOutOfWallsHurt_back
+    lda.w !TILE_BEHAVIOUR
+    bit.b #!TILE_HURTS
+    beq PlayerOutOfWallsHurt_back
+    jsl.l PlayerEnter8CLong
+    pla
+    pla
+    jmp.w PlayerKnockbackFromLedge
+
 ; @routine 81:DD01 PlayerOutOfWallsHurt
 ; WHAT IT DOES: Moves Aladdin out of a wall in front of him; when the
 ; ground last probed hurts him, puts him into state $8C and starts his

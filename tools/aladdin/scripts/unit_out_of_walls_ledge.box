@@ -1,0 +1,14 @@
+# PlayerOutOfWallsLedgeHurt (81:DCE4), which nothing in the game calls: unit
+# calls at its entry by JSR, M and X 8-bit, DB $80, D the player's record,
+# in the first level 10 frames in (Aladdin standing, no wall in front, the
+# ground not hurting), the machine put back after each: with ACTOR_08
+# ($08E3) bit 7 set, with bit 4 set, and with it 0 (TILE_BEHAVIOUR bit 5
+# clear): each back by PlayerOutOfWallsHurt's RTS (81:DD1D).
+load build/aladdin/states/level1.state
+wait 10
+set 0008E3 80
+call 81DCE4 p=30 db=80 d=08DB
+set 0008E3 10
+call 81DCE4 p=30 db=80 d=08DB
+set 0008E3 00
+call 81DCE4 p=30 db=80 d=08DB

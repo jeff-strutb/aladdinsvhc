@@ -22,6 +22,7 @@ void abi_ActorSettleOnFloor(void);
 #define ACTOR_PROBE_AT 0x18u        /* the probe the ground tests use */
 #define V_0013 0x0013u              /* set to 1 instead while V_1428 is set */
 #define PLAYER_CODE 0x81DADDu       /* PlayerKnockback: the player's code in state $8C */
+#define KNOCKBACK_FROM_LEDGE 0x81DAEBu /* PlayerKnockbackFromLedge */
 
 /* Hurt by the ground: not when bit 7 or bit 4 of ACTOR_08 is set (A
    tests them); else the tile's behaviour bit 5. */
@@ -86,6 +87,45 @@ void abi_PlayerGroundSnapHurt(void)
 {
     if (ground_snap_hurt())
         actor_leave(PLAYER_CODE);
+}
+
+/*
+ * @routine 81:DCE4 PlayerOutOfWallsLedgeHurt
+ * WHAT IT DOES: PlayerOutOfWallsHurt for a hang: moves Aladdin out of a
+ * wall in front of him; when the ground last probed hurts him, puts him
+ * into state $8C and on at the knockback from a ledge. Nothing in the
+ * game calls it: no JSR, JMP, JSL or JML names 81:DCE4, no word in bank
+ * $81 does, and the branches that seem to (81:DD23, 81:DD74) are operand
+ * bytes; unit_out_of_walls_ledge calls it at its own entry.
+ * HOW: ActorOutOfWalls; ACTOR_08 bit 7 or bit 4 set, or TILE_BEHAVIOUR
+ * bit 5 clear: back, by the RTS that ends PlayerOutOfWallsHurt (81:DD1D).
+ * Else PlayerEnter8CLong, the call's return address dropped (PLA PLA) and
+ * on at PlayerKnockbackFromLedge (81:DAEB).
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by
+ * JSR. Exit: M and X as ActorOutOfWalls left them; A low, N and Z as the
+ * last test left them. Hurt: never returns.
+ */
+void abi_PlayerOutOfWallsLedgeHurt(void)
+{
+    jsl_frame(0x81DCE4u);
+    abi_ActorOutOfWalls();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    lda8(ea_dp(ACTOR_08));
+    if (IF_N)
+        return;
+    bit8_v(0x10);
+    if (!IF_Z)
+        return;
+    lda8(ea_abs(TILE_BEHAVIOUR));
+    bit8_v(TILE_HURTS);
+    if (IF_Z)
+        return;
+    jsl_frame(0x81DCF7u);
+    abi_PlayerEnter8CLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    pla8();
+    pla8();
+    actor_leave(KNOCKBACK_FROM_LEDGE);          /* JMP */
 }
 
 uint32_t out_of_walls_hurt(void)
