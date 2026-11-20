@@ -15,6 +15,7 @@
    on in kind $6C's code, so its points stay apart from kind $66's */
 #define KIND6C_RESUME 0x100
 
+int Kind08Start(Actor *a);      /* 83:9205: the second guard (guard_start.c) */
 int Kind20Start(Actor *a);      /* 83:97AF: the guard (and 83:9C19 Kind20Hit, 83:9C49 Kind20Dazed) */
 int Kind30Start(Actor *a);      /* 83:B684: the pickups */
 int Kind34Start(Actor *a);      /* 83:BB97 */
@@ -32,6 +33,7 @@ uint8_t Kind5DParentGone(const Actor *a);   /* 83:E3C1 (83:E3BD Long, kind $8B's
 
 /* ---- wait routines (kind_waits.c; each: ACTOR_GOES_ON or ACTOR_ENDED) ---- */
 
+int ActorKind08Wait(Actor *a);  /* 83:9209: kind $08's (guard_states.c) */
 int ActorWaitTurnAnim08(Actor *a);  /* 83:9C06: kind $20's (kind20.c) */
 int Kind5CWait(Actor *a);       /* 83:E1EE: kind $5C's (kind5c.c) */
 int ActorKind87Wait(Actor *a);  /* 83:9310 (83:F991 KindWaitF991): kind $87's (kind87.c) */

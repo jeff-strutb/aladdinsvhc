@@ -57,4 +57,14 @@ DataRef k87_child_probes(void); /* a child's */
 int16_t k87_shake_x(uint8_t step);      /* the shake's step 1-8: its move across, pixels */
 uint8_t k87_child_wait(uint8_t n);      /* child $07 1-5: frames it waits its turn (0 none) */
 
+/* ---- kind $08, the guard ---- */
+
+DataRef k08_probes(void);       /* its probe list */
+DataRef k08_pictures(void);     /* its picture list */
+/* the point its look ahead tests: by `at` (its speed's middle byte and its
+   facing, a byte offset of words), its x and y offsets */
+uint16_t k08_step_x(uint8_t at);
+uint16_t k08_step_y(uint8_t at);
+uint8_t k08_jump_motion(uint8_t left);  /* its jump up's motion preset by the probes left */
+
 #endif

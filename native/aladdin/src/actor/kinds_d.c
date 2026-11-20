@@ -9,6 +9,7 @@
 #include "actor/kinds_d.h"
 
 const KindCode kinds_d[] = {
+    { 0x08, Kind08Start, NULL, NULL, ActorKind08Wait },   /* $07 1-11 but the guard's: other code, not converted (reported) */
     { 0x20, Kind20Start, Kind20Start, Kind20Start, ActorWaitTurnAnim08 },
     { 0x30, Kind30Start, Kind30Start, NULL, Kind30Wait },
     { 0x34, Kind34Start, Kind34Start, NULL, NULL },             /* wait 83:BBF1 Kind34Wait: its flags never ask for it */

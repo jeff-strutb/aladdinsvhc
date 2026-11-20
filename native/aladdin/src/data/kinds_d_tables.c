@@ -75,3 +75,13 @@ int16_t k87_shake_x(uint8_t step)
 
 /* $80:D859: by a child's $07, its turn's frames (0, 6, 12, 6, 12 for 1-5) */
 uint8_t k87_child_wait(uint8_t n) { return at8(0x80, (uint16_t)(0xD859 + n)); }
+
+/* ---- kind $08 (A5:E515 GuardStart, A5:EAE6 GuardStepAhead, A5:F19D
+   GuardLedgeJump): read in bank $80 (the same offsets in bank $A5 are not
+   these tables: its speeds and points there make no sense) ---- */
+
+DataRef k08_probes(void) { return ref(0x80, 0xCF8F); }
+DataRef k08_pictures(void) { return ref(0x80, 0x8909); }
+uint16_t k08_step_x(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xCFF4 + at))); }
+uint16_t k08_step_y(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xD010 + at))); }
+uint8_t k08_jump_motion(uint8_t left) { return at8(0x80, (uint16_t)(0xD054 + left)); }

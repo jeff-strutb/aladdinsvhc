@@ -207,6 +207,14 @@ unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
 
 /* wanted */
 
+/* (n5-kinds-d, for kind $08; actors A's actor_fields.c, anim_pick.c, actor_anim_tile.c, rise_fall.c) */
+void ActorSpeedXFromA5(Actor *a, uint8_t at);       /* A5:EA93: its speed across from the table at $80:CFB7, entry `at` */
+void ActorSpeedYFromA5(Actor *a, uint8_t at);       /* A5:EAA3: its speed down from the table at $80:CFCF */
+void ActorAnimChange(Actor *a, uint8_t anim);       /* A5:EA15: animation `anim`, unless it plays it already */
+void ActorAnimByTile(Actor *a, uint8_t behaviour);  /* A5:E9D2: its animation by the tile under it (`behaviour`, the last
+                                                       ground test's) and its speed */
+void ActorAnimRiseFall(Actor *a);                   /* A5:EA20: animation $0C rising, $0E falling */
+
 /* (n5-kinds-d, for kind $5D; actor_moves.c) */
 void ActorKeepSpot(Actor *a);           /* 81:9D56: its x and y pixels kept (its +$4C, +$4E), for PlayerMoveWithActor */
 
