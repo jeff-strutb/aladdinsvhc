@@ -100,4 +100,9 @@ uint16_t palette_cycle_frame16(uint16_t at);    /* the word at $84:E004 + at */
    0-$80 (even): 65 entries of a quarter turn, the value in its top 12 bits */
 uint16_t rotate_sine_word(unsigned at);
 
+/* palettes of 16 colours: the actors' at $84:B000 (ActorPaletteFromRom),
+   the screens' at $87:FF40 (PaletteFromRom); colour i of palette n */
+uint16_t actor_palette_colour(uint8_t n, unsigned i);
+uint16_t rom_palette_colour(uint8_t n, unsigned i);
+
 #endif

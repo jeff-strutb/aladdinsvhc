@@ -157,3 +157,11 @@ uint16_t palette_cycle_frame16(uint16_t at) { return cart16(cart_offset(PALETTE_
 #define ROTATE_SINES_ADDR 0x87D3
 
 uint16_t rotate_sine_word(unsigned at) { return cart16(cart_offset(ROTATE_SINES_BANK, (uint16_t)(ROTATE_SINES_ADDR + at))); }
+
+#define ACTOR_PALETTES_BANK 0x84
+#define ACTOR_PALETTES_ADDR 0xB000
+#define ROM_PALETTES_BANK 0x87
+#define ROM_PALETTES_ADDR 0xFF40
+
+uint16_t actor_palette_colour(uint8_t n, unsigned i) { return cart16(cart_offset(ACTOR_PALETTES_BANK, (uint16_t)(ACTOR_PALETTES_ADDR + 32u * n + 2u * i))); }
+uint16_t rom_palette_colour(uint8_t n, unsigned i) { return cart16(cart_offset(ROM_PALETTES_BANK, (uint16_t)(ROM_PALETTES_ADDR + 32u * n + 2u * i))); }
