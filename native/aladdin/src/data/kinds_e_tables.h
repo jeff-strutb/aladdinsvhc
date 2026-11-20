@@ -14,6 +14,7 @@
    own pictures from) ---- */
 
 DataRef k21_pictures(void);     /* kind $21's */
+DataRef k98_pictures(void);     /* kind $98's */
 
 /* ---- kind $2E, level 5's closing scene ---- */
 
@@ -25,6 +26,7 @@ uint16_t k2e_beside_y(uint8_t at);
 /* ---- probe lists (an actor's +$16: the map's probes read them) ---- */
 
 DataRef k31_probes(void);       /* kind $31's */
+DataRef k98_probes(void);       /* kind $98's */
 
 /* ---- kind $35, the gem ---- */
 

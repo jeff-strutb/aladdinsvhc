@@ -20,6 +20,7 @@ static DataRef ref(uint8_t bank, uint16_t addr) { DataRef r = { cart_offset(bank
    settled (data/NOTES): until then the word reads 0. ---- */
 
 DataRef k21_pictures(void) { return ref(0x80, 0x8909); }
+DataRef k98_pictures(void) { return ref(0x80, 0x891B); }   /* the traces read $80:891B as data, $81:891B never */
 
 /* ---- kind $2E: the offsets at $80:D152 (x) and $80:D160 (y), words by
    Aladdin's frame times 2 (the record's comment says bank $83: the traces
@@ -38,3 +39,4 @@ uint16_t k35_set_bit(uint8_t at) { return at16(0x80, (uint16_t)(0xD1B6 + at)); }
    kinds run with, $80 (the traces read $80:D18B on as data) ---- */
 
 DataRef k31_probes(void) { return ref(0x80, 0xD18B); }
+DataRef k98_probes(void) { return ref(0x80, 0xD90A); }
