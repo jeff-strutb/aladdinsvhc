@@ -4,14 +4,16 @@
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
+#include "player/player.h"
 
 #define LEFT OWN_40             /* frames left of its showing */
 
 /*
  * @routine 83:E465 Kind5FStart
  * WHAT IT DOES: Actor kind $5F: shows animation $07 for 31 frames, then
- * ends for good. (Its second entry and wait, 83:E480 GroundPushMark, are
- * the player's code: left aside.)
+ * ends for good. (Its second entry is 83:E480 GroundPushMark, the player's
+ * kind $60 start: Kind5FSecond hands the record over; its wait routine
+ * there is never reached: its flags have no bit 7.)
  */
 int Kind5FStart(Actor *a)
 {
@@ -24,4 +26,11 @@ int Kind5FStart(Actor *a)
     }
     AnimStep(a);
     return --a->own.bytes[LEFT] ? 1 : ActorEndPlaced(a);
+}
+
+/* Kind $5F's second entry (state $80-$BF): the record goes on in kind
+   $60's code (GroundPushMark) from its start. */
+int Kind5FSecond(Actor *a)
+{
+    return ActorRunAs(a, Kind60Start, ACTOR_START);
 }

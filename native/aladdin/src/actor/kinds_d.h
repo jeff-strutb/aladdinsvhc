@@ -32,13 +32,15 @@ int Kind44Start(Actor *a);      /* 83:B45B */
 int Kind71Start(Actor *a);      /* 83:F370 */
 int Kind4BStart(Actor *a);      /* 83:CE2A */
 int Kind4EStart(Actor *a);      /* 83:CFA9 (and 83:CFC1 Kind4EBounced) */
-int Kind5FStart(Actor *a);      /* 83:E465 */
+int Kind5FStart(Actor *a);
+int Kind5FSecond(Actor *a);     /* its second entry: on in Kind60Start */      /* 83:E465 */
 int Kind84Start(Actor *a);      /* 84:95E3 */
 int Kind22Start(Actor *a);      /* 83:9CD2 (second 83:9CDE ends it) */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
 int Kind87Start(Actor *a);      /* 83:F77F: the catcher */
 int Kind5DStart(Actor *a);      /* 83:E29B: kind $5C's cloud */
-int Kind66Start(Actor *a);      /* 84:839E */
+int Kind66Start(Actor *a);
+int Kind66Second(Actor *a);     /* its second entry: on in Kind73Start */      /* 84:839E */
 int Kind6CStart(Actor *a);
 int Kind6CSecond(Actor *a);     /* its second entry: on in Kind65Start */      /* 83:E55E: the spot that holds Aladdin */
 

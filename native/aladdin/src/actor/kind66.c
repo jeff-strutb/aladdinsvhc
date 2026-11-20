@@ -3,11 +3,11 @@
  * rise when signalled, or a lift that carries Aladdin down holding him; a
  * gate that waits for its parent to end; or kind $6C's holder. Its wait
  * routine is ActorKind66Wait. Its second entry (84:8629 Kind73Start) is
- * kind $73's start too: left aside until a record can run another
- * session's kind's code (kinds-d-shared-kinds.md section 2).
+ * kind $73's start: the record goes on in kind $73's code (Kind66Second).
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
+#include "actor/kinds_e.h"
 #include "audio/sound.h"
 #include "player/player.h"
 
@@ -384,4 +384,11 @@ int ActorKind66Wait(Actor *a)
     }
     g.kind66_touched = 0;
     return ActorFreeOutOfRange(a, 0x00) ? ACTOR_ENDED : ACTOR_GOES_ON;
+}
+
+/* Kind $66's second entry (state $80-$BF): the record goes on in kind
+   $73's code from its start. */
+int Kind66Second(Actor *a)
+{
+    return ActorRunAs(a, Kind73Start, ACTOR_START);
 }

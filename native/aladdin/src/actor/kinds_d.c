@@ -26,12 +26,12 @@ const KindCode kinds_d[] = {
     { 0x71, Kind71Start, NULL, NULL, Kind71Wait },   /* second 83:F40C: no routine there */
     { 0x4B, Kind4BStart, NULL, NULL, NULL },   /* second and wait are kind $4D's start in the table: its flags never run a wait */
     { 0x4E, Kind4EStart, NULL, NULL, Kind4EWait },
-    { 0x5F, Kind5FStart, NULL, NULL, NULL },   /* second and wait 83:E480 GroundPushMark: the player's, left aside */
+    { 0x5F, Kind5FStart, Kind5FSecond, NULL, NULL },
     { 0x84, Kind84Start, NULL, NULL, ActorKind84Wait },
     { 0x22, Kind22Start, Kind22Start, NULL, Kind22Wait },
     { 0x5C, Kind5CStart, Kind5CStart, NULL, Kind5CWait },
     { 0x5D, Kind5DStart, NULL, NULL, Kind5DWait },   /* second 83:E352 is its wait routine as code: never reached found */
-    { 0x66, Kind66Start, NULL, NULL, ActorKind66Wait },   /* left aside: second 84:8629 Kind73Start (kind $73's start) */
+    { 0x66, Kind66Start, Kind66Second, NULL, ActorKind66Wait },
     { 0x6C, Kind6CStart, Kind6CSecond, NULL, ActorWaitRange00 },
     { 0x87, Kind87Start, NULL, NULL, ActorKind87Wait },   /* left aside: second 83:F9BA LandingPad (kind $8A's too) */
     { 0xA4, KindA4Start, NULL, NULL, ActorKindA4Wait },
