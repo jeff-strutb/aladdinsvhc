@@ -636,6 +636,24 @@ void abi_PlayerSprung(void)
 }
 
 /*
+ * @routine 81:D992 PlayerCarried
+ * @actor
+ * WHAT IT DOES: Aladdin carried by kind $2C (the ride): its pose $1A, and
+ * he waits for good while it moves him, until it sets his code again.
+ * HOW: PlayerMoveStart $1A; then a BRK each frame for good.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where Kind2CStart set his resume address
+ * (K2C_RIDE_CODE). Exit: never returns.
+ */
+void abi_PlayerCarried(void)
+{
+    lda8_v(0x1A);
+    call_frame(0xD996, abi_PlayerMoveStart);
+    for (;;)
+        actor_yield(0x81D997u);
+}
+
+/*
  * @routine 81:D99B PlayerGrabbedHang
  * @actor
  * WHAT IT DOES: Aladdin taken hold of by an actor he hangs from (the

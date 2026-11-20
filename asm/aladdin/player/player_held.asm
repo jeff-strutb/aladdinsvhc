@@ -534,6 +534,22 @@ PlayerSprung:
     beq .frame
     jmp.w PlayerLand
 
+; @routine 81:D992 PlayerCarried
+; @actor
+; WHAT IT DOES: Aladdin carried by kind $2C (the ride): its pose $1A, and
+; he waits for good while it moves him, until it sets his code again.
+; HOW: PlayerMoveStart $1A; then a BRK each frame for good.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI where Kind2CStart set his resume address
+; (K2C_RIDE_CODE). Exit: never returns.
+%at($81D992)
+PlayerCarried:
+    lda.b #$1A
+    jsr.w PlayerMoveStart
+.frame:
+    brk.b #$00
+    bra .frame
+
 ; @routine 81:D99B PlayerGrabbedHang
 ; @actor
 ; WHAT IT DOES: Aladdin taken hold of by an actor he hangs from (the
