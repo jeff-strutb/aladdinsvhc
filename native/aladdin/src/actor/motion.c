@@ -10,13 +10,22 @@
  * @routine 81:A3DD ActorMotionPreset
  * WHAT IT DOES: Gives the actor the speeds and gravity of motion preset
  * `preset`: a jump or a throw's arc.
- * Also 81:A3EC ActorMotionPresetY, its vertical half.
  */
 void ActorMotionPreset(Actor *a, uint8_t preset)
 {
+    a->speed_x = signed24(motion_preset(preset).speed_x);
+    ActorMotionPresetY(a, preset);
+}
+
+/*
+ * @routine 81:A3EC ActorMotionPresetY
+ * WHAT IT DOES: Gives the actor the vertical speed and gravity of motion
+ * preset `preset`.
+ */
+void ActorMotionPresetY(Actor *a, uint8_t preset)
+{
     MotionPreset m = motion_preset(preset);
 
-    a->speed_x = signed24(m.speed_x);
     a->speed_y = signed24(m.speed_y);
     a->accel_y = m.gravity;
 }

@@ -84,7 +84,9 @@ ActorWaitCode actor_kind_wait(uint8_t kind)
     static uint8_t told[256];
     const KindCode *k = find(kind);
 
-    if (!k && !told[kind]++)
+    /* asked for only when its flags' bit 7 wants one: a kind with no row, or a
+       row with no wait routine, has none converted */
+    if ((!k || !k->wait) && !told[kind]++)
         fprintf(stderr, "actor kind $%02X: its wait routine not converted\n", kind);
     return k ? k->wait : NULL;
 }

@@ -129,6 +129,7 @@ int ActorFreeListSortHigh(uint8_t passes);  /* 81:ADFC: highest on top; -1 none 
 int ActorFreeListTake(uint8_t count);       /* 81:AE38: the first taken's place in g.free_pool; -1 too few */
 
 void ActorMotionPreset(Actor *a, uint8_t preset);   /* 81:A3DD */
+void ActorMotionPresetY(Actor *a, uint8_t preset);  /* 81:A3EC: its vertical speed and gravity alone */
 void ActorSpeedXSet(Actor *a, uint8_t at);          /* 81:A413 */
 void ActorSpeedYSet(Actor *a, uint8_t at);          /* 81:A425 */
 void ActorSpeedXFrom84(Actor *a, uint8_t at);       /* 84:9ED0 (its table read in bank $80: actor_tables.c) */
