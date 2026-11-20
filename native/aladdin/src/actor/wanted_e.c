@@ -31,38 +31,8 @@
 
 
 
-__attribute__((weak)) int ChainPieceEnd(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ChainPieceEnd (84:8ADE)");
-    return 1;
-}
 
-__attribute__((weak)) void ActorStartBy40(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorStartBy40 (84:8D8F)");
-}
 
-__attribute__((weak)) void ActorAnimBy40(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorAnimBy40 (84:8A48)");
-}
 
-__attribute__((weak)) void ActorLookFlash(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorLookFlash (84:8E3C)");
-}
 
-__attribute__((weak)) void PaletteFlash(void)
-{
-    TELL_ONCE("PaletteFlash (84:8E56)");
-}
 
-__attribute__((weak)) void ActorParityBitsSet(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorParityBitsSet (84:8CD2)");
-}
