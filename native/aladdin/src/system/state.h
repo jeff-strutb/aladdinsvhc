@@ -610,6 +610,15 @@ typedef struct GameState {
     uint8_t scene_cue_waited;   /* $00C2: counted up by a scripted actor when it has waited (kind $70's hit one, after $80 frames) */
     uint8_t scripted_cue;       /* $146C: counted up by scripted actors as the scene goes on (player/land_on_actor.c uses the word as a record mark) */
     uint8_t scene_go_on;        /* $1B1F: kind $81's scene goes on once it is nonzero (kind $76 counts it up) */
+    uint8_t chain_go;           /* $1B18: nonzero once the chain is built: its pieces (and the head, kind $73) start */
+    uint8_t chain_round_or;     /* $1B1E: ORed with the round for the chain's pick lists (kind $73 sets 4 once hurt past 4) */
+    uint8_t head_anim;          /* $1B20: the animation the chain's head should show */
+    uint8_t head_anim_shown;    /* $1B21: the animation it was last started on */
+    uint8_t head_cue;           /* $1B22: counted up when the head is done with its own turn (for the chain's piece) */
+    uint8_t head_hit_frames;    /* $1B29: frames left of the head's show of being struck; its flash phase (bit 0) */
+    uint8_t head_flash;         /* $1B2A: frames left of its flash; at 0 +$08 bits 4 and 7 cleared */
+    uint8_t chain_untouchable;  /* $1B2C: nonzero: no touch tests on the head */
+    uint8_t head_pose;          /* $1B35: index (by 4) of the touch place's offsets for the head's pose */
     uint8_t chain_head_struck;  /* $1B2B in play: counted up each time kind $73 (the chain's head) is struck below 0; nonzero,
                                    kind $A1 goes down untested (the player's fall check reads the same byte) */
     uint8_t boss_beaten;        /* $1B14 in play: kind $98 clears it as it starts and counts it up when beaten (the options

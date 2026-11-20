@@ -258,4 +258,11 @@ bool ActorClampAboveFloor12(Actor *a);      /* 84:8F2F (with 84:8F3C ActorClampA
                                                line at its x (the table at $7E:DFC0); true when it reached it (moved up onto it) */
 /* (n5-kinds-e, for kinds $61 and $64; wait_step.c: kinds $61, $64, $6C share it) */
 int ActorWaitRange00(Actor *a);             /* 83:E5B6: a wait routine: ended once out of range by box 0 (ActorEndOutOfRange) */
+/* (n5-kinds-e, for kind $73, from n5-kinds-b's chain files and the anim files: stand-ins in actor/wanted_e.c) */
+int ChainPieceEnd(Actor *a);                /* 84:8ADE (chain_piece.c): the head goes back to what it was doing; its result is the head's */
+void ActorStartBy40(Actor *a);              /* 84:8D8F (actor_setup.c) */
+void ActorAnimBy40(Actor *a);               /* 84:8A48 (anim_pick.c) */
+void ActorLookFlash(Actor *a);              /* 84:8E3C (flash.c) */
+void PaletteFlash(void);                    /* 84:8E56 (flash.c) */
+void ActorParityBitsSet(Actor *a);          /* 84:8CD2 (actor_fields.c) */
 #endif

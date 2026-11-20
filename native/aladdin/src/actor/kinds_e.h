@@ -44,6 +44,16 @@ int Kind94Second(Actor *a);     /* kind $94's second entry: KindA8Start */
 int Kind48Start(Actor *a);      /* 83:CE14, and its second entry (83:CE22) */
 int Kind5AStart(Actor *a);      /* 83:DEBE */
 int Kind58Start(Actor *a);      /* 83:DBBB */
+int Kind73Start(Actor *a);      /* 84:8629, and its second entry Kind73Hit (84:8766); kind $66's second entry runs it (ActorRunAs) */
+
+/* kind $73's resume point for its own turn (84:8696 Kind73OwnTurn): the
+   chain's eighth piece sends the head there (g.actors[head].resume) */
+#define KIND73_OWN_TURN ACTOR_RESUME_OWN
+
+/* the steps of an actor along a path (84:8CAF, 84:8DFB): kind $73 and the
+   chain's pieces call them */
+void ActorPathStep(Actor *a);
+void ActorPathNext(Actor *a);
 int Kind98Hit(Actor *a);        /* 84:A2A6: its second entry's start */
 
 /* ---- wait routines (kind2e.c, kind35.c, kind_steps.c): ACTOR_GOES_ON, or
@@ -62,6 +72,7 @@ int Kind40Wait(Actor *a);            /* 83:C569: kind $40's wait */
 int Kind7BWait(Actor *a);            /* 83:C5D5: kind $7B's wait */
 int Kind5AWait(Actor *a);            /* 83:DEF3: kind $5A's wait */
 int Kind58Wait(Actor *a);            /* 83:DC9B: kind $58's wait */
+int Kind73Work(Actor *a);            /* 84:86F4: kind $73's wait */
 int Kind98WaitWork(Actor *a);        /* 84:A39C: kind $98's wait */
 int Kind91FreeOff(Actor *a);         /* A5:F603: kinds $91 and $92's wait */
 int KindAnimateSend(Actor *a);      /* 84:903B: kinds $21, $76 and $93's wait (A5:F3E3 and A5:F434 the same) */

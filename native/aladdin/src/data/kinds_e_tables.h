@@ -79,6 +79,20 @@ uint8_t k_a8_delay(uint8_t at);     /* the frames before it poses again, by its 
 uint8_t k58_leg(uint8_t at);        /* the frames of its first leg */
 uint8_t k58_direction(uint8_t at);  /* its direction (the vector set's index) */
 
+/* ---- kind $73, the chain's head ---- */
+
+DataRef k73_pictures(void);
+int16_t k73_touch_dx(uint8_t pose);     /* its touch place's offset from it by its pose (index by 4) */
+int16_t k73_touch_dy(uint8_t pose);
+
+/* ---- a path (ActorPathStep): its segments' words and bytes at offsets of
+   the DataRef Actor.stream names; `path_at` the same list's bank at
+   `addr` ---- */
+
+uint16_t path_word(DataRef r, unsigned off);
+uint8_t path_byte(DataRef r, unsigned off);
+DataRef path_at(DataRef r, uint16_t addr);
+
 /* ---- kind $35, the gem ---- */
 
 /* a set gem's bit in g.gem_sets_found, by `at` (its +$07's low digit, a

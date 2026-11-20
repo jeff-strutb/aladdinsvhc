@@ -45,6 +45,7 @@ const KindCode kinds_e[] = {
     { 0x48, Kind48Start, Kind48Start, NULL, AnimateWhileWaiting },
     { 0x58, Kind58Start, NULL, NULL, Kind58Wait },
     { 0x5A, Kind5AStart, NULL, NULL, Kind5AWait },
+    { 0x73, Kind73Start, Kind73Start, NULL, Kind73Work },
     { 0x97, Kind97Start, NULL, NULL, NULL },
     { 0x98, Kind98Start, Kind98Start, NULL, Kind98WaitWork },
     { 0x9E, Kind9EStart, NULL, NULL, Kind9EWaitWork },

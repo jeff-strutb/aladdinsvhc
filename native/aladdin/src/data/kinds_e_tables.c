@@ -97,3 +97,23 @@ uint8_t k_a8_delay(uint8_t at) { return at8(0x80, (uint16_t)(0xD9A6 + at)); }
 
 uint8_t k58_leg(uint8_t at) { return at8(0x80, (uint16_t)(0xD3C4 + at)); }
 uint8_t k58_direction(uint8_t at) { return at8(0x80, (uint16_t)(0xD3CA + at)); }
+
+/* ---- kind $73: its picture list's word $80:8919 and its touch offsets
+   (words, x then y, 4 bytes a pose) at $80:D7B6 (the traces read them in
+   bank $80) ---- */
+
+DataRef k73_pictures(void) { return ref(0x80, 0x8919); }
+int16_t k73_touch_dx(uint8_t pose) { return (int16_t)at16(0x80, (uint16_t)(0xD7B6 + pose)); }
+int16_t k73_touch_dy(uint8_t pose) { return (int16_t)at16(0x80, (uint16_t)(0xD7B8 + pose)); }
+
+/* ---- a path: its lists are in the bank its start entry names; an address
+   in one is in that bank ---- */
+
+uint16_t path_word(DataRef r, unsigned off) { return cart16(r.at + off); }
+uint8_t path_byte(DataRef r, unsigned off) { return cart8(r.at + off); }
+DataRef path_at(DataRef r, uint16_t addr)
+{
+    DataRef n = { (r.at & ~0x7FFFu) | (addr & 0x7FFFu) };
+
+    return n;
+}
