@@ -1,0 +1,25 @@
+# PlayerSceneLand's way to $81:CC31 (81:E024): at act 1 stage 0's end,
+# with $036C nonzero (a figure of kind $27's bit 3 touched in the stage
+# and not taken by a waiting kind $27), the scene goes on at $81:CC31,
+# which starts a kind $27 with $07 = 8 (the flying figure), in place of
+# the next part. No script touches such a figure there. Played as
+# cov_kind6b_cued.box (the end of act 1 stage 0), with $036C set to 1
+# when Aladdin is put at the boss.
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1600
