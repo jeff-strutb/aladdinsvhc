@@ -17,6 +17,8 @@ int Kind6EWait(Actor *a);
 int Kind7CStart(Actor *a);              /* kind7c.c */
 int Kind7CWait(Actor *a);
 int KindA3Shot(Actor *a);
+int Kind67Start(Actor *a);              /* kind67.c */
+int Kind67Wait(Actor *a);
 int Kind7AFly(Actor *a);                /* kind7a.c */
 int Kind7DKeepSpot(Actor *a);           /* kind7d.c */
 int Kind7DWait(Actor *a);
@@ -42,6 +44,8 @@ const KindCode kinds_a[] = {
        $62: its second entry PlatformCourseStart (course_platform.c) is left aside */
     { 0x46, Kind46Start, Kind46Start, NULL, Kind46Wait },
     { 0x62, Kind46Start, NULL, NULL, Kind62Wait },
+    /* $67: its second entry, kind $68's start, is left aside */
+    { 0x67, Kind67Start, NULL, NULL, Kind67Wait },
     { 0x6E, Kind6EStart, Kind6EStart, NULL, Kind6EWait },
     { 0x7C, Kind7CStart, Kind7CStart, NULL, Kind7CWait },
     { 0xA3, KindA3Shot, NULL, NULL, AnimateWhileWaiting },
