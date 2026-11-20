@@ -66,24 +66,26 @@ static inline uint32_t with_pixels(uint32_t v, uint16_t px) { return (v & 0xFFu)
 
 /* One kind's code, as a session registers it in its own table (kinds.c's
    own, kinds_a.c ... kinds_e.c, kinds_player.c): each table ends with a row
-   whose start and wait are both NULL. A kind is in one table only, and its
-   entries are one function (the loop resumes it there whichever entry it
-   started at): second and third name the start's function, or are NULL
-   when the record's table has no such entry. kinds.c checks both at the
-   first lookup and ends the run, naming the rows, when either is broken. */
+   whose start and wait are both NULL. A kind is in one row only (kinds.c
+   checks at the first lookup and ends the run, naming both tables). An
+   actor starts in its entry's function (a->resume ACTOR_START,
+   ACTOR_START_SECOND or ACTOR_START_THIRD) and goes on in a->code, that
+   function, after every wait, until ActorRunAs hands it to another. An
+   entry that is another kind's routine is a function of the row's own
+   session that hands over: `return ActorRunAs(a, Kind3BStart, ACTOR_START);`.
+   The wait routine goes by the kind byte, as the original's table does. */
 typedef struct KindCode {
     uint8_t kind;
     ActorCode start;            /* its code: start entry (state $0C-$7F) and every resume point */
-    ActorCode second;           /* start's function if it has a second entry (state $80-$BF; $83:8DFD/8EFD), else NULL */
-    ActorCode third;            /* start's function if it has a third (state $C0 up; $83:90A1/91A1: kinds $20, $2D, $57, $63), else NULL */
+    ActorCode second;           /* its second entry's code (state $80-$BF; $83:8DFD/8EFD), else NULL */
+    ActorCode third;            /* its third entry's code (state $C0 up; $83:90A1/91A1: kinds $20, $2D, $57, $63), else NULL */
     ActorWaitCode wait;         /* its wait routine (flags bit 7), NULL none */
 } KindCode;
 
 extern const KindCode kinds_core[], kinds_a[], kinds_b[], kinds_c[], kinds_d[], kinds_e[], kinds_player[];
 
-/* the kind's code for a start entry (ACTOR_START, _SECOND, _THIRD) or, with
-   ACTOR_RESUME_OWN, for going on where it stopped; NULL: no code for it yet
-   (reported once) */
+/* the kind's code for an entry (ACTOR_START, _SECOND, _THIRD); NULL: no
+   code for it yet (reported once) */
 ActorCode actor_kind_code(uint8_t kind, uint8_t entry);
 ActorWaitCode actor_kind_wait(uint8_t kind);                    /* NULL: none, or none yet (reported once) */
 

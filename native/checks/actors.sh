@@ -1,10 +1,13 @@
 #!/bin/sh
-# actors.sh: the native actor code against the original on the attract play
-# (native/checks/actors/check.c). Records the original's work RAM after
-# each frame of three windows of the attract play (the opening story's kind
-# $36 and $85 actors, its kind $95 and $96 actors, the title's $82 and $4A)
-# with snesbox into build/aladdin/native/actor-rec (once; about 230 MB),
-# builds the check headless and runs it on each window. Builds and runs go
+# actors.sh [DIR FIRST LAST KINDS]: the native actor code against the
+# original (native/checks/actors/check.c). With no arguments: records the
+# original's work RAM after each frame of three windows of the attract play
+# (the opening story's kind $36 and $85 actors, its kind $95 and $96 actors,
+# the title's $82 and $4A) with snesbox into build/aladdin/native/actor-rec
+# (once; about 230 MB), builds the check headless and runs it on each window
+# for the core's kinds. With arguments: builds it and runs it on the dumps
+# DIR/fNNNNN.wram from FIRST to LAST (one a frame, snesbox `dump` after each
+# `wait 1`), comparing KINDS (hex, by commas: 2E,35). Builds and runs go
 # through the CPU and memory queue ALADDIN_CPU_RUN names, with timeouts.
 # Run from the repository root.
 set -eu
@@ -16,7 +19,10 @@ nshvc="${NSHVC_ROOT:-/home/strutb/projects/strutb/nativeshvc}"
 rec="$build/aladdin/native/actor-rec"
 bdir="$build/aladdin/native/checks/actors"
 windows="3480:4400 7600:8100 9200:9600"
-if [ ! -f "$rec/f09600.wram" ]; then
+kinds=""
+if [ $# -ge 4 ]; then
+    rec="$(cd "$1" && pwd)"; windows="$2:$3"; kinds="$4"
+elif [ ! -f "$rec/f09600.wram" ]; then
     mkdir -p "$rec"
     python3 - "$rec/rec.box" $windows <<'PY'
 import sys
@@ -37,6 +43,6 @@ timeout 900 "$run" -j 4 -m 3G -- sh -c 'cmake -S "$1" -B "$2" -G Ninja -DCMAKE_B
 status=0
 for w in $windows; do
     a=${w%:*}; b=${w#*:}
-    (cd "$bdir" && timeout 300 "$run" -j 1 -m 1G -- ./aladdin_actor_check --headless --updates 1 -- "$rec" "$a" "$b") || status=1
+    (cd "$bdir" && timeout 300 "$run" -j 1 -m 1G -- ./aladdin_actor_check --headless --updates 1 -- "$rec" "$a" "$b" $kinds) || status=1
 done
 exit $status

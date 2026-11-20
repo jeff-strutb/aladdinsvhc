@@ -2,9 +2,9 @@
  * kinds.c: each actor kind's code, by kind number, in place of the
  * original's tables of entries by kind ($83:8CAB and $83:8DAB the starts,
  * $83:8DFD and $83:8EFD the second entries, $83:90A1 and $83:91A1 the third,
- * $83:8F4F and $83:904F the wait routines). A kind's code is one function
- * for all its entries; it goes on from where it stopped by its record's
- * resume point. A kind or entry not converted yet prints its number once.
+ * $83:8F4F and $83:904F the wait routines). An actor starts in its entry's
+ * code and goes on in the code that owns its resume point (Actor.code). A
+ * kind or entry not converted yet prints its number once.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,8 +27,8 @@ static const KindCode *const tables[] = { kinds_core, kinds_a, kinds_b, kinds_c,
 static const char *const table_names[] = { "kinds.c", "kinds_a.c", "kinds_b.c", "kinds_c.c", "kinds_d.c", "kinds_e.c",
                                             "kinds_player.c" };
 
-/* Every table's rows, once: a kind in two rows, or an entry that is not its
-   start's function, ends the run with each such row named. */
+/* Every table's rows, once: a kind in two rows ends the run with both
+   tables named. One row a kind; a function may serve several kinds. */
 static void tables_check(void)
 {
     const char *where[256] = { 0 };
@@ -43,11 +43,6 @@ static void tables_check(void)
                 faults++;
             }
             where[k->kind] = table_names[t];
-            if ((k->second && k->second != k->start) || (k->third && k->third != k->start)) {
-                fprintf(stderr, "actor kinds: kind $%02X in %s: its second or third entry is not its start's function\n",
-                        k->kind, table_names[t]);
-                faults++;
-            }
         }
     if (faults)
         exit(1);

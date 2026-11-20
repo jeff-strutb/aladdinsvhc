@@ -7,6 +7,8 @@
  * ended. A record whose flags have bit 7 set runs its kind's wait routine
  * each frame it waits, and after each turn of its code.
  */
+#include <stdio.h>
+
 #include "actor/actor_own.h"
 
 /* A record's turn of its code: the start entry its state picks ($0C-$7F,
@@ -25,8 +27,16 @@ static int run_record(Actor *a)
         a->resume = start;
         a->call_at = 0;                 /* no shared routine's place carried from the record's last actor */
         code = actor_kind_code(a->kind, start);
+        a->code = code;                 /* it goes on in this code until it is handed to another */
     } else {
-        code = actor_kind_code(a->kind, ACTOR_RESUME_OWN);    /* where it stopped */
+        code = a->code;                 /* where it stopped, in the code that owns its resume point */
+        if (!code) {
+            static uint8_t told[256];
+
+            /* waiting, but never started by the loop (its state set by other code) */
+            if (!told[a->kind]++)
+                fprintf(stderr, "actor kind $%02X: waiting with no code to go on in\n", a->kind);
+        }
     }
     if (!code) {
         /* no code for it yet (reported once): it stays, waiting a frame */
@@ -96,4 +106,18 @@ void ActorLoop(void)
         if (i + 1 >= ACTOR_RECORDS - ACTOR_POOL_SIZE && g.pause_block)
             return;
     }
+}
+
+/*
+ * ActorRunAs: hands the actor's record to `code`, which owns its resume
+ * point from now on (the original's jump into another routine with the
+ * record, whose saved PC then lies in that routine): a->resume = `resume`,
+ * and `code` runs now. Returns what `code` returns: its wait, or
+ * ACTOR_ENDED. A kind's own code calls it as `return ActorRunAs(...)`.
+ */
+int ActorRunAs(Actor *a, ActorCode code, uint16_t resume)
+{
+    a->code = code;
+    a->resume = resume;
+    return code(a);
 }

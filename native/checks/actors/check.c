@@ -5,7 +5,10 @@
  * after each frame: actors.sh makes them from the attract play), from the
  * directory and frame range on its command line:
  *
- *   aladdin_actor_check --headless --updates 1 -- DIR FIRST LAST
+ *   aladdin_actor_check --headless --updates 1 -- DIR FIRST LAST [KINDS]
+ *
+ * KINDS: the kinds to compare, hex, by commas (36,95,96); the core's kinds
+ * when left out. Dumps are DIR/fNNNNN.wram, FIRST to LAST.
  *
  * The first frame's dump sets the actors' state (records, free lists,
  * kinds' graphics, animation sets and data, palette slots). Then for each
@@ -39,11 +42,14 @@ static int first, last, frame;
 static uint8_t wram[WRAM_SIZE], before[WRAM_SIZE];
 static long compared, differing;
 
-static const uint8_t converted[] = { 0x36, 0x4A, 0x82, 0x85, 0x95, 0x96 };
+static uint8_t converted[256] = { 0x36, 0x4A, 0x82, 0x85, 0x95, 0x96 };
+static unsigned converted_count = 6;
+static int custom_kinds;            /* a KINDS argument: other kinds follow the dump (follow_others) */
+static uint8_t untracked[ACTOR_RECORDS];  /* a listed kind made mid-frame by code not compared: copied, not compared */
 
 static int is_converted(uint8_t kind)
 {
-    return memchr(converted, kind, sizeof converted) != NULL;
+    return memchr(converted, kind, converted_count) != NULL;
 }
 
 static void load(int f, uint8_t *w)
@@ -85,6 +91,7 @@ static void record_from(Actor *a, const uint8_t *w, int i)
     a->state = r[0x00];
     a->wait = r[0x01];
     a->resume = ACTOR_START;
+    a->code = NULL;                     /* set by the loop when it starts the record */
     a->kind = r[0x06];
     a->spawn_byte = r[0x07];
     a->anim_flags = r[0x08];
@@ -152,21 +159,21 @@ static void state_from(const uint8_t *w)
     memcpy(g.palette_slot_kind, w + 0x15ED, 4);
 }
 
-/* ---- other areas' routines, answered from the dump and logged ---- */
+/* ---- other areas' routines, answered from the dump and logged: the
+   check links the whole game and takes these calls over with the linker's
+   --wrap (CMakeLists.txt) ---- */
 
-void unconverted(const char *name) { printf("frame %d: unconverted %s\n", frame, name); }
-
-void SoundQueueAdd(uint8_t sound) { printf("frame %d: sound $%02X\n", frame, sound); }
-void PaletteLoad(int set) { printf("frame %d: palette set $%02X\n", frame, set); }
-void TileSlotFill(uint8_t kind) { printf("frame %d: palette slot filled for kind $%02X\n", frame, kind); }
-void TaskCreate(uint8_t slot, uint8_t param, TaskEntry entry)
+void __wrap_SoundQueueAdd(uint8_t sound) { printf("frame %d: sound $%02X\n", frame, sound); }
+void __wrap_PaletteLoad(int set) { printf("frame %d: palette set $%02X\n", frame, set); }
+void __wrap_TileSlotFill(uint8_t kind) { printf("frame %d: palette slot filled for kind $%02X\n", frame, kind); }
+void __wrap_TaskCreate(uint8_t slot, uint8_t param, TaskEntry entry)
 {
     printf("frame %d: task in slot %u, parameter %u, entry %d\n", frame, slot, param, (int)entry);
 }
-int task_busy(uint8_t slot) { return before[0x006F + 0x18 * slot] != 0; }
+int __wrap_task_busy(uint8_t slot) { return before[0x006F + 0x18 * slot] != 0; }
 
 /* 82:ABCE TileSlotClaim, as the record has it, for the check */
-int TileSlotClaim(uint8_t kind, Actor *a)
+int __wrap_TileSlotClaim(uint8_t kind, Actor *a)
 {
     int x;
 
@@ -185,9 +192,13 @@ int TileSlotClaim(uint8_t kind, Actor *a)
 
 /* ---- the comparison ---- */
 
+static long differ_by_kind[256], first_differ_frame[256];
+
 static void differ(int i, const char *field, long native, long original)
 {
     differing++;
+    if (!differ_by_kind[g.actors[i].kind]++)
+        first_differ_frame[g.actors[i].kind] = frame;
     if (differing <= 40)
         printf("frame %d actor %d kind $%02X: %s native $%lX, original $%lX\n", frame, i, g.actors[i].kind, field,
                native, original);
@@ -261,7 +272,7 @@ static int made_here(int i, int after)
 
 static void made_by_others(int after)
 {
-    while (g.free_pool_top >= 0) {
+    while (g.free_pool_top >= 0 && g.free_pool[g.free_pool_top]) {
         int i = (int)(g.free_pool[g.free_pool_top] - g.actors);
         const uint8_t *r = wram + RECORD(i);
         Actor *a;
@@ -280,6 +291,8 @@ static void made_by_others(int after)
     }
     for (int i = 1; i < ACTOR_RECORDS; i++)
         if (made_here(i, after)) {
+            if (custom_kinds && !after)
+                continue;               /* made_for_kinds handles it */
             printf("frame %d: kind $%02X in actor %d, which the free list does not hand out next\n", frame, wram[RECORD(i) + 6], i);
             differing++;
         }
@@ -327,11 +340,101 @@ static void compare_pools(void)
         SAME("palette slot users", g.palette_slot_users[k], wram[0x15E9 + k]);
         SAME("palette slot kind", g.palette_slot_kind[k], wram[0x15ED + k]);
     }
-    for (k = 0; k < (int)sizeof converted; k++) {
+    for (k = 0; k < (int)converted_count; k++) {
         SAME("kind count", g.kind_count[converted[k]], wram[0xFF00 + converted[k]]);
         SAME("kind look", g.kind_look[converted[k]], w16(wram, 0x1E700 + 2 * converted[k]));
         SAME("kind slot", g.kind_slot[converted[k]], wram[0x1EB00 + converted[k]]);
     }
+}
+
+/* With a KINDS argument, before the loop: a listed kind live in the dump
+   and free here was made by other code. Made after the loop (new in the
+   dump): copied as it is, not run yet, so the loop starts it here as there.
+   Made before (run once in the dump) from a placement (+$34 not $FF): its
+   record rebuilt as ActorPlace leaves it (the record as it was before,
+   the kind, its set-up's look and palette slot from the dump, +$07, x and
+   y from the placement, new), so the loop starts it here. Made before by
+   other code: follow_others follows it. */
+static void made_for_kinds(void)
+{
+    int i;
+
+    for (i = 1; i < ACTOR_RECORDS; i++) {
+        const uint8_t *r = wram + RECORD(i);
+        Actor *a = &g.actors[i];
+
+        if (a->state || !r[0x00] || !is_converted(r[0x06]) || untracked[i])
+            continue;
+        if (r[0x00] == ACTOR_STATE_NEW) {
+            continue;                   /* made after the loop: copied after it (made_new_after) */
+        } else if (r[0x34] != 0xFF) {
+            Placement p = placement_at(w16(wram, 0x035E), r[0x34]);
+
+            record_from(a, before, i);
+            a->kind = r[0x06];
+            a->look = w16(r, 0x2B);
+            a->tile_slot = r[0x39];
+            a->spawn_byte = (uint8_t)(p.byte & 0x1F);
+            a->x = with_pixels(a->x, (uint16_t)(p.x_word & 0x3FFF));
+            a->y = with_pixels(a->y, (uint16_t)(p.y_word & 0x3FFF));
+            a->placement = r[0x34];
+            a->state = ACTOR_STATE_NEW;
+            printf("frame %d: actor %d (kind $%02X) placed from placement %u\n", frame, i, r[0x06], r[0x34]);
+        }
+    }
+}
+
+/* With a KINDS argument, after the loop: a listed kind new in the dump and
+   free here was made after the original's loop: copied as it is (not run
+   yet), so the next frame's loop starts it here as there. */
+static void made_new_after(void)
+{
+    int i;
+
+    for (i = 1; i < ACTOR_RECORDS; i++) {
+        const uint8_t *r = wram + RECORD(i);
+
+        if (!g.actors[i].state && r[0x00] == ACTOR_STATE_NEW && is_converted(r[0x06])) {
+            record_from(&g.actors[i], wram, i);
+            printf("frame %d: actor %d (kind $%02X) made new by other code: copied\n", frame, i, r[0x06]);
+        }
+    }
+}
+
+/* With a KINDS argument, after each frame: every record of a kind not
+   listed, the free lists and the kinds' counts taken from the dump, so the
+   listed kinds meet the same surroundings as in the original. A listed kind
+   that code not compared made mid-frame (live in the dump, free here, not
+   new) is copied too, and not compared until it ends. */
+static void follow_others(void)
+{
+    int i, k;
+
+    for (i = 0; i < ACTOR_RECORDS; i++) {
+        int live = wram[RECORD(i)] != 0;
+        int tracked = g.actors[i].state && is_converted(g.actors[i].kind) && !untracked[i];
+
+        if (!live)
+            untracked[i] = 0;
+        if (tracked)
+            continue;               /* the native code's own: compared above */
+        if (live && is_converted(wram[RECORD(i) + 6]) && !untracked[i]) {
+            untracked[i] = 1;
+            printf("frame %d: actor %d (kind $%02X) made by code not compared: followed, not compared\n", frame, i,
+                   wram[RECORD(i) + 6]);
+        }
+        record_from(&g.actors[i], wram, i);
+    }
+    g.free_pool_top = (int8_t)(wram[0x15E4] & 0x80 ? -1 : wram[0x15E4] / 2);
+    for (k = 0; k < ACTOR_POOL_SIZE; k++)
+        g.free_pool[k] = record_at(w16(wram, 0x15A2 + 2 * k));
+    g.free_pool_b_top = (int8_t)(wram[0x15E6] & 0x80 ? -1 : wram[0x15E6] / 2);
+    for (k = 0; k < ACTOR_POOL_B_SIZE; k++)
+        g.free_pool_b[k] = record_at(w16(wram, 0x15DA + 2 * k));
+    memcpy(g.kind_count, wram + 0xFF00, 256);
+    memcpy(g.placed, wram + 0xC600, 256);
+    memcpy(g.palette_slot_users, wram + 0x15E9, 4);
+    memcpy(g.palette_slot_kind, wram + 0x15ED, 4);
 }
 
 /* How many times the original ran FrameStep (81:8311) in this frame: its
@@ -340,8 +443,20 @@ static void compare_pools(void)
 static int frame_steps(void)
 {
     int was = before[0x147D] * 60 + before[0x147C], now = wram[0x147D] * 60 + wram[0x147C];
+    int steps = (now - was + 256 * 60) % (256 * 60), i;
 
-    return (now - was + 256 * 60) % (256 * 60);
+    /* The level's first FrameStep does not tick it: any record that shows a
+       turn of the loop (a new one started, a waiting one's count or state
+       changed) says the loop ran once */
+    if (steps == 0)
+        for (i = 0; i < ACTOR_RECORDS; i++) {
+            const uint8_t *b = before + RECORD(i), *n = wram + RECORD(i);
+
+            if ((b[0] == ACTOR_STATE_NEW && n[0] && n[0] != ACTOR_STATE_NEW)
+                || (b[0] == ACTOR_STATE_WAITING && n[0] == ACTOR_STATE_WAITING && n[1] != b[1]))
+                return -1;      /* once, as the level's first FrameStep: the loops alone */
+        }
+    return steps;
 }
 
 /* AnimSetsLoad (81:8F47) for the dumped level against what the original
@@ -387,7 +502,7 @@ static void check_anim_sets(void)
 
 static void init(void)
 {
-    int i, steps;
+    int i, steps, tail_pending = 0;
 
     data_load();
     load(first, wram);
@@ -400,20 +515,49 @@ static void init(void)
         g.range_y = w16(wram, 0x1A46);
         g.pause_block = wram[0x0404];
         freed_by_others();
-        made_by_others(0);
-        for (steps = frame_steps(); steps > 0; steps--) {
+        if (custom_kinds)
+            made_for_kinds();
+        else
+            made_by_others(0);
+        steps = frame_steps();
+        if (steps > 0 && tail_pending) {
+            /* the rest of a FrameStep whose loops ran before the last dump:
+               its ActorsInView and its play time's tick came in this frame */
+            ActorsInView();
+            steps--;
+        }
+        tail_pending = 0;
+        if (steps < 0) {
+            /* a FrameStep's loops ran before this dump and the rest of it did
+               not (the level's first: the in-view flag and the play time
+               untouched); its tail comes with the next tick */
+            PlayerLoop();
+            ActorLoop();
+            tail_pending = 1;
+        }
+        for (; steps > 0; steps--) {
             PlayerLoop();
             ActorLoop();
             ActorsInView();
         }
-        made_by_others(1);
-        compare_pools();
+        if (custom_kinds)
+            made_new_after();
+        else
+            made_by_others(1);
+        if (!custom_kinds)
+            compare_pools();
         for (i = 1; i < ACTOR_RECORDS; i++) {
-            if (is_converted(g.actors[i].kind) || is_converted(wram[RECORD(i) + 6]))
+            if (!untracked[i] && (is_converted(g.actors[i].kind) || is_converted(wram[RECORD(i) + 6])))
                 compare(i);
             g.actors[i].redraw = wram[RECORD(i) + 0x28];    /* cleared by the sprite code, not compared */
         }
+        if (custom_kinds)
+            follow_others();
     }
+    for (i = 0; i < 256; i++)
+        if (differ_by_kind[i])
+            printf("actor check: kind $%02X: %ld fields differ, the first at frame %ld\n", i, differ_by_kind[i],
+                   first_differ_frame[i]);
     printf("actor check: frames %d-%d, %ld fields compared, %ld differ\n", first + 1, last, compared, differing);
 }
 
@@ -440,6 +584,17 @@ int main(int argc, char **argv)
     dir = argv[i + 1];
     first = atoi(argv[i + 2]);
     last = atoi(argv[i + 3]);
+    if (argc - i - 1 >= 4) {
+        char *p = argv[i + 4];
+
+        converted_count = 0;
+        custom_kinds = 1;
+        while (*p && converted_count < 256) {
+            converted[converted_count++] = (uint8_t)strtoul(p, &p, 16);
+            if (*p == ',')
+                p++;
+        }
+    }
     game.title = "Aladdin actor check";
     game.id = "aladdin-actor-check";
     game.update_hz = 60;

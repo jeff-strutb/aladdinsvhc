@@ -58,6 +58,10 @@ typedef int (*ActorWaitCode)(Actor *a); /* ACTOR_GOES_ON or ACTOR_ENDED */
 void PlayerLoop(void);          /* 83:9475: actors[0]'s turn */
 void ActorLoop(void);           /* 83:94A4: actors[1..35]'s turns, in order */
 
+/* hands the record to `code` at `resume` (it owns the record's resume
+   point from now on) and runs it; returns its wait or ACTOR_ENDED */
+int ActorRunAs(Actor *a, ActorCode code, uint16_t resume);
+
 /* ---- the pool ---- */
 
 void ActorRecordsInit(void);    /* 81:AADD: every record empty, the free lists full (a level's start) */
