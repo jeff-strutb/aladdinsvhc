@@ -26,3 +26,12 @@ __attribute__((weak)) int ActorOutOfWallAt(Actor *a, uint8_t probe, MapPoint *p)
     p->behaviour = 0;
     return ActorOutOfWall(a, probe);
 }
+
+/* video's: no circle drawn (the wipe stays shut) */
+__attribute__((weak)) void CircleWipeStep(int16_t screen_x, int16_t screen_y, uint16_t radius)
+{
+    (void)screen_x;
+    (void)screen_y;
+    (void)radius;
+    TELL_ONCE("CircleWipeStep (81:...)");
+}

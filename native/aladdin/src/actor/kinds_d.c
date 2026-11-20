@@ -15,6 +15,8 @@ const KindCode kinds_d[] = {
     { 0x34, Kind34Start, Kind34Start, NULL, NULL },             /* wait 83:BBF1 Kind34Wait: its flags never ask for it */
     { 0x51, Kind51Start, Kind51Start, NULL, ActorWaitWake },
     { 0x53, Kind53Held, Kind53Held, NULL, Kind53Wait },
+    { 0x6A, Kind6AStart, Kind6AStart, NULL, Kind6AWait },
+    { 0x69, Kind69Start, Kind69Start, NULL, Kind69Wait },
     { 0x5C, Kind5CStart, Kind5CStart, NULL, Kind5CWait },
     { 0x5D, Kind5DStart, NULL, NULL, Kind5DWait },   /* second 83:E352 is its wait routine as code: never reached found */
     { 0x66, Kind66Start, NULL, NULL, ActorKind66Wait },   /* left aside: second 84:8629 Kind73Start (kind $73's start) */

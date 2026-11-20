@@ -79,4 +79,12 @@ DataRef k53_probes(void);       /* its probe list */
 int16_t k53_held_x(uint8_t frame);
 int16_t k53_held_y(uint8_t frame);
 
+/* ---- kind $6A, its spawners ---- */
+
+uint8_t k6a_pause(uint8_t spawner);     /* the frames a spawner ($07 0-3) waits between its children */
+
+/* ---- kind $69 ---- */
+
+DataRef k69_probes(void);       /* its probe list */
+
 #endif

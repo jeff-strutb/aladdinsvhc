@@ -41,7 +41,8 @@ enum {
     G_STILL,                    /* for good */
     G_CHASE_POSE,               /* A5:E812 GuardChasePose's entry */
     G_CHASE_POSE_ON,            /* after 96 frames of pose $14 */
-    G_NOT_CONVERTED             /* a start its $07 names that is other code (reported) */
+    G_NOT_CONVERTED,            /* a start its $07 names that is other code (reported) */
+    G_RESTART                   /* A5:E554 GuardRestart: its fields cleared, on by its $07 (kind $69 sends the escort here) */
 };
 
 int Kind08Start(Actor *a);              /* guard_start.c: 83:9205 Kind08Enter, A5:E515 GuardStart, A5:E554 GuardRestart */

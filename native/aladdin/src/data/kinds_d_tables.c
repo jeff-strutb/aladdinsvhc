@@ -97,3 +97,11 @@ DataRef k53_probes(void) { return ref(0x80, 0xD38C); }
 /* $80:D394, 4 bytes a frame: x then y, words */
 int16_t k53_held_x(uint8_t frame) { return (int16_t)cart16(cart_offset(0x80, (uint16_t)(0xD394 + 4u * frame))); }
 int16_t k53_held_y(uint8_t frame) { return (int16_t)cart16(cart_offset(0x80, (uint16_t)(0xD396 + 4u * frame))); }
+
+/* ---- kind $6A (83:EB5E Kind6AStart): $80:D65B, a byte by $07 ---- */
+
+uint8_t k6a_pause(uint8_t spawner) { return at8(0x80, (uint16_t)(0xD65B + spawner)); }
+
+/* ---- kind $69 (83:E9F7 Kind69Start): the word $D657 it stores at +$16 ---- */
+
+DataRef k69_probes(void) { return ref(0x80, 0xD657); }

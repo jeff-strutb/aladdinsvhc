@@ -69,6 +69,8 @@ static int restart(Actor *a)
  */
 int Kind08Start(Actor *a)
 {
+    if (a->resume == G_RESTART)
+        return restart(a);
     if (a->resume != ACTOR_START)
         return GuardPieces(a);
     g.guard_kind_times2 = (uint8_t)(a->kind << 1);
