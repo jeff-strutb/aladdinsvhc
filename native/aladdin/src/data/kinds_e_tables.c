@@ -72,3 +72,8 @@ uint8_t k55_across(uint8_t way) { return at8(0x80, (uint16_t)(0xD3B0 + way)); }
    every kind with, as the traces show for the other kinds' tables ---- */
 
 uint16_t k97_window(uint8_t at) { return at16(0x80, (uint16_t)(0xD8FE + at)); }
+
+/* ---- kind $28: its wave, $24 signed bytes at $80:D07A (the traces read
+   them in bank $80) ---- */
+
+uint8_t k28_wave(uint8_t at) { return at8(0x80, (uint16_t)(0xD07A + at)); }

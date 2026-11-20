@@ -57,6 +57,10 @@ uint8_t k55_across(uint8_t way);    /* kind $55's speed across (ActorSpeedXSet's
 #define K97_PAIR_WINDOW_B 8     /* the sender's, +$07 AND $11 zero */
 uint16_t k97_window(uint8_t at);
 
+/* ---- kind $28 ---- */
+
+uint8_t k28_wave(uint8_t at);       /* its wave: the step down (a signed byte) at place `at` (0 to $23) */
+
 /* ---- kind $35, the gem ---- */
 
 /* a set gem's bit in g.gem_sets_found, by `at` (its +$07's low digit, a
