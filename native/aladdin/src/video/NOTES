@@ -1,0 +1,50 @@
+NOTES: the routines of the record's video area (src/aladdin/video) that have
+no function of their own here, and why. Everything else converted so far has
+a function under its own @routine tag.
+
+Folded into other converted code
+--------------------------------
+  81:BB04 UnpackSetBegin, 81:BB3D UnpackBegin, 81:BB49 UnpackGroup -> data/'s unpack_graphics (unpack.c)
+  81:B9F1 LevelGraphicsLoadEnd -> unpack.c LevelGraphicsLoad
+  81:9CBE PaletteOffset -> palette.c (palette n's first colour is n * 16)
+  81:9DF9 PaletteColourStep, 81:9E06 PaletteChannelStep -> palette.c colour_step, channel_step
+  81:92EE OamDrawList, 81:9309 OamDrawActor -> oam.c draw_list, draw_actor
+  81:9F66 ColourFadeBegin, 81:9F68 ColourFadeBeginWith, 81:9F6B ColourFadeBeginKeep -> tasks.c fade_begin
+  81:9F7E ColourFadeStep -> tasks.c fade_step
+  80:84AA TextBufferPartUpload -> uploads.c text_part_upload
+  80:8899 VramListUpload -> uploads.c list_upload
+  80:8469 TextBufferUpload, 80:841E VramQueueFlush, 80:87FE TileBlockQueueFlush,
+  80:874F PaletteUploadFrom -> video.c video_vblank (PaletteUploadFrom's source is
+         never set: only source 0, the palette, is used)
+  80:8793 ScrollRegistersWrite -> scroll.c video_scroll_latch
+  80:85E2 Mode7MatrixWrite, 80:867A Mode7ElementScale -> video.c draw_mode7, mode7_scaled
+  81:B059 Mode7GraphicsConvert, 81:B07E Mode7TilesConvert, 81:B097 Mode7TileRowsConvert,
+  81:B035 VramWordsToBuffer, 81:B012 Mode7MapToBuffer, 81:AFC0 Mode7MapClear,
+  81:AFDF Mode7MapFromBuffer -> video.c video_mode7_build: the record reads the
+         tiles and map back from video memory; the caller passes them (Jeff,
+         2026-11-19)
+  81:B120 SineTableBuild -> mode7.c sine_table_build
+
+Replaced by the engine (no counterpart by intent)
+-------------------------------------------------
+  80:80F6 PpuRegistersZero: register writes; the picture is set whole in draw
+
+Dead
+----
+  81:984A DisplayShadowsClear: no JSL or JML to 81:984A, no JSR or JMP to $984A
+         in bank $81; the one $4A $98 pair there (81:C18F) is the instructions
+         XBA, LSR, TYA.
+  81:BC16 UnpackTask: its address as a long ($16 $BC $81) is nowhere in the
+         cartridge, so no task is created at it.
+  81:9EDD ColourFadeInSprites, 81:9EE4 ColourFadeInBg1, 81:9EE8 ColourFadeInBg2,
+  81:9EEC ColourFadeInBg3, 81:9EF0 ColourFadeInBg1Sprites, 81:9EF4 ColourFadeInBg1Lit,
+  81:9F2A ColourFadeInKeep, 81:9F2F ColourFadeOutSprites, 81:9F36 ColourFadeOutBg1,
+  81:9F3D ColourFadeOutBg2, 81:9F44 ColourFadeOutBg3, 81:9F4B ColourFadeOutBg1Sprites:
+         task entries; none of their addresses appears as a long anywhere in
+         the cartridge or as a word in bank $81 (the record: each runs only
+         where a unit script creates it).
+  80:851B UploadCharsets, 80:8577 UploadStepped, 80:869A UploadBlockA,
+  80:86D9 UploadBlockB: their request bytes ($082A-$082D) are written by no
+         instruction of the record but these routines' own clears (asm/aladdin
+         by name and address; the record's comment: "request flags the
+         retail game never sets"), so each finds 0 and returns.

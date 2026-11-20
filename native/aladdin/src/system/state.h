@@ -52,6 +52,10 @@ typedef struct Task {
         struct {                /* slot 0 on the title (game/title_task.c) */
             uint8_t fade;           /* $0076: the colour fade's step, counted up to 0 */
         } title;
+        struct {                /* the colour fades and the palette sequence (video/tasks.c): the register the
+                                   original kept on the task's stack across its waits, so no address (native only) */
+            int8_t step;            /* the fade's grey level, or the sequence's step */
+        } video;
     } own;
 } Task;
 
