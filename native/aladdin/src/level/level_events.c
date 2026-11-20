@@ -3,11 +3,11 @@
  * player to get somewhere, then change the backdrop, the colours or the
  * map.
  *
- * Not converted, with their proof (no code creates them; the record's own
- * notes, each run only by cov_unused_tasks.box): SoundWhileSlot1Task
- * (81:A1C0), RiserCoursesTask (81:A2D1), SoundLaterTask (81:A2FF).
+ * SoundWhileSlot1Task, RiserCoursesTask and SoundLaterTask are made by the
+ * chain pieces' fight-won scene (kind $73's code, slots 2, 3, 4).
  */
 #include "data/level_tables.h"
+#include "audio/sound.h"
 #include "level/level.h"
 #include "system/state.h"
 #include "system/task.h"
@@ -226,5 +226,82 @@ TaskRun ClimbTopTask(Task *t)
         g.screen_map.places[0x21] = (uint16_t)((g.screen_map.places[0x21] & 0x00FF) | 0xFE00);
         break;
     }
+    return task_exit(t);
+}
+
+#define FADE_SLOT 1                 /* the fades run here */
+#define SOUND_TIMER 0x4A
+#define SOUND_EVERY 0x58
+#define RISER_FIRST_WAIT 0x7F
+#define RISER_SECOND_WAIT 0x7E
+#define LATER_WAIT 0xC0
+
+/*
+ * @routine 81:A1C0 SoundWhileSlot1Task
+ * WHAT IT DOES: Plays sound $4A every 88 frames for as long as the task in
+ * slot 1 (a fade's) runs, then ends.
+ */
+TaskRun SoundWhileSlot1Task(Task *t)
+{
+    uint16_t *at = task_enter(t);
+
+    if (*at != 0) {
+        if (!task_busy(FADE_SLOT))
+            return task_exit(t);
+    }
+    *at = 1;
+    SoundQueueAdd(SOUND_TIMER);
+    return task_wait(t, SOUND_EVERY);
+}
+
+enum { RISER_START, RISER_SECOND, RISER_THIRD, RISER_WATCH };
+
+/*
+ * @routine 81:A2D1 RiserCoursesTask
+ * WHAT IT DOES: Sends kind $88's riser on course 2, after 127 frames on
+ * course 1, after 126 more on course 0, and stops sending it once the task
+ * in slot 1 (a fade's) has ended.
+ */
+TaskRun RiserCoursesTask(Task *t)
+{
+    uint16_t *at = task_enter(t);
+
+    switch (*at) {
+    case RISER_START:
+        g.riser_send = 1;
+        g.riser_course = 2;
+        *at = RISER_SECOND;
+        return task_wait(t, RISER_FIRST_WAIT);
+    case RISER_SECOND:
+        g.riser_course--;
+        *at = RISER_THIRD;
+        return task_wait(t, RISER_SECOND_WAIT);
+    case RISER_THIRD:
+        g.riser_course--;
+        *at = RISER_WATCH;
+        return task_wait(t, 1);
+    case RISER_WATCH:
+        if (task_busy(FADE_SLOT))
+            return task_wait(t, 1);
+        g.riser_send = 0;
+        break;
+    }
+    return task_exit(t);
+}
+
+/*
+ * @routine 81:A2FF SoundLaterTask
+ * WHAT IT DOES: Waits 192 frames, queues sound command $F6 with speed 1 and
+ * ends.
+ */
+TaskRun SoundLaterTask(Task *t)
+{
+    uint16_t *at = task_enter(t);
+
+    if (*at == 0) {
+        *at = 1;
+        return task_wait(t, LATER_WAIT);
+    }
+    SoundQueueF6With1();
     return task_exit(t);
 }

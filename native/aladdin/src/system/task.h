@@ -89,6 +89,9 @@ typedef enum {
     TASK_ENTRY_CLIMB_TOP,           /* 81:A30D ClimbTopTask (level/level_events.c) */
     TASK_ENTRY_BG1_WOBBLE,          /* 81:9F98 Bg1WobbleTask (video/) */
     TASK_ENTRY_SHAKE,               /* 81:A1D5 ShakeTask (video/) */
+    TASK_ENTRY_SOUND_WHILE_SLOT1,   /* 81:A1C0 SoundWhileSlot1Task (level/level_events.c) */
+    TASK_ENTRY_RISER_COURSES,       /* 81:A2D1 RiserCoursesTask (level/level_events.c) */
+    TASK_ENTRY_SOUND_LATER,         /* 81:A2FF SoundLaterTask (level/level_events.c) */
     TASK_ENTRY_CONTINUE_SCREEN,     /* 80:B2E3 ContinueScreenTask (game/) */
     TASK_ENTRY_GENIE_SCREEN,        /* 80:A63B GenieScreen (game/) */
     TASK_ENTRY_STORY_TEXT1,         /* 81:F344 StoryTextTask1 (game/story_text.c) */

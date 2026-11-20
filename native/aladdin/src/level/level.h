@@ -29,6 +29,9 @@ TaskRun BandsSpeedUpTask(Task *t);      /* 81:A0C3 */
 TaskRun GreyPastTask(Task *t);          /* 81:A128 */
 TaskRun RedOutTask(Task *t);            /* 81:A15B */
 TaskRun ClimbTopTask(Task *t);          /* 81:A30D */
+TaskRun SoundWhileSlot1Task(Task *t);   /* 81:A1C0 */
+TaskRun RiserCoursesTask(Task *t);      /* 81:A2D1 */
+TaskRun SoundLaterTask(Task *t);        /* 81:A2FF */
 
 /* level_flags.c, level_bits.c */
 uint8_t LevelFlagFromMask(uint8_t flag);    /* 83:C2F0: g.level_switch_flags[flag] = 1 when its bit is in the mask for the
