@@ -38,6 +38,7 @@ int Kind2DCode(Actor *a);       /* kind $2D: 83:A82F, 83:AA5A, 83:AA95 */
 int Kind2DStart(Actor *a);      /* 83:A82F, also kind $2C's second entry */
 int Kind2FCode(Actor *a);       /* kind $2F: 83:B4BE, 83:B643 */
 int Kind4FCode(Actor *a);       /* kind $4F: 83:D01A */
+int Kind50Code(Actor *a);       /* kind $50: 83:D109, 83:D1C7 */
 int Kind59Code(Actor *a);       /* kind $59: 83:DD10 */
 int Kind63Code(Actor *a);       /* kind $63: 84:8080, 84:81BE, 84:81CD */
 int Kind7ECode(Actor *a);       /* kind $7E: 84:91A5, its second 84:934B */
