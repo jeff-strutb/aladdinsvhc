@@ -30,7 +30,7 @@ static void fade_start(void)
 
 /* what follows the stage, by the level's byte: 0 the next part; negative
    the story card where `negative_card`; else the level's end */
-static int stage_goes_on_exec(Actor *a, bool negative_card)
+static int stage_goes_on_exec(bool negative_card)
 {
     uint8_t v = stage_goes_on(g.level);
 
@@ -38,9 +38,8 @@ static int stage_goes_on_exec(Actor *a, bool negative_card)
         TaskExecRunning(TASK_ENTRY_NEXT_PART);
         return 1;
     }
-    if (negative_card && (v & 0x80))
-        return player_unconverted(a, "TaskExec StoryCardTask (81:F10D): no TaskEntry id yet");
-    return player_unconverted(a, "TaskExec LevelEndTask (81:F61D): no TaskEntry id yet");
+    TaskExecRunning(negative_card && (v & 0x80) ? TASK_ENTRY_STORY_CARD : TASK_ENTRY_LEVEL_END);
+    return 1;
 }
 
 /*
@@ -85,9 +84,8 @@ static int escort_fade(Actor *a)
         set_x_pixels(a, EXIT_X_MAX);
     if (task_busy(FADE_SLOT))
         return 1;
-    if (stage_goes_on(g.level))
-        return player_unconverted(a, "TaskExec LevelEndTask (81:F61D): no TaskEntry id yet");
-    return player_unconverted(a, "TaskExec StoryCardTask (81:F10D): no TaskEntry id yet");
+    TaskExecRunning(stage_goes_on(g.level) ? TASK_ENTRY_LEVEL_END : TASK_ENTRY_STORY_CARD);
+    return 1;
 }
 
 /*
@@ -178,13 +176,13 @@ int player_exit_code(Actor *a)
     case P_STAGE_END_FADE:
         if (task_busy(FADE_SLOT))
             return 1;
-        return stage_goes_on_exec(a, false);
+        return stage_goes_on_exec(false);
     case P_SPOT_EXIT_SONG:          return spot_exit_song(a);
     case P_SPOT_EXIT_POSED:         return spot_exit_posed(a);
     case P_SPOT_EXIT_FADE:
         if (task_busy(FADE_SLOT))
             return 1;
-        return stage_goes_on_exec(a, true);
+        return stage_goes_on_exec(true);
     case P_SCENE_FIGURE_DONE:
         TaskExecRunning(TASK_ENTRY_GENIE_SCREEN);
         return 1;
