@@ -84,7 +84,7 @@ static int start(Actor *a)
     face(a);
     o->pose = 6;
     AnimStart(a, 6);
-    o->frames = (uint8_t)RandomFromList(4);
+    o->frames = (uint8_t)RandomFromList(4 / 2);   /* the original's X = 4: list 2 */
     o->top = (int8_t)RandomNext() < 0 ? 0x40 : 0x20;
     a->resume = BELOW;
     return 1;
