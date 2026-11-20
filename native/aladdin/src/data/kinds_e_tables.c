@@ -40,3 +40,14 @@ uint16_t k35_set_bit(uint8_t at) { return at16(0x80, (uint16_t)(0xD1B6 + at)); }
 
 DataRef k31_probes(void) { return ref(0x80, 0xD18B); }
 DataRef k98_probes(void) { return ref(0x80, 0xD90A); }
+
+/* ---- kind $3B's track: $80:D222 (words, x then y, 4 bytes a direction),
+   $80:D232, $80:D23A, $80:D242 (bytes); the traces read them in bank $80 ---- */
+
+static uint8_t at8(uint8_t bank, uint16_t addr) { return cart8(cart_offset(bank, addr)); }
+
+uint16_t k3b_ahead_x(uint8_t at) { return at16(0x80, (uint16_t)(0xD222 + at)); }
+uint16_t k3b_ahead_y(uint8_t at) { return at16(0x80, (uint16_t)(0xD224 + at)); }
+uint8_t k3b_turn(uint8_t at) { return at8(0x80, (uint16_t)(0xD232 + at)); }
+uint8_t k3b_spot_dir(uint8_t at) { return at8(0x80, (uint16_t)(0xD23A + at)); }
+uint8_t k3b_spot_turn(uint8_t at) { return at8(0x80, (uint16_t)(0xD242 + at)); }

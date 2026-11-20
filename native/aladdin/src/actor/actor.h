@@ -231,4 +231,11 @@ bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up);  /* 8
 /* (player/) */
 /* 81:A9E9: a child of `kind` at the spawner's spawn point, sharing its animated-tile slot, started at its next turn; NULL none free */
 Actor *ActorSpawnShared(Actor *spawner, uint8_t kind);
+/* (n5-kinds-e, for kind $3B; player_carry.c) */
+void ActorStepCarry(Actor *a);              /* 83:C1EC: a step along its facing (vector set $0E), carrying the player riding it */
+void ActorStepToTargetCarry(Actor *a);      /* 83:C1F6: a step (vector set 8) on each axis toward its target, the pixel words
+                                               of its speed_x and speed_y (the original's $1A, $1E), carrying the player */
+void ActorLiftPlayerStep(Actor *a, uint8_t offset);  /* 83:FB57: by its +$44: 0 and ActorGrabTest finds him, his code to his
+                                               lift (PLAYER_AT_*) and he is placed on it, +$44 up; negative, up; positive, kept on it
+                                               while g.player_no_actor_landing, else +$44 = $F0 */
 #endif

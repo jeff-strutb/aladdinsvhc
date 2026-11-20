@@ -22,6 +22,7 @@ const KindCode kinds_e[] = {
     { 0x2E, Kind2EStart, NULL, NULL, ActorWaitEndLowKinds },
     { 0x31, Kind31Start, Kind31Start, NULL, Kind31Wait },
     { 0x35, Kind35Start, Kind35Start, NULL, ActorWaitAnimEnd10 },
+    { 0x3B, Kind3BStart, Kind3BStart, NULL, Kind3BWait },
     { 0x98, Kind98Start, Kind98Start, NULL, Kind98WaitWork },
     { 0, NULL, NULL, NULL, NULL }
 };

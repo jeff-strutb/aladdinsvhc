@@ -35,4 +35,9 @@ void SequencesStep(void);               /* 81:EC23 */
 /* (player/: level/level_tables.c's) */
 void Level035CSet(void);                /* 81:878B: g.progress_sequence and g.progress_stage from the level's entry (the table at $81:B933) */
 
+/* (n5-kinds-e, for kind $3B; level_flags.c) */
+uint8_t LevelFlagFromMask(uint8_t flag);    /* 83:C2F0: g.level_switch_flags[flag] = 1 when its bit is in the mask for the
+                                               stage, else 0; returns it */
+int LevelFlagSpotFind(uint16_t x, uint16_t y);  /* 83:C2A9: the flag of the level's flagged spot at (x, y) (each rounded down
+                                               to 8), -1 none (the original's C set); its one caller is kind $3B */
 #endif

@@ -548,6 +548,8 @@ typedef struct GameState {
     uint8_t player_flags;       /* $0347: bit 0 no hurt from the ground; bit 1 set in state $8C; bit 7 a ride */
     uint8_t level_marks_taken;  /* $0358: a bit per level whose health mark was taken */
     uint8_t level_flags;        /* $0359: eight flags the level's actors set */
+    uint8_t level_switch_flags[8]; /* $7E:F260: eight level flags kind $3B's switches toggle and its markers show (bit 7:
+                                   an actor marked it) */
     uint8_t opened_flags;       /* $035A: flags of things already opened */
     uint8_t progress_sequence;  /* $035C: the progress sequence (an offset in the progress table) */
     uint8_t progress_stage;     /* $035D: the stage in it */
