@@ -79,35 +79,10 @@ PLACEHOLDER int PlayerSceneCode(Actor *a)
 }
 
 
-PLACEHOLDER TaskRun CameraTriggerTask(Task *t)
-{
-    unconverted("CameraTriggerTask");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun Level03Scene(Task *t)
-{
-    unconverted("Level03Scene");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun Level05EndScene(Task *t)
-{
-    unconverted("Level05EndScene");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun Level0DScene(Task *t)
-{
-    unconverted("Level0DScene");
-    return task_exit(t);
-}
 
-PLACEHOLDER TaskRun Level10Scene(Task *t)
-{
-    unconverted("Level10Scene");
-    return task_exit(t);
-}
 
 
 

@@ -77,11 +77,11 @@ static uint16_t LevelEndColumnPlace(unsigned column, unsigned step)
  * WHAT IT DOES: The map word of the picture piece column `column` shows for
  * the part, and counts the piece.
  */
-static uint16_t LevelEndColumnTile(Task *t, unsigned column)
+static uint16_t LevelEndColumnTile(unsigned column)
 {
     uint8_t picture = level_end_picture((uint8_t)g.progress_sequence, column);
 
-    t->own.level_end.placed++;
+    g.scene_count++;
     return (uint16_t)((level_end_picture_tile(picture) << 1) | (uint16_t)level_end_column_attr(column) << 8);
 }
 
@@ -94,11 +94,11 @@ static void columns_frame(Task *t)
     for (unsigned column = 0; column < LEVEL_END_COLUMNS; column++) {
         uint8_t *step = &t->own.level_end.step[column];
 
-        if (g.end_walker_x < level_end_column_limit(column))
+        if (g.scene_walker_x < level_end_column_limit(column))
             continue;
         if (*step < 8 && !(*step & 1)) {
             uint16_t place = LevelEndColumnPlace(column, *step);
-            uint16_t tile = LevelEndColumnTile(t, column);
+            uint16_t tile = LevelEndColumnTile(column);
 
             TileBlockQueueOne(place, (uint16_t)(tile + offset_of_step[*step / 2]));
         }
@@ -158,8 +158,8 @@ TaskRun LevelEndTask(Task *t)
         ScrollStateClear();
         OamBufferClear();
         DisplayDefaults();
-        t->own.level_end.placed = 0;
-        t->own.level_end.asked = 0;
+        g.scene_count = 0;
+        g.level_end_cue = 0;
         g.gem_sets_total = (uint8_t)(g.gem_sets_total + g.gem_sets);
         g.level = END_LEVEL;
         LevelRamSetup();
@@ -221,19 +221,19 @@ TaskRun LevelEndTask(Task *t)
     case END_GROW:
         if (FrameStep())
             return task_exec_take(t);
-        if (g.end_walker_x >> 8)
+        if (g.scene_walker_x >> 8)
             return task_wait(t, 1);
-        if (g.end_walker_x >= GROW_END_X) {
+        if (g.scene_walker_x >= GROW_END_X) {
             g.paused = 0;
             for (unsigned i = 0; i < LEVEL_END_COLUMNS; i++)
                 t->own.level_end.step[i] = 0;
             *at = END_COLUMNS;
             return task_wait(t, 1);
         }
-        if (g.end_walker_x >= t->own.level_end.next_at) {
+        if (g.scene_walker_x >= t->own.level_end.next_at) {
             unsigned block = t->own.level_end.block;
 
-            t->own.level_end.placed++;
+            g.scene_count++;
             t->own.level_end.next_at = (uint8_t)(t->own.level_end.next_at + GROW_BLOCK_EVERY);
             TileBlockQueueRun((uint16_t)(2 * block + 0x4AE4), (uint16_t)(4 * block + 0x0890));
             t->own.level_end.block++;
@@ -242,9 +242,9 @@ TaskRun LevelEndTask(Task *t)
     case END_COLUMNS:
         if (FrameStep())
             return task_exec_take(t);
-        if ((g.end_walker_x >> 8) == 1)
+        if ((g.scene_walker_x >> 8) == 1)
             return task_wait(t, 1);
-        if (g.end_walker_x >> 8) {
+        if (g.scene_walker_x >> 8) {
             t->own.level_end.count = PAUSE_FIRST;
             *at = END_PAUSE_1;
             return task_wait(t, 1);
@@ -261,7 +261,7 @@ TaskRun LevelEndTask(Task *t)
         if (*at == END_PAUSE_1) {
             t->own.level_end.count = PAUSE_SECOND;
         } else if (*at == END_PAUSE_2) {
-            t->own.level_end.asked++;
+            g.level_end_cue++;
             t->own.level_end.count = PAUSE_THIRD;
         } else {
             *at = END_PRESS;
