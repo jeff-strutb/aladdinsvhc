@@ -103,6 +103,12 @@ void TextLayerFill(uint16_t entry);         /* 81:95B8 */
 void TextLayerClear(void);                  /* 81:95C8 */
 void VramFillMap(VideoMap map, uint16_t entry);   /* 81:95F5: the map's first 32 x 32 page (the record's $4000, $4800) */
 void TextLayoutShow(int layout);        /* 81:972D: bit 7 blanks it */
+void TextLayoutShowFirst(uint8_t layout);   /* 81:9718: and the text map's first part sent */
+void TextLayoutShowSecond(uint8_t layout);  /* 81:971F */
+void TextLayoutShowThird(uint8_t layout);   /* 81:9726 */
+void TextLayoutDrawBig(uint8_t layout);     /* 81:979A */
+void TextLayerClearFront(void);             /* 81:9607 */
+void PaletteSaveReversed(uint8_t palette);  /* 81:9CA6 */
 
 /* ---- the scroll layers (video/scroll_layer.c) ---- */
 

@@ -121,3 +121,25 @@ VramListRecord vram_list_record(DataRef list, unsigned record)
     r.more = cart8(e + 7);
     return r;
 }
+
+#define TEXT_LAYOUTS_BANK 0x82
+#define TEXT_LAYOUTS_ADDR 0xB575
+
+DataRef text_layout(uint8_t layout)
+{
+    DataRef r;
+
+    r.at = cart_offset(TEXT_LAYOUTS_BANK, cart16(cart_offset(TEXT_LAYOUTS_BANK, (uint16_t)(TEXT_LAYOUTS_ADDR + (layout & 0x7F)))));
+    return r;
+}
+
+/* within the layout's bank, as the original's 16-bit index keeps it */
+static uint32_t layout_at(DataRef at, unsigned i)
+{
+    uint32_t bank_start = at.at & ~0x7FFFu;
+
+    return bank_start | ((at.at + i) & 0x7FFFu);
+}
+
+uint8_t text_layout_byte(DataRef at, unsigned i) { return cart8(layout_at(at, i)); }
+uint16_t text_layout_word(DataRef at, unsigned i) { return (uint16_t)(cart8(layout_at(at, i)) | cart8(layout_at(at, i + 1)) << 8); }

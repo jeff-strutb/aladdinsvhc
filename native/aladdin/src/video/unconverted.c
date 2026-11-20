@@ -22,7 +22,6 @@ static void unconverted(const char *name, int *told)
 UNCONVERTED(void LayersCopyToVram(void), "LayersCopyToVram (80:8366)")
 UNCONVERTED(void LayersFill(void), "LayersFill (81:C060)")
 UNCONVERTED(void video_lines_send(uint32_t top __attribute__((unused))), "the per-line effects")
-UNCONVERTED(void TextLayoutShow(int layout __attribute__((unused))), "TextLayoutShow (81:972D)")
 UNCONVERTED(void PaletteCycleStart(uint8_t slot __attribute__((unused)), uint8_t cycle __attribute__((unused))), "PaletteCycleStart (81:EC8E)")
 
 /* another area's, wanted by video/: a weak placeholder until it lands */

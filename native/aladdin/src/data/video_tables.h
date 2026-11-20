@@ -77,4 +77,14 @@ typedef struct VramListRecord {
 DataRef vram_list_at(uint16_t word);            /* the list a sequence's word names */
 VramListRecord vram_list_record(DataRef list, unsigned record);
 
+/* the text layouts (TextLayoutDraw 81:9734, TextLayoutDrawBig 81:979A):
+   $82:B575 + layout (a byte offset, the layout's low 7 bits) gives its offset
+   in bank $82; there, runs to a 0 byte: a count byte (low 6 bits; bit 6 one
+   word repeated), the text map byte offset (word), then the words (one when
+   repeated). A big layout: a count byte (low 6 bits), the offset (word), the
+   high byte of every word, then a first tile (word) per character. */
+DataRef text_layout(uint8_t layout);
+uint8_t text_layout_byte(DataRef at, unsigned i);
+uint16_t text_layout_word(DataRef at, unsigned i);  /* the word at byte i */
+
 #endif
