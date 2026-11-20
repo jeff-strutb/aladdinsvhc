@@ -12,6 +12,18 @@
 /* kinds B's, defined in kind8a.c: kind $8A's start, which kind $87's second entry goes on in */
 int LandingPad(Actor *a);       /* 83:F9BA */
 
+/* defined elsewhere, which cross_seconds.c's second entries go on in */
+int Kind7CStart(Actor *a);      /* 84:9044 BackdropMover (kind7c.c) */
+int Kind79Rise(Actor *a);       /* 83:F541 (kind79.c) */
+
+int Kind37Wait(Actor *a);       /* 83:BD22: kind $38's wait (kind38.c) */
+
+/* second entries that are another kind's start (cross_seconds.c) */
+int Kind4DSecond(Actor *a);
+int Kind70Second(Actor *a);
+int Kind76Second(Actor *a);
+int Kind77Second(Actor *a);
+
 /* ---- the kinds' code (each: frames to wait, or ACTOR_ENDED) ---- */
 
 /* kind $6C's resume points, from here: kind $66's holder ($07 bit 4) goes

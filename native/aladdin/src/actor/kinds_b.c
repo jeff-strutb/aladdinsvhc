@@ -66,10 +66,10 @@ const KindCode kinds_b[] = {
     { 0x27, Kind27Start, Kind27Start, NULL, Kind27Wait },   /* its second entry: ActorEndPlaced, in Kind27Start */
     /* $4D: its second entry 83:CFA9 is kind $4E's start (Kind4EStart,
        n5-kinds-d's): not in this row yet (the attract demo never takes it there) */
-    { 0x4D, Kind4DStart, NULL, NULL, ActorWaitTest42Anim },
+    { 0x4D, Kind4DStart, Kind4DSecond, NULL, ActorWaitTest42Anim },
     /* $38: its wait 83:BD22 Kind37Wait is kind $37's start (n5-actors-a's):
        left aside until a record can run another kind's code */
-    { 0x38, Kind38Start, Kind38Start, NULL, NULL },
+    { 0x38, Kind38Start, Kind38Start, NULL, Kind37Wait },
     { 0x3F, Kind3FStart, Kind3FStart, NULL, Kind3FWait },
     { 0x42, Kind42Start, Kind42Start, NULL, Kind42Wait },
     { 0x43, Kind43Start, Kind43Start, NULL, Kind43Wait },
@@ -80,12 +80,12 @@ const KindCode kinds_b[] = {
     { 0x5E, Kind5EBrief, Kind5EBrief, NULL, ActorWaitAnimRange10 },
     { 0x6D, Kind6DStart, Kind6DStart, NULL, Kind6DWait },
     /* $70: its second 83:F370 is kind $71's start (Kind71Start, n5-kinds-d's): left aside */
-    { 0x70, Kind70Start, NULL, NULL, Kind70Wait },
+    { 0x70, Kind70Start, Kind70Second, NULL, Kind70Wait },
     /* $76: its second 83:928A is BackdropMover (84:9044, n5-actors-a's): left aside */
-    { 0x76, Kind76Start, NULL, NULL, KindAnimateSend },
+    { 0x76, Kind76Start, Kind76Second, NULL, KindAnimateSend },
     /* $77, $78: their second 83:F541 is kind $79's start (Kind79Rise): left aside */
-    { 0x77, Kind77Start, NULL, NULL, Kind77Wait },
-    { 0x78, Kind78Start, NULL, NULL, Kind77Wait },
+    { 0x77, Kind77Start, Kind77Second, NULL, Kind77Wait },
+    { 0x78, Kind78Start, Kind77Second, NULL, Kind77Wait },
     { 0x79, Kind79Rise, Kind79Rise, NULL, Kind79Wait },
     { 0x86, Kind86Start, Kind86Start, NULL, Kind86Wait },
     /* $8A: its second entry 83:FA4E is a lone RTS (the byte after Kind8AWait); no

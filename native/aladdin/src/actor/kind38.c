@@ -2,7 +2,8 @@
  * kind38.c: actor kind $38, which rolls along until Aladdin is close, then
  * turns to him and flies up at him; once downed (its second entry,
  * Kind37Second) it drops or flies away. Its wait routine is Kind37Wait
- * (83:BD22, kind $37's start, the actor core's).
+ * (83:BD22, here: kind $38's only; kind $37's start, which the table also
+ * names it, has no row).
  *
  * Not converted, dead (the record's own proofs):
  *   83:BEA0 Kind38StepEndOutOfRange  "Nothing in the game calls it (no JSR,
@@ -186,4 +187,34 @@ int Kind38Start(Actor *a)
     default:
         return 1;
     }
+}
+
+/*
+ * @routine 83:BD22 Kind37Wait
+ * WHAT IT DOES: The wait of kind $38 (and of kind $37, which has no row):
+ * Aladdin standing on it downs it (state $8C, its wait routine off, +$46 1);
+ * hurting him otherwise; downed by a shot, +$46 2; its animation steps;
+ * with +$45 set it ends once out of range (box $10); with it clear, once
+ * out of range (box $10) it frees the record its +$4E names, counts its
+ * maker's +$4B (the record its +$4C names) down, and ends.
+ */
+int Kind37Wait(Actor *a)
+{
+    K38Own *k = k38(a);
+
+    if (ActorBouncesOrHurtsPlayer(a) == 1) {
+        a->state |= 0x8C;
+        a->flags &= 0x7F;
+        k->hit = 1;
+    }
+    if (ActorDownedByShot(a))
+        k->hit = 2;
+    AnimStep(a);
+    if (a->own.bytes[OWN_45])
+        return ActorEndOutOfRange(a, 0x10);
+    if (ActorInRange(a, 0x10))
+        return ACTOR_GOES_ON;
+    ActorFreePlaced(&g.actors[a->own.bytes[OWN_4E] | a->own.bytes[OWN_4F] << 8]);
+    g.actors[a->own.bytes[OWN_4C] | a->own.bytes[OWN_4D] << 8].own.bytes[OWN_4B]--;
+    return ActorEndPlaced(a);
 }
