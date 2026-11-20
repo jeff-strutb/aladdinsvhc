@@ -8,7 +8,7 @@
 #include "actor/actor.h"
 #include "data/system_tables.h"
 #include "game/game.h"
-#include "level/level_tables.h"
+#include "level/level.h"
 #include "system/state.h"
 #include "system/system.h"
 #include "system/task.h"

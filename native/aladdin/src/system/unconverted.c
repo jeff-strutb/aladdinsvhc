@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "game/game.h"
+#include "level/level.h"
+#include "map/map.h"
 #include "system/unconverted.h"
 
 #define PLACEHOLDER __attribute__((weak))
@@ -73,17 +76,6 @@ PLACEHOLDER TaskRun PasswordScreen(Task *t)
     return task_exit(t);
 }
 
-PLACEHOLDER TaskRun GameStartTask(Task *t)
-{
-    unconverted("GameStartTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER TaskRun DemoTask(Task *t)
-{
-    unconverted("DemoTask");
-    return task_exit(t);
-}
 
 PLACEHOLDER void ScrollUpdate(void)
 {
@@ -113,4 +105,254 @@ PLACEHOLDER void LevelScrollLimits(void)
 PLACEHOLDER void LevelActorGraphicsLoad(void)
 {
     unconverted("LevelActorGraphicsLoad");
+}
+
+/* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
+
+PLACEHOLDER TaskRun DemoTask(Task *t)
+{
+    unconverted("DemoTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun GameStartTask(Task *t)
+{
+    unconverted("GameStartTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun NextPartTask(Task *t)
+{
+    unconverted("NextPartTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER int PlayerSceneCode(Actor *a)
+{
+    unconverted("PlayerSceneCode");
+    (void)a;
+    return 1;
+}
+
+PLACEHOLDER void TileBehaviourLoad(void)
+{
+    unconverted("TileBehaviourLoad");
+}
+
+PLACEHOLDER void TileChangeAdd(uint16_t tile, uint16_t x, uint16_t y)
+{
+    unconverted("TileChangeAdd");
+    (void)tile;
+    (void)x;
+    (void)y;
+}
+
+PLACEHOLDER uint16_t MapQuarterAt(uint16_t x, uint16_t y)
+{
+    unconverted("MapQuarterAt");
+    (void)x;
+    (void)y;
+    return 0;
+}
+
+PLACEHOLDER void ProbeAtActor(const Actor *a, MapPoint *p)
+{
+    unconverted("ProbeAtActor");
+    (void)a;
+    (void)p;
+}
+
+PLACEHOLDER void ProbeLeft(const Actor *a, MapPoint *p)
+{
+    unconverted("ProbeLeft");
+    (void)a;
+    (void)p;
+}
+
+PLACEHOLDER void ProbeRight(const Actor *a, MapPoint *p)
+{
+    unconverted("ProbeRight");
+    (void)a;
+    (void)p;
+}
+
+PLACEHOLDER uint8_t TileAt(const Actor *a, MapPoint *p)
+{
+    unconverted("TileAt");
+    (void)a;
+    (void)p;
+    return TILE_KIND_EMPTY;
+}
+
+PLACEHOLDER void SurfaceHeight(MapPoint *p, uint8_t kind)
+{
+    unconverted("SurfaceHeight");
+    (void)p;
+    (void)kind;
+}
+
+PLACEHOLDER int PointInGround(const Actor *a, MapPoint *p)
+{
+    unconverted("PointInGround");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int ActorInGround(const Actor *a, MapPoint *p)
+{
+    unconverted("ActorInGround");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int GroundRight(const Actor *a, MapPoint *p)
+{
+    unconverted("GroundRight");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int GroundLeft(const Actor *a, MapPoint *p)
+{
+    unconverted("GroundLeft");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int GroundInFront(const Actor *a, MapPoint *p)
+{
+    unconverted("GroundInFront");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int GroundBehind(const Actor *a, MapPoint *p)
+{
+    unconverted("GroundBehind");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int GroundBehindBit4(Actor *a, MapPoint *p)
+{
+    unconverted("GroundBehindBit4");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER uint8_t GroundBehindBit3(Actor *a, MapPoint *p)
+{
+    unconverted("GroundBehindBit3");
+    (void)a;
+    (void)p;
+    return 0;
+}
+
+PLACEHOLDER int ActorOutOfWall(Actor *a, uint8_t probe)
+{
+    unconverted("ActorOutOfWall");
+    (void)a;
+    (void)probe;
+    return 0;
+}
+
+PLACEHOLDER int ActorOutOfWallProbe4(Actor *a)
+{
+    unconverted("ActorOutOfWallProbe4");
+    (void)a;
+    return 0;
+}
+
+PLACEHOLDER int ActorOutOfWalls(Actor *a)
+{
+    unconverted("ActorOutOfWalls");
+    (void)a;
+    return 0;
+}
+
+PLACEHOLDER int ActorSnapToGround(Actor *a)
+{
+    unconverted("ActorSnapToGround");
+    (void)a;
+    return 0;
+}
+
+PLACEHOLDER int ActorOutOfGround(Actor *a)
+{
+    unconverted("ActorOutOfGround");
+    (void)a;
+    return 0;
+}
+
+PLACEHOLDER int ActorSettleOnFloor(Actor *a)
+{
+    unconverted("ActorSettleOnFloor");
+    (void)a;
+    return 0;
+}
+
+PLACEHOLDER int PlayerOnFirmGround(void)
+{
+    unconverted("PlayerOnFirmGround");
+    return 0;
+}
+
+PLACEHOLDER int PlayerOnFirmGroundProbe8(void)
+{
+    unconverted("PlayerOnFirmGroundProbe8");
+    return 0;
+}
+
+PLACEHOLDER int PlayerOnFirmGroundProbe4(void)
+{
+    unconverted("PlayerOnFirmGroundProbe4");
+    return 0;
+}
+
+PLACEHOLDER void LevelCompanionStart(void)
+{
+    unconverted("LevelCompanionStart");
+}
+
+PLACEHOLDER void LevelSongPlay(void)
+{
+    unconverted("LevelSongPlay");
+}
+
+PLACEHOLDER void RestartPointCheck(void)
+{
+    unconverted("RestartPointCheck");
+}
+
+PLACEHOLDER void LevelSpotsSet(void)
+{
+    unconverted("LevelSpotsSet");
+}
+
+PLACEHOLDER void LevelExitCheck(void)
+{
+    unconverted("LevelExitCheck");
+}
+
+PLACEHOLDER void LevelScreenSetup(void)
+{
+    unconverted("LevelScreenSetup");
+}
+
+PLACEHOLDER void LevelBackdropStart(void)
+{
+    unconverted("LevelBackdropStart");
+}
+
+PLACEHOLDER void ViewEdgeRuleRun(Actor *player)
+{
+    unconverted("ViewEdgeRuleRun");
+    (void)player;
 }

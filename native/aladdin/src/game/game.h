@@ -7,15 +7,33 @@
 #ifndef ALADDIN_GAME_H
 #define ALADDIN_GAME_H
 
+#include "actor/actor.h"
 #include "system/task.h"
 
 /* progress.c */
 TaskRun BootTask(Task *t);              /* 81:8000: task entry */
+TaskRun DemoTask(Task *t);              /* 81:8031: the title's task goes on as the demo's play */
+void DemoStart(void);                   /* 81:8066 (81:8062 Long): demo g.demo_number's level and input */
+TaskRun GameStartTask(Task *t);         /* 81:8095: task entry (the title's GAME START) */
+TaskRun LevelPlayStartTask(Task *t);    /* 81:80A3: play at the level the progress gives */
+TaskRun DemoPlayStart(Task *t);         /* 81:80D3 */
+void PlayStartCounts(void);             /* 81:80E0 (81:80DC Long): the random seed, full health */
+void NewGameState(void);                /* 81:8118 (81:8114 Long): a new game's counts and first level */
+void LevelFromProgress(void);           /* 81:8157: g.level from the progress sequence and stage */
+TaskRun NextPartTask(Task *t);          /* 81:8181: task entry (the story card's TaskExec) */
+
+/* play_loop.c: the game's task in play; none returns */
+TaskRun PlayLoopStart(Task *t);         /* 81:8191: the level loaded, then the loop */
+TaskRun PlayLoop(Task *t);              /* 81:82CF */
+
+/* pause.c */
+TaskRun PauseCheck(Task *t);            /* 81:8398: once a frame of play; waits while paused */
 
 /* frame_step.c, play_time.c, level_load.c */
 void FrameStep(void);                   /* 81:8311, 81:830D FrameStepLong */
 void PlayTimeTick(void);                /* 81:85CE */
 void LevelRamSetup(void);               /* 81:825F, 81:825B LevelRamSetupLong: for g.level */
+TaskRun LevelLoad(Task *t);             /* 81:81A7 (81:81A3 Long): g.level loaded and started; it waits */
 TaskRun TextCardScreen(Task *t);        /* 81:ED33 */
 
 /* logo_screen.c */
@@ -46,5 +64,10 @@ void TitleMenuCursor(void);             /* 81:EDA6, 81:EDA2 TitleMenuCursorLong 
 /* menu_mark_draw.c */
 void MenuMarkDraw(uint16_t place);      /* 81:EF39 */
 void MenuMarkMove(void);                /* 81:EE04 */
+
+/* the player's code filed in game/ (player/player.h: his resume points from
+   PLAYER_RESUME_GAME up; the scenes' PlayerSceneLand, PlayerSceneStand,
+   PlayerEndingRide); returns as PlayerCode */
+int PlayerSceneCode(Actor *a);
 
 #endif

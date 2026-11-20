@@ -39,8 +39,6 @@ void LevelNumberText(void);                 /* 80:A0B1 */
 int LevelSelect(void);                      /* 80:A05C: 1 when it changed the level (the record's C clear) */
 TaskRun OptionsTask(Task *t);               /* 83:8979 */
 TaskRun PasswordScreen(Task *t);            /* 84:AD50 */
-TaskRun GameStartTask(Task *t);             /* 81:8095 */
-TaskRun DemoTask(Task *t);                  /* 81:8031 */
 
 /* A placeholder's report: `name` printed once to stderr. */
 void unconverted(const char *name);

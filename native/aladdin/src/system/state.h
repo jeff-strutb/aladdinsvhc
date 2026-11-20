@@ -110,7 +110,9 @@ typedef struct Actor {
     uint8_t view_box;           /* +$12: its box for ActorsInView, 8 bytes a box (0, 8, 16, 24, 32) */
     uint8_t facing;             /* +$14: 0 right (x grows), else left */
     uint8_t flip;               /* +$15: the facing's opposite: bit 0 set when facing right */
-    int32_t speed_x;            /* +$19-$1B: 16.8, along the facing */
+    DataRef probes;             /* +$16-$17: its probe list (map/'s collision tests read it: map/map.h) */
+    uint8_t probe_at;           /* +$18: the probe the next test uses, a byte offset in the list (4 a probe) */
+    int32_t speed_x;          /* +$19-$1B: 16.8, along the facing */
     uint8_t accel_x;            /* +$1C: added to or taken from speed_x (fraction) */
     int32_t speed_y;            /* +$1D-$1F: 16.8, down positive */
     uint8_t accel_y;            /* +$20: gravity (fraction) */
@@ -486,6 +488,9 @@ typedef struct GameState {
     uint8_t player_box_wanted;  /* $1448 */
     uint8_t player_box;         /* $1449 */
     uint8_t player_hurt_time;   /* $03F5: frames before it can be hit again */
+    uint8_t player_hurts;       /* $141B: counted up as he enters state $8C (hurt); nonzero, no level exit */
+    uint8_t player_held;        /* $141C: nonzero while an actor holds him; no level exit then */
+    uint8_t view_edge_rule;     /* $145B: what the view's sides do to him (level/view_edges.c: 0-4) */
     uint8_t health;             /* $0367 */
 
     /* -- game: progress -- */
@@ -533,6 +538,10 @@ typedef struct GameState {
     uint8_t menu_cursor_moves;  /* $084B: counted up at each move of the cursor */
     uint16_t range_x;           /* $1A44: the point actors are kept in range of (FrameStep: the view's corner + $80) */
     uint16_t range_y;           /* $1A46 */
+    uint16_t demo_frames_left;  /* $0341: frames the demo still plays */
+    uint8_t pause_cooldown;     /* $000B: frames before Start can pause again */
+    uint8_t level_exiting;      /* $1423: nonzero once the player has reached the level's exit (his exit walk) */
+    uint8_t stages_ended;       /* $1454: counted up as a stage's exit is reached */
 
     /* -- actors -- */
     Actor actors[ACTOR_RECORDS];    /* $08DB: actors[0] the player's */

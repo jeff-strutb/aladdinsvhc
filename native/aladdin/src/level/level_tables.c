@@ -3,7 +3,7 @@
  * holds the levels' other tables: stage 5's.)
  */
 #include "data/system_tables.h"
-#include "level/level_tables.h"
+#include "level/level.h"
 #include "system/state.h"
 
 #define VIEW_HALF 0x0080        /* the range point: the view's corner + this, in x and y */
