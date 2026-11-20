@@ -71,6 +71,7 @@ typedef struct Actor {
     uint8_t flags;              /* +$09: bit 7 a routine of its kind runs each frame it waits; bit 6 it can be hit; bits 4-5 its sprite priority */
     uint32_t x;                 /* +$0B-$0D: 16.8, pixels */
     uint32_t y;                 /* +$0E-$10: 16.8, pixels */
+    uint8_t view_box;           /* +$12: its box for ActorsInView, 8 bytes a box (0, 8, 16, 24, 32) */
     uint8_t facing;             /* +$14: 0 right (x grows), else left */
     uint8_t flip;               /* +$15: the facing's opposite: bit 0 set when facing right */
     int32_t speed_x;            /* +$19-$1B: 16.8, along the facing */
@@ -78,24 +79,26 @@ typedef struct Actor {
     int32_t speed_y;            /* +$1D-$1F: 16.8, down positive */
     uint8_t accel_y;            /* +$20: gravity (fraction) */
     uint8_t spawn_at;           /* +$21: where it spawns a child, an index into the spawn offsets */
-    uint16_t picture_gfx;       /* +$22: the frame's picture's graphics, from its set's base */
+    uint16_t picture_gfx;       /* +$22: the frame's picture's place in g.actor_pictures (the original kept $2000 more: its work-RAM address) */
     uint16_t anim_table;        /* +$24: its set's animation table, in the animation data */
     uint8_t frame_time;         /* +$26: frames the frame has left */
     uint8_t picture;            /* +$27: the frame's picture; at a start, the animation's number */
     uint8_t redraw;             /* +$28: $FF when its picture changed */
     uint16_t look;              /* +$2B-$2C: sprite tile base and palette (actor_anim.h's ACTOR_2C is its high byte) */
     uint8_t anim;               /* +$2D: the animation's offset in its set's table (its number times 2) */
+    uint8_t anim_high;          /* +$2E: AnimStart adds it as the high byte of anim's offset; kind $41 keeps its own byte here */
     uint8_t frame;              /* +$2F: the frame in the animation */
     uint8_t loop_back;          /* +$30: frames the animation steps back at its end */
     uint16_t gfx_base;          /* +$31: its set's graphics, in the picture list */
     uint8_t pool_number;        /* +$33: in the 28-record pool, its number (28 down to 1) */
+    uint8_t placement;          /* +$34: the placement it came from (g.placed); $FF a child, which has none */
     struct Actor *next;         /* +$37-$38: the next record in its list; NULL ends it (0 in the original) */
     uint8_t tile_slot;          /* +$39: the animated-tile slot it holds (1-4), 0 none */
     DataRef stream;             /* +$4A: where its byte stream goes on */
     union {
         /* the bytes each kind keeps for itself; each kind's named view is
-           stage 5's (tools/state_fields.csv lists them) */
-        uint8_t bytes[33];      /* +$0A, $11-$13, $16-$18, $29-$2A, $2E, $34-$36, $3A-$49, $4C-$4F, in record order */
+           in actor/ (actor_own.h; tools/state_fields.csv lists them) */
+        uint8_t bytes[30];      /* +$0A, $11, $13, $16-$18, $29-$2A, $35-$36, $3A-$49, $4C-$4F, in record order */
     } own;
 } Actor;
 
@@ -258,7 +261,7 @@ typedef struct GameState {
     uint8_t vram_words_pending; /* $0616: nonzero, the single words go */
     uint8_t vram_words_count;   /* $0617 */
     VramWord vram_words[VRAM_WORDS_SIZE]; /* $0619 */
-    uint8_t unpacked[0xE000];   /* $7F:0000-$7F:DFFF: graphics unpacked from the cartridge, at the original's places */
+    uint8_t unpacked[57344];    /* $7F:0000-$7F:DFFF: graphics unpacked from the cartridge, at the original's places */
     uint8_t sprites_take_bg2_shift; /* $1A16: 8, the sprites move with BG2's shifts ($1A20, $1A24); 0 BG1's */
     uint16_t unpack_next;       /* $006B: where in unpacked the next kept part or actor set's graphics go */
     uint16_t bg1_x_shift;       /* $1A18: added to BG1's x as it goes to the picture */
@@ -363,6 +366,8 @@ typedef struct GameState {
     uint8_t menu_choice;        /* $0849: the title menu's choice (0 start, 1 password, 2 options) */
     uint8_t menu_choice_was;    /* $084A: the choice the mark was drawn at */
     uint8_t menu_cursor_moves;  /* $084B: counted up at each move of the cursor */
+    uint16_t range_x;           /* $1A44: the point actors are kept in range of (FrameStep: the view's corner + $80) */
+    uint16_t range_y;           /* $1A46 */
 
     /* -- actors -- */
     Actor actors[ACTOR_RECORDS];    /* $08DB: actors[0] the player's */
@@ -374,6 +379,21 @@ typedef struct GameState {
     Actor *draw_list[4][32];    /* $1492: the four lists of the actors drawn this frame, $40 bytes each (ActorsInView) */
     uint8_t draw_count[4];      /* $1592, 2 apart: each list's length */
     uint8_t sprite_flicker;     /* $032D: bit 0 set, actors with +$08 bit 4 not drawn this frame; bit 1, those with bit 5 flash */
+    uint8_t placed[256];        /* $7E:C600: by placement, bit 0 placed, bit 7 never placed again; [255] $FF, children's */
+    uint8_t anim_set_of_kind[256];  /* $7F:F000: by kind, its animation set ($FF none); LevelActorGraphicsLoad's marks meanwhile */
+    uint8_t anim_set_place[256];    /* $7F:E000: by kind, its set's place in the level's list of sets (4: not listed) */
+    uint16_t anim_set_pictures[16]; /* $7F:E100: by place, its picture list's start in actor_pictures */
+    uint16_t anim_set_table[16];    /* $7F:E300: by place, its animation table's start in anim_data, in bytes */
+    uint8_t actor_pictures[24576]; /* $7E:2000: the level's sets' picture lists (at most 22,329 B, levels 0-63); picture_gfx is an offset here */
+    uint16_t anim_data[2048];   /* $7E:B000: the level's sets' animation tables and frames (at most 1,219 words): time low, picture high */
+    /* by kind, its sprite graphics in the level */
+    uint16_t kind_gfx_at[256];  /* $7F:E500: where its graphics were unpacked, in video's unpack buffer */
+    uint16_t kind_look[256];    /* $7F:E700: its sprite attributes (palette in bits 9-11); bit 15 set once loaded */
+    uint8_t kind_extra_slots[256]; /* $7F:E900: the palette slots it needs past its first (0-2) */
+    uint8_t kind_palette[256];  /* $7F:EA00: its palette among the actors' palettes, by its placements' variant */
+    uint8_t kind_slot[256];     /* $7F:EB00: the palette slot it holds (1-4) */
+    uint8_t palette_slot_users[4];    /* $15E9: per sprite palette slot (1-4 as 0-3), the actors holding it */
+    uint8_t palette_slot_kind[4];     /* $15ED: per slot, the kind that claimed it */
 } GameState;
 
 extern GameState g;

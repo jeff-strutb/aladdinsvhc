@@ -69,8 +69,6 @@ Actor *ActorAllocB(void);       /* 81:EA41: a free record of the second pool (ac
 Actor *ActorCreate(uint8_t kind);   /* 82:AA2B: an actor of the kind, its set-up run; NULL: none free, or its set-up failed */
 /* 80:A4DC: a new actor of the kind at (x, y) pixels with `byte07` its +$07, started at its next turn; NULL: none */
 Actor *ActorSpawnAt(uint8_t kind, uint8_t byte07, uint16_t x, uint16_t y);
-/* 81:A9BF: a child of `spawner` with hit box `kind`, at the spawner's spawn point, sharing its tile slot; NULL: none */
-Actor *ActorSpawn(Actor *spawner, uint8_t kind);
 
 /* ---- ending (called from a kind's code, which then returns ACTOR_ENDED) ---- */
 
@@ -79,7 +77,8 @@ void ActorFree(Actor *a);       /* 83:95E5: ActorClear, and back on the second p
 
 /* ---- placement ---- */
 
-void PlacementsStart(void);     /* the level's placements indexed and those in reach created (level load) */
+void PlacementsStart(void);     /* 82:A72C: the level's placements indexed and those in reach created (level load) */
+void EscortStart(void);         /* 81:85A1: the level's escort (actors[1]) started beside the player */
 void PlacementsScroll(void);    /* 82:A79C: the placements the camera's move brings into reach created */
 void ActorsInView(void);        /* 81:9198: which actors can be hit this frame, and the list drawn */
 

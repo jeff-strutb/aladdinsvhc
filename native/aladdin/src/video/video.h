@@ -112,4 +112,8 @@ void LayersFill(void);                      /* 81:C060 */
    brightness tasks, the Mode 7 zoom, the window effects) are in
    video/video_tasks.h, which needs system/task.h. */
 
+/* wanted (actor/, for ActorKindTilesShared and ActorKindTiles): */
+int TileSlotClaim(uint8_t kind, Actor *a);  /* 82:ABCE: a free palette slot, tried from 4 down to 1, for `kind` and `a` (its slot, look; the kind's slot and look; the slot's user and kind); 0 claimed, -1 none */
+void TileSlotFill(uint8_t kind);            /* 82:AB77: the kind's palette (32 bytes at its kind_palette * 32 in the actors' palettes) into its slot's place in g.palette; palette_upload up */
+
 #endif
