@@ -90,18 +90,18 @@ void AnimStart(Actor *a, uint8_t anim);     /* 81:90C2: animation `anim` from it
 void AnimResume(Actor *a, uint8_t anim);    /* 81:90BE: animation `anim` at the frame it is on */
 void AnimStep(Actor *a);        /* 81:912B: one frame of time on */
 
-/* wanted */
+/* ---- for video (OamDrawActor, 81:9309) ---- */
 
-/* (native-video, for OamDrawActor 81:9309) one piece of an actor's frame:
-   the 5 bytes a piece of the list its +$22 names (in the original's bank
-   $7E, after the count byte) */
+/* one piece of an actor's frame: 5 bytes of the list its picture_gfx names */
 typedef struct SpritePiece {
     int8_t x;                   /* +0: from the actor's place */
     int8_t x_mirrored;          /* +1: the same when it faces the other way */
     int8_t y;                   /* +2 */
     uint16_t tile;              /* +3: the sprite's tile word (bit 12: 16 x 16) */
 } SpritePiece;
-/* its frame's pieces; returns how many (the list's count byte) */
+/* its frame's pieces, valid until the next call; returns how many (the list's count byte) */
 unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
+
+/* wanted */
 
 #endif

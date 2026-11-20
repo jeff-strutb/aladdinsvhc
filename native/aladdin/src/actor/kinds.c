@@ -10,29 +10,29 @@
 
 #include "actor/actor_own.h"
 
-typedef struct {
-    uint8_t kind;
-    ActorCode start;            /* its start entry (state $0C-$7F) */
-    ActorCode second;           /* its second (state $80-$BF), NULL none converted */
-    ActorWaitCode wait;         /* its wait routine */
-} KindCode;
-
-static const KindCode kinds[] = {
-    { 0x36, Kind36Start, NULL, AnimateWhileWaitingIf07Bit4 },   /* second entry $83:B0C7: not converted */
-    { 0x4A, Kind4AShow, NULL, AnimateWhileWaiting },            /* second entry $83:B4B9: not converted */
-    { 0x82, Kind82Show, NULL, AnimateWhileWaiting },
-    { 0x85, Kind85Start, NULL, AnimateWhileWaiting },           /* second entry 83:92FB Kind85Second: not converted */
-    { 0x95, Kind95Start, NULL, AnimateWhileWaiting },
-    { 0x96, SteppedShowActor, NULL, AnimateWhileWaiting },
+/* this file's kinds (the actor core's); the other sessions' are in their own
+   files, searched in turn */
+const KindCode kinds_core[] = {
+    { 0x36, Kind36Start, NULL, NULL, AnimateWhileWaitingIf07Bit4 },   /* second entry $83:B0C7: not converted */
+    { 0x4A, Kind4AShow, NULL, NULL, AnimateWhileWaiting },            /* second entry $83:B4B9: not converted */
+    { 0x82, Kind82Show, NULL, NULL, AnimateWhileWaiting },
+    { 0x85, Kind85Start, NULL, NULL, AnimateWhileWaiting },           /* second entry 83:92FB Kind85Second: not converted */
+    { 0x95, Kind95Start, NULL, NULL, AnimateWhileWaiting },
+    { 0x96, SteppedShowActor, NULL, NULL, AnimateWhileWaiting },
+    { 0, NULL, NULL, NULL, NULL }
 };
+
+static const KindCode *const tables[] = { kinds_core, kinds_b, kinds_c, kinds_d, kinds_e, kinds_player };
 
 static const KindCode *find(uint8_t kind)
 {
-    unsigned i;
+    unsigned t;
+    const KindCode *k;
 
-    for (i = 0; i < sizeof kinds / sizeof kinds[0]; i++)
-        if (kinds[i].kind == kind)
-            return &kinds[i];
+    for (t = 0; t < sizeof tables / sizeof tables[0]; t++)
+        for (k = tables[t]; k->start || k->wait; k++)
+            if (k->kind == kind)
+                return k;
     return NULL;
 }
 
@@ -43,7 +43,7 @@ ActorCode actor_kind_code(uint8_t kind, uint8_t entry)
     ActorCode code = NULL;
 
     if (k)
-        code = entry == ACTOR_START_SECOND ? k->second : entry == ACTOR_START_THIRD ? NULL : k->start;
+        code = entry == ACTOR_START_SECOND ? k->second : entry == ACTOR_START_THIRD ? k->third : k->start;
     if (!code && !(told[kind] & 1u << (entry & 3))) {
         told[kind] |= (uint8_t)(1u << (entry & 3));
         fprintf(stderr, "actor kind $%02X: %s not converted\n", kind,

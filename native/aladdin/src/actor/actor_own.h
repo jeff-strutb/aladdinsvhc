@@ -47,6 +47,19 @@ static inline uint32_t with_pixels(uint32_t v, uint16_t px) { return (v & 0xFFu)
 
 /* ---- the kinds' code (kinds.c) ---- */
 
+/* One kind's code, as a session registers it in its own table (kinds.c's
+   own, kinds_b.c ... kinds_e.c, kinds_player.c): each table ends with a row
+   whose start and wait are both NULL. */
+typedef struct KindCode {
+    uint8_t kind;
+    ActorCode start;            /* its code: start entry (state $0C-$7F) and every resume point */
+    ActorCode second;           /* the same function if it has a second entry (state $80-$BF), else NULL */
+    ActorCode third;            /* the same if it has a third (state $C0 up: kinds $20, $2D, $57, $63), else NULL */
+    ActorWaitCode wait;         /* its wait routine (flags bit 7), NULL none */
+} KindCode;
+
+extern const KindCode kinds_core[], kinds_b[], kinds_c[], kinds_d[], kinds_e[], kinds_player[];
+
 /* the kind's code for a start entry (ACTOR_START, _SECOND, _THIRD) or, with
    ACTOR_RESUME_OWN, for going on where it stopped; NULL: no code for it yet
    (reported once) */
