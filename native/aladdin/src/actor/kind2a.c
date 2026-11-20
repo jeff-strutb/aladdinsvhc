@@ -18,10 +18,12 @@ typedef struct {
     uint8_t downs;              /* +$47: counted each time it is downed; nonzero, its wait no longer animates or tests */
     uint8_t hits;               /* +$48: counted when downed by a shot (its wait) */
     uint8_t bob;                /* +$49: nonzero: it bobs with its frames (its wait) */
-    uint8_t bob_frame;          /* +$4A: the frame it last bobbed on */
-    uint8_t up;                 /* +$4B: its wait's bob direction */
-    uint8_t right;              /* +$4C: counted when downed facing right (its wait) */
 } Kind2AOwn;
+
+/* past +$49, by OwnPlace (+$4A and +$4B are own's last bytes) */
+#define BOB_FRAME(a) ((a)->own.bytes[OWN_4A])  /* +$4A: the frame it last bobbed on */
+#define UP(a) ((a)->own.bytes[OWN_4B])         /* +$4B: its wait's bob direction */
+#define RIGHT(a) ((a)->own.bytes[OWN_4C])      /* +$4C: counted when downed facing right (its wait) */
 
 _Static_assert(sizeof(Kind2AOwn) <= OWN_BYTES, "a view fits the own bytes");
 
@@ -125,14 +127,14 @@ int Kind2AStart(Actor *a)
         uint8_t variant;
         uint16_t speed;
 
-        o->right = 0;
+        RIGHT(a) = 0;
         a->flags |= 0x90;
         AnimStart(a, 0x00);
         ActorMotionPreset(a, 0x06);
         o->downs = 0;
         o->hits = 0;
         o->bob = 0;
-        o->up = 0;
+        UP(a) = 0;
         if (!(a->spawn_byte & 0x10)) {
             o->below[0] = k2a_reach(a->spawn_byte);
             o->below[1] = 0;
@@ -150,7 +152,7 @@ int Kind2AStart(Actor *a)
         a->facing = 0;
         a->flip = 1;
         o->bob++;
-        o->bob_frame = 0xFF;
+        BOB_FRAME(a) = 0xFF;
         a->accel_x = 0x14;
         return pace(a, k2a_leg(variant));
     }
@@ -284,7 +286,7 @@ int Kind2ASecond(Actor *a)
         a->resume = FLY;
         return 1;
     }
-    if (!o->right) {
+    if (!RIGHT(a)) {
         SoundQueueAdd(0x0F);
         a->y = with_pixels(a->y, (uint16_t)(pixels(a->y) + 9));
     }
@@ -310,22 +312,22 @@ int Kind2AWait(Actor *a)
 {
     Kind2AOwn *o = own(a);
 
-    if (o->bob && a->picture != o->bob_frame) {
+    if (o->bob && a->picture != BOB_FRAME(a)) {
         uint16_t y = pixels(a->y);
         int moved = 1;
 
-        o->bob_frame = a->picture;
+        BOB_FRAME(a) = a->picture;
         switch (a->picture) {
         case 4:
             y = (uint16_t)(y + 3);
-            o->up = 0;
+            UP(a) = 0;
             break;
         case 5:
-            y = (uint16_t)(o->up ? y + 2 : y - 2);
+            y = (uint16_t)(UP(a) ? y + 2 : y - 2);
             break;
         case 6:
             y = (uint16_t)(y - 3);
-            o->up++;
+            UP(a)++;
             break;
         default:
             moved = 0;
@@ -339,7 +341,7 @@ int Kind2AWait(Actor *a)
         (void)ActorStompOrHurt(a);
         if (ActorDownedByShot(a)) {
             if (!(a->facing & 0x80))
-                o->right++;
+                RIGHT(a)++;
             o->hits++;
         }
     }

@@ -22,15 +22,17 @@ typedef struct {
     int8_t state;               /* +$44: the switch: 0 up, positive down, negative coming back up (ActorLiftPlayerStep's step) */
     uint8_t quarter;            /* +$45: the track: the quarter's high byte, then the direction after a spot */
     uint8_t turn;               /* +$46: the track: added to the direction at each step to a spot */
-    uint8_t b47, b48, b49;
-    uint8_t rest_y[2];          /* +$4A: the switch: its y pixels at rest (word) */
-    uint8_t box;                /* +$4C: ActorTestCarries' box */
 } Kind3BOwn;
+
+/* past +$49, by OwnPlace (+$4A and +$4B are own's last bytes) */
+#define REST_Y_LOW OWN_4A               /* +$4A: the switch: its y pixels at rest (word) */
+#define REST_Y_HIGH OWN_4B
+#define BOX OWN_4C                      /* +$4C: ActorTestCarries' box */
 
 _Static_assert(sizeof(Kind3BOwn) <= OWN_BYTES, "a view fits the own bytes");
 
 static inline Kind3BOwn *own(Actor *a) { return (Kind3BOwn *)a->own.bytes; }
-static uint16_t rest_y(Actor *a) { return (uint16_t)(own(a)->rest_y[0] | own(a)->rest_y[1] << 8); }
+static uint16_t rest_y(Actor *a) { return (uint16_t)(a->own.bytes[REST_Y_LOW] | a->own.bytes[REST_Y_HIGH] << 8); }
 
 #define SWITCH 0x10             /* +$07 bit 4: a switch */
 #define MARKER 0x08             /* +$07 bit 3: a marker */
@@ -231,8 +233,8 @@ int Kind3BStart(Actor *a)
         o->state = 0;
         if (a->spawn_byte & SWITCH) {
             AnimStart(a, 0x00);
-            o->rest_y[0] = (uint8_t)pixels(a->y);
-            o->rest_y[1] = (uint8_t)(pixels(a->y) >> 8);
+            a->own.bytes[REST_Y_LOW] = (uint8_t)pixels(a->y);
+            a->own.bytes[REST_Y_HIGH] = (uint8_t)(pixels(a->y) >> 8);
             o->state = 0;
             o->frames = 0;
             o->toggled = 0;
@@ -411,7 +413,7 @@ int Kind3BWait(Actor *a)
         (void)LevelFlagFromMask((uint8_t)(a->spawn_byte & 0x07));
         return ACTOR_ENDED;
     }
-    o->box = 0x1E;
+    a->own.bytes[BOX] = 0x1E;
     ActorTestCarries(a, 0x02);
     ActorLiftPlayerStep(a, 0x02);
     if (a->spawn_byte == 2) {
