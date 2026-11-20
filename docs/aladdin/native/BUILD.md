@@ -2,7 +2,7 @@
 
 ## Building the native game
 
-The game is `native/aladdin`, built against nativeshvc's checkout (API 6.5, tested at `8d1745d`) beside this one. Run
+The game is `native/aladdin` (its icon `native/aladdin/icon/icon.png`, the box art, which the build turns into each platform's icon), built against nativeshvc's checkout (API 6.5, tested at `8d1745d`) beside this one. Run
 from the repository root. The cartridge's data is never committed; `extract_assets.py` checks the ROM's SHA-1
 (`bd5fea18ce7456cc0231a39473927d8ea9c6589b`) and writes `native/aladdin/assets/cart.dat`, which the build copies
 beside the program:
