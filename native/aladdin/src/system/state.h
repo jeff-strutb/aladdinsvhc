@@ -579,6 +579,8 @@ typedef struct GameState {
     uint8_t menu_choice;        /* $0849: the title menu's choice (0 start, 1 password, 2 options) */
     uint8_t menu_choice_was;    /* $084A: the choice the mark was drawn at */
     uint8_t menu_cursor_moves;  /* $084B: counted up at each move of the cursor */
+    uint16_t genie_screen_y;    /* $00B0: the Genie's screen (level $2F): its y, which its figures follow (kinds $59, $9E, $A4) */
+    uint8_t genie_screen_step;  /* $00B5: its step: 0 waits; positive or negative, the way its figures go on */
     uint8_t scene_cue_first;    /* $00BD: a scene's first cue (kind $98 sets it when it is beaten) */
     uint8_t scene_cue;          /* $00BE: a scene's cue: its task or figures count it up or set it as the scene goes on */
     uint8_t scene_cue_2;        /* $00C0: a scene's second cue (level 5's closing scene: set as its map is rebuilt) */

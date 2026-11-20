@@ -55,6 +55,11 @@ DataRef k2f_probes(void);                   /* its probe offsets */
 
 uint8_t k4f_opened_bit(uint8_t n);          /* n 0-3 (its +$07's low bits): its bit in g.opened */
 
+/* ---- kind $59, the Genie's screen's figures ---- */
+
+uint16_t k59_lamp_x(uint8_t at);            /* a row lamp's place by `at` (4 times its number less 1) */
+uint16_t k59_lamp_y(uint8_t at);            /* its y below the screen's */
+
 /* ---- kinds $7E, $7F ---- */
 
 uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */

@@ -13,6 +13,7 @@ const KindCode kinds_c[] = {
     { 0x2F, Kind2FCode, Kind2FCode, NULL, ActorWaitHitsRange0 },
     { 0x33, Kind33Code, NULL, NULL, Kind33Wait },              /* its second (83:BB96) is an RTS no state reaches */
     { 0x4F, Kind4FCode, NULL, NULL, ActorWaitTest42Anim2 },    /* its second (83:D108) is an RTS no state reaches */
+    { 0x59, Kind59Code, NULL, NULL, Kind23Wait },              /* its wait 83:DEB9 is Kind23Wait's bytes */
     { 0x7E, Kind7ECode, Kind7ECode, NULL, Kind7EWait },        /* its second entry is kind $7F's start: the same code here */
     { 0x7F, Kind7FCode, Kind7FCode, NULL, Kind7FWait },
     { 0x90, Kind90Code, NULL, NULL, NULL },                    /* its second and its wait (83:9366) reach an RTL: nothing */

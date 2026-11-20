@@ -74,6 +74,11 @@ DataRef k2f_probes(void) { return ref(0xD16E); }
 
 uint8_t k4f_opened_bit(uint8_t n) { return at8((uint16_t)(0xD366 + n)); }
 
+/* ---- kind $59: the row lamps' places at $D3D0, 4 bytes each: x, y (words) ---- */
+
+uint16_t k59_lamp_x(uint8_t at) { return at16((uint16_t)(0xD3D0 + at)); }
+uint16_t k59_lamp_y(uint8_t at) { return at16((uint16_t)(0xD3D2 + at)); }
+
 /* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
    $7F's probe list at $D832 ---- */
 
