@@ -43,6 +43,7 @@ DataRef k31_probes(void) { return ref(0x80, 0xD18B); }
 DataRef k98_probes(void) { return ref(0x80, 0xD90A); }
 DataRef k54_probes(void) { return ref(0x80, 0xD3A4); }
 DataRef k55_probes(void) { return ref(0x80, 0xD3AC); }
+DataRef k56_probes(void) { return ref(0x80, 0xD3B4); }
 
 /* ---- kind $3B's track: $80:D222 (words, x then y, 4 bytes a direction),
    $80:D232, $80:D23A, $80:D242 (bytes); the traces read them in bank $80 ---- */

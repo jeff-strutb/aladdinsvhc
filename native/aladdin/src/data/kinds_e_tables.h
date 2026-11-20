@@ -30,6 +30,7 @@ DataRef k31_probes(void);       /* kind $31's */
 DataRef k98_probes(void);       /* kind $98's */
 DataRef k54_probes(void);       /* kind $54's */
 DataRef k55_probes(void);       /* kind $55's */
+DataRef k56_probes(void);       /* kind $56's */
 
 /* ---- kind $3B's track (part 2), by `at` a byte offset ---- */
 

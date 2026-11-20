@@ -29,6 +29,9 @@ const KindCode kinds_e[] = {
     { 0x55, Kind55Start, Kind55Start, NULL, ActorWaitHurtOnTouch },
     /* $97: its wait (83:93B9) is dead: nothing sets its +$09 bit 7 */
     /* $8F: its wait 83:FAAE KindAnimateSendFAAE is KindAnimateSend's code */
+    /* $56: its second entry is its wait routine (83:D9B5) entered as code,
+       which no script reaches: not converted; that wait is AnimStep only */
+    { 0x56, Kind56Start, NULL, NULL, AnimateWhileWaiting },
     { 0x8F, Kind8FWalk, Kind8FWalk, NULL, KindAnimateSend },
     /* $94: its second entry is KindA8Start, another kind's routine: left
        aside (kinds-d-shared-kinds.md section 2); its wait 83:FB15
