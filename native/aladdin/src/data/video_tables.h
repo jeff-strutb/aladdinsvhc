@@ -36,8 +36,8 @@ typedef struct VramCopyEntry {
 #define VRAM_COPIES 55
 VramCopyEntry vram_copy_entry(unsigned table, unsigned entry);
 
-uint8_t palette_sequence_set(unsigned step);     /* PaletteSequenceTask: $81:BA6A + step, step < 6 */
-uint8_t palette_sequence_frames(unsigned step);  /* $81:BA70 + step */
+uint8_t palette_sequence_set(unsigned step);     /* PaletteSequenceTask: $80:BA6A + step, step < 6 */
+uint8_t palette_sequence_frames(unsigned step);  /* $80:BA70 + step */
 uint8_t mode7_palette_row(uint8_t at);           /* Mode7TileRowsConvert: $81:B407 + at, at < $30 */
 int16_t mode7_quarter_sine(unsigned step);       /* SineTableBuild: $81:B3E5, 17 words from 0 to $100 */
 

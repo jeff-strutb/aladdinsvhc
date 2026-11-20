@@ -355,7 +355,7 @@ static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
     else if (layer < 2 && tiles_at == 0x5000)
         set = VIDEO_TILES_HIGH;
     if (map < 0 || set < 0) {
-        if (!told) {
+        if (!told && !g.blank) {        /* power-on's zeroed bases while the screen is still blank are no screen */
             told = 1;
             fprintf(stderr, "video: BG%d's map at %04X with tiles at %04X is no screen's of the record; left off\n",
                     layer + 1, map_at, tiles_at);

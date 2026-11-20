@@ -56,8 +56,11 @@ VramCopyEntry vram_copy_entry(unsigned table, unsigned entry)
 #define MODE7_ROWS 0xB407
 #define MODE7_SINE 0xB3E5
 
-uint8_t palette_sequence_set(unsigned step) { return cart8(cart_offset(VIDEO_BANK_81, (uint16_t)(PALETTE_SEQUENCE_SETS + step))); }
-uint8_t palette_sequence_frames(unsigned step) { return cart8(cart_offset(VIDEO_BANK_81, (uint16_t)(PALETTE_SEQUENCE_FRAMES + step))); }
+/* PaletteSequenceTask reads them through the data bank, which a task runs
+   with as $80 (the record's comment says $81, where these bytes are code) */
+#define PALETTE_SEQUENCE_BANK 0x80
+uint8_t palette_sequence_set(unsigned step) { return cart8(cart_offset(PALETTE_SEQUENCE_BANK, (uint16_t)(PALETTE_SEQUENCE_SETS + step))); }
+uint8_t palette_sequence_frames(unsigned step) { return cart8(cart_offset(PALETTE_SEQUENCE_BANK, (uint16_t)(PALETTE_SEQUENCE_FRAMES + step))); }
 uint8_t mode7_palette_row(uint8_t at) { return cart8(cart_offset(VIDEO_BANK_81, (uint16_t)(MODE7_ROWS + at))); }
 int16_t mode7_quarter_sine(unsigned step) { return (int16_t)cart16(cart_offset(VIDEO_BANK_81, (uint16_t)(MODE7_SINE + 2u * step))); }
 
