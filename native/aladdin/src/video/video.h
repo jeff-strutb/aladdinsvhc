@@ -164,9 +164,6 @@ uint16_t RandomFromList(uint8_t list);      /* 81:AE8A: an entry (low byte) and 
 void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll for this frame, by g.scroll_kind */
 
 /* wanted */
-/* (n5-kinds-d, for kind $69: video/actor_circle_wipe.c's 83:EAAF ActorCircleWipeStep, 81:... CircleWipeStep) */
-void CircleWipeStep(int16_t screen_x, int16_t screen_y, uint16_t radius);  /* the window table for a circle of `radius` round the
-                                                       screen point, which window effect 2 sends (the original: $7E:5000, copied to $7F:F500) */
 void LevelActorGraphicsLoad(void);          /* 81:B9F4: the level's actors' sprite graphics (LevelRamSetup) */
 /* (levels and screens: defined in video/hud.c, for LevelLoad and the play loop) */
 void HudRedrawAll(void);                    /* 81:F433 */

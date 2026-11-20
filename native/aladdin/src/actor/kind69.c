@@ -19,7 +19,7 @@
 /* its own bytes */
 #define STEPS OWN_40            /* steps of the wipe left; frames of a ride */
 #define HANDED OWN_42           /* set once the escort has its place (the wait routine: it rides the escort) */
-#define RADIUS OWN_45           /* the wipe's radius */
+#define RADIUS OWN_45           /* the wipe's radius (ActorCircleWipeStep's +$45) */
 
 #define WINDOW_SLOT 6           /* the window effect's task slot */
 
@@ -44,18 +44,6 @@ static void on_escort(Actor *a)
 {
     a->x = with_pixels(a->x, pixels(escort()->x));
     a->y = with_pixels(a->y, (uint16_t)(pixels(escort()->y) - 4));
-}
-
-/*
- * @routine 83:EAAF ActorCircleWipeStep
- * WHAT IT DOES: One step of a circle wipe round it: the radius up one and
- * the circle drawn round its place on the screen (8 pixels above its y).
- */
-static void wipe_step(Actor *a)
-{
-    a->own.bytes[RADIUS]++;
-    CircleWipeStep((int16_t)(pixels(a->x) - pixels(g.layers[0].scroll_x)),
-                   (int16_t)(pixels(a->y) - pixels(g.layers[0].scroll_y) - 8), a->own.bytes[RADIUS]);
 }
 
 /* A ride: animation `anim`, 32 frames on the escort. */
@@ -110,7 +98,7 @@ int Kind69Start(Actor *a)
         g.window_use[0] = 2;
         g.window_use[1] = 2;
         g.window_use[2] = g.window_use[3] = g.window_use[4] = g.window_use[5] = 0;
-        wipe_step(a);
+        ActorCircleWipeStep(a);
         TaskCreate(WINDOW_SLOT, 4, TASK_ENTRY_WINDOW_EFFECT);
         a->resume = WIPE_START;
         return 2;
@@ -120,7 +108,7 @@ int Kind69Start(Actor *a)
         a->resume = WIPE;
         return 3;
     case WIPE:
-        wipe_step(a);
+        ActorCircleWipeStep(a);
         if (--a->own.bytes[STEPS])
             return 3;
         a->own.bytes[HANDED]++;
