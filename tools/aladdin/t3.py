@@ -864,6 +864,12 @@ def assess(addrs, image_ok=None):
                                for n in scripts):
                 g5 = True
                 why5 = 'never returns; its noreturn unit calls IDENTICAL in A7 (%s)' % ', '.join(scripts)
+        # A routine whose every byte is exempt by proof has no call for A5
+        # to judge and no script that reaches it: both gates pass on the
+        # proof, as Gate C does.
+        whole_exempt = bool(span) and all(o in exempt for o in span)
+        if whole_exempt and not g5:
+            g5, why5 = True, 'no call to judge: every byte exempt by proof (@unreachable)'
         gates.append(('A5 live', g5, why5 + ('; the C has uncommitted changes' if dirty(cpath) else '')))
         # A7: every script that reaches the routine runs IDENTICAL in
         # lockstep, measured on committed source with the C's last change.
@@ -877,6 +883,8 @@ def assess(addrs, image_ok=None):
         if miss:
             n = miss[0]
             why7 += '; %s: %s' % (n, '%s on %s' % (rows[n]['verdict'], rows[n]['source']) if n in rows else 'never run')
+        if whole_exempt and not g7 and not judged:
+            g7, why7 = True, 'no script reaches it: every byte exempt by proof (@unreachable)'
         gates.append(('A7 image', g7, why7))
         t3 = all(g for _, g, _ in gates)
         t4 = False
