@@ -6,7 +6,7 @@
  * The keys and controller buttons below stand for the pads' buttons until
  * stage 6 gives the game its own controls (plan stage 6).
  */
-#include "data/data.h"
+#include "data/input_tables.h"
 #include "system/state.h"
 #include "system/system.h"
 
