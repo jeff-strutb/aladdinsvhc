@@ -1,0 +1,289 @@
+/*
+ * state.h: the game's shared state, g (plan section 3, "Work RAM").
+ *
+ * Each field is one the original kept in work RAM and more than one area
+ * reads, typed by what it holds. Its comment gives the original's address
+ * (and, where the field holds a part of a byte or a value the original kept
+ * scaled, how), so the state comparison (tools/state_fields.csv) can line it
+ * up with a recording of the original. Fields are grouped by the area that
+ * mostly writes them (counted in src/aladdin).
+ *
+ * Not here: work RAM whose purpose the record does not yet establish (the
+ * V_xxxx names), sizes the record does not establish, and what only one
+ * file uses. The session that converts the code reading such bytes names
+ * them by what they do and adds them here, under its area, with a small
+ * exact edit; a variable only one file uses stays static in that file. The
+ * direct page's scratch ($000C up) and the task stacks are locals and
+ * arguments, never fields.
+ */
+#ifndef ALADDIN_STATE_H
+#define ALADDIN_STATE_H
+
+#include <stdint.h>
+
+#include "nshvc/nshvc.h"
+#include "data/data.h"
+
+/* ---- records ---- */
+
+/* A task (docs/aladdin/TASKS.md): one of 8 slots of $18 bytes from $006F.
+   The original's saved S and stack top (+$02-$05) are gone: a task's place
+   is its entry and its resume point (decision 1: every wait a state). */
+typedef enum {
+    TASK_FREE = 0x00, TASK_WAITING = 0x01, TASK_READY = 0x04, TASK_RUNNING = 0x08, TASK_NEW = 0x0C
+} TaskState;
+
+typedef struct Task {
+    uint8_t state;              /* +$00 ($006F + $18 n): TaskState */
+    uint8_t wait;               /* +$01: frames left to wait; the NMI's countdown makes it ready at 0 */
+    uint8_t param;              /* +$06: the byte its creator gave it */
+    uint16_t entry;             /* the task's entry, a TaskEntry of system/ (stage 4); the original's entry address */
+    uint16_t resume;            /* where its chain stopped, in that entry's own numbering; 0 at its start */
+    union {
+        uint8_t bytes[17];      /* +$07-$17: the task's own data; each entry's named view is stage 4's */
+    } own;
+} Task;
+
+/* An actor's record (docs/aladdin/ACTORS.md, src/aladdin/include/actor.h,
+   actor_anim.h): the player's at $08DB, then 35 of $50 bytes from $092B.
+   Positions and speeds are 24 bits, a fraction byte and then a 16-bit
+   whole part, kept here as one value 16.8 that wraps at 24 bits as the
+   original's. The original's resume address (+$02-$05: P, the PC, the
+   bank) is a resume point of the kind's code. */
+typedef struct Actor {
+    uint8_t state;              /* +$00: 0 free, 1 waiting, 8 running, $0C and up to start */
+    uint8_t wait;               /* +$01: frames left to wait */
+    uint16_t resume;            /* +$02-$05, as a resume point of its kind's code */
+    uint8_t kind;               /* +$06: picks its hit box (the table at $C29A), its animation set, its KIND_COUNT entry */
+    uint8_t spawn_byte;         /* +$07: the byte its spawner gave it */
+    uint8_t anim_flags;         /* +$08: bit 3 animated; bits 0-1 the frame's parity, for some kinds */
+    uint8_t flags;              /* +$09: bit 7 a routine of its kind runs each frame it waits; bit 6 it can be hit; bits 4-5 its sprite priority */
+    uint32_t x;                 /* +$0B-$0D: 16.8, pixels */
+    uint32_t y;                 /* +$0E-$10: 16.8, pixels */
+    uint8_t facing;             /* +$14: 0 right (x grows), else left */
+    uint8_t flip;               /* +$15: the facing's opposite: bit 0 set when facing right */
+    int32_t speed_x;            /* +$19-$1B: 16.8, along the facing */
+    uint8_t accel_x;            /* +$1C: added to or taken from speed_x (fraction) */
+    int32_t speed_y;            /* +$1D-$1F: 16.8, down positive */
+    uint8_t accel_y;            /* +$20: gravity (fraction) */
+    uint8_t spawn_at;           /* +$21: where it spawns a child, an index into the spawn offsets */
+    uint16_t picture_gfx;       /* +$22: the frame's picture's graphics, from its set's base */
+    uint16_t anim_table;        /* +$24: its set's animation table, in the animation data */
+    uint8_t frame_time;         /* +$26: frames the frame has left */
+    uint8_t picture;            /* +$27: the frame's picture; at a start, the animation's number */
+    uint8_t redraw;             /* +$28: $FF when its picture changed */
+    uint16_t look;              /* +$2B-$2C: sprite tile base and palette (actor_anim.h's ACTOR_2C is its high byte) */
+    uint8_t anim;               /* +$2D: the animation's offset in its set's table (its number times 2) */
+    uint8_t frame;              /* +$2F: the frame in the animation */
+    uint8_t loop_back;          /* +$30: frames the animation steps back at its end */
+    uint16_t gfx_base;          /* +$31: its set's graphics, in the picture list */
+    uint8_t pool_number;        /* +$33: in the 28-record pool, its number (28 down to 1) */
+    struct Actor *next;         /* +$37-$38: the next record in its list; NULL ends it (0 in the original) */
+    uint8_t tile_slot;          /* +$39: the animated-tile slot it holds (1-4), 0 none */
+    DataRef stream;             /* +$4A: where its byte stream goes on */
+    union {
+        /* the bytes each kind keeps for itself, in record order: +$0A, $11-$13,
+           $16-$18, $29-$2A, $2E, $34-$36, $3A-$49, $4C-$4F; each kind's named
+           view is stage 5's (tools/state_fields.csv lists them) */
+        uint8_t bytes[33];
+    } own;
+} Actor;
+
+#define ACTOR_RECORDS 36        /* the player's and 35 more: $08DB to $141A */
+#define ACTOR_POOL_SIZE 28      /* the records from $0B5B */
+#define ACTOR_POOL_B_SIZE 5     /* the records from $09CB */
+
+/* A record of the VRAM queue ($085A, 8 bytes each): one copy to video
+   memory the NMI made. 16 fit before the player's record ($08DB). */
+typedef struct VramCopy {
+    uint16_t to;                /* +$00: the VRAM word address, which video/ turns into its object */
+    const uint8_t *from;        /* +$02-$04: the source, the game's own array or cartridge data */
+    uint16_t bytes;             /* +$05: how many */
+    uint8_t step;               /* +$07: how the address steps: bit 7 after the high byte, bits 0-1 by how much */
+} VramCopy;
+
+#define VRAM_QUEUE_SIZE 16
+
+/* A record of the tile-block queue ($1B44, 10 bytes each): four map words
+   at a VRAM address. 16 fit before its length at $1BE4. */
+typedef struct TileBlock {
+    uint16_t to;                /* +$00: the VRAM word address */
+    uint16_t words[4];          /* +$02: the four map words */
+} TileBlock;
+
+#define TILE_BLOCK_QUEUE_SIZE 16
+
+/* A scroll layer's record ($156 bytes: the play field's at $1738, the
+   backdrop's at $188E). Offsets in the record; the bytes $00-$27 and the
+   rest not named in wram_video.h are the layer session's to add. */
+typedef struct ScrollLayer {
+    uint16_t column_length;     /* +$28: tiles a column draws */
+    uint16_t row_length;        /* +$2A: tiles a row draws */
+    uint16_t tilemap_base;      /* +$2E: bits every map word of the layer carries */
+    uint16_t tilemap_mask;      /* +$30: the map word bits a position gives */
+    uint16_t screen_flip;       /* +$32: map bits a row step past the top or bottom flips */
+    uint16_t drawn_x;           /* +$34: the x its drawn tiles reach to */
+    uint16_t drawn_y;           /* +$36: the y its drawn tiles reach to */
+    uint8_t column_side;        /* +$38: the side of the column being drawn: 0 right, 1 left */
+    uint8_t row_side;           /* +$39: the side of the row being drawn: 0 down, 1 up */
+    uint32_t scroll_x;          /* +$3A-$3C: 16.8, pixels */
+    uint32_t scroll_y;          /* +$3E-$40: 16.8, pixels */
+    uint16_t map_base;          /* +$42: the layer's block map in the level map, a word offset */
+    DataRef block;              /* +$44: a block's metatile list */
+    DataRef metatile;           /* +$4A: a metatile's four tiles */
+    uint8_t edges;              /* +$4F: the edges it draws: 1 right, 2 left, 4 bottom, 8 top */
+    uint8_t column_parts;       /* +$50: a drawn column to copy: 1, or 2 past 32 tiles */
+    uint16_t column_to;         /* +$51: its map word address */
+    uint16_t column[32];        /* +$53: its tiles, a ring from its row */
+    uint8_t row_parts;          /* +$D3: a drawn row to copy: 2, the two screens */
+    uint16_t row_to;            /* +$D4: its map word address */
+    uint16_t row[64];           /* +$D6: its tiles, a ring from its column */
+} ScrollLayer;
+
+/* A column or row queued to draw ($1A48, $1A68: rings of 8 of 4 bytes). */
+typedef struct LayerEdge {
+    uint8_t layer;              /* +$00: the layer's record, as 0 (play field) or 1 (backdrop) */
+    uint8_t side;               /* +$02: 0 right or down, 1 left or up */
+} LayerEdge;
+
+/* ---- the state ---- */
+
+typedef struct GameState {
+    /* -- system -- */
+    uint8_t frame_count;        /* $032E: counts NMIs (8-bit) */
+    uint16_t random;            /* $032B: stepped by RandomNext */
+    Task tasks[8];              /* $006F */
+    uint8_t task_current;       /* $0327: the running task's slot (the original: its byte offset, $18 a slot) */
+    uint8_t task_slots;         /* $0328: how many slots the scheduler scans */
+    uint8_t kept_options[3];    /* $0003: the options screen's settings, kept across a reset */
+    uint8_t kept_options_sum;   /* $0006: their 8-bit sum */
+    uint16_t pad_held[2];       /* $0377, $0379: each pad's buttons held, as the SNES's word (B bit 15 ... R bit 4) */
+    uint16_t pad_pressed[2];    /* $037B, $037D: each pad's buttons newly pressed this frame */
+    uint8_t play_mode;          /* $0331: 0 the pads; 2 a demo, the pad read from its script (1, the recorder, never on retail) */
+    uint16_t demo_input_at;     /* $033B: the demo's next pad entry, a byte offset into its script */
+    uint8_t demo_buttons;       /* $033D: the demo's pad 1 high byte */
+    uint8_t demo_input_frames;  /* $033E: frames left on that entry */
+    uint8_t demo_number;        /* $033F: the demo being played; also the stage per-stage tables are indexed by (wram.h's V_033F) */
+
+    /* -- audio: the S-CPU's sound queue -- */
+    uint8_t sound_seq;          /* $0002: the last command's sequence number */
+    uint8_t sound_hold;         /* $0371: nonzero, no command is sent this frame */
+    uint8_t sound_sending;      /* $0372: nonzero while a command is being sent */
+    uint8_t sound_queue_read;   /* $03BB: the next command to send (0-31) */
+    uint8_t sound_queue_write;  /* $03BD: where the next command goes (0-31) */
+    uint8_t sound_queue[32];    /* $03BF: the ring of command bytes */
+
+    /* -- video: the picture draw reads (the NMI's shadows, by meaning) -- */
+    uint8_t brightness;         /* $03B8 bits 0-3 */
+    uint8_t blank;              /* $03B8 bit 7 */
+    uint8_t nmi_on;             /* $03B7 bit 7: the NMI's work runs */
+    uint8_t split_on;           /* $03B7 bits 4-5 nonzero: the screen turns on at the IRQ's line */
+    uint8_t line_effects_on;    /* $03B6: a bit per effect, by the original's HDMA channel (1-7) */
+    uint8_t main_layers;        /* $0399: bits 0-3 BG1-BG4, bit 4 sprites, on the main screen */
+    uint8_t sub_layers;         /* $039A: on the sub screen */
+    uint8_t window_main;        /* $038B: the layers the windows mask on the main screen */
+    uint8_t window_sub;         /* $038C: on the sub screen */
+    uint8_t mode;               /* $039D bits 0-2: the picture mode */
+    uint8_t bg3_priority;       /* $039D bit 3 */
+    uint8_t tile_size_16;       /* $039D bits 4-7: BG1-BG4 with 16 x 16 tiles */
+    uint8_t window_edges[4];    /* $03A6-$03A9: window 1 left, right, window 2 left, right */
+    uint8_t window_use[6];      /* $03AA-$03AC, a nibble per BG1-4, sprites, colour: bit 0 window 1 inverted, 1 on, 2 window 2 inverted, 3 on */
+    uint8_t window_logic[6];    /* $03AD-$03AE, 2 bits per BG1-4, sprites, colour: 0 or, 1 and, 2 xor, 3 xnor */
+    uint8_t blend_prevent;      /* $03AF bits 4-5 */
+    uint8_t blend_clip;         /* $03AF bits 6-7 */
+    uint8_t blend_use_sub;      /* $03AF bit 1: the sub screen, else the fixed colour */
+    uint8_t blend_direct_colour;/* $03AF bit 0 */
+    uint8_t blend_layers;       /* $03B0 bits 0-5: BG1-4, sprites, backdrop */
+    uint8_t blend_half;         /* $03B0 bit 6 */
+    uint8_t blend_subtract;     /* $03B0 bit 7 */
+    uint8_t fixed_red;          /* $03B2 bits 0-4 */
+    uint8_t fixed_green;        /* $03B3 bits 0-4 */
+    uint8_t fixed_blue;         /* $03B4 bits 0-4 */
+    uint8_t mosaic_size;        /* $03B1 bits 4-7 */
+    uint8_t mosaic_layers;      /* $03B1 bits 0-3 */
+    uint32_t bg_x[3], bg_y[3];  /* $19EC, $19F0 ... $1A00: BG1-3's positions, 24.8: the pixels the middle two bytes */
+    uint16_t bg1_x_shift;       /* $1A18: added to BG1's x as it goes to the picture */
+    uint16_t layer_offset_y;    /* $1A1C: added to BG1's y */
+    uint16_t bg2_x_shift;       /* $1A20 */
+    uint16_t bg2_y_shift;       /* $1A24 */
+    uint8_t bg2_x_held;         /* $083C: nonzero, BG2's x is not sent */
+    uint8_t bg1_held;           /* $1A14: nonzero, BG1's position is not taken from the play field */
+    uint8_t bg2_follows;        /* $1A15: 0 the backdrop layer; $40 its y only; $80 the play field's x; else neither */
+    uint16_t backdrop_offset_y; /* $1A2B: the backdrop's y less the play field's, 8.8 */
+    uint16_t palette[256];      /* $7E:FD00: the colours, 15-bit */
+    uint8_t palette_upload;     /* $0844: nonzero, the palette goes to the picture */
+    uint16_t palette_saved[256];/* $0406: colours kept to fade from */
+    uint16_t palette_saved_at;  /* $0606: the first colour kept, a byte offset */
+    uint16_t text_map[32 * 32]; /* $7E:D800: the text layer's map */
+    uint8_t text_map_upload;    /* $0835: nonzero, the text map goes to its object */
+    uint16_t text_upload_to;    /* $03DF: the VRAM word address it goes to */
+    uint16_t text_upload_bytes; /* $03E1 */
+    uint8_t text_parts_pending[3]; /* $0836: nonzero, that part of the text map goes */
+    nshvc_sprite sprites[128];  /* $7E:FA80 and $7E:FC80, the sprite table, as the engine's sprites */
+    uint16_t sprite_count;      /* replaces the sprite table's free count and cursors ($084D, $0852, $0854) */
+    uint8_t vram_upload_number; /* $0834: nonzero, the number of a fixed upload to make */
+    uint8_t vram_queue_pending; /* $0858: nonzero, the queue is ready */
+    uint8_t vram_queue_count;   /* $0859 */
+    VramCopy vram_queue[VRAM_QUEUE_SIZE]; /* $085A */
+    uint8_t tile_blocks_pending;/* $1BE6 */
+    uint16_t tile_blocks_count; /* $1BE4: the original keeps its length in bytes, 10 a record */
+    TileBlock tile_blocks[TILE_BLOCK_QUEUE_SIZE]; /* $1B44 */
+    uint8_t vram_list_pending[4];  /* $1649: per slot, nonzero: upload the slot's list */
+    DataRef vram_list[4];       /* $164D: per slot, its list */
+    ScrollLayer layers[2];      /* $1738 the play field, $188E the backdrop */
+    LayerEdge column_queue[8];  /* $1A48 */
+    LayerEdge row_queue[8];     /* $1A68 */
+    uint16_t column_queue_head; /* $1A88 */
+    uint16_t column_queue_tail; /* $1A8A */
+    uint16_t row_queue_head;    /* $1A8C */
+    uint16_t row_queue_tail;    /* $1A8E */
+    uint8_t fill_layers_left;   /* $1A90: while a level's maps fill */
+    uint8_t fill_columns_left;  /* $1A91 */
+    uint16_t scroll_x_before;   /* $19E5: the play field's scroll before this frame's move */
+    uint16_t scroll_y_before;   /* $19E9 */
+    uint16_t camera_stopped_x;  /* $1A0C: nonzero, an empty block stopped the scroll across */
+    uint16_t camera_stopped_y;  /* $1A0E */
+    uint32_t band_pos[11];      /* $7E:F800: the drifting backdrop bands' positions, 4 bytes each */
+    uint32_t band_drift;        /* $1A2F: 24 bits from its fraction byte */
+
+    /* -- level and map -- */
+    uint16_t level;             /* $035E: the level being played */
+    uint16_t scroll_limit_x;    /* $1A04 */
+    uint16_t scroll_limit_y;    /* $1A06 */
+    uint8_t level_spot_count;   /* $0821: the level's trigger spots */
+    DataRef level_spots;        /* $0822: their list */
+    uint8_t tile_behaviour[4096]; /* $7E:C800: per map tile, how it behaves */
+
+    /* -- player -- */
+    uint16_t player_top_speed;  /* $141D: 8.8 */
+    int16_t player_run_accel;   /* $1440 */
+    int16_t player_run_decel;   /* $1442: negative */
+    int16_t player_turn_decel;  /* $1444: negative */
+    uint8_t player_move;        /* $1420: standing, running, jumping ...: picks its animation */
+    uint8_t player_dash;        /* $1459: 1 while the dash is held */
+    uint8_t player_slowed;      /* $1457: frames the speed was held up to its least */
+    uint16_t player_saved_x;    /* $145D: a position kept for the player, pixels */
+    uint16_t player_saved_y;    /* $145F */
+    uint16_t player_ground_y;   /* $1455: where it last stood, pixels */
+    uint8_t player_box_wanted;  /* $1448 */
+    uint8_t player_box;         /* $1449 */
+    uint8_t player_hurt_time;   /* $03F5: frames before it can be hit again */
+    uint8_t health;             /* $0367 */
+
+    /* -- game: progress -- */
+    uint8_t health_marks;       /* $0365: the most health */
+    uint8_t continues;          /* $035B: continues left */
+    uint8_t cheat_start;        /* $0009: nonzero, play starts with 10 health marks (the title acts on it too) */
+
+    /* -- actors -- */
+    Actor actors[ACTOR_RECORDS];    /* $08DB: actors[0] the player's */
+    Actor *free_pool[ACTOR_POOL_SIZE];  /* $15A2: the free records of the pool, a stack */
+    int8_t free_pool_top;       /* $15E4: its top entry; -1 none (the original: its byte offset, negative none) */
+    Actor *free_pool_b[ACTOR_POOL_B_SIZE]; /* $15DA: the second pool's */
+    int8_t free_pool_b_top;     /* $15E6 */
+    uint8_t kind_count[256];    /* $7E:FF00: by kind, how many are live */
+} GameState;
+
+extern GameState g;
+
+#endif
