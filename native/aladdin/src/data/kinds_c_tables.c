@@ -107,6 +107,12 @@ int16_t k3a_hold_x(uint8_t picture) { return (int16_t)at16((uint16_t)(0xD1FE + 2
 int16_t k3a_hold_y(uint8_t picture) { return (int16_t)at16((uint16_t)(0xD210 + 2u * picture)); }
 uint8_t k3a_frame(uint8_t frame, int facing_left) { return at8((uint16_t)((facing_left ? 0xD1EE : 0xD1DE) + frame)); }
 
+/* ---- kind $3D: by +$07 at $D296 the records needed; the bob's moves at
+   $D286, 4 bytes an entry (a word, then its high byte and a pad) ---- */
+
+uint8_t k3d_records_needed(uint8_t set) { return at8((uint16_t)(0xD296 + set)); }
+int16_t k3d_bob_step(uint8_t entry) { return (int16_t)at16((uint16_t)(0xD286 + 4u * entry)); }
+
 /* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
    $7F's probe list at $D832 ---- */
 

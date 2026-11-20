@@ -35,6 +35,8 @@ static inline int kind_lost(Actor *a, const char *code)
 int Kind2BCode(Actor *a);       /* kind $2B: 83:A467, 83:A725 */
 int Kind33Code(Actor *a);       /* kind $33: 83:B966 */
 void Kind33Look(Actor *a);      /* 83:BAE0: its look, which kind $3A takes too */
+int Kind3ECode(Actor *a);       /* kind $3E: 83:B154 */
+int Kind3DCode(Actor *a);       /* kind $3D: 83:C302 */
 int Kind3ACode(Actor *a);       /* kind $3A: 83:BEB3; its second entry runs kind $3B's start */
 int Kind2CCode(Actor *a);       /* kind $2C: 83:A758; its second entry runs kind $2D's start */
 int Kind2DCode(Actor *a);       /* kind $2D: 83:A82F, 83:AA5A, 83:AA95 */
@@ -54,6 +56,7 @@ int Kind90Code(Actor *a);       /* kind $90: A5:F4D2 */
 
 int ActorWaitNothing(Actor *a);     /* 83:91F3: the wait of many kinds (4-6, 9-$1F, $25, $29, $32 ...): nothing */
 int Kind23Wait(Actor *a);           /* 83:9D46, and 83:DEB9 Kind59Wait */
+int Kind3DWait(Actor *a);           /* 83:C4A4 */
 int Kind3EWait(Actor *a);           /* 83:B190 */
 int Kind33Wait(Actor *a);           /* 83:BB91, and 83:BF7E Kind3AWait */
 int Kind2BWait(Actor *a);           /* 83:A709 */

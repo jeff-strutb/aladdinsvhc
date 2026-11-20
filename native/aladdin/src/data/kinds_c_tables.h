@@ -85,6 +85,11 @@ int16_t k3a_hold_x(uint8_t picture);        /* where he is held, from its x, by 
 int16_t k3a_hold_y(uint8_t picture);
 uint8_t k3a_frame(uint8_t frame, int facing_left);  /* his frame while held, by its frame */
 
+/* ---- kind $3D ---- */
+
+uint8_t k3d_records_needed(uint8_t set);    /* by its +$07 (0-2): the free list's top it needs at least, as the original's byte offset (2 a record) */
+int16_t k3d_bob_step(uint8_t entry);        /* the bob's move of entry 0-3: its y pixels' change */
+
 /* ---- kinds $7E, $7F ---- */
 
 uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */
