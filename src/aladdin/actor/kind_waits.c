@@ -14,7 +14,7 @@
 #include "wram_player.h"
 
 void abi_ActorEndOutOfRange(void);
-void abi_ActorFreePlaced(void);
+void abi_ActorEndDropReturn(void);
 void abi_ActorHitsTestBoxLong(void);
 void abi_AnimStep(void);
 void abi_SoundQueueAdd(void);
@@ -120,11 +120,7 @@ void abi_Kind27Wait(void)
             abi_SoundQueueAdd();
             cpu.s = (uint16_t)(cpu.s + 3);
             inc8_at(dba(0x036C));
-            op_sep(0x30);                 /* $83:96C6 */
-            pla8();
-            pla8();
-            abi_ActorFreePlaced();
-            actor_leave(0x8394BFu);
+            abi_ActorEndDropReturn();     /* 83A036 jml $83:96C6 */
             return;
         }
     }
@@ -373,12 +369,9 @@ void abi_Kind6DWait(void)
             a16_load((uint16_t)((d ^ 0xFFFF) + 1));
         cmp16_of(cpu.a, 0x0090);
         op_sep(0x20);
-        if (cpu.p & P_C) {                /* 144 pixels or more away: the return dropped, it ends ($83:96C6) */
-            op_sep(0x30);
-            pla8();
-            pla8();
-            abi_ActorFreePlaced();
-            actor_leave(0x8394BFu);
+        if (cpu.p & P_C) {                /* 144 pixels or more away: the return dropped, it ends */
+            abi_ActorEndDropReturn();     /* 83EFEC jmp $96C6 */
+            return;
         }
         return;
     }
