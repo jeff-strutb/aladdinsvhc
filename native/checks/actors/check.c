@@ -154,6 +154,8 @@ static void state_from(const uint8_t *w)
 
 /* ---- other areas' routines, answered from the dump and logged ---- */
 
+void unconverted(const char *name) { printf("frame %d: unconverted %s\n", frame, name); }
+
 void SoundQueueAdd(uint8_t sound) { printf("frame %d: sound $%02X\n", frame, sound); }
 void PaletteLoad(int set) { printf("frame %d: palette set $%02X\n", frame, set); }
 void TileSlotFill(uint8_t kind) { printf("frame %d: palette slot filled for kind $%02X\n", frame, kind); }
