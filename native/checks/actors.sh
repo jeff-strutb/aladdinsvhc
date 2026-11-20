@@ -38,8 +38,15 @@ PY
     timeout 1200 "$run" -j 1 -m 2G -- "$build/aladdin/box/snesbox" --rom "$build/aladdin/baserom.sfc" \
         --script "$rec/rec.box" --out "$rec" > "$rec/rec.log"
 fi
-timeout 900 "$run" -j 4 -m 3G -- sh -c 'cmake -S "$1" -B "$2" -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSHVC_ROOT="$3" >/dev/null \
-    && cmake --build "$2" -j "$CPU_RUN_JOBS" >/dev/null' sh "$top/native/checks/actors" "$bdir" "$nshvc"
+# the build's output is kept (a failed build says why and stops the run: a stale binary is never run)
+rm -f "$bdir/aladdin_actor_check"
+if ! timeout 900 "$run" -j 4 -m 3G -- sh -c 'cmake -S "$1" -B "$2" -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSHVC_ROOT="$3" \
+    && cmake --build "$2" -j "$CPU_RUN_JOBS"' sh "$top/native/checks/actors" "$bdir" "$nshvc" > "$build/aladdin/native/actor-check-build.log" 2>&1; then
+    grep -i "error\|undefined" "$build/aladdin/native/actor-check-build.log" | head -20 >&2
+    echo "actors.sh: the check does not build (log: $build/aladdin/native/actor-check-build.log)" >&2
+    exit 1
+fi
+[ -x "$bdir/aladdin_actor_check" ] || { echo "actors.sh: the build made no aladdin_actor_check" >&2; exit 1; }
 status=0
 for w in $windows; do
     a=${w%:*}; b=${w#*:}
