@@ -47,7 +47,7 @@ LowRamClear:
     rep.b #$10
     ldx.w #$03E8
 .clear:
-    stz.w $000C,x
+    stz.w !scratch,x
     dex
     bpl .clear
     sep.b #$10

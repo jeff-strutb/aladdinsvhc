@@ -19,6 +19,7 @@ arch 65816
 !aim_steep = !scratch+2         ; the larger difference / 8
 !aim_directions = $BC03         ; per octant 8 bytes, the direction of each step
 !near_span_table = $81BC7B      ; half-width: 2 bytes an entry
+!near_span_y_table = $BC85      ; ActorNearPlayerY's half-height: 2 bytes an entry, bank DB
 
 ; @routine 81:AB62 ActorPlayerBelow
 ; WHAT IT DOES: Says whether the player is level with or below the actor:
@@ -142,7 +143,7 @@ ActorNearPlayerX:
 %at($81ADA4)
 ActorNearPlayerY:
     rep.b #$20
-    lda.w $BC85,y
+    lda.w !near_span_y_table,y
     sta.w !scratch
     asl a
     sta.w !scratch+2

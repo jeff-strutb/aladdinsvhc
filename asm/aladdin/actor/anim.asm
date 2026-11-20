@@ -11,6 +11,8 @@ incsrc "../include/wram.inc"
 incsrc "../include/actor.inc"
 incsrc "../include/actor_anim.inc"
 
+!anim_by_at = !scratch+18      ; AnimStepBy: the frames it takes off (C: by_at, in the data bank)
+
 arch 65816
 
 ; @routine 81:90BE AnimResume
@@ -96,10 +98,10 @@ AnimStart:
 %at($81911B)
 AnimStepBy:
     sep.b #$30
-    sta.w $001E
+    sta.w !anim_by_at
     lda.b !ACTOR_FRAME_TIME
     sec
-    sbc.w $001E
+    sbc.w !anim_by_at
     sta.b !ACTOR_FRAME_TIME
     bmi AnimStepNext
     rtl

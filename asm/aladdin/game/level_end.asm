@@ -6,6 +6,8 @@
 incsrc "../include/macros.inc"
 incsrc "../include/wram.inc"
 incsrc "../include/wram_video.inc"
+incsrc "../include/wram_state.inc"
+incsrc "../include/rom.inc"
 
 arch 65816
 
@@ -20,6 +22,30 @@ arch 65816
 !END_PICTURE_TILE = $FDF1
 ; In the data bank: the VRAM word addresses of the 16 blocks blanked (words).
 !END_BLANK_BLOCKS = $FE02
+; LevelEndTask: what it sets and reads in work RAM, the direct page (D = 0)
+; and the data bank.
+!V_005D = $005D                 ; nonzero on a PAL console (RegionCheck)
+!v_0005 = $0005                 ; set to LEVEL_035C
+!v_0376 = $0376                 ; GEM_SETS added up at each level end
+!GEM_SETS_FOUND = $0373         ; a bit per set gem found (word)
+!GEM_SETS = $0375               ; set gems found (the screen's figures, kind $A8, pose by it)
+!PAUSED = $0405                 ; counted up while paused
+!SCENE_WAIT = $0087             ; nonzero while the screen's fade runs
+!tm_shadow = $0399              ; TM's shadow: the main screen's layers
+!ts_shadow = $039A              ; TS's shadow: the sub screen's layers
+!END_COUNT = $A5                ; the count the picture grows by: $A5, then $A6
+!END_NEXT_AT = $A7              ; the count at which the next block is placed
+!END_NEXT_BLOCK = $A8           ; the next block of the picture
+!END_COLUMN_STEP = $A9          ; per column (4 bytes), its step
+!CUE_AE = $AE                   ; the figures' cue (as kind $A8's)
+!END_FRAMES = $AF               ; frames left of a pause
+!END_COPIER_COUNT = $701399     ; a byte a copier's cartridge RAM keeps (a retail cartridge has none): counted up here
+; In the data bank: per part (LEVEL_035C), its block's offset (a byte) and
+; its four palettes (bytes, 4 a part); per column, the count its growth
+; stops at.
+!END_PART_BLOCKS = $FDFA
+!END_PART_PALETTES = $FDD1
+!END_COLUMN_LIMIT = $FDCD
 
 ; @routine 81:F61D LevelEndTask
 ; WHAT IT DOES: The screen between a level's acts: on a PAL console a
@@ -55,26 +81,26 @@ arch 65816
 ; Exit: never returns.
 %at($81F61D)
 LevelEndTask:
-    lda.w $005D
+    lda.w !V_005D
     beq .lF626
-    jml.l $84AFCC               ; the PAL console's screen (no C yet)
+    jml.l !pal_screen
 .lF626:
     lda.w !level_035c
-    sta.w $0005
+    sta.w !v_0005
     jsl.l KeptOptionsSeal
     jsl.l NmiDisable
     jsl.l ScreenBlank
     jsl.l ScrollStateClear
     jsl.l OamBufferClear
     jsl.l DisplayDefaults
-    stz.b $AD
-    stz.b $AE
-    lda.w $0376
+    stz.b !END_STEPS_DONE
+    stz.b !CUE_AE
+    lda.w !v_0376
     clc
-    adc.w $0375
-    sta.w $0376
+    adc.w !GEM_SETS
+    sta.w !v_0376
     lda.b #$24
-    sta.w $035E
+    sta.w !level
     jsl.l LevelRamSetupLong
     lda.b #$0E
     jsl.l UnpackSet
@@ -119,7 +145,7 @@ LevelEndTask:
     lda.b #$21
     jsr.w PaletteCycleStart
     lda.b #$01
-    sta.w $0405
+    sta.w !PAUSED
     lda.b #$19
     jsl.l UnpackSet
     ldx.b #$23
@@ -158,7 +184,7 @@ LevelEndTask:
     bra .lF759
 .lF746:
     rep.b #$31
-    lda.w $FDFA,x
+    lda.w !END_PART_BLOCKS,x
     and.w #$00FF
     adc.w #$04C0
     tay
@@ -168,30 +194,30 @@ LevelEndTask:
     jsl.l NmiDisable
     lda.b #$6A
     jsl.l TextLayoutShow
-    stz.w $000E
+    stz.w !scratch+2
     ldx.b #$00
 .lF768:
     lda.w !level_035c
     asl a
     asl a
-    adc.w $000E
+    adc.w !scratch+2
     tay
-    lda.w $FDD1,y
-    ldx.w $000E
+    lda.w !END_PART_PALETTES,y
+    ldx.w !scratch+2
     jsl.l PaletteFromRom
-    inc.w $000E
-    lda.w $000E
+    inc.w !scratch+2
+    lda.w !scratch+2
     cmp.b #$04
     bne .lF768
     lda.b #$FC
-    sta.w $19FD
+    sta.w !bg3_x
     lda.b #$17
-    sta.w $0399
-    sta.w $039A
+    sta.w !tm_shadow
+    sta.w !ts_shadow
     lda.b #$06
-    sta.l $7EFD00
+    sta.l !palette_buffer
     lda.b #$18
-    sta.l $7EFD01
+    sta.l !palette_buffer+1
     jsl.l NmiEnable
     lda.b #$01
     jsl.l TaskWait
@@ -202,32 +228,32 @@ LevelEndTask:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    lda.w $0087
+    lda.w !SCENE_WAIT
     bne .lF7B1
     lda.b #$0F
-    sta.w $03B8
+    sta.w !inidisp_shadow
     lda.b #$20
-    sta.b $A7
-    stz.b $A8
+    sta.b !END_NEXT_AT
+    stz.b !END_NEXT_BLOCK
 .lF7CB:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    lda.b $A6
+    lda.b !END_COUNT+1
     bne .lF7CB
-    lda.b $A5
+    lda.b !END_COUNT
     cmp.b #$E0
     bcc .lF7E2
     jmp.w .lF808
 .lF7E2:
-    cmp.b $A7
+    cmp.b !END_NEXT_AT
     bcc .lF7CB
-    inc.b $AD
-    lda.b $A7
+    inc.b !END_STEPS_DONE
+    lda.b !END_NEXT_AT
     adc.b #$0F
-    sta.b $A7
+    sta.b !END_NEXT_AT
     rep.b #$30
-    lda.b $A8
+    lda.b !END_NEXT_BLOCK
     and.w #$00FF
     asl a
     pha
@@ -237,38 +263,38 @@ LevelEndTask:
     pla
     adc.w #$4AE4
     jsl.l TileBlockQueueRun
-    inc.b $A8
+    inc.b !END_NEXT_BLOCK
     bra .lF7CB
 .lF808:
-    stz.w $0405
-    stz.b $A9
-    stz.b $AA
-    stz.b $AB
-    stz.b $AC
+    stz.w !PAUSED
+    stz.b !END_COLUMN_STEP
+    stz.b !END_COLUMN_STEP+1
+    stz.b !END_COLUMN_STEP+2
+    stz.b !END_COLUMN_STEP+3
 .lF813:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    stz.w $000C
+    stz.w !scratch
     ldx.b #$00
 .lF822:
-    lda.w $00A6
+    lda.w !END_COUNT+1
     beq .lF82D
     dec a
     beq .lF813
     jmp.w .lF8B0
 .lF82D:
-    lda.w $00A5
-    cmp.w $FDCD,x
+    lda.w !END_COUNT
+    cmp.w !END_COLUMN_LIMIT,x
     bcs .lF8A0
-    lda.b $A9,x
+    lda.b !END_COLUMN_STEP,x
     cmp.b #$00
     bne .lF84D
     ldy.b #$00
     jsr.w LevelEndColumnPlace
     jsr.w LevelEndColumnTile
     tay
-    lda.w $000E
+    lda.w !scratch+2
     jsl.l TileBlockQueueOne
     bra .lF89B
 .lF84D:
@@ -280,7 +306,7 @@ LevelEndTask:
     clc
     adc.w #$0006
     tay
-    lda.w $000E
+    lda.w !scratch+2
     jsl.l TileBlockQueueOne
     bra .lF89B
 .lF867:
@@ -292,7 +318,7 @@ LevelEndTask:
     clc
     adc.w #$0002
     tay
-    lda.w $000E
+    lda.w !scratch+2
     jsl.l TileBlockQueueOne
     bra .lF89B
 .lF881:
@@ -304,15 +330,15 @@ LevelEndTask:
     clc
     adc.w #$0004
     tay
-    lda.w $000E
+    lda.w !scratch+2
     jsl.l TileBlockQueueOne
     bra .lF89B
 .lF89B:
-    ldx.w $000C
-    inc.b $A9,x
+    ldx.w !scratch
+    inc.b !END_COLUMN_STEP,x
 .lF8A0:
-    inc.w $000C
-    ldx.w $000C
+    inc.w !scratch
+    ldx.w !scratch
     cpx.b #$04
     beq .lF8AD
     jmp.w .lF822
@@ -320,37 +346,37 @@ LevelEndTask:
     jmp.w .lF813
 .lF8B0:
     lda.b #$FF
-    sta.b $AF
+    sta.b !END_FRAMES
 .lF8B4:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    dec.b $AF
+    dec.b !END_FRAMES
     bne .lF8B4
     lda.b #$10
-    sta.b $AF
+    sta.b !END_FRAMES
 .lF8C6:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    dec.b $AF
+    dec.b !END_FRAMES
     bne .lF8C6
-    inc.b $AE
+    inc.b !CUE_AE
     lda.b #$48
-    sta.b $AF
+    sta.b !END_FRAMES
 .lF8DA:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    dec.b $AF
+    dec.b !END_FRAMES
     bne .lF8DA
 .lF8E8:
     lda.b #$01
     jsl.l TaskWait
     jsl.l FrameStepLong
-    lda.w $037B
+    lda.w !joy_pressed
     and.b #$C0
-    ora.w $037C
+    ora.w !joy_pressed+1
     bit.b #$D0
     beq .lF8E8
     jsl.l TaskCreate
@@ -359,17 +385,17 @@ LevelEndTask:
 .lF907:
     lda.b #$01
     jsl.l TaskWait
-    lda.w $0087
+    lda.w !SCENE_WAIT
     bne .lF907
     lda.b #$80
-    sta.w $03B8
-    lda.l $701399
+    sta.w !inidisp_shadow
+    lda.l !END_COPIER_COUNT
     inc a
-    sta.l $701399
-    cmp.l $701399
+    sta.l !END_COPIER_COUNT
+    cmp.l !END_COPIER_COUNT
     bne .lF93A
     lda.w !level_035c
-    cmp.w $0003
+    cmp.w !kept_options
     bcc .lF935
     lda.b #$01
     sta.w !level_035c
@@ -378,9 +404,9 @@ LevelEndTask:
     lda.b #$06
     sta.w !level_035c
 .lF93A:
-    stz.w $0375
-    stz.w $0373
-    stz.w $0374
+    stz.w !GEM_SETS
+    stz.w !GEM_SETS_FOUND
+    stz.w !GEM_SETS_FOUND+1
     lda.w !level_035c
     cmp.b #$07
     beq .last_part

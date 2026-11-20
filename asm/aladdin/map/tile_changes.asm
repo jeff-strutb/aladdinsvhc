@@ -38,6 +38,12 @@ arch 65816
 !rect_columns = $36              ; columns left in the row (word)
 !play_view_x = $1773             ; the view's left edge (pixels, word)
 !play_view_y = $1777             ; the view's top edge (pixels, word)
+; PointOffsetAt (the direct page and the data bank): the point, the side
+; bit, and the offsets by X (x, then y at +2; words).
+!po_x = $0C
+!po_y = $0F
+!po_flip = $15                   ; bit 0 set: the x offset is taken off
+!point_offsets = $BA62
 
 ; @routine 81:9A64 TileChangeQueueQuarter
 ; WHAT IT DOES: Queues one 8x8 quarter of a changed map tile for the NMI
@@ -227,19 +233,19 @@ MapTileAddress:
 %at($819C8D)
 PointOffsetAt:
     clc
-    lda.b $0F
-    adc.w $BA64,x
+    lda.b !po_y
+    adc.w !point_offsets+2,x
     tay
-    lda.b $15
+    lda.b !po_flip
     lsr a
-    lda.b $0C
+    lda.b !po_x
     bcs .back
-    adc.w $BA62,x
+    adc.w !point_offsets,x
     tax
     rtl
 .back:
     sec
-    sbc.w $BA62,x
+    sbc.w !point_offsets,x
     tax
     rtl
 

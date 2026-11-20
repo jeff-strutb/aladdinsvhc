@@ -58,6 +58,9 @@ arch 65816
 !V_DA77 = $DA77
 !V_DA79 = $DA79
 !V_DA7B = $DA7B
+!V_032D = $032D                 ; counts frames (its every 4th frame steps the screen)
+!SHAPE_BANK = $7F               ; where CircleWipeStep draws the window table ($7F:5000)
+!HDMA_BANK = $7E                ; where the HDMA reads it ($7E:F500)
 !V_DA7D = $DA7D
 !V_DA7F = $DA7F
 !V_DA83 = $DA83
@@ -178,7 +181,7 @@ GenieScreen:
     ldx.w #$5000
     ldy.w #$F500
     lda.w #$01FF
-    mvn $7E,$7F
+    mvn !HDMA_BANK,!SHAPE_BANK
     plb
     lda.w #$FF00
     ldx.w #$0100
@@ -431,7 +434,7 @@ GenieScreen:
 .lA976:
     stz.w !V_00AE
     jsr.w GenieFrame
-    lda.l $00032D
+    lda.l !V_032D
     and.b #$03
     bne .lA998
     rep.b #$20

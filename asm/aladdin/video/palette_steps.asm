@@ -14,6 +14,8 @@ arch 65816
 ; Palettes in bank $84 for actors: 16 colours (32 bytes) each.
 !actor_palettes = $B000
 !ACTOR_PALETTE_BANK = $84
+; PaletteBlinkStep: in the direct page, the blink's count of steps left.
+!blink_count = $4F
 
 ; @routine 81:9903 ActorPaletteFromRom
 ; WHAT IT DOES: Sets the actor's sprite palette to palette Y of the bank
@@ -126,11 +128,11 @@ PaletteFromRom:
 ; set; else as PaletteWhite or PaletteRestoreReversed.
 %at($819CC8)
 PaletteBlinkStep:
-    ldx.b $4F
+    ldx.b !blink_count
     beq PaletteWhite_out
     pha
-    dec.b $4F
-    lda.b $4F
+    dec.b !blink_count
+    lda.b !blink_count
     lsr a
     pla
     bcs PaletteWhite

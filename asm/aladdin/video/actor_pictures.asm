@@ -12,6 +12,8 @@ arch 65816
 
 !ACTOR_PICTUREs_at = $29        ; the actor's picture list (direct-page pointer, word)
 !KIND_GFX = $7FE500             ; per kind: where its graphics went in bank $7F (word)
+!v_0a00c1 = $0A00C1            ; ActorFrameIsStep's compare: work RAM's $00C1 (its result is not used)
+!v_0843 = $0843                 ; ActorFramePictureOnce: per X, nonzero once its picture was queued
 
 ; @routine 81:949E ActorPictureSend
 ; WHAT IT DOES: When the actor shows its own picture (bit 6 of $09) and
@@ -30,7 +32,7 @@ arch 65816
 ; C from CMP $2F; else X = $26 less one, N and Z from it, C from the CMP.
 %at($81946F)
 ActorFrameIsStep:
-    cmp.l $0A00C1
+    cmp.l !v_0a00c1
     cmp.b !ACTOR_FRAME
     bne .out
     ldx.b !ACTOR_FRAME_TIME
@@ -51,7 +53,7 @@ ActorFrameIsStep:
 ; (CMP for $2F); queued: as ActorPictureQueueParts.
 %at($81947B)
 ActorFramePictureOnce:
-    lda.w $0843,x
+    lda.w !v_0843,x
     bne ActorPictureNone
     lda.b !actor_09
     and.b #$40
@@ -59,7 +61,7 @@ ActorFramePictureOnce:
     lda.b !ACTOR_FRAME
     cmp.b !ACTOR_REDRAW
     beq ActorPictureNone
-    inc.w $0843,x
+    inc.w !v_0843,x
     bra ActorPictureQueueNew
 
 %at($819491)
