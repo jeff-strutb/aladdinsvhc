@@ -1,0 +1,638 @@
+# Every real hardware touch in src/aladdin at cffb00c, with its replacement (docs/aladdin/native/hardware-touches.md).
+# file:line: touch: code  -> replacement. Made from tools/nshvc-find-hardware (nativeshvc 8d1745d) plus the touches it does not look for.
+actor/actor_end.c:129: calls by address: jump_routine(0x830000u | (uint16_t)(ret + 1));  -> a direct C call, or a switch on a named id
+actor/actor_loop.c:53: calls by address: call_routine(to, 0);  -> a direct C call, or a switch on a named id
+actor/actor_moves.c:109: multiplier and divider: wr8(dba((uint16_t)WRMPYA), speed);  -> ordinary C
+actor/actor_moves.c:161: multiplier and divider: sta16(ea_abs(WRDIVL & 0xFFFF));   [not in the finder's patterns]  -> ordinary C
+actor/actor_moves.c:163: multiplier and divider: sty8(ea_abs(WRDIVB & 0xFFFF));   [not in the finder's patterns]  -> ordinary C
+actor/actor_moves.c:164: multiplier and divider: lda16(ea_abs(RDDIVL & 0xFFFF));   [not in the finder's patterns]  -> ordinary C
+actor/actor_steps.c:108: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(TESTS_BY_X + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/actor_steps.c:160: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(FLAG_CASES + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/backdrop_actor.c:315: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xF050 + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/course_platform.c:886: calls by address: call_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xCC34 + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+actor/guard_start.c:139: cartridge RAM area ($70:xxxx): n = (uint8_t)(rd8(G_CART_COUNTS + (uint8_t)cpu.x) + 1);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/guard_start.c:142: cartridge RAM area ($70:xxxx): wr8(G_CART_COUNTS + (uint8_t)cpu.x, n);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/guard_start.c:211: calls by address: jump_routine(0xA50000u | rd16(0xA50000u | (uint16_t)(STARTS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/guard_states.c:154: calls by address: jump_routine(0xA50000u | rd16(0xA50000u | (uint16_t)(STATES + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind20.c:206: calls by address: jump_routine(0x839956u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:249: calls by address: jump_routine(CARRIER);  -> a direct C call, or a switch on a named id
+actor/kind20.c:301: calls by address: jump_routine(0x839894u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:311: calls by address: jump_routine(0x839832u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:318: calls by address: jump_routine(0x839832u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:324: calls by address: jump_routine(0x839832u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:336: calls by address: jump_routine(0x839832u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:363: calls by address: jump_routine(0x839894u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:378: calls by address: jump_routine(0x839894u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:399: calls by address: jump_routine(0x839894u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:408: calls by address: jump_routine(0x8397F9u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:433: cartridge RAM area ($70:xxxx): cmp8_v(rd8(COPIER_TEST));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/kind20.c:437: cartridge RAM area ($70:xxxx): cmp8_v(rd8(COPIER_TEST));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/kind20.c:445: calls by address: jump_routine(0x839956u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:456: calls by address: jump_routine(0x839956u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:486: calls by address: jump_routine(0x839900u);  -> a direct C call, or a switch on a named id
+actor/kind20.c:542: calls by address: jump_routine(0x839832u);  -> a direct C call, or a switch on a named id
+actor/kind20_carrier.c:54: calls by address: jump_routine(0x8397E5u);  -> a direct C call, or a switch on a named id
+actor/kind20_carrier.c:93: calls by address: jump_routine(0x83C5DEu);  -> a direct C call, or a switch on a named id
+actor/kind20_carrier.c:229: calls by address: jump_routine(0x839AB9u);  -> a direct C call, or a switch on a named id
+actor/kind20_carrier.c:244: calls by address: jump_routine(0x839AB9u);  -> a direct C call, or a switch on a named id
+actor/kind20_carrier.c:258: calls by address: jump_routine(0x839894u);  -> a direct C call, or a switch on a named id
+actor/kind21.c:163: calls by address: jump_routine(0xA50000u | rd16((PARTS + i) & 0xFFFFFFu));  -> a direct C call, or a switch on a named id
+actor/kind23_25.c:58: calls by address: jump_routine(0x839D43u);  -> a direct C call, or a switch on a named id
+actor/kind23_25.c:90: calls by address: jump_routine(0x839D43u);  -> a direct C call, or a switch on a named id
+actor/kind27.c:255: cartridge RAM area ($70:xxxx): cmp8_v(rd8(K27_CHECK));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/kind2a.c:387: cartridge RAM area ($70:xxxx): cmp8_v(rd8(ea_long(COPY_TEST)));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/kind2e.c:209: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xAAF8 + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind31.c:370: calls by address: default: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K31_WALKS + cpu.x))); return  -> a direct C call, or a switch on a named id
+actor/kind34.c:65: calls by address: default: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(KIND34_PARTS + cpu.x))); bre  -> a direct C call, or a switch on a named id
+actor/kind36.c:84: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K36_PARTS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind36.c:159: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K36_MOVES + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind3b.c:230: calls by address: default: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K3B_PARTS + cpu.x))); break;  -> a direct C call, or a switch on a named id
+actor/kind3b.c:463: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(0xC103u + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind3d.c:296: calls by address: default: call_routine(0x830000u | rd16(0x830000u | (uint16_t)(K3D_CHILD_SETS + cpu.x)), 0)  -> a direct C call, or a switch on a named id
+actor/kind41.c:193: cartridge RAM area ($70:xxxx): sram = rd8(ea_long(K41_SRAM));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/kind42.c:87: calls by address: jump_routine(0x83C738u);  -> a direct C call, or a switch on a named id
+actor/kind42.c:108: calls by address: jump_routine(0x83C714u);  -> a direct C call, or a switch on a named id
+actor/kind42.c:125: calls by address: jump_routine(0x83C738u);  -> a direct C call, or a switch on a named id
+actor/kind42.c:141: calls by address: jump_routine(0x83C738u);  -> a direct C call, or a switch on a named id
+actor/kind42.c:164: calls by address: jump_routine(0x83C738u);  -> a direct C call, or a switch on a named id
+actor/kind43.c:65: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K43_WAYS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind49.c:64: calls by address: jump_routine(0x840000u | rd16(0x840000u | (uint16_t)(0x8062 + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind59.c:330: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K59_WAYS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind6a.c:96: calls by address: jump_routine(0x830000u | rd16(K6A_WAYS + cpu.x));  -> a direct C call, or a switch on a named id
+actor/kind7d_wait.c:197: calls by address: jump_routine(0x840000u | rd16(0x840000u | (uint16_t)(K7D_STATES + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind7e.c:268: calls by address: jump_routine(0x840000u | rd16(0x840000u | (uint16_t)(K7E_WAYS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind91.c:111: calls by address: jump_routine(0xA50000u | rd16(0xA50000u | (uint16_t)(KIND91_VARIANTS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind95.c:459: calls by address: jump_routine(0x840000u | rd16(0x840000u | (uint16_t)(PARTS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind98.c:159: calls by address: jump_routine(0x840000u | rd16(0x840000u | (uint16_t)(K98_WAYS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind9e.c:52: calls by address: jump_routine(0x840000u | to);  -> a direct C call, or a switch on a named id
+actor/kind_wait.c:698: calls by address: jump_routine(0x840000u | (uint16_t)(ret + 1));  -> a direct C call, or a switch on a named id
+actor/kind_waits_rest.c:751: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(BOB_TABLE + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind_waits_rest.c:870: calls by address: jump_routine(0x830000u | rd16(0x830000u | (uint16_t)(K5D_TABLE + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/kind_waits_rest.c:935: cartridge RAM area ($70:xxxx): cmp8_v(rd8(COPIER_RAM));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+actor/kinda4.c:289: calls by address: jump_routine(0x840000u | rd16(0x840000u | (uint16_t)(KA4_WAYS + cpu.x)));  -> a direct C call, or a switch on a named id
+actor/knocked_away.c:164: calls by address: jump_routine(0x839589u);  -> a direct C call, or a switch on a named id
+actor/placement.c:330: calls by address: call_routine(0x820000u | rd16(0x820000u | (uint16_t)(0xAA81 + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+actor/pool.c:114: calls by address: jump_routine(0x81ADF9);  -> a direct C call, or a switch on a named id
+actor/restart_far.c:79: calls by address: jump_routine(0xA50000u | at);  -> a direct C call, or a switch on a named id
+actor/restart_far.c:230: calls by address: jump_routine(0xA5EFDEu);  -> a direct C call, or a switch on a named id
+actor/spawn_at.c:42: calls by address: call_routine(ACTOR_ALLOC, 1);  -> a direct C call, or a switch on a named id
+actor/story_actor_9b.c:331: calls by address: default: jump_routine(0x840000u | rd16((ROLES + i) & 0xFFFFFFu)); break;  -> a direct C call, or a switch on a named id
+actor/wait_step.c:490: calls by address: call_routine(SUB_83FBDA, 0);  -> a direct C call, or a switch on a named id
+audio/dsp_write.c:51: SPC700 memory and I/O (driver side): spc.y = spc_nz((uint8_t)(((spc.x << 4 | spc.x >> 4) & 0x70) | spc_rd(spc_dp(DSP_VOICE_REG)  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/dsp_write.c:69: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(VOICE_ADSR1 + spc.x)) & 0x7F;  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_command.c:66: sound ports (S-CPU side): cpu.p = cmp8_flags(cpu.p, a, rd8(APUIO2));  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/sound_command.c:83: sound ports (S-CPU side): wr8(APUIO2, 0);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/sound_command.c:84: sound ports (S-CPU side): wr8(APUIO3, param);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/sound_command.c:88: sound ports (S-CPU side): wr8(APUIO0, cmd);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/sound_driver.c:95: SPC700 memory and I/O (driver side): static uint8_t dp_rd(uint8_t d) { return spc_rd(spc_dp(d)); }  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:116: SPC700 memory and I/O (driver side): uint16_t p = spc_rd(spc_dp(d));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:117: SPC700 memory and I/O (driver side): p |= (uint16_t)(spc_rd(spc_dp((uint8_t)(d + 1))) << 8);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:179: SPC700 memory and I/O (driver side): spc_wr(at, 0);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:181: SPC700 memory and I/O (driver side): spc_wr(at, 0);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:183: SPC700 memory and I/O (driver side): spc_wr(at, 0);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:197: SPC700 memory and I/O (driver side): v = spc_rd(0x00FD);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:236: SPC700 memory and I/O (driver side): dp_wr(0xA3, spc_rd((uint16_t)(0x0238 + y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:237: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0240 + y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:241: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0250 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:247: SPC700 memory and I/O (driver side): dp_wr(0xA3, spc_rd((uint16_t)(0x0238 + x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:248: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0240 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:314: SPC700 memory and I/O (driver side): dp_wr(0xAA, spc_rd((uint16_t)(0x0260 + spc.x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:315: SPC700 memory and I/O (driver side): dp_wr(0xA9, spc_rd((uint16_t)(0x0258 + spc.x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:317: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0268 + spc.x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:351: SPC700 memory and I/O (driver side): spc_st(0x00F2, spc_rd((uint16_t)(0x0437 + y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:352: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x043A + y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:376: SPC700 memory and I/O (driver side): cmd = spc_rd(0x00F4);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:377: SPC700 memory and I/O (driver side): spc_cmp(cmd, spc_rd(0x00F4));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:426: SPC700 memory and I/O (driver side): spc_cmp(spc.a, spc_rd(0x1DB0));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:430: SPC700 memory and I/O (driver side): spc.a = spc_sbc(spc.a, spc_rd(0x1DB0));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:434: SPC700 memory and I/O (driver side): dp_wr(0xA1, spc_rd((uint16_t)(0x1DB2 + spc.x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:435: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x1DB3 + spc.x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:443: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(ind_y(0xA0)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:456: SPC700 memory and I/O (driver side): dp_wr(0xA3, spc_rd(ind_y(0xA0)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:458: SPC700 memory and I/O (driver side): dp_wr(0xA2, spc_rd(ind_y(0xA0)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:459: SPC700 memory and I/O (driver side): spc.a = spc_rd(ind_y(0xA2));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:464: SPC700 memory and I/O (driver side): spc_cmp(spc.a, spc_rd((uint16_t)(0x0250 + spc.x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:481: SPC700 memory and I/O (driver side): spc.a = spc_adc(spc_rd(0x00F5), 0x80);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:551: SPC700 memory and I/O (driver side): t = spc_rd((uint16_t)(0x0511 + spc.x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:552: SPC700 memory and I/O (driver side): t |= (uint16_t)(spc_rd((uint16_t)(0x0512 + spc.x)) << 8);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:641: SPC700 memory and I/O (driver side): spc_wr(spc_dp(x), spc.a);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:677: SPC700 memory and I/O (driver side): dp_wr(0xA3, spc_rd(ind_y(0xA0)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:679: SPC700 memory and I/O (driver side): dp_wr(0xA2, spc_rd(ind_y(0xA0)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:680: SPC700 memory and I/O (driver side): spc.a = spc_rd(ind_y(0xA2));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:714: SPC700 memory and I/O (driver side): v = spc_nz(spc_rd(0x00F5));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:741: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(0x00F5));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:826: SPC700 memory and I/O (driver side): spc.a = spc_rd(0x00F6);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:827: SPC700 memory and I/O (driver side): spc.a = spc_or(spc.a, spc_rd(0x00F7));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:832: SPC700 memory and I/O (driver side): spc.a = spc_rd(0x00F6);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:833: SPC700 memory and I/O (driver side): spc.y = spc_rd(0x00F7);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:915: SPC700 memory and I/O (driver side): spc_cmp(spc_rd(0x00F4), 0xCC);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:919: SPC700 memory and I/O (driver side): spc.a = spc_rd(0x00F6);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:920: SPC700 memory and I/O (driver side): spc.y = spc_rd(0x00F7);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:922: SPC700 memory and I/O (driver side): y = spc_rd(0x00F4);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:923: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(0x00F5));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:928: SPC700 memory and I/O (driver side): y = spc_rd(0x00F4);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:932: SPC700 memory and I/O (driver side): spc_cmp(y, spc_rd(0x00F4));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:934: SPC700 memory and I/O (driver side): v = spc_rd(0x00F5);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:943: SPC700 memory and I/O (driver side): spc_cmp(y, spc_rd(0x00F4));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:950: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(0x00FD));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1020: SPC700 memory and I/O (driver side): v = spc_rd((uint16_t)(0x07E5 + spc.y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1022: SPC700 memory and I/O (driver side): v = spc_rd((uint16_t)(0x07DE + spc.y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1025: SPC700 memory and I/O (driver side): v = spc_rd((uint16_t)(0x07EC + spc.y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1039: SPC700 memory and I/O (driver side): a = spc_adc(a, spc_rd((uint16_t)(0x07F3 + spc.y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1045: SPC700 memory and I/O (driver side): a = spc_adc(a, spc_rd((uint16_t)(0x0210 + x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1049: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0218 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1087: SPC700 memory and I/O (driver side): v = spc_rd((uint16_t)(0x0100 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1124: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0208 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1151: SPC700 memory and I/O (driver side): hi = spc_rd((uint16_t)(0x0832 + spc.y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1153: SPC700 memory and I/O (driver side): lo = spc.a = spc_nz(spc_rd((uint16_t)(0x0831 + spc.y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1184: SPC700 memory and I/O (driver side): spc.a = spc_rd(dp_rdw(0xA0));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1265: SPC700 memory and I/O (driver side): spc.y = spc_rd(0x1DB1);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1322: SPC700 memory and I/O (driver side): spc_put((uint16_t)(0x0238 + spc.x), spc_rd((uint16_t)(at + 1)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1326: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(at + i));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1332: SPC700 memory and I/O (driver side): spc_put((uint16_t)(0x0220 + spc.x), spc_rd((uint16_t)(at + 4)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1334: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd((uint16_t)(at + 5)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1417: SPC700 memory and I/O (driver side): count = spc_rd(spc.y);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1430: SPC700 memory and I/O (driver side): spc.a = spc_dec(spc_rd(spc.y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1538: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd((uint16_t)(0x0250 + spc.x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1575: SPC700 memory and I/O (driver side): spc.a = (uint8_t)(spc_rd((uint16_t)(0x0100 + spc.x)) & 0xEF);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1618: SPC700 memory and I/O (driver side): dsp_set(0x0C, spc_rd((uint16_t)(0x0D10 + x)), 0x0A04);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1619: SPC700 memory and I/O (driver side): dsp_set(0x1C, spc_rd((uint16_t)(0x0D11 + x)), 0x0A0C);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1620: SPC700 memory and I/O (driver side): dp_wr(0xCE, spc_rd((uint16_t)(0x0D12 + x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1621: SPC700 memory and I/O (driver side): dp_wr(0xCF, spc_rd((uint16_t)(0x0D13 + x)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1623: SPC700 memory and I/O (driver side): dsp_set(0x6D, spc_rd((uint16_t)(0x0D14 + x)), 0x0A21);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1627: SPC700 memory and I/O (driver side): v = (uint8_t)~((spc_rd(0x00F3) & 0x0F) + 1);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1634: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0D15 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1638: SPC700 memory and I/O (driver side): dsp_set(0x0D, spc_rd((uint16_t)(0x0D16 + x)), 0x0A4B);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1639: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0D17 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1664: SPC700 memory and I/O (driver side): spc_st(0x00F2, spc_rd((uint16_t)(0x0A68 + y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1691: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0A83 + spc.x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1783: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(0x00B9));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1835: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0230 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1838: SPC700 memory and I/O (driver side): pan = dp_rd(0xB0) & 0x20 ? 0x80 : spc_rd((uint16_t)(0x0248 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1847: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0BC1 + spc.y));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1848: SPC700 memory and I/O (driver side): spc.a = spc_sbc(spc.a, spc_rd((uint16_t)(0x0BC0 + spc.y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1854: SPC700 memory and I/O (driver side): level = spc_adc(spc.a, spc_rd((uint16_t)(0x0BC0 + spc.y)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1925: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0BB0 + i));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1926: SPC700 memory and I/O (driver side): spc.a = spc_sbc(spc.a, spc_rd((uint16_t)(0x0BAF + i)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1932: SPC700 memory and I/O (driver side): spc.a = spc_adc(spc.a, spc_rd((uint16_t)(0x0BAF + i)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1954: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(0x00B0));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:1956: SPC700 memory and I/O (driver side): spc.a = spc_nz(spc_rd(0x00C5));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2070: SPC700 memory and I/O (driver side): dp_wr(0xA3, spc_rd((uint16_t)(0x0CC3 + r)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2071: SPC700 memory and I/O (driver side): dp_wr(0xA2, spc_rd((uint16_t)(0x0CC2 + r)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2072: SPC700 memory and I/O (driver side): spc_push(spc_rd((uint16_t)(0x0CC5 + r)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2073: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0CC4 + r));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2096: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0228 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2100: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0228 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2104: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0220 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/sound_driver.c:2109: SPC700 memory and I/O (driver side): spc.a = spc_rd((uint16_t)(0x0220 + x));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+audio/spc_upload.c:56: sound ports (S-CPU side): cpu.p = cmp8_flags(cpu.p, a, rd8(APUIO0));  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:99: sound ports (S-CPU side): cpu.p = cmp8_flags(cpu.p, a, rd8(APUIO2));  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:106: sound ports (S-CPU side): op_cmp16(rd16(APUIO0));  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:112: sound ports (S-CPU side): wr8(APUIO0, (uint8_t)cpu.a);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:124: sound ports (S-CPU side): wr16(APUIO2, cpu.a);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:131: sound ports (S-CPU side): wr8(APUIO1, a);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:135: sound ports (S-CPU side): wr8(APUIO0, pushed);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:147: sound ports (S-CPU side): wr16(APUIO0, cpu.a);  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+audio/spc_upload.c:178: sound ports (S-CPU side): cpu.p = cmp8_flags(cpu.p, 1, rd8(APUIO2));  -> nshvc_music_send (commands); the upload handshake goes: nshvc_sample_load and a message
+game/ending.c:358: HDMA (channels 1-7): sta8(ea_abs(DMAP5));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/ending.c:360: HDMA (channels 1-7): sta8(ea_abs(BBAD5));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/ending.c:362: HDMA (channels 1-7): sta8(ea_abs(A1T5L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/ending.c:364: HDMA (channels 1-7): sta8(ea_abs(A1T5H));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/ending.c:366: HDMA (channels 1-7): sta8(ea_abs(A1B5));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/ending.c:367: HDMA (channels 1-7): stz8(ea_abs(DASB5));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/genie_screen.c:526: calls by address: switch (cpu.x) { case 0: goto L_80AA78; case 2: goto L_80AA98; case 4: goto L_80AABA; case  -> a direct C call, or a switch on a named id
+game/level_end.c:206: calls by address: jump_routine(0x84AFCCu);  -> a direct C call, or a switch on a named id
+game/level_end.c:512: cartridge RAM area ($70:xxxx): cmp8_v(rd8(0x701399u));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+game/opening_story.c:350: HDMA (channels 1-7): stz8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/opening_story.c:462: calls by address: call_routine(0x800000u | rd16(0x800000u | (uint16_t)(SCENE_STARTS + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+game/options_screen.c:146: multiplier and divider: wr8(dba(WRDIVL & 0xFFFF), number);  -> ordinary C
+game/options_screen.c:148: multiplier and divider: wr8(dba(WRDIVB & 0xFFFF), 10);  -> ordinary C
+game/options_screen.c:151: multiplier and divider: digit = op_adc8(rd8(dba(RDDIVL & 0xFFFF)), DIGIT_TILE, &cpu.p);  -> ordinary C
+game/options_screen.c:154: multiplier and divider: digit = op_adc8(rd8(dba(RDMPYL & 0xFFFF)), DIGIT_TILE, &cpu.p);  -> ordinary C
+game/options_task.c:277: calls by address: call_routine(0x830000u | rd16(0x830000u | (uint16_t)(0x8B59 + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+game/password_screen.c:137: beam position, region: lda8(ea_abs(STAT78));   [not in the finder's patterns]  -> gone: the IRQ line is a fixed line, the unpacking is done in one update, the region is NTSC (constant)
+game/player_scene_moves.c:222: cartridge RAM area ($70:xxxx): ram = rd8(SCENE_CART_RAM + cpu.x);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+game/scene_figures.c:272: calls by address: jump_routine(ENDING_RIDE_ON);  -> a direct C call, or a switch on a named id
+game/story_card.c:132: calls by address: jump_routine(0x810000u | rd16(0x810000u | (uint16_t)(STORY_COMMANDS + cpu.x)));  -> a direct C call, or a switch on a named id
+game/story_scenes.c:359: HDMA (channels 1-7): stz8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/story_scenes.c:489: calls by address: call_routine(0x800000u | rd16(0x800000u | (uint16_t)(STORY_SCENE_STARTS + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+game/title_task.c:306: HDMA (channels 1-7): stz8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/title_task.c:395: calls by address: jump_routine(0x80AC87u); return;  -> a direct C call, or a switch on a named id
+game/title_task.c:416: HDMA (channels 1-7): stz8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+game/title_task.c:451: calls by address: jump_routine(0x818191u); return;  -> a direct C call, or a switch on a named id
+include/machine.h:89: calls by address: void call_routine(uint32_t addr, int long_call);  -> a direct C call, or a switch on a named id
+include/machine.h:93: calls by address: void jump_routine(uint32_t addr);  -> a direct C call, or a switch on a named id
+include/machine.h:96: calls by address: void jump_routine_pushed(uint32_t addr, const uint8_t *pushed, int n);   [not in the finder's patterns]  -> a direct C call, or a switch on a named id
+include/spc.h:27: SPC700 memory and I/O (driver side): uint8_t spc_rd(uint16_t addr);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:28: SPC700 memory and I/O (driver side): void spc_wr(uint16_t addr, uint8_t v);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:33: SPC700 memory and I/O (driver side): uint32_t spc_wait_until(int (*ready)(void *ctx), void *ctx);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:36: SPC700 memory and I/O (driver side): reads: spc_wr_cyc(a, f(spc_rd(b)), n) states the read's time inside the  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:37: SPC700 memory and I/O (driver side): argument and the write's here). It is spc_wr with the time after the  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:38: SPC700 memory and I/O (driver side): arguments, which spc_wr itself, a primitive the checks provide, cannot take. */  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:41: SPC700 memory and I/O (driver side): spc_wr(addr, v);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:48: SPC700 memory and I/O (driver side): static inline void spc_push(uint8_t v) { spc_wr((uint16_t)(0x0100 | spc.sp), v); spc.sp--;  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc.h:49: SPC700 memory and I/O (driver side): static inline uint8_t spc_pull(void) { spc.sp++; return spc_rd((uint16_t)(0x0100 | spc.sp)  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:122: SPC700 memory and I/O (driver side): spc_rd(addr);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:123: SPC700 memory and I/O (driver side): spc_wr(addr, v);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:133: SPC700 memory and I/O (driver side): spc_wr(addr, v);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:138: SPC700 memory and I/O (driver side): uint8_t v = spc_rd(addr);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:139: SPC700 memory and I/O (driver side): spc_wr(addr, op(v));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:144: SPC700 memory and I/O (driver side): spc_rd(spc_dp(d));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:145: SPC700 memory and I/O (driver side): spc_wr(spc_dp(d), spc.a);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:146: SPC700 memory and I/O (driver side): spc_wr(spc_dp((uint8_t)(d + 1)), spc.y);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:151: SPC700 memory and I/O (driver side): uint16_t v = spc_rd(spc_dp(d));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:152: SPC700 memory and I/O (driver side): v |= (uint16_t)(spc_rd(spc_dp((uint8_t)(d + 1))) << 8);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:158: SPC700 memory and I/O (driver side): uint16_t v = (uint16_t)(spc_rd(spc_dp(d)) + adjust);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:159: SPC700 memory and I/O (driver side): spc_wr(spc_dp(d), (uint8_t)v);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:160: SPC700 memory and I/O (driver side): v = (uint16_t)(v + (spc_rd(spc_dp((uint8_t)(d + 1))) << 8));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:161: SPC700 memory and I/O (driver side): spc_wr(spc_dp((uint8_t)(d + 1)), (uint8_t)(v >> 8));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:167: SPC700 memory and I/O (driver side): uint8_t v = spc_rd(addr);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:171: SPC700 memory and I/O (driver side): spc_rd(addr);  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:172: SPC700 memory and I/O (driver side): spc_wr(addr, set ? (uint8_t)(v | spc.a) : (uint8_t)(v & ~spc.a));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:177: SPC700 memory and I/O (driver side): uint8_t v = spc_rd(spc_dp(d));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+include/spc_ops.h:178: SPC700 memory and I/O (driver side): spc_wr(spc_dp(d), set ? (uint8_t)(v | 1 << bit) : (uint8_t)(v & ~(1 << bit)));  -> the driver as music code: nshvc_voice_*, nshvc_echo, nshvc_echo_writes, nshvc_sound_*, nshvc_music_receive; its RAM as the driver's own C state
+level/level03_scene.c:111: cartridge RAM area ($70:xxxx): cmp8_v(rd8(ea_long(COPIER_COUNT)));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+level/level_backdrop.c:50: video memory port: wr8(dba((uint16_t)VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+level/level_backdrop.c:53: video memory port: wr16(dba((uint16_t)VMADDL), BACKDROP_TILEMAP);  -> nshvc_tiles_write, nshvc_map_write_snes
+level/level_backdrop.c:55: video memory port: wr16(dba((uint16_t)VMDATAL), 0);  -> nshvc_tiles_write, nshvc_map_write_snes
+level/level_backdrop.c:62: calls by address: jump_routine(0x810000u | to);  -> a direct C call, or a switch on a named id
+level/level_screen_setups.c:61: HDMA (channels 1-7): wr8(dba(DMAP4), 0x02);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:62: HDMA (channels 1-7): wr8(dba(BBAD4), 0x0F);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:63: HDMA (channels 1-7): wr8(dba(A1T4L), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:65: HDMA (channels 1-7): wr8(dba(A1T4H), 0xF4);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:67: HDMA (channels 1-7): wr8(dba(A1B4), 0x7E);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:68: HDMA (channels 1-7): wr8(dba(DASB4), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:332: HDMA (channels 1-7): wr8(dba((uint16_t)DMAP1), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:333: HDMA (channels 1-7): wr8(dba((uint16_t)BBAD1), 0x2C);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:334: HDMA (channels 1-7): wr8(dba((uint16_t)A1T1L), 0x9E);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:335: HDMA (channels 1-7): wr8(dba((uint16_t)A1T1H), 0xB9);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:336: HDMA (channels 1-7): wr8(dba((uint16_t)A1B1), 0x80);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:337: HDMA (channels 1-7): wr8(dba((uint16_t)DASB1), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:338: HDMA (channels 1-7): wr8(dba((uint16_t)DMAP2), 0x02);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:339: HDMA (channels 1-7): wr8(dba((uint16_t)BBAD2), 0x0F);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:340: HDMA (channels 1-7): wr8(dba((uint16_t)A1T2L), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:341: HDMA (channels 1-7): wr8(dba((uint16_t)A1T2H), 0xF4);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:342: HDMA (channels 1-7): wr8(dba((uint16_t)A1B2), 0x7E);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:343: HDMA (channels 1-7): wr8(dba((uint16_t)DASB2), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:582: HDMA (channels 1-7): wr8(dba((uint16_t)DMAP1), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:583: HDMA (channels 1-7): wr8(dba((uint16_t)BBAD1), 0x05);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:584: HDMA (channels 1-7): wr8(dba((uint16_t)A1T1L), (uint8_t)LEVEL11_MODES);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:585: HDMA (channels 1-7): wr8(dba((uint16_t)A1T1H), (uint8_t)(LEVEL11_MODES >> 8));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:586: HDMA (channels 1-7): wr8(dba((uint16_t)A1B1), 0x80);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:587: HDMA (channels 1-7): wr8(dba((uint16_t)DASB1), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:588: HDMA (channels 1-7): wr8(dba((uint16_t)DMAP2), 0x02);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:589: HDMA (channels 1-7): wr8(dba((uint16_t)BBAD2), 0x12);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:590: HDMA (channels 1-7): wr8(dba((uint16_t)A1T2L), (uint8_t)LEVEL11_BG3Y);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:591: HDMA (channels 1-7): wr8(dba((uint16_t)A1T2H), (uint8_t)(LEVEL11_BG3Y >> 8));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:592: HDMA (channels 1-7): wr8(dba((uint16_t)A1B2), 0x80);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:593: HDMA (channels 1-7): wr8(dba((uint16_t)DASB2), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:594: HDMA (channels 1-7): wr8(dba((uint16_t)DMAP3), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:595: HDMA (channels 1-7): wr8(dba((uint16_t)BBAD3), 0x2C);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:596: HDMA (channels 1-7): wr8(dba((uint16_t)A1T3L), (uint8_t)LEVEL11_LAYERS);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:597: HDMA (channels 1-7): wr8(dba((uint16_t)A1T3H), (uint8_t)(LEVEL11_LAYERS >> 8));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:598: HDMA (channels 1-7): wr8(dba((uint16_t)A1B3), 0x80);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:599: HDMA (channels 1-7): wr8(dba((uint16_t)DASB3), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:629: calls by address: jump_routine(0x810000u | rd16(LEVEL_SETUPS + cpu.x));  -> a direct C call, or a switch on a named id
+level/level_screen_setups.c:856: HDMA (channels 1-7): wr8(dba(DMAP6), 0x03);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:858: HDMA (channels 1-7): wr8(dba(BBAD6), 0x21);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:860: HDMA (channels 1-7): wr8(dba(A1T6L), 0x7E);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:863: HDMA (channels 1-7): wr8(dba(A1T6H), 0x1C);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:866: HDMA (channels 1-7): wr8(dba(A1B6), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:867: HDMA (channels 1-7): wr8(dba(DASB6), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:869: HDMA (channels 1-7): wr8(dba(DMAP7), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:871: HDMA (channels 1-7): wr8(dba(BBAD7), 0x2C);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:873: HDMA (channels 1-7): wr8(dba(A1T7L), 0xDB);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:876: HDMA (channels 1-7): wr8(dba(A1T7H), 0xB9);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:879: HDMA (channels 1-7): wr8(dba(A1B7), 0x80);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:880: HDMA (channels 1-7): wr8(dba(DASB7), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:908: HDMA (channels 1-7): wr8(dba(DMAP2), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:910: HDMA (channels 1-7): wr8(dba(BBAD2), 0x05);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:912: HDMA (channels 1-7): wr8(dba(A1T2L), 0xE5);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:914: HDMA (channels 1-7): wr8(dba(A1T2H), 0x16);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:916: HDMA (channels 1-7): wr8(dba(A1B2), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:917: HDMA (channels 1-7): wr8(dba(DASB2), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:943: HDMA (channels 1-7): wr8(dba(DMAP3), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:945: HDMA (channels 1-7): wr8(dba(BBAD3), 0x2C);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:947: HDMA (channels 1-7): wr8(dba(A1T3L), 0xF5);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:949: HDMA (channels 1-7): wr8(dba(A1T3H), 0x16);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:951: HDMA (channels 1-7): wr8(dba(A1B3), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/level_screen_setups.c:952: HDMA (channels 1-7): wr8(dba(DASB3), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+level/view_edges.c:45: calls by address: call_routine(0x810000u | rd16(0x810000u | (uint16_t)(VIEW_EDGE_RULES + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+math/multiply.c:26: multiplier and divider: wr8(abs_db(WRMPYB & 0xFFFF), (uint8_t)cpu.a);  -> ordinary C
+math/multiply.c:27: multiplier and divider: cpu.y = rd16(abs_db(RDMPYL & 0xFFFF));  -> ordinary C
+math/multiply.c:76: multiplier and divider: sta_w(WRDIVL & 0xFFFF);   [not in the finder's patterns]  -> ordinary C
+math/multiply.c:77: multiplier and divider: sty_w(WRDIVB & 0xFFFF);   [not in the finder's patterns]  -> ordinary C
+math/multiply.c:78: multiplier and divider: lda_w(RDDIVL & 0xFFFF);   [not in the finder's patterns]  -> ordinary C
+math/multiply.c:79: multiplier and divider: ldy_w(RDMPYL & 0xFFFF);   [not in the finder's patterns]  -> ordinary C
+math/multiply.c:98: multiplier and divider: stx_w(WRMPYA & 0xFFFF);   [not in the finder's patterns]  -> ordinary C
+math/multiply.c:100: multiplier and divider: hi = rd8(abs_db(RDMPYH & 0xFFFF));  -> ordinary C
+math/multiply.c:128: multiplier and divider: wr16(abs_db(WRMPYA & 0xFFFF), cpu.x);  -> ordinary C
+math/multiply.c:130: multiplier and divider: v = rd8(abs_db(RDMPYH & 0xFFFF));  -> ordinary C
+math/multiply.c:136: multiplier and divider: wr16(abs_db(WRMPYA & 0xFFFF), cpu.x);  -> ordinary C
+math/multiply.c:138: multiplier and divider: v = rd8(abs_db(RDMPYH & 0xFFFF));  -> ordinary C
+player/jump_pose.c:133: calls by address: jump_routine(0x810000u | rd16((STEPS + i) & 0xFFFFFFu));  -> a direct C call, or a switch on a named id
+player/player_held.c:353: cartridge RAM area ($70:xxxx): cmp8_v(rd8(ea_long(COPIER_CHECK)));  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+player/player_starts.c:226: calls by address: jump_routine(0x810000u | rd16((START_BY_06 + i) & 0xFFFFFFu));  -> a direct C call, or a switch on a named id
+player/player_starts.c:263: calls by address: jump_routine(0x810000u | rd16((START_BY_07 + i) & 0xFFFFFFu));  -> a direct C call, or a switch on a named id
+player/player_states.c:304: calls by address: default: jump_routine(at); return;  -> a direct C call, or a switch on a named id
+system/display.c:39: interrupts and timers: wr8(abs_db(NMITIMEN & 0xFFFF), (uint8_t)cpu.a);  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/display.c:54: interrupts and timers: wr8(abs_db(NMITIMEN & 0xFFFF), (uint8_t)cpu.a);  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/display.c:87: interrupts and timers: if (rd8(dba(RDNMI & 0xFFFF)) & 0x80)  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/display.c:88: interrupts and timers: (void)rd8(dba(RDNMI & 0xFFFF));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/display.c:91: screen brightness and blank: wr8(dba(INIDISP & 0xFFFF), v);  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+system/input_modes.c:128: cartridge RAM area ($70:xxxx): wr8(RECORD_BUF + cpu.x, 0x00);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:137: calls by address: jump_routine(0x810000u | to);  -> a direct C call, or a switch on a named id
+system/input_modes.c:145: cartridge RAM area ($70:xxxx): n = rd8(RECORD_BUF + cpu.x);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:149: cartridge RAM area ($70:xxxx): n = (uint8_t)(rd8(RECORD_BUF + 1 + cpu.x) + 1);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:151: cartridge RAM area ($70:xxxx): wr8(RECORD_BUF + 1 + cpu.x, n);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:155: cartridge RAM area ($70:xxxx): wr8(RECORD_BUF + 1 + cpu.x, 0xFF);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:158: cartridge RAM area ($70:xxxx): wr8(RECORD_BUF + 2 + cpu.x, (uint8_t)cpu.a);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:159: cartridge RAM area ($70:xxxx): n = (uint8_t)(rd8(RECORD_BUF + 3 + cpu.x) + 1);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/input_modes.c:161: cartridge RAM area ($70:xxxx): wr8(RECORD_BUF + 3 + cpu.x, n);  -> none: the retail board has no cartridge RAM; the C keeps the retail board's result (open bus) as a constant
+system/interrupts.c:180: HDMA (channels 1-7): stz8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:183: screen brightness and blank: sta8(ea_abs(INIDISP));  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+system/interrupts.c:185: interrupts and timers: lda8(ea_abs(RDNMI));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:192: HDMA (channels 1-7): sta8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:203: HDMA (channels 1-7): stx16(ea_abs(A1T7L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:208: HDMA (channels 1-7): stx16(ea_abs(A1T6L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:213: HDMA (channels 1-7): stx16(ea_abs(A1T5L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:218: HDMA (channels 1-7): stx16(ea_abs(A1T4L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:224: sprite table port: stz8(ea_abs(OAMADDL));  -> nshvc_sprites_set(list, count, 0)
+system/interrupts.c:225: sprite table port: stz8(ea_abs(OAMADDH));  -> nshvc_sprites_set(list, count, 0)
+system/interrupts.c:227: DMA (channel 0): sta8(ea_abs(DMAP0));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:229: DMA (channel 0): sta8(ea_abs(BBAD0));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:231: DMA (channel 0): sta8(ea_abs(A1T0L));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:233: DMA (channel 0): sta8(ea_abs(A1T0H));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:235: DMA (channel 0): sta8(ea_abs(A1B0));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:237: DMA (channel 0): sta8(ea_abs(DAS0L));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:239: DMA (channel 0): sta8(ea_abs(DAS0H));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:241: DMA (channel 0): sta8(ea_abs(MDMAEN));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/interrupts.c:260: window edges: sta8(ea_abs(WH0));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+system/interrupts.c:262: window edges: sta8(ea_abs(WH1));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+system/interrupts.c:264: window edges: sta8(ea_abs(WH2));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+system/interrupts.c:266: window edges: sta8(ea_abs(WH3));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+system/interrupts.c:268: layer map and tile base: sta8(ea_abs(BG1SC));  -> nshvc_layer.tiles, .map (engine objects per screen kind)
+system/interrupts.c:270: layer map and tile base: sta8(ea_abs(BG2SC));  -> nshvc_layer.tiles, .map (engine objects per screen kind)
+system/interrupts.c:272: layer map and tile base: sta8(ea_abs(BG3SC));  -> nshvc_layer.tiles, .map (engine objects per screen kind)
+system/interrupts.c:274: window use and logic: sta8(ea_abs(W12SEL));  -> nshvc_windows.layer_use; by line NSHVC_LINE_WIN_USE + layer
+system/interrupts.c:276: window use and logic: sta8(ea_abs(W34SEL));   [not in the finder's patterns]  -> nshvc_windows.layer_use; by line NSHVC_LINE_WIN_USE + layer
+system/interrupts.c:278: window use and logic: sta8(ea_abs(WOBJSEL));   [not in the finder's patterns]  -> nshvc_windows.layer_use; by line NSHVC_LINE_WIN_USE + layer
+system/interrupts.c:280: window use and logic: sta8(ea_abs(WBGLOG));   [not in the finder's patterns]  -> nshvc_windows.layer_use; by line NSHVC_LINE_WIN_USE + layer
+system/interrupts.c:282: window use and logic: sta8(ea_abs(WOBJLOG));   [not in the finder's patterns]  -> nshvc_windows.layer_use; by line NSHVC_LINE_WIN_USE + layer
+system/interrupts.c:284: colour maths: sta8(ea_abs(CGWSEL));  -> nshvc_blend_set; by line NSHVC_LINE_SUBTRACT, _HALF, _USE_FIXED, _BLEND_LAYERS, _CLIP, _PREVENT
+system/interrupts.c:286: colour maths: sta8(ea_abs(CGADSUB));  -> nshvc_blend_set; by line NSHVC_LINE_SUBTRACT, _HALF, _USE_FIXED, _BLEND_LAYERS, _CLIP, _PREVENT
+system/interrupts.c:290: fixed colour: sta8(ea_abs(COLDATA));  -> nshvc_blend.fixed_bgr15; by line NSHVC_LINE_FIXED
+system/interrupts.c:294: fixed colour: sta8(ea_abs(COLDATA));  -> nshvc_blend.fixed_bgr15; by line NSHVC_LINE_FIXED
+system/interrupts.c:298: fixed colour: sta8(ea_abs(COLDATA));  -> nshvc_blend.fixed_bgr15; by line NSHVC_LINE_FIXED
+system/interrupts.c:301: layers on main and sub: sta8(ea_abs(TM));  -> nshvc_layer.enabled_main/_sub, nshvc_sprites_show; by line NSHVC_LINE_MAIN/_SUB + layer, NSHVC_LINE_SPRITES_MAIN/_SUB
+system/interrupts.c:302: layers on main and sub: stx8(ea_abs(TS));  -> nshvc_layer.enabled_main/_sub, nshvc_sprites_show; by line NSHVC_LINE_MAIN/_SUB + layer, NSHVC_LINE_SPRITES_MAIN/_SUB
+system/interrupts.c:304: window masks: sta8(ea_abs(TMW));  -> nshvc_windows.mask_main/_sub; by line NSHVC_LINE_MASK_MAIN/_SUB + layer
+system/interrupts.c:306: window masks: sta8(ea_abs(TSW));  -> nshvc_windows.mask_main/_sub; by line NSHVC_LINE_MASK_MAIN/_SUB + layer
+system/interrupts.c:308: mosaic: sta8(ea_abs(MOSAIC));  -> nshvc_layer.mosaic; by line NSHVC_LINE_MOSAIC + layer
+system/interrupts.c:310: layer map and tile base: sta8(ea_abs(BG12NBA));   [not in the finder's patterns]  -> nshvc_layer.tiles, .map (engine objects per screen kind)
+system/interrupts.c:312: layer map and tile base: sta8(ea_abs(BG34NBA));   [not in the finder's patterns]  -> nshvc_layer.tiles, .map (engine objects per screen kind)
+system/interrupts.c:317: interrupts and timers: sta8(ea_abs(HTIMEL));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:318: interrupts and timers: stz8(ea_abs(HTIMEH));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:322: beam position, region: ldy8(ea_abs(SLHV));   [not in the finder's patterns]  -> gone: the IRQ line is a fixed line, the unpacking is done in one update, the region is NTSC (constant)
+system/interrupts.c:323: beam position, region: ldy8(ea_abs(STAT78));   [not in the finder's patterns]  -> gone: the IRQ line is a fixed line, the unpacking is done in one update, the region is NTSC (constant)
+system/interrupts.c:324: beam position, region: ldy8(ea_abs(OPVCT));   [not in the finder's patterns]  -> gone: the IRQ line is a fixed line, the unpacking is done in one update, the region is NTSC (constant)
+system/interrupts.c:331: interrupts and timers: sta8(ea_abs(VTIMEL));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:332: interrupts and timers: stz8(ea_abs(VTIMEH));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:334: HDMA (channels 1-7): lda16(ea_abs(A1T1L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:335: HDMA (channels 1-7): sta16(ea_abs(A2A1L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:336: HDMA (channels 1-7): lda16(ea_abs(A1T2L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:337: HDMA (channels 1-7): sta16(ea_abs(A2A2L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:338: HDMA (channels 1-7): lda16(ea_abs(A1T3L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:339: HDMA (channels 1-7): sta16(ea_abs(A2A3L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:340: HDMA (channels 1-7): lda16(ea_abs(A1T4L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:341: HDMA (channels 1-7): sta16(ea_abs(A2A4L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:342: HDMA (channels 1-7): lda16(ea_abs(A1T5L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:343: HDMA (channels 1-7): sta16(ea_abs(A2A5L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:344: HDMA (channels 1-7): lda16(ea_abs(A1T6L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:345: HDMA (channels 1-7): sta16(ea_abs(A2A6L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:346: HDMA (channels 1-7): lda16(ea_abs(A1T7L));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:347: HDMA (channels 1-7): sta16(ea_abs(A2A7L));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:350: HDMA (channels 1-7): sta8(ea_abs(NTRL1));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:351: HDMA (channels 1-7): sta8(ea_abs(NTRL2));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:352: HDMA (channels 1-7): sta8(ea_abs(NTRL3));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:353: HDMA (channels 1-7): sta8(ea_abs(NTRL4));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:354: HDMA (channels 1-7): sta8(ea_abs(NTRL5));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:355: HDMA (channels 1-7): sta8(ea_abs(NTRL6));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:356: HDMA (channels 1-7): sta8(ea_abs(NTRL7));   [not in the finder's patterns]  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:359: picture mode: sta8(ea_abs(BGMODE));  -> nshvc_mode_set; by line NSHVC_LINE_MODE
+system/interrupts.c:365: screen brightness and blank: sta8(ea_abs(INIDISP));  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+system/interrupts.c:415: interrupts and timers: lda8(ea_abs(TIMEUP));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:417: joypads and H-blank status: bit8_v(rd8(ea_abs(HVBJOY)));  -> the nshvc_input given to update, read by the game's own controls; the H-blank wait goes
+system/interrupts.c:420: HDMA (channels 1-7): sta8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/interrupts.c:422: screen brightness and blank: sta8(ea_abs(INIDISP));  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+system/interrupts.c:424: interrupts and timers: sta8(ea_abs(NMITIMEN));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/interrupts.c:426: layers on main and sub: sta8(ea_abs(TM));  -> nshvc_layer.enabled_main/_sub, nshvc_sprites_show; by line NSHVC_LINE_MAIN/_SUB + layer, NSHVC_LINE_SPRITES_MAIN/_SUB
+system/interrupts.c:428: layers on main and sub: sta8(ea_abs(TS));  -> nshvc_layer.enabled_main/_sub, nshvc_sprites_show; by line NSHVC_LINE_MAIN/_SUB + layer, NSHVC_LINE_SPRITES_MAIN/_SUB
+system/joypad.c:37: joypads and H-blank status: a = rd8(abs_db(HVBJOY & 0xFFFF));  -> the nshvc_input given to update, read by the game's own controls; the H-blank wait goes
+system/joypad.c:43: joypads and H-blank status: a &= rd8(abs_db((JOY1L & 0xFFFF) + x));  -> the nshvc_input given to update, read by the game's own controls; the H-blank wait goes
+system/joypad.c:45: joypads and H-blank status: a = rd8(abs_db((JOY1L & 0xFFFF) + x));  -> the nshvc_input given to update, read by the game's own controls; the H-blank wait goes
+system/power_on.c:96: interrupts and timers: stz8(ea_abs(NMITIMEN));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/power_on.c:97: DMA (channel 0): stz8(ea_abs(MDMAEN));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+system/power_on.c:98: HDMA (channels 1-7): stz8(ea_abs(HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+system/power_on.c:100: screen brightness and blank: sta8(ea_abs(INIDISP));  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+system/power_on.c:103: memory speed, I/O port: sta8(ea_abs(MEMSEL));   [not in the finder's patterns]  -> gone (power-on settings)
+system/power_on.c:108: interrupts and timers: stz8(ea_absx(NMITIMEN));  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+system/power_on.c:113: memory speed, I/O port: sta8(ea_abs(WRIO));   [not in the finder's patterns]  -> gone (power-on settings)
+video/colour_band_task.c:58: HDMA (channels 1-7): wr8(dba((uint16_t)DMAP7), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/colour_band_task.c:59: HDMA (channels 1-7): wr8(dba((uint16_t)BBAD7), 0x32);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/colour_band_task.c:60: HDMA (channels 1-7): wr8(dba((uint16_t)A1B7), 0x7E);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/colour_band_task.c:61: HDMA (channels 1-7): wr8(dba((uint16_t)DASB7), 0x00);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/mode7.c:36: video memory port: wr8(abs_db(VMAIN & 0xFFFF), vmain);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:37: video memory port: wr16(abs_db(VMADDL & 0xFFFF), addr);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:57: video memory port: wr8(abs_db(VMDATAL & 0xFFFF), 0x00);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:86: video memory port: wr8(abs_db(VMDATAL & 0xFFFF), v);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:91: video memory port: wr16(abs_db(VMADDL & 0xFFFF), cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:120: video memory read: v = rd8(abs_db(RDVRAML & 0xFFFF));  -> none: the game reads its own copy of the tiles or map
+video/mode7.c:122: video memory read: v = rd8(abs_db(RDVRAML & 0xFFFF));  -> none: the game reads its own copy of the tiles or map
+video/mode7.c:147: video memory port: wr8(abs_db(VMAIN & 0xFFFF), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:150: video memory port: wr16(abs_db(VMADDL & 0xFFFF), cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7.c:151: video memory read: cpu.a = rd16(abs_db(RDVRAMH & 0xFFFF));  -> none: the game reads its own copy of the tiles or map
+video/mode7.c:153: video memory read: cpu.a = rd16(abs_db(RDVRAML & 0xFFFF));  -> none: the game reads its own copy of the tiles or map
+video/mode7_scale.c:36: Mode 7 matrix and settings: wr8(dba((uint16_t)M7A), (uint8_t)element);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:37: Mode 7 matrix and settings: wr8(dba((uint16_t)M7A), (uint8_t)(element >> 8));  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:39: Mode 7 matrix and settings: wr8(dba((uint16_t)M7B), (uint8_t)scale);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:40: multiplier result (M7A x M7B): cpu.y = rd8(dba((uint16_t)MPYM));  -> ordinary C multiplication
+video/mode7_scale.c:41: multiplier result (M7A x M7B): x8_load(rd8(dba((uint16_t)MPYH)));  -> ordinary C multiplication
+video/mode7_scale.c:42: Mode 7 matrix and settings: wr8(dba((uint16_t)M7B), (uint8_t)cpu.x);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:78: Mode 7 matrix and settings: wr8(dba((uint16_t)(M7A + i / 2)), v);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:84: Mode 7 matrix and settings: wr8(dba((uint16_t)M7D), (uint8_t)cpu.y);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:85: Mode 7 matrix and settings: wr8(dba((uint16_t)M7D), (uint8_t)cpu.x);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:87: Mode 7 matrix and settings: wr8(dba((uint16_t)M7C), (uint8_t)cpu.y);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:88: Mode 7 matrix and settings: wr8(dba((uint16_t)M7C), (uint8_t)cpu.x);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:93: Mode 7 matrix and settings: wr8(dba((uint16_t)M7A), (uint8_t)cpu.y);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:94: Mode 7 matrix and settings: wr8(dba((uint16_t)M7A), (uint8_t)cpu.x);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:97: Mode 7 matrix and settings: wr8(dba((uint16_t)M7B), (uint8_t)cpu.y);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:98: Mode 7 matrix and settings: wr8(dba((uint16_t)M7B), (uint8_t)cpu.x);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_scale.c:103: Mode 7 matrix and settings: wr8(dba((uint16_t)(M7X + i / 2)), v);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_screen.c:55: interrupts and timers: wr8(dba((uint16_t)NMITIMEN), rd8(dba(NMITIMEN_SHADOW)) & 0x7F);  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+video/mode7_screen.c:56: screen brightness and blank: wr8(dba((uint16_t)INIDISP), rd8(dba(INIDISP_SHADOW)) | 0x80);  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+video/mode7_screen.c:95: screen brightness and blank: wr8(dba((uint16_t)INIDISP), rd8(dba(INIDISP_SHADOW)));  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+video/mode7_screen.c:96: Mode 7 matrix and settings: wr8(dba((uint16_t)M7SEL), 0x80);  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/mode7_screen.c:98: interrupts and timers: wr8(dba((uint16_t)NMITIMEN), (uint8_t)cpu.a);  -> gone: the NMI's work in update and draw; the IRQ's line is nshvc_line
+video/mode7_screen.c:119: video memory port: wr8(dba((uint16_t)VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7_screen.c:120: video memory port: wr16(dba((uint16_t)VMADDL), dp16(0x0C));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/mode7_screen.c:123: video memory port: wr8(dba((uint16_t)VMDATAH), (uint8_t)cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_upload.c:34: video memory port: wr8(VMAIN, 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_upload.c:37: video memory port: wr16(VMADDL, rd16(TEXT_UPLOAD_VRAM));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_upload.c:38: DMA (channel 0): wr16(DMAP0, 0x1801);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_upload.c:39: DMA (channel 0): wr16(A1T0L, (uint16_t)TEXT_TILEMAP);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_upload.c:40: DMA (channel 0): wr16(A1B0, TEXT_TILEMAP >> 16);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_upload.c:42: DMA (channel 0): wr16(DAS0L, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_upload.c:46: DMA (channel 0): wr8(MDMAEN, 1);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_upload.c:84: layer scroll: scroll_out(BG1HOFS, BG1_X, BG1_X_SHIFT, BG1_X_SHIFT + 1);  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:85: layer scroll: scroll_out(BG1VOFS, BG1_Y, LAYER_OFFSET_Y, LAYER_OFFSET_Y + 1);  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:90: layer scroll: scroll_out(BG2HOFS, BG2_X, BG2_X_SHIFT, BG2_X_SHIFT);  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:91: layer scroll: scroll_out(BG2VOFS, BG2_Y, BG2_Y_SHIFT, BG2_Y_SHIFT + 1);  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:93: layer scroll: wr8(BG3HOFS, rd8(BG3_X));  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:94: layer scroll: wr8(BG3HOFS, rd8(BG3_X + 1));  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:95: layer scroll: wr8(BG3VOFS, rd8(BG3_Y));  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_upload.c:97: layer scroll: wr8(BG3VOFS, a);  -> nshvc_layer.scroll_x/_y; by line NSHVC_LINE_SCROLL_X/_Y + layer
+video/nmi_uploads.c:48: video memory port: wr8(dba(VMAIN), 0);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:49: DMA (channel 0): wr8(dba(DMAP0), 0);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:51: DMA (channel 0): wr8(dba(BBAD0), 0x18);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:54: DMA (channel 0): wr16(dba(A1T0L), cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:56: DMA (channel 0): wr8(dba(A1B0), (uint8_t)cpu.x);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:62: video memory port: wr16(dba(VMADDL), at);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:65: DMA (channel 0): wr16(dba(DAS0L), 0x0020);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:66: DMA (channel 0): wr8(dba(MDMAEN), (uint8_t)cpu.x);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:90: video memory port: wr8(dba(VMDATAL), 0);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:91: video memory port: wr8(dba(VMDATAH), (uint8_t)cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:102: video memory port: wr8(dba(VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:109: video memory port: wr16(dba(VMADDL), cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:164: calls by address: jump_routine(0x800000u | rd16(0x800000u | (uint16_t)(ROWS_STEPS + cpu.x)));  -> a direct C call, or a switch on a named id
+video/nmi_uploads.c:171: DMA (channel 0): wr8(dba(A1T0L), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:173: DMA (channel 0): wr8(dba(A1T0H), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:175: DMA (channel 0): wr8(dba(A1B0), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:197: video memory port: wr8(dba(VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:199: DMA (channel 0): wr8(dba(DMAP0), 0x01);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:201: DMA (channel 0): wr8(dba(BBAD0), 0x18);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:205: DMA (channel 0): wr16(dba(DAS0L), cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:207: video memory port: wr16(dba(VMADDL), cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:210: DMA (channel 0): wr8(dba(MDMAEN), 0x01);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:232: video memory port: wr8(dba(VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:234: DMA (channel 0): wr8(dba(DMAP0), 0x81);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:236: DMA (channel 0): wr8(dba(BBAD0), 0x39);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:240: DMA (channel 0): wr16(dba(DAS0L), cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:243: video memory port: wr8(dba(VMADDL), (uint8_t)cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:245: video memory port: wr8(dba(VMADDH), (uint8_t)cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/nmi_uploads.c:246: video memory read: a8_load(rd8(dba(RDVRAMH)));  -> none: the game reads its own copy of the tiles or map
+video/nmi_uploads.c:248: DMA (channel 0): wr8(dba(MDMAEN), 0x01);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:269: palette port: wr8(dba(CGADD), 0);  -> nshvc_palette_write
+video/nmi_uploads.c:272: DMA (channel 0): wr8(dba(DMAP0), 0x00);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:274: DMA (channel 0): wr8(dba(BBAD0), 0x22);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:278: DMA (channel 0): wr8(dba(A1T0L), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:280: DMA (channel 0): wr8(dba(A1T0H), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:282: DMA (channel 0): wr8(dba(A1B0), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:286: DMA (channel 0): wr8(dba(DAS0L), 0x00);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:287: DMA (channel 0): wr8(dba(DAS0H), (uint8_t)cpu.y);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/nmi_uploads.c:289: DMA (channel 0): wr8(dba(MDMAEN), 0x01);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/palette_cycles.c:91: calls by address: call_routine(0x810000u | rd16(0x810000u | (uint16_t)(PALETTE_CYCLE_STEPS + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+video/parallax.c:228: calls by address: call_routine(0x810000u | rd16(0x810000u | (uint16_t)(PARALLAX_HANDLERS + cpu.x)), 0);  -> a direct C call, or a switch on a named id
+video/parallax.c:358: calls by address: jump_routine(0x810000u | rd16(0x810000u | (uint16_t)(0xC94Eu + cpu.x)));  -> a direct C call, or a switch on a named id
+video/parallax.c:613: calls by address: jump_routine(0x810000u | rd16(0x810000u | (uint16_t)(0xC9F8u + cpu.x)));  -> a direct C call, or a switch on a named id
+video/ppu_init.c:23: screen brightness and blank: wr8(INIDISP + x, 0);  -> nshvc_screen_set .brightness/.blank; by line NSHVC_LINE_BRIGHTNESS, NSHVC_LINE_BLANK
+video/screen_setup.c:55: window edges: stz8(ea_abs((uint16_t)WH0));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+video/screen_setup.c:56: window edges: stz8(ea_abs((uint16_t)WH1));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+video/screen_setup.c:57: window edges: stz8(ea_abs((uint16_t)WH2));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+video/screen_setup.c:58: window edges: stz8(ea_abs((uint16_t)WH3));  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+video/screen_setup.c:59: overscan, interlace: stz8(ea_abs((uint16_t)SETINI));  -> nothing: written 0 only; nshvc_screen's defaults
+video/screen_setup.c:60: HDMA (channels 1-7): stz8(ea_abs((uint16_t)HDMAEN));  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/screen_setup.c:78: sprite sizes and base: { (uint16_t)OBSEL, 0x03 }, { CGWSEL_SHADOW, 0x30 }, { 0x039D, 0x09 },  -> nshvc_sprite.width/.height/.tiles
+video/screen_setup.c:80: fixed colour: { 0x03A5, 0x05 }, { COLDATA, 0xE0 }, { COLDATA_RED, 0 },  -> nshvc_blend.fixed_bgr15; by line NSHVC_LINE_FIXED
+video/screen_setup.c:83: HDMA (channels 1-7): { 0x03B1, 0 }, { (uint16_t)SETINI, 0 }, { 0x03B6, 0 }, { (uint16_t)HDMAEN, 0 },  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/screen_setup.c:83: overscan, interlace: { 0x03B1, 0 }, { (uint16_t)SETINI, 0 }, { 0x03B6, 0 }, { (uint16_t)HDMAEN, 0 },  -> nothing: written 0 only; nshvc_screen's defaults
+video/screen_setup.c:84: Mode 7 matrix and settings: { (uint16_t)M7SEL, 0 }, { 0x0829, 0 }, { NMITIMEN_SHADOW, 0x01 },  -> nshvc_mode7_set (matrix, centre, outside); where M7A/M7B are the multiplier, ordinary C multiplication
+video/scroll_layer.c:1161: DMA (channel 0): wr16(DAS0L, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1164: DMA (channel 0): wr8(MDMAEN, 1);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1172: DMA (channel 0): wr16(A1T0L, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1196: DMA (channel 0): wr8(A1B0, 0);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1198: video memory port: wr16(VMADDL, cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/scroll_layer.c:1201: video memory port: wr8(VMAIN, 0x81);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/scroll_layer.c:1203: DMA (channel 0): wr16(DMAP0, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1212: video memory port: wr16(VMADDL, cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/scroll_layer.c:1216: DMA (channel 0): wr8(A1B0, 0);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1227: DMA (channel 0): wr8(A1B0, 0);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1229: video memory port: wr16(VMADDL, cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/scroll_layer.c:1232: video memory port: wr8(VMAIN, 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/scroll_layer.c:1234: DMA (channel 0): wr16(DMAP0, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_layer.c:1244: video memory port: wr16(VMADDL, cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/scroll_layer.c:1248: DMA (channel 0): wr8(A1B0, 0);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/scroll_update.c:347: calls by address: jump_routine(0x810000u | rd16(0x810000u | (uint16_t)(SCROLL_HANDLERS + cpu.x)));  -> a direct C call, or a switch on a named id
+video/text_number.c:46: multiplier and divider: wr8(dba(WRDIVL & 0xFFFF), number);  -> ordinary C
+video/text_number.c:48: multiplier and divider: wr8(dba(WRDIVB & 0xFFFF), 0x0A);  -> ordinary C
+video/text_number.c:51: multiplier and divider: digit = op_adc8(rd8(dba(RDDIVL & 0xFFFF)), 0x30, &cpu.p);  -> ordinary C
+video/text_number.c:54: multiplier and divider: digit = op_adc8(rd8(dba(RDMPYL & 0xFFFF)), 0x30, &cpu.p);  -> ordinary C
+video/tilemap.c:111: video memory port: wr8(abs_db(VMAIN & 0xFFFF), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/tilemap.c:112: video memory port: wr16(abs_db(VMADDL & 0xFFFF), cpu.x);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/tilemap.c:114: video memory port: wr16(abs_db(VMDATAL & 0xFFFF), cpu.y);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/unpack.c:108: video memory port: wr8(dba((uint16_t)VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/unpack.c:138: video memory port: wr16(dba((uint16_t)VMADDL), db16((uint16_t)(LEVEL_GFX + 6 + x)));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/unpack.c:139: DMA (channel 0): wr16(dba((uint16_t)DMAP0), 0x1801);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/unpack.c:140: DMA (channel 0): wr16(dba((uint16_t)A1T0L), 0x0000);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/unpack.c:141: DMA (channel 0): wr16(dba((uint16_t)A1B0), 0x007F);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/unpack.c:143: DMA (channel 0): wr16(dba((uint16_t)DAS0L), cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/unpack.c:146: DMA (channel 0): wr8(dba((uint16_t)MDMAEN), 0x01);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/unpack.c:407: beam position, region: lda8(ea_long(SLHV));   [not in the finder's patterns]  -> gone: the IRQ line is a fixed line, the unpacking is done in one update, the region is NTSC (constant)
+video/unpack.c:408: beam position, region: lda8(ea_long(OPVCT));   [not in the finder's patterns]  -> gone: the IRQ line is a fixed line, the unpacking is done in one update, the region is NTSC (constant)
+video/vram_copy.c:21: video memory port: address to VMADDL, then its count of words through VMDATAL; P pulled. */  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_copy.c:29: video memory port: wr16(dba((uint16_t)VMADDL), rd16(entry + 3));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_copy.c:34: video memory port: wr16(dba((uint16_t)VMDATAL), cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_copy.c:57: video memory port: wr8(dba((uint16_t)VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_copy.c:72: video memory port: wr8(dba((uint16_t)VMAIN), 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:17: DMA (channel 0): then their 10-byte records (VMAIN, VRAM address, DMAP0 and BBAD0,  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:17: video memory port: then their 10-byte records (VMAIN, VRAM address, DMAP0 and BBAD0,  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:39: DMA (channel 0): wr8(MDMAEN, 1);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:66: video memory port: wr8(VMAIN, 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:71: video memory port: wr16(VMADDL, rd16(in_db(TEXT_PART_TABLE + y)));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:72: DMA (channel 0): wr16(DMAP0, 0x1801);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:73: DMA (channel 0): wr16(A1T0L, rd16(in_db(TEXT_PART_TABLE + 2 + y)));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:74: DMA (channel 0): wr16(A1B0, TEXT_TILEMAP >> 16);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:76: DMA (channel 0): wr16(DAS0L, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:128: video memory port: wr8(VMAIN, rd8(in_db(UPLOAD_TABLE + x)));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:129: video memory port: wr16(VMADDL, rd16(in_db(UPLOAD_TABLE + 1 + x)));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:130: DMA (channel 0): wr16(DMAP0, rd16(in_db(UPLOAD_TABLE + 3 + x)));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:131: DMA (channel 0): wr16(A1T0L, rd16(in_db(UPLOAD_TABLE + 5 + x)));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:133: DMA (channel 0): wr16(A1B0, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:136: DMA (channel 0): wr8(DAS0H, y);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:170: video memory port: wr16(VMADDL, rd16(VRAM_QUEUE + x));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:171: DMA (channel 0): wr16(DMAP0, 0x1801);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:172: DMA (channel 0): wr16(A1T0L, rd16(VRAM_QUEUE + 2 + x));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:173: DMA (channel 0): wr16(A1B0, rd16(VRAM_QUEUE + 4 + x));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:175: DMA (channel 0): wr16(DAS0L, cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:179: video memory port: wr8(VMAIN, (uint8_t)cpu.y);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:181: DMA (channel 0): wr8(MDMAEN, 1);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:226: video memory port: wr8(VMAIN, 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:233: video memory port: wr16(VMADDL, vram);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:234: video memory port: wr16(VMDATAL, rd16(TILE_BLOCKS + 2 + x));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:235: video memory port: wr16(VMDATAL, rd16(TILE_BLOCKS + 4 + x));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:238: video memory port: wr16(VMADDL, cpu.a);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:239: video memory port: wr16(VMDATAL, rd16(TILE_BLOCKS + 6 + x));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:240: video memory port: wr16(VMDATAL, rd16(TILE_BLOCKS + 8 + x));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:285: video memory port: wr16(VMADDL, rd16(in_db(x)));  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:286: DMA (channel 0): wr16(DMAP0, 0x1801);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:287: DMA (channel 0): wr16(A1T0L, rd16(in_db((uint32_t)x + 2)));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:288: DMA (channel 0): wr8(A1B0, rd8(in_db((uint32_t)x + 4)));  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:290: DMA (channel 0): wr16(DAS0L, cpu.y);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_queue.c:291: video memory port: wr8(VMAIN, 0x80);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_queue.c:292: DMA (channel 0): wr8(MDMAEN, 1);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_words.c:40: video memory port: wr8(dba((uint16_t)VMAIN), VMAIN_STEP_HIGH);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_words.c:41: DMA (channel 0): wr8(dba((uint16_t)DMAP0), DMA_FOUR_REGS);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_words.c:42: DMA (channel 0): wr8(dba((uint16_t)BBAD0), VMADDL & 0xFF);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_words.c:42: video memory port: wr8(dba((uint16_t)BBAD0), VMADDL & 0xFF);  -> nshvc_tiles_write, nshvc_map_write_snes
+video/vram_words.c:43: DMA (channel 0): wr16(dba((uint16_t)A1T0L), VRAM_WORDS);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_words.c:44: DMA (channel 0): wr16(dba((uint16_t)A1B0), 0x0000);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_words.c:48: DMA (channel 0): wr8(dba((uint16_t)DAS0L), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/vram_words.c:50: DMA (channel 0): wr8(dba((uint16_t)MDMAEN), 0x01);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/window_effects.c:178: DMA (channel 0): wr8(dba((uint16_t)(DMAP0 + regs)), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/window_effects.c:180: DMA (channel 0): wr8(dba((uint16_t)(BBAD0 + regs)), (uint8_t)cpu.a);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/window_effects.c:182: DMA (channel 0): wr8(dba((uint16_t)(A1B0 + regs)), 0x7E);  -> an object write where the data changes: nshvc_tiles_write / nshvc_map_write_snes (VRAM), nshvc_palette_write (CGRAM), nshvc_sprites_set (OAM); the VRAM-to-RAM copy reads the game's own array
+video/window_effects.c:183: HDMA (channels 1-7): wr8(dba((uint16_t)(DASB0 + regs)), 0x7E);  -> nshvc_lines in draw, from the game's per-line array, field by the target register
+video/window_effects.c:243: calls by address: call_routine(0x820000u | rd16(0x820000u | (uint16_t)(EFFECTS + x)), 0);  -> a direct C call, or a switch on a named id
+video/window_effects.c:935: colour maths: $FF then $00 (as the original writes both to WH2's shadow), CGWSEL 2,  -> nshvc_blend_set; by line NSHVC_LINE_SUBTRACT, _HALF, _USE_FIXED, _BLEND_LAYERS, _CLIP, _PREVENT
+video/window_effects.c:935: window edges: $FF then $00 (as the original writes both to WH2's shadow), CGWSEL 2,  -> nshvc_windows.w[]; by line NSHVC_LINE_WIN1_LEFT .. NSHVC_LINE_WIN2_RIGHT
+video/window_effects.c:936: colour maths: CGADSUB $53. */  -> nshvc_blend_set; by line NSHVC_LINE_SUBTRACT, _HALF, _USE_FIXED, _BLEND_LAYERS, _CLIP, _PREVENT
