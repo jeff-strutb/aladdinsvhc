@@ -101,6 +101,7 @@ ActorCode actor_kind_code(uint8_t kind, uint8_t entry);
 ActorWaitCode actor_kind_wait(uint8_t kind);                    /* NULL: none, or none yet (reported once) */
 
 int Kind36Start(Actor *a);
+int Kind36End(Actor *a);            /* its second entry (also kind $9D's): the actor ends */
 int Kind95Start(Actor *a);
 int SteppedShowActor(Actor *a);     /* kind $96 */
 int Kind82Show(Actor *a);

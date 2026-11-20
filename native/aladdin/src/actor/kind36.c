@@ -18,6 +18,15 @@ enum {
 };
 
 /*
+ * 83:B0C7, kind $36's and $9D's second entry (state $80-$BF): a JML to
+ * ActorEndPlaced, so the actor ends.
+ */
+int Kind36End(Actor *a)
+{
+    return ActorEndPlaced(a);
+}
+
+/*
  * @routine 83:AF8E Kind36Start
  * WHAT IT DOES: Actor kind $36, a figure of the menu and story screens. Its
  * wait routine on (flags $90), facing right. With +$07 bit 4 set (the
