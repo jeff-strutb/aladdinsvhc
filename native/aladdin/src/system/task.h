@@ -34,6 +34,7 @@
 #ifndef ALADDIN_TASK_H
 #define ALADDIN_TASK_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "nshvc/nshvc.h"
@@ -67,6 +68,11 @@ typedef enum {
     TASK_ENTRY_PASSWORD,            /* 84:AD50 PasswordScreen (stage 5) */
     TASK_ENTRY_GAME_START,          /* 81:8095 GameStartTask (stage 5) */
     TASK_ENTRY_DEMO,                /* 81:8031 DemoTask (stage 5) */
+    TASK_ENTRY_TEXT_BLINK,          /* 81:9E3B TextBlinkTask (video/) */
+    TASK_ENTRY_LEVEL_PLAY_START,    /* 81:80A3 LevelPlayStartTask (game/progress.c) */
+    TASK_ENTRY_NEXT_PART,           /* 81:8181 NextPartTask (game/progress.c) */
+    TASK_ENTRY_CONTINUE_SCREEN,     /* 80:B2E3 ContinueScreenTask (game/) */
+    TASK_ENTRY_GENIE_SCREEN,        /* 80:A63B GenieScreen (game/) */
     TASK_ENTRIES
 } TaskEntry;
 
@@ -78,6 +84,22 @@ TaskRun task_return(Task *t);           /* the calling routine has finished: its
 TaskRun task_wait(Task *t, uint8_t frames); /* 81:BD31 TaskWait: its next turn after `frames` (0: 256) */
 TaskRun task_exec(Task *t, TaskEntry entry);/* 81:BCF6 TaskExec: from its next turn at `entry` */
 TaskRun task_exit(Task *t);             /* 81:BD20 TaskExit: the slot freed */
+
+/* TaskExec from code the running task runs that is not on its chain: an
+   actor's code in the actor loop (the player's lost life, his exits, the
+   Genie's figure; any kind). The original's TaskExec empties the task's
+   stack and goes to the scheduler, so nothing after it runs that turn: not
+   the rest of the actor's code, nor the later actors of PlayerLoop and
+   ActorLoop, nor the rest of FrameStep (g.frame_ready stays 0, so the
+   vertical blank sends no sprites or queues), nor the rest of the task's
+   turn. So: the actor's code returns at once after TaskExecRunning; the
+   actor loops stop their walk, leaving the record as it is, when
+   task_exec_pending(); FrameStep returns true; and the chain returns
+   task_exec_take(t) up. The task starts at `entry` when the scan comes
+   round, as task_exec. */
+void TaskExecRunning(TaskEntry entry);  /* 81:BCF6 TaskExec, from an actor's code */
+bool task_exec_pending(void);
+TaskRun task_exec_take(Task *t);        /* task_exec(t, the pending entry); the pending exec taken */
 
 /* For any code. */
 void TaskCreate(uint8_t slot, uint8_t param, TaskEntry entry);  /* 81:BCB8 */

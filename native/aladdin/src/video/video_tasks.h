@@ -21,4 +21,7 @@ TaskRun ColourBandTask(Task *t);            /* 81:A00C */
 TaskRun BrightnessUpAndWait(Task *t);       /* 81:F311 */
 TaskRun BrightnessDownAndWait(Task *t);     /* 81:F31C */
 
+/* wanted */
+TaskRun TextBlinkTask(Task *t);             /* 81:9E3B: task entry (the player's start makes it, slot 2) */
+
 #endif

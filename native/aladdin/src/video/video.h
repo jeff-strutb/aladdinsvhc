@@ -153,4 +153,7 @@ void ActorYHistoryPush(const Actor *a);     /* 84:8EBD */
 uint16_t RandomFromList(uint8_t list);      /* 81:AE8A: an entry (low byte) and the byte after it */
 void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll for this frame, by g.scroll_kind */
 
+/* wanted */
+void LevelActorGraphicsLoad(void);          /* 81:B9F4: the level's actors' sprite graphics (LevelRamSetup) */
+
 #endif

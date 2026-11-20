@@ -33,26 +33,6 @@ void unconverted(const char *name)
     fprintf(stderr, "unconverted: %s\n", name);
 }
 
-PLACEHOLDER TaskRun WindowEffectTask(Task *t)
-{
-    unconverted("WindowEffectTask");
-    return task_exit(t);
-}
-
-PLACEHOLDER uint16_t TilemapWord(uint16_t x, uint16_t y)
-{
-    unconverted("TilemapWord");
-    (void)x;
-    (void)y;
-    return 0;
-}
-
-PLACEHOLDER void BlockSourceAdd(uint16_t source)
-{
-    unconverted("BlockSourceAdd");
-    (void)source;
-}
-
 PLACEHOLDER void LevelNumberText(void)
 {
     unconverted("LevelNumberText");
@@ -77,36 +57,6 @@ PLACEHOLDER TaskRun PasswordScreen(Task *t)
 }
 
 
-PLACEHOLDER void ScrollUpdate(void)
-{
-    unconverted("ScrollUpdate");
-}
-
-PLACEHOLDER void LayersScroll(void)
-{
-    unconverted("LayersScroll");
-}
-
-PLACEHOLDER void BgFollowLayers(void)
-{
-    unconverted("BgFollowLayers");
-}
-
-PLACEHOLDER void PaletteCyclesStep(void)
-{
-    unconverted("PaletteCyclesStep");
-}
-
-PLACEHOLDER void LevelScrollLimits(void)
-{
-    unconverted("LevelScrollLimits");
-}
-
-PLACEHOLDER void LevelActorGraphicsLoad(void)
-{
-    unconverted("LevelActorGraphicsLoad");
-}
-
 /* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
 
 PLACEHOLDER TaskRun DemoTask(Task *t)
@@ -118,6 +68,24 @@ PLACEHOLDER TaskRun DemoTask(Task *t)
 PLACEHOLDER TaskRun GameStartTask(Task *t)
 {
     unconverted("GameStartTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun LevelPlayStartTask(Task *t)
+{
+    unconverted("LevelPlayStartTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun ContinueScreenTask(Task *t)
+{
+    unconverted("ContinueScreenTask");
+    return task_exit(t);
+}
+
+PLACEHOLDER TaskRun GenieScreen(Task *t)
+{
+    unconverted("GenieScreen");
     return task_exit(t);
 }
 

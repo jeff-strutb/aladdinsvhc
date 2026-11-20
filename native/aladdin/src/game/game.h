@@ -22,6 +22,10 @@ void NewGameState(void);                /* 81:8118 (81:8114 Long): a new game's 
 void LevelFromProgress(void);           /* 81:8157: g.level from the progress sequence and stage */
 TaskRun NextPartTask(Task *t);          /* 81:8181: task entry (the story card's TaskExec) */
 
+/* continue_screen.c, genie_screen.c: task entries */
+TaskRun ContinueScreenTask(Task *t);    /* 80:B2E3 */
+TaskRun GenieScreen(Task *t);           /* 80:A63B */
+
 /* play_loop.c: the game's task in play; none returns */
 TaskRun PlayLoopStart(Task *t);         /* 81:8191: the level loaded, then the loop */
 TaskRun PlayLoop(Task *t);              /* 81:82CF */
@@ -30,7 +34,8 @@ TaskRun PlayLoop(Task *t);              /* 81:82CF */
 TaskRun PauseCheck(Task *t);            /* 81:8398: once a frame of play; waits while paused */
 
 /* frame_step.c, play_time.c, level_load.c */
-void FrameStep(void);                   /* 81:8311, 81:830D FrameStepLong */
+bool FrameStep(void);                   /* 81:8311, 81:830D FrameStepLong: true when an actor's TaskExec
+                                           ended the frame (system/task.h: the chain returns task_exec_take) */
 void PlayTimeTick(void);                /* 81:85CE */
 void LevelRamSetup(void);               /* 81:825F, 81:825B LevelRamSetupLong: for g.level */
 TaskRun LevelLoad(Task *t);             /* 81:81A7 (81:81A3 Long): g.level loaded and started; it waits */

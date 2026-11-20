@@ -9,6 +9,7 @@
 #include "level/level.h"
 #include "map/map.h"
 #include "system/state.h"
+#include "system/task.h"
 #include "system/unconverted.h"
 #include "video/video.h"
 
@@ -27,17 +28,22 @@
  * ScrollUpdate, TileChangesApply, LayersScroll, PlacementsScroll,
  * PlayTimeTick; the range point = the view's corner + $80 each way;
  * SequencesStep, PaletteCyclesStep; ActorsInView, OamDrawActors; the three
- * marks counted up; BgFollowLayers.
+ * marks counted up; BgFollowLayers. An actor's TaskExec (system/task.h)
+ * ends the frame where it happens: true then, and nothing after it runs.
  */
-void FrameStep(void)
+bool FrameStep(void)
 {
     g.frame_start_x = g.actors[0].x;
     g.frame_start_y = g.actors[0].y;
     g.tile_blocks_count = 0;
     g.frame_ready = 0;
     PlayerLoop();
+    if (task_exec_pending())
+        return true;
     OamBuildBegin();
     ActorLoop();
+    if (task_exec_pending())
+        return true;
     ScrollUpdate();
     TileChangesApply();
     LayersScroll();
@@ -55,4 +61,5 @@ void FrameStep(void)
     g.tile_blocks_pending++;
     g.vram_queue_pending++;
     BgFollowLayers();
+    return false;
 }

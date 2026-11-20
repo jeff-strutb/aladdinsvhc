@@ -85,6 +85,28 @@ TaskRun task_exec(Task *t, TaskEntry entry)
     return TASK_EXECS;
 }
 
+/* the entry an actor's TaskExec named, until the chain takes it; 0 none */
+static uint16_t exec_pending;
+
+void TaskExecRunning(TaskEntry entry)
+{
+    trace("exec from an actor", (unsigned)g.task_current, (unsigned)entry);
+    exec_pending = (uint16_t)entry;
+}
+
+bool task_exec_pending(void)
+{
+    return exec_pending != TASK_ENTRY_NONE;
+}
+
+TaskRun task_exec_take(Task *t)
+{
+    TaskEntry entry = (TaskEntry)exec_pending;
+
+    exec_pending = TASK_ENTRY_NONE;
+    return task_exec(t, entry);
+}
+
 /*
  * @routine 81:BD20 TaskExit
  * WHAT IT DOES: Ends the running task for good: its slot is freed.
@@ -157,6 +179,11 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_PASSWORD:           return PasswordScreen(t);
     case TASK_ENTRY_GAME_START:         return GameStartTask(t);
     case TASK_ENTRY_DEMO:               return DemoTask(t);
+    case TASK_ENTRY_TEXT_BLINK:         return TextBlinkTask(t);
+    case TASK_ENTRY_LEVEL_PLAY_START:   return LevelPlayStartTask(t);
+    case TASK_ENTRY_NEXT_PART:          return NextPartTask(t);
+    case TASK_ENTRY_CONTINUE_SCREEN:    return ContinueScreenTask(t);
+    case TASK_ENTRY_GENIE_SCREEN:       return GenieScreen(t);
     case TASK_ENTRY_NONE:
     case TASK_ENTRIES:
         break;
@@ -231,10 +258,17 @@ void TaskScheduler(const nshvc_input *input)
             }
             t->state = TASK_RUNNING;
             chain_depth = 0;
-            if (task_entry_run(t) == TASK_GOES_ON) {
+            if (task_entry_run(t) == TASK_GOES_ON && !task_exec_pending()) {
                 /* the original's RTL off the task's stack: no entry returns */
                 fprintf(stderr, "task %u: entry %u returned\n", (unsigned)slot, (unsigned)t->entry);
                 TaskSlotFree(slot);
+            }
+            if (task_exec_pending()) {
+                /* a chain that did not pass an actor's TaskExec up: the exec still
+                   happens, as the original's, but the chain ran on past it */
+                fprintf(stderr, "task %u: an actor's TaskExec to entry %u not passed up its chain\n",
+                        (unsigned)slot, (unsigned)exec_pending);
+                (void)task_exec_take(t);
             }
             ran = 1;
         }

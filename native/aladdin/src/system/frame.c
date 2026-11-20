@@ -34,7 +34,8 @@ TaskRun FrameEnd(Task *t)
     uint16_t *at = task_enter(t);
 
     if (*at == 0) {
-        FrameStep();
+        if (FrameStep())
+            return task_exec_take(t);
         *at = 1;
         return task_wait(t, 1);
     }
@@ -56,7 +57,8 @@ TaskRun FrameEndTimes(Task *t, unsigned frames)
         *at = (uint16_t)frames;
         return task_wait(t, 1);
     }
-    FrameStep();
+    if (FrameStep())
+        return task_exec_take(t);
     if (--*at == 0)
         return task_return(t);
     return task_wait(t, 1);

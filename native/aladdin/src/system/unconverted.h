@@ -21,16 +21,8 @@
 #include "map/map.h"
 #include "system/task.h"
 #include "video/video.h"
+#include "video/scroll_layer.h"
 #include "video/video_tasks.h"
-
-/* ---- video/ (native-video): not in video.h yet ---- */
-void ScrollUpdate(void);                    /* 81:C5A4 */
-void LayersScroll(void);                    /* 81:C1FA */
-void BgFollowLayers(void);                  /* 81:8568 */
-void PaletteCyclesStep(void);               /* 81:EC98 */
-void LevelScrollLimits(void);               /* 81:C032 */
-void LevelActorGraphicsLoad(void);          /* 81:B9F4 */
-TaskRun WindowEffectTask(Task *t);          /* 82:8000 */
 
 /* ---- game/, map/, level/, input/: this session's, not yet converted ---- */
 
