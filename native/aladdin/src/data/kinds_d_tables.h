@@ -19,4 +19,12 @@ uint8_t k30_level_mark_bit(uint8_t sequence);
 /* types 6 and 7: the motion preset of their first drop, by their spawn_at */
 uint8_t k30_fall_motion(uint8_t spawn_at);
 
+/* ---- kind $20, the guard ---- */
+
+DataRef k20_probes(void);       /* its probe list (Actor.probes) */
+DataRef k20_pictures(void);     /* its picture list (Actor.own_pictures) */
+/* the x offset of a point ahead of it: `at` its facing times 2 plus an
+   entry's byte offset (0: 11 pixels, 4: 7 pixels); a signed word */
+int16_t k20_ahead_x(uint8_t at);
+
 #endif
