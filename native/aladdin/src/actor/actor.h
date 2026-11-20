@@ -220,6 +220,7 @@ int ActorAnimFreeFar(Actor *a);         /* 84:832B (actor_84_misc.c): ACTOR_ENDE
 uint8_t ActorMapAhead5Down12(Actor *a);             /* 83:B5F6: the class of the map's block 5 ahead of it and 12 below */
 void ActorVariantChildStep(Actor *a);               /* 83:D078 */
 void ActorSpeedXSetAccel(Actor *a, uint8_t accel, uint8_t at);    /* 81:A411: acceleration `accel`, speed entry `at` */
+void ActorMoveAlong(Actor *a, uint16_t direction, uint8_t speed);  /* 81:A73D: along direction `direction` (0-$1FF) of the direction table, at `speed` */
 
 /* (n5-kinds-e, for kind $31; point_moves.c: kind $31 is their only caller) */
 int ActorGoToPoint(Actor *a);       /* 83:FC5D: waits inside (ACTOR_RETURNS once within box $20 of the point): a step a frame

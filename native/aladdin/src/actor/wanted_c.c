@@ -14,6 +14,7 @@
 STAND_IN uint8_t ActorMapAhead5Down12(Actor *a) { (void)a; unconverted("ActorMapAhead5Down12"); return 1; }
 STAND_IN void ActorVariantChildStep(Actor *a) { (void)a; unconverted("ActorVariantChildStep"); }
 STAND_IN void ActorSpeedXSetAccel(Actor *a, uint8_t c, uint8_t at) { (void)a; (void)c; (void)at; unconverted("ActorSpeedXSetAccel"); }
+STAND_IN void ActorMoveAlong(Actor *a, uint16_t d, uint8_t v) { (void)a; (void)d; (void)v; unconverted("ActorMoveAlong"); }
 
 /* native-video (video.h) */
 STAND_IN void ActorPictureQueue(Actor *a) { (void)a; unconverted("ActorPictureQueue"); }

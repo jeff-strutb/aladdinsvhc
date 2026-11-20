@@ -38,6 +38,8 @@ int Kind2DCode(Actor *a);       /* kind $2D: 83:A82F, 83:AA5A, 83:AA95 */
 int Kind2DStart(Actor *a);      /* 83:A82F, also kind $2C's second entry */
 int Kind2FCode(Actor *a);       /* kind $2F: 83:B4BE, 83:B643 */
 int Kind4FCode(Actor *a);       /* kind $4F: 83:D01A */
+int Kind7ECode(Actor *a);       /* kind $7E: 84:91A5, its second 84:934B */
+int Kind7FCode(Actor *a);       /* kind $7F: 84:934B */
 int Kind90Code(Actor *a);       /* kind $90: A5:F4D2 */
 
 /* ---- wait routines (each: ACTOR_GOES_ON or ACTOR_ENDED) ---- */
@@ -53,5 +55,7 @@ int Kind50Wait(Actor *a);           /* 83:D1B0 */
 int ActorWaitHitsRange8(Actor *a);  /* 83:AA47: kind $2D's */
 int ActorWaitHitsRange0(Actor *a);  /* 83:B630: kind $2F's */
 int ActorWaitTest42Anim2(Actor *a); /* 83:D0EF: kind $4F's */
+int Kind7EWait(Actor *a);           /* 83:92AC, 84:931C */
+int Kind7FWait(Actor *a);           /* 83:92B9, 84:9387 */
 
 #endif

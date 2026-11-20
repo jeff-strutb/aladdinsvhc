@@ -74,6 +74,12 @@ DataRef k2f_probes(void) { return ref(0xD16E); }
 
 uint8_t k4f_opened_bit(uint8_t n) { return at8((uint16_t)(0xD366 + n)); }
 
+/* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
+   $7F's probe list at $D832 ---- */
+
+uint16_t k7e_first_angle(uint8_t n) { return at16((uint16_t)(0xD828 + 2u * n)); }
+DataRef k7f_probes(void) { return ref(0xD832); }
+
 /* ---- kind $90: its probe offsets at $CF8F; by +$07 its steps at $D878,
    its preset at $D875, its flights a step at $D87B ---- */
 

@@ -55,6 +55,11 @@ DataRef k2f_probes(void);                   /* its probe offsets */
 
 uint8_t k4f_opened_bit(uint8_t n);          /* n 0-3 (its +$07's low bits): its bit in g.opened */
 
+/* ---- kinds $7E, $7F ---- */
+
+uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */
+DataRef k7f_probes(void);
+
 /* ---- kind $90, the stepped flier ---- */
 
 DataRef k90_probes(void);
