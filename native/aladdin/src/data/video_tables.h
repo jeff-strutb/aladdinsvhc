@@ -130,4 +130,11 @@ uint8_t window_register_target(uint8_t regs);
 uint16_t window_shape_last(void);
 uint8_t window_shape_byte(uint16_t at);         /* the byte at $82:BBAE + at */
 
+/* ScrollUpdate (81:C5A4), through the data bank $80: the camera's windows
+   at $80:C672 + w (w a byte offset): x bias, x width, y bias, y height, the
+   camera point's y offset (words at +0, +2, +4, +6, +8); the set speeds at
+   $80:C6EA + s (s 0 or 4): 24 bits from the fraction byte, as two words */
+uint16_t camera_window_word(uint8_t w, unsigned field);
+uint32_t scroll_speed(uint8_t s);
+
 #endif

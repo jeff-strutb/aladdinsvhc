@@ -213,3 +213,16 @@ uint8_t window_register_mode(uint8_t regs) { return cart8(cart_offset(WINDOW_TAB
 uint8_t window_register_target(uint8_t regs) { return cart8(cart_offset(WINDOW_TABLES_BANK, (uint16_t)(WINDOW_REGISTER_SETS + 1 + regs))); }
 uint16_t window_shape_last(void) { return cart16(cart_offset(WINDOW_SHAPE_BANK, WINDOW_SHAPE_ADDR)); }
 uint8_t window_shape_byte(uint16_t at) { return cart8(cart_offset(WINDOW_SHAPE_BANK, (uint16_t)(WINDOW_SHAPE_ADDR + at))); }
+
+#define SCROLL_TABLES_BANK 0x80
+#define CAMERA_WINDOWS_ADDR 0xC672
+#define SCROLL_SPEEDS_ADDR 0xC6EA
+
+uint16_t camera_window_word(uint8_t w, unsigned field) { return cart16(cart_offset(SCROLL_TABLES_BANK, (uint16_t)(CAMERA_WINDOWS_ADDR + w + field))); }
+
+uint32_t scroll_speed(uint8_t s)
+{
+    uint32_t e = cart_offset(SCROLL_TABLES_BANK, (uint16_t)(SCROLL_SPEEDS_ADDR + s));
+
+    return (uint32_t)cart16(e) | (uint32_t)cart16(e + 2) << 16;
+}

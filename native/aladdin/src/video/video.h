@@ -148,5 +148,6 @@ void BlockSourceAdd(uint16_t source);           /* 81:C025: g.block_sources[g.bl
 int16_t BlockAt(uint16_t x, uint16_t y);    /* 81:CB24: the screen map's entry for the block at x, y; negative empty */
 void CameraStopAcross(void);                /* 81:CA84 */
 void CameraStopUpDown(void);                /* 81:CADA */
+void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll for this frame, by g.scroll_kind */
 
 #endif
