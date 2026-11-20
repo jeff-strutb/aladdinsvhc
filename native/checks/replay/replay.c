@@ -13,6 +13,11 @@
  * engine's picture N (--shots writes NNNNNN.ppm from 000000).
  * ALADDIN_REPLAY_PLANT=1 plants a change for the check to find: BG1's
  * horizontal scroll one pixel off.
+ *
+ * Added for Aladdin: Mode 7 (the matrix, centre and scroll from $211A-$2120
+ * and $210D/$210E through the console's shared write-twice latch; the plane's
+ * map and tiles from VRAM's low and high bytes; per-line changes of each), and
+ * offset-per-tile for modes 2, 4 and 6 (BG3's map words as the offset map).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,6 +55,14 @@ static int coldata_b, coldata_g, coldata_r;
 static uint8_t cg_addr, cg_low, cg_second, cg_written, cg_new;
 static int cg_value;
 static int plant;            /* ALADDIN_REPLAY_PLANT=1: BG1's horizontal scroll one pixel off */
+
+/* Mode 7: the registers, through their write-twice latch (shared with $210D/$210E's Mode 7 side) */
+static uint8_t m7_latch;
+static int m7a, m7b, m7c, m7d, m7x, m7y, m7hofs, m7vofs;
+static nshvc_tiles m7_tiles;
+static nshvc_map m7_map, opt_map;
+static int m7_sent;           /* the plane's map and tiles match vram_sent */
+static int sext13(int v) { v &= 0x1FFF; return v & 0x1000 ? v - 0x2000 : v; }
 
 static void die(const char *what)
 {
@@ -124,10 +137,32 @@ static void init(void)
     tiles8 = nshvc_tiles_create(8, 1024, 1);
     for (i = 0; i < 4; i++)
         maps[i] = nshvc_map_create(64, MAP_ROWS);
+    m7_tiles = nshvc_tiles_create(8, 256, 1);
+    m7_map = nshvc_map_create(128, 128);
+    opt_map = nshvc_map_create(64, 64);
 }
 
 static void reg_write(uint8_t reg, uint8_t v)
 {
+    if (reg == 0x0D) {
+        m7hofs = sext13(v << 8 | m7_latch);
+        m7_latch = v;
+    } else if (reg == 0x0E) {
+        m7vofs = sext13(v << 8 | m7_latch);
+        m7_latch = v;
+    } else if (reg >= 0x1B && reg <= 0x20) {
+        int w = (int16_t)(v << 8 | m7_latch);
+        m7_latch = v;
+        switch (reg) {
+        case 0x1B: m7a = w; break;
+        case 0x1C: m7b = w; break;
+        case 0x1D: m7c = w; break;
+        case 0x1E: m7d = w; break;
+        case 0x1F: m7x = sext13(w); break;
+        default: m7y = sext13(w); break;
+        }
+        return;
+    }
     if (reg >= 0x0D && reg <= 0x14) {
         int bg = (reg - 0x0D) / 2;
         if (!((reg - 0x0D) & 1)) {
@@ -218,6 +253,8 @@ static void send_tiles(void)
             }
         }
     }
+    if (have_sent && memcmp(vram_sent, machine + AT_VRAM, 0x8000))
+        m7_sent = 0;            /* the plane lies in VRAM's first 32K words' bytes */
     memcpy(vram_sent, machine + AT_VRAM, 0x10000);
     if (!have_sent || memcmp(cgram_sent, machine + AT_CGRAM, 512)) {
         uint16_t c[256];
@@ -302,6 +339,75 @@ static void set_base(void)
     nshvc_sprites_show((r[0x2C] >> 4) & 1, (r[0x2D] >> 4) & 1);
 }
 
+/* Mode 7's plane from VRAM: words 0-$3FFF, the low byte of each the 128 x 128 map, the high byte the 256 tiles' texels */
+static void send_mode7_plane(void)
+{
+    static uint8_t texels[256 * 64];
+    static nshvc_map_entry e[128 * 128];
+    int k;
+
+    if (m7_sent)
+        return;
+    for (k = 0; k < 0x4000; k++) {
+        texels[k] = machine[AT_VRAM + k * 2 + 1];
+        memset(&e[k], 0, sizeof e[k]);
+        e[k].tile = machine[AT_VRAM + k * 2];
+    }
+    nshvc_tiles_write(m7_tiles, 0, texels, 256, NSHVC_TILES_MODE7);
+    nshvc_map_write(m7_map, 0, 0, 128, 128, e);
+    m7_sent = 1;
+}
+
+/* M7SEL's outside (bits 6-7): 0 and 1 repeat, 2 transparent, 3 tile 0 */
+static int m7_outside(void) { int o = r[0x1A] >> 6; return o < 2 ? 0 : o == 2 ? 1 : 2; }
+
+static void set_mode7(void)
+{
+    nshvc_mode7 m;
+
+    memset(&m, 0, sizeof m);
+    m.a = (int16_t)m7a;
+    m.b = (int16_t)m7b;
+    m.c = (int16_t)m7c;
+    m.d = (int16_t)m7d;
+    m.centre_x = (int16_t)m7x;
+    m.centre_y = (int16_t)m7y;
+    m.scroll_x = (int16_t)m7hofs;
+    m.scroll_y = (int16_t)m7vofs;
+    m.outside = (uint8_t)m7_outside();
+    m.flip_x = r[0x1A] & 1;
+    m.flip_y = (r[0x1A] >> 1) & 1;
+    m.extbg = (r[0x33] >> 6) & 1;
+    m.tiles = m7_tiles;
+    m.map = m7_map;
+    nshvc_mode7_set(&m);
+}
+
+/* offset-per-tile (modes 2, 4, 6): BG3's map words, as the console reads its offsets from them */
+static int opt_mode(int mode) { return mode == 2 || mode == 4 || mode == 6; }
+/* the modes this picture shows (bits 0-7): as it starts, and any its lines change to */
+static int pic_modes;
+#define OPT_MODES (1 << 2 | 1 << 4 | 1 << 6)
+
+static void send_offsets(void)
+{
+    uint8_t sc = r[0x09];
+    uint32_t base = (uint32_t)(sc >> 2) << 11, size = sc & 3;
+    static uint16_t w[64 * 64];
+    int x, y;
+
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            uint32_t screen = 0, a;
+            if (size == 1 && x >= 32) screen = 1;
+            if (size == 2 && y >= 32) screen = 1;
+            if (size == 3) screen = (x >= 32 ? 1u : 0u) + (y >= 32 ? 2u : 0u);
+            a = (base + screen * 0x800u + (uint32_t)(y % 32) * 64u + (uint32_t)(x % 32) * 2u) & 0xFFFFu;
+            w[y * 64 + x] = (uint16_t)(machine[AT_VRAM + a] | machine[AT_VRAM + ((a + 1) & 0xFFFFu)] << 8);
+        }
+    nshvc_map_write_snes(opt_map, 0, 0, 64, 64, w);
+}
+
 static nshvc_tiles tiles_of(int bpp) { return bpp == 2 ? tiles2 : bpp == 4 ? tiles4 : tiles8; }
 
 static uint8_t sc_at[4], nba_at[4];
@@ -323,6 +429,17 @@ static void set_layer(int i, int region)
         l.scroll_y = vofs[i] + region * 64 * (big ? 16 : 8);
         l.mosaic = (r[0x06] >> i & 1) ? (r[0x06] >> 4) + 1 : 1;
         l.wrap = 1;
+        /* a picture that changes to an offset-per-tile mode partway (act 7: mode 1 for the HUD, then mode 2) has
+           the offsets from its start: the engine has no line change for them */
+        if ((pic_modes & OPT_MODES) && i < 2)
+            l.offset_per_tile = opt_map;
+    } else if (opt_mode(mode) && i == 2) {
+        /* BG3 is not drawn; its map and scroll place the offsets */
+        l.map = opt_map;
+        l.tile_size = 8;
+        l.scroll_x = hofs[2];
+        l.scroll_y = vofs[2];
+        l.wrap = 1;
     }
     nshvc_layer_set((uint8_t)i, &l);
 }
@@ -342,7 +459,20 @@ static void line_changes(uint32_t line, int32_t col, uint8_t reg)
             SET(NSHVC_LINE_SCROLL_Y + i, vofs[i] + regions[i] * 64 * (((r[5] >> (4 + i)) & 1) ? 16 : 8));
         else
             SET(NSHVC_LINE_SCROLL_X + i, hofs[i] + (plant && i == 0));
+        if (reg == 0x0D) SET(NSHVC_LINE_M7_SCROLL_X, m7hofs);
+        if (reg == 0x0E) SET(NSHVC_LINE_M7_SCROLL_Y, m7vofs);
         break;
+    case 0x1A:
+        SET(NSHVC_LINE_M7_OUTSIDE, m7_outside());
+        SET(NSHVC_LINE_M7_FLIP_X, r[0x1A] & 1);
+        SET(NSHVC_LINE_M7_FLIP_Y, (r[0x1A] >> 1) & 1);
+        break;
+    case 0x1B: SET(NSHVC_LINE_M7_A, m7a); break;
+    case 0x1C: SET(NSHVC_LINE_M7_B, m7b); break;
+    case 0x1D: SET(NSHVC_LINE_M7_C, m7c); break;
+    case 0x1E: SET(NSHVC_LINE_M7_D, m7d); break;
+    case 0x1F: SET(NSHVC_LINE_M7_CENTRE_X, m7x); break;
+    case 0x20: SET(NSHVC_LINE_M7_CENTRE_Y, m7y); break;
     case 0x23: case 0x24: case 0x25: case 0x2A: case 0x2B:
         for (i = 0; i < 6; i++)
             SET(NSHVC_LINE_WIN_USE + i, layer_use(i));
@@ -416,10 +546,23 @@ static void draw(float between)
         sc_at[i] = r[0x07 + i];
         nba_at[i] = (uint8_t)((r[0x0B + i / 2] >> ((i & 1) * 4)) & 15);
         regions[i] = 0;
-        if (bpp)
+        if (bpp) {
             write_region(i, 0, sc_at[i], nba_at[i], bpp);
+            /* region 1 starts as region 0 again, so that a scroll or an offset past 512 rows wraps to the top as
+               the console's does (the map is 1,024 rows: two regions); a base changed partway overwrites it */
+            write_region(i, 1, sc_at[i], nba_at[i], bpp);
+        }
     }
     send_tiles();
+    pic_modes = 1 << (r[5] & 7);
+    for (scan = at_write; scan < nwrites && writes[scan].frame == frame && writes[scan].line <= 224; scan++)
+        if (writes[scan].reg == 0x05)
+            pic_modes |= 1 << (writes[scan].data & 7);
+    if (pic_modes & 1 << 7)
+        send_mode7_plane();
+    if (pic_modes & OPT_MODES)
+        send_offsets();
+    set_mode7();
     send_sprites();
     set_base();
     for (i = 0; i < 4; i++)

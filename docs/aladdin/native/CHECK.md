@@ -151,10 +151,41 @@ The 15 the plant leaves the same, each from the recording: BG1 off in 6 (frames 
 in 2 (420, 7680), brightness 0 in 5 (720, 780, 3540, 3720, 6300), and at 3600 and 3660 BG1's whole map is one tile
 whose pixels are all 0 (transparent; the picture is 52 and 32 sprites).
 
-**Not covered yet:** mode 7 and mode 2. The replay maps neither (no `nshvc_mode7` matrix, no offset-per-tile), so the
-title (mode 7, in 29 of the 30 recordings) and act 7's mode 2 are not replayed correctly. Only `attract` has been
-replayed. The plan's stage 1 check is on the attract play; the title and act 7 need those two before their recordings
-can be replayed.
+**Mode 7 and offset-per-tile** (added 2026-11-20). Mode 7: the matrix, centre and scroll through the console's shared
+write-twice latch (`$211B`-`$2120` and the Mode 7 side of `$210D`/`$210E`), the plane from VRAM (the low byte of words
+0-`$3FFF` the 128 x 128 map, the high byte the tiles' texels), and each of these as a line change. Offset-per-tile:
+BG3's map words given raw as the offset map (`nshvc_map_write_snes`), and BG1 and BG2 given it whenever any line of the
+picture is in mode 2, 4 or 6. Act 7 shows its HUD in mode 1 for lines 0-43 and switches to mode 2 at line 44, and the
+engine has no line change for the offsets. Fixed on the way, found by act 7: the replay's maps are two 64-row regions
+(1,024 rows). A vertical scroll or offset past 512 (act 7's offsets wrap below 0: `$1FF`, `$1FE`, ...) ran into
+region 1 instead of back to the top, so region 1 now starts as a copy of region 0.
+
+| Run (2026-11-20) | Pictures | The same | Differ | Pixels |
+|---|---:|---:|---:|---:|
+| `attract` | 150 | 150 | 0 | 0 |
+| `cov_title_idle` (title, Mode 7) | 198 | 194 | 4 | 5,059 |
+| `rand_pw7_1` (act 7, mode 2) | 145 | 118 | 27 | 28,528 |
+
+Each difference, from the recording:
+
+- **Title 5160 and 5220** (4,843 and 195 pixels): Mode 7 drawn smaller than its texels (the matrix's a and d are
+  `$08D0` and `$0150`). The engine area-filters the plane there by its design (api.md section 3.4) and bsnes
+  point-samples. Not a bug.
+- **Title 3720 and 4500** (12 and 9 pixels): picture row 8, the first line shown after forced blank ends (`INIDISP`
+  written in line 8's H-blank). The engine draws a sprite's row there; bsnes draws none, as the console does: a line's
+  sprites are found during the line before, and none are found during forced blank. An engine difference.
+- **Act 7, 25 pictures from 7140 on** (about 1,025 to 1,090 pixels each): rows 8-42, columns 48-87 only, the mode 1 HUD
+  lines. BG3's map row 1 holds five HUD words with bit 13 set (`$2C60`, the tiles' priority), and the engine takes them
+  as BG1's offsets in mode 1 too (`compose.c`'s `opt_on` does not look at the mode); the console has no offsets in mode
+  1. Predicted from the map before the run, then seen. An engine difference, reported to the session that owns the
+  engine; nativeshvc is not changed for one game.
+- **Act 7, 8340 and 8400** (about 170 and 5 pixels besides the HUD band): rows 164-174, where the snake sprite meets the
+  top of the offset-shifted spike band. bsnes shows BG2's colour there; the engine shows the sprite's. Not settled: a
+  calculation by hand of the BG2 tile under the first pixel gives a transparent priority-0 tile under a priority-1
+  sprite, which would make the engine right, so that model of the console's offset rules is wrong somewhere.
+
+**Not covered yet:** the other 27 recordings have not been replayed (only attract, the title and one act 7 play). The
+pictures every 60 frames are a sample: a difference in the frames between is not seen.
 
 ## What a result means
 
