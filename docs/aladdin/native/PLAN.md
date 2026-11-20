@@ -17,6 +17,8 @@ and `asm/aladdin` are never edited and stay the certified reference.
 |---|---|---|
 | 1 | Tasks wait up to three calls deep. `docs/aladdin/TASKS.md` said the native game would keep them as coroutines; SRFX made each wait an explicit state. Which? (asked 2026-11-19) | Jeff: explicit states, as SRFX |
 | 2 | Get it running first and clean the register-style C later, or clean as we go? (2026-11-19, through the master session) | Jeff: "clean as you go". Each area is converted and cleaned in one pass (`docs/conversion-guide.md` section 4). No register-style C ever runs in the native game, and no stage's done allows it (section 4's clean check) |
+| 3 | Does SRFX's "Enhanced IS the native game" hold for Aladdin? (2026-11-19) | Jeff: "yes, enhanced IS the native game." So, as SRFX's "Read this first": no original mode, and no option, flag or check-only path that runs the game the original's way; no work spent lining frames up with bsnes. The game's own logic is still the game's: a wrong value, a misplaced actor or a missing sound is a bug. Recordings of the original find such bugs and are never a target. Which enhanced features Aladdin gets (SRFX's: the full window at any shape, pictures between updates) is designed and shown to Jeff before it is built (stage 7) |
+| 4 | Saves? (2026-11-19) | Jeff: "for now, stick with passwords. we'll add saves later." No save file in this plan; progress is the original's passwords, and the kept options stay in memory as the original keeps them |
 
 ## How the conversion is shared between sessions
 
@@ -134,7 +136,7 @@ target_compile_options(aladdin PRIVATE -std=gnu11 -Wall -Wextra)
 It takes every `.c` under `src/`, so the later stages add files without changing it. They add them under `src/` by the
 record's own area names, as SRFX's tree keeps its record's: `system/` (beside `main.c`: `state.h` with `g`, the frame,
 tasks, power-on, reset, random), `data/` (the only place cartridge offsets live), `audio/`, `video/`, `game/`, `level/`,
-`map/`, `player/`, `actor/`, `input/`, `math/`, and `save/` for the settings file. Check tools go in `native/checks/`,
+`map/`, `player/`, `actor/`, `input/`, `math/`. Check tools go in `native/checks/`,
 outside the game. No `SHADERS` (optional, `cmake/NshvcGame.cmake:122`): Aladdin has no chip drawing. The build and run
 commands are BUILD.md's: `cmake` into `build/aladdin/native/linux` (Vulkan) and `build/aladdin/native/headless`.
 
@@ -189,11 +191,12 @@ is not done; there is no interim register-style form.
 | 3 | **Sound**: the driver as music code, the queue, the loads | 2,755 (`audio`) | the driver runs on the audio thread from commands; sample sets and songs load by message; `audio/` clean (no `spc.`, `spc_rd`/`spc_wr`) | the recorded port commands fed to the driver give the recorded voice events (key-ons, pitch, volumes, per tick; SRFX's `music_check`); then `tools/nshvc-check` sound against bsnes on the attract play. Expected: the same events, with differences only in write order inside a tick; the clean check on `audio/` |
 | 4 | **Loop, video, boot to title** (the first end-to-end) | about 13,700: `system` 1,956, `video` 10,673, `game/logo_screen.c` 119, `opening_story.c` 502, `title_task.c` 473; plus the actor loop and the kinds the story places (counted in this stage's first step, from `OpeningActorPlace`'s table) | the game runs from power-on through the logo and the opening story (or Start) to the title with its music; every file of the stage clean | headless runs with `--shots` and `--sound`, looked at against the original's recording; `nshvc-check` sound on the boot; the clean check. Expected: the same screens and music, reached sooner (section 1 item 3) |
 | 5 | **Player, actors and levels** | about 67,500: `actor` 47,012, `player` 7,261, `level` 3,075, `map` 2,471, the rest of `game` 7,699 | every level, scene, the Genie screen, continue, password and ending playable by input; every live routine converted or listed dead; every file clean | for each level, a new input-only play of the original (section 1 item 7); the native game's state against the recording at each frame through stage 2's CSV, each masked field with its reason; no crash or unconverted-routine message; the clean check on each area as it lands |
-| 6 | **Input and saves** | about 324 (`system/joypad.c` 51, `controls.c` 68, `input_modes.c` 177, all counted in stage 4's `system` too, and `input/` 28) | keys and controllers through the game's own controls on `nshvc_input`; the player's settings (bindings, full screen) in an `nshvc_save_*` file; passwords as the original's progress; the files clean | headless `--input` runs with keys and with a controller replayed; password entry by keys; the clean check |
-| 7 | **Linux packaging** | 0 | `tools/nshvc-build linux native/aladdin` gives the program, its icon and desktop file (`cmake/NshvcGame.cmake`), `cart.dat` beside it | launched from the package on this machine, windowed and full screen (F11, API section 5) |
-| 8 | **Whole game** | | section 8 | the finder at 0 and the rest of section 8 checked over the whole tree; every play through `nshvc-check` |
+| 6 | **Input** (passwords as the progress; no saves, decision 4) | about 324 (`system/joypad.c` 51, `controls.c` 68, `input_modes.c` 177, all counted in stage 4's `system` too, and `input/` 28) | keys and controllers through the game's own controls on `nshvc_input`; passwords entered as the original's progress; the files clean | headless `--input` runs with keys and with a controller replayed; password entry by keys; the clean check |
+| 7 | **The enhanced game** (decision 3) | 0 of the record | each feature Jeff approves, designed from the code and shown to him before it is built, in the areas that own it | Jeff's look at each in a window; the game's own logic unchanged (the stage 5 state comparison still passing) |
+| 8 | **Linux packaging** | 0 | `tools/nshvc-build linux native/aladdin` gives the program, its icon and desktop file (`cmake/NshvcGame.cmake`), `cart.dat` beside it | launched from the package on this machine, windowed and full screen (F11, API section 5) |
+| 9 | **Whole game** | | section 8 | the finder at 0 and the rest of section 8 checked over the whole tree; every play through `nshvc-check` |
 
-Order: 0, 1, 2, then 3 and 4 side by side (they share no files), then 5 with 6 beside it, then 7 and 8.
+Order: 0, 1, 2, then 3 and 4 side by side (they share no files), then 5 with 6 beside it, then 7 as features are approved, then 8 and 9.
 
 **Time.** No estimate here: Aladdin has no measured stage yet. What SRFX records: its plan was written 2026-11-09 "from
 reading the source before anything was built"; its history has the empty game at 11:52 that day (`48f4d347`), the replay of
@@ -213,7 +216,7 @@ After stage 4 lands, these sessions work at once, each owning only its directori
 | player and map | `player/`, `map/` | 9,732 | `actor.h`, `state.h` |
 | levels and screens | `level/`, `game/` but the stage 4 screens | 10,774 | stage 4's screens |
 | video | `video/` (the window effects, parallax and HUD the levels add) | inside stage 4's 10,673 | stage 4 |
-| input and saves | `input/`, `system/controls.c`, `joypad.c`, `input_modes.c`, `save/` | about 324 | stage 4's loop |
+| input | `input/`, `system/controls.c`, `joypad.c`, `input_modes.c` | about 324 | stage 4's loop |
 
 `state.h` is the one shared file: small exact edits only. A routine another session owns is asked for under `/* wanted */`
 in its header. Sound (stage 3) is finished before this and owns `audio/` alone.
@@ -250,7 +253,7 @@ All of these, for `native/aladdin`:
 3. Every function has real parameters and returns and structured control flow; every wait is a state (decision 1).
 4. No platform code; it builds through `nshvc_game()` and `tools/nshvc-build`.
 5. Every live routine of the record has a converted form, or is listed dead with its proof.
-6. Each stage's check has passed, and the final report says which plays match and which do not, and why.
+6. Each stage's check has passed, and the final report lists the bugs the recordings found and how each was settled.
 
 ## 9. What gets deleted
 
@@ -260,10 +263,7 @@ wrapper, the interrupt vectors and handlers as such, the task stacks, the IPL up
 
 ## 10. What is not known
 
-- **Whether SRFX's decision 5 holds here** ("Enhanced IS the native game", Jeff 2026-11-09: a wider window, pictures between
-  updates and the rest). This plan keeps the original's 256 x 224 picture until Jeff says.
-- **What persists.** The original keeps its options in work RAM, sealed with a sum (`KeptOptionsSeal`, `game/options_*.c`),
-  and progress only as passwords. Whether the native game saves options or progress across launches is Jeff's call.
+- **Which enhanced features** Aladdin gets (decision 3): none is designed yet.
 - **The window-effect register table's bank.** Its bytes make sense in bank $80 only; the routines' comments say DB = $82
   (hardware-touches.md section 3). A recording in stage 1 settles it.
 - **The IRQ's line on every level**: `V_1C7D` or 8, unless the V counter latched in the NMI reads 5 to $7F
