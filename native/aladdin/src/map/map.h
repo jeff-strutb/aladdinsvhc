@@ -92,6 +92,10 @@ uint8_t GroundBehindBit3(Actor *a, MapPoint *p); /* 81:B5B3 */
    reads the behaviour and kind after them); NULL when not wanted */
 int ActorOutOfWall(Actor *a, uint8_t probe);     /* 81:B60C (81:B608 Long): out of a wall at `probe` in front */
 int ActorOutOfWallProbe4(Actor *a);              /* 81:B5AD */
+/* the same two, leaving in p the point tested (kinds $08 and $90 read the
+   wall tile's behaviour after them, the original's $0012) */
+int ActorOutOfWallAt(Actor *a, uint8_t probe, MapPoint *p);  /* 81:B60C */
+int ActorOutOfWallProbe4At(Actor *a, MapPoint *p);           /* 81:B5AD */
 int ActorOutOfWalls(Actor *a, MapPoint *p);      /* 81:B59F: probes $0C, 8, then 4 */
 int ActorSnapToGround(Actor *a, MapPoint *p);    /* 81:B44F: onto ground within 3 pixels below */
 int ActorOutOfGround(Actor *a);                  /* 81:B4F3: raised out of the ground (0: no tile, or not in it) */
@@ -103,14 +107,5 @@ int PlayerOnFirmGroundProbe8(void);              /* 81:B74E */
 int PlayerOnFirmGroundProbe4(void);              /* 81:B75A */
 
 /* wanted */
-
-/* (n5-kinds-d, for kind $08: it reads the behaviour of the tile the wall test found, the original's $0012) */
-int ActorOutOfWallAt(Actor *a, uint8_t probe, MapPoint *p);  /* 81:B60C: ActorOutOfWall, the probe's findings in *p */
-
-/* (n5-kinds-c, for kind $90: it reads the tile's behaviour the wall test
-   left, the original's $0012) ActorOutOfWallProbe4, the probe's findings
-   in *p */
-int ActorOutOfWallProbe4At(Actor *a, MapPoint *p);  /* 81:B5AD */
-
 
 #endif

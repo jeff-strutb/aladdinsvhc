@@ -374,6 +374,18 @@ int ActorOutOfWallProbe4(Actor *a)
     return ActorOutOfWall(a, 0x04);
 }
 
+/* ActorOutOfWall and ActorOutOfWallProbe4 for the callers that read the
+   point they tested (its behaviour) after them */
+int ActorOutOfWallAt(Actor *a, uint8_t probe, MapPoint *p)
+{
+    return out_of_wall(a, probe, p);
+}
+
+int ActorOutOfWallProbe4At(Actor *a, MapPoint *p)
+{
+    return out_of_wall(a, 0x04, p);
+}
+
 /*
  * @routine 81:B59F ActorOutOfWalls
  * WHAT IT DOES: Moves the actor out of a wall in front of it, testing
