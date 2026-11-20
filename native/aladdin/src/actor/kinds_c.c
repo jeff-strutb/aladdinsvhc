@@ -24,6 +24,7 @@ const KindCode kinds_c[] = {
     { 0x59, Kind59Code, NULL, NULL, Kind23Wait },              /* its wait 83:DEB9 is Kind23Wait's bytes */
     { 0x63, Kind63Code, Kind63Code, Kind63Code, Kind63Wait },
     { 0x6B, Kind6BCode, NULL, NULL, AnimateWhileWaiting },     /* its wait 83:ECCF is AnimStep and an RTS */
+    { 0x68, Kind68Code, Kind68Code, NULL, Kind68Wait },    /* its second entry is kind $69's start (n5-kinds-d's), run by ActorRunAs */
     { 0x7E, Kind7ECode, Kind7ECode, NULL, Kind7EWait },        /* its second entry is kind $7F's start: the same code here */
     { 0x7F, Kind7FCode, Kind7FCode, NULL, Kind7FWait },
     { 0x81, Kind81Code, Kind81Code, NULL, ActorWaitNothing },  /* its wait 84:951C does nothing */

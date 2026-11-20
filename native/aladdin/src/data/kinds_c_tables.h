@@ -105,6 +105,28 @@ uint8_t k41_spawn_at(uint8_t n);            /* the timed maker's spawn point, by
 uint8_t k3d_records_needed(uint8_t set);    /* by its +$07 (0-2): the free list's top it needs at least, as the original's byte offset (2 a record) */
 int16_t k3d_bob_step(uint8_t entry);        /* the bob's move of entry 0-3: its y pixels' change */
 
+/* ---- kind $68, the block platform ---- */
+
+uint8_t k68_ways(uint8_t variant);          /* by +$07: its facing * 4 (and its flip's opposite) and its shape in bit 0 */
+uint8_t k68_pose(uint8_t shape);            /* its animation, by its shape */
+uint16_t k68_start_wait(uint8_t variant);   /* frames before it moves, by +$07 */
+uint16_t k68_block_x(uint8_t variant);      /* where its first blocks are written, by +$07 */
+uint16_t k68_block_y(uint8_t variant);
+uint8_t k68_leg_blocks(uint8_t variant);    /* blocks a leg writes */
+uint8_t k68_pause(uint8_t back);            /* frames it pauses at a leg's end, by the way it turns to */
+uint8_t k68_move_list(uint8_t variant);     /* the start of its moves' list, by +$07 */
+/* the move at `at`: its x and y change (24 bits each, fraction first) */
+uint32_t k68_move_x(uint8_t at);
+uint32_t k68_move_y(uint8_t at);
+uint8_t k68_move_at(uint8_t pick);          /* by its pick (the list's start added): the move's offset */
+int16_t k68_block_step_x(uint8_t alt, uint8_t pick);   /* a block step, by the alternation and the pick */
+int16_t k68_block_step_y(uint8_t alt, uint8_t pick);
+uint16_t k68_tile(uint8_t shape, uint8_t pick, int second);   /* the platform's tile (or the one 16 pixels below), by shape and pick */
+int16_t k68_spot_x(uint8_t at);             /* by (shape * 2 + flip) * 4: its spot's offsets from its kept place */
+int16_t k68_spot_y(uint8_t at);
+int16_t k68_box(uint8_t at, uint8_t n);     /* by (shape * 2 + flip) * 8: word n of its box: x, y offsets, half-width, half-height */
+uint16_t k68_dirs(uint8_t at);              /* the ground direction he gets, by shape * 2 + flip */
+
 /* ---- kinds $7E, $7F ---- */
 
 uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */

@@ -130,6 +130,48 @@ uint8_t k41_spawn_at(uint8_t n) { return at8((uint16_t)(0xD2AE + n)); }
 uint8_t k3d_records_needed(uint8_t set) { return at8((uint16_t)(0xD296 + set)); }
 int16_t k3d_bob_step(uint8_t entry) { return (int16_t)at16((uint16_t)(0xD286 + 4u * entry)); }
 
+/* ---- kind $68: all in bank $80 (the traces read $D50D-$D65C there): by +$07
+   the ways at $D50D, the pose by shape at $D515, the move lists' starts at
+   $D517, the moves (6 bytes each) at $D51F, the block steps at $D5A3 (a word
+   by alternation, then 4 bytes each), the first blocks at $D5C7 (4 bytes), the
+   leg blocks at $D5E7, the waits at $D5EF (words), the boxes at $D5FF, the
+   spots at $D61F, the directions at $D62F, the tiles at $D633 and the
+   pauses at $D655 ---- */
+
+uint8_t k68_ways(uint8_t variant) { return at8((uint16_t)(0xD50D + variant)); }
+uint8_t k68_pose(uint8_t shape) { return at8((uint16_t)(0xD515 + shape)); }
+uint16_t k68_start_wait(uint8_t variant) { return at16((uint16_t)(0xD5EF + 2u * variant)); }
+uint16_t k68_block_x(uint8_t variant) { return at16((uint16_t)(0xD5C7 + 4u * variant)); }
+uint16_t k68_block_y(uint8_t variant) { return at16((uint16_t)(0xD5C9 + 4u * variant)); }
+uint8_t k68_leg_blocks(uint8_t variant) { return at8((uint16_t)(0xD5E7 + variant)); }
+uint8_t k68_pause(uint8_t back) { return at8((uint16_t)(0xD655 + back)); }
+uint8_t k68_move_list(uint8_t variant) { return at8((uint16_t)(0xD517 + variant)); }
+uint8_t k68_move_at(uint8_t pick) { return at8((uint16_t)(0xD51F + pick)); }
+uint32_t k68_move_x(uint8_t at)
+{
+    return (uint32_t)at8((uint16_t)(0xD51F + at)) | (uint32_t)at8((uint16_t)(0xD520 + at)) << 8 | (uint32_t)at8((uint16_t)(0xD521 + at)) << 16;
+}
+uint32_t k68_move_y(uint8_t at)
+{
+    return (uint32_t)at8((uint16_t)(0xD522 + at)) | (uint32_t)at8((uint16_t)(0xD523 + at)) << 8 | (uint32_t)at8((uint16_t)(0xD524 + at)) << 16;
+}
+int16_t k68_block_step_x(uint8_t alt, uint8_t pick)
+{
+    return (int16_t)at16((uint16_t)(0xD5A3 + 4u * pick + at16((uint16_t)(0xD5A3 + 2u * alt))));
+}
+int16_t k68_block_step_y(uint8_t alt, uint8_t pick)
+{
+    return (int16_t)at16((uint16_t)(0xD5A5 + 4u * pick + at16((uint16_t)(0xD5A3 + 2u * alt))));
+}
+uint16_t k68_tile(uint8_t shape, uint8_t pick, int second)
+{
+    return at16((uint16_t)(0xD633 + (second ? 2 : 0) + (uint8_t)(pick + at8((uint16_t)(0xD633 + shape)))));
+}
+int16_t k68_spot_x(uint8_t at) { return (int16_t)at16((uint16_t)(0xD61F + at)); }
+int16_t k68_spot_y(uint8_t at) { return (int16_t)at16((uint16_t)(0xD621 + at)); }
+int16_t k68_box(uint8_t at, uint8_t n) { return (int16_t)at16((uint16_t)(0xD5FF + at + 2u * n)); }
+uint16_t k68_dirs(uint8_t at) { return at16((uint16_t)(0xD62F + at)); }
+
 /* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
    $7F's probe list at $D832 ---- */
 
