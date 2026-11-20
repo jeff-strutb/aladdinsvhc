@@ -652,47 +652,47 @@ void abi_TilemapWordLong(void)
  */
 void abi_EdgeMapPlace(void)
 {
-    uint8_t p = cpu.p;
-    uint16_t x = cpu.x;
-
-    wr16(SCRATCH, cpu.a);
-    wr16((SCRATCH + 2), cpu.y);
-    op_xba();
-    cpu.a++;
-    cpu.p = nz16(cpu.p, cpu.a);
-    op_asl16();
-    op_and16(0x00FE);
-    wr16((SCRATCH + 4), cpu.a);
-    op_lda16_imm(cpu.y);
-    op_add16(0x0100);
-    op_and16(0xFF00);
-    op_lsr16();
-    op_lsr16();
-    op_add16(rd16((SCRATCH + 4)));
-    op_add16(rd16(dp(LAYER_MAP_BASE)));
-    wr16(dp(x + EDGE_MAP), cpu.a);
-    op_lda16(SCRATCH);
-    op_lsr16();
-    op_lsr16();
-    op_lsr16();
-    op_and16(0x001E);
-    wr16((SCRATCH + 4), cpu.a);
-    op_lda16((SCRATCH + 2));
-    op_asl16();
-    op_and16(0x01E0);
-    op_ora16(rd16((SCRATCH + 4)));
-    wr16(dp(x + EDGE_BLOCK), cpu.a);
-    op_lda16(SCRATCH);
-    op_lsr16();
-    op_lsr16();
-    op_and16(0x0002);
-    wr16((SCRATCH + 4), cpu.a);
-    op_lda16((SCRATCH + 2));
-    op_lsr16();
-    op_and16(0x0004);
-    op_ora16(rd16((SCRATCH + 4)));
-    wr16(dp(x + EDGE_HALF), cpu.a);
-    op_plp(p);
+    php();
+    sta16(ea_abs(SCRATCH));
+    sty16(ea_abs(SCRATCH + 2));
+    xba();
+    ACC16(inc);
+    ACC16(asl);
+    and16_v(0x00FE);
+    sta16(ea_abs(SCRATCH + 4));
+    tya16();
+    clc();
+    adc16_v(0x0100);
+    and16_v(0xFF00);
+    ACC16(lsr);
+    ACC16(lsr);
+    clc();
+    adc16_v(rd16(ea_abs(SCRATCH + 4)));
+    clc();
+    adc16_v(rd16(ea_dp(LAYER_MAP_BASE)));
+    sta16(ea_dpx(EDGE_MAP));
+    lda16(ea_abs(SCRATCH));
+    ACC16(lsr);
+    ACC16(lsr);
+    ACC16(lsr);
+    and16_v(0x001E);
+    sta16(ea_abs(SCRATCH + 4));
+    lda16(ea_abs(SCRATCH + 2));
+    ACC16(asl);
+    and16_v(0x01E0);
+    ora16_v(rd16(ea_abs(SCRATCH + 4)));
+    sta16(ea_dpx(EDGE_BLOCK));
+    lda16(ea_abs(SCRATCH));
+    ACC16(lsr);
+    ACC16(lsr);
+    and16_v(0x0002);
+    sta16(ea_abs(SCRATCH + 4));
+    lda16(ea_abs(SCRATCH + 2));
+    ACC16(lsr);
+    and16_v(0x0004);
+    ora16_v(rd16(ea_abs(SCRATCH + 4)));
+    sta16(ea_dpx(EDGE_HALF));
+    plp();
 }
 
 /*
@@ -707,16 +707,15 @@ void abi_EdgeMapPlace(void)
  */
 void abi_EdgePlaceAt(void)
 {
-    uint16_t px = cpu.a, py = cpu.y;
-
+    phy16();
+    pha16();
     call_frame(0xC167, abi_TilemapWord);
-    op_and16(rd16(dp(LAYER_TILEMAP_MASK)));
-    op_ora16(rd16(dp(LAYER_TILEMAP_BASE)));
-    wr16(dp(cpu.x + EDGE_TILEMAP), cpu.a);
-    op_lda16_imm(px);
-    cpu.y = py;
-    cpu.p = nz16(cpu.p, py);
-    abi_EdgeMapPlace();
+    and16_v(rd16(ea_dp(LAYER_TILEMAP_MASK)));
+    ora16_v(rd16(ea_dp(LAYER_TILEMAP_BASE)));
+    sta16(ea_dpx(EDGE_TILEMAP));
+    pla16();
+    ply16();
+    abi_EdgeMapPlace();                         /* JMP */
 }
 
 /*
@@ -732,19 +731,22 @@ void abi_EdgePlaceAt(void)
  */
 void abi_EdgePlace(void)
 {
-    uint16_t x = cpu.x;
-
-    wr16((SCRATCH + 16), cpu.a);
-    op_lda16(dp(LAYER_SCROLL_Y));
-    op_add16(rd16(EDGE_PLACE + 2 + x));
-    op_tay16();
-    op_lda16(dp(LAYER_SCROLL_X));
-    op_add16(rd16(EDGE_PLACE + x));
-    cpu.x = rd16((SCRATCH + 16));
-    cpu.p = nz16(cpu.p, cpu.x);
+    phx16();
+    sta16(ea_abs(SCRATCH + 16));
+    clc();
+    lda16(ea_dp(LAYER_SCROLL_Y));
+    adc16_v(rd16(ea_absx((uint16_t)(EDGE_PLACE + 2))));
+    tay16();
+    clc();
+    lda16(ea_dp(LAYER_SCROLL_X));
+    adc16_v(rd16(ea_absx((uint16_t)EDGE_PLACE)));
+    ldx16(ea_abs(SCRATCH + 16));
     call_frame(0xC15C, abi_EdgePlaceAt);
-    cpu.x = (uint16_t)(x + 4);
-    cpu.p = nz16(cpu.p, cpu.x);
+    plx16();
+    inx16();
+    inx16();
+    inx16();
+    inx16();
 }
 
 /*
@@ -758,16 +760,31 @@ void abi_EdgePlace(void)
  */
 void abi_LayerPlaceEdges(void)
 {
-    int i;
-
     op_rep(0x30);
-    op_lda16_imm(cpu.a);                 /* TCD */
-    cpu.d = cpu.a;
-    for (i = 0; i < 4; i++) {
-        op_lda16_imm(edge_at[i]);
-        abi_EdgePlace();
-    }
+    tcd();
+    lda16_v(0);
+    call_frame(0xC130, abi_EdgePlace);
+    lda16_v(10);
+    call_frame(0xC136, abi_EdgePlace);
+    lda16_v(20);
+    call_frame(0xC13C, abi_EdgePlace);
+    lda16_v(30);
+    call_frame(0xC142, abi_EdgePlace);
     op_sep(0x10);
+}
+
+/* LayersSetup's levels with the backdrop's long rows after level 0, in the
+   order its CMPs test them; LayersFill's, with level 6 too. */
+static const uint8_t setup_wide[4] = { 0x15, 0x14, 0x02, 0x03 };
+static const uint8_t fill_wide[5] = { 0x15, 0x14, 0x02, 0x03, 0x06 };
+
+/* DEC abs at the width M has when the original reaches it. */
+static void dec_abs_m(uint16_t a)
+{
+    if (cpu.p & P_M)
+        MEM8(dec, ea_abs(a));
+    else
+        MEM16(dec, ea_abs(a));
 }
 
 /*
@@ -783,42 +800,34 @@ void abi_LayerPlaceEdges(void)
  */
 void abi_LayersSetup(void)
 {
-    static const uint8_t wide[4] = { 0x15, 0x14, 0x02, 0x03 };
-    uint16_t d = cpu.d;
-    uint8_t level;
-    int i, hit;
-
+    phd();
     op_rep(0x20);
-    op_lda16_imm(LAYER0);
-    cpu.x = 0;
-    cpu.p = nz8(cpu.p, 0);
-    abi_LayerSetup();
-    op_lda16_imm(LAYER1);
-    cpu.x = 7;
-    cpu.p = nz8(cpu.p, 7);
-    abi_LayerSetup();
-    op_lda16_imm(LAYER0);
-    cpu.x = 0;
-    cpu.p = nz8(cpu.p, 0);
-    abi_LayerPlaceEdges();
-    op_lda16_imm(LAYER1);
-    cpu.x = 0;
-    cpu.p = nz8(cpu.p, 0);
-    abi_LayerPlaceEdges();
+    lda16_v((uint16_t)LAYER0);
+    ldx8_v(0);
+    call_frame(0xC0C0, abi_LayerSetup);
+    lda16_v((uint16_t)LAYER1);
+    ldx8_v(7);
+    call_frame(0xC0C8, abi_LayerSetup);
+    lda16_v((uint16_t)LAYER0);
+    ldx8_v(0);
+    call_frame(0xC0D0, abi_LayerPlaceEdges);
+    lda16_v((uint16_t)LAYER1);
+    ldx8_v(0);
+    call_frame(0xC0D8, abi_LayerPlaceEdges);
     op_sep(0x30);
-    op_lda8(LEVEL);
-    level = (uint8_t)cpu.a;
-    hit = level == 0;
-    for (i = 0; i < 4 && !hit; i++) {
-        cpu.p = cmp8_flags(cpu.p, level, wide[i]);
-        hit = level == wide[i];
+    lda8(ea_abs(LEVEL));
+    if (!IF_Z) {
+        for (int i = 0; i < 4; i++) {
+            cmp8_v(setup_wide[i]);
+            if (IF_Z)
+                break;
+        }
     }
-    if (hit) {
-        set_a8(0x44);
-        wr8(LAYER1 + LAYER_ROW_LENGTH, 0x44);
+    if (IF_Z) {
+        lda8_v(0x44);
+        sta8(ea_abs((uint16_t)(LAYER1 + LAYER_ROW_LENGTH)));
     }
-    cpu.d = d;
-    cpu.p = nz16(cpu.p, d);
+    pld();
 }
 
 /* A tile of the level's map: the metatile list of the block at `map` in
@@ -1288,60 +1297,46 @@ void abi_LayersCopyToVramLong(void)
  */
 void abi_LayersFill(void)
 {
-    static const uint8_t wide[5] = { 0x15, 0x14, 0x02, 0x03, 0x06 };
-    uint16_t d = cpu.d;
-    uint8_t columns, level;
-    int i, hit;
-
-    abi_LayersSetup();
+    phd();
+    call_frame(0xC063, abi_LayersSetup);
     op_rep(0x20);
-    op_lda16_imm(LAYER0);
-    cpu.d = cpu.a;
-    cpu.x = 2;
-    cpu.p = nz8(cpu.p, 2);
-    wr8(FILL_LAYERS_LEFT, 2);
+    lda16_v((uint16_t)LAYER0);
+    tcd();
+    ldx8_v(2);
+    stx8(ea_abs(FILL_LAYERS_LEFT));
     do {
-        cpu.x = 0x30;
-        cpu.p = nz8(cpu.p, 0x30);
-        cpu.y = rd8(LEVEL);
-        cpu.p = nz8(cpu.p, (uint8_t)cpu.y);
-        level = (uint8_t)cpu.y;
-        hit = level == 0;
-        for (i = 0; i < 5 && !hit; i++) {
-            cpu.p = cmp8_flags(cpu.p, level, wide[i]);
-            hit = level == wide[i];
+        ldx8_v(0x30);
+        ldy8(ea_abs(LEVEL));
+        if (!IF_Z) {
+            for (int i = 0; i < 5; i++) {
+                cpy8_v(fill_wide[i]);
+                if (IF_Z)
+                    break;
+            }
         }
-        if (hit) {
-            cpu.x = 0x42;
-            cpu.p = nz8(cpu.p, 0x42);
-        }
-        wr8(FILL_COLUMNS_LEFT, (uint8_t)cpu.x);
+        if (IF_Z)
+            ldx8_v(0x42);
+        stx8(ea_abs(FILL_COLUMNS_LEFT));
         do {
-            cpu.y = 1;
-            cpu.p = nz8(cpu.p, 1);
+            ldy8_v(1);
             call_frame(0xC093, abi_LayerDrawColumn);
-            cpu.x = 0;
-            cpu.p = nz8(cpu.p, 0);
+            ldx8_v(0);
             call_frame(0xC098, abi_EdgeStepRight);
             jsl_frame(0x81C099u);
             abi_LayersCopyToVramLong();
             cpu.s = (uint16_t)(cpu.s + 3);
-            columns = (uint8_t)(rd8_rmw(FILL_COLUMNS_LEFT) - 1);
-            wr8(FILL_COLUMNS_LEFT, columns);
-            cpu.p = nz8(cpu.p, columns);
-        } while (columns != 0);
+            dec_abs_m(FILL_COLUMNS_LEFT);
+        } while (!IF_Z);
         op_rep(0x20);
-        op_lda16_imm(cpu.d);
-        op_add16(LAYER_SIZE);
-        cpu.d = cpu.a;
+        clc();
+        tdc();
+        adc16_v(LAYER_SIZE);
+        tcd();
         op_sep(0x20);
-        columns = (uint8_t)(rd8_rmw(FILL_LAYERS_LEFT) - 1);
-        wr8(FILL_LAYERS_LEFT, columns);
-        cpu.p = nz8(cpu.p, columns);
-    } while (columns != 0);
-    abi_LayersSetup();
-    cpu.d = d;
-    cpu.p = nz16(cpu.p, d);
+        dec_abs_m(FILL_LAYERS_LEFT);
+    } while (!IF_Z);
+    call_frame(0xC0B3, abi_LayersSetup);
+    pld();
 }
 
 /*
