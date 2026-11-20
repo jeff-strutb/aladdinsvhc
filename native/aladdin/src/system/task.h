@@ -68,6 +68,7 @@ typedef enum {
     TASK_ENTRY_PASSWORD,            /* 84:AD50 PasswordScreen (stage 5) */
     TASK_ENTRY_GAME_START,          /* 81:8095 GameStartTask (stage 5) */
     TASK_ENTRY_DEMO,                /* 81:8031 DemoTask (stage 5) */
+    TASK_ENTRY_IRIS_CLOSE,          /* 80:B263 IrisCloseTask (video/) */
     TASK_ENTRY_TEXT_BLINK,          /* 81:9E3B TextBlinkTask (video/) */
     TASK_ENTRY_LEVEL_PLAY_START,    /* 81:80A3 LevelPlayStartTask (game/progress.c) */
     TASK_ENTRY_NEXT_PART,           /* 81:8181 NextPartTask (game/progress.c) */

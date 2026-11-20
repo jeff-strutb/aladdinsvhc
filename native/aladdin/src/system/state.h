@@ -94,6 +94,10 @@ typedef struct Task {
             uint8_t half;           /* +$09: the half-height */
             uint16_t edge_at;       /* the edges' offset (the original kept X on the stack across its waits; native only) */
         } opening;
+        struct {                /* IrisCloseTask (video/iris_close_task.c) */
+            uint16_t x;             /* the iris's centre (the original kept them at $00BF and $00C1) */
+            uint16_t y;
+        } iris;
         struct {                /* TextBlinkTask (video/tasks.c) */
             uint8_t blinks;         /* $A5 of its direct page: blinks left */
             uint8_t layout;         /* the line's layout (the original kept it in X across its waits; native only) */

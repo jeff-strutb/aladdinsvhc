@@ -16,6 +16,7 @@ TaskRun ShakeTask(Task *t);                 /* 81:A1D5 */
 TaskRun Bg1WobbleTask(Task *t);             /* 81:9F98 */
 TaskRun WindowEffectTask(Task *t);          /* 82:8000 */
 TaskRun ColourBandTask(Task *t);            /* 81:A00C */
+TaskRun IrisCloseTask(Task *t);             /* 80:B263: the iris scenes make it (g.scene_cue_first the iris, slot 3) */
 TaskRun TextBlinkTask(Task *t);             /* 81:9E3B: the player's start makes it (slot 2) */
 
 /* routines a task's chain calls that wait (TASK_GOES_ON when done) */

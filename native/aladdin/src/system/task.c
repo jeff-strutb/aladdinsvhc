@@ -181,6 +181,7 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_PASSWORD:           return PasswordScreen(t);
     case TASK_ENTRY_GAME_START:         return GameStartTask(t);
     case TASK_ENTRY_DEMO:               return DemoTask(t);
+    case TASK_ENTRY_IRIS_CLOSE:         return IrisCloseTask(t);
     case TASK_ENTRY_TEXT_BLINK:         return TextBlinkTask(t);
     case TASK_ENTRY_LEVEL_PLAY_START:   return LevelPlayStartTask(t);
     case TASK_ENTRY_NEXT_PART:          return NextPartTask(t);

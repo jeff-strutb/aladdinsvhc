@@ -60,3 +60,8 @@ Dead
          instruction of the record but these routines' own clears (asm/aladdin
          by name and address; the record's comment: "request flags the
          retail game never sets"), so each finds 0 and returns.
+
+Dead (second pass)
+------------------
+  81:B38E LineRows: "No code refers to it" (the record); a line stepped into rows at $7F:5200, never called.
+  81:B2D9 CircleWipePlot -> circle_wipe.c plot (inline)

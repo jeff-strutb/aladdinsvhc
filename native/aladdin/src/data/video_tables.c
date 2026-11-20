@@ -272,3 +272,23 @@ unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, un
     }
     return n;
 }
+
+/* IrisCloseTask (80:B263), through the data bank $80: the radius a closing
+   iris starts at, by iris, at $80:DB87; its centre (x then y, words), by
+   iris * 4, at $80:DB89 */
+#define IRIS_BANK 0x80
+#define IRIS_RADII_ADDR 0xDB87
+#define IRIS_CENTRES_ADDR 0xDB89
+
+uint8_t iris_radius(uint8_t iris)
+{
+    return cart8(cart_offset(IRIS_BANK, (uint16_t)(IRIS_RADII_ADDR + iris)));
+}
+
+void iris_centre(uint8_t iris, uint16_t *x, uint16_t *y)
+{
+    uint32_t at = cart_offset(IRIS_BANK, (uint16_t)(IRIS_CENTRES_ADDR + (uint8_t)(iris << 2)));
+
+    *x = cart16(at);
+    *y = cart16(at + 2);
+}

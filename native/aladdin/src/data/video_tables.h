@@ -161,4 +161,8 @@ typedef struct PicturePart {
 } PicturePart;
 unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, unsigned max);
 
+/* IrisCloseTask (80:B263): iris `iris`'s starting radius and its centre */
+uint8_t iris_radius(uint8_t iris);
+void iris_centre(uint8_t iris, uint16_t *x, uint16_t *y);
+
 #endif
