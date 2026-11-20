@@ -36,6 +36,8 @@ Dead
   81:984A DisplayShadowsClear: no JSL or JML to 81:984A, no JSR or JMP to $984A
          in bank $81; the one $4A $98 pair there (81:C18F) is the instructions
          XBA, LSR, TYA.
+  81:9CC8 PaletteBlinkStep: no long pointer to it; the one $C8 $9C pair in bank $81
+         (81:A343) is a BCS operand and the STZ after it.
   81:B0FB Mode7RotateByTable: no long pointer to 81:B0FB in the cartridge, no
          word $B0FB in bank $81 (the record: "No code refers to it").
   81:BC16 UnpackTask: its address as a long ($16 $BC $81) is nowhere in the
