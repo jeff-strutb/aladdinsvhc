@@ -8,9 +8,12 @@
  * the game-screens session's alone.
  */
 #include "actor/actor_own.h"
+#include "actor/kinds_e.h"
 #include "game/game.h"
 
 const KindCode kinds_game[] = {
     { 0x26, ContinueChoiceStart, NULL, NULL, ActorWaitHoldPlayer },
+    { 0x72, Kind72Code, NULL, NULL, ActorWaitAnimRange18 },
+    { 0x93, Kind93Code, NULL, NULL, KindAnimateSend },
     { 0, NULL, NULL, NULL, NULL }
 };

@@ -23,6 +23,7 @@
 #define ENDING_COPY_ADDR 0xDB51
 #define ENDING_PALETTE_ADDR 0xDB57
 #define ENDING_ACTORS_ADDR 0xDB5D
+#define FIGURES_BANK 0x80
 #define GENIE_BANK 0x80
 #define GENIE_SLOT_START_ADDR 0xDA64
 #define GENIE_SLOT_END_ADDR 0xDA6B
@@ -92,6 +93,11 @@ OpeningActor ending_actor(unsigned entry)
     a.y = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 4)));
     return a;
 }
+
+/* the scripted figures' pictures, in bank $80 (the traces read them as data there, never in $81 or $83) */
+DataRef kind93_pictures(void) { DataRef r; r.at = cart_offset(FIGURES_BANK, 0x891F); return r; }
+DataRef kind72_pictures(void) { DataRef r; r.at = cart_offset(FIGURES_BANK, 0x890D); return r; }
+uint8_t kind72_flags(uint8_t player_41) { return cart8(cart_offset(FIGURES_BANK, (uint16_t)(0xD6B3 + player_41))); }
 
 uint8_t genie_slot_start(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_SLOT_START_ADDR + slot))); }
 uint8_t genie_slot_end(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_SLOT_END_ADDR + slot))); }

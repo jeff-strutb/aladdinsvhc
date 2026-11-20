@@ -80,6 +80,11 @@ TaskRun TitleTask(Task *t);             /* 80:9C91: task entry */
 int ContinueChoiceStart(Actor *a);      /* 83:9D62 */
 int ActorWaitHoldPlayer(Actor *a);      /* 83:9E0A: its wait */
 
+/* scene_figures.c: kinds $72 and $93 */
+int Kind72Code(Actor *a);               /* 83:F40D */
+int ActorWaitAnimRange18(Actor *a);     /* 83:F487: kind $72's wait */
+int Kind93Code(Actor *a);               /* A5:F3F0 */
+
 /* level_select.c */
 void LevelNumberText(void);             /* 80:A0B1 */
 int LevelSelect(void);                  /* 80:A05C: 1 when L or R was held with a direction newly pressed (the original's C clear) */

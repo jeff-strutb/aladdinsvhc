@@ -58,6 +58,12 @@ uint8_t genie_slot_end(unsigned slot);          /* the angle slot 0-7's end is c
 uint8_t genie_pointer_end(unsigned slot);       /* the angle the pointer's window of slot 0-6 ends at ($DA8F) */
 uint8_t genie_prize_bound(unsigned i);          /* the angle below which prize i 0-6 is given ($DA96) */
 
+/* ---- the scripted figures (game/scene_figures.c) ---- */
+
+DataRef kind93_pictures(void);          /* kind $93's picture list */
+DataRef kind72_pictures(void);          /* kind $72's */
+uint8_t kind72_flags(uint8_t player_41);    /* kind $72's +$08 by the player's byte $41 ($D6B3 +) */
+
 /* ---- the title's menu (game/menu_mark.c, menu_mark_draw.c) ---- */
 
 #define MENU_CHOICES 3
