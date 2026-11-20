@@ -1,0 +1,34 @@
+/*
+ * video_internal.h: what video/'s files share, not for the rest of the game.
+ */
+#ifndef ALADDIN_VIDEO_INTERNAL_H
+#define ALADDIN_VIDEO_INTERNAL_H
+
+#include <stdint.h>
+
+#include "nshvc/nshvc.h"
+
+/* video.c */
+nshvc_tiles video_sprite_tiles(void);       /* the sprites' tile set (their names are its tiles 256 on) */
+uint16_t vram_step(uint8_t step_byte);      /* the address step a queue record's step byte gives */
+void video_mode7_off(void);                 /* DisplayDefaults: Mode 7's outside back to repeat, writes no longer reach it */
+void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *map_words);   /* Mode7ScreenSetup's conversion */
+
+/* scroll.c: the layers' positions as the NMI sent them */
+void video_scroll_latch(void);              /* ScrollRegistersWrite (80:8793), from video_vblank */
+int32_t video_layer_x(int layer);
+int32_t video_layer_y(int layer);
+
+/* uploads.c: the NMI's other uploads */
+void VramListsUpload(void);                 /* 80:8883 */
+void VramWordsUpload(void);                 /* 80:884C */
+void TextBufferPartsUpload(void);           /* 80:849E */
+void VramUploadByNumber(void);              /* 80:84E2 */
+
+/* scroll_layer.c */
+void LayersCopyToVram(void);                /* 80:8366 */
+
+/* lines.c: the per-line effects */
+void video_lines_send(uint32_t top);        /* from video_draw: each effect that is on, from line `top` */
+
+#endif

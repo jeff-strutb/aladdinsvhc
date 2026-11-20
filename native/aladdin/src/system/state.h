@@ -156,6 +156,30 @@ typedef struct LayerEdge {
     uint8_t side;               /* +$02: 0 right or down, 1 left or up */
 } LayerEdge;
 
+/* The maps and tile sets a layer can show; video/ makes them (video.h
+   gives the video addresses of each). */
+typedef enum {
+    VIDEO_MAP_BACK,             /* the original's $4000, 64 x 32: BG2's */
+    VIDEO_MAP_FRONT,            /* $4800, 64 x 32: BG1's */
+    VIDEO_MAP_TEXT,             /* $5C00, 32 x 32: BG3's, BG1's on the title */
+    VIDEO_MAP_KINDS
+} VideoMap;
+
+typedef enum {
+    VIDEO_TILES_LOW,            /* 4bpp from video address 0 (a base nibble of 0) */
+    VIDEO_TILES_HIGH,           /* 4bpp from $5000 (nibble 5); the sprites' are its tiles 256 on */
+    VIDEO_TILES_TEXT,           /* 2bpp from $5000: BG3's (nibble 5) */
+    VIDEO_TILE_KINDS
+} VideoTiles;
+
+/* A record of the single video words list ($0619, 4 bytes each). */
+typedef struct VramWord {
+    uint16_t to;                /* +$00: the VRAM word address */
+    uint16_t word;              /* +$02 */
+} VramWord;
+
+#define VRAM_WORDS_SIZE 64      /* the upload sends count * 4 bytes as one byte's length (80:884C), so 63 at most */
+
 /* ---- the state ---- */
 
 typedef struct GameState {
@@ -229,6 +253,17 @@ typedef struct GameState {
                                    camera does not follow the player */
     uint8_t screen_signal;      /* $146B: a byte the screens' code signals with; on the title, bit 7 set when the
                                    Mode 7 zoom (Mode7ZoomInTask) has ended; in play, the escort's and guards' marks */
+    uint8_t split_line;         /* $1C7D: the IRQ's line; 0: line 8 */
+    uint8_t mode7_how;          /* $0829: 0 the matrix not sent, 1 each element scaled first, 2 as it is */
+    uint8_t mode7_scale[4];     /* $0825-$0828: a's, b's, c's and d's scale, 256ths (negated as the original's multiplier took it) */
+    uint8_t frame_ready;        /* $0857: nonzero, the frame's sprites, VRAM queue and layer edges go to the picture */
+    uint8_t uploads_held;       /* $0403: nonzero, the value sequences' lists wait (the NMI clears it) */
+    uint8_t vram_words_pending; /* $0616: nonzero, the single words go */
+    uint8_t vram_words_count;   /* $0617 */
+    VramWord vram_words[VRAM_WORDS_SIZE]; /* $0619 */
+    uint8_t unpacked[0xE000];   /* $7F:0000-$7F:DFFF: graphics unpacked from the cartridge, at the original's places */
+    uint8_t sprites_take_bg2_shift; /* $1A16: 8, the sprites move with BG2's shifts ($1A20, $1A24); 0 BG1's */
+    uint16_t unpack_next;       /* $006B: where in unpacked the next kept part or actor set's graphics go */
     uint16_t bg1_x_shift;       /* $1A18: added to BG1's x as it goes to the picture */
     uint16_t layer_offset_y;    /* $1A1C: added to BG1's y */
     uint16_t bg2_x_shift;       /* $1A20 */
@@ -255,6 +290,8 @@ typedef struct GameState {
     uint8_t tile_blocks_pending;/* $1BE6 */
     uint16_t tile_blocks_count; /* $1BE4: the original keeps its length in bytes, 10 a record */
     TileBlock tile_blocks[TILE_BLOCK_QUEUE_SIZE]; /* $1B44 */
+    uint8_t vram_list_pending[10]; /* $1649 + $10 n: the value sequence's new-word byte ($04 of its record at $1645 + $10 n): nonzero, upload its list */
+    DataRef vram_list[10];      /* $164D + $10 n: its word ($08), the list of uploads (bank $80) */
     ScrollLayer layers[2];      /* $1738 the play field, $188E the backdrop */
     LayerEdge column_queue[8];  /* $1A48 */
     LayerEdge row_queue[8];     /* $1A68 */
@@ -337,6 +374,9 @@ typedef struct GameState {
     Actor *free_pool_b[ACTOR_POOL_B_SIZE]; /* $15DA: the second pool's */
     int8_t free_pool_b_top;     /* $15E6 */
     uint8_t kind_count[256];    /* $7E:FF00: by kind, how many are live */
+    Actor *draw_list[4][32];    /* $1492: the four lists of the actors drawn this frame, $40 bytes each (ActorsInView) */
+    uint8_t draw_count[4];      /* $1592, 2 apart: each list's length */
+    uint8_t sprite_flicker;     /* $032D: bit 0 set, actors with +$08 bit 4 not drawn this frame; bit 1, those with bit 5 flash */
 } GameState;
 
 extern GameState g;

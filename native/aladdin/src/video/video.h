@@ -22,24 +22,30 @@
  * object that shows that address on any screen, so a screen that changes
  * its layer bases after writing (the title, the Genie screen) shows what was
  * written before:
- *   $0000-$3FFF  BG tiles from base 0, 4bpp, 1,024 tiles; tiles 0-255 also
- *                kept for Mode7ScreenSetup; on a Mode 7 picture, also its
- *                map (low bytes) and pixels (high bytes)
+ *   $0000-$3FFF  BG tiles from base 0, 4bpp, 1,024 tiles; on a Mode 7
+ *                picture, also its map (low bytes) and pixels (high bytes)
  *   $0000-$0FFF  also BG tiles from base $5000, tiles 768-1,023 (the wrap)
- *   $4000-$47FF  BG2's map, 64 x 32; its first 32 x 32 also kept for
- *                Mode7ScreenSetup
+ *   $4000-$47FF  BG2's map, 64 x 32
  *   $4800-$4FFF  BG1's map, 64 x 32
  *   $5000-$7FFF  BG tiles from base $5000, 4bpp, tiles 0-767; the sprites'
  *                tiles are 256 on (the sprites' base $6000)
  *   $5000-$6FFF  BG3's tiles, 2bpp, 1,024
  *   $5C00-$5FFF  BG3's map, 32 x 32 (also BG1's on the title)
  * Writes of the low bytes alone are Mode 7's map, of the high bytes alone its
- * pixels.
+ * pixels. Nothing is kept behind these writes: what the original read back
+ * from video memory, its callers now pass (Mode7ScreenSetup; Jeff,
+ * 2026-11-19). A write past the 32K words is reported and dropped.
+ *
+ * Screens outside video/ name what they write (VramCopy entries, a VideoMap);
+ * the numeric address is for records that come from the cartridge's tables
+ * and the queues.
  */
 #ifndef ALADDIN_VIDEO_H
 #define ALADDIN_VIDEO_H
 
 #include <stdint.h>
+
+#include "system/state.h"
 
 void video_init(void);
 void video_vblank(void);
@@ -55,37 +61,55 @@ typedef enum {
 
 /* count: words for VRAM_WORDS, bytes for the others */
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how);
-/* one word count times from address on (VramFillMap, the text layer) */
+/* count words, the address stepping by `step` after each (1, 32 or 128) */
+void vram_write_stepped(uint16_t address, const void *data, uint32_t count, uint16_t step);
+/* one word count times from address on */
 void vram_fill(uint16_t address, uint16_t word, uint32_t count);
 
-/* ---- screen set-up (video/screen_setup.c, vram_copy.c, unpack.c, mode7_screen.c) ---- */
+/* ---- screen set-up (video/screen_setup.c, vram_copy.c, unpack.c, mode7.c) ---- */
 
-void ScrollStateClear(void);
-void DisplayDefaults(void);
-void VramCopy(int entry);           /* entry of the first copy table: the record's X / 7 */
-void VramCopy2(int entry);          /* entry of the second table */
-void UnpackSet(int set);            /* packed set to the unpack buffer (the original's bank $7F) */
-void LevelGraphicsLoad(void);       /* the level's graphics (g's level) */
-void Mode7ScreenSetup(uint8_t row_flag);
+void ScrollStateClear(void);                /* 81:96CB */
+void DisplayDefaults(void);                 /* 81:9865 */
+void VramCopy(int entry);               /* 81:F5DC: entry of the first copy table (the record's X / 7) */
+void VramCopy2(int entry);              /* 81:F60D: entry of the second */
+void UnpackSet(int set);                /* 81:BAF1: packed set to g.unpacked */
+void LevelGraphicsLoad(void);               /* 81:B92D: g.level's graphics */
+/* 81:AF3B Mode7ScreenSetup: Mode 7 from 256 4bpp tiles (8,192 bytes, as the
+   original's video memory held them from 0) and a 32 x 32 map's words (2,048
+   bytes, as it held them from $4000), which the caller names: the record
+   read them back from video memory (Jeff, 2026-11-19). Declared here as
+   Mode7ScreenSetup once the title's call passes them; until then it is
+   video_mode7_screen_setup. */
+void video_mode7_screen_setup(uint8_t row_flag, const uint8_t *planar_tiles, const uint8_t *map_words);
+void Mode7ScreenSetup(uint8_t row_flag);    /* the title's call until then: system/'s placeholder */
 
-/* ---- palettes (video/palette.c) ---- */
+/* ---- palettes (video/palette.c, palette_cycles.c) ---- */
 
-void PaletteLoad(int set);
+void PaletteLoad(int set);              /* 81:98C5 */
+void PaletteSave(uint8_t first, uint8_t count);         /* 81:9DAA: palettes first.. kept to fade from */
+void PaletteFadeStep(int8_t step, uint8_t count);       /* 81:9DCD */
+void LevelPalettesLoad(void);               /* 81:86BF */
+void PaletteCycleStart(uint8_t slot, uint8_t cycle);    /* 81:EC8E */
 
 /* ---- sprites (video/oam.c) ---- */
 
-void OamBufferClear(void);
-void OamBuildBegin(void);
-void OamDrawActors(void);
+void OamBufferClear(void);                  /* 81:95D5 */
+void OamBuildBegin(void);                   /* 81:9230 */
+void OamDrawActors(void);                   /* 81:9258 */
 
 /* ---- the text layer (video/tilemap.c, screen_tasks.c) ---- */
 
-void TextLayerClear(void);
-void TextLayoutShow(int layout);    /* layout A; bit 7 blanks it */
+void TextLayerFill(uint16_t entry);         /* 81:95B8 */
+void TextLayerClear(void);                  /* 81:95C8 */
+void VramFillMap(VideoMap map, uint16_t entry);   /* 81:95F5: the map's first 32 x 32 page (the record's $4000, $4800) */
+void TextLayoutShow(int layout);        /* 81:972D: bit 7 blanks it */
+
+/* ---- the scroll layers (video/scroll_layer.c) ---- */
+
+void LayersFill(void);                      /* 81:C060 */
 
 /* The task entries of video/ (the colour fades, the palette sequence, the
-   brightness tasks, the text blink, the Mode 7 zoom, the shakes, the colour
-   bands, the window effects, the iris) are declared here when
-   system/task.h gives the task's type. */
+   brightness tasks, the Mode 7 zoom, the window effects) are in
+   video/video_tasks.h, which needs system/task.h. */
 
 #endif
