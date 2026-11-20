@@ -18,6 +18,7 @@
 #define G_BACK_OFF OWN_46       /* +$46: nonzero, a wall it cannot climb turns it back */
 #define G_SHOWN OWN_49          /* +$49: nonzero (started by $07 12), it never gives up the chase */
 #define G_STATE OWN_4D          /* +$4D: its wait routine's state */
+#define G_RESTART_AT OWN_4E     /* +$4E: the escort's restart point, a resume point of its code (the original's code word) */
 
 /* its resume points: the entries its code words name (the original's
    writes of its resume address, $03) and the places inside its moves */
@@ -42,11 +43,26 @@ enum {
     G_CHASE_POSE,               /* A5:E812 GuardChasePose's entry */
     G_CHASE_POSE_ON,            /* after 96 frames of pose $14 */
     G_NOT_CONVERTED,            /* a start its $07 names that is other code (reported) */
-    G_RESTART                   /* A5:E554 GuardRestart: its fields cleared, on by its $07 (kind $69 sends the escort here) */
+    G_RESTART,                  /* A5:E554 GuardRestart: its fields cleared, on by its $07 (kind $69 sends the escort here) */
+
+    /* the escort's moves (guard_escort.c): from G_ESCORT_FIRST */
+    G_ESCORT_STAY18,            /* A5:EF0C EscortStaySpot18's entry */
+    G_ESCORT_STAYING,           /* for good */
+    G_ESCORT_SPOT0,             /* A5:EF15 EscortWaitSpot0's entry */
+    G_ESCORT_SPOT4,             /* A5:EF2B EscortWaitSpot4's */
+    G_ESCORT_SPOT0C,            /* A5:EF97 EscortWaitSpot0C's */
+    G_ESCORT_SPOT10,            /* A5:EFAE EscortWaitSpot10's */
+    G_ESCORT_SPOT10_AGAIN,      /* A5:EFC5: its restart point, at spot $14 */
+    G_ESCORT_SPOT10_NEAR,       /* each frame until Aladdin is near it there */
+    G_ESCORT_FOLLOW,            /* A5:EF3F EscortFollow: each frame until Aladdin is near */
+    G_ESCORT_WALK,              /* each frame of its walk after him */
+    G_ESCORT_FALL               /* each frame of its fall off a ledge */
 };
+#define G_ESCORT_FIRST G_ESCORT_STAY18
 
 int Kind08Start(Actor *a);              /* guard_start.c: 83:9205 Kind08Enter, A5:E515 GuardStart, A5:E554 GuardRestart */
 int GuardPieces(Actor *a);              /* guard_pieces.c: every resume point from G_WALK_IN */
+int GuardEscort(Actor *a);              /* guard_escort.c: the escort's moves, from G_ESCORT_FIRST */
 int guard_stop(Actor *a);               /* on at GuardStop */
 void guard_chase(Actor *a);             /* guard_chase.c: A5:F0F4 GuardChase */
 void guard_chase_speed_up(Actor *a);    /* A5:F127 GuardChaseSpeedUp */
