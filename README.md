@@ -1,5 +1,35 @@
 # Aladdin (SNES) decompilation
 
+## Bring your classic game to a new generation
+
+**Jeffrey Wilbur, Strut B, LLC** ·
+[retro@strutb.com](mailto:retro@strutb.com)
+
+If you hold the rights to a classic game, I would love to help it live
+again. This repository shows what I do: I take a shipped cartridge back
+to readable, commented source that rebuilds the original ROM byte for
+byte, prove every routine behaves exactly as the original did, and then
+run that source natively on today's hardware, with no emulation of any
+processor. Here the first two are done, for every byte of the game's
+code; the native game is being built now, with Linux first. From there a
+game can grow: modern frame rates, widescreen, and builds for macOS,
+Windows, Linux, iPhone, iPad and Android, all without losing the game
+your players remember.
+
+- **Preserve** it: source you own and can read, maintain and build on,
+  recovered from the code that shipped, checked against the original at
+  every step.
+- **Remaster** it: modern frame rates, screens and controls, on the
+  platforms your audience plays on today, with the feel of the original
+  intact.
+- **Reach new players**, and give your longtime fans the version they
+  always pictured.
+
+If you have a game you would like to see again, write to me at
+[retro@strutb.com](mailto:retro@strutb.com).
+
+## Aladdin
+
 A bit-exact decompilation of Aladdin (USA) for the Super NES: symbolic,
 commented 65816 and SPC700 assembly that rebuilds the ROM byte for byte,
 and C for every routine, proven behaviour exact against the running
@@ -60,6 +90,40 @@ what no script has run there is not counted yet.
 rebuilds byte for byte from source: filed, commented assembly where it
 exists and the raw intake for everything else (`tools/aladdin/image.py`).
 <!-- PROGRESS-DETAIL:END -->
+
+## The Decompilation Standard
+
+The purpose of a decompilation, as opposed to a recompilation, is
+preservation: recovering the game itself, as written, in a form that outlives
+the original hardware and media. Playability and portability are welcome side
+effects, not the direct goal. This game was written by hand in assembly, so
+there is no original compiler to match. The standard has two proofs instead:
+the symbolic assembly must rebuild the original ROM byte for byte, and every
+routine's C must give exactly the original's outputs for its inputs, checked
+call by call and again with whole play sessions run in step with the original.
+A bit-exact match is 100% reliability that the source is accurate to the
+original, ensuring preservation for future generations.
+
+## Project Purpose
+
+A decompilation of **Aladdin** (SNES, 1993): every routine rewritten as
+readable C, documented with what it does and how, filed by what it is for,
+and proven to behave exactly like the original; and the whole ROM rebuilt byte
+for byte. Progress is measured only by those two proofs; playability is a
+consequence, never a reason to reorder the work.
+
+## Game background
+
+Capcom released *Aladdin* for the Super NES in 1993, a platform game based on
+Disney's 1992 film. It is a different game from the Aladdin made for the Sega
+Genesis the same year. The cartridge is 1.25 MB of ROM with no coprocessor and
+no cartridge RAM. The game runs on two processors: the SNES CPU (a 65816) runs
+the game logic, and the SPC700 sound CPU plays the music and effects from a
+program the main CPU uploads. The retail ROM has no compiler footprint: both
+programs were written by hand in assembly. Its tasks and actors are
+coroutines that wait in the middle of a routine and resume there on a later
+frame ([docs/aladdin/TASKS.md](docs/aladdin/TASKS.md),
+[docs/aladdin/ACTORS.md](docs/aladdin/ACTORS.md)).
 
 ## Build
 
