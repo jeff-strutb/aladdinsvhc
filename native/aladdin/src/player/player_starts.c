@@ -19,20 +19,20 @@ static const struct {
 } by_07[16] = {
     { 0, NULL },                                /*  0 81:CB81 the level's own start */
     { P_CARPET_START, NULL },                   /*  1 81:E3F5 */
-    { 0, "PlayerScenePlaceHigh (81:DDC1)" },    /*  2 */
-    { 0, "PlayerScenePlaceHigh (81:DDC1)" },    /*  3 */
-    { 0, "PlayerScenePlaceLow (81:DDE0)" },     /*  4 */
-    { 0, "PlayerStartDropped (81:DDFF)" },      /*  5 */
-    { 0, "PlayerStartNewGame (81:DE32)" },      /*  6 */
+    { 0, "PlayerScenePlaceHigh (81:DDC1): no level plays it, not converted" },    /*  2 */
+    { 0, "PlayerScenePlaceHigh (81:DDC1): no level plays it, not converted" },    /*  3 */
+    { 0, "PlayerScenePlaceLow (81:DDE0): no level plays it, not converted" },     /*  4 */
+    { PLAYER_AT_START_DROPPED, NULL },      /*  5 */
+    { PLAYER_AT_START_NEW_GAME, NULL },      /*  6 */
     { 0, "PlayerStory (81:DE79)" },             /*  7 */
-    { 0, "PlayerSceneJumpIn (81:DF6F)" },       /*  8 */
-    { 0, "PlayerSceneLand (81:DFBB)" },         /*  9 */
-    { 0, "PlayerSceneWalkOn (81:E042)" },       /* 10 */
-    { 0, "PlayerSceneWalkRight (81:E126)" },    /* 11 */
-    { 0, "PlayerSceneCued (81:E154)" },         /* 12 */
-    { 0, "PlayerSceneWalkOut (81:E0AE)" },      /* 13 */
-    { 0, "PlayerEndingRide (81:E27A)" },        /* 14 */
-    { 0, "PlayerSceneStand (81:E23E)" },        /* 15 */
+    { 0, "PlayerSceneJumpIn (81:DF6F): no level plays it, not converted" },       /*  8 */
+    { PLAYER_AT_SCENE_LAND, NULL },         /*  9 */
+    { PLAYER_AT_SCENE_WALK_ON, NULL },       /* 10 */
+    { PLAYER_AT_SCENE_WALK_RIGHT, NULL },    /* 11 */
+    { 0, "PlayerSceneCued (81:E154): no level plays it, not converted" },         /* 12 */
+    { 0, "PlayerSceneWalkOut (81:E0AE): no level plays it, not converted" },      /* 13 */
+    { PLAYER_AT_ENDING_RIDE, NULL },        /* 14 */
+    { PLAYER_AT_SCENE_STAND, NULL },        /* 15 */
 };
 
 /*
@@ -40,7 +40,7 @@ static const struct {
  * WHAT IT DOES: The end of his start: below level $14 the text blink's task
  * starts; he stands still, and on into standing.
  */
-static int start_tasks(Actor *a)
+int player_start_tasks(Actor *a)
 {
     if (g.level < 0x14)
         TaskCreate(TEXT_BLINK_SLOT, 0, TASK_ENTRY_TEXT_BLINK);
@@ -60,7 +60,7 @@ static int level_start(Actor *a)
     a->redraw = 0xFF;
     g.player_flags &= 0x7F;
     if (g.level_restart)
-        return start_tasks(a);
+        return player_start_tasks(a);
     if (g.level >= 0x14) {
         if (g.level == 0x1A)
             (void)ActorSpawnShared(a, 0x60);
@@ -86,7 +86,7 @@ static int walk_in_frame(Actor *a)
     snap_to_ground(a);
     if (--WAIT_FRAMES(a))
         return 1;
-    return start_tasks(a);
+    return player_start_tasks(a);
 }
 
 /*
@@ -106,7 +106,7 @@ static int start(Actor *a)
     if (a->kind >= 1 && a->kind <= 3)
         return PlayerGoTo(a, P_CARPET_START);
     if (a->kind == 7)
-        return player_unconverted(a, "PlayerScenePlaceHigh (81:DDC1)");
+        return player_unconverted(a, "PlayerScenePlaceHigh (81:DDC1): no level plays it, not converted");
     if (a->kind != 0 || n >= 16)
         return player_unconverted(a, "PlayerStart: a kind or +$07 past its tables");
     if (by_07[n].name)

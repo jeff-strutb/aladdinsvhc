@@ -45,9 +45,8 @@ int PlayerCode(Actor *a)
     case 4:
         return player_exit_code(a);
     case 5:
-        return player_unconverted(a, "the scenes' states (81:DDC1-81:E154, scene_starts.c)");
     case 6:
-        return player_unconverted(a, "the scene figures' states (81:DFBB, 81:E23E, 81:E27A)");
+        return player_scene_code(a);
     case 7:
         return player_carpet_code(a);
     default:

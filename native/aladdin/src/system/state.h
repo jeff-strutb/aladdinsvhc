@@ -594,6 +594,10 @@ typedef struct GameState {
     uint8_t scene_count;        /* $00AD: a count the scene steps; kind $94 starts a spark at each new value */
     uint8_t scene_cue_first;    /* $00BD: a scene's first cue (kind $98 sets it when it is beaten) */
     uint8_t scene_cue;          /* $00BE: a scene's cue: its task or figures count it up or set it as the scene goes on */
+    uint8_t scene_cue_bf;       /* $00BF: a scene's cue, counted up by Aladdin's scene code (level 5's end: after his pose) */
+    uint8_t scene_cue_c3;       /* $00C3: a scene's cue, counted up as Aladdin starts walking in (level 5's end) */
+    uint8_t scene_cue_c4;       /* $00C4: and as he walks */
+    uint8_t scene_exits;        /* $147B: counted up as a scene or exit starts his walk off; nothing reads it */
     uint8_t scene_cue_2;        /* $00C0: a scene's second cue (level 5's closing scene: set as its map is rebuilt) */
     uint8_t scene_cue_waited;   /* $00C2: counted up by a scripted actor when it has waited (kind $70's hit one, after $80 frames) */
     uint8_t scripted_cue;       /* $146C: counted up by scripted actors as the scene goes on (player/land_on_actor.c uses the word as a record mark) */

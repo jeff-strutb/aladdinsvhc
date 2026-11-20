@@ -101,6 +101,32 @@ enum {
     P_FLUNG_REST,
     P_FLUNG_AIR,
 
+    /* scene.c (its entries in player.h from PLAYER_BLOCK(5) and (6)) */
+    P_DROPPED_FRAME = PLAYER_BLOCK(5) + 0x20,
+    P_DROPPED_LANDED,
+    P_WALK_ON_FALL,
+    P_WALK_ON_CUED,
+    P_WALK_ON_WALK,
+    P_WALK_ON_STAND,
+    P_WALK_ON_POSE,
+    P_WALK_ON_END,
+    P_WALK_RIGHT,
+    P_WALK_RIGHT_POSED,
+    P_LAND_FALL,
+    P_LAND_STAND,
+    P_LAND_WAIT_CUE,
+    P_LAND_TURN,
+    P_LAND_BACK,
+    P_LAND_WALK,
+    P_LAND_FADE,
+    P_STAND_SCENE_DONE,
+    P_STAY,
+    P_WALK_ON_STAY,
+    P_RIDE_FLY,
+    P_RIDE_BOB_1,
+    P_RIDE_BOB_2,
+    P_RIDE_BOB_3,
+
     /* exits.c (its entries in player.h from PLAYER_BLOCK(4)) */
     P_ESCORT_WALK = PLAYER_BLOCK(4) + 0x10,
     P_ESCORT_FADE,
@@ -157,8 +183,9 @@ int player_starts_code(Actor *a);       /* player_starts.c */
 int player_states_code(Actor *a);       /* player_states.c */
 int player_held_code(Actor *a);         /* player_held.c */
 int player_exit_code(Actor *a);         /* player_exit.c */
-int player_scene_code(Actor *a);        /* scene_starts.c */
 int player_carpet_code(Actor *a);       /* carpet_ride.c */
+int player_scene_code(Actor *a);        /* scene.c */
+int player_start_tasks(Actor *a);       /* player_starts.c: the end of his start */
 int player_unconverted(Actor *a, const char *name);    /* a state not converted yet: its name once, a frame's wait */
 
 /* ---- one file's routines another calls ---- */

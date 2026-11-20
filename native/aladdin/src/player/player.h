@@ -54,6 +54,10 @@ enum {
     PLAYER_AT_SCENE_FIGURE,                         /* 81:CC31 PlayerSceneFigure */
 
     PLAYER_AT_SCENE_CUED = PLAYER_BLOCK(5),         /* 81:E154 PlayerSceneCued: a scene's actor has him */
+    PLAYER_AT_START_DROPPED,                        /* 81:DDFF PlayerStartDropped ($07 5) */
+    PLAYER_AT_START_NEW_GAME,                       /* 81:DE32 PlayerStartNewGame ($07 6) */
+    PLAYER_AT_SCENE_WALK_ON,                        /* 81:E042 PlayerSceneWalkOn ($07 10) */
+    PLAYER_AT_SCENE_WALK_RIGHT,                     /* 81:E126 PlayerSceneWalkRight ($07 11) */
 
     PLAYER_AT_SCENE_LAND = PLAYER_BLOCK(6),         /* 81:DFBB PlayerSceneLand ($07 9; filed in the record's game/scene_figures.c) */
     PLAYER_AT_SCENE_STAND,                          /* 81:E23E PlayerSceneStand ($07 15) */

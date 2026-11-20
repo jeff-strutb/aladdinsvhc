@@ -1,0 +1,403 @@
+/*
+ * scene.c: Aladdin placed by a scene (the record's player/player_starts.c,
+ * scene_starts.c and scene_steps.c, and game/scene_figures.c's three):
+ * dropped in, placed for a new game, the end scene of level 5, the walk
+ * that follows a landing, the scene that waits for its cue and walks off,
+ * the standing scene and the ending's ride.
+ *
+ * Not converted, dead (the record: no level plays them; no script reaches
+ * them): 81:DDC1 PlayerScenePlaceHigh, 81:DDE0 PlayerScenePlaceLow, 81:DF3A
+ * PlayerSceneWaitWalk, 81:DF6F PlayerSceneJumpIn, 81:E0AE PlayerSceneWalkOut,
+ * 81:E154 PlayerSceneCued and the steps only they call (81:E224, 81:E22C,
+ * 81:E235). Not converted yet: 81:DE79 PlayerStory (it waits on the opening
+ * story's parts, whose task has no TaskEntry id, and the story places no
+ * player here yet), and the ending ride's continuation at 81:E315 (the
+ * record has not filed it).
+ */
+#include "player/player_own.h"
+#include "system/task.h"
+
+#define SCENE_SLOT 2
+
+static int next_frame(Actor *a, uint16_t at)
+{
+    a->resume = at;
+    return 1;
+}
+
+static int wait_then(Actor *a, uint16_t at, int frames)
+{
+    a->resume = at;
+    return frames;
+}
+
+/* he falls in the ground-less scenes: down at 3 pixels a frame */
+static void fall_start(Actor *a)
+{
+    PlayerMoveStart(a, 0x0E);
+    a->speed_y = 3 << 8;
+}
+
+/*
+ * @routine 81:DDFF PlayerStartDropped
+ * WHAT IT DOES: He is dropped in facing right: he falls with his jump's
+ * poses until he is in the ground, lands with its sound and pose ($19) for
+ * 128 frames, and stands.
+ */
+static int start_dropped(Actor *a)
+{
+    a->facing = 0;
+    a->flip = 0;
+    ActorMotionPreset(a, 0x4D);
+    POSE_FRAMES(a) = 0;
+    POSE_TIMER(a) = 0;
+    return next_frame(a, P_DROPPED_FRAME);
+}
+
+static int dropped_frame(Actor *a)
+{
+    PlayerJumpPoseStep(a);
+    ActorFly(a);
+    if (a->speed_y < 0 || !ActorOutOfGround(a))
+        return 1;
+    SoundQueueAdd(0x10);
+    PlayerMoveStart(a, 0x19);
+    return wait_then(a, P_DROPPED_LANDED, 0x80);
+}
+
+/*
+ * @routine 81:DE32 PlayerStartNewGame
+ * WHAT IT DOES: He is placed for a new game at (128, 176) facing right:
+ * 3 lives, $10 apples, full health; then his start's end.
+ */
+static int start_new_game(Actor *a)
+{
+    a->own_pictures = player_pictures();
+    set_x_pixels(a, 0x0080);
+    set_y_pixels(a, 0x00B0);
+    g.view_edge_rule = 0x01;
+    a->facing = 0;
+    a->flip = 0;
+    PlayerMoveStart(a, 0x00);
+    a->flags = 0xD0;
+    a->redraw = 0xFF;
+    a->kind = 0;
+    g.tasks[0].param = 0;
+    g.apples = 0x10;
+    g.lives = 0x03;
+    g.health = g.health_marks;
+    g.hud_count_2 = 0;
+    g.hover_on = 0;
+    return player_start_tasks(a);
+}
+
+/*
+ * @routine 81:E042 PlayerSceneWalkOn
+ * WHAT IT DOES: In a scene of level 5's end he drops to the ground if he is
+ * above it, faces right and cues the scene, walks right to x $70, stops,
+ * and cues it on twice with a pose ($1B) between; then he stays.
+ */
+static int walk_on(Actor *a)
+{
+    if (!snap_to_ground(a)) {
+        fall_start(a);
+        return next_frame(a, P_WALK_ON_FALL);
+    }
+    return PlayerGoTo(a, P_WALK_ON_CUED);
+}
+
+static int walk_on_fall(Actor *a)
+{
+    ActorMoveY(a);
+    if (!ActorOutOfGround(a))
+        return 1;
+    return PlayerGoTo(a, P_WALK_ON_CUED);
+}
+
+static int walk_on_cued(Actor *a)
+{
+    a->facing = 0;
+    a->flip = 0;
+    PlayerMoveStart(a, 0x00);
+    g.scene_cue_c3++;
+    g.scene_exits++;
+    return wait_then(a, P_WALK_ON_WALK, 0x40);
+}
+
+static int walk_on_walk(Actor *a)
+{
+    g.scene_cue_c4++;
+    PlayerMoveStart(a, 0x02);
+    a->speed_x = 1 << 8;
+    return next_frame(a, P_WALK_ON_STAND);
+}
+
+static int walk_on_stand(Actor *a)
+{
+    ActorMoveX(a);
+    if ((uint8_t)x_pixels(a) < 0x70)
+        return 1;
+    PlayerMoveStart(a, 0x00);
+    return wait_then(a, P_WALK_ON_POSE, 0x20);
+}
+
+static int walk_on_pose(Actor *a)
+{
+    g.scene_cue++;
+    PlayerMoveStart(a, 0x1B);
+    return wait_then(a, P_WALK_ON_END, 0xA0);
+}
+
+static int walk_on_end(Actor *a)
+{
+    g.scene_cue_bf++;
+    return wait_then(a, P_WALK_ON_STAY, 0x80);
+}
+
+/*
+ * @routine 81:E126 PlayerSceneWalkRight
+ * WHAT IT DOES: He walks right in a scene until x $0248, holds the
+ * landing's pose ($19) for 128 frames, and stands.
+ */
+static int walk_right(Actor *a)
+{
+    a->facing = 0;
+    a->flip = 0;
+    PlayerMoveStart(a, 0x02);
+    ActorSpeedXSet(a, 0x03);
+    return next_frame(a, P_WALK_RIGHT);
+}
+
+static int walk_right_frame(Actor *a)
+{
+    ActorMoveX(a);
+    if (x_pixels(a) <= 0x0248)
+        return 1;
+    PlayerMoveStart(a, 0x19);
+    return wait_then(a, P_WALK_RIGHT_POSED, 0x80);
+}
+
+/*
+ * @routine 81:DFBB PlayerSceneLand
+ * WHAT IT DOES: ($07 9) He faces right and, unless there is ground just
+ * under him, falls 3 pixels a frame in move $0E until he is out of the
+ * ground; then he stands (move 0) and waits for the scene's cue; cued, he
+ * turns for $80 frames and back for $80, walks off right at 2 pixels a
+ * frame for $80 frames, and the screen fades: the next part (or the Genie
+ * screen's figure when kind $27's figures were touched).
+ */
+static int scene_land(Actor *a)
+{
+    a->facing = 0;
+    a->flip = 0;
+    if (!snap_to_ground(a)) {
+        fall_start(a);
+        return next_frame(a, P_LAND_FALL);
+    }
+    return PlayerGoTo(a, P_LAND_STAND);
+}
+
+static int land_fall(Actor *a)
+{
+    ActorMoveY(a);
+    if (!ActorOutOfGround(a))
+        return 1;
+    return PlayerGoTo(a, P_LAND_STAND);
+}
+
+static int land_stand(Actor *a)
+{
+    g.view_edge_rule = 0x04;
+    PlayerMoveStart(a, 0x00);
+    return next_frame(a, P_LAND_WAIT_CUE);
+}
+
+static int land_wait_cue(Actor *a)
+{
+    if (!g.scene_cue)
+        return 1;
+    a->flip++;
+    return wait_then(a, P_LAND_TURN, 0x80);
+}
+
+static int land_turn(Actor *a)
+{
+    a->flip = 0;
+    return wait_then(a, P_LAND_BACK, 0x80);
+}
+
+static int land_back(Actor *a)
+{
+    g.scene_cue_first++;
+    PlayerMoveStart(a, 0x03);
+    a->speed_x = 2 << 8;
+    POSE_FRAMES(a) = 0x80;
+    return next_frame(a, P_LAND_WALK);
+}
+
+static int land_walk(Actor *a)
+{
+    ActorMoveX(a);
+    if (--POSE_FRAMES(a))
+        return 1;
+    g.progress_stage++;
+    g.scene_exits++;
+    if (g.figures_touched)
+        return PlayerGoTo(a, PLAYER_AT_SCENE_FIGURE);
+    TaskCreate(SCENE_SLOT, 0x04, TASK_ENTRY_BRIGHTNESS_DOWN);
+    return next_frame(a, P_LAND_FADE);
+}
+
+static int land_fade(Actor *a)
+{
+    ActorMoveX(a);
+    if (task_busy(SCENE_SLOT))
+        return 1;
+    TaskExecRunning(TASK_ENTRY_NEXT_PART);
+    return 1;
+}
+
+/*
+ * @routine 81:E23E PlayerSceneStand
+ * WHAT IT DOES: ($07 15) He is set at (128, 176) facing right for a
+ * scene, standing; after $20 frames g.player_anim_held is counted up, and
+ * he stays.
+ */
+static int scene_stand(Actor *a)
+{
+    a->own_pictures = player_pictures();
+    set_x_pixels(a, 0x0080);
+    set_y_pixels(a, 0x00B0);
+    g.view_edge_rule = 0x01;
+    a->facing = 0;
+    a->flip = 0;
+    PlayerMoveStart(a, 0x08);
+    g.player_scene++;
+    a->flags = 0xD0;
+    a->redraw = 0xFF;
+    a->kind = 0;
+    g.tasks[0].param = 0;
+    return wait_then(a, P_STAND_SCENE_DONE, 0x20);
+}
+
+/* a frame of the ending's ride: bobbing and moving until the play field's
+   screen is `screen` */
+static bool ride_at(uint8_t screen)
+{
+    return (uint8_t)(pixels(g.layers[0].scroll_x) >> 8) == screen;
+}
+
+/*
+ * @routine 81:E27A PlayerEndingRide
+ * WHAT IT DOES: ($07 14) He rides the carpet across the ending: right at 2
+ * pixels a frame for $57 frames, then bobbing at 3/4 of a pixel a frame as
+ * the play field scrolls: move 0 to screen 5, move 3 for $1B0 frames, move
+ * 4 to screen 12, and on (the record has not filed what follows).
+ */
+static int ending_ride(Actor *a)
+{
+    a->flags = 0xD0;
+    a->own.bytes[OWN_0A] = 0x40;
+    a->own_pictures = player_carpet_pictures();
+    a->redraw = 0xFF;
+    a->flip = 0;
+    a->speed_x = 2 << 8;
+    POSE_TIMER(a) = 0;
+    PlayerMoveStart(a, 0x00);
+    g.player_move = 0;
+    POSE_FRAMES(a) = 0x57;
+    return next_frame(a, P_RIDE_FLY);
+}
+
+static int ride_fly(Actor *a)
+{
+    ActorMoveX(a);
+    if (--POSE_FRAMES(a))
+        return 1;
+    a->speed_x = 0x00C0;
+    a->own.bytes[OWN_49] = 1;            /* the bob going up */
+    ActorSpeedYClear(a);
+    a->accel_y = 1;
+    POSE_TIMER(a) = 0;
+    PlayerMoveChange(a, 0x00);
+    return next_frame(a, P_RIDE_BOB_1);
+}
+
+static int ride_bob_1(Actor *a)
+{
+    ActorBobY(a);
+    ActorMoveX(a);
+    if (!ride_at(0x05))
+        return 1;
+    POSE_TIMER(a) = 1;
+    PlayerMoveChange(a, 0x03);
+    a->own.bytes[OWN_46] = 0xB0;        /* +$46: frames left of the third stretch (word) */
+    a->own.bytes[OWN_47] = 0x01;
+    return next_frame(a, P_RIDE_BOB_2);
+}
+
+static int ride_bob_2(Actor *a)
+{
+    uint16_t n = (uint16_t)(a->own.bytes[OWN_46] | a->own.bytes[OWN_47] << 8);
+
+    a->own.bytes[OWN_49] = 0;
+    ActorBobY(a);
+    ActorMoveX(a);
+    n--;
+    a->own.bytes[OWN_46] = (uint8_t)n;
+    a->own.bytes[OWN_47] = (uint8_t)(n >> 8);
+    if (n)
+        return 1;
+    POSE_TIMER(a) = 0;
+    PlayerMoveChange(a, 0x04);
+    return next_frame(a, P_RIDE_BOB_3);
+}
+
+static int ride_bob_3(Actor *a)
+{
+    ActorBobY(a);
+    ActorMoveX(a);
+    if (!ride_at(0x0C))
+        return 1;
+    return player_unconverted(a, "PlayerEndingRide's continuation (81:E315): the record has not filed it");
+}
+
+int player_scene_code(Actor *a)
+{
+    switch (a->resume) {
+    case PLAYER_AT_START_DROPPED:   return start_dropped(a);
+    case PLAYER_AT_START_NEW_GAME:  return start_new_game(a);
+    case PLAYER_AT_SCENE_WALK_ON:   return walk_on(a);
+    case PLAYER_AT_SCENE_WALK_RIGHT:return walk_right(a);
+    case PLAYER_AT_SCENE_LAND:      return scene_land(a);
+    case PLAYER_AT_SCENE_STAND:     return scene_stand(a);
+    case PLAYER_AT_ENDING_RIDE:     return ending_ride(a);
+    case P_DROPPED_FRAME:           return dropped_frame(a);
+    case P_DROPPED_LANDED:          return PlayerGoTo(a, PLAYER_AT_STAND);
+    case P_WALK_ON_FALL:            return walk_on_fall(a);
+    case P_WALK_ON_CUED:            return walk_on_cued(a);
+    case P_WALK_ON_WALK:            return walk_on_walk(a);
+    case P_WALK_ON_STAND:           return walk_on_stand(a);
+    case P_WALK_ON_POSE:            return walk_on_pose(a);
+    case P_WALK_ON_END:             return walk_on_end(a);
+    case P_WALK_RIGHT:              return walk_right_frame(a);
+    case P_WALK_RIGHT_POSED:        return PlayerGoTo(a, PLAYER_AT_STAND);
+    case P_LAND_FALL:               return land_fall(a);
+    case P_LAND_STAND:              return land_stand(a);
+    case P_LAND_WAIT_CUE:           return land_wait_cue(a);
+    case P_LAND_TURN:               return land_turn(a);
+    case P_LAND_BACK:               return land_back(a);
+    case P_LAND_WALK:               return land_walk(a);
+    case P_LAND_FADE:               return land_fade(a);
+    case P_STAND_SCENE_DONE:
+        g.player_anim_held++;
+        return next_frame(a, P_STAY);
+    case P_STAY:                    return 1;
+    case P_WALK_ON_STAY:            return 0x80;
+    case P_RIDE_FLY:                return ride_fly(a);
+    case P_RIDE_BOB_1:              return ride_bob_1(a);
+    case P_RIDE_BOB_2:              return ride_bob_2(a);
+    case P_RIDE_BOB_3:              return ride_bob_3(a);
+    default:                        return player_unconverted(a, "a resume point of scene.c");
+    }
+}
