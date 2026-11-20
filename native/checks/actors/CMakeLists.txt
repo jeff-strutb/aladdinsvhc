@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.20)
+project(aladdin_actor_check C)
+add_subdirectory(${NSHVC_ROOT} nshvc)
+include(${NSHVC_ROOT}/cmake/NshvcGame.cmake)
+set(game ${CMAKE_CURRENT_SOURCE_DIR}/../../aladdin)
+file(GLOB actor_sources CONFIGURE_DEPENDS ${game}/src/actor/*.c)
+nshvc_game(aladdin_actor_check SOURCES check.c ${actor_sources} ${game}/src/data/data.c ${game}/src/data/actor_tables.c
+           ${game}/src/system/state.c ASSETS ../../aladdin/assets TITLE "Aladdin actor check")
+target_include_directories(aladdin_actor_check PRIVATE ${game}/src)
+target_compile_options(aladdin_actor_check PRIVATE -std=gnu11 -Wall -Wextra)
