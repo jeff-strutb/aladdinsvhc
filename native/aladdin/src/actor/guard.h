@@ -61,8 +61,28 @@ enum {
 };
 #define G_ESCORT_FIRST G_ESCORT_STAY18
 
+/* the scripted figures' ways ($07 1-6; guard_scene.c): from G_SCENE_FIRST */
+enum {
+    G_SCENE_RUNS = G_ESCORT_FALL + 1,   /* A5:EB31 PlayerSceneRuns's entry */
+    G_SR_BEGIN, G_SR_RUN, G_SR_DROP, G_SR_PLAYER, G_SR_BACK, G_SR_BACK_RUN, G_SR_REAR, G_SR_JUMP, G_SR_PASS,
+    G_SR_LEAP, G_SR_END,
+    G_SCENE_FALLPOSE,           /* A5:EEE1 PlayerSceneFallPose */
+    G_FP_FALL, G_FP_POSE, G_FP_HOLD, G_FP_END,
+    G_SCENE_LEAP,               /* A5:EC45 PlayerSceneLeap */
+    G_LP_BEGIN, G_LP_RUN, G_LP_AIR, G_LP_POSE, G_LP_STAY,
+    G_SCENE_HOPS,               /* A5:EC9D PlayerSceneHops */
+    G_HP_FALL, G_HP_RUN, G_HP_STAND, G_HP_POSE, G_HP_JUMP,
+    G_SCENE_WALKOFF,            /* A5:EE29 PlayerSceneWalkOff */
+    G_WO_FALL, G_WO_MARK, G_WO_POSE1, G_WO_POSE2, G_WO_PLAYER, G_WO_TURN, G_WO_CUE, G_WO_AFTER, G_WO_FOREVER,
+    G_SCENE_DROPIN,             /* A5:ED0F PlayerSceneDropIn */
+    G_DI_FALL, G_DI_SPOT, G_DI_LEAP, G_DI_POSE_ENTRY, G_DI_POSE, G_DI_HURT, G_DI_LEAP2, G_DI_FALL2, G_DI_P1,
+    G_DI_WAIT07, G_DI_WALK, G_DI_WAIT_BE, G_DI_P2, G_DI_WALK2, G_DI_FOREVER
+};
+#define G_SCENE_FIRST G_SCENE_RUNS
+
 int Kind08Start(Actor *a);              /* guard_start.c: 83:9205 Kind08Enter, A5:E515 GuardStart, A5:E554 GuardRestart */
 int GuardPieces(Actor *a);              /* guard_pieces.c: every resume point from G_WALK_IN */
+int GuardScene(Actor *a);               /* guard_scene.c: the scripted figures' ways, from G_SCENE_FIRST */
 int GuardEscort(Actor *a);              /* guard_escort.c: the escort's moves, from G_ESCORT_FIRST */
 int guard_stop(Actor *a);               /* on at GuardStop */
 void guard_chase(Actor *a);             /* guard_chase.c: A5:F0F4 GuardChase */

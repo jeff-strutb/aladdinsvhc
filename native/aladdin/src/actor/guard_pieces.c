@@ -392,6 +392,6 @@ int GuardPieces(Actor *a)
         return 1;
 
     default:                            /* G_STILL, G_NOT_CONVERTED; the escort's moves */
-        return a->resume >= G_ESCORT_FIRST ? GuardEscort(a) : 1;
+        return a->resume >= G_SCENE_FIRST ? GuardScene(a) : a->resume >= G_ESCORT_FIRST ? GuardEscort(a) : 1;
     }
 }

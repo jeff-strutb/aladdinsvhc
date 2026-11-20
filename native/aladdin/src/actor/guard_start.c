@@ -28,9 +28,8 @@ static int guard(Actor *a)
  * WHAT IT DOES: GuardStart past its setting up: its fields cleared and on
  * by its $07: 0 and 12 the guard (12: shown at once, it never gives up the
  * chase); 7-10 the escort's spots (guard_escort.c); 11 a guard put at a spot
- * and held (A5:F00E GuardPlacedHold); 2-5 the player's scene moves are
- * other code: not converted here (each reported once; they hand the record
- * over when their owners have them).
+ * and held (A5:F00E GuardPlacedHold); 1-6 the scripted figures of Aladdin
+ * (guard_scene.c), which start over as way 0 at the end of ways 1 and 6.
  */
 static int restart(Actor *a)
 {
@@ -48,6 +47,24 @@ static int restart(Actor *a)
     case 12:
         a->own.bytes[G_SHOWN] = 0x01;
         return guard(a);
+    case 1:
+        a->resume = G_SCENE_RUNS;
+        return GuardScene(a);
+    case 2:
+        a->resume = G_SCENE_LEAP;
+        return GuardScene(a);
+    case 3:
+        a->resume = G_SCENE_HOPS;
+        return GuardScene(a);
+    case 4:
+        a->resume = G_SCENE_DROPIN;
+        return GuardScene(a);
+    case 5:
+        a->resume = G_SCENE_WALKOFF;
+        return GuardScene(a);
+    case 6:
+        a->resume = G_SCENE_FALLPOSE;
+        return GuardScene(a);
     case 7:
         a->resume = G_ESCORT_STAY18;
         return GuardEscort(a);
