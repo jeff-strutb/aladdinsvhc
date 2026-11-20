@@ -1296,14 +1296,20 @@ void check_unit_call(uint32_t resume_pc, uint16_t s)
 
 /* The calls open now, and dropping those opened since: a unit call puts
    the machine back as it was, so calls begun after that point never
-   happened. One still open from before is judged inconclusive. */
+   happened. One still open from before is judged inconclusive, and so are
+   its later pieces: this piece's record holds what the unit call did, its
+   C runs against that at the piece's end, and where that C then stops (it
+   can return where the original waits) is not where the original's call
+   is. Started afresh at the task's next turn it would run against that
+   piece's memory, not the call's (as a call whose C stopped at code with
+   no C: abandoned). */
 int check_depth(void) { return depth; }
 
 void check_rollback(int d)
 {
     nirqs = 0;
     if (d < depth) depth = d;
-    for (int i = 0; i < depth; i++) ws[i]->interrupted = 1;
+    for (int i = 0; i < depth; i++) { ws[i]->interrupted = 1; ws[i]->abandoned = 1; }
 }
 
 /* ---- setup and report ---- */
