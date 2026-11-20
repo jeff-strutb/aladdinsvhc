@@ -241,4 +241,7 @@ void ActorStepToTargetCarry(Actor *a);      /* 83:C1F6: a step (vector set 8) on
 void ActorLiftPlayerStep(Actor *a, uint8_t offset);  /* 83:FB57: by its +$44: 0 and ActorGrabTest finds him, his code to his
                                                lift (PLAYER_AT_*) and he is placed on it, +$44 up; negative, up; positive, kept on it
                                                while g.player_no_actor_landing, else +$44 = $F0 */
+/* (n5-kinds-e, for kinds $54 and $55; spawn_group.c: their only caller) */
+void ActorSpawn5E(Actor *a);                /* 83:D7C9: a child of kind $5E at spawn point $4E (ActorCreateChild8) */
+void ActorSpawnCopy(Actor *a);              /* 83:D7D4: a child of its own kind and look at spawn point 0, +$07 bit 3 set for it */
 #endif

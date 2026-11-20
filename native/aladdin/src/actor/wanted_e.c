@@ -81,3 +81,15 @@ __attribute__((weak)) void PlayerToActorBelow(const Actor *a, uint8_t offset)
     (void)offset;
     TELL_ONCE("PlayerToActorBelow (82:BB26)");
 }
+
+__attribute__((weak)) void ActorSpawn5E(Actor *a)
+{
+    (void)a;
+    TELL_ONCE("ActorSpawn5E (83:D7C9)");
+}
+
+__attribute__((weak)) void ActorSpawnCopy(Actor *a)
+{
+    (void)a;
+    TELL_ONCE("ActorSpawnCopy (83:D7D4)");
+}

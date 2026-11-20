@@ -40,6 +40,8 @@ uint16_t k35_set_bit(uint8_t at) { return at16(0x80, (uint16_t)(0xD1B6 + at)); }
 
 DataRef k31_probes(void) { return ref(0x80, 0xD18B); }
 DataRef k98_probes(void) { return ref(0x80, 0xD90A); }
+DataRef k54_probes(void) { return ref(0x80, 0xD3A4); }
+DataRef k55_probes(void) { return ref(0x80, 0xD3AC); }
 
 /* ---- kind $3B's track: $80:D222 (words, x then y, 4 bytes a direction),
    $80:D232, $80:D23A, $80:D242 (bytes); the traces read them in bank $80 ---- */
@@ -58,3 +60,9 @@ uint8_t k3b_spot_turn(uint8_t at) { return at8(0x80, (uint16_t)(0xD242 + at)); }
 uint8_t k2a_reach(uint8_t at) { return at8(0x80, (uint16_t)(0xD0A2 + at)); }
 uint16_t k2a_speed(uint8_t at) { return at16(0x80, (uint16_t)(0xD0A4 + at)); }
 uint8_t k2a_leg(uint8_t variant) { return at8(0x80, (uint16_t)(0xD0B0 + variant)); }
+
+/* ---- kinds $54 and $55: $80:D3A8 and $80:D3B0, bytes by +$07 bits 0-1
+   (the traces read $80:D3A4-$80:D3B3 as data) ---- */
+
+uint8_t k54_rise(uint8_t way) { return at8(0x80, (uint16_t)(0xD3A8 + way)); }
+uint8_t k55_across(uint8_t way) { return at8(0x80, (uint16_t)(0xD3B0 + way)); }

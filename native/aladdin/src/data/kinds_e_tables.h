@@ -27,6 +27,8 @@ uint16_t k2e_beside_y(uint8_t at);
 
 DataRef k31_probes(void);       /* kind $31's */
 DataRef k98_probes(void);       /* kind $98's */
+DataRef k54_probes(void);       /* kind $54's */
+DataRef k55_probes(void);       /* kind $55's */
 
 /* ---- kind $3B's track (part 2), by `at` a byte offset ---- */
 
@@ -41,6 +43,11 @@ uint8_t k3b_spot_turn(uint8_t at);  /* the turn added at each of its steps to a 
 uint8_t k2a_reach(uint8_t at);      /* the leaper's distance below it Aladdin must be, by its +$07 */
 uint16_t k2a_speed(uint8_t at);     /* the pacer's speed by its variant times 2 (16.8) */
 uint8_t k2a_leg(uint8_t variant);   /* the frames of its first pace by its variant (each later one twice that) */
+
+/* ---- kinds $54 and $55 ---- */
+
+uint8_t k54_rise(uint8_t way);      /* kind $54's speed up (ActorSpeedYSet's entry) by +$07 bits 0-1 */
+uint8_t k55_across(uint8_t way);    /* kind $55's speed across (ActorSpeedXSet's entry) by +$07 bits 0-1 */
 
 /* ---- kind $35, the gem ---- */
 
