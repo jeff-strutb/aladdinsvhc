@@ -17,7 +17,7 @@ const KindCode kinds_d[] = {
     { 0x5C, Kind5CStart, Kind5CStart, NULL, Kind5CWait },
     { 0x5D, Kind5DStart, NULL, NULL, Kind5DWait },   /* second 83:E352 is its wait routine as code: never reached found */
     { 0x66, Kind66Start, NULL, NULL, ActorKind66Wait },   /* left aside: second 84:8629 Kind73Start (kind $73's start) */
-    { 0x6C, Kind6CStart, NULL, NULL, NULL },   /* left aside: second 83:E5BB Kind65Start, wait 83:E5B6 ActorWaitRange00 (shared) */
+    { 0x6C, Kind6CStart, NULL, NULL, ActorWaitRange00 },   /* left aside: second 83:E5BB Kind65Start (kind $65's start) */
     { 0x87, Kind87Start, NULL, NULL, ActorKind87Wait },   /* left aside: second 83:F9BA LandingPad (kind $8A's too) */
     { 0, NULL, NULL, NULL, NULL }
 };

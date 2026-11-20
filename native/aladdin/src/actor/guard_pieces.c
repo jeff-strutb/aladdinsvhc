@@ -198,7 +198,7 @@ static int jump_air(Actor *a)
             return land(a, &p);
         }
     }
-    if (ActorOutOfWallAt(a, 0x08, &p)) {
+    if (ActorOutOfWall8(a, &p)) {
         if (p.behaviour & 0x08) {
             slope = true;
         } else if (!(p.behaviour & 0x40)) {
@@ -271,7 +271,7 @@ int GuardPieces(Actor *a)
         return 1;
     case G_RUN_ON:
         ActorMoveX(a);
-        if (ActorOutOfWall(a, 0x08))
+        if (ActorOutOfWall8(a, &p))
             return climb(a);
         if (!ActorSnapToGround(a, &p)) {
             AnimStart(a, 0x0A);

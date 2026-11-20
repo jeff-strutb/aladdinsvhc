@@ -104,3 +104,16 @@ HitBox solid_box(uint8_t at)
 
 uint16_t frame_y_step(uint8_t frame) { return at16(0x80, (uint16_t)(0xD1CE + 2u * frame)); }
 uint16_t ahead_5(uint8_t facing) { return at16(0x80, (uint16_t)(0xD176 + 2u * facing)); }
+
+/* ---- A5:EA93 ActorSpeedXFromA5, A5:EAA3 ActorSpeedYFromA5 (written by
+   n5-kinds-d for the demo's guard; the guard runs them with the data bank
+   $80: at $A5 the same offsets are other data) ---- */
+
+static uint32_t at24(uint8_t bank, uint16_t addr)
+{
+    return (uint32_t)at8(bank, addr) | (uint32_t)at8(bank, (uint16_t)(addr + 1)) << 8
+           | (uint32_t)at8(bank, (uint16_t)(addr + 2)) << 16;
+}
+
+uint32_t a5_speed_x(uint8_t at) { return at24(0x80, (uint16_t)(0xCFB7 + at)); }
+uint32_t a5_speed_y(uint8_t at) { return at24(0x80, (uint16_t)(0xCFCF + at)); }

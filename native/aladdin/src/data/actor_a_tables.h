@@ -47,4 +47,10 @@ uint16_t ahead_5(uint8_t facing);       /* $80:D176, a word by facing: 5 pixels 
 uint8_t drop_sort_maybe(uint8_t chance);
 uint8_t drop_sort_always(uint8_t chance);          /* the shots' probe list ($80:C9FF; Actor.probes) */
 
+/* the speed tables of A5:EA93 ActorSpeedXFromA5 and A5:EAA3
+   ActorSpeedYFromA5, read in bank $80 ($80:CFB7, $80:CFCF): 3 bytes an
+   entry (fraction, pixels low, high), entry at byte offset `at` */
+uint32_t a5_speed_x(uint8_t at);
+uint32_t a5_speed_y(uint8_t at);
+
 #endif

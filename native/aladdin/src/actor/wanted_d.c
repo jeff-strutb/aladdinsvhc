@@ -19,41 +19,6 @@ __attribute__((weak)) void ActorKeepSpot(Actor *a)
     TELL_ONCE("ActorKeepSpot (81:9D56)");
 }
 
-/* actors A's, for kind $08: no speed from the tables, no animation change */
-__attribute__((weak)) void ActorSpeedXFromA5(Actor *a, uint8_t at)
-{
-    (void)a;
-    (void)at;
-    TELL_ONCE("ActorSpeedXFromA5 (A5:EA93)");
-}
-
-__attribute__((weak)) void ActorSpeedYFromA5(Actor *a, uint8_t at)
-{
-    (void)a;
-    (void)at;
-    TELL_ONCE("ActorSpeedYFromA5 (A5:EAA3)");
-}
-
-__attribute__((weak)) void ActorAnimChange(Actor *a, uint8_t anim)
-{
-    (void)a;
-    (void)anim;
-    TELL_ONCE("ActorAnimChange (A5:EA15)");
-}
-
-__attribute__((weak)) void ActorAnimByTile(Actor *a, uint8_t behaviour)
-{
-    (void)a;
-    (void)behaviour;
-    TELL_ONCE("ActorAnimByTile (A5:E9D2)");
-}
-
-__attribute__((weak)) void ActorAnimRiseFall(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorAnimRiseFall (A5:EA20)");
-}
-
 /* map/'s, for kind $08: as ActorOutOfWall, nothing found */
 __attribute__((weak)) int ActorOutOfWallAt(Actor *a, uint8_t probe, MapPoint *p)
 {

@@ -3,6 +3,7 @@
  * bytes its kind's code reads.
  */
 #include "actor/actor_own.h"
+#include "data/actor_a_tables.h"
 
 /*
  * @routine 83:824B ActorStateSetCC
@@ -44,4 +45,24 @@ void ActorFallSpeedCap(Actor *a)
         a->speed_y = signed24((s & ~0xFFFFu) | 0x0600);   /* its top byte kept */
         a->accel_y = 0;
     }
+}
+
+/*
+ * @routine A5:EA93 ActorSpeedXFromA5
+ * WHAT IT DOES: Sets the actor's speed across from the table at $80:CFB7,
+ * entry `at` (a byte offset, 3 bytes an entry).
+ */
+void ActorSpeedXFromA5(Actor *a, uint8_t at)
+{
+    a->speed_x = signed24(a5_speed_x(at));
+}
+
+/*
+ * @routine A5:EAA3 ActorSpeedYFromA5
+ * WHAT IT DOES: Sets the actor's speed down from the table at $80:CFCF,
+ * entry `at`.
+ */
+void ActorSpeedYFromA5(Actor *a, uint8_t at)
+{
+    a->speed_y = signed24(a5_speed_y(at));
 }

@@ -1,10 +1,9 @@
 /*
  * kind6c.c: actor kind $6C, a spot that takes Aladdin in: when he comes
  * within reach it holds him (his code at PlayerHeld) at its place until he
- * is let go, again and again. Its second entry (83:E5BB Kind65Start) and
- * its wait routine (83:E5B6 ActorWaitRange00) are other kinds' too: left
- * aside until a record can run another kind's code (kinds-d-shared-kinds.md
- * section 2).
+ * is let go, again and again. Its wait routine is ActorWaitRange00
+ * (wait_step.c, shared with kinds $61 and $64). Its second entry (83:E5BB
+ * Kind65Start) is kind $65's start: left aside.
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
