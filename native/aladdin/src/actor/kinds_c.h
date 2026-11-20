@@ -37,6 +37,8 @@ int Kind33Code(Actor *a);       /* kind $33: 83:B966 */
 void Kind33Look(Actor *a);      /* 83:BAE0: its look, which kind $3A takes too */
 int Kind23Code(Actor *a);       /* kind $23: 83:9CEB */
 int Kind25Code(Actor *a);       /* kind $25: 83:9D4B */
+int Kind8DCode(Actor *a);       /* kind $8D: 84:99ED; its second 84:9B43 */
+int Kind8ECode(Actor *a);       /* kind $8E: 84:9B6B */
 int Kind3ECode(Actor *a);       /* kind $3E: 83:B154 */
 int Kind3DCode(Actor *a);       /* kind $3D: 83:C302 */
 int Kind3ACode(Actor *a);       /* kind $3A: 83:BEB3; its second entry runs kind $3B's start */
@@ -58,6 +60,7 @@ int Kind90Code(Actor *a);       /* kind $90: A5:F4D2 */
 
 int ActorWaitNothing(Actor *a);     /* 83:91F3: the wait of many kinds (4-6, 9-$1F, $25, $29, $32 ...): nothing */
 int Kind23Wait(Actor *a);           /* 83:9D46, and 83:DEB9 Kind59Wait */
+int Kind8DWait(Actor *a);           /* 83:9348, 84:9B4D */
 int Kind3DWait(Actor *a);           /* 83:C4A4 */
 int Kind3EWait(Actor *a);           /* 83:B190 */
 int Kind33Wait(Actor *a);           /* 83:BB91, and 83:BF7E Kind3AWait */

@@ -113,6 +113,10 @@ uint8_t k3a_frame(uint8_t frame, int facing_left) { return at8((uint16_t)((facin
 uint16_t k23_x(uint8_t part) { return at16((uint16_t)(0xD06E + 2u * part)); }
 uint8_t k23_next_byte07(uint8_t part) { return at8((uint16_t)(0xD076 + part)); }
 
+/* ---- kind $8D: its picture list at $890B ---- */
+
+DataRef k8d_pictures(void) { return ref(0x890B); }
+
 /* ---- kind $3D: by +$07 at $D296 the records needed; the bob's moves at
    $D286, 4 bytes an entry (a word, then its high byte and a pad) ---- */
 

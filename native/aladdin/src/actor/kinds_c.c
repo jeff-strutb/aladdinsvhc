@@ -26,6 +26,8 @@ const KindCode kinds_c[] = {
     { 0x7E, Kind7ECode, Kind7ECode, NULL, Kind7EWait },        /* its second entry is kind $7F's start: the same code here */
     { 0x7F, Kind7FCode, Kind7FCode, NULL, Kind7FWait },
     { 0x83, Kind83Code, NULL, NULL, Kind83Wait },              /* its second entry is its wait routine's code: no state reaches it */
+    { 0x8D, Kind8DCode, Kind8DCode, NULL, Kind8DWait },
+    { 0x8E, Kind8ECode, NULL, NULL, NULL },
     { 0x90, Kind90Code, NULL, NULL, NULL },                    /* its second and its wait (83:9366) reach an RTL: nothing */
     { 0, NULL, NULL, NULL, NULL }
 };

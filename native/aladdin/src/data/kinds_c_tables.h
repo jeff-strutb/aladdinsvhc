@@ -90,6 +90,10 @@ uint8_t k3a_frame(uint8_t frame, int facing_left);  /* his frame while held, by 
 uint16_t k23_x(uint8_t part);               /* a child's x pixels, by its part - 1 */
 uint8_t k23_next_byte07(uint8_t part);      /* the +$07 it gives its kind $6D, by its part - 1 */
 
+/* ---- kind $8D ---- */
+
+DataRef k8d_pictures(void);
+
 /* ---- kind $3D ---- */
 
 uint8_t k3d_records_needed(uint8_t set);    /* by its +$07 (0-2): the free list's top it needs at least, as the original's byte offset (2 a record) */
