@@ -11,6 +11,4 @@
 
 /* n5-kinds-b, the shared actor code (actor.h) */
 STAND_IN bool PlayerInReach(const Actor *a, uint8_t at) { (void)a; (void)at; unconverted("PlayerInReach"); return false; }
-STAND_IN void ActorSpeedXSetAccel(Actor *a, uint8_t c, uint8_t at) { (void)a; (void)c; (void)at; unconverted("ActorSpeedXSetAccel"); }
-STAND_IN void ActorMoveAlong(Actor *a, uint16_t d, uint8_t v) { (void)a; (void)d; (void)v; unconverted("ActorMoveAlong"); }
 
