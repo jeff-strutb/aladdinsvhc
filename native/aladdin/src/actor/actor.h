@@ -213,6 +213,7 @@ void ActorFallAgainst(Actor *a);        /* 81:A520 (motion.c): gravity taken fro
 void ActorMotionPresetY(Actor *a, uint8_t preset);  /* 81:A3EC (motion.c, inside ActorMotionPreset): the preset's vertical speed and gravity only */
 void ActorHoldPlayer(Actor *a);         /* 83:BAF3, 83:BAEF Long (player_grab.c): its own +$13 the offset he is held at */
 void ActorYByFrame47(Actor *a);         /* 83:BDE9 (actor_y_steps.c): its height follows its frame (the frame kept at +$47) */
+void ActorYByFrame(Actor *a);           /* 83:F031 (actor_steps.c): its y by its frame's step; the frame kept at +$49 */
 int ActorAnimFreeFar(Actor *a);         /* 84:832B (actor_84_misc.c): ACTOR_ENDED when freed out of range (box $58), else ACTOR_GOES_ON */
 
 /* (n5-kinds-c, for kinds $2B, $2F, $4F) */

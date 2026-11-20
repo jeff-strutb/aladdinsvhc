@@ -41,6 +41,9 @@ uint8_t k52_hurt_zone(uint8_t i);
 uint8_t k5b_delay(uint8_t variant);     /* frames before it is thrown, by its +$07 (bit 7 clear) */
 uint8_t k5b_step_sound(uint8_t at);     /* its wait routine's step sounds, by its x pixels' low 4 bits */
 
+/* kind $6D */
+DataRef k6d_probes(void);               /* its probe list */
+
 /* kind $76 */
 DataRef k76_pictures(void);             /* its picture list (Actor.own_pictures) */
 

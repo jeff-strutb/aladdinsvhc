@@ -35,6 +35,8 @@ int Kind5BStart(Actor *a);              /* kind5b.c */
 int ActorWaitStepSounds(Actor *a);
 int Kind5EBrief(Actor *a);              /* kind_5e.c */
 int ActorWaitAnimRange10(Actor *a);
+int Kind6DStart(Actor *a);              /* kind6d.c */
+int Kind6DWait(Actor *a);
 int Kind70Start(Actor *a);              /* kind70_start.c */
 int Kind70Wait(Actor *a);
 int Kind76Start(Actor *a);              /* kind76.c */
@@ -71,6 +73,7 @@ const KindCode kinds_b[] = {
     { 0x57, Kind57Start, Kind57Start, Kind57Start, Kind57Wait },
     { 0x5B, Kind5BStart, Kind5BStart, NULL, ActorWaitStepSounds },
     { 0x5E, Kind5EBrief, Kind5EBrief, NULL, ActorWaitAnimRange10 },
+    { 0x6D, Kind6DStart, Kind6DStart, NULL, Kind6DWait },
     /* $70: its second 83:F370 is kind $71's start (Kind71Start, n5-kinds-d's): left aside */
     { 0x70, Kind70Start, NULL, NULL, Kind70Wait },
     /* $76: its second 83:928A is BackdropMover (84:9044, n5-actors-a's): left aside */

@@ -59,6 +59,13 @@ __attribute__((weak)) void ActorYByFrame47(Actor *a)
     unconverted("ActorYByFrame47 (83:BDE9)");
 }
 
+/* n5-actors-a (actor_steps.c) */
+__attribute__((weak)) void ActorYByFrame(Actor *a)
+{
+    (void)a;
+    unconverted("ActorYByFrame (83:F031)");
+}
+
 /* n5-actors-a (actor_84_misc.c): not out of range */
 __attribute__((weak)) int ActorAnimFreeFar(Actor *a)
 {

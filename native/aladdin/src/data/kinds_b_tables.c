@@ -56,6 +56,9 @@ uint8_t k52_hurt_zone(uint8_t i) { return at8(0x80, (uint16_t)(0xD387 + i)); }
 uint8_t k5b_delay(uint8_t variant) { return at8(0x80, (uint16_t)(0xD3F8 + variant)); }
 uint8_t k5b_step_sound(uint8_t at) { return at8(0x80, (uint16_t)(0xD3FC + (at & 0x0F))); }
 
+/* ---- kind $6D (83:ECD4, DB = $80): its probe list at $80:D667 ---- */
+DataRef k6d_probes(void) { return ref(0x80, 0xD667); }
+
 /* ---- kind $76 (84:8FBA): its picture list, the word it puts at +$29
    ($891B), which ActorPictureSend reads in bank $80: the traces read
    $80:891B-$80:891E as data and run $81:891B as code ---- */
