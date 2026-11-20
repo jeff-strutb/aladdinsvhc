@@ -166,3 +166,26 @@ uint8_t tile_behaviour_byte(DataRef metatiles, uint16_t i)
 
     return cart8(cart_offset(BEHAVIOUR_BANK, (uint16_t)(from + (i & 0x0FFF))));
 }
+
+/* ---- the story card: its lists by part at $80:D9F3 (a word a part), its
+   texts by number at $80:F3BB (a word each); both and what they point to
+   are in bank $80 (the task runs with DB = $80) ---- */
+
+#define CARD_BANK 0x80
+#define CARD_LISTS_ADDR 0xD9F3
+#define CARD_TEXTS_ADDR 0xF3BB
+
+uint16_t story_card_list_start(uint8_t part)
+{
+    return cart16(cart_offset(CARD_BANK, (uint16_t)(CARD_LISTS_ADDR + 2u * part)));
+}
+
+uint8_t story_card_list_byte(uint16_t at) { return cart8(cart_offset(CARD_BANK, at)); }
+
+uint16_t story_card_text_start(uint8_t text)
+{
+    return cart16(cart_offset(CARD_BANK, (uint16_t)(CARD_TEXTS_ADDR + 2u * text)));
+}
+
+uint8_t story_card_text_byte(uint16_t at) { return cart8(cart_offset(CARD_BANK, at)); }
+uint16_t story_card_text_word(uint16_t at) { return cart16(cart_offset(CARD_BANK, at)); }

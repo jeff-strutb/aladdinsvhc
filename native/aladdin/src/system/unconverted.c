@@ -113,8 +113,8 @@ PLACEHOLDER TaskRun Level10Scene(Task *t)
 
 
 
-PLACEHOLDER TaskRun StoryCardTask(Task *t)
+PLACEHOLDER TaskRun EndingStory(Task *t)
 {
-    unconverted("StoryCardTask");
+    unconverted("EndingStory");
     return task_exit(t);
 }

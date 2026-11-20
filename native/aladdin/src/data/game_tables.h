@@ -74,6 +74,16 @@ TileQuarter tile_quarter(unsigned quarter);     /* quarter 0-3 */
    start of their bank, level_metatiles in data.h) */
 uint16_t metatile_word(DataRef metatiles, uint16_t offset);
 
+/* ---- the story card between acts (game/story_card.c) ---- */
+
+/* part 1-7's list of commands (the record's offset in bank $80), and a
+   byte of any list or text at an offset */
+uint16_t story_card_list_start(uint8_t part);
+uint8_t story_card_list_byte(uint16_t at);
+uint16_t story_card_text_start(uint8_t text);       /* text 0 up: where its lines are, for story_card_text_byte */
+uint8_t story_card_text_byte(uint16_t at);
+uint16_t story_card_text_word(uint16_t at);
+
 /* ---- the map's collision tests (map/collision.c, tile_behaviour.c) ---- */
 
 /* by a tile behaviour's low 3 bits (the tables at $80:BF0A, $BF12, $BF1A,

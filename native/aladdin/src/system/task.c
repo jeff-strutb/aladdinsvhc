@@ -187,6 +187,7 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_NEXT_PART:          return NextPartTask(t);
     case TASK_ENTRY_PLAY_LOOP_START:    return PlayLoopStart(t);
     case TASK_ENTRY_LEVEL_END:          return LevelEndTask(t);
+    case TASK_ENTRY_ENDING_STORY:       return EndingStory(t);
     case TASK_ENTRY_STORY_CARD:         return StoryCardTask(t);
     case TASK_ENTRY_COLOUR_BAND:        return ColourBandTask(t);
     case TASK_ENTRY_CAMERA_TRIGGER:     return CameraTriggerTask(t);

@@ -29,6 +29,7 @@ TaskRun GenieScreen(Task *t);           /* 80:A63B */
 /* level_end.c, story_card.c: task entries */
 TaskRun LevelEndTask(Task *t);          /* 81:F61D */
 TaskRun StoryCardTask(Task *t);         /* 81:F10D: the story card between acts */
+TaskRun EndingStory(Task *t);           /* 80:AF42: the final act's scene (story_scenes.c) */
 
 /* play_loop.c: the game's task in play; none returns */
 TaskRun PlayLoopStart(Task *t);         /* 81:8191: the level loaded, then the loop */

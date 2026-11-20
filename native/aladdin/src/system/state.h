@@ -79,6 +79,13 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
+        struct {                /* StoryCardTask (game/story_card.c): the original's direct page $4C-$54 */
+            uint16_t list;          /* $4C: the list's current byte */
+            uint16_t text_at;       /* $4E: the next character's byte offset in the text map */
+            uint16_t text;          /* $50: the text's current byte */
+            uint16_t count;         /* $52: frames left (a byte, or a word while typing) */
+            uint8_t attr;           /* $54: the line's attribute byte */
+        } story_card;
         struct {                /* LevelEndTask (game/level_end.c); the walker's x it watches is g.end_walker_x */
             uint8_t next_at;        /* $A7: the walker's x at which the picture's next block is drawn */
             uint8_t block;          /* $A8: the next block of the picture */
