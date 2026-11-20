@@ -82,10 +82,9 @@ typedef struct Actor {
     uint8_t tile_slot;          /* +$39: the animated-tile slot it holds (1-4), 0 none */
     DataRef stream;             /* +$4A: where its byte stream goes on */
     union {
-        /* the bytes each kind keeps for itself, in record order: +$0A, $11-$13,
-           $16-$18, $29-$2A, $2E, $34-$36, $3A-$49, $4C-$4F; each kind's named
-           view is stage 5's (tools/state_fields.csv lists them) */
-        uint8_t bytes[33];
+        /* the bytes each kind keeps for itself; each kind's named view is
+           stage 5's (tools/state_fields.csv lists them) */
+        uint8_t bytes[33];      /* +$0A, $11-$13, $16-$18, $29-$2A, $2E, $34-$36, $3A-$49, $4C-$4F, in record order */
     } own;
 } Actor;
 
@@ -157,8 +156,8 @@ typedef struct GameState {
     uint8_t task_slots;         /* $0328: how many slots the scheduler scans */
     uint8_t kept_options[3];    /* $0003: the options screen's settings, kept across a reset */
     uint8_t kept_options_sum;   /* $0006: their 8-bit sum */
-    uint16_t pad_held[2];       /* $0377, $0379: each pad's buttons held, as the SNES's word (B bit 15 ... R bit 4) */
-    uint16_t pad_pressed[2];    /* $037B, $037D: each pad's buttons newly pressed this frame */
+    uint16_t pad_held[2];       /* $0377, every 2 bytes: each pad's buttons held, as the SNES's word (B bit 15 ... R bit 4) */
+    uint16_t pad_pressed[2];    /* $037B, every 2 bytes: each pad's buttons newly pressed this frame */
     uint8_t play_mode;          /* $0331: 0 the pads; 2 a demo, the pad read from its script (1, the recorder, never on retail) */
     uint16_t demo_input_at;     /* $033B: the demo's next pad entry, a byte offset into its script */
     uint8_t demo_buttons;       /* $033D: the demo's pad 1 high byte */
@@ -187,8 +186,8 @@ typedef struct GameState {
     uint8_t bg3_priority;       /* $039D bit 3 */
     uint8_t tile_size_16;       /* $039D bits 4-7: BG1-BG4 with 16 x 16 tiles */
     uint8_t window_edges[4];    /* $03A6-$03A9: window 1 left, right, window 2 left, right */
-    uint8_t window_use[6];      /* $03AA-$03AC, a nibble per BG1-4, sprites, colour: bit 0 window 1 inverted, 1 on, 2 window 2 inverted, 3 on */
-    uint8_t window_logic[6];    /* $03AD-$03AE, 2 bits per BG1-4, sprites, colour: 0 or, 1 and, 2 xor, 3 xnor */
+    uint8_t window_use[6];      /* $03AA, a nibble each: per BG1-4, sprites, colour: bit 0 window 1 inverted, 1 on, 2 window 2 inverted, 3 on */
+    uint8_t window_logic[6];    /* $03AD, 2 bits each: per BG1-4, sprites, colour: 0 or, 1 and, 2 xor, 3 xnor */
     uint8_t blend_prevent;      /* $03AF bits 4-5 */
     uint8_t blend_clip;         /* $03AF bits 6-7 */
     uint8_t blend_use_sub;      /* $03AF bit 1: the sub screen, else the fixed colour */
@@ -201,7 +200,8 @@ typedef struct GameState {
     uint8_t fixed_blue;         /* $03B4 bits 0-4 */
     uint8_t mosaic_size;        /* $03B1 bits 4-7 */
     uint8_t mosaic_layers;      /* $03B1 bits 0-3 */
-    uint32_t bg_x[3], bg_y[3];  /* $19EC, $19F0 ... $1A00: BG1-3's positions, 24.8: the pixels the middle two bytes */
+    uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
+    uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */
     uint16_t bg1_x_shift;       /* $1A18: added to BG1's x as it goes to the picture */
     uint16_t layer_offset_y;    /* $1A1C: added to BG1's y */
     uint16_t bg2_x_shift;       /* $1A20 */
@@ -244,7 +244,7 @@ typedef struct GameState {
     uint16_t camera_stopped_x;  /* $1A0C: nonzero, an empty block stopped the scroll across */
     uint16_t camera_stopped_y;  /* $1A0E */
     uint32_t band_pos[11];      /* $7E:F800: the drifting backdrop bands' positions, 4 bytes each */
-    uint32_t band_drift;        /* $1A2F: 24 bits from its fraction byte */
+    uint32_t band_drift;        /* $1A2F-$1A31: 24 bits from its fraction byte */
 
     /* -- level and map -- */
     uint16_t level;             /* $035E: the level being played */

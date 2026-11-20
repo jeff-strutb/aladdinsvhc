@@ -1,0 +1,17 @@
+math/: the record's src/aladdin/math/multiply.c (4 routines, 153 lines).
+
+Converted:
+  81:A7E6 MultiplyBy -> multiply_bytes (math.h). The record's callers are
+  actor/actor_moves.c (and the 10 assembly references); they pass both
+  factors as arguments.
+
+Dead, not converted (plan section 1, item 8): nothing in the game reaches them.
+  81:A7F1 DivideBy, 81:A806 MultiplyXA, 81:A812 MultiplyWordByte.
+  Proof: their own comments in the record say "No code refers to it"; they
+  run only in the unit calls of cov_helpers_unused.box; no C outside
+  src/aladdin/math calls their abi_ wrappers and no assembly file outside
+  asm/aladdin/math/multiply.asm names them (grep, 2026-11-19).
+
+The record's other multiplier and divider uses (game/options_screen.c,
+video/text_number.c, actor/actor_moves.c) and video/mode7_scale.c's use of
+M7A x M7B become C arithmetic in their own areas when those convert.
