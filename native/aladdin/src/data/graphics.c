@@ -2,6 +2,8 @@
  * graphics.c: the shared graphics formats: the palette loads, packed
  * graphics, the level graphics lists, the unpack sets (data.h).
  */
+#include <stdio.h>
+
 #include "data/data.h"
 #include "data/data_internal.h"
 
@@ -143,4 +145,34 @@ AnimSetGraphics anim_set_graphics(uint8_t set)
     a.packed.groups = (uint16_t)((a.length & 0x3FFFu) >> 3);
     a.packed.src = ref_at(cart8(e + 4), cart16(e + 2));
     return a;
+}
+
+static uint16_t anim_entry(uint8_t set)
+{
+    static int said;
+
+    if (set < 32 && !said) {
+        said = 1;
+        fprintf(stderr, "data: actor graphics asked for kind %u: entries below 32 lie in code no trace reads\n", set);
+    }
+    return cart16(cart_offset(ANIM_GFX_BANK, (uint16_t)(ANIM_GFX_ENTRIES + 2u * set)));
+}
+
+PackedGraphics actor_graphics(uint8_t kind, uint8_t *extra_slots)
+{
+    AnimSetGraphics a;
+
+    (void)anim_entry(kind);
+    a = anim_set_graphics(kind);
+    if (extra_slots)
+        *extra_slots = (uint8_t)(a.length >> 14);
+    return a.packed;
+}
+
+/* the original's long sum: $82:AC5D + (the entry's offset + the variant, in 16 bits) */
+uint8_t actor_graphics_variant_byte(uint8_t kind, uint8_t variant)
+{
+    uint32_t at = ((uint32_t)ANIM_GFX_BANK << 16 | (ANIM_GFX_PARTS + 5u)) + (uint16_t)(anim_entry(kind) + variant);
+
+    return cart8(cart_offset((uint8_t)(at >> 16), (uint16_t)at));
 }

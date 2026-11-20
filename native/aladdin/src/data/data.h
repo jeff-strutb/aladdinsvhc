@@ -97,6 +97,13 @@ typedef struct AnimSetGraphics {
     uint16_t length;            /* the entry's word as it is: bits 0-13 the length, bits 14-15 kept */
 } AnimSetGraphics;
 AnimSetGraphics anim_set_graphics(uint8_t set);
+/* the same entries by actor kind (video/level_actor_graphics.c's
+   LevelActorGraphicsLoad, which reads them by the kinds a level places):
+   its packed graphics, its extra tile slots (bits 14-15 of the length), and
+   the byte at +5 + variant (variant 0-3, from the placement). Kinds below 32
+   are reported once: no trace reads their entries. */
+PackedGraphics actor_graphics(uint8_t kind, uint8_t *extra_slots);
+uint8_t actor_graphics_variant_byte(uint8_t kind, uint8_t variant);
 
 /* ---- level maps (map/level_map.c's LevelMapBuild, ScreenMapLayout) ----
 

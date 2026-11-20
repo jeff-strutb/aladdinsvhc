@@ -247,9 +247,11 @@ def main():
             anims.append(f'{ln:04X}/{groups}/{s ^ len(out_):08X}')
         else:
             anims.append(f'{ln:04X}/{groups}/00000000')
+        anims[-1] += f'/{ln >> 14}/{groups}' + ''.join(
+            f',{rom[lorom(0x82, 0xAC5D) + ((x + v) & 0xFFFF)]:02X}' for v in range(4))
     anims_ok = out[len(numbers) + 6] == 'animsets ' + ' '.join(anims)
     fails += not anims_ok
-    print(f'readers: animation sets 32-36 {"match" if anims_ok else "DIFFER"}; packed bytes read from code left out (all packed): {code_read}')
+    print(f'readers: animation sets 32-36 (and by kind: extra slots, variant bytes) {"match" if anims_ok else "DIFFER"}; packed bytes read from code left out (all packed): {code_read}')
     print(f'readers: sound lists {len(numbers) - lists_bad} of {len(numbers)} match; quarter sine {"matches" if sine_ok else "DIFFERS"}; '
           f'demo scripts {"match" if demo_ok else "DIFFER"}')
     fails += lists_bad + (not sine_ok) + (not demo_ok)

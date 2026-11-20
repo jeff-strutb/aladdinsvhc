@@ -129,7 +129,11 @@ int main(int argc, char **argv)
     printf("\nanimsets");
     for (i = 32; i <= 36; i++) {
         AnimSetGraphics a = anim_set_graphics((uint8_t)i);
-        printf(" %04X/%u/%08X", a.length, a.packed.groups, a.length ? sum_of(a.packed) : 0u);
+        uint8_t extra;
+        PackedGraphics k = actor_graphics((uint8_t)i, &extra);
+        printf(" %04X/%u/%08X/%u/%u", a.length, a.packed.groups, a.length ? sum_of(a.packed) : 0u, extra, k.groups);
+        for (b = 0; b < 4; b++)
+            printf(",%02X", actor_graphics_variant_byte((uint8_t)i, (uint8_t)b));
     }
     printf("\n");
     return 0;
