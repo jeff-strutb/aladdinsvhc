@@ -2,7 +2,9 @@
 
 Status: **stage 0 done, by another session** (`b941e4e`, `d9fcb02`; `docs/aladdin/native/BUILD.md` records its builds and
 runs: a blank 256 x 224 screen headless and in a window on Linux). The rest of this plan was written from reading the source.
-Engine: nativeshvc API 6.5 (`8d1745d`). Record: `src/aladdin`
+Engine: nativeshvc API 6.7 (`8b5461e`; the plan was written against 6.5, `8d1745d`: 6.6 added `nshvc_voice_sample`, a
+voice's sample changed without a key-on as the SNES's source number, which the sound driver uses; 6.7 added
+`nshvc_limits.blank_hides_sprites` and fixed offset-per-tile to modes 2, 4 and 6). Record: `src/aladdin`
 at `cffb00c`, 85,916 lines, every code byte certified behaviour exact and byte exact (README). The inventory is
 [hardware-touches.md](hardware-touches.md). The model is Stunt Race FX's plan (`stuntracefx/docs/stuntracefx/native/PLAN.md`,
 "SRFX" below).
@@ -74,9 +76,12 @@ The rules are SRFX's ("How the conversion is shared between sessions"), for this
    by input alone (`attract`, `rand_menus1`, `rand_menus2`); the rest load saved states (602 `load` lines) or poke memory
    (2,621 `poke`, 677 `set`), which the native game, having no SNES addresses, cannot take. Each level needs a new play by
    input before its state can be compared.
-8. **Code shown as graphics.** In random play from stage a8 (`rand_stage_a8_s0`) a VramCopy entry copies bank $80's own
-   code to video memory (8,312 B of `tools/code_read.csv`). `cart.dat` has no code, so the native game would show zeros
-   where the original shows those bytes as tiles. Whether that picture is ever on screen is not known.
+8. **Code copied to video memory.** The story card between acts (StoryCardTask) copies bank $80's own code to video
+   memory (8,312 B of `tools/code_read.csv`) only when it runs with act 8 or more: the seven real lists (acts 1-7) name
+   only valid copies, from the graphics buffer. The one run that does it, `rand_stage_a8_s0`, starts from act 8 set by a
+   poke (`03_stages.box`); there every one of its 2,407 frames is black (2026-11-20, every frame counted). One path in the
+   record could start the card with act 8 in play: level $17 (act 8, stage 4) is an escort level whose exit spot (x
+   $1EF0) leads to PlayerEscortExit, and its STAGE_GOES_ON 0 then starts the card. No script reaches it; not run.
 9. **Dead code is not converted.** 20 `@unreachable` tags; the copier branches behind the cartridge-RAM reads (`actor/kind20.c:439`
    loops for ever); the PAL branch (`game/password_screen.c:137`); the input recorder's writes to cartridge RAM
    (`system/input_modes.c`). Each is listed with its proof, from the census (`docs/aladdin/ROUTINE_CENSUS.md`).
