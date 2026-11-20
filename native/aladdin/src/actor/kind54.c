@@ -40,6 +40,31 @@ enum {
     K55_AGAIN,
 };
 
+/*
+ * @routine 83:D7C9 ActorSpawn5E
+ * WHAT IT DOES: Spawns a child of kind $5E at spawn point $4E. Kinds $54
+ * and $55 are its only callers (spawn_group.c's record; their piece).
+ */
+static void spawn_5e(Actor *a)
+{
+    a->spawn_at = 0x4E;
+    (void)ActorCreateChild8(a, 0x5E);
+}
+
+/*
+ * @routine 83:D7D4 ActorSpawnCopy
+ * WHAT IT DOES: Spawns a child that looks like the actor, of its own kind,
+ * at spawn point 0, with bit 3 of +$07 set for it. Kinds $54 and $55 are
+ * its only callers (spawn_group.c's record; their piece).
+ */
+static void spawn_copy(Actor *a)
+{
+    a->spawn_byte |= DROPS;
+    a->spawn_at = 0;
+    (void)ActorSpawnSameLook(a, a->kind);
+    a->spawn_byte &= (uint8_t)~DROPS;
+}
+
 /* the drop (83:D7A5, Kind54Drop): 7 frames, pose 1, 14 frames falling, then it ends */
 static int drop(Actor *a)
 {
@@ -54,7 +79,7 @@ static int drop(Actor *a)
 static int leap_start(Actor *a, int next)
 {
     a->spawn_byte |= LEAPING;
-    ActorSpawn5E(a);
+    spawn_5e(a);
     a->resume = (uint16_t)next;
     return 6;
 }
@@ -70,7 +95,7 @@ static void leap_frame(Actor *a)
     own(a)->last_top = top;
     if (!--own(a)->trail) {
         own(a)->trail = 0x08;
-        ActorSpawnCopy(a);
+        spawn_copy(a);
     }
 }
 
@@ -78,7 +103,7 @@ static void leap_frame(Actor *a)
 static int land(Actor *a)
 {
     a->spawn_byte &= (uint8_t)~LEAPING;
-    ActorSpawn5E(a);
+    spawn_5e(a);
     SoundQueueAdd(0x26);
     a->resume = LANDED;
     return 1;

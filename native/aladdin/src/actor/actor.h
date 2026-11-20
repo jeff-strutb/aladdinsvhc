@@ -249,17 +249,6 @@ void SecondPoolFreeAll(void);           /* 83:95C1: every record of the second p
 void ActorLiftPlayerStep(Actor *a, uint8_t offset);  /* 83:FB57: by its +$44: 0 and ActorGrabTest finds him, his code to his
                                                lift (PLAYER_AT_*) and he is placed on it, +$44 up; negative, up; positive, kept on it
                                                while g.player_no_actor_landing, else +$44 = $F0 */
-/* (n5-kinds-e, for kinds $54 and $55; spawn_group.c: their only caller) */
-void ActorSpawn5E(Actor *a);                /* 83:D7C9: a child of kind $5E at spawn point $4E (ActorCreateChild8) */
-void ActorSpawnCopy(Actor *a);              /* 83:D7D4: a child of its own kind and look at spawn point 0, +$07 bit 3 set for it */
-/* (n5-kinds-e, for kind $97; carrier_pair.c: kind $97 its only caller) */
-void CarrierPairSend(Actor *sender);        /* 84:A056: a carrier (kind $38) 40 pixels above the range point and the thing it
-                                               holds (kind $53), from the two free records the sender's +$4A names; each the other's
-                                               record (index in g.actors) in its +$4E, the carrier's in the sender's +$4E; the sender's
-                                               +$41 and +$4B up, +$40 = $3C */
-/* (n5-kinds-e, for kind $A1; actor_84_misc.c: kind $A1 its only caller) */
-bool ActorClampAboveFloor12(Actor *a);      /* 84:8F2F (with 84:8F3C ActorClampAboveFloor): its y plus 12 kept above the floor
-                                               line at its x (the table at $7E:DFC0); true when it reached it (moved up onto it) */
 /* (n5-kinds-e, for kinds $61 and $64; wait_step.c: kinds $61, $64, $6C share it) */
 int ActorWaitRange00(Actor *a);             /* 83:E5B6: a wait routine: ended once out of range by box 0 (ActorEndOutOfRange) */
 /* (n5-kinds-e, for kind $73, from n5-kinds-b's chain files and the anim files: stand-ins in actor/wanted_e.c) */

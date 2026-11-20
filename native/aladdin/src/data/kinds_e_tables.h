@@ -70,6 +70,10 @@ uint8_t k28_wave(uint8_t at);       /* its wave: the step down (a signed byte) a
 uint8_t k94_spark_x(uint8_t at);
 uint8_t k94_spark_y(uint8_t at);
 
+/* ---- kind $A1 ---- */
+
+uint16_t k_a1_clearance(void);      /* what is taken from the floor's y when an actor is put on it */
+
 /* ---- kind $A8 ---- */
 
 uint8_t k_a8_delay(uint8_t at);     /* the frames before it poses again, by its +$07 (0 is 256) */

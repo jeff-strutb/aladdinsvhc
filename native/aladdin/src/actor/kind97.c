@@ -89,6 +89,75 @@ static void drop_child(Actor *a)
 }
 
 /*
+ * @routine 84:A056 CarrierPairSend
+ * WHAT IT DOES: Sends in a carrier (kind $38) 40 pixels above the point
+ * actors are kept in range of, and a thing it holds (kind $53) at the
+ * carrier's spawn point $44 less 4 across and 12 down, both new and facing
+ * as the sender, from the two records ActorFreeListTake reserved (the
+ * place in its +$4A): the carrier's +$07 is its own plus one, its +$45 and
+ * +$46 cleared; each has the sender's record (its index in g.actors) in
+ * +$4C and the other's in +$4E, the sender's +$4E the carrier's; the
+ * sender counts them (+$4B), its +$41 up, its timer ($40) $3C. Kind $97 is
+ * its only caller (carrier_pair.c's record; its piece).
+ */
+static int carrier_pair_send(Actor *a)
+{
+    int place = TAKEN(a), reserved_top = g.free_pool_top;
+    uint32_t x = a->x, y = a->y;
+    Actor *first, *second;
+    uint16_t me = (uint16_t)(a - g.actors);
+
+    a->x = with_pixels(a->x, g.range_x);
+    a->y = with_pixels(a->y, (uint16_t)(g.range_y - 0x28));
+    /* the two reserved records, one after the other, as ActorCreateIn
+       takes the record at its place in the free list */
+    g.free_pool_top = (int8_t)place;
+    first = ActorCreate(0x38);
+    g.free_pool_top = (int8_t)(place + 1);
+    second = first ? ActorCreate(0x53) : NULL;
+    g.free_pool_top = (int8_t)reserved_top;
+    if (!second) {
+        a->x = x;
+        a->y = y;
+        return 0;
+    }
+    first->spawn_byte = (uint8_t)(a->spawn_byte + 1);
+    a->spawn_at = 0x44;
+    ActorSpawnPlace(a, first);
+    first->state = ACTOR_STATE_NEW;
+    first->facing = a->facing;
+    first->flip = a->facing;
+    first->own.bytes[OWN_45] = 0;
+    first->own.bytes[OWN_46] = 0;
+    own(a)->busy++;
+    own(a)->timer = 0x3C;
+    ActorSpawnPlace(a, second);
+    second->x = with_pixels(second->x, (uint16_t)(pixels(second->x) - 4));
+    second->y = with_pixels(second->y, (uint16_t)(pixels(second->y) + 12));
+    second->state = ACTOR_STATE_NEW;
+    second->facing = a->facing;
+    second->flip = a->facing;
+    first->own.bytes[OWN_4C] = (uint8_t)me;
+    first->own.bytes[OWN_4D] = (uint8_t)(me >> 8);
+    second->own.bytes[OWN_4C] = (uint8_t)me;
+    second->own.bytes[OWN_4D] = (uint8_t)(me >> 8);
+    {
+        uint16_t f = (uint16_t)(first - g.actors), s = (uint16_t)(second - g.actors);
+
+        a->own.bytes[OWN_4E] = (uint8_t)f;
+        a->own.bytes[OWN_4F] = (uint8_t)(f >> 8);
+        second->own.bytes[OWN_4E] = (uint8_t)f;
+        second->own.bytes[OWN_4F] = (uint8_t)(f >> 8);
+        first->own.bytes[OWN_4E] = (uint8_t)s;
+        first->own.bytes[OWN_4F] = (uint8_t)(s >> 8);
+    }
+    a->x = x;
+    a->y = y;
+    COUNT(a)++;
+    return 1;
+}
+
+/*
  * @routine 84:9F4F Kind97Start
  * WHAT IT DOES: Actor kind $97: with +$07 bit 0 clear, a dropper: after 30
  * frames, each time it is idle and the point actors are kept in range of
@@ -145,7 +214,8 @@ int Kind97Start(Actor *a)
         if (taken < 0)
             return 1;
         TAKEN(a) = (uint8_t)taken;
-        CarrierPairSend(a);
+        if (!carrier_pair_send(a))
+            return 1;
         a->resume = SEND_AWAIT;
         return 1;
     }

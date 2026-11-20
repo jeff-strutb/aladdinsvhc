@@ -32,30 +32,9 @@ __attribute__((weak)) void ActorLiftPlayerStep(Actor *a, uint8_t offset)
 
 
 
-__attribute__((weak)) void ActorSpawn5E(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorSpawn5E (83:D7C9)");
-}
 
-__attribute__((weak)) void ActorSpawnCopy(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorSpawnCopy (83:D7D4)");
-}
 
-__attribute__((weak)) void CarrierPairSend(Actor *sender)
-{
-    (void)sender;
-    TELL_ONCE("CarrierPairSend (84:A056)");
-}
 
-__attribute__((weak)) bool ActorClampAboveFloor12(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorClampAboveFloor12 (84:8F2F)");
-    return false;
-}
 
 
 __attribute__((weak)) int ChainPieceEnd(Actor *a)
