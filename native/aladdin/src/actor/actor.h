@@ -261,4 +261,13 @@ void ActorAnimBy40(Actor *a);               /* 84:8A48 (anim_pick.c) */
 void ActorLookFlash(Actor *a);              /* 84:8E3C (flash.c) */
 void PaletteFlash(void);                    /* 84:8E56 (flash.c) */
 void ActorParityBitsSet(Actor *a);          /* 84:8CD2 (actor_fields.c) */
+/* (n5-kinds-b's helpers, each with one caller, a kind of kinds E's: point_moves.c, spawn_group.c, carrier_pair.c, player_carry.c, actor_84_misc.c) */
+int ActorGoToPoint(Actor *a);               /* 83:FC5D: a routine that waits inside: ACTOR_RETURNS once within box $20 of the point at +$48, +$4A */
+bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up);  /* 83:FD6D */
+void ActorStepCarry(Actor *a);              /* 83:C1EC */
+void ActorStepToTargetCarry(Actor *a);      /* 83:C1F6 */
+void ActorSpawn5E(Actor *a);                /* 83:D7C9 */
+void ActorSpawnCopy(Actor *a);              /* 83:D7D4 */
+void CarrierPairSend(Actor *sender);        /* 84:A056 */
+bool ActorClampAboveFloor12(Actor *a);      /* 84:8F2F */
 #endif

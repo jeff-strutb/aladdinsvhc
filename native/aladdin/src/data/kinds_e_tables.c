@@ -118,6 +118,3 @@ DataRef path_at(DataRef r, uint16_t addr)
     return n;
 }
 
-/* ---- kind $A1: the word at $80:D7C4 (the traces read it in bank $80) ---- */
-
-uint16_t k_a1_clearance(void) { return at16(0x80, 0xD7C4); }

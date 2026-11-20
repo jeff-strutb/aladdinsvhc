@@ -22,34 +22,6 @@ _Static_assert(sizeof(KindA1Own) <= OWN_BYTES, "a view fits the own bytes");
 
 static inline KindA1Own *own(Actor *a) { return (KindA1Own *)a->own.bytes; }
 
-#define HISTORY_AT (32 * 31)    /* the text map's word $3E0: the list of past heights video keeps (ActorYHistoryPush) */
-
-/*
- * @routine 84:8F3C ActorClampAboveFloor
- * WHAT IT DOES: Keeps the actor's y plus offset `off` above the floor line
- * at its x: true (and its y moved up to the floor, less its clearance)
- * when it reached it. The floor: the word for its x ((x - $200) / 8, mod
- * 32) of video's list of past heights, in 9 bits sign-extended, negated,
- * plus $B0. A y plus offset negative is above it. Kind $A1 is its only
- * caller, through ActorClampAboveFloor12 (actor_84_misc.c's record; its
- * piece).
- * @routine 84:8F2F ActorClampAboveFloor12: that, with offset 12.
- */
-static bool clamp_above_floor(Actor *a, uint16_t off)
-{
-    uint16_t raw = (uint16_t)(g.text_map[HISTORY_AT + (((pixels(a->x) - 0x0200) >> 3) & 0x1F)] & 0x01FF);
-    uint16_t floor, at;
-
-    if (raw >= 0x0100)
-        raw |= 0xFF00;
-    floor = (uint16_t)(0xB0 - raw);
-    at = (uint16_t)(pixels(a->y) + off);
-    if ((at & 0x8000) || at < floor)
-        return false;
-    a->y = with_pixels(a->y, (uint16_t)(floor - k_a1_clearance()));
-    return true;
-}
-
 enum {
     BOUNCE = ACTOR_RESUME_OWN,  /* $A1: each frame of its bouncing */
     HIT_WAIT,                   /* $A1 hit: after its 8 frames */
@@ -90,7 +62,7 @@ int KindA1Start(Actor *a)
         uint8_t pick;
 
         ActorFly(a);
-        if (!clamp_above_floor(a, 12))
+        if (!ActorClampAboveFloor12(a))
             return 1;
         SoundQueueAdd(0x4D);
         pick = (uint8_t)RandomFromList(BOUNCE_LIST);

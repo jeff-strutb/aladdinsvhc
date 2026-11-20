@@ -76,50 +76,6 @@ static int returned(int r) { return r == ACTOR_RETURNS || r == ACTOR_RETURNS_C; 
 static int walk(Actor *a);
 static int walk_way(Actor *a);
 
-/*
- * @routine 83:FD6D ActorProbeAheadInGround
- * WHAT IT DOES: Tests two points for ground: `ahead` pixels in front of the
- * actor (by its facing) and `up` above it, then `up` above its own x: true
- * when either is in the ground (its tile's behaviour has any of bits
- * 0-2). Kind $31 is its only caller (point_moves.c's record; its piece).
- */
-static bool probe_ahead_in_ground(const Actor *a, uint16_t ahead, uint16_t up)
-{
-    MapPoint p;
-
-    p.x = (uint16_t)(pixels(a->x) + (a->facing ? (uint16_t)-ahead : ahead));
-    p.y = (uint16_t)(pixels(a->y) - up);
-    (void)PointInGround(a, &p);
-    if (p.behaviour & 0x07)
-        return true;
-    p.x = pixels(a->x);
-    (void)PointInGround(a, &p);
-    return (p.behaviour & 0x07) != 0;
-}
-
-/*
- * @routine 83:FC5D ActorGoToPoint
- * WHAT IT DOES: Moves the actor toward the point at its +$48, +$4A
- * (pixels) a step a frame by direction set +$4C, facing the way it goes,
- * until it is within box $20 of it; then back to its caller. A routine
- * that waits inside (actor.h): called again at its caller's resume point
- * each frame until it returns ACTOR_RETURNS; Actor.call_at 1 once it has
- * stepped. Kind $31 is its only caller (point_moves.c's record; its piece).
- */
-static int go_to_point(Actor *a)
-{
-    uint16_t x = own16(a, OWN_48), y = own16(a, OWN_4A);
-
-    if (a->call_at && ActorNearPoint(a, 0x20, x, y)) {
-        a->call_at = 0;
-        return ACTOR_RETURNS;
-    }
-    a->facing = ActorAimAt(a, x, y);
-    ActorMoveByVector(a, *own8(a, OWN_4C));
-    a->call_at = 1;
-    return 1;
-}
-
 /* pose 2 for 8 frames, then MEET */
 static int land(Actor *a)
 {
@@ -395,7 +351,7 @@ int Kind31Start(Actor *a)
     case WALK:
         ActorMoveX(a);
         if (ActorOutOfWallProbe4(a)) {
-            if (probe_ahead_in_ground(a, 0x10, 0x38)) {
+            if (ActorProbeAheadInGround(a, 0x10, 0x38)) {
                 turn(a);
                 return 1;
             }
@@ -444,7 +400,7 @@ int Kind31Start(Actor *a)
     case TO_HIM: {
         uint8_t aim;
 
-        r = go_to_point(a);
+        r = ActorGoToPoint(a);
         if (!returned(r))
             return r;
         set16(a, GOTO_X, own16(a, HOME_X));
@@ -465,7 +421,7 @@ int Kind31Start(Actor *a)
         a->resume = TO_HOME;
         return Kind31Start(a);
     case TO_HOME:
-        r = go_to_point(a);
+        r = ActorGoToPoint(a);
         if (!returned(r))
             return r;
         a->resume = HOME_RISE;
