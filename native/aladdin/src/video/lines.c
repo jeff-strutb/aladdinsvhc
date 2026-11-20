@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "nshvc/nshvc.h"
+#include "data/video_tables.h"
 #include "system/state.h"
 #include "video/video_internal.h"
 
@@ -27,17 +28,34 @@ static uint8_t data_at(uint32_t at)
 }
 
 #define LINE_DATA_AT 0xF400u        /* where g.line_data starts in the original's bank $7E */
+#define TEXT_BAND_VALUES_AT 0x1C9Eu /* where g.text_band_values starts in the original's work RAM */
+
+/* a table's byte: the cartridge's (a level's own table) or the line data's */
+static uint8_t table_byte(const LineChannel *c, uint32_t at)
+{
+    return c->cart.at ? line_table_byte(c->cart, at) : data_at(at);
+}
+
+/* a byte an indirect entry's pointer names (the original's address) */
+static uint8_t pointed_byte(uint32_t address)
+{
+    if (address >= LINE_DATA_AT)
+        return data_at(address - LINE_DATA_AT);
+    if (address >= TEXT_BAND_VALUES_AT && address < TEXT_BAND_VALUES_AT + sizeof g.text_band_values)
+        return g.text_band_values[address - TEXT_BAND_VALUES_AT];
+    return 0;
+}
 
 /* One channel's value on each line from `top` (the bytes it took, low
    first, packed in 32 bits), read from its table as the original's HDMA
    reads it; `set[line]` marks the lines it wrote or held. */
 static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LINES], uint8_t set[LINES])
 {
-    uint32_t line = top, k = line_bytes[c->target], at = c->table_at, held = 0;
+    uint32_t line = top, k = line_bytes[c->target], at = c->cart.at ? 0 : c->table_at, held = 0;
     int any = 0;
 
     while (line < LINES) {
-        uint8_t count = data_at(at++);
+        uint8_t count = table_byte(c, at++);
         uint32_t lines, from;
         int repeat;
 
@@ -49,24 +67,14 @@ static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LI
             from = at;
             at += repeat ? k * lines : k;
         } else {
-            uint16_t ptr = (uint16_t)(data_at(at) | data_at(at + 1) << 8);
-
+            from = (uint32_t)(table_byte(c, at) | table_byte(c, at + 1) << 8);
             at += 2;
-            if (ptr < LINE_DATA_AT) {
-                static int told;
-
-                if (!told) {
-                    told = 1;
-                    fprintf(stderr, "video: a per-line table points at $%04X, below the line data\n", ptr);
-                }
-            }
-            from = (uint32_t)(ptr - LINE_DATA_AT) & 0xFFFFu;
         }
         for (uint32_t i = 0; i < lines && line < LINES; i++, line++) {
             if (i == 0 || repeat) {
                 held = 0;
                 for (uint32_t b = 0; b < k; b++)
-                    held |= (uint32_t)data_at(from + b) << (8 * b);
+                    held |= (uint32_t)(c->direct ? table_byte(c, from + b) : pointed_byte(from + b)) << (8 * b);
                 if (repeat)
                     from += k;
                 any = 1;

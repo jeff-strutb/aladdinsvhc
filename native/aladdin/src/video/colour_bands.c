@@ -28,6 +28,7 @@ static void colour_bands_write(Task *t)
     c->target = LINE_FIXED;
     c->direct = 1;
     c->table_at = (uint16_t)at;
+    c->cart.at = 0;
     g.line_table_at[BAND_CHANNEL - 4] = (uint16_t)at;
     for (unsigned i = 0; i < n; i++) {
         uint8_t lines = colour_band_byte(2 * i), value = colour_band_byte(2 * i + 1);

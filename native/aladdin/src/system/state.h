@@ -102,6 +102,14 @@ typedef struct Task {
             uint8_t half;           /* +$09: the half-height */
             uint16_t edge_at;       /* the edges' offset (the original kept X on the stack across its waits; native only) */
         } opening;
+        struct {                /* TextBandsReveal and TextBandsConceal (video/text_bands.c) */
+            uint8_t step;           /* $F7 of the task's page: the band pair being set */
+            uint8_t flip;           /* $F9: its low bit picks the buffer the next commit goes to */
+        } text_bands;
+        struct {                /* window effects 8-11 (video/window_effects.c) */
+            uint8_t channel;        /* the effect's channel */
+            uint8_t flip;           /* effect 8: which half (0 or $10) of the table it builds in */
+        } box;
         struct {                /* IrisCloseTask (video/iris_close_task.c) */
             uint16_t x;             /* the iris's centre (the original kept them at $00BF and $00C1) */
             uint16_t y;
@@ -317,6 +325,9 @@ typedef struct LineChannel {
     uint8_t target;             /* LineTarget */
     uint8_t direct;             /* the values are in the table itself (else it points at them) */
     uint16_t table_at;          /* the table's offset in g.line_data; channels 4-7 take g.line_table_at's each frame */
+    DataRef cart;               /* nonzero (.at): the table is in the cartridge (the original's A1T and bank an address of the
+                                   cartridge: a level's own tables), read from there; table_at is not used. A table in either
+                                   place may point (indirect) at g.line_data or g.text_band_values */
 } LineChannel;
 
 #define LINE_DATA_SIZE 0x600
@@ -380,6 +391,8 @@ typedef struct GameState {
     uint8_t mosaic_size;        /* $03B1 bits 4-7 */
     uint8_t mosaic_layers;      /* $03B1 bits 0-3 */
     LineChannel line_channel[8]; /* by the original's HDMA channel; g.line_effects_on's bit n turns channel n on */
+    uint8_t text_bands[16];     /* $1C8E: the text bands' window bytes (video/text_bands.c) */
+    uint8_t text_band_values[32]; /* $1C9E and $1CAE: the two buffers TextBandsCommit hands the line effect's channel */
     uint8_t line_data[LINE_DATA_SIZE]; /* $7E:F400-$7E:F9FF: the per-line effects' tables and data (the window edges at
                                    $F800 among them; g.band_pos is the parallax's view of $F800 on) */
     uint8_t line_channels_kept; /* $03B5 high nibble: channels 4-7 other code keeps, not for the window effects */
@@ -607,6 +620,7 @@ typedef struct GameState {
     uint8_t scene_cue_c4;       /* $00C4: and as he walks */
     uint8_t scene_exits;        /* $147B: counted up as a scene or exit starts his walk off; nothing reads it */
     uint8_t scene_cue_2;        /* $00C0: a scene's second cue (level 5's closing scene: set as its map is rebuilt) */
+    uint8_t scene_cue_close;    /* $00C1: nonzero, window effect 10's spot window closes (level 5's closing scene sets it) */
     uint8_t scene_cue_waited;   /* $00C2: counted up by a scripted actor when it has waited (kind $70's hit one, after $80 frames) */
     uint8_t scripted_cue;       /* $146C: counted up by scripted actors as the scene goes on (player/land_on_actor.c uses the word as a record mark) */
     uint8_t scene_go_on;        /* $1B1F: kind $81's scene goes on once it is nonzero (kind $76 counts it up) */

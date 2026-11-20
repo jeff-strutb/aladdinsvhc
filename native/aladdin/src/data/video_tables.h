@@ -165,4 +165,28 @@ unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, un
 uint8_t iris_radius(uint8_t iris);
 void iris_centre(uint8_t iris, uint16_t *x, uint16_t *y);
 
+/* a per-line table the cartridge holds (LineChannel.cart): byte `at` of it */
+DataRef line_table_at(uint8_t bank, uint16_t address);   /* the table the original's A1T and A1B name */
+uint8_t line_table_byte(DataRef table, uint32_t at);
+
+/* the text bands (video/text_bands.c, through the bank $80): channel 5's
+   table by the buffer the commit uses (0 or 1: $80:CEEF, $80:CF3B), and the
+   two window bytes a band pair sets, at $80:CF87 + step and $80:CF8B + step,
+   as indexes into the 16 bands' bytes */
+DataRef text_band_table(unsigned buffer);
+uint8_t text_band_row_a(uint8_t step);
+uint8_t text_band_row_b(uint8_t step);
+
+/* a page of text (TextPageDraw 82:B190): the page's line count, each line's
+   attribute and characters, and the tilemap offset (bytes) the list names for
+   the line. `page` and `places` each step past what is read. */
+typedef struct TextPageLine {
+    uint16_t at;                /* the line's first word in the text map */
+    uint8_t attribute;
+    uint8_t length;
+    const uint8_t *chars;
+} TextPageLine;
+unsigned text_page_begin(DataRef *page);                          /* the lines it holds */
+TextPageLine text_page_line(DataRef *page, DataRef *places);     /* the next line */
+
 #endif

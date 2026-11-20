@@ -292,3 +292,48 @@ void iris_centre(uint8_t iris, uint16_t *x, uint16_t *y)
     *x = cart16(at);
     *y = cart16(at + 2);
 }
+
+DataRef line_table_at(uint8_t bank, uint16_t address)
+{
+    DataRef r;
+
+    r.at = cart_offset(bank, address);
+    return r;
+}
+
+uint8_t line_table_byte(DataRef table, uint32_t at) { return cart8(table.at + at); }
+
+/* the text bands: channel 5's tables and the band pairs' bytes */
+#define TEXT_BANDS_BANK 0x80
+
+DataRef text_band_table(unsigned buffer)
+{
+    return line_table_at(TEXT_BANDS_BANK, buffer & 1 ? 0xCF3B : 0xCEEF);
+}
+
+uint8_t text_band_row_a(uint8_t step) { return cart8(cart_offset(TEXT_BANDS_BANK, (uint16_t)(0xCF87 + step))); }
+uint8_t text_band_row_b(uint8_t step) { return cart8(cart_offset(TEXT_BANDS_BANK, (uint16_t)(0xCF8B + step))); }
+
+/* a page of text: its first byte the lines, then per line the attribute, the
+   length and the characters; each line's place the next word of the list */
+unsigned text_page_begin(DataRef *page)
+{
+    unsigned lines = cart8(page->at);
+
+    page->at++;
+    return lines;
+}
+
+TextPageLine text_page_line(DataRef *page, DataRef *places)
+{
+    TextPageLine l;
+    uint32_t at = page->at;
+
+    l.at = cart16(places->at);
+    places->at += 2;
+    l.attribute = cart8(at);
+    l.length = cart8(at + 1);
+    l.chars = cart_at(at + 2);
+    page->at = at + 2u + l.length;
+    return l;
+}
