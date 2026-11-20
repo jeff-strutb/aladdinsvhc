@@ -79,6 +79,13 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
+        struct {                /* OptionsTask (game/options.c): the original's $1B14-$1B1A */
+            uint8_t item;           /* the cursor's item, times 2 (0 setting, 2 sound test, 4 output, 6 exit) */
+            uint8_t sound_test;     /* the sound test's number, less one (0-34) */
+            uint8_t setting;        /* the setting shown (0-3) */
+            uint8_t code_wait;      /* frames since the cheat code's last press */
+            uint8_t code_at;        /* presses of the cheat code made (0: none yet) */
+        } options;
         struct {                /* PasswordScreen (game/password_screen.c): the original's $A5-$AD */
             uint8_t slot;           /* $A5: the slot being changed (0-3) */
             uint8_t picture[4];     /* $A6-$A9: each slot's picture (0-5) */

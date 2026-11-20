@@ -74,6 +74,12 @@ TileQuarter tile_quarter(unsigned quarter);     /* quarter 0-3 */
    start of their bank, level_metatiles in data.h) */
 uint16_t metatile_word(DataRef metatiles, uint16_t offset);
 
+/* ---- the options screen (game/options.c; $80:CE35 on) ---- */
+#define OPTION_ITEMS 4
+uint16_t option_setting_word(unsigned line, unsigned setting);  /* the map word of line 0-4 of a setting 0-3 */
+uint16_t option_cursor_place(unsigned item);            /* the item's place in the text map, a byte offset */
+uint16_t option_code_press(unsigned i);                 /* the cheat code's i'th press (pad 2's word), i 1-7 */
+
 /* ---- the story card between acts (game/story_card.c) ---- */
 
 /* part 1-7's list of commands (the record's offset in bank $80), and a

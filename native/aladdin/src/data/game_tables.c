@@ -189,3 +189,28 @@ uint16_t story_card_text_start(uint8_t text)
 
 uint8_t story_card_text_byte(uint16_t at) { return cart8(cart_offset(CARD_BANK, at)); }
 uint16_t story_card_text_word(uint16_t at) { return cart16(cart_offset(CARD_BANK, at)); }
+
+/* ---- the options screen: the settings' words from $80:CE35 (five tables
+   of 4 words), the cursor's places at $CE5D (a word an item) and the cheat
+   code's presses from $CE63 (the first word is the last item's place: the
+   code's presses are numbered from 1) ---- */
+
+#define OPTIONS_BANK 0x80
+#define OPTION_WORDS_ADDR 0xCE35
+#define OPTION_CURSOR_ADDR 0xCE5D
+#define OPTION_CODE_ADDR 0xCE63
+
+uint16_t option_setting_word(unsigned line, unsigned setting)
+{
+    return cart16(cart_offset(OPTIONS_BANK, (uint16_t)(OPTION_WORDS_ADDR + 8 * line + 2 * setting)));
+}
+
+uint16_t option_cursor_place(unsigned item)
+{
+    return cart16(cart_offset(OPTIONS_BANK, (uint16_t)(OPTION_CURSOR_ADDR + 2 * item)));
+}
+
+uint16_t option_code_press(unsigned i)
+{
+    return cart16(cart_offset(OPTIONS_BANK, (uint16_t)(OPTION_CODE_ADDR + 2 * i)));
+}

@@ -44,11 +44,6 @@ PLACEHOLDER int LevelSelect(void)
     return 0;
 }
 
-PLACEHOLDER TaskRun OptionsTask(Task *t)
-{
-    unconverted("OptionsTask");
-    return task_exit(t);
-}
 
 
 
