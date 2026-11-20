@@ -6,7 +6,8 @@
 2. data/'s readers, built with tools/data_test.c outside the engine, must give
    what the ROM's bytes give, read here a second way from the formats the
    readers' comments state: every sound list the decomp knows
-   (config/aladdin/spclists.csv), the quarter sine, the demo scripts' range.
+   (config/aladdin/spclists.csv), the quarter sine, the demo scripts' range,
+   the 98 palette loads.
 3. With PLANT=1 one byte of a read range is changed in cart.dat first: the
    checks must then fail (they can).
 Exits 0 when everything matches. CC names the compiler (default cc); NSHVC_ROOT the engine."""
@@ -118,6 +119,75 @@ def main():
     demo = ' '.join(f'{rom[lorom(0x84, 0xF700) + i]:02X}/{rom[lorom(0x84, 0xF700) + i + 1]}' for i in range(0, 0x82, 2))
     sine_ok = out[len(numbers)] == 'sine ' + sine
     demo_ok = out[len(numbers) + 1] == 'demo ' + demo
+    pal, odd = [], 0
+    for i in range(98):
+        e = lorom(0x84, 0xC000) + 6 * i
+        src, n, dst = (rom[e] | rom[e + 1] << 8, rom[e + 2] | rom[e + 3] << 8, rom[e + 4] | rom[e + 5] << 8)
+        odd += (dst & 1) or dst >= 0x200
+        s = 0
+        for j in range(n):
+            o = lorom(0x84, (0xC000 + src + 2 * j) & 0xFFFF)
+            s = (s * 31 + (rom[o] | rom[o + 1] << 8)) & 0xFFFFFFFF
+        pal.append(f'{n}/{dst >> 1}/{s:08X}')
+    pal_ok = out[len(numbers) + 2] == 'palettes ' + ' '.join(pal) and not odd
+    fails += not pal_ok
+    print(f'readers: palette loads {"98 of 98 match" if pal_ok else "DIFFER"} (odd or past-the-palette places: {odd})')
+    # packed graphics, a second implementation from the format the readers state
+    def unpack(at, groups):
+        out = bytearray()
+        for _ in range(groups):
+            flags, fill = cart[at], cart[at + 1]; at += 2
+            for i in range(8):
+                if flags & 0x80:
+                    out.append(cart[at]); at += 1
+                else:
+                    out.append(fill)
+                flags = (flags << 1) & 0xFF
+        return out, at
+
+    low_src, code_read = [], 0
+
+    def summ(bank, addr, length):
+        nonlocal code_read
+        groups = ((length + 7) & 0xFFF8) >> 3
+        if addr < 0x8000:
+            low_src.append(f'{bank:02X}:{addr:04X}')
+        at = lorom(bank, addr)
+        out, end = unpack(at, groups)
+        code_read += sum(1 for i in range(at, end) if not inside[i])
+        s = 0
+        for x in out:
+            s = (s * 31 + x) & 0xFFFFFFFF
+        return f'{s ^ len(out):08X}', groups
+
+    w = lambda o: rom[o] | rom[o + 1] << 8
+    lv = []
+    for lvl in range(66):
+        x0 = w(lorom(0x80, 0xDF98) + 2 * lvl)
+        g8 = lambda a: rom[lorom(0x80, (0xDF98 + a) & 0xFFFF)]
+        g16 = lambda a: g8(a) | g8(a + 1) << 8
+        n = g8(x0); part = f'{lvl}:'
+        for i in range(n):
+            e = x0 + 7 * i
+            sm, _ = summ(g8(e + 3), g16(e + 1), g16(e + 4))
+            part += f'v{g16(e + 6):04X}/{g16(e + 4)}/{sm}'
+        if n:
+            kx = x0 + 7 * n
+            for i in range(g8(kx + 1)):
+                e = kx + 5 * i
+                sm, _ = summ(g8(e + 4), g16(e + 2), g16(e + 5))
+                part += f'k{sm}'
+        lv.append(part)
+    lv_ok = out[len(numbers) + 3] == 'levels ' + ' '.join(lv)
+    sets = []
+    for s_ in range(50):
+        e = lorom(0x80, 0xF039) + 7 * s_
+        sm, groups = summ(rom[e + 4], w(e + 2), w(e + 5))
+        sets.append(f'{w(e):04X}/{groups}/{sm}')
+    sets_ok = out[len(numbers) + 4] == 'sets ' + ' '.join(sets)
+    fails += (not lv_ok) + (not sets_ok)
+    print(f'readers: level graphics (66 levels) {"match" if lv_ok else "DIFFER"}; unpack sets 0-49 {"match" if sets_ok else "DIFFER"}; '
+          f'sources below $8000: {len(low_src)} {low_src[:6]}; packed bytes read from code left out: {code_read}')
     print(f'readers: sound lists {len(numbers) - lists_bad} of {len(numbers)} match; quarter sine {"matches" if sine_ok else "DIFFERS"}; '
           f'demo scripts {"match" if demo_ok else "DIFFER"}')
     fails += lists_bad + (not sine_ok) + (not demo_ok)

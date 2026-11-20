@@ -45,6 +45,46 @@ uint16_t sound_list_start(unsigned list);   /* the address its end names: where 
    (video/window_effects.c's HalfSineBuild) */
 uint8_t quarter_sine_step(unsigned step);   /* step < 64 */
 
+/* the palette loads (video/palette.c's PaletteLoad): load `set` copies
+   palette_load_count(set) colours to the palette from colour
+   palette_load_first(set) on. The count is the original's: 0 copies 65,536. */
+#define PALETTE_LOADS 98
+uint16_t palette_load_count(uint8_t set);
+uint8_t palette_load_first(uint8_t set);     /* a colour index, 0-255 */
+uint16_t palette_load_colour(uint8_t set, uint16_t i);  /* its i'th colour, 15-bit */
+
+/* packed graphics (video/unpack.c's UnpackGroup): groups of 8 bytes, each
+   a flag byte and a fill byte, then a source byte for each flag bit set
+   (from the top) and the fill for each clear */
+typedef struct PackedGraphics {
+    DataRef src;
+    uint16_t groups;            /* 8-byte groups it unpacks to */
+} PackedGraphics;
+uint32_t unpack_graphics(PackedGraphics p, uint8_t *out);   /* writes p.groups * 8 bytes; returns them */
+
+/* a level's graphics (video/unpack.c's LevelGraphicsLoad): parts unpacked and
+   sent to video memory, then parts kept unpacked one after another in the
+   graphics buffer (from its $5800 on) */
+typedef struct LevelVramPart {
+    PackedGraphics packed;
+    uint16_t bytes;             /* how many of the unpacked bytes go */
+    uint16_t to;                /* the VRAM word address they go to */
+} LevelVramPart;
+#define LEVEL_GRAPHICS 66       /* the levels the table has (its first list starts after 66 words) */
+unsigned level_vram_parts(uint16_t level);
+LevelVramPart level_vram_part(uint16_t level, unsigned i);
+unsigned level_kept_parts(uint16_t level);
+PackedGraphics level_kept_part(uint16_t level, unsigned i);
+
+/* the packed sets (video/unpack.c's UnpackSetBegin): set `set` unpacks to
+   the graphics buffer at `to` */
+typedef struct UnpackSetEntry {
+    uint16_t to;                /* its place in the graphics buffer (the original's bank $7F) */
+    PackedGraphics packed;
+} UnpackSetEntry;
+#define UNPACK_SETS 50          /* $80:F039 on, 7 bytes each; from set 50 the bytes are not sets (banks below $80) */
+UnpackSetEntry unpack_set(uint8_t set);    /* set < UNPACK_SETS */
+
 /* ---- input: the demos' pad scripts (system/input_modes.c) ---- */
 
 typedef struct DemoStep {

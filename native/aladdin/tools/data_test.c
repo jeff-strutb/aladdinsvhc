@@ -36,6 +36,17 @@ void nshvc_asset_close(nshvc_asset a)
     fclose(asset_file);
 }
 
+static uint8_t unpacked[0x80000];
+
+static uint32_t sum_of(PackedGraphics p)
+{
+    uint32_t n = unpack_graphics(p, unpacked), j, sum = 0;
+
+    for (j = 0; j < n; j++)
+        sum = sum * 31u + unpacked[j];
+    return sum ^ n;
+}
+
 int main(int argc, char **argv)
 {
     unsigned i, b;
@@ -63,6 +74,31 @@ int main(int argc, char **argv)
     for (i = 0; i < 0x82; i += 2) {
         DemoStep s = demo_step_at((uint16_t)i);
         printf(" %02X/%u", s.buttons, s.frames);
+    }
+    printf("\npalettes");
+    for (i = 0; i < PALETTE_LOADS; i++) {
+        uint32_t sum = 0, j, n = palette_load_count((uint8_t)i);
+
+        for (j = 0; j < n; j++)
+            sum = sum * 31u + palette_load_colour((uint8_t)i, (uint16_t)j);
+        printf(" %u/%u/%08X", (unsigned)n, palette_load_first((uint8_t)i), sum);
+    }
+    printf("\nlevels");
+    for (i = 0; i < LEVEL_GRAPHICS; i++) {
+        unsigned n = level_vram_parts((uint16_t)i), k = level_kept_parts((uint16_t)i);
+
+        printf(" %u:", i);
+        for (b = 0; b < n; b++) {
+            LevelVramPart p = level_vram_part((uint16_t)i, b);
+            printf("v%04X/%u/%08X", p.to, p.bytes, sum_of(p.packed));
+        }
+        for (b = 0; b < k; b++)
+            printf("k%08X", sum_of(level_kept_part((uint16_t)i, b)));
+    }
+    printf("\nsets");
+    for (i = 0; i < UNPACK_SETS; i++) {
+        UnpackSetEntry u = unpack_set((uint8_t)i);
+        printf(" %04X/%u/%08X", u.to, u.packed.groups, sum_of(u.packed));
     }
     printf("\n");
     return 0;

@@ -1,0 +1,24 @@
+data/: the cartridge's data as typed tables (plan section 3). Places live
+only in the .c files here, behind data_internal.h. Checked by
+tools/data_check.py ROM (every range against the ROM, every reader against a
+second reading of the ROM; PLANT=1 shows it can fail).
+
+Readers (2026-11-19), 8 tables:
+  sound_tables.c  the 55-entry upload table at $85:8000 and its lists (42 used: config/aladdin/spclists.csv)
+  video_tables.c  the quarter sine ($82:87D4, 64 steps); the palette loads ($84:C000, 98);
+                  the packed-graphics format; the level graphics lists ($80:DF98, 66 levels);
+                  the unpack sets ($80:F039, 50)
+  input_tables.c  the demos' pad scripts ($84:F700)
+
+Not readable from cart.dat as it is (stage 0's assets.csv leaves out every
+byte the S-CPU runs, and 8,972 of them, in 177 runs, are also read as data
+by the traces):
+  - AnimSetGraphicsUnpack's entries at $82:AC18 (a word per animation set)
+    lie inside the routine at $82:AC10; cart.dat has zeros there. No reader
+    until those bytes are kept.
+  - The other runs (most in $80:8000-$80:B56E, and single bytes after task
+    calls) are listed in the session notes (code-read-as-data.txt); which of
+    them the native game needs is settled by the code that reads them.
+
+Record comment that is wrong, found here: video/unpack.c's LEVEL_GFX says
+bank $81; LevelGraphicsLoad runs with DB = $80 and the table is $80:DF98.
