@@ -6,7 +6,10 @@
 #ifndef ALADDIN_MAP_H
 #define ALADDIN_MAP_H
 
+#include <stdbool.h>
 #include <stdint.h>
+
+#include "system/state.h"
 
 /* level_map.c */
 void LevelMapBuild(void);               /* 81:BEEF (LevelMapBuildLong 81:BEEB): for g.level */
@@ -15,5 +18,11 @@ void ScreenMapLayout(uint16_t level, unsigned layout, unsigned first_place);    
 /* tile_changes.c */
 void TileChangesApply(void);            /* 81:999A */
 uint16_t MapTileAddress(uint16_t x, uint16_t y);    /* 81:9C50: the tile under the point, its index in g.level_tiles */
+
+/* wanted */
+
+/* (n5-kinds-d, for kind $30: map/collision.c's) */
+bool ActorOutOfWallProbe4(Actor *a);    /* 81:B5AD: moved out of a wall at probe 4 in front of it: true when moved */
+bool ActorOutOfGround(Actor *a);        /* 81:B4F3: raised out of the ground at its probes: true when raised (the original's Z clear) */
 
 #endif

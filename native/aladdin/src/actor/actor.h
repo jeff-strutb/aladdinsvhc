@@ -184,4 +184,11 @@ unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
 
 /* wanted */
 
+/* (n5-kinds-d, for kinds $27 and $30; actors A's, as its actor.h draft has
+   the first two) */
+bool ActorHitsTestBox(const Actor *a);              /* 83:8312, 83:8300 Long: it can be hit and overlaps the test box */
+int ActorEndOutOfRange(Actor *a, uint8_t at);       /* 83:96BE, 83:9659 Long: ended when out of range */
+Actor *ActorTakesShot(Actor *a);                    /* 83:81E8: the shot (its +$11 not negative) that reached it, stopped, its
+                                                       hit marked (kind $11) and its facing taken; NULL none */
+
 #endif
