@@ -201,4 +201,7 @@ void ActorSpawnPair(Actor *a);                      /* 83:D332: two children lik
 bool PlayerLandsOnActor(Actor *a);                  /* 83:848D: Aladdin came down on top of it: stood on it, his code at his
                                                        landing, a kind $11 at his feet (actor/player_landing.c) */
 
+/* (kinds B; its stand-in in actor/wanted_b.c) */
+void ActorFlagOnce(Actor *a);           /* 83:CF10 (actor_steps.c), its cases 83:CF31-CF67 (flag_drops.c): drops its children once */
+
 #endif
