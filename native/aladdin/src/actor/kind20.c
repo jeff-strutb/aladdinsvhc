@@ -15,9 +15,9 @@
  * cartridge has no RAM there (plan section 1 item 8): that test is left
  * out.
  */
-#include <stdio.h>
 
 #include "actor/actor_own.h"
+#include "actor/kinds_b.h"
 #include "actor/kinds_d.h"
 #include "audio/sound.h"
 #include "data/kinds_d_tables.h"
@@ -343,7 +343,8 @@ static Actor *pot_of(Actor *a) { return &g.actors[a->own.bytes[POT]]; }
  * made, it walks. The pot's +$40 and its POT name each other's records.
  * When the pot's record comes before its own, the two records are swapped
  * whole, the guard to wait in the pot's old record (at
- * Kind20CarrierWaits), and this record goes on as the pot, at Kind42Start.
+ * Kind20CarrierWaits), and this record goes on as the pot, at Kind42Start
+ * (ActorRunAs).
  */
 static int carrier(Actor *a)
 {
@@ -365,22 +366,15 @@ static int carrier(Actor *a)
     own16_set(pot, POT_PARENT, (uint16_t)(a - g.actors));
     own16_set(a, POT, (uint16_t)(pot - g.actors));
     if (pot < a) {
-        static int told;
         Actor kept;
 
         a->resume = CARRIER_WAITS;
         kept = *pot;
         *pot = *a;
         *a = kept;
-        /* this record now runs the pot's code from its start, in this same
-           turn: the hand-over to another kind's code waits for
-           native-setup's answer (kinds-d-shared-kinds.md section 2), so
-           the pot starts at its next turn */
-        if (!told++)
-            fprintf(stderr, "Kind20Carrier: the hand-over to kind $42's code (Kind42Start) not converted: "
-                            "the pot starts a frame late\n");
-        a->resume = ACTOR_START;
-        return 1;
+        /* this record goes on as the pot, from its start, in this same turn
+           (the original's JMP Kind42Start) */
+        return ActorRunAs(a, Kind42Start, ACTOR_START);
     }
     a->resume = CARRIER_WAITS;
     return 1;
