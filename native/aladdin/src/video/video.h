@@ -32,9 +32,10 @@
  *   $5000-$6FFF  BG3's tiles, 2bpp, 1,024
  *   $5C00-$5FFF  BG3's map, 32 x 32 (also BG1's on the title)
  * Writes of the low bytes alone are Mode 7's map, of the high bytes alone its
- * pixels. Nothing is kept behind these writes: what the original read back
+ * pixels. The address has 15 bits, as the original's: past $7FFF a write
+ * goes on at 0. Nothing is kept behind these writes: what the original read back
  * from video memory, its callers now pass (Mode7ScreenSetup; Jeff,
- * 2026-11-19). A write past the 32K words is reported and dropped.
+ * 2026-11-19).
  *
  * Screens outside video/ name what they write (VramCopy entries, a VideoMap);
  * the numeric address is for records that come from the cartridge's tables

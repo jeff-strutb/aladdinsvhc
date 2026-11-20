@@ -118,11 +118,14 @@ static void mode7_word(uint32_t at, uint16_t w)
 
 static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
 {
-    uint32_t first = address, from, k;
+    uint32_t first = address & 0x7FFFu, from, k;
 
+    /* the video address has 15 bits: past $7FFF a write goes on at 0 */
     if (first + n > 0x8000) {
-        fprintf(stderr, "video: a write of %u words at video address %04X runs past video memory's 32K words; dropped\n",
-                n, address);
+        uint32_t part = 0x8000 - first;
+
+        write_words((uint16_t)first, w, part);
+        write_words(0, w + part, n - part);
         return;
     }
 
