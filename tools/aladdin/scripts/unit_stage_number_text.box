@@ -1,0 +1,8 @@
+# StageNumberText (81:CC80), which nothing in the game calls (no JSR, JMP,
+# JSL or JML names it, no word in bank $81 does): a unit call at its entry
+# by JSR, M and X 8-bit, DB $80, in a level (stage_a0_s0, 120 frames in),
+# with LEVEL_035C ($035C) act 2, stage 1; the machine put back after.
+load build/aladdin/states/stage_a0_s0.state
+wait 120
+set 00035C 02,01
+call 81CC80 p=30 db=80

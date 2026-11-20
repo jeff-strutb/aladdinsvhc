@@ -24,6 +24,11 @@ void abi_SecondPoolFreeAll(void);
 void abi_SoundQueueF6With1(void);
 void abi_TaskCreate(void);
 void abi_TaskExec(void);
+void abi_ActorSnapToGround(void);
+void abi_SongPlay(void);
+void abi_TextLayoutShow(void);
+void abi_PlayerSceneFigure(void);
+void abi_PlayerSpotExitFade(void);
 
 #define SCENE_ON 0x03FAu            /* counted up as a stage ends */
 #define V_1454 0x1454u              /* counted up as a stage ends */
@@ -33,6 +38,13 @@ void abi_TaskExec(void);
 #define EXIT_X_MAX 0x2060u          /* the escort walk's x pixels go no further */
 #define FRAMES_40 ACTOR_40          /* frames left of the walk's first part */
 #define STAGE_GOES_ON 0xC6F2u       /* by level: nonzero, the level's end follows; 0 the next part */
+#define EXIT_SONG 0x28              /* the song at an exit spot */
+#define EXIT_POSE 0x19              /* his pose there */
+#define STAGE_BASE 0xC710u          /* by act: what the stage's digit adds to LEVEL_035C+1 */
+#define V_146B 0x146Bu
+#define V_147B 0x147Bu
+#define V_1448 0x1448u
+#define V_036C 0x036Cu              /* nonzero: kind $27 figures were touched (on at PlayerSceneFigure) */
 
 /* A JSL at `site`: its return address on the stack while the callee runs,
    as the original's. */
@@ -161,6 +173,50 @@ void abi_PlayerStageEnd(void)
 }
 
 /*
+ * @routine 81:CBF9 PlayerSpotExit
+ * @actor
+ * WHAT IT DOES: Aladdin at a level's exit spot: the stage's end song, he
+ * is put on the ground in pose $19 for 128 frames; then the running task
+ * goes on at the Genie screen's (kind $27 figures touched) or the screen
+ * fades out (PlayerSpotExitFade).
+ * HOW: SecondPoolFreeAll; BRK; SongPlay $28; V_146B $80; SCENE_ON, V_1454
+ * and V_147B up; LEVEL_035C compared with 3 (its BEQ goes to the next
+ * instruction either way); V_1448 0; ActorSnapToGround; PlayerMoveStart
+ * $19; COP $80. V_036C 0: on at PlayerSpotExitFade; else on into
+ * PlayerSceneFigure (81:CC31).
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI where LevelExitCheck set his code (EXIT_WALK, the
+ * levels not marked at $80:B96B). Exit: never returns.
+ */
+void abi_PlayerSpotExit(void)
+{
+    jsl_call(0x81CBF9u, abi_SecondPoolFreeAll);
+    actor_yield(0x81CBFDu);
+    lda8_v(EXIT_SONG);
+    jsl_call(0x81CC01u, abi_SongPlay);
+    lda8_v(0x80);
+    sta8(ea_abs(V_146B));
+    MEM8(inc, ea_abs(SCENE_ON));
+    MEM8(inc, ea_abs(V_1454));
+    MEM8(inc, ea_abs(V_147B));
+    lda8(ea_abs(LEVEL_035C));
+    cmp8_v(0x03);                               /* its BEQ goes to the next instruction */
+    lda8_v(0x00);
+    sta8(ea_abs(V_1448));
+    jsl_call(0x81CC1Fu, abi_ActorSnapToGround);
+    lda8_v(EXIT_POSE);
+    call_frame(0xCC27, abi_PlayerMoveStart);
+    lda8_v(0x80);
+    actor_wait(0x81CC2Au);
+    lda8(ea_abs(V_036C));
+    if (IF_Z) {
+        abi_PlayerSpotExitFade();
+        return;
+    }
+    abi_PlayerSceneFigure();
+}
+
+/*
  * @routine 81:CC31 PlayerSceneFigure
  * @actor
  * WHAT IT DOES: The end of a level scene when one of kind $27's figures was
@@ -187,4 +243,75 @@ void abi_PlayerSceneFigure(void)
     actor_wait(0x81CC48u);
     jsl_frame(0x81CC4Au);
     abi_TaskExec();                             /* to the Genie screen's task, 80:A63B */
+}
+
+/*
+ * @routine 81:CC51 PlayerSpotExitFade
+ * @actor
+ * WHAT IT DOES: The exit spot's fade: the screen fades out, and the running
+ * task goes on at the level's end, the story card or the next part.
+ * HOW: TaskCreate BrightnessDownTask in slot 2 with parameter 4. Each frame
+ * (BRK first) until TASK2_STATE is 0. STAGE_GOES_ON by LEVEL (X 8-bit):
+ * positive, TaskExec LevelEndTask; negative (levels $3A on, which the game
+ * has not), TaskExec StoryCardTask; 0, TaskExec NextPartTask.
+ * Entry: as PlayerSpotExit; reached by its branch (81:CC2F) with V_036C 0.
+ * Exit: never returns.
+ */
+void abi_PlayerSpotExitFade(void)
+{
+    uint32_t site;
+
+    jsl_frame(0x81CC51u);
+    abi_TaskCreate();
+    cpu.unwound = 0;
+    do {
+        actor_yield(0x81CC5Au);
+        lda8(ea_abs(TASK2_STATE));
+    } while (!IF_Z);
+    ldx8(ea_abs(LEVEL));
+    lda8(ea_absx(STAGE_GOES_ON));
+    if (IF_Z)
+        site = 0x81CC79u;                       /* NextPartTask */
+    else if (IF_N)
+        site = 0x81CC72u;                       /* StoryCardTask */
+    else
+        site = 0x81CC6Bu;                       /* LevelEndTask */
+    jsl_frame(site);
+    abi_TaskExec();
+}
+
+/*
+ * @routine 81:CC80 StageNumberText
+ * WHAT IT DOES: Puts the act and stage numbers ("act-stage") in the text
+ * layer with text layout 8, for the NMI to upload. Nothing in the game
+ * calls it: no JSR, JMP, JSL or JML names 81:CC80 and no word in bank $81
+ * does; a unit call at its entry runs it.
+ * HOW: TextLayoutShow 8; X = LEVEL_035C (the act); the act's digit (the
+ * act plus 1, unless it is 6) at TEXT_TILEMAP+$2DC, tile $1E at +$2DE, the
+ * stage's digit (LEVEL_035C+1 plus STAGE_BASE by the act) at +$2E0, each
+ * with attribute $20; TEXT_TILEMAP_UPLOAD up.
+ * Entry: M 8-bit, X 8-bit; DB = $80; called by JSR. Exit: M and X 8-bit;
+ * A = $20; X = the act.
+ */
+void abi_StageNumberText(void)
+{
+    lda8_v(0x08);
+    jsl_call(0x81CC82u, abi_TextLayoutShow);
+    lda8(ea_abs(LEVEL_035C));
+    tax8();
+    cmp8_v(0x06);
+    if (!IF_Z)
+        ACC8(inc);
+    sta8(ea_long(TEXT_TILEMAP + 0x2DC));
+    lda8_v(0x1E);
+    sta8(ea_long(TEXT_TILEMAP + 0x2DE));
+    clc();
+    lda8(ea_abs(LEVEL_035C + 1));
+    adc8_v(rd8(ea_absx(STAGE_BASE)));
+    sta8(ea_long(TEXT_TILEMAP + 0x2E0));
+    lda8_v(0x20);
+    sta8(ea_long(TEXT_TILEMAP + 0x2DD));
+    sta8(ea_long(TEXT_TILEMAP + 0x2DF));
+    sta8(ea_long(TEXT_TILEMAP + 0x2E1));
+    MEM8(inc, ea_abs(TEXT_TILEMAP_UPLOAD));
 }

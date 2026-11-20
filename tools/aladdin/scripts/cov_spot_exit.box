@@ -1,0 +1,56 @@
+# A level's end at its exit spot (LevelExitCheck, 81:872E): with Aladdin
+# within 8 pixels of the spot, a level the table at $80:B96B does not mark
+# sets his code to PlayerSpotExit (81:CBF9); no play reaches a spot (most
+# lie at a level's far end). Level $0A (stage a3 s2), whose spot is at
+# x $0CF0, y $0088: the camera put at its right end (x $0C70) and Aladdin
+# dropped onto the spot. 13 frames on his code is $CBF9; the song, the
+# pose for 128 frames, then PlayerSpotExitFade (81:CC51), whose fade ends
+# (TASK2_STATE 0) at frame 175.
+# 1. Level $0A's STAGE_GOES_ON entry ($80:C6F2+level) is 1: LevelEndTask
+#    (81:CC6B).
+# 2. The level ($035E) set to $0B (entry 0) just before frame 175:
+#    NextPartTask (81:CC79), which takes the level from the game's
+#    progress again.
+# 3. The level set to $3A just before frame 175: the first level number
+#    whose entry is negative (the game has levels up to $30); the story
+#    card (81:CC72), which sets the level to $30 itself and shows act 3's
+#    card (LEVEL_035C).
+# 4. PlayerSpotExitFade at its own entry (PlayerSpotExit reaches it by a
+#    branch, where no call is opened): his code set to $CC51 (the
+#    record's P, PC), as the actor loop resumes it, 30 frames into the
+#    level: the fade, then LevelEndTask.
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 001773 70,0C
+poke 0019E5 70,0C
+poke 0008E7 F0,0C
+poke 0008EA 70,00
+wait 300
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 001773 70,0C
+poke 0019E5 70,0C
+poke 0008E7 F0,0C
+poke 0008EA 70,00
+wait 174
+poke 00035E 0B,00
+wait 200
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 001777 00,00
+poke 0019E9 00,00
+poke 001773 70,0C
+poke 0019E5 70,0C
+poke 0008E7 F0,0C
+poke 0008EA 70,00
+wait 174
+poke 00035E 3A,00
+wait 400
+load build/aladdin/states/stage_a3_s2.state
+wait 30
+poke 0008DD 30,51,CC
+wait 120
