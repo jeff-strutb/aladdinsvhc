@@ -102,6 +102,14 @@ arch 65816
 ; else 3 gems), a continue ($B4 $2C, GeniePrizeSignal80, $035B up, $30
 ; frames), 1 gem ($B4 $33), health filled or 1 gem ($B4 $20), 2 gems
 ; ($B4 $33); then GenieScreenEnd (the health fill: from its sound).
+; @unreachable 80:AA49-AA4D The slot count run below 0: the DEC at 80:AA44
+; follows only GenieSlotEnd's C clear (80:AA23), and with $00A9 0 that
+; compare is CMP $DA6B,X against $00, which sets C, so $00A9 is 1-7 there
+; ($00A9 is only ever 0-7: STZ, INC to 4 at 80:A844/A8A4, GenieSlotStep's
+; INC wrapping 7 to 0, this DEC); the DEC leaves 0-6 and the BPL is always
+; taken. No frame boundary lies between GenieSlotEnd's return and that DEC
+; (80:AA20-AA44 calls no GenieFrame or TaskWait), so no poke can land
+; there (master, 2026-11-19).
 ; Entry: M 8-bit, X 8-bit; a task's entry, by TaskExec from
 ; PlayerSceneFigure (81:CC4A). Exit: never returns (TaskExec).
 %at($80A63B)

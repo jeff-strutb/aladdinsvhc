@@ -1,0 +1,335 @@
+# The Genie screen's prizes (GenieScreen, 80:A63B, its jump table at
+# 80:AA6A by the slot the wheel stops on). Played as
+# cov_scene_land_figure.box plays to the screen (act 1 stage 0's end with
+# $036C set), 120 frames longer; then B starts the wheel, B again 120
+# frames on stops it, and it slows and stops by itself about 305 frames
+# later; in the $20 frames it waits after (80:AA35, which reads none of
+# them) the wheel's angle ($00A8) is set to a slot's (the bounds at
+# $80:DA96: 0B 2F 57 81 A9 D3 F9), so the prize read at 80:AA4E is that
+# slot's. One pass each: $05 (a lamp: health top $0365 up, GenieHealthFill),
+# $05 with $0365 $0A and the gems $0364 $63 (the lamp's 3 gems, stopping
+# at 100), $20, $90 and $E0 (a continue, slots 1, 4, 6), $70 (slot 3: health
+# at its top, a gem), $70 with health $0367 2 (health filled), $C0 (2
+# gems), $FC (past the last bound: slot 0), $40 (slot 2: a gem; then 1200
+# frames, to the screen's end and TaskExec). Three more passes set the
+# wheel's state at a frame boundary in its stopping loops: 100 frames
+# after the second B (slowing, 80:A976) its speed ($00A5) 0, so it runs
+# out there (80:A993); 850 frames after (stopping, 80:AA07) its angle 0,
+# short of its slot's end (80:AA3F); and there its slot count ($00A9) 1
+# with the angle $10 (80:ABF2).
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 05
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 05
+poke 000365 0A
+poke 000364 63
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 20
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 90
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 E0
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 70
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 70
+poke 000367 02
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 C0
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 FC
+wait 500
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 920
+poke 0000A8 40
+wait 1200
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 100
+poke 0000A5 00,00
+wait 1200
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 850
+poke 0000A8 00
+wait 600
+load build/aladdin/states/stage_a1_s0.state
+wait 30
+poke 001773 00,0B
+poke 0019E5 00,0B
+poke 0008E7 80,0B
+wait 10
+poke 001777 00,02
+poke 0019E9 00,02
+poke 0008EA 80,02
+wait 10
+poke 001773 00,0F
+poke 0019E5 00,0F
+poke 001777 00,03
+poke 0019E9 00,03
+poke 0008E7 80,0F
+poke 0008EA 80,03
+poke 00036C 01
+wait 1720
+hold B 4
+wait 120
+hold B 4
+wait 850
+poke 0000A9 01
+poke 0000A8 10
+wait 600
