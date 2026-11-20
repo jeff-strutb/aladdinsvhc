@@ -163,7 +163,7 @@ typedef struct TileChange {
 #define TILE_CHANGES_SIZE 32
 
 #define LEVEL_TILES_WORDS 0x8000    /* the original's bank $7F, a word a tile, as far as a screen's offset reaches */
-#define SCREEN_MAP_PLACES (32 * 32)
+#define SCREEN_MAP_PLACES 1024      /* 32 x 32 */
 #define BLOCK_SOURCES_SIZE 40       /* the most screens a level builds (40, from the map headers) */
 /* One of a scroll layer's four edges (+$00 left, +$0A right, +$14 top,
    +$1E bottom of its record, 10 bytes each): a place in its video map and
