@@ -1,0 +1,28 @@
+NOTES-actors-a: the routines of actors A's record files (the core list of
+build/aladdin/writers/NATIVE-STAGE5-SPLIT.txt) that have no function of
+their own here, and why. Everything else converted so far has a function
+under its own @routine tag, or is named in an "Also" line of the function
+it is part of.
+
+Dead (the record's own proof, at its @routine tag)
+--------------------------------------------------
+actor_range.c (no JSR, JSL, JMP, pointer or word in the ROM names them; a
+unit script alone runs them):
+  83:95FA ActorEndOutOfView, 83:9604 ActorEndOutOfViewLong,
+  83:960F ActorEndOutOfViewDrop4, 83:961A ActorEndOutOfViewLongDrop8
+         (each also @unreachable: its end pulls a return no caller pushes)
+  83:9653 ActorInRange8, 83:964D ActorInRangeLong
+  83:9677 ActorFreeOutOfRangeXLong, 83:967B ActorFreeOutOfRangeX
+  83:9686 ActorEndOutOfRangeX, 83:96BA ActorEndOutOfRangeXLong
+  83:968E ActorInRangeXLong, 83:9692 ActorInRangeX (called only by the dead above)
+  83:96A4 ActorInRangeYLong, 83:96A8 ActorInRangeY (likewise)
+hit_box.c:
+  83:80AE ActorHitsTestBoxIfActiveLongB, 83:80B2 ActorHitsTestBoxIfActiveJump
+         (no JSL, JMP, pointer or word names the first; the second only from it)
+player_landing.c:
+  83:80B9 PlayerPushAsideIfTouched (no JSR, JSL, JMP, pointer or word names it)
+player_near.c (no code refers to them; a unit script alone runs them):
+  81:AB50 ActorRecordBelow, 81:AB73 ActorRecordLeft, 81:AB96 ActorSideOfPlayerWide
+player_relation.c (likewise):
+  81:AF01 PlayerInFrontBoxByFlip, 81:ABC0 PlayerOffsetPoint,
+  81:ABB4 ActorDirectionToPlayerOffset, 81:ABBA ActorAimAtPlayerOffset

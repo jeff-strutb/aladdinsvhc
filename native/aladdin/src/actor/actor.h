@@ -111,6 +111,10 @@ void AnimStep(Actor *a);        /* 81:912B: one frame of time on */
 #define ACTOR_RETURNS (-1)      /* back to its caller (the original's C clear where it says) */
 #define ACTOR_RETURNS_C (-2)    /* back to its caller with the original's C set */
 
+/* Own bytes the shared routines use (actor_own.h's OwnPlace): OWN_11, hits
+   it takes (a stomp takes one); OWN_35-OWN_36, where ActorStompedByPlayer
+   keeps a->resume (low byte first). */
+
 /* range of the camera's point (actor_range.c, wait_step.c) */
 bool ActorInRange(const Actor *a, uint8_t at);      /* 83:962C: true in range of the point by box `at` (8 bytes a box) */
 int ActorEndOutOfRange(Actor *a, uint8_t at);       /* 83:96BE, 83:9659 Long: ended when out of range */
@@ -129,6 +133,7 @@ uint8_t ActorDirectionToPlayer(const Actor *a);     /* 81:ABEA: a direction of t
 uint8_t ActorDirectionToPoint(const Actor *a, uint16_t x, uint16_t y);     /* 81:ABFB */
 uint8_t ActorAimAt(const Actor *a, uint16_t x, uint16_t y);                /* 81:AC68: a direction of the table at $80:BC03 */
 void ActorFacePlayer(Actor *a);                     /* 83:FC96 */
+bool PlayerInFrontBox(const Actor *a, uint8_t at);  /* 81:AEFD: he is inside box `at` in front of it (6 bytes a box) */
 
 /* touches: the test box, zones, the player's (hit_box.c, actor_overlap.c, player_touch.c, solid_actor.c) */
 bool ActorHitsTestBox(const Actor *a);              /* 83:8312, 83:8300 Long: it can be hit and overlaps the test box */
@@ -137,6 +142,11 @@ bool ActorHitsTestBoxIfPlayerFree(const Actor *a);  /* 83:8304, 83:82F4 Long: th
 bool ActorHurtsPlayerOnTouch(Actor *a);             /* 83:80A5, 83:80A1 Long: true when he was hurt */
 bool ActorStompOrHurt(Actor *a);                    /* 83:83C9, 83:83C5 Long: true when he was hurt (false: stomped, or no touch) */
 bool ActorBouncesPlayer(Actor *a);                  /* 83:840F: true when he bounced off it */
+bool ActorStompOrHurt16(Actor *a);                  /* 83:83AD: as ActorStompOrHurt, above by a margin of 16 */
+void ActorStompedByPlayer(Actor *a);                /* 83:8362, 83:835E Long */
+uint8_t ActorBouncesOrHurtsPlayer(Actor *a);        /* 83:844A, 83:8446 Long: 2 he was hurt, 1 he stands on it, 0 neither */
+bool PlayerLandsOnActor(Actor *a);                  /* 83:848D: true when he landed on it */
+void PlayerPushAside(const Actor *a);               /* 83:80C3, 83:80B5 Long: he is put beside it */
 bool ActorZoneHasTestBox(const Actor *a, uint8_t zone_at);     /* 83:8752 */
 bool ActorZoneHasTestPoint(const Actor *a, uint8_t zone_at);   /* 83:87EC, 83:87E8 Long */
 bool ActorZoneHurtsPlayer(Actor *a, uint8_t zone_at);          /* 83:8743: true when he was hurt */
