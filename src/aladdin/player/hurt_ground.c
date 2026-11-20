@@ -101,6 +101,13 @@ void abi_PlayerGroundSnapHurt(void)
  * bit 5 clear: back, by the RTS that ends PlayerOutOfWallsHurt (81:DD1D).
  * Else PlayerEnter8CLong, the call's return address dropped (PLA PLA) and
  * on at PlayerKnockbackFromLedge (81:DAEB).
+ * @unreachable 81:DCF7-DCFF The hurt arm: nothing in the ROM calls 81:DCE4,
+ * and the arm drops its caller's return address (PLA PLA) and jumps into
+ * the player's code (PlayerKnockbackFromLedge), so it needs a JSR from a
+ * player state, which no code makes; a unit call cannot give it one, and
+ * ActorOutOfWalls sets TILE_BEHAVIOUR from its own wall probes, so a value
+ * set before the call does not reach the test (measured) (the master,
+ * 2026-11-19: exempt, as the bank $83 end paths).
  * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; called by
  * JSR. Exit: M and X as ActorOutOfWalls left them; A low, N and Z as the
  * last test left them. Hurt: never returns.
