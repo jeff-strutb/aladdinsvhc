@@ -1,28 +1,43 @@
-/* main.c: the game's entry on the engine. The engine owns the loop and calls
-   update 60 times a second and draw once a picture. The screen is the
-   original's 256 x 224 and shows nothing yet. */
+/*
+ * main.c: the game's entry on the engine. The engine owns the loop and calls
+ * update 60 times a second, each one frame of the original (plan, "The
+ * loop"): the NMI's game work (the frame count, the tasks' countdown, the
+ * sound command), every ready task's turn, then the NMI's picture work
+ * (video_vblank: what the tasks queued, written to the engine's objects).
+ * Over time that is the original's order, tasks, uploads, countdown, sound,
+ * tasks; the picture draw sets between them is what the original showed
+ * from that NMI on.
+ */
 #include <inttypes.h>
 #include <stdio.h>
-#include <string.h>
 
+#include "data/data.h"
 #include "nshvc/nshvc.h"
+#include "system/system.h"
+#include "system/task.h"
+#include "system/unconverted.h"
 
 static uint64_t pictures;
 
+static void init(void)
+{
+    data_load();
+    PowerOn();
+    video_init();
+}
+
 static void update(const nshvc_input *input)
 {
-    (void)input;
+    NmiHandler();
+    TaskScheduler(input);
+    NmiPictureWork();
 }
 
 static void draw(float between)
 {
-    nshvc_screen scr;
-
     (void)between;
     pictures++;
-    memset(&scr, 0, sizeof scr);
-    scr.blank = 1;
-    nshvc_screen_set(&scr);
+    video_draw();
 }
 
 static void shutdown(void)
@@ -33,9 +48,11 @@ static void shutdown(void)
 int main(int argc, char **argv)
 {
     static nshvc_game game;
+
     game.title = "Aladdin";
     game.id = "aladdin";
     game.update_hz = 60;
+    game.init = init;
     game.update = update;
     game.draw = draw;
     game.shutdown = shutdown;

@@ -1,0 +1,56 @@
+/*
+ * system.h: power-on, the frame's NMI work, the pads, the display switches,
+ * random numbers and the clears other areas call (the record's system/).
+ */
+#ifndef ALADDIN_SYSTEM_H
+#define ALADDIN_SYSTEM_H
+
+#include <stdint.h>
+
+#include "nshvc/nshvc.h"
+#include "system/task.h"
+
+/* SNES pad bits, as the game keeps a pad's buttons (g.pad_held) */
+enum {
+    PAD_R = 1u << 4, PAD_L = 1u << 5, PAD_X = 1u << 6, PAD_A = 1u << 7,
+    PAD_RIGHT = 1u << 8, PAD_LEFT = 1u << 9, PAD_DOWN = 1u << 10, PAD_UP = 1u << 11,
+    PAD_START = 1u << 12, PAD_SELECT = 1u << 13, PAD_Y = 1u << 14, PAD_B = 1u << 15
+};
+
+/* power_on.c */
+void PowerOn(void);                     /* 80:8000: at init */
+
+/* nmi.c */
+void NmiHandler(void);                  /* 80:8111: the NMI's game work, before the tasks' turns */
+void NmiPictureWork(void);              /* its picture work (video_vblank), after them */
+
+/* display.c */
+void NmiEnable(void);                   /* 81:969F */
+void NmiDisable(void);                  /* 81:96A8 */
+void ScreenBlank(void);                 /* 81:96B1 */
+void ScreenFullBright(void);            /* 81:96C5 */
+
+/* input.c */
+void InputRead(const nshvc_input *input);   /* 81:BDB1 */
+void JoypadRead(const nshvc_input *input);  /* 81:BDCC */
+void ControlsRead(void);                /* 81:BDE9 */
+
+/* frame.c: a task's frame ends; each waits */
+TaskRun Wait64Frames(Task *t);          /* 80:AEB9 */
+TaskRun FrameEnd(Task *t);              /* 80:AE9A */
+TaskRun FrameEndTimes(Task *t, unsigned frames);    /* 80:B2D3: frames 1-256 (the record's X, 0 for 256) */
+
+/* random.c */
+uint8_t RandomNext(void);               /* 81:981B: the new high byte */
+
+/* options.c */
+uint8_t KeptOptionsSum(void);           /* 80:80FE */
+void KeptOptionsSeal(void);             /* 80:810A */
+
+/* reset.c */
+void LevelCountersClear(void);          /* 81:9647 */
+void GameRamClear(void);                /* 81:9655 */
+void Table15F1Clear(void);              /* 81:968F */
+void LevelTablesClear(void);            /* 81:967B */
+
+#endif

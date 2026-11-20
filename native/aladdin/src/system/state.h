@@ -39,8 +39,19 @@ typedef struct Task {
     uint8_t param;              /* +$06: the byte its creator gave it */
     uint16_t entry;             /* the task's entry, a TaskEntry of system/ (stage 4); the original's entry address */
     uint16_t resume;            /* where its chain stopped, in that entry's own numbering; 0 at its start */
+    uint16_t calls[5];          /* where each waiting routine its entry called stopped, one to five calls down
+                                   (system/task.h, task_enter); 0 not entered */
     union {
         uint8_t bytes[17];      /* +$07-$17: the task's own data; each entry's named view is stage 4's */
+        struct {                /* slot 0 in the opening story (game/opening_story.c) */
+            uint16_t frames_left;   /* $0076: frames the scene still runs */
+            uint8_t unused_0078;
+            uint16_t part3_done;    /* $0079: counted up by the story's third part at its end */
+            uint16_t part2_done;    /* $007B: counted up by its second part */
+        } story;
+        struct {                /* slot 0 on the title (game/title_task.c) */
+            uint8_t fade;           /* $0076: the colour fade's step, counted up to 0 */
+        } title;
     } own;
 } Task;
 
@@ -94,12 +105,12 @@ typedef struct Actor {
 
 /* A record of the VRAM queue ($085A, 8 bytes each): one copy to video
    memory the NMI made. 16 fit before the player's record ($08DB). */
-typedef struct VramCopy {
+typedef struct VramQueueEntry {
     uint16_t to;                /* +$00: the VRAM word address, which video/ turns into its object */
     const uint8_t *from;        /* +$02-$04: the source, the game's own array or cartridge data */
     uint16_t bytes;             /* +$05: how many */
     uint8_t step;               /* +$07: how the address steps: bit 7 after the high byte, bits 0-1 by how much */
-} VramCopy;
+} VramQueueEntry;
 
 #define VRAM_QUEUE_SIZE 16
 
@@ -158,6 +169,11 @@ typedef struct GameState {
     uint8_t kept_options_sum;   /* $0006: their 8-bit sum */
     uint16_t pad_held[2];       /* $0377, every 2 bytes: each pad's buttons held, as the SNES's word (B bit 15 ... R bit 4) */
     uint16_t pad_pressed[2];    /* $037B, every 2 bytes: each pad's buttons newly pressed this frame */
+    uint16_t pad1_held;         /* $037F: pad 1's held buttons as the actions were read from them */
+    uint16_t pad1_pressed;      /* $0381: pad 1's newly pressed buttons, the same */
+    uint16_t control_masks[4];  /* $0348: per action, the buttons the options give it */
+    uint8_t action_held[4];     /* $0383: per action, 1 while one of its buttons is held */
+    uint8_t action_pressed[4];  /* $0387: per action, 1 when one of its buttons was just pressed */
     uint8_t play_mode;          /* $0331: 0 the pads; 2 a demo, the pad read from its script (1, the recorder, never on retail) */
     uint16_t demo_input_at;     /* $033B: the demo's next pad entry, a byte offset into its script */
     uint8_t demo_buttons;       /* $033D: the demo's pad 1 high byte */
@@ -171,6 +187,7 @@ typedef struct GameState {
     uint8_t sound_queue_read;   /* $03BB: the next command to send (0-31) */
     uint8_t sound_queue_write;  /* $03BD: where the next command goes (0-31) */
     uint8_t sound_queue[32];    /* $03BF: the ring of command bytes */
+    uint8_t sound_special;      /* $03F8: the last special command queued ($F0, $F2, $F5, $F6) */
 
     /* -- video: the picture draw reads (the NMI's shadows, by meaning) -- */
     uint8_t brightness;         /* $03B8 bits 0-3 */
@@ -202,6 +219,16 @@ typedef struct GameState {
     uint8_t mosaic_layers;      /* $03B1 bits 0-3 */
     uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
     uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */
+    uint16_t bg_map_at[3];      /* $03A0-$03A2 bits 2-7: BG1-3's map, as its VRAM word address */
+    uint8_t bg_map_size[3];     /* $03A0-$03A2 bits 0-1: 0 32 x 32, 1 64 wide, 2 64 high, 3 both */
+    uint16_t bg_tiles_at[4];    /* $03A4-$03A5, a nibble each: BG1-4's tiles, as their VRAM word address */
+    int16_t m7_matrix[4];       /* $038D, $038F, $0391, $0393: Mode 7's a, b, c, d, 8.8 */
+    uint16_t m7_centre_x;       /* $0395 */
+    uint16_t m7_centre_y;       /* $0397 */
+    int8_t camera_window;       /* $1A08: with $1A09, the camera's window in the scroll's table; negative, the
+                                   camera does not follow the player */
+    uint8_t screen_signal;      /* $146B: a byte the screens' code signals with; on the title, bit 7 set when the
+                                   Mode 7 zoom (Mode7ZoomInTask) has ended; in play, the escort's and guards' marks */
     uint16_t bg1_x_shift;       /* $1A18: added to BG1's x as it goes to the picture */
     uint16_t layer_offset_y;    /* $1A1C: added to BG1's y */
     uint16_t bg2_x_shift;       /* $1A20 */
@@ -224,7 +251,7 @@ typedef struct GameState {
     uint8_t vram_upload_number; /* $0834: nonzero, the number of a fixed upload to make */
     uint8_t vram_queue_pending; /* $0858: nonzero, the queue is ready */
     uint8_t vram_queue_count;   /* $0859 */
-    VramCopy vram_queue[VRAM_QUEUE_SIZE]; /* $085A */
+    VramQueueEntry vram_queue[VRAM_QUEUE_SIZE]; /* $085A */
     uint8_t tile_blocks_pending;/* $1BE6 */
     uint16_t tile_blocks_count; /* $1BE4: the original keeps its length in bytes, 10 a record */
     TileBlock tile_blocks[TILE_BLOCK_QUEUE_SIZE]; /* $1B44 */
@@ -243,6 +270,8 @@ typedef struct GameState {
     uint16_t camera_stopped_y;  /* $1A0E */
     uint32_t band_pos[11];      /* $7E:F800: the drifting backdrop bands' positions, 4 bytes each */
     uint32_t band_drift;        /* $1A2F-$1A31: 24 bits from its fraction byte */
+    uint8_t palette_cycle_running[6]; /* $15F1 + 14 n: nonzero while palette cycle record n runs (its other
+                                         bytes are video/'s to add) */
 
     /* -- level and map -- */
     uint16_t level;             /* $035E: the level being played */
@@ -251,6 +280,8 @@ typedef struct GameState {
     uint8_t level_spot_count;   /* $0821: the level's trigger spots */
     DataRef level_spots;        /* $0822: their list */
     uint8_t tile_behaviour[4096]; /* $7E:C800: per map tile, how it behaves */
+    uint8_t sequence_running[10]; /* $1645 + 16 n: nonzero while value sequence record n runs (its other
+                                     bytes are level/'s to add) */
 
     /* -- player -- */
     uint16_t player_top_speed;  /* $141D: 8.8 */
@@ -273,6 +304,31 @@ typedef struct GameState {
     uint8_t continues;          /* $035B: continues left */
     uint8_t cheat_start;        /* $0009: nonzero, play starts with 10 health marks (the title acts on it too) */
     uint8_t pause_block;        /* $0404: nonzero, no pause, and the actor loop runs only actors[1..7] past the player */
+    uint8_t game_begun;         /* $036F: nonzero once a game has begun */
+    uint8_t level_restart;      /* $0360: the restart point the level starts at (0 or 1) */
+    uint16_t play_countdown;    /* $0343: a countdown the title and the play loop step down each frame */
+    uint8_t demo_was_last;      /* $0345: nonzero, the title's last idle show was the demo, so the next is the story */
+    uint8_t player_flags;       /* $0347: bit 0 no hurt from the ground; bit 1 set in state $8C; bit 7 a ride */
+    uint8_t level_marks_taken;  /* $0358: a bit per level whose health mark was taken */
+    uint8_t level_flags;        /* $0359: eight flags the level's actors set */
+    uint8_t opened_flags;       /* $035A: flags of things already opened */
+    uint8_t progress_sequence;  /* $035C: the progress sequence (an offset in the progress table) */
+    uint8_t progress_stage;     /* $035D: the stage in it */
+    uint8_t lives_start;        /* $0362: the lives a level's play starts with */
+    uint8_t lives;              /* $0364: lives left (the status line shows it, less 1) */
+    uint8_t apples;             /* $0369: apples left, two decimal digits */
+    uint8_t hud_count_2;        /* $036B: the status line's second counter */
+    uint8_t figures_touched;    /* $036C: counted up as kind $27's figures are touched */
+    uint8_t hover_on;           /* $036E: nonzero, the fourth action makes him hover */
+    uint16_t gem_sets_found;    /* $0373: a bit per set gem found */
+    uint8_t gem_sets;           /* $0375: set gems found */
+    uint8_t gem_sets_total;     /* $0376: gem_sets added up at each level end */
+    uint8_t continue_frames;    /* $142E: counted up while the continue screen shows */
+    uint8_t menu_blink_hidden;  /* $0847: nonzero, the menu's chosen line is blanked */
+    uint8_t menu_blink_frames;  /* $0848: frames the line has been shown, or frames left blanked */
+    uint8_t menu_choice;        /* $0849: the title menu's choice (0 start, 1 password, 2 options) */
+    uint8_t menu_choice_was;    /* $084A: the choice the mark was drawn at */
+    uint8_t menu_cursor_moves;  /* $084B: counted up at each move of the cursor */
 
     /* -- actors -- */
     Actor actors[ACTOR_RECORDS];    /* $08DB: actors[0] the player's */
