@@ -583,6 +583,7 @@ typedef struct GameState {
                                    genie_pose when $FF); they clear it once taken a pose */
     uint8_t genie_pick_one;     /* $00AD on the Genie's screen: nonzero, a pick's animation is 1 */
     uint8_t genie_pose;         /* $00AF: with genie_pick $FF: zero, pose 7; else 9 */
+    uint8_t genie_screen_cue;   /* $00AE: the scene's cue (kinds $A4, $A8): nonzero, its figures show */
     uint16_t genie_screen_y;    /* $00B0: the Genie's screen (level $2F): its y, which its figures follow (kinds $59, $9E, $A4) */
     uint8_t genie_screen_step;  /* $00B5: its step: 0 waits; positive or negative, the way its figures go on */
     uint16_t scene_walker_x;    /* $00A5: kind $8F's x pixels as it crosses, kept for the scene */

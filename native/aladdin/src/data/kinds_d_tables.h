@@ -67,4 +67,8 @@ uint16_t k08_step_x(uint8_t at);
 uint16_t k08_step_y(uint8_t at);
 uint8_t k08_jump_motion(uint8_t left);  /* its jump up's motion preset by the probes left */
 
+/* ---- kind $A4, the Genie's screen's figures ---- */
+
+uint16_t ka4_shake(uint8_t entry);      /* way 2's shake of the screen's y, entry 8 down to 0 (a signed word) */
+
 #endif

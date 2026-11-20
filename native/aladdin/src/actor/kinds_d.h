@@ -20,11 +20,13 @@ int Kind20Start(Actor *a);      /* 83:97AF: the guard (and 83:9C19 Kind20Hit, 83
 int Kind30Start(Actor *a);      /* 83:B684: the pickups */
 int Kind34Start(Actor *a);      /* 83:BB97 */
 int Kind51Start(Actor *a);      /* 83:D239, and 83:D2BE Kind51Second */
+int KindA4Start(Actor *a);      /* 84:AA24: the Genie's screen's figures */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
 int Kind87Start(Actor *a);      /* 83:F77F: the catcher */
 int Kind5DStart(Actor *a);      /* 83:E29B: kind $5C's cloud */
 int Kind66Start(Actor *a);      /* 84:839E */
-int Kind6CStart(Actor *a);      /* 83:E55E: the spot that holds Aladdin */
+int Kind6CStart(Actor *a);
+int Kind6CSecond(Actor *a);     /* its second entry: on in Kind65Start */      /* 83:E55E: the spot that holds Aladdin */
 
 /* ---- shared with other kinds ---- */
 
@@ -35,6 +37,7 @@ uint8_t Kind5DParentGone(const Actor *a);   /* 83:E3C1 (83:E3BD Long, kind $8B's
 
 int ActorKind08Wait(Actor *a);  /* 83:9209: kind $08's (guard_states.c) */
 int ActorWaitTurnAnim08(Actor *a);  /* 83:9C06: kind $20's (kind20.c) */
+int ActorKindA4Wait(Actor *a);  /* 83:9430: kind $A4's (kinda4.c) */
 int Kind5CWait(Actor *a);       /* 83:E1EE: kind $5C's (kind5c.c) */
 int ActorKind87Wait(Actor *a);  /* 83:9310 (83:F991 KindWaitF991): kind $87's (kind87.c) */
 int Kind5DWait(Actor *a);       /* 83:E352: kind $5D's (kind5d.c) */

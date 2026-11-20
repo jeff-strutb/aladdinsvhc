@@ -85,3 +85,8 @@ DataRef k08_pictures(void) { return ref(0x80, 0x8909); }
 uint16_t k08_step_x(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xCFF4 + at))); }
 uint16_t k08_step_y(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xD010 + at))); }
 uint8_t k08_jump_motion(uint8_t left) { return at8(0x80, (uint16_t)(0xD054 + left)); }
+
+/* ---- kind $A4 (84:AA24 KindA4Start): $80:D972, a word an entry
+   (2, 2, 1, 1, 0, -1, -1, -2, -2 for entries 0-8) ---- */
+
+uint16_t ka4_shake(uint8_t entry) { return cart16(cart_offset(0x80, (uint16_t)(0xD972 + 2u * entry))); }

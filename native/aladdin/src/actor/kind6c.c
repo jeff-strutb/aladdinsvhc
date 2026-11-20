@@ -2,11 +2,13 @@
  * kind6c.c: actor kind $6C, a spot that takes Aladdin in: when he comes
  * within reach it holds him (his code at PlayerHeld) at its place until he
  * is let go, again and again. Its wait routine is ActorWaitRange00
- * (wait_step.c, shared with kinds $61 and $64). Its second entry (83:E5BB
- * Kind65Start) is kind $65's start: left aside.
+ * (wait_step.c, shared with kinds $61 and $64). Its second entry is kind
+ * $65's start, 83:E5BB Kind65Start: the record goes on in kind $65's code
+ * (Kind6CSecond).
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
+#include "actor/kinds_e.h"
 #include "player/player.h"
 
 enum {
@@ -77,4 +79,12 @@ int Kind6CStart(Actor *a)
     default:
         return 1;
     }
+}
+
+/* Kind $6C's second entry (state $80-$BF): the record goes on in kind
+   $65's code from its start (the record's table names 83:E5BB
+   Kind65Start). */
+int Kind6CSecond(Actor *a)
+{
+    return ActorRunAs(a, Kind65Start, ACTOR_START);
 }
