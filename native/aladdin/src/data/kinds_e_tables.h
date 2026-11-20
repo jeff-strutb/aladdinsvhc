@@ -92,6 +92,18 @@ int16_t k73_touch_dy(uint8_t pose);
 uint16_t path_word(DataRef r, unsigned off);
 uint8_t path_byte(DataRef r, unsigned off);
 DataRef path_at(DataRef r, uint16_t addr);
+DataRef path_skip(DataRef r, unsigned bytes);          /* `bytes` further on in the same list */
+
+/* ---- the chain (kinds $73-$75) ---- */
+
+/* a byte stream (ActorStreamStart): the speeds the actor starts with by its flip (4 bytes an entry: words 0 and 1),
+   and its stream by its number x (an even byte offset) */
+uint16_t stream_speed(uint8_t i, int word);
+DataRef stream_ref(uint8_t x);
+uint16_t slide_target(uint8_t row, uint8_t index);      /* the place `index` slides to in row 0, 2, 4 or 6 */
+uint16_t slide_step_word(unsigned at);                  /* the slide's steps: words at the row's offset (+1 odd) */
+uint8_t follow_wait(uint8_t index);                     /* the frames ChainFollowLate waits, by place */
+uint16_t sweep_step(uint8_t speed);                     /* the sweep's x step by its speed (even) */
 
 /* ---- kind $35, the gem ---- */
 

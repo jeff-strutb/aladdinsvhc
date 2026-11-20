@@ -111,6 +111,13 @@ int16_t k73_touch_dy(uint8_t pose) { return (int16_t)at16(0x80, (uint16_t)(0xD7B
 
 uint16_t path_word(DataRef r, unsigned off) { return cart16(r.at + off); }
 uint8_t path_byte(DataRef r, unsigned off) { return cart8(r.at + off); }
+DataRef path_skip(DataRef r, unsigned bytes)
+{
+    DataRef n = { r.at + bytes };
+
+    return n;
+}
+
 DataRef path_at(DataRef r, uint16_t addr)
 {
     DataRef n = { (r.at & ~0x7FFFu) | (addr & 0x7FFFu) };
@@ -118,3 +125,19 @@ DataRef path_at(DataRef r, uint16_t addr)
     return n;
 }
 
+
+/* ---- the chain: byte streams at $80:D71D (4 bytes by the actor's flip * 4) and $80:D725 (words by number, a stream's
+   address in bank $80), the slides' tables at $80:D6D3 (targets), $80:D6BA (steps) and $80:D6CB (waits), the sweep's
+   x steps at $80:D7B2 (the traces read them in bank $80) ---- */
+
+uint16_t stream_speed(uint8_t i, int word) { return at16(0x80, (uint16_t)(0xD71D + i + 2 * word)); }
+DataRef stream_ref(uint8_t x) { return ref(0x80, at16(0x80, (uint16_t)(0xD725 + x))); }
+uint16_t slide_target(uint8_t row, uint8_t index)
+{
+    uint16_t base = at16(0x80, (uint16_t)(0xD6D3 + row));
+
+    return at16(0x80, (uint16_t)(0xD6D3 + base + 2 * index));
+}
+uint16_t slide_step_word(unsigned at) { return at16(0x80, (uint16_t)(0xD6BA + at)); }
+uint8_t follow_wait(uint8_t index) { return at8(0x80, (uint16_t)(0xD6CB + index)); }
+uint16_t sweep_step(uint8_t speed) { return at16(0x80, (uint16_t)(0xD7B2 + speed)); }

@@ -82,7 +82,7 @@ void ActorPathNext(Actor *a)
     a->own.bytes[OWN_49] = (uint8_t)(v >> 8);
     PATH_FRAMES(a) = PATH_EACH(a);
     if (--PATH_STEPS(a)) {
-        a->stream.at += 2;
+        a->stream = path_skip(a->stream, 2);
         return;
     }
     PATH_EACH(a) = PATH_FIRST(a);

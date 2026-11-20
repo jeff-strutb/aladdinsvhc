@@ -675,6 +675,14 @@ typedef struct GameState {
     uint8_t head_flash;         /* $1B2A: frames left of its flash; at 0 +$08 bits 4 and 7 cleared */
     uint8_t chain_untouchable;  /* $1B2C: nonzero: no touch tests on the head */
     uint8_t head_pose;          /* $1B35: index (by 4) of the touch place's offsets for the head's pose */
+    uint8_t chain_step;         /* $1B19: a step the chain counts (StepCountUp/Down), then added to each follower's step */
+    uint8_t chain_phase;        /* $1B1C: the chain's pattern: 0 the sweep, 1 the head's turn */
+    uint8_t chain_round;        /* $1B1D: 0-3, a step each two phases */
+    uint8_t rise_sounded;       /* $1B31: set once the head has risen past y $B0 (sound $49) */
+    uint8_t close_count;        /* $1B32: counted up as the fight-won scene's closing list starts */
+    uint8_t head_turns;         /* $1B33: the head's own-code turns taken, four then the long one */
+    uint8_t first_sweeps;       /* $1B34: sweeps left that take no random pick */
+    int32_t chain_rise_speed;   /* $1B2D-$1B2F: 24-bit, the piece's rise in the fight-won scene, down $20 a frame */
     uint8_t chain_head_struck;  /* $1B2B in play: counted up each time kind $73 (the chain's head) is struck below 0; nonzero,
                                    kind $A1 goes down untested (the player's fall check reads the same byte) */
     uint8_t boss_beaten;        /* $1B14 in play: kind $98 clears it as it starts and counts it up when beaten (the options

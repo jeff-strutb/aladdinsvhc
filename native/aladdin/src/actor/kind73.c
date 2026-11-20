@@ -159,6 +159,8 @@ int Kind73Start(Actor *a)
     case STAY:
         return 1;
     default:
+        if (a->resume >= CHAIN_RESUME_FIRST)
+            return ChainFollow(a);
         return own_turn(a);
     }
 }

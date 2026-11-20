@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "game/game.h"
+#include "actor/kinds_e.h"
 #include "level/level.h"
 #include "video/video_tasks.h"
 #include "system/system.h"
@@ -210,6 +211,9 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_STORY_TEXT1:        return StoryTextTask1(t);
     case TASK_ENTRY_SCENE_SPIN_ZOOM:    return SceneSpinZoomTask(t);
     case TASK_ENTRY_ENDING_STAGES:      return EndingStagesTask(t);
+    case TASK_ENTRY_SOUND_WHILE_SLOT1:  return SoundWhileSlot1Task(t);
+    case TASK_ENTRY_RISER_COURSES:      return RiserCoursesTask(t);
+    case TASK_ENTRY_SOUND_LATER:        return SoundLaterTask(t);
     case TASK_ENTRY_NONE:
     case TASK_ENTRIES:
         break;

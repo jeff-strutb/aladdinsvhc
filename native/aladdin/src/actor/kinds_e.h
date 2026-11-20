@@ -7,6 +7,7 @@
 #define ALADDIN_KINDS_E_H
 
 #include "actor/actor.h"
+#include "system/task.h"
 
 /* ---- kinds' code (each takes its record, returns frames to wait or
    ACTOR_ENDED; see actor.h) ---- */
@@ -54,6 +55,36 @@ int Kind73Start(Actor *a);      /* 84:8629, and its second entry Kind73Hit (84:8
    chain's pieces call them */
 void ActorPathStep(Actor *a);
 void ActorPathNext(Actor *a);
+int ChainPieceStart(Actor *a);  /* 84:87C2 Kind74Start and 84:87D1 Kind75Start: kinds $74 and $75's code, and ChainPieceGone (84:8AC2) their second entry */
+int ChainPieceWork(Actor *a);   /* 84:8A78: kinds $74 and $75's wait */
+
+/* The resume points of the chain's actors, by what each does (a number is one function's): the pieces' pattern
+   from ACTOR_RESUME_OWN (chain_start.c), a struck piece's from CHAIN_GONE_FIRST (chain_piece.c), the followers
+   ActorListStart sends them on from CHAIN_RESUME_FIRST (chain_followers.c, whichever of kinds $73-$75 the actor is) */
+#define CHAIN_GONE_FIRST 0x20
+#define CHAIN_RESUME_FIRST 0x40
+enum ChainFollowAt {
+    CHAIN_STREAM0 = CHAIN_RESUME_FIRST, /* 84:89A0 */
+    CHAIN_STREAM2,                      /* 84:89AD */
+    CHAIN_STREAM14,                     /* 84:89BB */
+    CHAIN_SLIDE6,                       /* 84:89C9 */
+    CHAIN_SLIDE4,                       /* 84:89CD */
+    CHAIN_SLIDE2,                       /* 84:89D1 */
+    CHAIN_SLIDE0,                       /* 84:89D5 */
+    CHAIN_LATE,                         /* 84:8A2E */
+    CHAIN_FOLLOW_AFTER                  /* the followers' own steps go on from here */
+};
+int StepCountUp(void);                  /* 84:8982: g.chain_step up; true when it wrapped to 0 */
+int StepCountDown(void);                /* 84:8989: g.chain_step down; true at $F0 */
+TaskRun SoundWhileSlot1Task(Task *t);   /* 81:A1C0 */
+TaskRun RiserCoursesTask(Task *t);      /* 81:A2D1 */
+TaskRun SoundLaterTask(Task *t);        /* 81:A2FF */
+int ChainFollow(Actor *a);              /* a chain actor at a CHAIN_RESUME_FIRST point or on */
+int ChainPieceGone(Actor *a);           /* a piece in state $8C: its steps */
+void ActorListStart(Actor *a, uint16_t point, uint8_t step);    /* 84:8D41 */
+int ActorListAllDone(const Actor *a);   /* 84:8A52 ActorListFindIdle, as: every actor of the list has finished (its +$18 set) */
+void ActorListStartAD(Actor *a);        /* 84:8996 */
+void ActorStreamStart(Actor *a, uint8_t x);   /* 84:8DBB */
 int Kind98Hit(Actor *a);        /* 84:A2A6: its second entry's start */
 
 /* ---- wait routines (kind2e.c, kind35.c, kind_steps.c): ACTOR_GOES_ON, or
