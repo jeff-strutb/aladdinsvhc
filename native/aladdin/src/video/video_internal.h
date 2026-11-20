@@ -25,6 +25,9 @@ void VramWordsUpload(void);                 /* 80:884C */
 void TextBufferPartsUpload(void);           /* 80:849E */
 void VramUploadByNumber(void);              /* 80:84E2 */
 
+/* parallax.c */
+void ParallaxUpdate(void);                  /* 81:C772 (ParallaxUpdateLong 81:C77B): the backdrop's scroll from the play field's */
+
 /* scroll_layer.c */
 void LayersCopyToVram(void);                /* 80:8366 */
 

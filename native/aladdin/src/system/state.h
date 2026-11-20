@@ -371,6 +371,12 @@ typedef struct GameState {
     uint16_t m7_centre_y;       /* $0397 */
     uint16_t scroll_x_min;      /* $1A40: the play field's scroll x at its least */
     uint16_t scroll_x_max;      /* $1A42: and at its most */
+    uint8_t scroll_kind;        /* $083D: the level's scroll handler (ScrollUpdate), times 2 */
+    uint8_t camera_window_step; /* $1A09: added to camera_window for the window the camera uses */
+    uint16_t camera_aim_x;      /* $03F1: added to the scroll x for the point the camera keeps the player from */
+    uint16_t camera_push;       /* $1A0A: how the camera moved across this frame: 0 not, 1 right, 2 left */
+    uint16_t scroll_x_held;     /* $1A10: nonzero, no following and no stop at empty blocks across */
+    uint16_t scroll_y_held;     /* $1A12: the same up and down */
     int8_t camera_window;       /* $1A08: with $1A09, the camera's window in the scroll's table; negative, the
                                    camera does not follow the player */
     uint8_t screen_signal;      /* $146B: a byte the screens' code signals with; on the title, bit 7 set when the
@@ -474,6 +480,7 @@ typedef struct GameState {
     uint16_t player_saved_x;    /* $145D: a position kept for the player, pixels */
     uint16_t player_saved_y;    /* $145F */
     uint16_t player_ground_y;   /* $1455: where it last stood, pixels */
+    uint16_t player_no_actor_landing; /* $1427: nonzero, Aladdin lands on no actor (ScrollUpdate's kind 2 reads its low 4 bits) */
     uint8_t player_box_wanted;  /* $1448 */
     uint8_t player_box;         /* $1449 */
     uint8_t player_hurt_time;   /* $03F5: frames before it can be hit again */
