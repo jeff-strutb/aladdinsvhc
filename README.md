@@ -91,6 +91,77 @@ rebuilds byte for byte from source: filed, commented assembly where it
 exists and the raw intake for everything else (`tools/aladdin/image.py`).
 <!-- PROGRESS-DETAIL:END -->
 
+## The native game: Aladdin Remastered
+
+`native/aladdin` is the game on [nativeshvc](https://github.com/jeff-strutb/nativeshvc),
+a native engine, with Linux as the first platform. Each `update` is one 60 Hz
+frame of the original's work; `draw` describes the picture from the game's
+state. The game's C reaches the engine only through its calls (`nshvc_*`): no
+register-shaped state, no translation layer and no imitated PPU, DMA, sound
+chip or bus. The engine runs no processor instructions. The plan, its
+decisions and its progress are in
+[docs/aladdin/native/PLAN.md](docs/aladdin/native/PLAN.md); building it is in
+[docs/aladdin/native/BUILD.md](docs/aladdin/native/BUILD.md).
+
+The decomp's C (`src/aladdin`) is the certified record of what each routine
+does. The native game is written from it, routine by routine, as ordinary
+typed C: named state in place of memory addresses, explicit states in place
+of routines that pause, and typed readers in place of cartridge addresses.
+The game's logic is the original's, so a wrong value or a misplaced actor is
+a bug; recordings of the original are kept to find such bugs.
+
+### Progress (2026-11-20)
+
+The conversion began on 2026-11-19. Counted from the tree: routines of the
+record that have a native routine.
+
+| Area | Converted | |
+|---|---:|---:|
+| Actors | 453 of 950 | 47% |
+| Video | 137 of 226 | 60% |
+| Game screens | 47 of 129 | 36% |
+| Player | 93 of 129 | 72% |
+| Level | 53 of 65 | 81% |
+| Map | 44 of 65 | 67% |
+| Sound | 30 of 44 | 68% |
+| System, input, math | 29 of 47 | 61% |
+| **Total** | **886 of 1,655** | **53%** |
+
+That is 37,521 lines of native C in 223 files. The engine's hardware finder
+and the project's clean check report nothing in them.
+
+What runs, on Linux, from power-on with no input: the copyright card, the
+logo, the opening story with its scenes and text, the title with its menu and
+music, and the attract demo, which loads level 1 and plays it.
+
+| | |
+|---|---|
+| ![The opening story: the Cave of Wonders](docs/aladdin/native/shots/story.png) | ![The opening story: the tiger's head](docs/aladdin/native/shots/cave.png) |
+| ![The title and its menu](docs/aladdin/native/shots/title.png) | ![Level 1 in the attract demo](docs/aladdin/native/shots/level1.png) |
+
+The pictures are the engine's own, taken from a headless run of this
+repository's build (`--shots`) at the console's size and doubled.
+
+### Not done
+
+- **Aladdin is not drawn in the level yet.** His state moves and the camera
+  follows him, but his start does not set his picture list, so his pictures
+  are not sent. The cause is known and the fix is in hand.
+- **Nothing past the attract demo is playable.** Starting a game from the
+  menu, the password, options, continue and Genie screens, the scenes
+  between levels and the ending are not converted.
+- **Most actor kinds are not converted,** and many that are have not been
+  run: only what the boot and the attract demo reach has executed.
+- **The check of actors against the original's recording is not yet
+  reliable:** it loads too little of the recording's state, so its
+  differences are mostly its own.
+- **Sound** is checked at the driver (the same voice events as the original,
+  tick for tick, over 41 runs); the sound as the engine plays it is not
+  sample-exact, and has not been judged by ear.
+- **Platforms:** Linux only, run headless and in a window under a Vulkan
+  translation driver. Nothing has been packaged.
+- **The enhanced game** (widescreen, higher frame rates) is not designed yet.
+
 ## The Decompilation Standard
 
 The purpose of a decompilation, as opposed to a recompilation, is
