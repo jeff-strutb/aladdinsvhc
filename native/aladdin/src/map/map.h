@@ -100,8 +100,5 @@ int PlayerOnFirmGroundProbe4(void);              /* 81:B75A */
 
 /* wanted */
 
-/* (n5-kinds-d, for kind $30: map/collision.c's) */
-bool ActorOutOfWallProbe4(Actor *a);    /* 81:B5AD: moved out of a wall at probe 4 in front of it: true when moved */
-bool ActorOutOfGround(Actor *a);        /* 81:B4F3: raised out of the ground at its probes: true when raised (the original's Z clear) */
 
 #endif

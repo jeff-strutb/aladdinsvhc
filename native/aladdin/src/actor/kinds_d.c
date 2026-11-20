@@ -48,17 +48,3 @@ __attribute__((weak)) Actor *ActorTakesShot(Actor *a)
     return NULL;
 }
 
-/* map/'s: no wall, and on the ground at once */
-__attribute__((weak)) bool ActorOutOfWallProbe4(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorOutOfWallProbe4 (81:B5AD)");
-    return false;
-}
-
-__attribute__((weak)) bool ActorOutOfGround(Actor *a)
-{
-    (void)a;
-    TELL_ONCE("ActorOutOfGround (81:B4F3)");
-    return true;
-}
