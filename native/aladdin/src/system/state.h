@@ -205,9 +205,6 @@ typedef struct GameState {
     uint8_t demo_number;        /* $033F: the demo being played; also the stage per-stage tables are indexed by (wram.h's V_033F) */
 
     /* -- audio: the S-CPU's sound queue -- */
-    uint8_t sound_seq;          /* $0002: the last command's sequence number */
-    uint8_t sound_hold;         /* $0371: nonzero, no command is sent this frame */
-    uint8_t sound_sending;      /* $0372: nonzero while a command is being sent */
     uint8_t sound_queue_read;   /* $03BB: the next command to send (0-31) */
     uint8_t sound_queue_write;  /* $03BD: where the next command goes (0-31) */
     uint8_t sound_queue[32];    /* $03BF: the ring of command bytes */
