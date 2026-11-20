@@ -4,9 +4,9 @@
  * some the line data it reads changed each frame (the waves).
  *
  * Converted so far: the task, the channel search and start, effects 2, 3
- * (with the waves), 4, 7 and 12. Effects 0, 1 and 5 are dead (video/NOTES).
- * Effects 6, 8, 9, 10 and 11 print their name once and end the task (not
- * converted yet).
+ * and 6 (with the waves), 4, 7 and 12. Effects 0, 1 and 5 are dead
+ * (video/NOTES). Effects 8, 9, 10 and 11 print their name once and end the
+ * task (not converted yet).
  */
 #include <stdio.h>
 
@@ -194,6 +194,120 @@ static TaskRun waves_frame(Task *t)
     return colours_wait(t);
 }
 
+/* WindowWavesLoop's start: the window table moved to $7F:5300 (g.unpacked),
+   the phase 0 and the step 1, then the first frame's colours and wait */
+static TaskRun waves_start(Task *t, uint16_t *at)
+{
+    for (unsigned i = 0; i < WAVES_BYTES; i++)
+        g.unpacked[WAVES_TABLE + i] = g.line_data[WINDOW_EDGES + i];
+    t->own.waves.phase = 0;
+    t->own.waves.step = 1;
+    *at = 20;
+    return colours_wait(t);
+}
+
+/*
+ * @routine 82:8253 WindowLinesFromShape
+ * WHAT IT DOES: Writes the window's left and right edges for up to `lines`
+ * lines, from the bottom up: the shape ($82:BBAE) narrowed to at most
+ * `half` pixels either side of each line's middle, moved right by `shift`.
+ * HOW: From the shape's last pair and the edges at `edge_at`, back a pair a
+ * line: the middle of the shape's left and right; the left edge the larger
+ * of the shape's left and the middle less `half`, the right the smaller of
+ * its right and the middle plus `half` (each sum a byte, as the original's),
+ * each plus `shift`. Ends when the edges' offset goes below 0, the shape's
+ * reaches 0 or the lines run out.
+ */
+static void lines_from_shape(uint16_t edge_at, uint8_t lines, uint8_t half, uint8_t shift)
+{
+    uint16_t y = window_shape_last();
+    int32_t x = edge_at;
+
+    for (;;) {
+        uint8_t left = window_shape_byte(y), right = window_shape_byte((uint16_t)(y + 1));
+        uint8_t mid = (uint8_t)((uint8_t)(right - left) / 2 + left);
+        uint8_t l = (uint8_t)(mid - half), r = (uint8_t)(mid + half);
+
+        if (l < left)
+            l = left;
+        if (r >= right)
+            r = right;
+        if (WINDOW_EDGES + x + 1 < LINE_DATA_SIZE) {
+            g.line_data[WINDOW_EDGES + x] = (uint8_t)(l + shift);
+            g.line_data[WINDOW_EDGES + x + 1] = (uint8_t)(r + shift);
+        }
+        x -= 2;
+        if (x < 0)
+            break;
+        y = (uint16_t)(y - 2);
+        if (!y)
+            break;
+        if (!--lines)
+            break;
+    }
+}
+
+/* window effect 6's states (WindowEffectTask's resume points) */
+enum { OPENING_STEP = 30, OPENING_PAST_NEXT };
+
+#define OPENING_EDGES_AT 0x0100     /* the edges of the line the opening works up from */
+
+/* effect 6, then past the shape: a pair a frame, the half-height up by one
+   (to $80) and halved, until the edges reach the shape's last pair */
+static TaskRun opening_past(Task *t, uint16_t *at)
+{
+    uint8_t half = (uint8_t)(t->own.opening.half + 1);
+
+    if (half >= 0x80)
+        half = 0x80;
+    t->own.opening.half = half;
+    lines_from_shape(t->own.opening.edge_at, t->own.opening.lines, (uint8_t)(half >> 1), 0);
+    *at = OPENING_PAST_NEXT;
+    return colours_wait(t);
+}
+
+/* effect 6, opening from the middle: 3 more lines a frame while under $80 */
+static TaskRun opening_step(Task *t, uint16_t *at)
+{
+    t->own.opening.lines = (uint8_t)(t->own.opening.lines + 3);
+    if (t->own.opening.lines >= 0x80) {
+        t->own.opening.edge_at = OPENING_EDGES_AT;
+        return opening_past(t, at);
+    }
+    lines_from_shape(OPENING_EDGES_AT, t->own.opening.lines, t->own.opening.half, 0);
+    *at = OPENING_STEP;
+    return colours_wait(t);
+}
+
+/*
+ * @routine 82:819A HdmaEffect6
+ * WHAT IT DOES: Window effect 6: a window that opens from the middle of the
+ * screen (3 lines a frame), then grows past the shape line by line, then
+ * the waves (WindowWavesLoop) for good.
+ * HOW: Table set $0A on register set 6 at $30 in the line data; window 1's
+ * edges 0; the half sine built; the window table ($7E:F7FE on, $200 bytes)
+ * filled with no window ($FF, 0 pairs); the channel on; lines 0, the
+ * half-height 4; then opening_step each frame, opening_past, the waves.
+ */
+static TaskRun effect_6(Task *t, uint16_t *at)
+{
+    int ch;
+
+    if ((ch = hdma_start(0x0A, 0x06, 0x0030)) == NO_CHANNEL)
+        return task_wait(t, 1);
+    g.window_edges[0] = 0;
+    g.window_edges[1] = 0;
+    half_sine_build();
+    for (unsigned x = 0; x < WAVES_BYTES; x += 2) {
+        g.line_data[WINDOW_EDGES - 2 + x] = 0xFF;
+        g.line_data[WINDOW_EDGES - 1 + x] = 0x00;
+    }
+    channel_on(ch);
+    t->own.opening.lines = 0;
+    t->own.opening.half = 4;
+    return opening_step(t, at);
+}
+
 /*
  * @routine 82:8000 WindowEffectTask
  * WHAT IT DOES: Runs window effect `param` / 2, retrying each frame while
@@ -203,6 +317,7 @@ static TaskRun waves_frame(Task *t)
  *   effect 3 (82:80F6): set $0A on register set 6 at $30; the half sine
  *     built; the shape's pairs from the last down to the second to the
  *     window edges; the channel on; the waves for good.
+ *   effect 6 (82:819A): effect_6.
  *   effect 4 (82:82DB): set 6 on register set 8 at $20; the line data's
  *     $80 = 7 and $81 = 0; the channel on; a 2-frame wait for good.
  *   effect 7 (82:8307): set $0C on register set 8 at $20; the line data's
@@ -222,6 +337,14 @@ TaskRun WindowEffectTask(Task *t)
         return waves_frame(t);
     case 10:                            /* effect 4: waiting for good */
         return task_wait(t, 2);
+    case OPENING_STEP:
+        return opening_step(t, at);
+    case OPENING_PAST_NEXT:
+        t->own.opening.lines++;
+        t->own.opening.edge_at = (uint16_t)(t->own.opening.edge_at + 2);
+        if (t->own.opening.edge_at < window_shape_last())
+            return opening_past(t, at);
+        return waves_start(t, at);
     default:
         break;
     }
@@ -240,12 +363,9 @@ TaskRun WindowEffectTask(Task *t)
             g.line_data[WINDOW_EDGES + x + 1] = window_shape_byte((uint16_t)(x + 1));
         }
         channel_on(ch);
-        for (unsigned i = 0; i < WAVES_BYTES; i++)
-            g.unpacked[WAVES_TABLE + i] = g.line_data[WINDOW_EDGES + i];
-        t->own.waves.phase = 0;
-        t->own.waves.step = 1;
-        *at = 20;
-        return colours_wait(t);
+        return waves_start(t, at);
+    case 0x0C:
+        return effect_6(t, at);
     case 0x08:
         if ((ch = hdma_start(0x06, 0x08, 0x0020)) == NO_CHANNEL)
             return task_wait(t, 1);
