@@ -1,0 +1,32 @@
+# Kind27Waiter (83:9F2F) at its own entry. Kind27Start reaches it by a
+# branch (83:9F1B), where the per-call check opens no call, so A5 had none
+# to judge. The kind $27 beside Aladdin at record $0CEB, played to as
+# cov_kind27_parts.box (running at 83:9F2B with $07 = $10): its $07 set to
+# 0 (the variant that waits) and its resume address to 83:9F2F (the
+# record's P, PC and bank at +2), as the actor loop resumes it; $036C set
+# 10 frames on: it rises, circles and flies its three rounds.
+load build/aladdin/states/pw1.state
+hold DOWN 75
+hold DOWN 61
+hold Y+LEFT 28
+hold DOWN+A 64
+hold B+RIGHT 16
+hold B 15
+hold L 9
+hold R 61
+hold X 87
+hold RIGHT 71
+hold RIGHT 28
+hold X 7
+hold Y+RIGHT 60
+hold B+RIGHT 70
+hold A+RIGHT 67
+press START
+wait 60
+press START
+hold RIGHT 30
+poke 000CF2 00
+poke 000CED 30,2F,9F,83
+wait 10
+poke 00036C 01
+wait 900
