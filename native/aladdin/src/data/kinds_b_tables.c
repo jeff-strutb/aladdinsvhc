@@ -11,6 +11,11 @@ static uint8_t at8(uint8_t bank, uint16_t addr) { return cart8(cart_offset(bank,
 static uint16_t at16(uint8_t bank, uint16_t addr) { return cart16(cart_offset(bank, addr)); }
 static DataRef ref(uint8_t bank, uint16_t addr) { DataRef r = { cart_offset(bank, addr) }; return r; }
 
+/* ---- kind $12's ActorAtPlayer (81:EC02, DB = $80): the motion presets by
+   Aladdin's frame at $80:CA03; the traces read $80:CA03 on as data, and
+   $81:CA03 and $83:CA03 are code ---- */
+uint8_t at_player_motion(uint8_t frame) { return at8(0x80, (uint16_t)(0xCA03 + frame)); }
+
 /* ---- kind $38 (83:BE01): its probes at $80:D1D6; the traces read it there
    and never $83:D1D6 ---- */
 DataRef k38_probes(void) { return ref(0x80, 0xD1D6); }

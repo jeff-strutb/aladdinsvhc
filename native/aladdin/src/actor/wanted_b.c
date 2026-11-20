@@ -37,14 +37,6 @@ __attribute__((weak)) void ActorFallAgainst(Actor *a)
     unconverted("ActorFallAgainst (81:A520)");
 }
 
-/* n5-actors-a (motion.c) */
-__attribute__((weak)) void ActorMotionPresetY(Actor *a, uint8_t preset)
-{
-    (void)a;
-    (void)preset;
-    unconverted("ActorMotionPresetY (81:A3EC)");
-}
-
 /* n5-actors-a (player_grab.c) */
 __attribute__((weak)) void ActorHoldPlayer(Actor *a)
 {

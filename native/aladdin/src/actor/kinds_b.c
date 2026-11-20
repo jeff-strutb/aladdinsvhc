@@ -16,6 +16,7 @@
 
 int ActorBriefAnim8(Actor *a);          /* kind_brief.c */
 int ActorBriefAnimB(Actor *a);
+int Kind12AtPlayer(Actor *a);           /* at_player.c */
 int Kind27Start(Actor *a);              /* kind27.c */
 int Kind4DStart(Actor *a);              /* kind4d.c */
 int ActorWaitTest42Anim(Actor *a);
@@ -47,6 +48,8 @@ int Kind79Rise(Actor *a);               /* kind79.c */
 int Kind79Wait(Actor *a);
 int Kind86Start(Actor *a);              /* kind86.c */
 int Kind86Wait(Actor *a);
+int LandingPad(Actor *a);               /* kind8a.c */
+int Kind8AWait(Actor *a);
 int Kind99Start(Actor *a);              /* kind9a.c */
 int Kind99Wait(Actor *a);
 int Kind9AStart(Actor *a);
@@ -57,6 +60,8 @@ const KindCode kinds_b[] = {
     /* $11: 83:9216 Kind11Start; its wait 83:91F3 ActorWaitNothing does
        nothing, and its flags never get bit 7 */
     { 0x11, ActorBriefAnim8, NULL, NULL, NULL },
+    /* $12: its wait 83:91F3 ActorWaitNothing does nothing, and its flags never get bit 7 */
+    { 0x12, Kind12AtPlayer, Kind12AtPlayer, NULL, NULL },
     { 0x13, ActorBriefAnimB, NULL, NULL, NULL },            /* 83:9222 Kind13Start; no wait entry */
     { 0x27, Kind27Start, Kind27Start, NULL, Kind27Wait },   /* its second entry: ActorEndPlaced, in Kind27Start */
     /* $4D: its second entry 83:CFA9 is kind $4E's start (Kind4EStart,
@@ -83,6 +88,9 @@ const KindCode kinds_b[] = {
     { 0x78, Kind78Start, NULL, NULL, Kind77Wait },
     { 0x79, Kind79Rise, Kind79Rise, NULL, Kind79Wait },
     { 0x86, Kind86Start, Kind86Start, NULL, Kind86Wait },
+    /* $8A: its second entry 83:FA4E is a lone RTS (the byte after Kind8AWait); no
+       recording puts a kind $8A in state $80 up: left out */
+    { 0x8A, LandingPad, NULL, NULL, Kind8AWait },
     { 0x99, Kind99Start, Kind99Start, NULL, Kind99Wait },
     { 0x9A, Kind9AStart, Kind9AStart, NULL, Kind9AWait },
     { 0xA2, KindA2Sent, KindA2Sent, NULL, ActorAnimFreeFar },    /* its wait 83:941A: ActorAnimFreeFar */

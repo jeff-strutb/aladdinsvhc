@@ -213,7 +213,6 @@ void ActorKeepSpot(Actor *a);           /* 81:9D56: its x and y pixels kept (its
 /* (kinds B; their stand-ins in actor/wanted_b.c) */
 void ActorFallAgainst(Actor *a);        /* 81:A520 (motion.c): gravity taken from the vertical speed, then ActorMoveY. NOTES-core
                                            lists it dead, but JSL $81:A520 is at 83:BDA1, 83:F5C6, 83:F731 and 84:AAAF */
-void ActorMotionPresetY(Actor *a, uint8_t preset);  /* 81:A3EC (motion.c, inside ActorMotionPreset): the preset's vertical speed and gravity only */
 void ActorHoldPlayer(Actor *a);         /* 83:BAF3, 83:BAEF Long (player_grab.c): its own +$13 the offset he is held at */
 void ActorYByFrame47(Actor *a);         /* 83:BDE9 (actor_y_steps.c): its height follows its frame (the frame kept at +$47) */
 void ActorYByFrame(Actor *a);           /* 83:F031 (actor_steps.c): its y by its frame's step; the frame kept at +$49 */

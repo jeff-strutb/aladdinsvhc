@@ -11,6 +11,9 @@
 
 #include "data/data.h"
 
+/* kind $12 (ActorAtPlayer) */
+uint8_t at_player_motion(uint8_t frame);    /* the motion preset by Aladdin's frame (+$2F) */
+
 /* kind $38 */
 DataRef k38_probes(void);               /* its probe list (Actor.probes) */
 
