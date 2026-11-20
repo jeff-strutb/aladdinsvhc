@@ -24,7 +24,8 @@
    writes of its resume address, $03) and the places inside its moves */
 enum {
     G_WALK_IN = ACTOR_RESUME_OWN,   /* its start's 40-frame walk */
-    G_STOP,                     /* A5:E5B6 GuardStop: each frame */
+    G_STOP,                     /* A5:E5B6 GuardStop's entry (its code word): it yields first */
+    G_STOP_FRAME,               /* each frame of it */
     G_RUN,                      /* A5:E5E8 GuardRun's entry */
     G_RUN_ON,                   /* each frame of the run */
     G_RUN_EDGE,                 /* off an edge: after its first frame in the air */

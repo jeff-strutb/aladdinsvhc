@@ -87,7 +87,7 @@ static bool step_ahead(Actor *a)
 /* A5:E5B6 GuardStop: on at its loop, whose first is a frame of waiting. */
 int guard_stop(Actor *a)
 {
-    a->resume = G_STOP;
+    a->resume = G_STOP_FRAME;
     return 1;
 }
 
@@ -257,6 +257,8 @@ int GuardPieces(Actor *a)
         return guard_stop(a);
 
     case G_STOP:
+        return guard_stop(a);
+    case G_STOP_FRAME:
         (void)ActorSnapToGround(a, &p);
         if (p.behaviour & 0x20)
             ActorAnimChange(a, 0x16);
