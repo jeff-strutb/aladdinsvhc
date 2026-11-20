@@ -40,3 +40,18 @@ int Kind30Wait(Actor *a)
         a->own.bytes[OWN_43]++;
     return ActorEndOutOfRange(a, 0x18);
 }
+
+/*
+ * @routine 83:D64A Kind53Wait
+ * WHAT IT DOES: Kind $53's wait: Aladdin stomped or hurt as he touches it
+ * (ActorStompOrHurt); its +$45 set once the record its +$4E names has its
+ * +$46 set; its animation steps.
+ */
+int Kind53Wait(Actor *a)
+{
+    (void)ActorStompOrHurt(a);
+    if (!a->own.bytes[OWN_45] && g.actors[a->own.bytes[OWN_4E] | a->own.bytes[OWN_4F] << 8].own.bytes[OWN_46])
+        a->own.bytes[OWN_45] = 1;
+    AnimStep(a);
+    return ACTOR_GOES_ON;
+}

@@ -90,3 +90,10 @@ uint8_t k08_jump_motion(uint8_t left) { return at8(0x80, (uint16_t)(0xD054 + lef
    (2, 2, 1, 1, 0, -1, -1, -2, -2 for entries 0-8) ---- */
 
 uint16_t ka4_shake(uint8_t entry) { return cart16(cart_offset(0x80, (uint16_t)(0xD972 + 2u * entry))); }
+
+/* ---- kind $53 (83:D566 Kind53Held) ---- */
+
+DataRef k53_probes(void) { return ref(0x80, 0xD38C); }
+/* $80:D394, 4 bytes a frame: x then y, words */
+int16_t k53_held_x(uint8_t frame) { return (int16_t)cart16(cart_offset(0x80, (uint16_t)(0xD394 + 4u * frame))); }
+int16_t k53_held_y(uint8_t frame) { return (int16_t)cart16(cart_offset(0x80, (uint16_t)(0xD396 + 4u * frame))); }

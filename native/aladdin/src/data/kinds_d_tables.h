@@ -71,4 +71,12 @@ uint8_t k08_jump_motion(uint8_t left);  /* its jump up's motion preset by the pr
 
 uint16_t ka4_shake(uint8_t entry);      /* way 2's shake of the screen's y, entry 8 down to 0 (a signed word) */
 
+/* ---- kind $53, a thing held then dropped ---- */
+
+DataRef k53_probes(void);       /* its probe list */
+/* where it is held, by its holder's animation frame: x and y pixels from the
+   holder's place (signed words) */
+int16_t k53_held_x(uint8_t frame);
+int16_t k53_held_y(uint8_t frame);
+
 #endif
