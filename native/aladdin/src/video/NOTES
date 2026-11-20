@@ -27,6 +27,7 @@ Folded into other converted code
   81:B25B RotateSine -> mode7_rotate.c rotate_sine
   82:8735 HdmaStartAtBase -> window_effects.c hdma_start with place 0
   81:8564 BgFollowLayersLong -> bg_follow.c BgFollowLayers
+  81:94AA ActorPictureQueueNew, 81:94B3 ActorPictureQueueParts -> actor_pictures.c ActorPictureQueue
 
 Replaced by the engine (no counterpart by intent)
 -------------------------------------------------

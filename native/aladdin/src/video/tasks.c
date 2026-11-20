@@ -262,3 +262,48 @@ TaskRun Mode7ZoomInTask(Task *t)
     g.screen_signal = ZOOM_ENDED;
     return task_exit(t);
 }
+
+/* ---- the blinking line (video/screen_tasks.c) ---- */
+
+#define TEXT_BLINK_LAYOUT 0x14      /* its line, and on TEXT_BLINK_LEVEL_ALT the other */
+#define TEXT_BLINK_LAYOUT_ALT 0x70
+#define TEXT_BLINK_LEVEL_ALT 0x11
+#define TEXT_BLINK_FRAMES 0x1E      /* each showing and each blank */
+
+/*
+ * @routine 81:9E3B TextBlinkTask
+ * WHAT IT DOES: A task that blinks a line of text in the text buffer's third
+ * part three times (layout $14; $70 on level $11), then ends; with health
+ * left it also clears g.play_starts ($03FA).
+ * HOW: Three times: the layout drawn (TextLayoutShowThird), $1E frames,
+ * blanked (bit 7), $1E frames. Then the task ends.
+ */
+static TaskRun text_blink_show(Task *t, uint16_t *at)
+{
+    TextLayoutShowThird(t->own.text_blink.layout);
+    *at = 2;
+    return task_wait(t, TEXT_BLINK_FRAMES);
+}
+
+TaskRun TextBlinkTask(Task *t)
+{
+    uint16_t *at = task_enter(t);
+
+    switch (*at) {
+    case 0:
+        t->own.text_blink.blinks = 3;
+        t->own.text_blink.layout = (uint8_t)g.level == TEXT_BLINK_LEVEL_ALT ? TEXT_BLINK_LAYOUT_ALT : TEXT_BLINK_LAYOUT;
+        return text_blink_show(t, at);
+    case 2:
+        TextLayoutShowThird((uint8_t)(t->own.text_blink.layout | 0x80));
+        *at = 3;
+        return task_wait(t, TEXT_BLINK_FRAMES);
+    case 3:
+        if (--t->own.text_blink.blinks)
+            return text_blink_show(t, at);
+        break;
+    }
+    if (g.health)
+        g.play_starts = 0;
+    return task_exit(t);
+}

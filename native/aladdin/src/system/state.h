@@ -88,6 +88,10 @@ typedef struct Task {
             uint8_t step;           /* +$06 of the slot: how far the lower bands are dimmed */
             uint8_t buffer;         /* +$07: the buffer the bands are written to next (0 or 1) */
         } bands;
+        struct {                /* TextBlinkTask (video/tasks.c) */
+            uint8_t blinks;         /* $A5 of its direct page: blinks left */
+            uint8_t layout;         /* the line's layout (the original kept it in X across its waits; native only) */
+        } text_blink;
     } own;
 } Task;
 

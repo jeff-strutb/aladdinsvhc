@@ -245,3 +245,30 @@ uint8_t random_list_byte(uint8_t list, unsigned i)
 uint8_t colour_band_count(void) { return cart8(cart_offset(COLOUR_BANDS_BANK, COLOUR_BAND_COUNT_ADDR)); }
 uint8_t colour_band_byte(unsigned i) { return cart8(cart_offset(COLOUR_BANDS_BANK, (uint16_t)(COLOUR_BAND_PAIRS_ADDR + i))); }
 uint8_t colour_band_buffer(uint8_t buffer) { return cart8(cart_offset(COLOUR_BANDS_BANK, (uint16_t)(COLOUR_BAND_BUFFERS_ADDR + buffer))); }
+
+/* the picture lists: the list, its words and the parts are all read with the
+   data bank $80 (the traces read $80:8909, $80:890F, $80:8911, $80:891B) */
+#define PICTURE_LIST_BANK 0x80
+
+unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, unsigned max)
+{
+    uint16_t list = cart16(pictures.at);
+    uint16_t y = cart16(cart_offset(PICTURE_LIST_BANK, (uint16_t)(list + 2u * picture)));
+    unsigned n = 0;
+    uint16_t step = 0;
+
+    while (n < max) {
+        uint32_t at = cart_offset(PICTURE_LIST_BANK, y);
+        PicturePart *p = &parts[n++];
+
+        p->source = source_at(cart8(cart_offset(PICTURE_LIST_BANK, (uint16_t)(y + 2))), cart16(at));
+        p->bytes = cart16(cart_offset(PICTURE_LIST_BANK, (uint16_t)(y + 3)));
+        p->step = step;
+        y = (uint16_t)(y + 5);
+        if (cart8(cart_offset(PICTURE_LIST_BANK, y)) == 0xFF)
+            return n;
+        step = cart16(cart_offset(PICTURE_LIST_BANK, y));
+        y = (uint16_t)(y + 2);
+    }
+    return n;
+}

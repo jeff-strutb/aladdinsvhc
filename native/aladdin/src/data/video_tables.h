@@ -149,4 +149,16 @@ uint8_t colour_band_count(void);
 uint8_t colour_band_byte(unsigned i);       /* byte i of the pairs */
 uint8_t colour_band_buffer(uint8_t buffer);
 
+/* an actor's own picture list (ActorPictureQueueParts 81:94B3, through the
+   data bank $80): Actor.own_pictures names the word that holds the list;
+   the list's word for picture n names its parts: each a source, its bytes,
+   and (for each after the first) its VRAM word address's step from the
+   part before. Returns the parts, at most `max`, written to `parts`. */
+typedef struct PicturePart {
+    UploadSource source;
+    uint16_t bytes;
+    uint16_t step;              /* words after the part before; 0 for the first */
+} PicturePart;
+unsigned picture_parts(DataRef pictures, uint8_t picture, PicturePart *parts, unsigned max);
+
 #endif

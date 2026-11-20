@@ -16,12 +16,10 @@ TaskRun ShakeTask(Task *t);                 /* 81:A1D5 */
 TaskRun Bg1WobbleTask(Task *t);             /* 81:9F98 */
 TaskRun WindowEffectTask(Task *t);          /* 82:8000 */
 TaskRun ColourBandTask(Task *t);            /* 81:A00C */
+TaskRun TextBlinkTask(Task *t);             /* 81:9E3B: the player's start makes it (slot 2) */
 
 /* routines a task's chain calls that wait (TASK_GOES_ON when done) */
 TaskRun BrightnessUpAndWait(Task *t);       /* 81:F311 */
 TaskRun BrightnessDownAndWait(Task *t);     /* 81:F31C */
-
-/* wanted */
-TaskRun TextBlinkTask(Task *t);             /* 81:9E3B: task entry (the player's start makes it, slot 2) */
 
 #endif
