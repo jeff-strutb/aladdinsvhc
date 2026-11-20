@@ -165,3 +165,12 @@ DirectionStep direction_step(uint16_t direction)
 
 uint16_t a5_spot_x(uint8_t spot) { return cart16(cart_offset(0x80, (uint16_t)(0xD02C + spot))); }
 uint16_t a5_spot_y(uint8_t spot) { return cart16(cart_offset(0x80, (uint16_t)(0xD02E + spot))); }
+
+/* ---- the by-$40 tables (84:8A48 ActorAnimBy40, 84:8D8F ActorStartBy40) and 84:8CD2's: read in
+   the data bank $80 the actor code runs with (the traces read $80:D714-D723, $80:D6EB-D70A,
+   $80:D70B-D713 and $80:D6B9-D6BA as data; the same bytes in $81 and $83 are code, and
+   $84:D6EB-D70A are never read) ---- */
+uint8_t anim_by_40(uint8_t index) { return at8(0x80, (uint16_t)(0xD714 + index)); }
+uint16_t start_by_40_word(uint8_t index) { return at16(0x80, (uint16_t)(0xD6EB + 2u * index)); }
+uint8_t start_by_40_byte(uint8_t index) { return at8(0x80, (uint16_t)(0xD70B + index)); }
+uint8_t parity_bits(uint8_t parity) { return at8(0x80, (uint16_t)(0xD6B9 + parity)); }

@@ -66,3 +66,14 @@ void ActorSpeedYFromA5(Actor *a, uint8_t at)
 {
     a->speed_y = signed24(a5_speed_y(at));
 }
+
+/*
+ * @routine 84:8CD2 ActorParityBitsSet
+ * WHAT IT DOES: Sets the low two bits of the actor's +$08 from a two-entry
+ * table by whether the frame count is odd or even, so the actor alternates
+ * between two settings frame by frame.
+ */
+void ActorParityBitsSet(Actor *a)
+{
+    a->anim_flags = (uint8_t)((a->anim_flags & 0xFC) | parity_bits(g.frame_count & 1));
+}

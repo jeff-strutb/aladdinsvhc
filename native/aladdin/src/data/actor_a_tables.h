@@ -81,4 +81,15 @@ DirectionStep direction_step(uint16_t direction);
 uint16_t a5_spot_x(uint8_t spot);
 uint16_t a5_spot_y(uint8_t spot);
 
+/* ActorAnimBy40's animations by an actor's +$40 ($80:D714, a byte each) */
+uint8_t anim_by_40(uint8_t index);
+
+/* ActorStartBy40's tables by an actor's +$40: a word ($80:D6EB, 2 bytes an
+   entry) and a byte ($80:D70B) */
+uint16_t start_by_40_word(uint8_t index);
+uint8_t start_by_40_byte(uint8_t index);
+
+/* ActorParityBitsSet's two settings of +$08's low bits by the frame count's parity ($80:D6B9) */
+uint8_t parity_bits(uint8_t parity);
+
 #endif
