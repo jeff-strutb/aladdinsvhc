@@ -274,6 +274,7 @@ typedef struct GameState {
     uint8_t health_marks;       /* $0365: the most health */
     uint8_t continues;          /* $035B: continues left */
     uint8_t cheat_start;        /* $0009: nonzero, play starts with 10 health marks (the title acts on it too) */
+    uint8_t pause_block;        /* $0404: nonzero, no pause, and the actor loop runs only actors[1..7] past the player */
 
     /* -- actors -- */
     Actor actors[ACTOR_RECORDS];    /* $08DB: actors[0] the player's */
