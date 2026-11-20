@@ -431,3 +431,38 @@ void ActorMoveByVectorTimes(Actor *a, uint8_t set, uint8_t times)
     a->x = wrap24(a->x + scaled(vector_x(v), times));
     a->y = wrap24(a->y + scaled(vector_y(v), times));
 }
+
+/*
+ * @routine 81:A411 ActorSpeedXSetAccel
+ * WHAT IT DOES: Sets the actor's horizontal acceleration to `accel` and
+ * its horizontal speed from the speed table's entry at byte offset `at`.
+ */
+void ActorSpeedXSetAccel(Actor *a, uint8_t accel, uint8_t at)
+{
+    a->accel_x = accel;
+    ActorSpeedXSet(a, at);
+}
+
+/*
+ * @routine 81:A520 ActorFallAgainst
+ * WHAT IT DOES: One frame of a fall with the vertical pull reversed and no
+ * horizontal movement: the gravity taken from the vertical speed, and the
+ * actor moves by it.
+ */
+void ActorFallAgainst(Actor *a)
+{
+    ActorAccelerateYBack(a);
+    ActorMoveY(a);
+}
+
+/*
+ * @routine 81:A498 ActorSpeedXUpFlyAgainst
+ * WHAT IT DOES: The actor's horizontal speed plus `step`, then a frame of
+ * flight against the vertical pull. (The original's step is the byte at
+ * $000C of the data bank: the caller's scratch.)
+ */
+void ActorSpeedXUpFlyAgainst(Actor *a, uint8_t step)
+{
+    a->speed_x = signed24((uint32_t)a->speed_x + step);
+    ActorFlyAgainst(a);
+}

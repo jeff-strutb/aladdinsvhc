@@ -26,6 +26,7 @@
  * Prints each differing field (the first 40), each logged call, and a
  * summary line; exits 1 when a field differs.
  */
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,7 @@
 #include "nshvc/nshvc.h"
 #include "actor/actor_own.h"
 #include "data/actor_tables.h"
+#include "data/data_internal.h"
 
 #define WRAM_SIZE 0x20000
 #define RECORD(i) (0x08DB + 0x50 * (i))
@@ -74,6 +76,66 @@ static Actor *record_at(uint16_t addr)
     if (addr < RECORD(0) || (addr - RECORD(0)) % 0x50 || (addr - RECORD(0)) / 0x50 >= ACTOR_RECORDS)
         return NULL;
     return &g.actors[(addr - RECORD(0)) / 0x50];
+}
+
+/* The game's state outside the actors: every top-level value or array of g
+   that state_fields.csv maps to work RAM, generated (gen_world.py). With a
+   KINDS argument the check loads these from the dumps each frame, so the
+   kinds meet the level's map, the player's state, the random number and the
+   flags as the original had them. */
+typedef struct {
+    const char *name;
+    size_t offset, elem;
+    unsigned count, at, bytes;
+} WorldField;
+
+static const WorldField world[] = {
+#include "world_fields.inc"
+};
+
+/* What the check keeps itself, not from the dump: the actors' pools, kind
+   counts and animation and palette-slot tables (the code under test writes
+   them, and they are compared), the draw lists and the video's. */
+static int world_managed(const char *n)
+{
+    static const char *const kept[] = { "kind_", "anim_", "actor_", "palette_slot", "draw_", "placed", "free_", "tasks",
+                                         "vram_", "tile_blocks", "sprite", "text_map", "palette", "unpacked", "band_",
+                                         "pause_block", "range_" };
+    unsigned k;
+
+    for (k = 0; k < sizeof kept / sizeof kept[0]; k++)
+        if (!strncmp(n, kept[k], strlen(kept[k])))
+            return 1;
+    return 0;
+}
+
+/* Aladdin's own fields: set by his turn of the loop, which the check does
+   not run unless his kinds are listed. */
+static int world_player(const char *n)
+{
+    return !strncmp(n, "player_", 7) || !strcmp(n, "health") || !strncmp(n, "test_box", 8);
+}
+
+static void load_world(const uint8_t *w, int player)
+{
+    unsigned f, k, b;
+
+    for (f = 0; f < sizeof world / sizeof world[0]; f++) {
+        const WorldField *wf = &world[f];
+
+        if (world_managed(wf->name) || world_player(wf->name) != player)
+            continue;
+        for (k = 0; k < wf->count; k++) {
+            uint8_t *to = (uint8_t *)&g + wf->offset + k * wf->elem;
+
+            memset(to, 0, wf->elem);
+            for (b = 0; b < wf->bytes && b < wf->elem; b++)
+                to[b] = w[wf->at + k * wf->bytes + b];
+        }
+    }
+    if (!player)
+        for (k = 0; k < sizeof g.screen_map.places / sizeof g.screen_map.places[0]; k++)
+            g.screen_map.places[k] = (uint16_t)(w[0x1F000 + 2 * k] | w[0x1F001 + 2 * k] << 8);
 }
 
 /* the record offsets of own.bytes, in order */
@@ -123,6 +185,13 @@ static void record_from(Actor *a, const uint8_t *w, int i)
     a->tile_slot = r[0x39];
     for (k = 0; k < 32; k++)
         a->own.bytes[k] = r[own_at[k]];
+    /* the places a kind may keep as a field: the word's address in the data
+       bank $80 (the tables the demo reads there; a table in another bank
+       starts wrong until the kind sets it) */
+    a->probes.at = w16(r, 0x16) ? cart_offset(0x80, w16(r, 0x16)) : 0;
+    a->probe_at = r[0x18];
+    a->own_pictures.at = w16(r, 0x29) ? cart_offset(0x80, w16(r, 0x29)) : 0;
+    a->stream.at = w16(r, 0x4A) ? cart_offset(0x80, w16(r, 0x4A)) : 0;
 }
 
 static void state_from(const uint8_t *w)
@@ -206,6 +275,13 @@ static void differ(int i, const char *field, long native, long original)
 
 #define SAME(field, nat, orig) do { compared++; if ((long)(nat) != (long)(orig)) differ(i, field, (long)(nat), (long)(orig)); } while (0)
 
+/* A data reference (a cartridge offset) against the original's word: the
+   same place in the LoROM bank, whichever bank the word's table is in. */
+static int ref_is(uint32_t at, uint16_t word)
+{
+    return word ? ((at & 0x7FFFu) | 0x8000u) == word && at != 0 : at == 0;
+}
+
 static void compare(int i)
 {
     const uint8_t *r = wram + RECORD(i);
@@ -246,10 +322,27 @@ static void compare(int i)
     SAME("tile_slot", a->tile_slot, r[0x39]);
     for (k = 0; k < 32; k++) {
         char name[16];
+        uint8_t o = own_at[k];
 
-        snprintf(name, sizeof name, "+$%02X", own_at[k]);
-        if (own_at[k] != 0x4E && own_at[k] != 0x4F)   /* kind $95's hops keep their return address there: none here */
-            SAME(name, a->own.bytes[k], r[own_at[k]]);
+        snprintf(name, sizeof name, "+$%02X", o);
+        if (o == 0x17 || o == 0x2A || o == 0x4B || o == 0x4E || o == 0x4F)
+            continue;           /* a pair's second byte, with its first; $4E-$4F: kind $95's hops keep their return there, none here */
+        if (o == 0x16 || o == 0x29 || o == 0x4A) {
+            /* a place a kind keeps as its own bytes or as a field (probes,
+               own_pictures, stream): the word matches in either form */
+            uint16_t word = w16(r, o), own = (uint16_t)(a->own.bytes[k] | a->own.bytes[k + 1] << 8);
+            uint32_t at = o == 0x16 ? a->probes.at : o == 0x29 ? a->own_pictures.at : a->stream.at;
+
+            compared++;
+            if (own != word && !ref_is(at, word))
+                differ(i, name, own ? own : at, word);
+        } else if (o == 0x18) {
+            compared++;
+            if (a->own.bytes[k] != r[0x18] && a->probe_at != r[0x18])
+                differ(i, name, a->own.bytes[k] ? a->own.bytes[k] : a->probe_at, r[0x18]);
+        } else {
+            SAME(name, a->own.bytes[k], r[o]);
+        }
     }
 }
 
@@ -500,6 +593,36 @@ static void check_anim_sets(void)
     frame = frame_was;
 }
 
+/* One FrameStep's two loops. FrameStep sets the range point after them, so
+   the loops see the last frame's and ActorsInView this frame's (the dumps'
+   $1A44/$1A46). With a KINDS argument Aladdin's turn is not run unless his
+   kinds are listed: his record and fields are the dump's, as his turn left
+   them (the end of the frame: what an actor changed in the loop after him
+   shows early). */
+static void loops(void)
+{
+    if (custom_kinds) {
+        g.range_x = w16(before, 0x1A44);
+        g.range_y = w16(before, 0x1A46);
+        if (is_converted(0x00)) {
+            PlayerLoop();
+        } else {
+            record_from(&g.actors[0], wram, 0);
+            load_world(wram, 1);
+        }
+    } else {
+        PlayerLoop();
+    }
+    ActorLoop();
+}
+
+static void in_view(void)
+{
+    g.range_x = w16(wram, 0x1A44);
+    g.range_y = w16(wram, 0x1A46);
+    ActorsInView();
+}
+
 static void init(void)
 {
     int i, steps, tail_pending = 0;
@@ -514,6 +637,8 @@ static void init(void)
         g.range_x = w16(wram, 0x1A44);
         g.range_y = w16(wram, 0x1A46);
         g.pause_block = wram[0x0404];
+        if (custom_kinds)
+            load_world(before, 0);      /* the world the frame starts from */
         freed_by_others();
         if (custom_kinds)
             made_for_kinds();
@@ -523,7 +648,7 @@ static void init(void)
         if (steps > 0 && tail_pending) {
             /* the rest of a FrameStep whose loops ran before the last dump:
                its ActorsInView and its play time's tick came in this frame */
-            ActorsInView();
+            in_view();
             steps--;
         }
         tail_pending = 0;
@@ -531,14 +656,12 @@ static void init(void)
             /* a FrameStep's loops ran before this dump and the rest of it did
                not (the level's first: the in-view flag and the play time
                untouched); its tail comes with the next tick */
-            PlayerLoop();
-            ActorLoop();
+            loops();
             tail_pending = 1;
         }
         for (; steps > 0; steps--) {
-            PlayerLoop();
-            ActorLoop();
-            ActorsInView();
+            loops();
+            in_view();
         }
         if (custom_kinds)
             made_new_after();
@@ -547,7 +670,9 @@ static void init(void)
         if (!custom_kinds)
             compare_pools();
         for (i = 1; i < ACTOR_RECORDS; i++) {
-            if (!untracked[i] && (is_converted(g.actors[i].kind) || is_converted(wram[RECORD(i) + 6])))
+            if (custom_kinds && !g.actors[i].state && wram[RECORD(i)] && wram[RECORD(i) + 6] != g.actors[i].kind)
+                ;               /* freed here and reused by another kind in the same frame: the original's new record is not the old kind's */
+            else if (!untracked[i] && (is_converted(g.actors[i].kind) || is_converted(wram[RECORD(i) + 6])))
                 compare(i);
             g.actors[i].redraw = wram[RECORD(i) + 0x28];    /* cleared by the sprite code, not compared */
         }

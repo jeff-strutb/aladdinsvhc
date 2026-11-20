@@ -156,6 +156,7 @@ void ActorAccelerateXBack(Actor *a);    /* 81:A627 */
 void ActorAccelerateYBack(Actor *a);    /* 81:A657 */
 void ActorDecelerateY(Actor *a);    /* 81:A66B: never below 0 */
 void ActorFlyAgainst(Actor *a);     /* 81:A535 */
+void ActorSpeedXUpFlyAgainst(Actor *a, uint8_t step);   /* 81:A498 */
 void ActorBobY(Actor *a);           /* 81:A574: its +$49 the bob's way */
 void ActorMoveByVector(Actor *a, uint8_t set);         /* 81:A854: `set` the direction set's byte offset */
 void ActorMoveBackByVector(Actor *a, uint8_t set);     /* 81:A897 */

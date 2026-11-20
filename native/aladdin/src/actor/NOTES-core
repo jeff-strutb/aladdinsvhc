@@ -7,9 +7,7 @@ Rechecked 2026-11-20 against the ROM (every JSL, JML and 3-byte pointer naming t
 in its own bank, each read in place: the matches at 81:C378, 81:ECC2, 82:B3C3, 81:CDED and 81:D9F2 are operand
 bytes or a neighbouring table's bytes) and the assembly (every jsr/jsl/jmp/jml/branch/dw/dl/pea naming the
 label): two of the record's "No code refers to it" were wrong, and are live:
-  81:A520 ActorFallAgainst            motion.c     JSL at 83:BDA1, 83:F5C6, 83:F731, 84:AAAF; not on the attract
-                                                   demo's level 1: not converted yet
-  81:A498 ActorSpeedXUpFlyAgainst     motion.c     JSL at 83:EC16; not on the demo: not converted yet
+  81:A520 ActorFallAgainst, 81:A498 ActorSpeedXUpFlyAgainst, 81:A411 ActorSpeedXSetAccel: live, converted (motion.c)
 
 Dead (nothing in the game reaches them):
   81:A401 ActorMotionPresetX          motion.c     "No code refers to it"
