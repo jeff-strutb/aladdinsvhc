@@ -87,4 +87,30 @@ typedef struct UnpackSetEntry {
 #define UNPACK_SETS 50          /* $80:F039 on, 7 bytes each; from set 50 the bytes are not sets (banks below $80) */
 UnpackSetEntry unpack_set(uint8_t set);    /* set < UNPACK_SETS */
 
+/* ---- level maps (map/level_map.c's LevelMapBuild, ScreenMapLayout) ----
+
+   A level's map is screens of 32 x 16 tiles, each 8 x 8 blocks of 2 x 2
+   tiles; its header gives the screens and the banks their data is in; its
+   layouts place the screens in the screen map. */
+#define LEVEL_MAPS 66           /* $80:E3DC's words up to the layouts' table at $80:E460 */
+
+unsigned level_map_screens(uint16_t level);             /* screens it builds (the original's count byte: 0 builds 256) */
+uint8_t level_map_layers(uint16_t level);               /* the layers on the main and sub screens it sets */
+uint8_t level_map_screen(uint16_t level, unsigned i);   /* the i'th screen built: its number in the block lists */
+/* screen `screen`'s block list: 64 block words, then 4 more bytes (the
+   original copies 132 bytes); `i` a byte offset < 132 */
+uint8_t level_screen_list_byte(uint16_t level, uint8_t screen, unsigned i);
+/* a block's 2 x 2 tiles: `block` the word from the list, `k` 0 top left,
+   1 top right, 2 bottom left, 3 bottom right; a map word */
+uint16_t level_block_tile(uint16_t level, uint16_t block, unsigned k);
+DataRef level_metatiles(uint16_t level);                /* the start of its metatiles' bank, for the map's readers */
+
+/* a layout: the screens of a `columns` x `rows` area of the screen map,
+   row by row. Layout 0 is every level's; layout 1 only where
+   level_map_layout_count says 2. */
+unsigned level_map_layout_count(uint16_t level);
+unsigned level_map_layout_columns(uint16_t level, unsigned layout);
+unsigned level_map_layout_rows(uint16_t level, unsigned layout);
+uint8_t level_map_layout_screen(uint16_t level, unsigned layout, unsigned i);   /* i < columns * rows */
+
 #endif

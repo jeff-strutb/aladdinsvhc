@@ -7,7 +7,8 @@
    what the ROM's bytes give, read here a second way from the formats the
    readers' comments state: every sound list the decomp knows
    (config/aladdin/spclists.csv), the quarter sine, the demo scripts' range,
-   the 98 palette loads.
+   the 98 palette loads, the level graphics lists, the unpack sets, the
+   level maps.
 3. No game code outside data/ holds a ROM place (clean_check.rom_places over src/).
 4. With PLANT=1 one byte of a read range is changed in cart.dat first: the
    checks must then fail (they can).
@@ -189,6 +190,41 @@ def main():
     fails += (not lv_ok) + (not sets_ok)
     print(f'readers: level graphics (66 levels) {"match" if lv_ok else "DIFFER"}; unpack sets 0-49 {"match" if sets_ok else "DIFFER"}; '
           f'sources below $8000: {len(low_src)} {low_src[:6]}; packed bytes read from code left out: {code_read}')
+    # the level maps, a second reading
+    m8 = lambda a: rom[lorom(0x80, a & 0xFFFF)]
+    m16 = lambda a: m8(a) | m8(a + 1) << 8
+    maps, map_code = [], 0
+    for lvl in range(66):
+        h = (0xE3DC + m16(0xE3DC + 2 * lvl)) & 0xFFFF
+        n = m8(h) or 256
+        bl, ti = m8(h + 1), m8(h + 2)
+        s = 0
+        for b_ in range(n):
+            sc = m8(h + 5 + b_)
+            base = lorom(bl, (0x8000 + (sc << 7)) & 0xFFFF)
+            map_code += sum(1 for i in range(base, base + 132) if not inside[i])
+            for j in range(0, 128, 2):
+                blk = rom[base + j] | rom[base + j + 1] << 8
+                for k in range(4):
+                    o = lorom(ti, (0x8000 + blk + 2 * k) & 0xFFFF)
+                    map_code += (not inside[o]) + (not inside[o + 1])
+                    s = (s * 31 + (rom[o] | rom[o + 1] << 8)) & 0xFFFFFFFF
+            for j in range(128, 132):
+                s = (s * 31 + rom[base + j]) & 0xFFFFFFFF
+        part = f'{lvl}:{n}/{m8(h + 4):02X}/{s:08X}'
+        ent = m16(0xE460 + 2 * lvl)
+        for lay in range(2 if m16(0xE460 + ent + 2) else 1):
+            at = (0xE460 + m16(0xE460 + ent + 2 * lay)) & 0xFFFF
+            cnt = lambda v: v + 1 if v < 0x80 else 1
+            c, r_ = cnt(m8(at)), cnt(m8(at + 1))
+            ls = 0
+            for j in range(c * r_):
+                ls = (ls * 31 + m8(at + 2 + j)) & 0xFFFFFFFF
+            part += f'L{c}x{r_}/{ls:08X}'
+        maps.append(part)
+    maps_ok = out[len(numbers) + 5] == 'maps ' + ' '.join(maps)
+    fails += not maps_ok
+    print(f'readers: level maps (66 levels) {"match" if maps_ok else "DIFFER"}; map bytes read from code left out: {map_code}')
     print(f'readers: sound lists {len(numbers) - lists_bad} of {len(numbers)} match; quarter sine {"matches" if sine_ok else "DIFFERS"}; '
           f'demo scripts {"match" if demo_ok else "DIFFER"}')
     fails += lists_bad + (not sine_ok) + (not demo_ok)

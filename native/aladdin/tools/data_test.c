@@ -102,6 +102,30 @@ int main(int argc, char **argv)
         UnpackSetEntry u = unpack_set((uint8_t)i);
         printf(" %04X/%u/%08X", u.to, u.packed.groups, sum_of(u.packed));
     }
+    printf("\nmaps");
+    for (i = 0; i < LEVEL_MAPS; i++) {
+        unsigned n = level_map_screens((uint16_t)i), l, j, k;
+        uint32_t sum = 0;
+
+        for (b = 0; b < n; b++) {
+            uint8_t sc = level_map_screen((uint16_t)i, b);
+            for (j = 0; j < 128; j += 2) {
+                uint16_t blk = (uint16_t)(level_screen_list_byte((uint16_t)i, sc, j) | level_screen_list_byte((uint16_t)i, sc, j + 1) << 8);
+                for (k = 0; k < 4; k++)
+                    sum = sum * 31u + level_block_tile((uint16_t)i, blk, k);
+            }
+            for (j = 128; j < 132; j++)
+                sum = sum * 31u + level_screen_list_byte((uint16_t)i, sc, j);
+        }
+        printf(" %u:%u/%02X/%08X", i, n, level_map_layers((uint16_t)i), sum);
+        for (l = 0; l < level_map_layout_count((uint16_t)i); l++) {
+            unsigned c = level_map_layout_columns((uint16_t)i, l), r = level_map_layout_rows((uint16_t)i, l);
+            uint32_t ls = 0;
+            for (j = 0; j < c * r; j++)
+                ls = ls * 31u + level_map_layout_screen((uint16_t)i, l, j);
+            printf("L%ux%u/%08X", c, r, ls);
+        }
+    }
     printf("\n");
     return 0;
 }
