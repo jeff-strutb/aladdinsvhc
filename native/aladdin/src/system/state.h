@@ -548,6 +548,9 @@ typedef struct GameState {
     uint8_t menu_cursor_moves;  /* $084B: counted up at each move of the cursor */
     uint8_t scene_cue;          /* $00BE: a scene's cue: its task or figures count it up or set it as the scene goes on */
     uint8_t scene_cue_2;        /* $00C0: a scene's second cue (level 5's closing scene: set as its map is rebuilt) */
+    uint8_t scene_cue_waited;   /* $00C2: counted up by a scripted actor when it has waited (kind $70's hit one, after $80 frames) */
+    uint8_t scripted_cue;       /* $146C: counted up by scripted actors as the scene goes on (player/land_on_actor.c uses the word as a record mark) */
+    uint8_t scene_go_on;        /* $1B1F: kind $81's scene goes on once it is nonzero (kind $76 counts it up) */
     uint16_t range_x;           /* $1A44: the point actors are kept in range of (FrameStep: the view's corner + $80) */
     uint16_t range_y;           /* $1A46 */
     uint16_t demo_frames_left;  /* $0341: frames the demo still plays */
