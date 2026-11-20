@@ -1,6 +1,8 @@
 # Aladdin on the native engine: conversion plan
 
-Status: **written from reading the source; nothing built.** Engine: nativeshvc API 6.5 (`8d1745d`). Record: `src/aladdin`
+Status: **stage 0 done, by another session** (`b941e4e`, `d9fcb02`; `docs/aladdin/native/BUILD.md` records its builds and
+runs: a blank 256 x 224 screen headless and in a window on Linux). The rest of this plan was written from reading the source.
+Engine: nativeshvc API 6.5 (`8d1745d`). Record: `src/aladdin`
 at `cffb00c`, 85,916 lines, every code byte certified behaviour exact and byte exact (README). The inventory is
 [hardware-touches.md](hardware-touches.md). The model is Stunt Race FX's plan (`stuntracefx/docs/stuntracefx/native/PLAN.md`,
 "SRFX" below).
@@ -56,9 +58,10 @@ The rules are SRFX's ("How the conversion is shared between sessions"), for this
    actor kinds, which belong to stage 5's areas.
 6. **Linux first is a first.** SRFX's row 11 says its Linux build was never run; no doc in nativeshvc records a converted game
    running on Linux. The engine's Linux host opens an X11 window (`src/host/linux/host_linux.c:189`); this machine's session
-   is Wayland, so it runs under XWayland. `lspci` here shows only "Microsoft Corporation Basic Render Driver", and the
-   Vulkan drivers installed include lavapipe, which draws on the CPU. Whether a GPU device is present is not known until
-   stage 0 runs.
+   is Wayland, so it runs under XWayland. Its GPU is the host's, shared into this Hyper-V guest, and the engine draws through
+   Mesa's Dozen (Vulkan over Direct3D 12), which reports itself "not a conformant Vulkan implementation" (BUILD.md). A wrong
+   picture here may be the driver's, not the game's or the engine's; telling them apart needs another machine or the whole
+   GPU given to the guest (BUILD.md).
 7. **Few of the decomp's scripts can drive the native game.** 3 of the 378 scripts in `tools/aladdin/scripts` run from power-on
    by input alone (`attract`, `rand_menus1`, `rand_menus2`); the rest load saved states (602 `load` lines) or poke memory
    (2,621 `poke`, 677 `set`), which the native game, having no SNES addresses, cannot take. Each level needs a new play by
@@ -102,12 +105,11 @@ What waits (`docs/aladdin/TASKS.md`, `docs/aladdin/ACTORS.md`, and calls counted
 ```
 native/aladdin/
   CMakeLists.txt
-  icon/icon.png                 one square PNG (not yet made: section 10)
+  icon/icon.png                 the box art (on main, d9fcb02)
   assets/cart.dat               written by tools/extract_assets.py from the player's ROM; not in git
-  tools/extract_assets.py       ROM -> assets/cart.dat, checked by SHA-1
-  tools/assets.csv              every data range of the ROM: name, start, end, reader
-  src/main.c                    nshvc_game: init, update, draw, shutdown, music
-  src/system/   state.h (g), the frame, tasks, power-on and reset, random
+  tools/extract_assets.py       ROM -> assets/cart.dat, checked by SHA-1 (on main)
+  tools/assets.csv              2,021 data ranges: name, start, end, reader (on main, made by make_assets_csv.py)
+  src/system/   main.c (nshvc_game; on main, blank screen), state.h (g), the frame, tasks, power-on and reset, random
   src/data/     the only place cartridge offsets live; typed tables and readers
   src/audio/    the driver as music code, the sound queue, sample and song loads
   src/video/    the picture state draw reads, engine objects, uploads, per-line effects, palettes, sprites, Mode 7
@@ -133,9 +135,10 @@ No `SHADERS` (optional in `cmake/NshvcGame.cmake:122`): nothing in Aladdin needs
 drawing). Built with
 `tools/nshvc-build linux native/aladdin`.
 
-`tools/extract_assets.py` follows SRFX's (`native/stuntracefx/tools/extract_assets.py`): drop a 512-byte copier header if
-there is one, refuse anything whose SHA-1 is not `bd5fea18ce7456cc0231a39473927d8ea9c6589b` (`tools/aladdin/build.py:18`),
-then write an image of the cartridge with the data ranges of `assets.csv` at their places and zeros where code was.
+`tools/extract_assets.py` (on main) follows SRFX's: it drops a 512-byte copier header if there is one, refuses anything whose
+SHA-1 is not `bd5fea18ce7456cc0231a39473927d8ea9c6589b` (`tools/aladdin/build.py:18`), and writes an image of the cartridge
+with `assets.csv`'s ranges at their places and zeros where code was: 1,047,228 B the decomp's traces read as data,
+173,223 B no trace touched, 90,269 B of code left out (BUILD.md).
 
 ### The loop
 
@@ -170,9 +173,9 @@ Each stage deletes what it replaces from the new tree in the same change: `machi
 
 | # | Stage | Lines of the record | Done means | Checked by |
 |---|---|---:|---|---|
-| 0 | **Set up**: `native/aladdin` with its `CMakeLists.txt` and an empty game (`ICON` and `SHADERS` are optional in `cmake/NshvcGame.cmake`; the icon comes when there is one) | 0 | `tools/nshvc-build linux native/aladdin` builds; the window opens on this machine and closes; headless `--updates 60` exits 0 | the build; one windowed launch; the engine's log naming the Vulkan device |
+| 0 | **Set up** (done: `b941e4e`, `d9fcb02`): `native/aladdin` with its `CMakeLists.txt`, the icon and an empty game | 0 | `tools/nshvc-build linux native/aladdin` builds; the window opens on this machine and closes; headless `--updates 60` exits 0 | the build; one windowed launch; the engine's log naming the Vulkan device |
 | 1 | **Record and replay** of the original, for finding bugs only | 0 (tooling) | `snesbox` records, per frame of an input-only play, the per-line picture state, palette, sprite table and video-memory changes, the DSP writes and the port commands; `native/checks/replay` makes from a recording the API calls a converted game would, through the engine | the replay's pictures beside bsnes's on the attract play; a planted change shown to make it differ |
-| 2 | **Data and state**: `tools/assets.csv`, `extract_assets.py`, `src/data`, `state.h`, `math` | 1,892 (`math` 153, `include` 1,739, not brought over but read for names) | every table the game reads has a `data/` reader; `state.h` holds the shared fields with their addresses in comments | every extracted range against the ROM's bytes; a CSV of `g`'s fields to original addresses, for stage 5's state comparison; compiles |
+| 2 | **Data and state**: `src/data` over the `assets.csv` and `extract_assets.py` already on main, `state.h`, `math` | 1,892 (`math` 153, `include` 1,739, not brought over but read for names) | every table the game reads has a `data/` reader; `state.h` holds the shared fields with their addresses in comments | every extracted range against the ROM's bytes; a CSV of `g`'s fields to original addresses, for stage 5's state comparison; compiles |
 | 3 | **Sound**: the driver as music code, the queue, the loads | 2,755 (`audio`) | the driver runs on the audio thread from commands; sample sets and songs load by message | the recorded port commands fed to the driver give the recorded voice events (key-ons, pitch, volumes, per tick; SRFX's `music_check`); then `tools/nshvc-check` sound against bsnes on the attract play. Expected: the same events, with differences only in write order inside a tick |
 | 4 | **Loop, video, boot to title** (the first end-to-end) | about 13,700: `system` 1,956, `video` 10,673, `game/logo_screen.c` 119, `opening_story.c` 502, `title_task.c` 473; plus the actor loop and the kinds the story places (counted in this stage's first step, from `OpeningActorPlace`'s table) | the game runs from power-on through the logo and the opening story (or Start) to the title with its music, the finder reporting nothing in the tree | headless runs with `--shots` and `--sound`, looked at against the original's recording; `nshvc-check` sound on the boot. Expected: the same screens and music, reached sooner (section 1 item 3) |
 | 5 | **Player, actors and levels** | about 67,500: `actor` 47,012, `player` 7,261, `level` 3,075, `map` 2,471, the rest of `game` 7,699 | every level, scene, the Genie screen, continue, password and ending playable by input; every live routine converted or listed dead | for each level, a new input-only play of the original (section 1 item 7); the native game's state against the recording at each frame through stage 2's CSV, each masked field with its reason; no crash or unconverted-routine message |
@@ -251,7 +254,6 @@ wrapper, the interrupt vectors and handlers as such, the task stacks, the IPL up
   updates and the rest). This plan keeps the original's 256 x 224 picture until Jeff says.
 - **What persists.** The original keeps its options in work RAM, sealed with a sum (`KeptOptionsSeal`, `game/options_*.c`),
   and progress only as passwords. Whether the native game saves options or progress across launches is Jeff's call.
-- **The icon.** There is none; Jeff's to supply or approve.
 - **The window-effect register table's bank.** Its bytes make sense in bank $80 only; the routines' comments say DB = $82
   (hardware-touches.md section 3). A recording in stage 1 settles it.
 - **The IRQ's line on every level**: `V_1C7D` or 8, unless the V counter latched in the NMI reads 5 to $7F
@@ -262,8 +264,8 @@ wrapper, the interrupt vectors and handlers as such, the task stacks, the IPL up
   native's will not. Stage 3's voice comparison shows it.
 - **Slowdown.** If the gameplay frame (`FrameStep`, 81:8311) ever takes longer than a frame, the original slows there and the
   native game will not. Stage 1's recordings show whether frames are dropped.
-- **The data.** 1,220,451 of the ROM's 1,310,720 bytes are not code (README: 90,269 code bytes); how much of that the game
-  reads, and how, is stage 2's `assets.csv`.
+- **The data's meaning.** `assets.csv` divides the ROM by whether the traces read it (1,047,228 B) or not (173,223 B), and
+  names ranges by address (`data_8080ED`); what each table is, and its typed reader, is stage 2's work.
 - **Computed addresses**: whether each of the 221 lines and the 141 record pointers resolves to a typed record or table by
   reading. Any that does not is reported.
-- **This machine's Vulkan device** (section 1 item 6).
+- **Whether Dozen draws every capability the game uses correctly** (section 1 item 6).
