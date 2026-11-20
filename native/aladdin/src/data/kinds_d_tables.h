@@ -50,4 +50,11 @@ uint8_t k5c_speed_step(uint8_t at);
 uint8_t k5d_heights_at(uint8_t path);   /* path 0-2: its heights' offset */
 uint16_t k5d_height(uint8_t at);        /* at that offset plus twice the cloud's number: the y it rises to */
 
+/* ---- kind $87, the catcher ---- */
+
+DataRef k87_probes(void);       /* the catcher's probe list */
+DataRef k87_child_probes(void); /* a child's */
+int16_t k87_shake_x(uint8_t step);      /* the shake's step 1-8: its move across, pixels */
+uint8_t k87_child_wait(uint8_t n);      /* child $07 1-5: frames it waits its turn (0 none) */
+
 #endif

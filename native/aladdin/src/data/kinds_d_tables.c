@@ -59,3 +59,19 @@ uint8_t k5c_speed_step(uint8_t at) { return at8(0x80, (uint16_t)(0xD408 + at + 2
    each cloud */
 uint8_t k5d_heights_at(uint8_t path) { return at8(0x80, (uint16_t)(0xD4A8 + path)); }
 uint16_t k5d_height(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xD4A8 + at))); }
+
+/* ---- kind $87 (83:F77F Kind87Start) ---- */
+
+/* the words $D852 and $D856 it stores at +$16, in bank $80 */
+DataRef k87_probes(void) { return ref(0x80, 0xD852); }
+DataRef k87_child_probes(void) { return ref(0x80, 0xD856); }
+
+/* $80:D843: by step a byte, the offset of its move in the words at $D84C
+   (1, 2, -2) */
+int16_t k87_shake_x(uint8_t step)
+{
+    return (int16_t)cart16(cart_offset(0x80, (uint16_t)(0xD84C + at8(0x80, (uint16_t)(0xD843 + step)))));
+}
+
+/* $80:D859: by a child's $07, its turn's frames (0, 6, 12, 6, 12 for 1-5) */
+uint8_t k87_child_wait(uint8_t n) { return at8(0x80, (uint16_t)(0xD859 + n)); }
