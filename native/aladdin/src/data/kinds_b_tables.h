@@ -28,6 +28,10 @@ uint8_t k43_pieces(uint8_t way);        /* how many pieces it breaks into */
 uint8_t k43_first_spawn_at(uint8_t way);    /* the first piece's spawn point */
 uint8_t k43_anim(uint8_t way);          /* its animation */
 
+/* kind $57 */
+DataRef k57_probes(void);               /* its probe list */
+DataRef k57_own_pictures(void);         /* its picture list (Actor.own_pictures) */
+
 /* kind $52's wait routine: the pictures on which it hurts, and each one's zone */
 #define K52_HURT_PICTURES 5
 uint8_t k52_hurt_picture(uint8_t i);    /* i < K52_HURT_PICTURES */

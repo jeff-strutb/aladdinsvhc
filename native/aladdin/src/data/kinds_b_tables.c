@@ -36,6 +36,12 @@ uint8_t k43_pieces(uint8_t way) { return at8(0x80, (uint16_t)(0xD2C1 + 2u * way)
 uint8_t k43_first_spawn_at(uint8_t way) { return at8(0x80, (uint16_t)(0xD2C2 + 2u * way)); }
 uint8_t k43_anim(uint8_t way) { return at8(0x80, (uint16_t)(0xD2C7 + way)); }
 
+/* ---- kind $57 (83:D9BA): its probes at $80:D3B8, and its picture list
+   at $80:8913, which ActorPictureSend reads (the traces read
+   $80:8913-$80:8914 as data and run $81:8913 as code) ---- */
+DataRef k57_probes(void) { return ref(0x80, 0xD3B8); }
+DataRef k57_own_pictures(void) { return ref(0x80, 0x8913); }
+
 /* ---- kind $52's wait (83:D518): pictures at $80:D382 (00 01 02 03 0A),
    zones at $80:D387 (24 24 28 2C 30); the traces read $80:D382-D38B as
    data; $83:D382 is Kind52Start's code ---- */

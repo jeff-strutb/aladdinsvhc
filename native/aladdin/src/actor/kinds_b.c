@@ -29,6 +29,8 @@ int Kind49Carry(Actor *a);              /* kind49.c */
 int Kind49Wait(Actor *a);
 int Kind52Start(Actor *a);              /* kind52.c */
 int Kind52Wait(Actor *a);
+int Kind57Start(Actor *a);              /* kind57.c */
+int Kind57Wait(Actor *a);
 int Kind5BStart(Actor *a);              /* kind5b.c */
 int ActorWaitStepSounds(Actor *a);
 int Kind5EBrief(Actor *a);              /* kind_5e.c */
@@ -66,6 +68,7 @@ const KindCode kinds_b[] = {
     { 0x43, Kind43Start, Kind43Start, NULL, Kind43Wait },
     { 0x49, Kind49Carry, NULL, NULL, Kind49Wait },
     { 0x52, Kind52Start, Kind52Start, NULL, Kind52Wait },
+    { 0x57, Kind57Start, Kind57Start, Kind57Start, Kind57Wait },
     { 0x5B, Kind5BStart, Kind5BStart, NULL, ActorWaitStepSounds },
     { 0x5E, Kind5EBrief, Kind5EBrief, NULL, ActorWaitAnimRange10 },
     /* $70: its second 83:F370 is kind $71's start (Kind71Start, n5-kinds-d's): left aside */
