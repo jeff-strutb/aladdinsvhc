@@ -26,3 +26,22 @@ void ActorStateSet8C(Actor *a)
     a->flags &= 0x7F;
     a->state = 0x8C;
 }
+
+/*
+ * @routine 83:B61A ActorFallSpeedCap
+ * WHAT IT DOES: Limits the actor's falling speed to 6 pixels a frame:
+ * while it moves down (the speed's top byte not negative), a speed whose
+ * fraction and low pixel byte, as a word, pass $0600 becomes $0600 (its
+ * top byte kept) and its gravity is cleared.
+ */
+void ActorFallSpeedCap(Actor *a)
+{
+    uint32_t s = (uint32_t)a->speed_y;
+
+    if (a->speed_y < 0)
+        return;
+    if ((s & 0xFFFF) > 0x0600) {
+        a->speed_y = signed24((s & ~0xFFFFu) | 0x0600);   /* its top byte kept */
+        a->accel_y = 0;
+    }
+}

@@ -162,6 +162,7 @@ typedef enum {
 } ActorSolid;
 ActorSolid ActorSolidForPlayer(Actor *a, uint8_t at);   /* 83:865E, 83:8657 Long: box `at` of the boxes at $80:BD66 */
 void ActorCarryPlayer(Actor *a);                    /* 83:FBDA */
+void ActorTestCarries(Actor *a, uint8_t test);      /* 83:FB89, 83:FB85 Long: test 0 solid, 2 land, by the box at its +$4C; $43 1 when he rides it; its place kept at $48, $4A; its animation on */
 
 /* shots from the second pool (shot_hit.c): the shot that reached it, or NULL */
 Actor *ActorDownedByShot(Actor *a);                 /* 83:80FC */
@@ -177,6 +178,7 @@ void ActorStateSet8C(Actor *a);                     /* 83:8267: state $8C, +$08 
 void ActorStateSet8CSelf(Actor *a);                 /* 83:8254: the same */
 void ActorStateSetCC(Actor *a);                     /* 83:824B: state $CC */
 void ActorPriorityClear(Actor *a);                  /* 84:81B2 */
+void ActorFallSpeedCap(Actor *a);                   /* 83:B61A: falling, at most 6 pixels a frame */
 void ActorSpawnPair(Actor *a);                      /* 83:D332: two children like it at spawn points $46 and $48 */
 void ActorSpawnRing(Actor *a);                      /* 83:D0A3: up to five kind $34 children in a ring round it */
 void ActorFlagOnce(Actor *a);                       /* 83:CF10: drops its children once (its cases 83:CF31-CF67) */
@@ -206,9 +208,6 @@ unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
 /* wanted */
 
 /* (kinds B; their stand-ins in actor/wanted_b.c) */
-void ActorTestCarries(Actor *a, uint8_t test);  /* 83:FB89, 83:FB85 Long (player_carry.c): whether the player rides it this frame
-                                                   (test 0 ActorTestSolid, 2 ActorTestLand, box at its +$4C); its place kept
-                                                   for carrying him; its animation on */
 void ActorFallAgainst(Actor *a);        /* 81:A520 (motion.c): gravity taken from the vertical speed, then ActorMoveY. NOTES-core
                                            lists it dead, but JSL $81:A520 is at 83:BDA1, 83:F5C6, 83:F731 and 84:AAAF */
 void ActorMotionPresetY(Actor *a, uint8_t preset);  /* 81:A3EC (motion.c, inside ActorMotionPreset): the preset's vertical speed and gravity only */
@@ -218,7 +217,6 @@ int ActorAnimFreeFar(Actor *a);         /* 84:832B (actor_84_misc.c): ACTOR_ENDE
 
 /* (n5-kinds-c, for kinds $2D, $2F, $4F) */
 void ActorMotionPresetY(Actor *a, uint8_t preset);  /* 81:A3EC: the preset's vertical speed and gravity */
-void ActorFallSpeedCap(Actor *a);                   /* 83:B61A */
 uint8_t ActorMapAhead5Down12(Actor *a);             /* 83:B5F6: the class of the map's block 5 ahead of it and 12 below */
 void ActorVariantChildStep(Actor *a);               /* 83:D078 */
 

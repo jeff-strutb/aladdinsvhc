@@ -13,12 +13,9 @@
 PENDING int ActorEndIfLeftBehind(Actor *a) { (void)a; unconverted("ActorEndIfLeftBehind"); return ACTOR_GOES_ON; }
 PENDING int ActorEndFarWithChildren(Actor *a) { (void)a; unconverted("ActorEndFarWithChildren"); return ACTOR_GOES_ON; }
 
-PENDING void ActorFacePlayer(Actor *a) { (void)a; unconverted("ActorFacePlayer"); }
-
-PENDING void ActorCarryPlayer(Actor *a) { (void)a; unconverted("ActorCarryPlayer"); }
 
 
-PENDING void ActorPriorityClear(Actor *a) { (void)a; unconverted("ActorPriorityClear"); }
+
 
 PENDING int ActorHopFromTable(Actor *a, uint8_t at) { (void)a; (void)at; unconverted("ActorHopFromTable"); return ACTOR_RETURNS; }
 PENDING int ActorSpawnLookWait(Actor *a) { (void)a; unconverted("ActorSpawnLookWait"); return ACTOR_RETURNS; }
