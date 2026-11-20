@@ -13,28 +13,30 @@
  * +$13, his code going on as he hangs (PLAYER_AT_GRABBED_HANG); while it
  * holds him he stays there until g.player_no_actor_landing is cleared, which
  * lets him go with a pause of 8 frames (its +$4F) before it can hold him
- * again.
+ * again. True while it holds him (taken this frame or held); false when it
+ * let him go, paused, or found him not to take (the original's C clear).
  */
-void ActorHoldPlayer(Actor *a)
+bool ActorHoldPlayer(Actor *a)
 {
     if (a->HOLDS) {
         if (!(uint8_t)g.player_no_actor_landing) {
             a->HOLDS = 0;
             a->own.bytes[OWN_4F] = 8;
-            return;
+            return false;
         }
         PlayerToActorAbove(a, a->own.bytes[OWN_13]);
-        return;
+        return true;
     }
     if (a->own.bytes[OWN_4F]) {
         a->own.bytes[OWN_4F]--;
-        return;
+        return false;
     }
     if (!ActorGrabTest(a))
-        return;
+        return false;
     g.actors[0].resume = PLAYER_AT_GRABBED_HANG;
     PlayerSpotAboveActor(a, a->own.bytes[OWN_13]);
     a->HOLDS++;
+    return true;
 }
 
 /*

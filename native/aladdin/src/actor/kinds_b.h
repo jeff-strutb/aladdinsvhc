@@ -13,4 +13,6 @@
    index in g.actors. */
 int Kind42Start(Actor *a);      /* 83:C5DE; second 83:C738 Kind42Break in it */
 
+int LandingPad(Actor *a);       /* 83:F9BA, kind $8A (kind8a.c); also kind $87's second entry (n5-kinds-d runs it through ActorRunAs) */
+
 #endif

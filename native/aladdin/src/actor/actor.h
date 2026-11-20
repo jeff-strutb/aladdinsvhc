@@ -228,7 +228,7 @@ void ActorPlaceAtSpot(Actor *a, uint8_t spot);      /* A5:EB1E: on whole pixels 
 /* (kinds B; their stand-ins in actor/wanted_b.c) */
 void ActorFallAgainst(Actor *a);        /* 81:A520 (motion.c): gravity taken from the vertical speed, then ActorMoveY. NOTES-core
                                            lists it dead, but JSL $81:A520 is at 83:BDA1, 83:F5C6, 83:F731 and 84:AAAF */
-void ActorHoldPlayer(Actor *a);         /* 83:BAF3, 83:BAEF Long (player_grab.c): its own +$13 the offset he is held at */
+bool ActorHoldPlayer(Actor *a);         /* 83:BAF3, 83:BAEF Long (player_grab.c): its own +$13 the offset he is held at */
 void ActorYByFrame47(Actor *a);         /* 83:BDE9 (actor_y_steps.c): its height follows its frame (the frame kept at +$47) */
 void ActorYByFrame(Actor *a);           /* 83:F031 (actor_steps.c): its y by its frame's step; the frame kept at +$49 */
 int ActorAnimFreeFar(Actor *a);         /* 84:832B (actor_84_misc.c): ACTOR_ENDED when freed out of range (box $58), else ACTOR_GOES_ON */
