@@ -52,4 +52,18 @@ uint8_t camera_aim_of_push(uint8_t push);
 uint16_t screen_limit_low(uint8_t side);
 uint16_t screen_limit_high(uint8_t side);
 
+/* PlayerLandOnActor (82:89E3): landing box `box` (a byte offset, 10 bytes a
+   box): where an actor's top takes him */
+typedef struct LandBox {
+    uint16_t x_offset, width;   /* his x less the actor's, plus x_offset, below width */
+    uint16_t y_offset, height;  /* the same down */
+    uint16_t below;             /* his feet may be this far above its y */
+} LandBox;
+LandBox land_box(uint16_t box);
+
+/* PlayerToActorAbove, PlayerToActorBelow (82:BB3A, 82:BB26): offset
+   `n`, across (along his flip) and up or down from the actor */
+uint8_t attach_offset_x(uint8_t n);
+uint8_t attach_offset_y(uint8_t n);
+
 #endif

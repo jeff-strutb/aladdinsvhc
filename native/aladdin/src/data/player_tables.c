@@ -59,3 +59,22 @@ uint8_t camera_aim_of_push(uint8_t push) { return at8((uint16_t)(0xC7E8 + push))
 /* $80:C9B9 (across) and $80:C9C9 (down): the least word, then the most */
 uint16_t screen_limit_low(uint8_t side) { return at16(side ? 0xC9C9 : 0xC9B9); }
 uint16_t screen_limit_high(uint8_t side) { return at16(side ? 0xC9CB : 0xC9BB); }
+
+/* $82:BE92: five words a box, at the box's byte offset (the original's Y) */
+LandBox land_box(uint16_t box)
+{
+    uint32_t o = cart_offset(0x82, (uint16_t)(0xBE92 + box));
+    LandBox b;
+
+    b.x_offset = cart16(o);
+    b.width = cart16(o + 2);
+    b.y_offset = cart16(o + 4);
+    b.height = cart16(o + 6);
+    b.below = cart16(o + 8);
+    return b;
+}
+
+/* $80:FE44: an x byte and a y byte by offset number (the number times 2,
+   8-bit as the original's X) */
+uint8_t attach_offset_x(uint8_t n) { return at8((uint16_t)(0xFE44 + (uint8_t)(n << 1))); }
+uint8_t attach_offset_y(uint8_t n) { return at8((uint16_t)(0xFE45 + (uint8_t)(n << 1))); }
