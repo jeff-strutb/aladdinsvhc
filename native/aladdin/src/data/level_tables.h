@@ -68,4 +68,16 @@ uint16_t band_start_speed(unsigned band);
 uint16_t band_speed_step(unsigned band);
 uint16_t band_most_speed(unsigned band);
 
+/* ---- the screen between a level's acts (game/level_end.c; $80:FDC5 on) ---- */
+#define LEVEL_END_COLUMNS 4
+#define LEVEL_END_BLANK_BLOCKS 16
+uint16_t level_end_step_vram(unsigned step);        /* the VRAM word address of column 0 at step 0, 2, 4, 6 (as 0-3) */
+uint8_t level_end_column_limit(unsigned column);    /* the walker's x below which the column is not drawn yet */
+uint8_t level_end_palette(uint8_t part, unsigned i);    /* the part's palette i (0-3), for PaletteFromRom */
+uint8_t level_end_picture(uint8_t part, unsigned column);   /* the part's picture of a column (a part from 1) */
+uint8_t level_end_picture_tile(uint8_t picture);    /* the picture's first tile */
+uint8_t level_end_column_attr(unsigned column);     /* the column's tile attribute byte */
+uint8_t level_end_block(uint8_t part);              /* the part's block offset (the offset from $04C0 its tiles are at) */
+uint16_t level_end_blank_block(unsigned i);         /* the VRAM word address of blank block i (0-15) */
+
 #endif

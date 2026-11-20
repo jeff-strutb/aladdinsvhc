@@ -79,6 +79,14 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
+        struct {                /* LevelEndTask (game/level_end.c); the walker's x it watches is g.end_walker_x */
+            uint8_t next_at;        /* $A7: the walker's x at which the picture's next block is drawn */
+            uint8_t block;          /* $A8: the next block of the picture */
+            uint8_t step[4];        /* $A9-$AC: each column's step */
+            uint8_t placed;         /* $AD: pieces placed (nothing reads it) */
+            uint8_t asked;          /* $AE: counted up once the screen has had its pause (nothing reads it) */
+            uint8_t count;          /* $AF: frames left of the pause being counted */
+        } level_end;
         struct {                /* WindowEffectTask's waves (video/window_effects.c) */
             uint16_t phase;         /* +$06 of the slot (word): the sine's start */
             uint8_t step;           /* +$08: lines a step of the sine lasts */
@@ -577,6 +585,7 @@ typedef struct GameState {
     uint16_t gem_sets_found;    /* $0373: a bit per set gem found */
     uint8_t gem_sets;           /* $0375: set gems found */
     uint8_t gem_sets_total;     /* $0376: gem_sets added up at each level end */
+    uint16_t end_walker_x;      /* $00A5: the walker's x pixels at a level's end (kinds $8F and $94 write it, game/level_end.c reads it) */
     uint8_t continue_frames;    /* $142E: counted up while the continue screen shows */
     uint8_t menu_blink_hidden;  /* $0847: nonzero, the menu's chosen line is blanked */
     uint8_t menu_blink_frames;  /* $0848: frames the line has been shown, or frames left blanked */
