@@ -230,7 +230,7 @@ void ActorYByFrame47(Actor *a);         /* 83:BDE9 (actor_y_steps.c): its height
 void ActorYByFrame(Actor *a);           /* 83:F031 (actor_steps.c): its y by its frame's step; the frame kept at +$49 */
 int ActorAnimFreeFar(Actor *a);         /* 84:832B (actor_84_misc.c): ACTOR_ENDED when freed out of range (box $58), else ACTOR_GOES_ON */
 
-/* (n5-kinds-c, for kinds $2B, $2F, $4F) */
+/* (n5-kinds-c, for kinds $2B, $2F, $4F, $7E; the first two landed in map_probe.c and children_start.c) */
 uint8_t ActorMapAhead5Down12(Actor *a);             /* 83:B5F6: the class of the map's block 5 ahead of it and 12 below */
 void ActorVariantChildStep(Actor *a);               /* 83:D078 */
 void ActorSpeedXSetAccel(Actor *a, uint8_t accel, uint8_t at);    /* 81:A411: acceleration `accel`, speed entry `at` */

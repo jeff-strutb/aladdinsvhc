@@ -79,6 +79,15 @@ uint8_t k4f_opened_bit(uint8_t n) { return at8((uint16_t)(0xD366 + n)); }
 uint16_t k59_lamp_x(uint8_t at) { return at16((uint16_t)(0xD3D0 + at)); }
 uint16_t k59_lamp_y(uint8_t at) { return at16((uint16_t)(0xD3D2 + at)); }
 
+/* ---- kind $63: its probe list at $D4E5, its picture list at $891D; by
+   +$07 * 2 its reach (word) at $D4ED and its aims (bytes) at $D4F7, $D4F8 ---- */
+
+DataRef k63_probes(void) { return ref(0xD4E5); }
+DataRef k63_pictures(void) { return ref(0x891D); }
+uint16_t k63_reach_y(uint8_t at) { return at16((uint16_t)(0xD4ED + at)); }
+uint8_t k63_aim_near(uint8_t at) { return at8((uint16_t)(0xD4F7 + at)); }
+uint8_t k63_aim_mid(uint8_t at) { return at8((uint16_t)(0xD4F8 + at)); }
+
 /* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
    $7F's probe list at $D832 ---- */
 

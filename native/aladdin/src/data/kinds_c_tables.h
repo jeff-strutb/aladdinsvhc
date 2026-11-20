@@ -60,6 +60,14 @@ uint8_t k4f_opened_bit(uint8_t n);          /* n 0-3 (its +$07's low bits): its 
 uint16_t k59_lamp_x(uint8_t at);            /* a row lamp's place by `at` (4 times its number less 1) */
 uint16_t k59_lamp_y(uint8_t at);            /* its y below the screen's */
 
+/* ---- kind $63, the thrower above ---- */
+
+DataRef k63_probes(void);
+DataRef k63_pictures(void);
+uint16_t k63_reach_y(uint8_t at);           /* by its +$07 * 2: added to its y before his is taken off */
+uint8_t k63_aim_near(uint8_t at);           /* by its +$07 * 2: below this, aim 2 */
+uint8_t k63_aim_mid(uint8_t at);            /* then below this, aim 1; else 0 */
+
 /* ---- kinds $7E, $7F ---- */
 
 uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */
