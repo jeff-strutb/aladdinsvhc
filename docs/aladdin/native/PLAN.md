@@ -278,6 +278,12 @@ wrapper, the interrupt vectors and handlers as such, the task stacks, the IPL up
 
 ## 10. What is not known
 
+- **Whether real play starts the story card with act 8** (open; to be settled when stage 5 reaches the final act). The
+  card's list for part 8 and up (the word at $80:D9F3 + part * 2) is not a list: its bytes give garbage copy indexes,
+  and VramCopy then copies bank $80's code to video memory (section 1 item 8). The only run that reaches it is
+  `rand_stage_a8_s0`, through the password path with act 8 set by `03_stages.box`'s poke; all 2,407 of its frames are
+  black. The one path in the record not yet run is PlayerEscortExit at level $17's exit (act 8, stage 4, escort, exit
+  spot x $1EF0, STAGE_GOES_ON 0). To settle it: a run of the original from a real state in level $17 to that exit.
 - **Which enhanced features** Aladdin gets (decision 3): none is designed yet.
 - **The window-effect register table's bank.** Its bytes make sense in bank $80 only; the routines' comments say DB = $82
   (hardware-touches.md section 3). A recording in stage 1 settles it.
