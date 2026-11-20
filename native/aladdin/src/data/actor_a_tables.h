@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "data/actor_tables.h"      /* ViewBox */
+#include "data/data.h"              /* DataRef */
 
 ViewBox range_box(uint8_t at);
 typedef struct HitBox { uint16_t half_w, half_h; } HitBox;
@@ -27,5 +28,13 @@ typedef struct FrontBox { uint16_t half_h, off_right, off_left; } FrontBox;
 FrontBox front_box(uint8_t at);
 uint8_t direction_by_band(uint8_t i);   /* $80:BBE3: by quadrant * 4 + band */
 uint8_t direction_by_step(uint8_t i);   /* $80:BC03: by octant * 8 + step */
+
+HitBox second_pool_box(uint8_t n);  /* $80:C580, by a second-pool kind's low 4 bits (4 bytes): half-width, half-height */
+/* a zone beside an actor ($80:BDA6, 4 bytes from `at`): half-width,
+   half-height, and its place from the actor's: across along its facing,
+   down (signed) */
+typedef struct Zone { uint8_t half_w, half_h; int8_t ahead, down; } Zone;
+Zone zone_at(uint8_t at);
+DataRef shot_probes(void);          /* the shots' probe list ($80:C9FF; Actor.probes) */
 
 #endif

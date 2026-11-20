@@ -165,6 +165,8 @@ Actor *ActorHitByShotCC(Actor *a);                  /* 83:8135 */
 Actor *ActorTurnsShotBack(Actor *a);                /* 83:819A, 83:8196 Long */
 Actor *ActorEndsShot(Actor *a);                     /* 83:81CF */
 Actor *ActorDownedByHarmlessShot(Actor *a);         /* 83:8208 */
+Actor *ActorStopsShot(Actor *a);                    /* 83:8171, 83:816D Long */
+Actor *ActorTakesShot(Actor *a);                    /* 83:81E8: a shot that hits (a harmless one passes) */
 
 /* the record's state and fields (actor_fields.c, actor_state_8c.c, priority_clear.c) */
 void ActorStateSet8C(Actor *a);                     /* 83:8267: state $8C, +$08 bit 7 set, +$09 bit 7 clear */
@@ -179,6 +181,8 @@ int ActorHopFromTable(Actor *a, uint8_t at);        /* 83:FD2C: hop `at` of the 
 int ActorSpawnLookWait(Actor *a);                   /* 83:FC0D */
 int ActorRiseWhenInReach(Actor *a, uint8_t at);     /* 83:FCA5: ACTOR_RETURNS once risen; ACTOR_RETURNS_C out of reach */
 int ActorKnockedAway(Actor *a, uint8_t anim, uint8_t sound, uint8_t preset);    /* 83:9532: never returns; ends it */
+int ActorKnockedAwayResumed(Actor *a, uint8_t anim, uint8_t frame, uint8_t preset);   /* 83:9589: never returns; ends it */
+int ActorKnockedAwayResumedB(Actor *a, uint8_t anim, uint8_t frame, uint8_t preset);  /* 83:959F: the same */
 
 /* ---- for video (OamDrawActor, 81:9309) ---- */
 
@@ -195,11 +199,7 @@ unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
 /* wanted */
 
 /* (n5-kinds-d, for kinds $30 and $51) */
-Actor *ActorTakesShot(Actor *a);                    /* 83:81E8: the shot (its +$11 not negative) that reached it, stopped, its
-                                                       hit marked (kind $11) and its facing taken; NULL none */
 void ActorSpawnPair(Actor *a);                      /* 83:D332: two children like it at spawn points $46 and $48 (actor/spawn_group.c) */
-bool PlayerLandsOnActor(Actor *a);                  /* 83:848D: Aladdin came down on top of it: stood on it, his code at his
-                                                       landing, a kind $11 at his feet (actor/player_landing.c) */
 
 /* (kinds B; its stand-in in actor/wanted_b.c) */
 void ActorFlagOnce(Actor *a);           /* 83:CF10 (actor_steps.c), its cases 83:CF31-CF67 (flag_drops.c): drops its children once */

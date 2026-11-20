@@ -6,7 +6,9 @@
  */
 #include "actor/actor_own.h"
 #include "player/player.h"
+#include "video/video.h"
 
 #define STAND_IN __attribute__((weak))
 
 STAND_IN int PlayerEnter8CFacing(const Actor *by) { (void)by; unconverted("PlayerEnter8CFacing"); return 0; }
+STAND_IN void ActorPictureSend(Actor *a) { (void)a; unconverted("ActorPictureSend"); }

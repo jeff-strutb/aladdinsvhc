@@ -29,4 +29,16 @@ static inline bool touch_from_above(const TestBoxTouch *t, uint16_t margin)
 void PlayerStandOnActor(const Actor *a, const TestBoxTouch *t);    /* 83:84D5 */
 void ActorSpawnKind11AtPlayer(void);                               /* 83:84F4 */
 
+/* the shots' code (thrown_shot.c): kinds $10, $14-$17 and $B9. Its resume
+   points other actors' code sends a shot to (the original wrote the
+   addresses $81:EB76 and $81:EB7C into the shot's record) */
+enum {
+    SHOT_AT_FLY = ACTOR_RESUME_OWN,     /* 81:EAEB: a frame of its flight */
+    SHOT_AT_HIT,                        /* 81:EB46: ShotHit after its first frame */
+    SHOT_AT_ENDS,                       /* 81:EB76: it ends */
+    SHOT_AT_TURNED_BACK,                /* 81:EB7C: turned back, it flies off harmless */
+    SHOT_AT_FLY_OFF                     /* 81:EB82: a frame of that flight */
+};
+int ShotCode(Actor *a);
+
 #endif

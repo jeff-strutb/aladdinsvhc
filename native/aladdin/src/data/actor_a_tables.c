@@ -52,3 +52,31 @@ FrontBox front_box(uint8_t at)
 
 uint8_t direction_by_band(uint8_t i) { return at8(0x80, (uint16_t)(0xBBE3 + i)); }
 uint8_t direction_by_step(uint8_t i) { return at8(0x80, (uint16_t)(0xBC03 + i)); }
+
+HitBox second_pool_box(uint8_t n)
+{
+    HitBox b;
+
+    b.half_w = at16(0x80, (uint16_t)(0xC580 + 4u * n));
+    b.half_h = at16(0x80, (uint16_t)(0xC582 + 4u * n));
+    return b;
+}
+
+Zone zone_at(uint8_t at)
+{
+    Zone z;
+
+    z.half_w = at8(0x80, (uint16_t)(0xBDA6 + at));
+    z.half_h = at8(0x80, (uint16_t)(0xBDA7 + at));
+    z.ahead = (int8_t)at8(0x80, (uint16_t)(0xBDA8 + at));
+    z.down = (int8_t)at8(0x80, (uint16_t)(0xBDA9 + at));
+    return z;
+}
+
+DataRef shot_probes(void)
+{
+    DataRef r;
+
+    r.at = cart_offset(0x80, 0xC9FF);
+    return r;
+}

@@ -26,3 +26,9 @@ player_near.c (no code refers to them; a unit script alone runs them):
 player_relation.c (likewise):
   81:AF01 PlayerInFrontBoxByFlip, 81:ABC0 PlayerOffsetPoint,
   81:ABB4 ActorDirectionToPlayerOffset, 81:ABBA ActorAimAtPlayerOffset
+actor_overlap.c (no JSR, JSL, JMP, pointer or word names them; a unit script alone runs them):
+  83:8521 ActorOverlapsScratchBoxLong, 83:8525 ActorOverlapsScratchBox,
+  83:8602 ActorHitsTestBoxBySecondBoxes, 83:88B3 ActorZoneTouchesSecondPoolLong,
+  83:88B7 ActorZoneTouchesSecondPool
+hit_marks.c (likewise): 83:82C3 LoneReturn82C3, 83:82C4 Spawn11At1Long, 83:82C8 Spawn11At1
+shot_hit.c (likewise): 83:80ED ActorDownedByShotUnmarkedLong, 83:80F1 ActorDownedByShotUnmarked

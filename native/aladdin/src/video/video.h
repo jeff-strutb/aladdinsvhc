@@ -160,4 +160,7 @@ void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll 
 /* wanted */
 void LevelActorGraphicsLoad(void);          /* 81:B9F4: the level's actors' sprite graphics (LevelRamSetup) */
 
+/* (n5-actors-a, for ActorKnockedAway 83:9532) */
+void ActorPictureSend(Actor *a);            /* 81:949E: when it shows its own picture (flags bit 6) and the picture changed, its graphics queued */
+
 #endif
