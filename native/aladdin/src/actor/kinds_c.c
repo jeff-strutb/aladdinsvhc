@@ -11,6 +11,7 @@ const KindCode kinds_c[] = {
     { 0x2B, Kind2BCode, Kind2BCode, NULL, Kind2BWait },
     { 0x2D, Kind2DCode, Kind2DCode, Kind2DCode, ActorWaitHitsRange8 },
     { 0x2F, Kind2FCode, Kind2FCode, NULL, ActorWaitHitsRange0 },
+    { 0x33, Kind33Code, NULL, NULL, Kind33Wait },              /* its second (83:BB96) is an RTS no state reaches */
     { 0x4F, Kind4FCode, NULL, NULL, ActorWaitTest42Anim2 },    /* its second (83:D108) is an RTS no state reaches */
     { 0x90, Kind90Code, NULL, NULL, NULL },                    /* its second and its wait (83:9366) reach an RTL: nothing */
     { 0, NULL, NULL, NULL, NULL }

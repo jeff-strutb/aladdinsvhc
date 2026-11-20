@@ -26,6 +26,15 @@ uint8_t k2b_range(uint8_t n);
 uint16_t k2b_partner_half(void);            /* how far from its partner's x it keeps */
 uint16_t k2b_partner_span(void);            /* twice that */
 
+/* ---- kind $33, the swinging platform ---- */
+
+uint8_t k33_frame(uint8_t n);               /* the placed one's frame by the platform's direction / 8 */
+/* its graphics' two uploads, `at` 0 or 6: the first tile (from its look's),
+   the source (from where its graphics were unpacked), the bytes */
+uint16_t k33_upload_tile(uint8_t at);
+uint16_t k33_upload_from(uint8_t at);
+uint16_t k33_upload_bytes(uint8_t at);
+
 /* ---- kind $2D, the thrower ---- */
 
 /* by facing * 4 (0 right, 4 left): where its reach starts, from its x, and

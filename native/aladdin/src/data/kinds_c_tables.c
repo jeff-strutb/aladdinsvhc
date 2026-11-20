@@ -45,6 +45,14 @@ uint8_t k2b_range(uint8_t n) { return at8((uint16_t)(0xD11E + n)); }
 uint16_t k2b_partner_half(void) { return at16(0xD2E3); }
 uint16_t k2b_partner_span(void) { return at16(0xD2E5); }
 
+/* ---- kind $33: the frames at $D199; the uploads at $D1AA, 6 bytes each:
+   tile, source, bytes (words) ---- */
+
+uint8_t k33_frame(uint8_t n) { return at8((uint16_t)(0xD199 + n)); }
+uint16_t k33_upload_tile(uint8_t at) { return at16((uint16_t)(0xD1AA + at)); }
+uint16_t k33_upload_from(uint8_t at) { return at16((uint16_t)(0xD1AA + at + 2)); }
+uint16_t k33_upload_bytes(uint8_t at) { return at16((uint16_t)(0xD1AA + at + 4)); }
+
 /* ---- kind $2D: by facing * 4 at $D122 a word (where its reach starts)
    then a word (how far); by +$07 at $D130 the throw's frames and at $D133
    the frame its copy leaves; by arc at $D136 the second arc and at $D12A
