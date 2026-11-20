@@ -17,5 +17,7 @@ const KindCode kinds_player[] = {
     { 0x02, PlayerCode, PlayerCode, NULL, PlayerWait },
     { 0x03, PlayerCode, PlayerCode, NULL, PlayerWait },
     { 0x07, PlayerCode, PlayerCode, NULL, PlayerWait },
+    /* the ground-push mark: 83:E480 GroundPushMark, wait 83:E4E7 ActorWaitAnimB (= AnimateWhileWaiting) */
+    { 0x60, Kind60Start, NULL, NULL, AnimateWhileWaiting },
     { 0, NULL, NULL, NULL, NULL }
 };

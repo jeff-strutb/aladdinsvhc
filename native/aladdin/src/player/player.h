@@ -28,6 +28,7 @@
 /* ---- his code (kinds $00-$03, $07) ---- */
 
 int PlayerCode(Actor *a);       /* frames to wait (1-256); his record never ends */
+int Kind60Start(Actor *a);      /* 83:E480 GroundPushMark: kind $60, the mark at his feet on ground that pushes him (ground_mark.c) */
 int PlayerWait(Actor *a);       /* 83:91F8 ActorKind00Wait: PlayerFrameWork; returns ACTOR_GOES_ON */
 void PlayerFrameWork(Actor *a); /* 81:E864: his work each frame he waits (animation, hurt time, picture, box) */
 
