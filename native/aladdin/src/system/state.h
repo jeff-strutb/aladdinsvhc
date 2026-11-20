@@ -84,6 +84,10 @@ typedef struct Task {
             uint8_t step;           /* +$08: lines a step of the sine lasts */
             uint8_t count;          /* +$09 */
         } waves;
+        struct {                /* ColourBandTask (video/colour_bands.c) */
+            uint8_t step;           /* +$06 of the slot: how far the lower bands are dimmed */
+            uint8_t buffer;         /* +$07: the buffer the bands are written to next (0 or 1) */
+        } bands;
     } own;
 } Task;
 
@@ -271,30 +275,21 @@ typedef struct Sequence {
     uint8_t started;            /* +$0C: nonzero once started */
 } Sequence;
 
-/* A per-line effect (the original's HDMA channel 1-7): what it changes, and
-   its runs. A run is so many lines, each taking its value from the line
-   data (`from`, an offset from $7E:F400): all the run's lines one value
-   (`repeat` 0), or each line the next (`repeat` 1). The data is the work
-   RAM the game writes ($7E:F400-$7E:F9FF, g.line_data); video_draw turns
-   the runs and the data into the engine's per-line values. */
+/* A per-line effect (the original's HDMA channel 1-7): what it changes and
+   where its table is. The table is the game's, in g.line_data (the original's
+   $7E:F400-$7E:F9FF), as the original builds it: runs of a line count (bit 7:
+   a value each line; 0 ends) and either the value (direct) or a pointer to
+   it in $7E (indirect); video_draw reads it each picture, as the original's
+   NMI restarted every channel at its table each frame. */
 typedef enum {
     LINE_TM, LINE_TS, LINE_PALETTE, LINE_BG1_Y, LINE_BG2_X, LINE_BG3_Y, LINE_WINDOW1, LINE_WINDOW2,
     LINE_MODE, LINE_M7_A, LINE_FIXED, LINE_WINDOW_USE_BG34, LINE_TARGETS
 } LineTarget;
 
-typedef struct LineRun {
-    uint8_t lines;              /* 1-128 */
-    uint8_t repeat;             /* each line its own value */
-    uint16_t from;              /* the data's offset from $7E:F400 */
-} LineRun;
-
-#define LINE_RUNS 16
-
 typedef struct LineChannel {
     uint8_t target;             /* LineTarget */
-    uint8_t direct;             /* the values are in the runs' `from` themselves (the original's direct HDMA) */
-    uint8_t runs;
-    LineRun run[LINE_RUNS];
+    uint8_t direct;             /* the values are in the table itself (else it points at them) */
+    uint16_t table_at;          /* the table's offset in g.line_data; channels 4-7 take g.line_table_at's each frame */
 } LineChannel;
 
 #define LINE_DATA_SIZE 0x600
@@ -438,6 +433,13 @@ typedef struct GameState {
     uint8_t palette_cycle_running[6]; /* $15F1 + 14 n: nonzero while palette cycle record n runs (its other
                                          bytes are video/'s to add) */
     PaletteCycle palette_cycle[6]; /* $15F1 + 14 n: the rest of palette cycle record n (video/palette_cycles.c) */
+
+    /* -- video: the parallax (video/parallax.c) -- */
+    uint16_t backdrop_stage;    /* $0841: PlayField3Stages's stage, times 2 */
+    uint16_t backdrop_offset_y_high; /* $1A2D-$1A2E: backdrop_offset_y's high word (BackdropFollowOffsetY adds 4 bytes) */
+    uint16_t band_table_buffer; /* $03FC: which of the two band tables BandTable wrote last (0 or 2) */
+    uint16_t line_table_at[4];  /* $0350: channels 4-7's tables, as their offset in g.line_data (the original's
+                                   $F400 + it), which the NMI restarts each channel at */
 
     /* -- level and map -- */
     uint16_t level;             /* $035E: the level being played */

@@ -236,3 +236,12 @@ uint8_t random_list_byte(uint8_t list, unsigned i)
 
     return cart8(cart_offset(RANDOM_LISTS_BANK, (uint16_t)(RANDOM_LISTS_ADDR + at + i)));
 }
+
+#define COLOUR_BANDS_BANK 0x80
+#define COLOUR_BAND_COUNT_ADDR 0xBA7E
+#define COLOUR_BAND_PAIRS_ADDR 0xBA7F
+#define COLOUR_BAND_BUFFERS_ADDR 0xBAA1
+
+uint8_t colour_band_count(void) { return cart8(cart_offset(COLOUR_BANDS_BANK, COLOUR_BAND_COUNT_ADDR)); }
+uint8_t colour_band_byte(unsigned i) { return cart8(cart_offset(COLOUR_BANDS_BANK, (uint16_t)(COLOUR_BAND_PAIRS_ADDR + i))); }
+uint8_t colour_band_buffer(uint8_t buffer) { return cart8(cart_offset(COLOUR_BANDS_BANK, (uint16_t)(COLOUR_BAND_BUFFERS_ADDR + buffer))); }

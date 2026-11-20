@@ -65,10 +65,8 @@ static int channel_free(void)
  * channel, its table written at `place` in the line data: returns the
  * channel, or NO_CHANNEL when none is free. The channel is not turned on.
  * HOW: The set's entries copied to the table (each a line count and a word;
- * the original adds a value to each word, which it has just cleared)
- * and made the channel's runs: the count's low 7 bits the lines (0: 128),
- * bit 7 a value each line; an indirect channel's word points into the line
- * data, a direct channel's is the value.
+ * the original adds a value to each word, which it has just cleared) at
+ * its place in the line data; the channel pointed at it there.
  */
 static int hdma_start(uint8_t set, uint8_t regs, uint16_t place)
 {
@@ -83,7 +81,8 @@ static int hdma_start(uint8_t set, uint8_t regs, uint16_t place)
     c = &g.line_channel[ch];
     c->target = (uint8_t)(target < 0 ? LINE_TARGETS : target);
     c->direct = !(mode & 0x40);
-    c->runs = 0;
+    c->table_at = place;
+    g.line_table_at[ch - 4] = place;    /* where the original's NMI points the channel each frame */
     if (target < 0)
         fprintf(stderr, "video: window register set %02X reaches no per-line target\n", regs);
     for (unsigned i = 0;; i++) {
@@ -97,13 +96,6 @@ static int hdma_start(uint8_t set, uint8_t regs, uint16_t place)
         if (at + 2 < LINE_DATA_SIZE) {
             g.line_data[at + 1] = (uint8_t)e.word;
             g.line_data[at + 2] = (uint8_t)(e.word >> 8);
-        }
-        if (c->runs < LINE_RUNS) {
-            LineRun *r = &c->run[c->runs++];
-
-            r->lines = (uint8_t)((e.count & 0x7F) ? (e.count & 0x7F) : 0x80);
-            r->repeat = (uint8_t)(e.count >> 7);
-            r->from = c->direct ? e.word : (uint16_t)(e.word - LINE_DATA_AT);
         }
     }
     return ch;

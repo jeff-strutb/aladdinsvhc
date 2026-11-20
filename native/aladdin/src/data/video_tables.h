@@ -142,4 +142,11 @@ uint32_t scroll_speed(uint8_t s);
    its mask, then its entries */
 uint8_t random_list_byte(uint8_t list, unsigned i);    /* i 0: the mask; 1 on: the entries */
 
+/* the colour bands (ColourBandsWrite 81:A08A), through the data bank $80:
+   their count at $80:BA7E, then (lines, value) pairs; each buffer's offset
+   in the table area ($80:BAA1 + buffer) */
+uint8_t colour_band_count(void);
+uint8_t colour_band_byte(unsigned i);       /* byte i of the pairs */
+uint8_t colour_band_buffer(uint8_t buffer);
+
 #endif

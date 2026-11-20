@@ -17,10 +17,12 @@ enum { WINDOW_X_BIAS = 0, WINDOW_X_WIDTH = 2, WINDOW_Y_BIAS = 4, WINDOW_Y_HEIGHT
 static uint16_t pixels(uint32_t position) { return (uint16_t)(position >> 8); }
 static uint32_t with_pixels(uint32_t position, uint16_t v) { return (position & 0xFFu) | (uint32_t)v << 8; }
 
+#define POSITION_BITS 24
+
 /* a 24-bit add from the fraction byte, as the original's two words */
 static uint32_t add24(uint32_t position, uint32_t by)
 {
-    return (position + by) & 0xFFFFFFu;
+    return (position + by) & ((1u << POSITION_BITS) - 1);
 }
 
 /* the camera's point: x and y (the original's scratch) */

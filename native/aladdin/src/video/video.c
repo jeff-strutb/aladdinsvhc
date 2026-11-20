@@ -335,6 +335,10 @@ void video_vblank(void)
         nshvc_palette_write(0, 256, g.palette);
     }
     g.uploads_held = 0;                 /* the NMI clears it each frame */
+    /* the NMI points channels 4-7 that are on at their tables' places */
+    for (int ch = 4; ch < 8; ch++)
+        if (g.line_effects_on >> ch & 1)
+            g.line_channel[ch].table_at = g.line_table_at[ch - 4];
 }
 
 /* ---- the picture ---- */
