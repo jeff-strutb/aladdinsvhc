@@ -20,7 +20,8 @@ static DataRef ref(uint8_t bank, uint16_t addr) { DataRef r = { cart_offset(bank
    settled (data/NOTES): until then the word reads 0. ---- */
 
 DataRef k21_pictures(void) { return ref(0x80, 0x8909); }
-DataRef k98_pictures(void) { return ref(0x80, 0x891B); }   /* the traces read $80:891B as data, $81:891B never */
+DataRef k98_pictures(void) { return ref(0x80, 0x891B); }
+DataRef k8f_pictures(void) { return ref(0x80, 0x890B); }   /* the traces read $80:890B as data, $81:890B never */   /* the traces read $80:891B as data, $81:891B never */
 
 /* ---- kind $2E: the offsets at $80:D152 (x) and $80:D160 (y), words by
    Aladdin's frame times 2 (the record's comment says bank $83: the traces
@@ -77,3 +78,9 @@ uint16_t k97_window(uint8_t at) { return at16(0x80, (uint16_t)(0xD8FE + at)); }
    them in bank $80) ---- */
 
 uint8_t k28_wave(uint8_t at) { return at8(0x80, (uint16_t)(0xD07A + at)); }
+
+/* ---- kind $94's sparks: byte pairs at $80:D87C (the traces read them in
+   bank $80) ---- */
+
+uint8_t k94_spark_x(uint8_t at) { return at8(0x80, (uint16_t)(0xD87C + at)); }
+uint8_t k94_spark_y(uint8_t at) { return at8(0x80, (uint16_t)(0xD87D + at)); }

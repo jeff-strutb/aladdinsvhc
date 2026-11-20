@@ -15,6 +15,7 @@
 
 DataRef k21_pictures(void);     /* kind $21's */
 DataRef k98_pictures(void);     /* kind $98's */
+DataRef k8f_pictures(void);     /* kind $8F's */
 
 /* ---- kind $2E, level 5's closing scene ---- */
 
@@ -60,6 +61,12 @@ uint16_t k97_window(uint8_t at);
 /* ---- kind $28 ---- */
 
 uint8_t k28_wave(uint8_t at);       /* its wave: the step down (a signed byte) at place `at` (0 to $23) */
+
+/* ---- kind $94's sparks: by `at` (the scene's count times 2), x and y
+   pixels' low bytes ---- */
+
+uint8_t k94_spark_x(uint8_t at);
+uint8_t k94_spark_y(uint8_t at);
 
 /* ---- kind $35, the gem ---- */
 
