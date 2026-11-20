@@ -14,9 +14,19 @@
 /* kind $38 */
 DataRef k38_probes(void);               /* its probe list (Actor.probes) */
 
+/* kind $3F */
+uint8_t k3f_test_box(uint8_t variant);  /* its ride test's box by +$07 */
+
 /* kind $42 */
 DataRef k42_probes(void);               /* its probe list */
 uint16_t k42_ahead_x(uint8_t facing);   /* the x offset of the block ahead of it, by facing (0 right, 1 left) */
+
+/* kind $43, by its way (+$07, 0-2) */
+DataRef k43_probes(void);               /* its probe list */
+uint8_t k43_carry_box(uint8_t way);     /* the carry test's box */
+uint8_t k43_pieces(uint8_t way);        /* how many pieces it breaks into */
+uint8_t k43_first_spawn_at(uint8_t way);    /* the first piece's spawn point */
+uint8_t k43_anim(uint8_t way);          /* its animation */
 
 /* kind $52's wait routine: the pictures on which it hurts, and each one's zone */
 #define K52_HURT_PICTURES 5

@@ -20,7 +20,11 @@ int Kind27Start(Actor *a);              /* kind27.c */
 int Kind4DStart(Actor *a);              /* kind4d.c */
 int ActorWaitTest42Anim(Actor *a);
 int Kind38Start(Actor *a);              /* kind38.c */
+int Kind3FStart(Actor *a);              /* kind3f.c */
+int Kind3FWait(Actor *a);
 int Kind42Wait(Actor *a);               /* kind42.c (Kind42Start in kinds_b.h) */
+int Kind43Start(Actor *a);              /* kind43.c */
+int Kind43Wait(Actor *a);
 int Kind49Carry(Actor *a);              /* kind49.c */
 int Kind49Wait(Actor *a);
 int Kind52Start(Actor *a);              /* kind52.c */
@@ -57,7 +61,9 @@ const KindCode kinds_b[] = {
     /* $38: its wait 83:BD22 Kind37Wait is kind $37's start (n5-actors-a's):
        left aside until a record can run another kind's code */
     { 0x38, Kind38Start, Kind38Start, NULL, NULL },
+    { 0x3F, Kind3FStart, Kind3FStart, NULL, Kind3FWait },
     { 0x42, Kind42Start, Kind42Start, NULL, Kind42Wait },
+    { 0x43, Kind43Start, Kind43Start, NULL, Kind43Wait },
     { 0x49, Kind49Carry, NULL, NULL, Kind49Wait },
     { 0x52, Kind52Start, Kind52Start, NULL, Kind52Wait },
     { 0x5B, Kind5BStart, Kind5BStart, NULL, ActorWaitStepSounds },

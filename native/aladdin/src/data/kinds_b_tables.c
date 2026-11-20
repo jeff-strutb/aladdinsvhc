@@ -15,12 +15,26 @@ static DataRef ref(uint8_t bank, uint16_t addr) { DataRef r = { cart_offset(bank
    and never $83:D1D6 ---- */
 DataRef k38_probes(void) { return ref(0x80, 0xD1D6); }
 
+/* ---- kind $3F (83:B19A, DB = $80): its ride test's box by +$07 at
+   $80:D299 ---- */
+uint8_t k3f_test_box(uint8_t variant) { return at8(0x80, (uint16_t)(0xD299 + variant)); }
+
 /* ---- kind $42 (83:C5DE, 83:C69A): its probe offsets at $80:D2B2 (4 bytes
    a probe), and at $80:D2B6 a word by facing, the x offset of the block
    ahead of it. Every trace reads $80:D2B2-$80:D2B9 as data; $81:D2B2 on is
    code ---- */
 DataRef k42_probes(void) { return ref(0x80, 0xD2B2); }
 uint16_t k42_ahead_x(uint8_t facing) { return at16(0x80, (uint16_t)(0xD2B6 + 2u * facing)); }
+
+/* ---- kind $43 (83:B393, DB = $80): at $80:D2BA its probe list (4
+   bytes), then by way the carry test's box ($80:D2BE), byte pairs of the
+   piece count and the first piece's spawn point ($80:D2C1), and its
+   animation ($80:D2C7) ---- */
+DataRef k43_probes(void) { return ref(0x80, 0xD2BA); }
+uint8_t k43_carry_box(uint8_t way) { return at8(0x80, (uint16_t)(0xD2BE + way)); }
+uint8_t k43_pieces(uint8_t way) { return at8(0x80, (uint16_t)(0xD2C1 + 2u * way)); }
+uint8_t k43_first_spawn_at(uint8_t way) { return at8(0x80, (uint16_t)(0xD2C2 + 2u * way)); }
+uint8_t k43_anim(uint8_t way) { return at8(0x80, (uint16_t)(0xD2C7 + way)); }
 
 /* ---- kind $52's wait (83:D518): pictures at $80:D382 (00 01 02 03 0A),
    zones at $80:D387 (24 24 28 2C 30); the traces read $80:D382-D38B as
