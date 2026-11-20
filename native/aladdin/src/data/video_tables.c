@@ -226,3 +226,13 @@ uint32_t scroll_speed(uint8_t s)
 
     return (uint32_t)cart16(e) | (uint32_t)cart16(e + 2) << 16;
 }
+
+#define RANDOM_LISTS_BANK 0x80
+#define RANDOM_LISTS_ADDR 0xDCE7
+
+uint8_t random_list_byte(uint8_t list, unsigned i)
+{
+    uint16_t at = cart16(cart_offset(RANDOM_LISTS_BANK, (uint16_t)(RANDOM_LISTS_ADDR + 2u * list)));
+
+    return cart8(cart_offset(RANDOM_LISTS_BANK, (uint16_t)(RANDOM_LISTS_ADDR + at + i)));
+}

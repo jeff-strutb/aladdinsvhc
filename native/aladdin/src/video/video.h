@@ -148,6 +148,8 @@ void BlockSourceAdd(uint16_t source);           /* 81:C025: g.block_sources[g.bl
 int16_t BlockAt(uint16_t x, uint16_t y);    /* 81:CB24: the screen map's entry for the block at x, y; negative empty */
 void CameraStopAcross(void);                /* 81:CA84 */
 void CameraStopUpDown(void);                /* 81:CADA */
+void ActorYHistoryPush(const Actor *a);     /* 84:8EBD */
+uint16_t RandomFromList(uint8_t list);      /* 81:AE8A: an entry (low byte) and the byte after it */
 void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll for this frame, by g.scroll_kind */
 
 #endif

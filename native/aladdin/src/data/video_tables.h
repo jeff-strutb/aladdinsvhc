@@ -137,4 +137,9 @@ uint8_t window_shape_byte(uint16_t at);         /* the byte at $82:BBAE + at */
 uint16_t camera_window_word(uint8_t w, unsigned field);
 uint32_t scroll_speed(uint8_t s);
 
+/* RandomFromList (81:AE8A), through the data bank $80: list `list` (the
+   record's X / 2): $80:DCE7 + list * 2 gives its offset from $80:DCE7; there
+   its mask, then its entries */
+uint8_t random_list_byte(uint8_t list, unsigned i);    /* i 0: the mask; 1 on: the entries */
+
 #endif
