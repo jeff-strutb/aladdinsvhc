@@ -140,7 +140,7 @@ static void face(Actor *a)
  * WHAT IT DOES: Its path by Aladdin's lives: 0 with one, 1 with two or
  * three, 2 with four or more (or none).
  */
-static uint8_t path_by_lives(void)
+uint8_t Kind5CPathByLives(void)
 {
     uint8_t left = (uint8_t)(g.lives - 1);
 
@@ -230,7 +230,7 @@ int Kind5CStart(Actor *a)
         a->own.bytes[HEADING] = 0;
         a->own.bytes[GONE] = 0;
         a->own.bytes[FIRST_DONE] = 0;
-        own16_set(a, PATH, k5c_path(path_by_lives()));
+        own16_set(a, PATH, k5c_path(Kind5CPathByLives()));
         a->own.bytes[AT] = 0;
         a->spawn_at = 0x50;
         a->flags = 0x90;

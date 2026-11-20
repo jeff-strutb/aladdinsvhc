@@ -207,6 +207,9 @@ unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
 
 /* wanted */
 
+/* (n5-kinds-d, for kind $5D; actor_moves.c) */
+void ActorKeepSpot(Actor *a);           /* 81:9D56: its x and y pixels kept (its +$4C, +$4E), for PlayerMoveWithActor */
+
 /* (kinds B; their stand-ins in actor/wanted_b.c) */
 void ActorFallAgainst(Actor *a);        /* 81:A520 (motion.c): gravity taken from the vertical speed, then ActorMoveY. NOTES-core
                                            lists it dead, but JSL $81:A520 is at 83:BDA1, 83:F5C6, 83:F731 and 84:AAAF */

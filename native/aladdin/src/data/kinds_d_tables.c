@@ -52,3 +52,10 @@ bool k5c_path_end(uint16_t path, uint8_t at) { return at8(0x80, (uint16_t)(path 
 /* $80:D408: 4 bytes an entry, a word (the limit) and a byte (the step) */
 uint16_t k5c_speed_limit(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xD408 + at))); }
 uint8_t k5c_speed_step(uint8_t at) { return at8(0x80, (uint16_t)(0xD408 + at + 2u)); }
+
+/* ---- kind $5D (83:E3CB Kind5DRise) ---- */
+
+/* $80:D4A8: three bytes, each path's offset from $D4A8; there a word for
+   each cloud */
+uint8_t k5d_heights_at(uint8_t path) { return at8(0x80, (uint16_t)(0xD4A8 + path)); }
+uint16_t k5d_height(uint8_t at) { return cart16(cart_offset(0x80, (uint16_t)(0xD4A8 + at))); }

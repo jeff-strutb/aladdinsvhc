@@ -45,4 +45,9 @@ bool k5c_path_end(uint16_t path, uint8_t at);
 uint16_t k5c_speed_limit(uint8_t at);
 uint8_t k5c_speed_step(uint8_t at);
 
+/* ---- kind $5D, its cloud ---- */
+
+uint8_t k5d_heights_at(uint8_t path);   /* path 0-2: its heights' offset */
+uint16_t k5d_height(uint8_t at);        /* at that offset plus twice the cloud's number: the y it rises to */
+
 #endif
