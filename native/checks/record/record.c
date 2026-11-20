@@ -12,11 +12,17 @@
  * its buttons set before the frame runs. N frames are run.
  *
  * DIR receives, all little-endian:
- *   state.bin    the machine at the end of every frame, as changes from the
- *                frame before (power-on's machine counts as all zero): the
- *                frame (counted from 1), a kind (0) and 0 (32 bits each),
- *                then for each 64-byte block that changed its offset (32
- *                bits) and its bytes, ended by FFFFFFFF. The machine is the
+ *   state.bin    the machine at marks, each as changes from the mark before
+ *                (power-on's machine counts as all zero): at the end of
+ *                every frame (kind 0, with the frame counted from 1) and,
+ *                with the core of native/checks/core, at each picture's start,
+ *                the PPU at line 0 (kind 4, with the update it falls in, the
+ *                frame counted from 0; the CPU synchronizes the PPU before
+ *                each PPU write, so video memory then is the picture's).
+ *                Each mark: the frame, the kind and 0 (32 bits each), then
+ *                for each 64-byte block that changed its offset (32 bits)
+ *                and its bytes, ended by FFFFFFFF. As sfxbox --native writes
+ *                them for Stunt Race FX. The machine is the
  *                core's snesbox_core_snapshot: work RAM 128K, a zero 64K
  *                (Super FX RAM, none here), VRAM 64K, OAM 544, CGRAM 512,
  *                APU RAM 64K. So work RAM, the sprite table, the palette and
@@ -292,11 +298,9 @@ static void ppu_write(uint16_t address, uint8_t data, int line, int dot)
     fwrite(rec, 1, 12, ppu_f);
 }
 
-static void ppu_picture(void) { fprintf(pictures_f, "%u %u\n", (unsigned)updates, (unsigned)samples); }
-
-static void mark(uint32_t n)
+static void mark(uint32_t n, uint32_t kind)
 {
-    uint32_t head[3] = { n, 0, 0 }, end = 0xFFFFFFFFu, at;
+    uint32_t head[3] = { n, kind, 0 }, end = 0xFFFFFFFFu, at;
     p_snapshot(now);
     fwrite(head, 4, 3, state_f);
     for (at = 0; at < SNAPSHOT; at += 64) {
@@ -308,6 +312,12 @@ static void mark(uint32_t n)
         }
     }
     fwrite(&end, 4, 1, state_f);
+}
+
+static void ppu_picture(void)
+{
+    fprintf(pictures_f, "%u %u\n", (unsigned)updates, (unsigned)samples);
+    mark(updates, 4);
 }
 
 /* the inputs: up to 1<<20 changes */
@@ -477,7 +487,7 @@ int main(int argc, char **argv)
             c++;
         }
         p_run();
-        mark(updates + 1);
+        mark(updates + 1, 0);
         fprintf(frames_f, "%u %u\n", (unsigned)(updates + 1), (unsigned)samples);
         if (shot_at[updates + 1])
             shot(updates + 1);

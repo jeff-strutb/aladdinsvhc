@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(aladdin_replay C)
+add_subdirectory(${NSHVC_ROOT} nshvc)
+include(${NSHVC_ROOT}/cmake/NshvcGame.cmake)
+nshvc_game(aladdin_replay SOURCES replay.c TITLE "Aladdin replay")
+target_compile_options(aladdin_replay PRIVATE -std=gnu11 -Wall -Wextra)

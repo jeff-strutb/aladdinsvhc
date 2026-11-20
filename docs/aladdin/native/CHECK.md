@@ -76,8 +76,9 @@ JOBS=4 native/checks/record.sh --all
 Each recording is `build/aladdin/native/recordings/NAME/` (from the ROM, never committed). Its files and their formats
 are in `native/checks/record/record.c`'s header:
 
-- `state.bin`: the machine at each frame's end, as changes from the frame before: work RAM, VRAM, the sprite table
-  (OAM), the palette (CGRAM), APU RAM.
+- `state.bin`: the machine (work RAM, VRAM, the sprite table (OAM), the palette (CGRAM), APU RAM) at each frame's end
+  and at each picture's line 0, each as changes from the one before. The picture's own mark is what the replay draws
+  from: the core returns from a frame early in the vertical blank, before that blank's uploads.
 - `ppu.bin`: every write that reaches a PPU register, by the CPU, DMA or HDMA, with its update, line and dot. With
   `state.bin` this gives the per-line picture state.
 - `pictures.txt`: the update and DSP sample count at each picture's line 0.
@@ -101,9 +102,59 @@ from 2026-11-17, so every object that includes a patched file was out of date. T
 symbols as the installed project core plus the two hooks. On `attract` its sound is byte for byte the oracle's sound
 from the installed core (4,798,023 samples).
 
-**Measured, `attract`** (9,000 frames): 45 s, 225 MB (`apu.bin` 81 MB, `ppu.bin` 78 MB, `state.bin` 29 MB, `sound.raw`
+**Measured, `attract`** (9,000 frames): 47 s, 231 MB (`apu.bin` 81 MB, `ppu.bin` 78 MB, `state.bin` 35 MB, `sound.raw`
 19 MB), 150 pictures. 6,536,848 PPU writes, most of them in lines 224-255 (the sprite table and VRAM by DMA in the
-vertical blank); 113,751 port writes; 9,000 picture starts.
+vertical blank); 113,751 port writes; 9,000 picture starts, picture N starting in update N (every line of
+`pictures.txt`). Within an update the vertical blank's writes (lines 225 on) come first, then the picture's lines 0-224.
+
+**All 30 input-only scripts** (`JOBS=4 record.sh --all`, 2026-11-19): 30 recorded, none failed; 244,559 frames; 6.3 GB.
+The BG modes they use, from `ppu.bin`: `attract` modes 0 and 1 only; the other 29 also mode 7 (the title path); the
+two act 7 plays (`rand_pw7_1`, `rand_pw7_2`) also mode 2. None writes `$2133` (no interlace, hires or overscan) or
+mosaic.
+
+## The replay
+
+`native/checks/replay` (ported from Stunt Race FX's, which reads the same recording format) is a small program on the
+engine that makes, from one recording, the calls a converted game would: the tiles and palette from VRAM and CGRAM, the
+sprite table, each layer's map and scroll, windows, colour math, and each mid-picture register write as a line change
+(`nshvc_line_from`). It tests how the hardware's picture state maps to the engine, and the engine, with no game logic.
+`native/checks/compare.py` puts each of the recording's bsnes pictures beside the engine's picture of the same frame.
+
+```bash
+native/checks/replay.sh attract
+```
+
+```bash
+native/checks/replay.sh attract --plant
+```
+
+It writes `build/aladdin/native/replays/NAME[-plant]/`: `shots/` (the engine's pictures that have a bsnes picture),
+`beside/F.ppm` (bsnes left, the engine right, the differing pixels in white below), `compare.txt`. `--plant` plants a
+change the comparison must find: BG1's horizontal scroll one pixel off.
+
+**bsnes's colours.** The core's libretro front end draws every colour through a gamma of 1.5
+(`target-libretro/program.cpp`, `updateVideoPalette`, hard-coded). So bsnes's pictures are not the console's colours:
+palette colour (2, 1, 10) shows as (0, 0, 8). The engine draws the palette's colours. `compare.py` puts each engine
+colour through the same function before comparing; `--raw` compares without it. Found on the first run: 141 of 150
+pictures differed with no gamma, every difference a dark channel brighter in the engine (bsnes (0, 0, 8) against the
+engine's (2, 1, 10)). The recording's palette at that picture held the engine's colours and not bsnes's; the function
+then gives bsnes's exactly. The same gamma is in `check.sh`'s oracle pictures, which are looked at, not compared.
+
+**Run, `attract`** (2026-11-19, the Linux Vulkan build headless on Dozen):
+
+| Run | Pictures compared | The same | Differ | Pixels |
+|---|---:|---:|---:|---:|
+| `replay.sh attract` | 150 | 150 | 0 | 0 |
+| `replay.sh attract --plant` | 150 | 15 | 135 | 597,860 |
+
+The 15 the plant leaves the same, each from the recording: BG1 off in 6 (frames 60-360, `$212C` = $04), forced blank
+in 2 (420, 7680), brightness 0 in 5 (720, 780, 3540, 3720, 6300), and at 3600 and 3660 BG1's whole map is one tile
+whose pixels are all 0 (transparent; the picture is 52 and 32 sprites).
+
+**Not covered yet:** mode 7 and mode 2. The replay maps neither (no `nshvc_mode7` matrix, no offset-per-tile), so the
+title (mode 7, in 29 of the 30 recordings) and act 7's mode 2 are not replayed correctly. Only `attract` has been
+replayed. The plan's stage 1 check is on the attract play; the title and act 7 need those two before their recordings
+can be replayed.
 
 ## What a result means
 
