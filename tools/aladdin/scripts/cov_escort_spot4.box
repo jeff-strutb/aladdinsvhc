@@ -4,7 +4,9 @@
 # $092B, its restart point $EF2B) waits at spot 0, x $0530, for him to
 # come near; he is at x $003A. Its x is put at $0040, by him: it starts
 # to follow; two frames on its x is put back at $0530, and its next
-# check sends it to spot 4, where it waits again.
+# check sends it to spot 4, where it waits again. Then, from the state
+# again, its resume address ($03-$04) is set to $EF2B: the loop's RTI
+# starts it there, at EscortWaitSpot4's own entry.
 load build/aladdin/states/pw4.state
 wait 10
 poke 000937 40,00
@@ -12,3 +14,8 @@ wait 2
 poke 000937 30,05
 wait 30
 dump z
+load build/aladdin/states/pw4.state
+wait 10
+poke 00092E 2B,EF
+wait 30
+dump z2
