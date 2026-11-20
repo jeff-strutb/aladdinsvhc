@@ -18,8 +18,11 @@ Area tables written here before the split, now their areas':
   video_tables.c  the quarter sine ($82:87D4, 64 steps)       -> video
   input_tables.c  the demos' pad scripts ($84:F700)           -> input (stage 6)
 
-Code the game reads as a table: being settled (the 8,972 S-CPU code bytes the
-traces read as data); cart.dat leaves all code out until it lands.
+Code the game reads as a table: tools/code_read.csv gives each of the 8,972
+S-CPU code bytes the traces read as data, its readers and the decision
+(tools/code_read/README: how). Kept in cart.dat as 'code-read': 4 B
+(Kind6EStart's $80:A000-$A001, Kind2DStart's $83:989E and $83:98AC); the
+other 8,968 B are left out, each with its reason.
 
 AnimSetGraphicsUnpack's entries at $82:AC18 + set * 2: the traces read them
 only for sets 32 and up, at $82:AC58 on (data); the words for sets 0-31

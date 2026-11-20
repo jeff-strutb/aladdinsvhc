@@ -13,8 +13,13 @@ python3 native/aladdin/tools/extract_assets.py "reference/aladdin/Aladdin (USA).
 
 `cart.dat` is the cartridge image, 1,310,720 B, with the bytes that are not code at their place and zeros where the
 code was: 1,047,228 B read as data by the decomp's traces, 173,223 B no trace has touched (kept, as Stunt Race FX keeps
-its unread ranges), and 90,269 B of code left out (87,793 B the S-CPU ran, 2,353 B the SPC700 ran, 123 B the routine
-census decodes). The ranges are `native/aladdin/tools/assets.csv` (2,021 ranges), made by
+its unread ranges), 4 B of code the game reads as a table (kind `code-read`), and 90,265 B of code left out (of the
+87,793 B the S-CPU ran, 2,353 B the SPC700 ran and 123 B the routine census decodes). The S-CPU code the traces read as
+data is 8,972 B in 177 runs; `native/aladdin/tools/code_read.csv` gives each byte's readers and decision (2026-11-19:
+4 B kept, read as tables in play by Kind6EStart and Kind2DStart; 8,968 B left out, each with its reason: a block copy
+of code to video memory 8,312, read only in unit calls 323, instruction fetches only 243, task calls' inline arguments
+132, a checksum 15, code sent to the sound memory 5), and `native/aladdin/tools/code_read/README` how it was made. The
+ranges are `native/aladdin/tools/assets.csv` (2,024 ranges), made by
 `native/aladdin/tools/make_assets_csv.py` from the decomp's code map (`tools/aladdin/codemap.py`) and census
 (`tools/aladdin/census.py`) with the same tests as `tools/aladdin/progress.py`; remake it after new traces with
 `python3 native/aladdin/tools/make_assets_csv.py .` (it needs `build/aladdin` traced).

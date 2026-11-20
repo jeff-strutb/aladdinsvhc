@@ -74,7 +74,10 @@ The rules are SRFX's ("How the conversion is shared between sessions"), for this
    by input alone (`attract`, `rand_menus1`, `rand_menus2`); the rest load saved states (602 `load` lines) or poke memory
    (2,621 `poke`, 677 `set`), which the native game, having no SNES addresses, cannot take. Each level needs a new play by
    input before its state can be compared.
-8. **Dead code is not converted.** 20 `@unreachable` tags; the copier branches behind the cartridge-RAM reads (`actor/kind20.c:439`
+8. **Code shown as graphics.** In random play from stage a8 (`rand_stage_a8_s0`) a VramCopy entry copies bank $80's own
+   code to video memory (8,312 B of `tools/code_read.csv`). `cart.dat` has no code, so the native game would show zeros
+   where the original shows those bytes as tiles. Whether that picture is ever on screen is not known.
+9. **Dead code is not converted.** 20 `@unreachable` tags; the copier branches behind the cartridge-RAM reads (`actor/kind20.c:439`
    loops for ever); the PAL branch (`game/password_screen.c:137`); the input recorder's writes to cartridge RAM
    (`system/input_modes.c`). Each is listed with its proof, from the census (`docs/aladdin/ROUTINE_CENSUS.md`).
 
@@ -172,7 +175,7 @@ from the game's state.
 | **The sound driver** (`audio/sound_driver.c`, `dsp_write.c`) | music code: `nshvc_music.hz` 32,040, one driver tick every 256 samples (timer 0 at $40, `sound_driver.c:188`: 8 ms), the music and effects halves on alternate ticks as the driver has them. Voices through `nshvc_voice_*`; echo through `nshvc_echo` and `nshvc_echo_writes`; main volume and noise through `nshvc_sound_*`. It never waits, locks, allocates or reads files |
 | **Sound commands and uploads** (`audio/sound_command.c`, `spc_upload.c`) | each command an `nshvc_music_send` message, in order, the echo wait gone; the game thread loads a sample set's BRR samples with `nshvc_sample_load` and passes the song's data, then sends "ready"; the lists at $85:8000 (`config/aladdin/spclists.csv`) are read through `data/` |
 | **Work RAM** | one typed state `g` with records as records (actors, tasks, the VRAM queue); about 540 addresses already have names in the C (hardware-touches.md section 7), the starting point for `state.h`. Direct-page scratch ($000C up) becomes locals and arguments; the register shadows become the picture's fields |
-| **ROM data** | `assets/cart.dat`, read through `nshvc_asset_*` once at `init`. As SRFX ruled under its 8.2 (2026-11-09): each table's place is written once, in `data/` only; game code sees typed tables and readers named for what they hold, and no bank, address constant or cartridge read; data that points to data in its own format is passed as an opaque reference `data/` resolves |
+| **ROM data** | `assets/cart.dat`, read through `nshvc_asset_*` once at `init`. As SRFX ruled under its 8.2 (2026-11-09): each table's place is written once, in `data/` only; game code sees typed tables and readers named for what they hold, and no bank, address constant or cartridge read; data that points to data in its own format is passed as an opaque reference `data/` resolves. `cart.dat` keeps no code but the 4 bytes the game reads as tables in play (`tools/code_read.csv`, 2026-11-19: of the 8,972 S-CPU code bytes the traces read as data, 8,968 are left out, each with its reason) |
 | **Calls by address** (93) | a direct call, or a `switch` on a named id |
 | **Cartridge RAM, region, beam** | constants: the retail board's open-bus result, NTSC; the beam-timed work done in one update |
 

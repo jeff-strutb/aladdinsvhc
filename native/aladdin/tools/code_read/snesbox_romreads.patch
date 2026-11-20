@@ -1,0 +1,79 @@
+--- tools/aladdin/snesbox/snesbox.c	2026-11-18 10:57:22.354475862 -0700
++++ tools/aladdin/snesbox/snesbox.c	2026-11-19 23:05:55.252511860 -0700
+@@ -256,6 +256,55 @@
+ static long cyclog_lo = 1, cyclog_hi = 0x7FFFFFFF;
+ static int *cyclog_who, cyclog_on;
+ static uint32_t cyclog_addr; static uint8_t cyclog_data;
++
++/* private: who reads the ROM bytes listed in SNESBOX_ROMREADS (offset ranges, one "AAAAAA-BBBBBB" a line) */
++static unsigned char *rr_want; static FILE *rr_out; static uint32_t rr_pc;
++static int rr_off(uint32_t a, uint32_t *o);
++static uint32_t rr_pend_pc[64], rr_pend_o[64]; static int rr_npend; static uint32_t rr_int_at; static int rr_int_on;
++/* a read is logged at the next instruction, unless it was that instruction's own bytes (its fetch after a jump) */
++static void rr_insn(uint32_t pc)
++{
++    uint32_t p; int fetch_known = 0;
++    for (int i = 0; i < rr_npend; i++) {
++        if (rr_off(pc, &p) && rr_pend_o[i] >= p && rr_pend_o[i] < p + 4) { fetch_known = 1; continue; }
++        fprintf(rr_out, "%06X %06X\n", rr_pend_pc[i], rr_pend_o[i]);
++    }
++    (void)fetch_known;
++    rr_npend = 0;
++    rr_pc = pc;
++    rr_int_on = 0;
++}
++static int rr_off(uint32_t a, uint32_t *o)
++{
++    uint8_t b = (uint8_t)(a >> 16); uint16_t w = (uint16_t)a;
++    if ((b & 0x7F) >= 0x7E && (b & 0x7F) <= 0x7F) return 0;
++    if (!(w & 0x8000)) return 0;
++    *o = ((uint32_t)(b & 0x7F) << 15 | (w & 0x7FFF));
++    return *o < 0x140000;
++}
++static void rr_read(uint32_t addr, uint8_t data)
++{
++    uint32_t o, p;
++    (void)data;
++    if (!rr_off(addr, &o) || !rr_want[o]) return;
++    if (rr_int_on && o >= rr_int_at && o < rr_int_at + 4) return;   /* an interrupt reading the instruction at its PC */
++    if (rr_off(rr_pc, &p) && o >= p && o < p + 4) return;   /* the instruction's own bytes */
++    if (rr_npend < 64) { rr_pend_pc[rr_npend] = rr_pc; rr_pend_o[rr_npend] = o; rr_npend++; }
++}
++static void rr_write(uint32_t addr, uint8_t data, int kind) { (void)addr; (void)data; (void)kind; }
++/* an interrupt's first cycles read the interrupted instruction's bytes at its PC: not a data read */
++static void rr_int(uint32_t resume_pc, uint16_t sp)
++{
++    uint32_t p; int k = 0;
++    (void)sp;
++    if (rr_off(resume_pc, &p)) { rr_int_at = p; rr_int_on = 1; }
++    for (int i = 0; i < rr_npend; i++)
++        if (!(rr_off(resume_pc, &p) && rr_pend_o[i] >= p && rr_pend_o[i] < p + 4)) {
++            rr_pend_pc[k] = rr_pend_pc[i]; rr_pend_o[k] = rr_pend_o[i]; k++;
++        }
++    rr_npend = k;
++}
++
+ static void cyclog_read(uint32_t addr, uint8_t data) { cyclog_addr = addr; cyclog_data = data; }
+ static void cyclog_write(uint32_t addr, uint8_t data, int kind) { (void)kind; cyclog_addr = addr; cyclog_data = data; }
+ static void cyclog_timing(int kind, int clocks, uint32_t addr)
+@@ -862,6 +911,20 @@
+     struct retro_game_info gi = {rom, data, n, NULL};
+     if (!retro_load_game_p(&gi)) die("load failed: %s", rom);
+     if (trace) snesbox_trace_begin_p();
++    if (getenv("SNESBOX_ROMREADS")) {
++        struct SnesboxCallbacks { void (*insn)(uint32_t); void (*write)(uint32_t, uint8_t, int);
++            void (*read)(uint32_t, uint8_t); void (*interrupt)(uint32_t, uint16_t); void (*timing)(int, int, uint32_t); };
++        static struct SnesboxCallbacks rcb = {rr_insn, rr_write, rr_read, rr_int, NULL};
++        void (*set_cb)(const struct SnesboxCallbacks *) = (void (*)(const struct SnesboxCallbacks *))dlsym(core, "snesbox_set_callbacks");
++        FILE *f = fopen(getenv("SNESBOX_ROMREADS"), "r"); unsigned a0, a1; char line[64];
++        if (!set_cb || !f) die("romreads: no callbacks or list");
++        rr_want = calloc(0x140000, 1);
++        while (fgets(line, sizeof line, f)) if (sscanf(line, "%x-%x", &a0, &a1) == 2) for (unsigned i = a0; i < a1 && i < 0x140000; i++) rr_want[i] = 1;
++        fclose(f);
++        rr_out = fopen(getenv("SNESBOX_ROMREADS_OUT"), "w");
++        if (!rr_out) die("romreads: no out");
++        set_cb(&rcb);
++    }
+     if (cyclog_f) {
+         if (checklib || locklib) die("--cyclog is for a plain run");
+         struct SnesboxCallbacks { void (*insn)(uint32_t); void (*write)(uint32_t, uint8_t, int);

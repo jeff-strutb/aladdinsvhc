@@ -5,7 +5,7 @@ Converted:
   actor/actor_moves.c (and the 10 assembly references); they pass both
   factors as arguments.
 
-Dead, not converted (plan section 1, item 8): nothing in the game reaches them.
+Dead, not converted (plan section 1, item 9): nothing in the game reaches them.
   81:A7F1 DivideBy, 81:A806 MultiplyXA, 81:A812 MultiplyWordByte.
   Proof: their own comments in the record say "No code refers to it"; they
   run only in the unit calls of cov_helpers_unused.box; no C outside

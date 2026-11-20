@@ -1,0 +1,23 @@
+How code_read.csv was made (2026-11-19). Run from the decomp's main checkout,
+with build/aladdin traced.
+
+1. The S-CPU code bytes the traces read as data: 8,972, in 177 runs
+   (codemap.merged(): flags 0x33 and 0x4C on the same byte), written as
+   ranges "AAAAAA-BBBBBB", one a line, to runs.txt.
+2. A private snesbox: tools/aladdin/snesbox with snesbox_romreads.patch,
+   built to a scratch folder. With SNESBOX_ROMREADS=runs.txt it logs each
+   read of those bytes as "PC OFFSET", at the next instruction, leaving out
+   a read of that next instruction's own bytes (its fetch after a jump) and
+   an interrupt's read of the instruction at its resume PC (shown on the
+   attract play: the core reports the interrupt, then reads that PC).
+3. Every current script whose trace reads any of the bytes (150) run with
+   it (cover.py gave the first 38; the rest from the traces), one log each.
+4. classify.py: a byte read as a table by a routine in a script with no
+   unit call (call, fx, spccall) is kept; else it is left, with the reason:
+   call arguments (TaskCreate, TaskExec), a block copy over code (VramCopy,
+   VramCopy2, SpcUpload), a checksum (Level03Scene), read only in scripts
+   with unit calls, or no data read at all.
+
+Result: kept 4 B in 3 ranges (Kind6EStart $80:A000-$A001, Kind2DStart
+$83:989E and $83:98AC); left 8,968 B: VramCopy 8,312, unit calls only 323,
+fetches only 243, TaskCreate 100, TaskExec 32, Level03Scene 15, SpcUpload 5.
