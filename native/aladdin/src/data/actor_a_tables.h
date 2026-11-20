@@ -110,4 +110,22 @@ uint8_t k89_priority(uint8_t side);
 /* kinds $46 and $62's shake ($80:D2CA, a byte by step 1-8: the offset into the steps; $80:D2D3: the steps, words added to its x) */
 int16_t grabber_shake(uint8_t step);
 
+/* kind $6E ($80:D687, D69C, D69F, D67B, D6AB): the spawner's list (4 bytes an entry: the scroll x it
+   waits for, +$07, the slot), a flyer's motion preset by +$07, the pairs of the one that slows and
+   speeds, the backdrop picture's frames (2 bytes each: the upload's number, its frames with bit 7 on
+   the last) and the touch test's x offset by +$07 */
+typedef struct K6ESpawn { uint16_t scroll_x; uint8_t byte07, slot; } K6ESpawn;
+K6ESpawn k6e_spawn(uint8_t at);
+uint8_t k6e_motion(uint8_t byte07);
+uint8_t k6e_pair(uint8_t at);
+uint8_t k6e_frame(uint8_t at);
+uint16_t k6e_touch_dx(uint8_t byte07);
+
+/* kind $7C's backdrop step by its facing ($80:D7CA, 4 bytes: added to the backdrop's y offset) */
+uint32_t backdrop_step(uint8_t facing);
+
+/* kind $A3's animation and the step across by its +$07 ($80:D507, a byte; $80:D509, a word) */
+uint8_t ka3_anim(uint8_t byte07);
+int16_t ka3_step(uint8_t byte07);
+
 #endif

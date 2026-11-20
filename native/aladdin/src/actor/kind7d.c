@@ -114,14 +114,14 @@ static void Kind7DStep(Actor *a)
  * @routine 84:90F4 Kind7DWait
  * WHAT IT DOES: Kind $7D's wait routine (also 83:929F ActorKind7DWait, its
  * stub): its y the kept height less the backdrop's offset (the word at
- * $1A2C, the pixels of g.backdrop_offset_y), a step of its state, and it ends
+ * $1A2C: the pixels of g.backdrop_offset_y (with its high word)), a step of its state, and it ends
  * once more than 224 pixels from the point actors are kept in range of.
  */
 int Kind7DWait(Actor *a)
 {
     uint16_t base = (uint16_t)(a->own.bytes[OWN_40] | a->own.bytes[OWN_41] << 8);
 
-    a->y = with_pixels(a->y, (uint16_t)(base - (uint16_t)(int16_t)(int8_t)(g.backdrop_offset_y >> 8)));
+    a->y = with_pixels(a->y, (uint16_t)(base - (uint16_t)((g.backdrop_offset_y | (uint32_t)g.backdrop_offset_y_high << 16) >> 8)));
     Kind7DStep(a);
     if ((uint16_t)(pixels(a->x) - g.range_x + 0xE0) < 0x01C0)
         return ACTOR_GOES_ON;

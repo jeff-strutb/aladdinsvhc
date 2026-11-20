@@ -191,3 +191,30 @@ int16_t grabber_shake(uint8_t step)
 {
     return (int16_t)at16(0x80, (uint16_t)(0xD2D3 + at8(0x80, (uint16_t)(0xD2CA + step))));
 }
+
+/* ---- kind $6E (83:F049): the traces read these in the data bank $80 ---- */
+K6ESpawn k6e_spawn(uint8_t at)
+{
+    K6ESpawn s;
+
+    s.scroll_x = at16(0x80, (uint16_t)(0xD687 + at));
+    s.byte07 = at8(0x80, (uint16_t)(0xD689 + at));
+    s.slot = at8(0x80, (uint16_t)(0xD68A + at));
+    return s;
+}
+
+uint8_t k6e_motion(uint8_t byte07) { return at8(0x80, (uint16_t)(0xD69C + byte07)); }
+uint8_t k6e_pair(uint8_t at) { return at8(0x80, (uint16_t)(0xD69F + at)); }
+uint8_t k6e_frame(uint8_t at) { return at8(0x80, (uint16_t)(0xD67B + at)); }
+uint16_t k6e_touch_dx(uint8_t byte07) { return at16(0x80, (uint16_t)(0xD6AB + 2u * byte07)); }
+
+/* ---- kinds $7C and $A3 (84:9044, 84:8349): the traces read $80:D7CA-D7D1 and $80:D507-D50C as data ---- */
+uint32_t backdrop_step(uint8_t facing)
+{
+    uint16_t at = (uint16_t)(0xD7CA + 4u * (facing & 1));
+
+    return (uint32_t)at16(0x80, at) | (uint32_t)at16(0x80, (uint16_t)(at + 2)) << 16;
+}
+
+uint8_t ka3_anim(uint8_t byte07) { return at8(0x80, (uint16_t)(0xD507 + byte07)); }
+int16_t ka3_step(uint8_t byte07) { return (int16_t)at16(0x80, (uint16_t)(0xD509 + 2u * byte07)); }
