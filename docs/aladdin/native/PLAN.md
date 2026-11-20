@@ -16,6 +16,7 @@ and `asm/aladdin` are never edited and stay the certified reference.
 | # | Question | Answer |
 |---|---|---|
 | 1 | Tasks wait up to three calls deep. `docs/aladdin/TASKS.md` said the native game would keep them as coroutines; SRFX made each wait an explicit state. Which? (asked 2026-11-19) | Jeff: explicit states, as SRFX |
+| 2 | Get it running first and clean the register-style C later, or clean as we go? (2026-11-19, through the master session) | Jeff: "clean as you go". Each area is converted and cleaned in one pass (`docs/conversion-guide.md` section 4). No register-style C ever runs in the native game, and no stage's done allows it (section 4's clean check) |
 
 ## How the conversion is shared between sessions
 
@@ -24,7 +25,7 @@ The rules are SRFX's ("How the conversion is shared between sessions"), for this
 - **The bar** is section 8. No bridge, no `cpu.`, `abi_`, `spc.`, flag helpers, `goto` over translated assembly, carried
   registers or SNES addresses in the game's C, under any name. Dead routines are listed with their proof, not converted.
 - **The source.** Read `src/aladdin` and `asm/aladdin` where the C is unclear; write what it means in `native/aladdin/src`.
-  Never copy register-style code across to tidy later. Each function keeps its `@routine` tag and its `WHAT IT DOES`.
+  Never copy register-style code across to tidy later (decision 2): a file is saved clean or not at all. Each function keeps its `@routine` tag and its `WHAT IT DOES`.
 - **The frame.** Each `update` is one video frame of the original. A wait returns from `update`; the routine on the chain
   resumes from its saved state on the frame its wait runs out (decision 1).
 - **The state.** Shared variables live in `src/system/state.h` as fields of `g`, under the area that mostly writes them, each
@@ -35,7 +36,7 @@ The rules are SRFX's ("How the conversion is shared between sessions"), for this
   prints its name once to stderr and is listed in the report.
 - **Files.** Each session owns the directories in its brief and edits no other but `state.h` and `/* wanted */` lines. Save a
   file only when it compiles. Commit with `git commit -- <paths>`. No pushes. No attribution of any kind.
-- **Reporting.** Lead with what is not done. Name interim forms as interim, with counts.
+- **Reporting.** Lead with what is not done, with counts.
 
 ## 1. What this plan cannot promise
 
@@ -102,23 +103,22 @@ What waits (`docs/aladdin/TASKS.md`, `docs/aladdin/ACTORS.md`, and calls counted
 
 ### Layout
 
+The tree as it is on main (stage 0, `b941e4e` and `d9fcb02`):
+
 ```
 native/aladdin/
+  .gitignore
   CMakeLists.txt
-  icon/icon.png                 the box art (on main, d9fcb02)
-  assets/cart.dat               written by tools/extract_assets.py from the player's ROM; not in git
-  tools/extract_assets.py       ROM -> assets/cart.dat, checked by SHA-1 (on main)
-  tools/assets.csv              2,021 data ranges: name, start, end, reader (on main, made by make_assets_csv.py)
-  src/system/   main.c (nshvc_game; on main, blank screen), state.h (g), the frame, tasks, power-on and reset, random
-  src/data/     the only place cartridge offsets live; typed tables and readers
-  src/audio/    the driver as music code, the sound queue, sample and song loads
-  src/video/    the picture state draw reads, engine objects, uploads, per-line effects, palettes, sprites, Mode 7
-  src/game/     screens: logo, story, title, options, password, level load and end, Genie, ending
-  src/level/  src/map/  src/player/  src/actor/  src/input/  src/save/  src/math/
-native/checks/                  record, replay and compare tools: not part of the game
+  icon/icon.png                 the box art; the build makes each platform's icon from it
+  assets/.gitkeep               assets/cart.dat is written here by extract_assets.py and never committed
+  src/system/main.c             nshvc_game: update at 60 a second, draw sets a blank 256 x 224 screen
+  tools/extract_assets.py       ROM -> assets/cart.dat, checked by SHA-1
+  tools/assets.csv              2,021 ranges: name, start, end, reader
+  tools/make_assets_csv.py      remakes assets.csv from the decomp's code map and census
+docs/aladdin/native/BUILD.md    the build and run commands, and this machine's Vulkan driver
 ```
 
-`CMakeLists.txt`, as `docs/conversion-guide.md` section 6 gives it and SRFX's has it:
+`CMakeLists.txt` on main, as `docs/conversion-guide.md` section 6 gives it and SRFX's has it:
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -131,14 +131,17 @@ target_include_directories(aladdin PRIVATE src)
 target_compile_options(aladdin PRIVATE -std=gnu11 -Wall -Wextra)
 ```
 
-No `SHADERS` (optional in `cmake/NshvcGame.cmake:122`): nothing in Aladdin needs a shader of its own (it has no chip
-drawing). Built with
-`tools/nshvc-build linux native/aladdin`.
+It takes every `.c` under `src/`, so the later stages add files without changing it. They add them under `src/` by the
+record's own area names, as SRFX's tree keeps its record's: `system/` (beside `main.c`: `state.h` with `g`, the frame,
+tasks, power-on, reset, random), `data/` (the only place cartridge offsets live), `audio/`, `video/`, `game/`, `level/`,
+`map/`, `player/`, `actor/`, `input/`, `math/`, and `save/` for the settings file. Check tools go in `native/checks/`,
+outside the game. No `SHADERS` (optional, `cmake/NshvcGame.cmake:122`): Aladdin has no chip drawing. The build and run
+commands are BUILD.md's: `cmake` into `build/aladdin/native/linux` (Vulkan) and `build/aladdin/native/headless`.
 
-`tools/extract_assets.py` (on main) follows SRFX's: it drops a 512-byte copier header if there is one, refuses anything whose
-SHA-1 is not `bd5fea18ce7456cc0231a39473927d8ea9c6589b` (`tools/aladdin/build.py:18`), and writes an image of the cartridge
-with `assets.csv`'s ranges at their places and zeros where code was: 1,047,228 B the decomp's traces read as data,
-173,223 B no trace touched, 90,269 B of code left out (BUILD.md).
+`tools/extract_assets.py` follows SRFX's: it drops a 512-byte copier header if there is one, refuses anything whose SHA-1
+is not `bd5fea18ce7456cc0231a39473927d8ea9c6589b` (`tools/aladdin/build.py:18`), and writes an image of the cartridge with
+`assets.csv`'s ranges at their places and zeros where code was: 1,047,228 B the decomp's traces read as data, 173,223 B no
+trace touched, 90,269 B of code left out (BUILD.md).
 
 ### The loop
 
@@ -171,15 +174,22 @@ from the game's state.
 Each stage deletes what it replaces from the new tree in the same change: `machine.h`, `hw.h`, `ops65.h`, `cpu_ops.h`, `spc.h`,
 `spc_ops.h` and the `wram*.h` headers are never brought over. Every run is listed and asked for first (section 7).
 
+**The clean check** (decision 2), part of every stage's done from stage 2 on, over the files the stage wrote:
+`tools/nshvc-find-hardware` on them reports nothing (no register file `cpu.`, no `abi_` routines, no `rd8`/`rd16`/`rd24`/
+`wr8`/`wr16` bus access, no `op_` helpers, no hardware touch), and a search finds none of what the finder misses: `spc.`,
+the flag helpers (`IF_`, `nz8`, `flag_set`), `jsl_frame`, `call_frame`, `actor_yield`, `task_yield`, `goto` over translated
+assembly, the registers of hardware-touches.md section 2 by name, or SNES addresses (section 8). A stage whose files fail it
+is not done; there is no interim register-style form.
+
 | # | Stage | Lines of the record | Done means | Checked by |
 |---|---|---:|---|---|
-| 0 | **Set up** (done: `b941e4e`, `d9fcb02`): `native/aladdin` with its `CMakeLists.txt`, the icon and an empty game | 0 | `tools/nshvc-build linux native/aladdin` builds; the window opens on this machine and closes; headless `--updates 60` exits 0 | the build; one windowed launch; the engine's log naming the Vulkan device |
+| 0 | **Set up** (done: `b941e4e`, `d9fcb02`): `native/aladdin` with its `CMakeLists.txt`, the icon, the extractor and an empty game | 0 | builds for Linux (Vulkan) and headless; a blank screen | BUILD.md's runs: headless 120 updates print `updates 120 pictures 120` with every pixel black; the window opens for 8 s (ended by `timeout`) |
 | 1 | **Record and replay** of the original, for finding bugs only | 0 (tooling) | `snesbox` records, per frame of an input-only play, the per-line picture state, palette, sprite table and video-memory changes, the DSP writes and the port commands; `native/checks/replay` makes from a recording the API calls a converted game would, through the engine | the replay's pictures beside bsnes's on the attract play; a planted change shown to make it differ |
-| 2 | **Data and state**: `src/data` over the `assets.csv` and `extract_assets.py` already on main, `state.h`, `math` | 1,892 (`math` 153, `include` 1,739, not brought over but read for names) | every table the game reads has a `data/` reader; `state.h` holds the shared fields with their addresses in comments | every extracted range against the ROM's bytes; a CSV of `g`'s fields to original addresses, for stage 5's state comparison; compiles |
-| 3 | **Sound**: the driver as music code, the queue, the loads | 2,755 (`audio`) | the driver runs on the audio thread from commands; sample sets and songs load by message | the recorded port commands fed to the driver give the recorded voice events (key-ons, pitch, volumes, per tick; SRFX's `music_check`); then `tools/nshvc-check` sound against bsnes on the attract play. Expected: the same events, with differences only in write order inside a tick |
-| 4 | **Loop, video, boot to title** (the first end-to-end) | about 13,700: `system` 1,956, `video` 10,673, `game/logo_screen.c` 119, `opening_story.c` 502, `title_task.c` 473; plus the actor loop and the kinds the story places (counted in this stage's first step, from `OpeningActorPlace`'s table) | the game runs from power-on through the logo and the opening story (or Start) to the title with its music, the finder reporting nothing in the tree | headless runs with `--shots` and `--sound`, looked at against the original's recording; `nshvc-check` sound on the boot. Expected: the same screens and music, reached sooner (section 1 item 3) |
-| 5 | **Player, actors and levels** | about 67,500: `actor` 47,012, `player` 7,261, `level` 3,075, `map` 2,471, the rest of `game` 7,699 | every level, scene, the Genie screen, continue, password and ending playable by input; every live routine converted or listed dead | for each level, a new input-only play of the original (section 1 item 7); the native game's state against the recording at each frame through stage 2's CSV, each masked field with its reason; no crash or unconverted-routine message |
-| 6 | **Input and saves** | about 324 (`system/joypad.c` 51, `controls.c` 68, `input_modes.c` 177, all counted in stage 4's `system` too, and `input/` 28) | keys and controllers through the game's own controls on `nshvc_input`; the player's settings (bindings, full screen) in an `nshvc_save_*` file; passwords as the original's progress | headless `--input` runs with keys and with a controller replayed; password entry by keys |
+| 2 | **Data and state**: `src/data` over the `assets.csv` and `extract_assets.py` already on main, `state.h`, `math` | 1,892 (`math` 153, `include` 1,739, not brought over but read for names) | every table the game reads has a `data/` reader; `state.h` holds the shared fields with their addresses in comments; the stage's files clean | every extracted range against the ROM's bytes; a CSV of `g`'s fields to original addresses, for stage 5's state comparison; the clean check; compiles |
+| 3 | **Sound**: the driver as music code, the queue, the loads | 2,755 (`audio`) | the driver runs on the audio thread from commands; sample sets and songs load by message; `audio/` clean (no `spc.`, `spc_rd`/`spc_wr`) | the recorded port commands fed to the driver give the recorded voice events (key-ons, pitch, volumes, per tick; SRFX's `music_check`); then `tools/nshvc-check` sound against bsnes on the attract play. Expected: the same events, with differences only in write order inside a tick; the clean check on `audio/` |
+| 4 | **Loop, video, boot to title** (the first end-to-end) | about 13,700: `system` 1,956, `video` 10,673, `game/logo_screen.c` 119, `opening_story.c` 502, `title_task.c` 473; plus the actor loop and the kinds the story places (counted in this stage's first step, from `OpeningActorPlace`'s table) | the game runs from power-on through the logo and the opening story (or Start) to the title with its music; every file of the stage clean | headless runs with `--shots` and `--sound`, looked at against the original's recording; `nshvc-check` sound on the boot; the clean check. Expected: the same screens and music, reached sooner (section 1 item 3) |
+| 5 | **Player, actors and levels** | about 67,500: `actor` 47,012, `player` 7,261, `level` 3,075, `map` 2,471, the rest of `game` 7,699 | every level, scene, the Genie screen, continue, password and ending playable by input; every live routine converted or listed dead; every file clean | for each level, a new input-only play of the original (section 1 item 7); the native game's state against the recording at each frame through stage 2's CSV, each masked field with its reason; no crash or unconverted-routine message; the clean check on each area as it lands |
+| 6 | **Input and saves** | about 324 (`system/joypad.c` 51, `controls.c` 68, `input_modes.c` 177, all counted in stage 4's `system` too, and `input/` 28) | keys and controllers through the game's own controls on `nshvc_input`; the player's settings (bindings, full screen) in an `nshvc_save_*` file; passwords as the original's progress; the files clean | headless `--input` runs with keys and with a controller replayed; password entry by keys; the clean check |
 | 7 | **Linux packaging** | 0 | `tools/nshvc-build linux native/aladdin` gives the program, its icon and desktop file (`cmake/NshvcGame.cmake`), `cart.dat` beside it | launched from the package on this machine, windowed and full screen (F11, API section 5) |
 | 8 | **Whole game** | | section 8 | the finder at 0 and the rest of section 8 checked over the whole tree; every play through `nshvc-check` |
 
