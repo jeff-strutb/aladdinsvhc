@@ -84,3 +84,11 @@ uint8_t held_preset(uint8_t frame) { return at8((uint16_t)(0xC734 + frame)); }
 uint8_t held_spawn_at(uint8_t frame) { return at8((uint16_t)(0xC748 + frame)); }
 uint8_t held_box(uint8_t frame) { return at8((uint16_t)(0xC75C + frame)); }
 uint8_t bounce_row(uint8_t at) { return at8((uint16_t)(0xC770 + at)); }
+
+/* $80:C7AA: 16 bytes; $80:C7B5 and $80:C7CB: two bytes a direction (across,
+   then up and down; the direction times 2, 8-bit); $80:C7E1: a byte a
+   direction */
+uint8_t carpet_direction(uint8_t pad_low4) { return at8((uint16_t)(0xC7AA + (pad_low4 & 0x0F))); }
+uint8_t carpet_rate_x(int alt, uint8_t direction) { return at8((uint16_t)((alt ? 0xC7CB : 0xC7B5) + (uint8_t)(direction << 1))); }
+uint8_t carpet_rate_y(int alt, uint8_t direction) { return at8((uint16_t)((alt ? 0xC7CC : 0xC7B6) + (uint8_t)(direction << 1))); }
+uint8_t carpet_tilt(uint8_t direction) { return at8((uint16_t)(0xC7E1 + direction)); }

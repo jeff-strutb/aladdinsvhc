@@ -17,7 +17,7 @@ static const struct {
     const char *name;           /* not converted yet: its name */
 } by_07[16] = {
     { 0, NULL },                                /*  0 81:CB81 the level's own start */
-    { 0, "PlayerCarpetStart (81:E3F5)" },       /*  1 */
+    { P_CARPET_START, NULL },                   /*  1 81:E3F5 */
     { 0, "PlayerScenePlaceHigh (81:DDC1)" },    /*  2 */
     { 0, "PlayerScenePlaceHigh (81:DDC1)" },    /*  3 */
     { 0, "PlayerScenePlaceLow (81:DDE0)" },     /*  4 */
@@ -104,7 +104,7 @@ static int start(Actor *a)
     g.player_box_wanted = 0;
     PlayerBoxSet(a, 0x00);
     if (a->kind >= 1 && a->kind <= 3)
-        return player_unconverted(a, "PlayerCarpetStart (81:E3F5)");
+        return PlayerGoTo(a, P_CARPET_START);
     if (a->kind == 7)
         return player_unconverted(a, "PlayerScenePlaceHigh (81:DDC1)");
     if (a->kind != 0 || n >= 16)

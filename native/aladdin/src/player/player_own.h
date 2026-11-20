@@ -101,6 +101,15 @@ enum {
     P_FLUNG_REST,
     P_FLUNG_AIR,
 
+    /* carpet.c */
+    P_CARPET_START = PLAYER_BLOCK(7),
+    P_CARPET_FLY_IN,
+    P_CARPET_DRIFT,
+    P_CARPET,
+    P_CARPET_CRASH,
+    P_CARPET_CRASH_FALL,
+    P_CARPET_CRASH_WAIT,
+
     /* player_states.c (its entries in player.h from PLAYER_BLOCK(2)) */
     P_STAND_FRAME = PLAYER_BLOCK(2) + 0x10,
     P_STAND_TURN,

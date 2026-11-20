@@ -34,7 +34,7 @@ int PlayerCode(Actor *a)
         if (a->resume == ACTOR_START)
             return player_starts_code(a);
         if (a->resume == ACTOR_START_SECOND)
-            return a->kind == 0x01 ? player_unconverted(a, "PlayerCarpetCrash (81:E7E9)") : player_states_code(a);
+            return a->kind == 0x01 ? PlayerGoTo(a, P_CARPET_CRASH) : player_states_code(a);
         return player_unconverted(a, "his third entry (state $C0 up)");
     case 1:
         return player_starts_code(a);
@@ -48,6 +48,8 @@ int PlayerCode(Actor *a)
         return player_unconverted(a, "the scenes' states (81:DDC1-81:E154, scene_starts.c)");
     case 6:
         return player_unconverted(a, "the scene figures' states (81:DFBB, 81:E23E, 81:E27A)");
+    case 7:
+        return player_carpet_code(a);
     default:
         return player_unconverted(a, "a resume point past his blocks");
     }

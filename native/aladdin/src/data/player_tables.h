@@ -73,4 +73,13 @@ uint8_t held_spawn_at(uint8_t frame);   /* the spawn point his place is set from
 uint8_t held_box(uint8_t frame);        /* his box wanted while held */
 uint8_t bounce_row(uint8_t at);         /* PlayerBounce: the bounce's row by frames in the air or left */
 
+/* the carpet (81:E49C on): the steering direction by pad 1's Up, Down,
+   Left and Right bits (negative none); per direction its rates (bit 7:
+   taken away) for the ride with kind 1 (alt 0) or the other (alt 1); and
+   its tilt (0 level, positive a dive, negative a climb) */
+uint8_t carpet_direction(uint8_t pad_low4);
+uint8_t carpet_rate_x(int alt, uint8_t direction);
+uint8_t carpet_rate_y(int alt, uint8_t direction);
+uint8_t carpet_tilt(uint8_t direction);
+
 #endif
