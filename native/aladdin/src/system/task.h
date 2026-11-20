@@ -97,9 +97,6 @@ typedef enum {
     TASK_ENTRY_STORY_TEXT1,         /* 81:F344 StoryTextTask1 (game/story_text.c) */
     TASK_ENTRY_SCENE_SPIN_ZOOM,     /* 80:B1D8 SceneSpinZoomTask (game/ending.c) */
     TASK_ENTRY_ENDING_STAGES,       /* 82:B29C EndingStagesTask (game/ending.c) */
-    TASK_ENTRY_SOUND_WHILE_SLOT1,   /* 81:A1C0 SoundWhileSlot1Task (actor/chain_piece.c) */
-    TASK_ENTRY_RISER_COURSES,       /* 81:A2D1 RiserCoursesTask (actor/chain_piece.c) */
-    TASK_ENTRY_SOUND_LATER,         /* 81:A2FF SoundLaterTask (actor/chain_piece.c) */
     TASK_ENTRIES
 } TaskEntry;
 

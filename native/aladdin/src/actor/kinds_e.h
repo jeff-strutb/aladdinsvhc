@@ -76,9 +76,6 @@ enum ChainFollowAt {
 };
 int StepCountUp(void);                  /* 84:8982: g.chain_step up; true when it wrapped to 0 */
 int StepCountDown(void);                /* 84:8989: g.chain_step down; true at $F0 */
-TaskRun SoundWhileSlot1Task(Task *t);   /* 81:A1C0 */
-TaskRun RiserCoursesTask(Task *t);      /* 81:A2D1 */
-TaskRun SoundLaterTask(Task *t);        /* 81:A2FF */
 int ChainFollow(Actor *a);              /* a chain actor at a CHAIN_RESUME_FIRST point or on */
 int ChainPieceGone(Actor *a);           /* a piece in state $8C: its steps */
 void ActorListStart(Actor *a, uint16_t point, uint8_t step);    /* 84:8D41 */

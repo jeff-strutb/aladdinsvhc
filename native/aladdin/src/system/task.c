@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include "game/game.h"
-#include "actor/kinds_e.h"
 #include "level/level.h"
 #include "video/video_tasks.h"
 #include "system/system.h"
@@ -203,9 +202,6 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_CLIMB_TOP:          return ClimbTopTask(t);
     case TASK_ENTRY_BG1_WOBBLE:         return Bg1WobbleTask(t);
     case TASK_ENTRY_SHAKE:              return ShakeTask(t);
-    case TASK_ENTRY_SOUND_WHILE_SLOT1:  return SoundWhileSlot1Task(t);
-    case TASK_ENTRY_RISER_COURSES:      return RiserCoursesTask(t);
-    case TASK_ENTRY_SOUND_LATER:        return SoundLaterTask(t);
     case TASK_ENTRY_CONTINUE_SCREEN:    return ContinueScreenTask(t);
     case TASK_ENTRY_GENIE_SCREEN:       return GenieScreen(t);
     case TASK_ENTRY_STORY_TEXT1:        return StoryTextTask1(t);
