@@ -48,6 +48,10 @@ void LevelRamSetup(void);               /* 81:825F, 81:825B LevelRamSetupLong: f
 TaskRun LevelLoad(Task *t);             /* 81:81A7 (81:81A3 Long): g.level loaded and started; it waits */
 TaskRun TextCardScreen(Task *t);        /* 81:ED33 */
 
+/* mode7_source.c: the screens that put up a Mode 7 picture copy its graphics through these */
+void VramCopyKept(unsigned table, int entry);   /* VramCopy (table 0) or VramCopy2 (table 1), keeping what lands at video words $0000-$0FFF and the map at $4000 */
+void Mode7ScreenSetupKept(uint8_t row_flag);    /* 81:AF3B from what was kept */
+
 /* logo_screen.c */
 TaskRun LogoScreen(Task *t);            /* A5:E000 */
 
@@ -61,6 +65,12 @@ TaskRun TitleAfterFadeOut(Task *t);     /* 80:9C79: task entry */
 
 /* story_text.c */
 TaskRun StoryTextTask(Task *t);         /* 81:F332: task entry */
+TaskRun StoryTextTask1(Task *t);        /* 81:F344: task entry (the ending story's texts) */
+
+/* ending.c: task entries */
+TaskRun SceneSpinZoomTask(Task *t);     /* 80:B1D8 */
+TaskRun EndingStagesTask(Task *t);      /* 82:B29C */
+
 
 /* title_task.c */
 TaskRun TitleStartTask(Task *t);        /* 80:9C64 */

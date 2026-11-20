@@ -1,8 +1,8 @@
 /*
  * story_text.c: the task that types the opening story's text onto the text
  * layer, a character every few frames: one text of set 0, picked by the
- * task's parameter. (The record's StoryTextTask1, 81:F344, types set 1 for
- * the story's later scenes; it is stage 5's, past the title.)
+ * task's parameter; StoryTextTask1 (81:F344) types set 1, for the ending's
+ * story's scenes.
  */
 #include <stdio.h>
 
@@ -13,6 +13,7 @@
 #include "video/video.h"
 
 #define TEXT_SET_OPENING 0
+#define TEXT_SET_SCENES 1
 #define CHAR_FRAMES 4           /* frames between characters */
 #define PAGE_FRAMES 160         /* a page's wait before the layer is cleared */
 #define TEXT_PRIORITY 0x20      /* the tile's high byte: its priority bit */
@@ -50,6 +51,7 @@ static void text_map_put(uint16_t at, uint16_t tile)
 
 /*
  * @routine 81:F332 StoryTextTask
+ * @routine 81:F344 StoryTextTask1
  * WHAT IT DOES: A task that types text of set 0 (the opening story's) onto
  * the text layer, a character every 4 frames, then ends.
  * HOW: The text picked by its parameter; the parameter then holds the
@@ -61,9 +63,10 @@ static void text_map_put(uint16_t at, uint16_t tile)
  * place of the first row and column, CODE_PALETTE the palette, CODE_WAIT
  * waits its byte's frames, CODE_PAGE waits 160 frames and clears the layer
  * back to the first row and column, CODE_ROW goes to the next row; at 0
- * the task ends.
+ * the task ends. StoryTextTask1 (81:F344) types the same from set 1, the
+ * later scenes' texts.
  */
-TaskRun StoryTextTask(Task *t)
+static TaskRun story_text_type(Task *t, unsigned set)
 {
     uint16_t *at = task_enter(t);
 
@@ -72,7 +75,7 @@ TaskRun StoryTextTask(Task *t)
 
         switch (*at) {
         case TEXT_START:
-            t->own.story_text.at = story_text_start(TEXT_SET_OPENING, t->param);
+            t->own.story_text.at = story_text_start(set, t->param);
             t->param = CHAR_FRAMES;
             t->own.story_text.palette = 0;
             t->own.story_text.column = 0;
@@ -132,4 +135,14 @@ TaskRun StoryTextTask(Task *t)
             break;
         }
     }
+}
+
+TaskRun StoryTextTask(Task *t)
+{
+    return story_text_type(t, TEXT_SET_OPENING);
+}
+
+TaskRun StoryTextTask1(Task *t)
+{
+    return story_text_type(t, TEXT_SET_SCENES);
 }

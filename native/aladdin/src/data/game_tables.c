@@ -18,6 +18,11 @@
 #define SCENE_PALETTE_ADDR 0xDAB5
 #define STORY_ACTORS_ADDR 0xDABB
 #define STORY_ACTOR_BYTES 6
+#define ENDING_FRAMES_ADDR 0xDB3F
+#define ENDING_GFX_ADDR 0xDB4B
+#define ENDING_COPY_ADDR 0xDB51
+#define ENDING_PALETTE_ADDR 0xDB57
+#define ENDING_ACTORS_ADDR 0xDB5D
 #define MENU_BANK 0x80
 #define MENU_LINES_ADDR 0xCE25
 #define MENU_PLACES_ADDR 0xCE28
@@ -40,6 +45,33 @@ OpeningScene opening_scene(unsigned scene)
 OpeningActor opening_actor(unsigned entry)
 {
     uint16_t at = (uint16_t)(STORY_ACTORS_ADDR + STORY_ACTOR_BYTES * entry);
+    OpeningActor a;
+
+    a.kind = cart8(cart_offset(STORY_BANK, at));
+    a.spawn_byte = cart8(cart_offset(STORY_BANK, (uint16_t)(at + 1)));
+    a.x = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 2)));
+    a.y = cart16(cart_offset(STORY_BANK, (uint16_t)(at + 4)));
+    return a;
+}
+
+uint16_t ending_scene_frames(unsigned scene)
+{
+    return cart16(cart_offset(STORY_BANK, (uint16_t)(ENDING_FRAMES_ADDR + 2 * scene)));
+}
+
+OpeningScene ending_scene(unsigned scene)
+{
+    OpeningScene s;
+
+    s.gfx_set = cart8(cart_offset(STORY_BANK, (uint16_t)(ENDING_GFX_ADDR + scene)));
+    s.copy = (uint8_t)(cart8(cart_offset(STORY_BANK, (uint16_t)(ENDING_COPY_ADDR + scene))) / 7);
+    s.palette = cart8(cart_offset(STORY_BANK, (uint16_t)(ENDING_PALETTE_ADDR + scene)));
+    return s;
+}
+
+OpeningActor ending_actor(unsigned entry)
+{
+    uint16_t at = (uint16_t)(ENDING_ACTORS_ADDR + STORY_ACTOR_BYTES * entry);
     OpeningActor a;
 
     a.kind = cart8(cart_offset(STORY_BANK, at));

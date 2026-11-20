@@ -5,6 +5,7 @@
  * nothing; the owner's definition replaces it at link time. Delete each
  * when its owner lands it.
  */
+#include "game/game.h"
 #include "player/player.h"
 #include "system/task.h"
 #include "system/unconverted.h"
@@ -35,4 +36,11 @@ STAND_IN void PlayerKeepOnScreen(Actor *a)
 STAND_IN void PlayerEnter8CFrom1(void)
 {
     unconverted("PlayerEnter8CFrom1");
+}
+
+/* my own, until ending.c lands them (game/ending.c) */
+STAND_IN TaskRun EndingStagesTask(Task *t)
+{
+    unconverted("EndingStagesTask");
+    return task_exit(t);
 }

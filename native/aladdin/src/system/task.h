@@ -91,6 +91,9 @@ typedef enum {
     TASK_ENTRY_SHAKE,               /* 81:A1D5 ShakeTask (video/) */
     TASK_ENTRY_CONTINUE_SCREEN,     /* 80:B2E3 ContinueScreenTask (game/) */
     TASK_ENTRY_GENIE_SCREEN,        /* 80:A63B GenieScreen (game/) */
+    TASK_ENTRY_STORY_TEXT1,         /* 81:F344 StoryTextTask1 (game/story_text.c) */
+    TASK_ENTRY_SCENE_SPIN_ZOOM,     /* 80:B1D8 SceneSpinZoomTask (game/ending.c) */
+    TASK_ENTRY_ENDING_STAGES,       /* 82:B29C EndingStagesTask (game/ending.c) */
     TASK_ENTRIES
 } TaskEntry;
 

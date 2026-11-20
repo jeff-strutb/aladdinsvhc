@@ -31,6 +31,13 @@ uint16_t opening_scene_frames(unsigned scene);  /* the frames scene 0-5 runs */
 OpeningScene opening_scene(unsigned scene);     /* scene 0-5 */
 OpeningActor opening_actor(unsigned entry);     /* entry 0-21 */
 
+/* ---- the ending's story (game/story_scenes.c): the same forms, from the tables at $80:DB3F-$DB5D ---- */
+
+#define ENDING_SCENES 6
+uint16_t ending_scene_frames(unsigned scene);   /* the frames scene 0-5 runs */
+OpeningScene ending_scene(unsigned scene);      /* scene 0-5 */
+OpeningActor ending_actor(unsigned entry);      /* entry 0-7: kind 0 is the player */
+
 /* ---- the title's menu (game/menu_mark.c, menu_mark_draw.c) ---- */
 
 #define MENU_CHOICES 3

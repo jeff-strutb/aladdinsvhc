@@ -204,6 +204,9 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_SHAKE:              return ShakeTask(t);
     case TASK_ENTRY_CONTINUE_SCREEN:    return ContinueScreenTask(t);
     case TASK_ENTRY_GENIE_SCREEN:       return GenieScreen(t);
+    case TASK_ENTRY_STORY_TEXT1:        return StoryTextTask1(t);
+    case TASK_ENTRY_SCENE_SPIN_ZOOM:    return SceneSpinZoomTask(t);
+    case TASK_ENTRY_ENDING_STAGES:      return EndingStagesTask(t);
     case TASK_ENTRY_NONE:
     case TASK_ENTRIES:
         break;
