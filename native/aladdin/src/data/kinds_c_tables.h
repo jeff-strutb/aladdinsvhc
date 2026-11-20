@@ -85,6 +85,11 @@ int16_t k3a_hold_x(uint8_t picture);        /* where he is held, from its x, by 
 int16_t k3a_hold_y(uint8_t picture);
 uint8_t k3a_frame(uint8_t frame, int facing_left);  /* his frame while held, by its frame */
 
+/* ---- kind $23 ---- */
+
+uint16_t k23_x(uint8_t part);               /* a child's x pixels, by its part - 1 */
+uint8_t k23_next_byte07(uint8_t part);      /* the +$07 it gives its kind $6D, by its part - 1 */
+
 /* ---- kind $3D ---- */
 
 uint8_t k3d_records_needed(uint8_t set);    /* by its +$07 (0-2): the free list's top it needs at least, as the original's byte offset (2 a record) */

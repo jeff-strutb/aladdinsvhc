@@ -35,6 +35,8 @@ static inline int kind_lost(Actor *a, const char *code)
 int Kind2BCode(Actor *a);       /* kind $2B: 83:A467, 83:A725 */
 int Kind33Code(Actor *a);       /* kind $33: 83:B966 */
 void Kind33Look(Actor *a);      /* 83:BAE0: its look, which kind $3A takes too */
+int Kind23Code(Actor *a);       /* kind $23: 83:9CEB */
+int Kind25Code(Actor *a);       /* kind $25: 83:9D4B */
 int Kind3ECode(Actor *a);       /* kind $3E: 83:B154 */
 int Kind3DCode(Actor *a);       /* kind $3D: 83:C302 */
 int Kind3ACode(Actor *a);       /* kind $3A: 83:BEB3; its second entry runs kind $3B's start */

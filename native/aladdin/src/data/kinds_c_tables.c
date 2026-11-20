@@ -107,6 +107,12 @@ int16_t k3a_hold_x(uint8_t picture) { return (int16_t)at16((uint16_t)(0xD1FE + 2
 int16_t k3a_hold_y(uint8_t picture) { return (int16_t)at16((uint16_t)(0xD210 + 2u * picture)); }
 uint8_t k3a_frame(uint8_t frame, int facing_left) { return at8((uint16_t)((facing_left ? 0xD1EE : 0xD1DE) + frame)); }
 
+/* ---- kind $23: the children's x at $D06E (words), the +$07 they give their
+   kind $6D at $D076 (bytes), by part - 1 ---- */
+
+uint16_t k23_x(uint8_t part) { return at16((uint16_t)(0xD06E + 2u * part)); }
+uint8_t k23_next_byte07(uint8_t part) { return at8((uint16_t)(0xD076 + part)); }
+
 /* ---- kind $3D: by +$07 at $D296 the records needed; the bob's moves at
    $D286, 4 bytes an entry (a word, then its high byte and a pad) ---- */
 

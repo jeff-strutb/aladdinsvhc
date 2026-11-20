@@ -8,6 +8,8 @@
 #include "actor/kinds_c.h"
 
 const KindCode kinds_c[] = {
+    { 0x23, Kind23Code, Kind23Code, NULL, Kind23Wait },
+    { 0x25, Kind25Code, NULL, NULL, ActorWaitNothing },
     { 0x2B, Kind2BCode, Kind2BCode, NULL, Kind2BWait },
     { 0x2C, Kind2CCode, Kind2CCode, NULL, Kind2CWait },
     { 0x2D, Kind2DCode, Kind2DCode, Kind2DCode, ActorWaitHitsRange8 },
