@@ -31,10 +31,16 @@ void ActorKeepSpot(Actor *a)
 void ActorMoveAlong(Actor *a, uint16_t direction, uint8_t speed)
 {
     DirectionStep s = direction_step(direction);
-    uint16_t low_x = (uint16_t)(speed * s.x[0]), mid_x = (uint16_t)(speed * s.x[1]);
-    uint16_t low_y = (uint16_t)(speed * s.y[0]), mid_y = (uint16_t)(speed * s.y[1]);
-    uint32_t step_x = (uint32_t)s.x[2] << 16 | (uint32_t)(uint8_t)(mid_x + (low_x >> 8)) << 8 | (low_x & 0xFF);
-    uint32_t step_y = (uint32_t)s.y[2] << 16 | (uint32_t)(uint8_t)(mid_y + (low_y >> 8)) << 8 | (low_y & 0xFF);
+
+    ActorMoveScaled(a, &s, speed);
+}
+
+void ActorMoveScaled(Actor *a, const DirectionStep *s, uint8_t speed)
+{
+    uint16_t low_x = (uint16_t)(speed * s->x[0]), mid_x = (uint16_t)(speed * s->x[1]);
+    uint16_t low_y = (uint16_t)(speed * s->y[0]), mid_y = (uint16_t)(speed * s->y[1]);
+    uint32_t step_x = (uint32_t)s->x[2] << 16 | (uint32_t)(uint8_t)(mid_x + (low_x >> 8)) << 8 | (low_x & 0xFF);
+    uint32_t step_y = (uint32_t)s->y[2] << 16 | (uint32_t)(uint8_t)(mid_y + (low_y >> 8)) << 8 | (low_y & 0xFF);
 
     a->x = wrap24(a->x + step_x);
     a->y = wrap24(a->y + step_y);

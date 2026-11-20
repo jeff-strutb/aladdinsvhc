@@ -29,6 +29,7 @@ const KindCode kinds_d[] = {
     { 0x5F, Kind5FStart, Kind5FSecond, NULL, NULL },
     { 0x84, Kind84Start, NULL, NULL, ActorKind84Wait },
     { 0x22, Kind22Start, Kind22Start, NULL, Kind22Wait },
+    { 0x47, PlatformCourseStart, NULL, NULL, PlatformWait },
     { 0x5C, Kind5CStart, Kind5CStart, NULL, Kind5CWait },
     { 0x5D, Kind5DStart, NULL, NULL, Kind5DWait },   /* second 83:E352 is its wait routine as code: never reached found */
     { 0x66, Kind66Start, Kind66Second, NULL, ActorKind66Wait },

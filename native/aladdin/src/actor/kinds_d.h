@@ -23,6 +23,7 @@ int Kind4DSecond(Actor *a);
 int Kind70Second(Actor *a);
 int Kind76Second(Actor *a);
 int Kind77Second(Actor *a);
+int Kind62Second(Actor *a);
 
 /* ---- the kinds' code (each: frames to wait, or ACTOR_ENDED) ---- */
 
@@ -51,6 +52,7 @@ int Kind5FStart(Actor *a);
 int Kind5FSecond(Actor *a);     /* its second entry: on in Kind60Start */      /* 83:E465 */
 int Kind84Start(Actor *a);      /* 84:95E3 */
 int Kind22Start(Actor *a);      /* 83:9CD2 (second 83:9CDE ends it) */
+int PlatformCourseStart(Actor *a);      /* 83:C96E: kind $47, the carpet course's platforms; kind $62's second goes on in it */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
 int Kind87Start(Actor *a);
 int Kind87Second(Actor *a);     /* its second entry: on in LandingPad */      /* 83:F77F: the catcher */
@@ -84,6 +86,7 @@ int Kind71Wait(Actor *a);       /* 83:F3F1 */
 int Kind4EWait(Actor *a);       /* 83:CFF8 */
 int ActorKind84Wait(Actor *a);  /* 83:92E9 */
 int Kind22Wait(Actor *a);       /* 83:9CE2 */
+int PlatformWait(Actor *a);     /* 83:CAD1 */
 int Kind27Wait(Actor *a);       /* 83:A012: kind $27's (kinds B's kind27.c has its start) */
 int Kind30Wait(Actor *a);       /* 83:B94A */
 int ActorWaitWake(Actor *a);    /* 83:D2A2: kind $51's (kind51.c) */

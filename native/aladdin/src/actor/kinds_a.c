@@ -6,6 +6,7 @@
  * and wait NULL. This file is n5-actors-a's alone.
  */
 #include "actor/actor_a.h"
+#include "actor/kinds_d.h"
 
 int Kind3CDrift(Actor *a);              /* kind3c.c */
 int Kind3CWait(Actor *a);
@@ -43,7 +44,7 @@ const KindCode kinds_a[] = {
     /* $46: its second entry is Kind62Start, which Kind46Start runs as kind $62 (+$42 = 1);
        $62: its second entry PlatformCourseStart (course_platform.c) is left aside */
     { 0x46, Kind46Start, Kind46Start, NULL, Kind46Wait },
-    { 0x62, Kind46Start, NULL, NULL, Kind62Wait },
+    { 0x62, Kind46Start, Kind62Second, NULL, Kind62Wait },
     /* $67: its second entry, kind $68's start, is left aside */
     { 0x67, Kind67Start, NULL, NULL, Kind67Wait },
     { 0x6E, Kind6EStart, Kind6EStart, NULL, Kind6EWait },

@@ -116,3 +116,40 @@ uint16_t ka7_place_y(uint8_t v07) { return cart16(cart_offset(0x80, (uint16_t)(0
 DataRef ka5_probes(void) { return ref(0x80, 0xD984); }
 uint16_t ka5_place_x(uint8_t n) { return cart16(cart_offset(0x80, (uint16_t)(0xD988 + 2u * n))); }
 uint8_t ka5_height(uint8_t n) { return at8(0x80, (uint16_t)(0xD98E + n)); }
+
+/* ---- kind $47 (83:C96E PlatformCourseStart and its pieces), in bank $80 ---- */
+
+PlatformBox k47_box(uint8_t box)
+{
+    uint16_t at = (uint16_t)(0xD2D9 + box);
+    PlatformBox b;
+
+    b.x_off = cart16(cart_offset(0x80, at));
+    b.width = cart16(cart_offset(0x80, (uint16_t)(at + 2)));
+    b.y_off = cart16(cart_offset(0x80, (uint16_t)(at + 4)));
+    b.height = cart16(cart_offset(0x80, (uint16_t)(at + 6)));
+    b.top_off = cart16(cart_offset(0x80, (uint16_t)(at + 8)));
+    return b;
+}
+
+unsigned k47_turn_zones(void) { return at8(0x80, 0xD2F7); }
+uint16_t k47_turn_from(unsigned zone) { return cart16(cart_offset(0x80, (uint16_t)(0xD2F8 + 6 * zone))); }
+uint16_t k47_turn_to(unsigned zone) { return cart16(cart_offset(0x80, (uint16_t)(0xD2FA + 6 * zone))); }
+
+uint32_t k47_dip_rate(unsigned rising)
+{
+    uint16_t at = (uint16_t)(0xD2ED + 3 * rising);
+
+    return (uint32_t)at8(0x80, at) | (uint32_t)at8(0x80, (uint16_t)(at + 1)) << 8 | (uint32_t)at8(0x80, (uint16_t)(at + 2)) << 16;
+}
+
+void k47_course_step(unsigned direction, uint8_t x[3], uint8_t y[3])
+{
+    uint16_t at = (uint16_t)(0xD304 + 8 * direction);
+    unsigned i;
+
+    for (i = 0; i < 3; i++) {
+        x[i] = at8(0x80, (uint16_t)(at + i));
+        y[i] = at8(0x80, (uint16_t)(at + 3 + i));
+    }
+}

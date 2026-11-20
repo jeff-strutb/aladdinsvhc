@@ -16,5 +16,8 @@ int Kind70Second(Actor *a) { return ActorRunAs(a, Kind71Start, ACTOR_START); }
 /* 84:9044 BackdropMover (kind $7C's start): kind $76's second entry (83:928A Kind76Second) */
 int Kind76Second(Actor *a) { return ActorRunAs(a, Kind7CStart, ACTOR_START); }
 
+/* 83:C96E PlatformCourseStart (kind $47's start): kind $62's second entry */
+int Kind62Second(Actor *a) { return ActorRunAs(a, PlatformCourseStart, ACTOR_START); }
+
 /* 83:F541 Kind79Rise (kind $79's start): kinds $77 and $78's second entry */
 int Kind77Second(Actor *a) { return ActorRunAs(a, Kind79Rise, ACTOR_START); }

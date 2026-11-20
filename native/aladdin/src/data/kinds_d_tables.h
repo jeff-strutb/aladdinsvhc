@@ -100,4 +100,21 @@ DataRef ka5_probes(void);       /* the bomb's probe list */
 uint16_t ka5_place_x(uint8_t n);        /* the column's x by its $07 less one */
 uint8_t ka5_height(uint8_t n);          /* a piece's y (the pixels' low byte) by its $07's low four bits */
 
+/* ---- kind $47, the carpet course's platforms ---- */
+
+/* the platform's boxes ($80:D2D9, 10 bytes a box): x offset, width, y offset,
+   height, top offset (words) */
+typedef struct PlatformBox { uint16_t x_off, width, y_off, height, top_off; } PlatformBox;
+PlatformBox k47_box(uint8_t box);
+/* the stretches where the course turns ($80:D2F7: their count, then 6 bytes
+   each): the first x pixel and the x pixel past it */
+unsigned k47_turn_zones(void);
+uint16_t k47_turn_from(unsigned zone);
+uint16_t k47_turn_to(unsigned zone);
+/* the rates the dip sinks (0) and rises (1) at ($80:D2ED, 24 bits each) */
+uint32_t k47_dip_rate(unsigned rising);
+/* the step along the course a direction (0, 1) takes at a speed unit
+   ($80:D304, 8 bytes a direction): its across and down bytes */
+void k47_course_step(unsigned direction, uint8_t x[3], uint8_t y[3]);
+
 #endif
