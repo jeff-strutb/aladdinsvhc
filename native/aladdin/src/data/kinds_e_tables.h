@@ -22,6 +22,10 @@ DataRef k21_pictures(void);     /* kind $21's */
 uint16_t k2e_beside_x(uint8_t at);
 uint16_t k2e_beside_y(uint8_t at);
 
+/* ---- probe lists (an actor's +$16: the map's probes read them) ---- */
+
+DataRef k31_probes(void);       /* kind $31's */
+
 /* ---- kind $35, the gem ---- */
 
 /* a set gem's bit in g.gem_sets_found, by `at` (its +$07's low digit, a

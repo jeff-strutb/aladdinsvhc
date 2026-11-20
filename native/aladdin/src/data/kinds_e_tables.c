@@ -33,3 +33,8 @@ uint16_t k2e_beside_y(uint8_t at) { return at16(0x80, (uint16_t)(0xD160 + at)); 
    $80:D1B6 on as data, $83:D1B6 is code) ---- */
 
 uint16_t k35_set_bit(uint8_t at) { return at16(0x80, (uint16_t)(0xD1B6 + at)); }
+
+/* ---- probe lists: the map's probes read them with the data bank the
+   kinds run with, $80 (the traces read $80:D18B on as data) ---- */
+
+DataRef k31_probes(void) { return ref(0x80, 0xD18B); }

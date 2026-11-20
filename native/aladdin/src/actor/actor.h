@@ -220,4 +220,9 @@ uint8_t ActorMapAhead5Down12(Actor *a);             /* 83:B5F6: the class of the
 void ActorSpawnRing(Actor *a);                      /* 83:D0A3 */
 void ActorVariantChildStep(Actor *a);               /* 83:D078 */
 
+/* (n5-kinds-e, for kind $31; point_moves.c: kind $31 is their only caller) */
+int ActorGoToPoint(Actor *a);       /* 83:FC5D: waits inside (ACTOR_RETURNS once within box $20 of the point): a step a frame
+                                       toward the point at its +$48, +$4A (pixels) by direction set +$4C, facing the way it goes */
+bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up);  /* 83:FD6D: true when the point `ahead` in front
+                                       (by its facing) and `up` above, or `up` above its own x, is in the ground */
 #endif

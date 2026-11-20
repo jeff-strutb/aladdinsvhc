@@ -21,3 +21,19 @@ __attribute__((weak)) void ActorPictureSend(Actor *a)
 }
 
 
+
+__attribute__((weak)) int ActorGoToPoint(Actor *a)
+{
+    (void)a;
+    TELL_ONCE("ActorGoToPoint (83:FC5D)");
+    return ACTOR_RETURNS;
+}
+
+__attribute__((weak)) bool ActorProbeAheadInGround(const Actor *a, uint16_t ahead, uint16_t up)
+{
+    (void)a;
+    (void)ahead;
+    (void)up;
+    TELL_ONCE("ActorProbeAheadInGround (83:FD6D)");
+    return false;
+}
