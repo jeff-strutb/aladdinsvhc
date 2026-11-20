@@ -9,6 +9,7 @@
 
 const KindCode kinds_c[] = {
     { 0x2B, Kind2BCode, Kind2BCode, NULL, Kind2BWait },
+    { 0x2C, Kind2CCode, Kind2CCode, NULL, Kind2CWait },
     { 0x2D, Kind2DCode, Kind2DCode, Kind2DCode, ActorWaitHitsRange8 },
     { 0x2F, Kind2FCode, Kind2FCode, NULL, ActorWaitHitsRange0 },
     { 0x33, Kind33Code, NULL, NULL, Kind33Wait },              /* its second (83:BB96) is an RTS no state reaches */
@@ -16,6 +17,7 @@ const KindCode kinds_c[] = {
     { 0x50, Kind50Code, Kind50Code, NULL, Kind50Wait },
     { 0x59, Kind59Code, NULL, NULL, Kind23Wait },              /* its wait 83:DEB9 is Kind23Wait's bytes */
     { 0x63, Kind63Code, Kind63Code, Kind63Code, Kind63Wait },
+    { 0x6B, Kind6BCode, NULL, NULL, AnimateWhileWaiting },     /* its wait 83:ECCF is AnimStep and an RTS */
     { 0x7E, Kind7ECode, Kind7ECode, NULL, Kind7EWait },        /* its second entry is kind $7F's start: the same code here */
     { 0x7F, Kind7FCode, Kind7FCode, NULL, Kind7FWait },
     { 0x90, Kind90Code, NULL, NULL, NULL },                    /* its second and its wait (83:9366) reach an RTL: nothing */

@@ -88,6 +88,10 @@ uint16_t k63_reach_y(uint8_t at) { return at16((uint16_t)(0xD4ED + at)); }
 uint8_t k63_aim_near(uint8_t at) { return at8((uint16_t)(0xD4F7 + at)); }
 uint8_t k63_aim_mid(uint8_t at) { return at8((uint16_t)(0xD4F8 + at)); }
 
+/* ---- kind $6B: its probe list at $D663 ---- */
+
+DataRef k6b_probes(void) { return ref(0xD663); }
+
 /* ---- kinds $7E, $7F: the circlers' first angles at $D828 (words); kind
    $7F's probe list at $D832 ---- */
 

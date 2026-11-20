@@ -68,6 +68,10 @@ uint16_t k63_reach_y(uint8_t at);           /* by its +$07 * 2: added to its y b
 uint8_t k63_aim_near(uint8_t at);           /* by its +$07 * 2: below this, aim 2 */
 uint8_t k63_aim_mid(uint8_t at);            /* then below this, aim 1; else 0 */
 
+/* ---- kind $6B ---- */
+
+DataRef k6b_probes(void);
+
 /* ---- kinds $7E, $7F ---- */
 
 uint16_t k7e_first_angle(uint8_t n);        /* a circler's first angle, entry n */
