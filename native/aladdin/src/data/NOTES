@@ -11,8 +11,20 @@ Who writes what (the master's work split, 2026-11-19; PLAN.md "Files"):
 Shared formats (stage 2's), 2026-11-19:
   sound_lists.c   the 55-entry upload table at $85:8000 and its lists (42 used: config/aladdin/spclists.csv)
   graphics.c      the palette loads ($84:C000, 98); the packed-graphics format; the level graphics
-                  lists ($80:DF98, 66 levels); the unpack sets ($80:F039, 50)
+                  lists ($80:DF98, 66 levels); the unpack sets ($80:F039, 50); the animation
+                  sets' graphics ($82:AC18/$82:AC58, sets 32 up)
   level_maps.c    the level maps: headers ($80:E3DC, 66), block lists and tiles, layouts ($80:E460, 66)
 Area tables written here before the split, now their areas':
   video_tables.c  the quarter sine ($82:87D4, 64 steps)       -> video
   input_tables.c  the demos' pad scripts ($84:F700)           -> input (stage 6)
+
+Code the game reads as a table: being settled (the 8,972 S-CPU code bytes the
+traces read as data); cart.dat leaves all code out until it lands.
+
+AnimSetGraphicsUnpack's entries at $82:AC18 + set * 2: the traces read them
+only for sets 32 and up, at $82:AC58 on (data); the words for sets 0-31
+would be code bytes no trace reads.
+
+Record comment found wrong (a note only; the record is not edited from the
+native work): video/unpack.c's LEVEL_GFX says bank $81; LevelGraphicsLoad runs
+with DB = $80 and the table is $80:DF98.

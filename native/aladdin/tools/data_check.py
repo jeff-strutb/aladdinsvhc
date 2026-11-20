@@ -2,7 +2,8 @@
 """data_check.py ROM: stage 2's data checks (plan section 4).
 
 1. extract_assets.py makes cart.dat from ROM; every range of assets.csv must
-   hold the ROM's bytes and every other byte must be 0 (the code left out).
+   hold the ROM's bytes ('data', 'unread', and 'code-read': code the game reads
+   as a table) and every other byte must be 0 (the code left out).
 2. data/'s readers, built with tools/data_test.c outside the engine, must give
    what the ROM's bytes give, read here a second way from the formats the
    readers' comments state: every sound list the decomp knows
@@ -70,7 +71,11 @@ def main():
     subprocess.run([sys.executable, os.path.join(HERE, 'extract_assets.py'), sys.argv[1], tmp], check=True,
                    capture_output=True)
     cart = bytearray(open(os.path.join(tmp, 'cart.dat'), 'rb').read())
-    ranges = [(int(r['start'], 16), int(r['end'], 16)) for r in csv.DictReader(open(os.path.join(HERE, 'assets.csv')))]
+    rows = list(csv.DictReader(open(os.path.join(HERE, 'assets.csv'))))
+    ranges = [(int(r['start'], 16), int(r['end'], 16)) for r in rows]
+    by_kind = {}
+    for r in rows:
+        k = by_kind.setdefault(r['reader'], [0, 0]); k[0] += 1; k[1] += int(r['end'], 16) - int(r['start'], 16)
     if os.environ.get('PLANT'):
         s, e = ranges[len(ranges) // 2]
         cart[s] ^= 0xFF
@@ -85,8 +90,8 @@ def main():
             bad += 1
     nonzero_out = sum(1 for i in range(len(rom)) if not inside[i] and cart[i])
     kept = sum(e - s for s, e in ranges)
-    print(f'ranges: {len(ranges)}, {kept} B; differing from the ROM: {bad}; bytes outside them not 0: {nonzero_out}; '
-          f'left out: {len(rom) - kept} B')
+    print(f'ranges: {len(ranges)}, {kept} B ' + '(' + ', '.join(f'{k} {n} ranges {b} B' for k, (n, b) in sorted(by_kind.items())) + ')'
+          f'; differing from the ROM: {bad}; bytes outside them not 0: {nonzero_out}; code left out: {len(rom) - kept} B')
     fails += bad + nonzero_out + (len(cart) != len(rom))
     # the readers
     exe = os.path.join(tmp, 'data_test')
@@ -225,6 +230,26 @@ def main():
     maps_ok = out[len(numbers) + 5] == 'maps ' + ' '.join(maps)
     fails += not maps_ok
     print(f'readers: level maps (66 levels) {"match" if maps_ok else "DIFFER"}; map bytes read from code left out: {map_code}')
+    # the animation sets the traces read (32-36: their entry words are the bytes read at $82:AC58-$AC61)
+    anims = []
+    for s_ in range(32, 37):
+        x = w(lorom(0x82, 0xAC18 + 2 * s_))
+        e = lorom(0x82, (0xAC58 + x) & 0xFFFF)
+        ln = w(e)
+        groups = (ln & 0x3FFF) >> 3
+        if ln:
+            at = lorom(rom[e + 4], w(e + 2))
+            out_, end = unpack(at, groups)
+            code_read += sum(1 for i in range(at, end) if not inside[i])
+            s = 0
+            for v in out_:
+                s = (s * 31 + v) & 0xFFFFFFFF
+            anims.append(f'{ln:04X}/{groups}/{s ^ len(out_):08X}')
+        else:
+            anims.append(f'{ln:04X}/{groups}/00000000')
+    anims_ok = out[len(numbers) + 6] == 'animsets ' + ' '.join(anims)
+    fails += not anims_ok
+    print(f'readers: animation sets 32-36 {"match" if anims_ok else "DIFFER"}; packed bytes read from code left out (all packed): {code_read}')
     print(f'readers: sound lists {len(numbers) - lists_bad} of {len(numbers)} match; quarter sine {"matches" if sine_ok else "DIFFERS"}; '
           f'demo scripts {"match" if demo_ok else "DIFFER"}')
     fails += lists_bad + (not sine_ok) + (not demo_ok)

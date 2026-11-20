@@ -125,3 +125,22 @@ UnpackSetEntry unpack_set(uint8_t set)
     u.packed.groups = groups_of(cart16(e + 5));
     return u;
 }
+
+/* AnimSetGraphicsUnpack: a word per set at $82:AC18 + set * 2, its entry's
+   offset from $82:AC58; an entry is the length (low 14 bits), the source
+   offset and the bank. Long addresses, as the original's. */
+#define ANIM_GFX_BANK 0x82
+#define ANIM_GFX_ENTRIES 0xAC18
+#define ANIM_GFX_PARTS 0xAC58
+
+AnimSetGraphics anim_set_graphics(uint8_t set)
+{
+    uint16_t x = cart16(cart_offset(ANIM_GFX_BANK, (uint16_t)(ANIM_GFX_ENTRIES + 2u * set)));
+    uint32_t e = cart_offset(ANIM_GFX_BANK, (uint16_t)(ANIM_GFX_PARTS + x));
+    AnimSetGraphics a;
+
+    a.length = cart16(e);
+    a.packed.groups = (uint16_t)((a.length & 0x3FFFu) >> 3);
+    a.packed.src = ref_at(cart8(e + 4), cart16(e + 2));
+    return a;
+}

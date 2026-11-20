@@ -87,6 +87,17 @@ typedef struct UnpackSetEntry {
 #define UNPACK_SETS 50          /* $80:F039 on, 7 bytes each; from set 50 the bytes are not sets (banks below $80) */
 UnpackSetEntry unpack_set(uint8_t set);    /* set < UNPACK_SETS */
 
+/* an animation set's graphics (video/unpack.c's AnimSetGraphicsUnpack): the
+   set's entry gives its packed graphics; a length of 0 has none. The
+   record's traces read entries only for sets 32 and up (the words for sets
+   0-31 would lie in the code at $82:AC18-$AC57, which no trace reads as
+   data), so `set` is 32 or more. */
+typedef struct AnimSetGraphics {
+    PackedGraphics packed;      /* groups: the length's low 14 bits / 8, as the original's (not rounded up) */
+    uint16_t length;            /* the entry's word as it is: bits 0-13 the length, bits 14-15 kept */
+} AnimSetGraphics;
+AnimSetGraphics anim_set_graphics(uint8_t set);
+
 /* ---- level maps (map/level_map.c's LevelMapBuild, ScreenMapLayout) ----
 
    A level's map is screens of 32 x 16 tiles, each 8 x 8 blocks of 2 x 2

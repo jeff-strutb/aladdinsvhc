@@ -126,6 +126,11 @@ int main(int argc, char **argv)
             printf("L%ux%u/%08X", c, r, ls);
         }
     }
+    printf("\nanimsets");
+    for (i = 32; i <= 36; i++) {
+        AnimSetGraphics a = anim_set_graphics((uint8_t)i);
+        printf(" %04X/%u/%08X", a.length, a.packed.groups, a.length ? sum_of(a.packed) : 0u);
+    }
     printf("\n");
     return 0;
 }
