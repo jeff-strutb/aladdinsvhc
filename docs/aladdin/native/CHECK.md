@@ -200,8 +200,13 @@ byte comparison cannot pass with this project's core, which draws through a gamm
 of the first 116, and the two new scenes differ by 19 and 23,980 pixels; on 6.7 114 match and the same 4 KNOWN, no other
 picture changed.
 
-**Not covered yet:** the other 27 recordings have not been replayed (only attract, the title and one act 7 play), and
-attract has not been replayed since the limits were set. The
+**Paused** (the master, 2026-11-20, until the attract demo runs on the native game). A run of the remaining
+recordings on engine 6.7 was stopped after 3: `attract` 150 of 150 the same (with the limits set);
+`cov_debug_code` 75 of 76; `cov_title_demo_skip` finished, its result not kept; the 4th stopped partway.
+
+**Open:** `cov_debug_code`, 1 picture of 76 differs, 6,402 pixels: not examined.
+
+**Not covered yet:** 25 recordings have not been replayed at all, and `cov_title_demo_skip` needs its run again. The
 pictures every 60 frames are a sample: a difference in the frames between is not seen.
 
 ## What a result means
