@@ -17,11 +17,10 @@
  * and $93:
  *   @routine A5:F3E3 Kind21AnimateSend
  *   @routine A5:F434 Kind93AnimateSend
- * Three more are each one kind's wait, so its kind's owner writes them
- * (one kind, one owner): 84:9387 KindAnimateFreeOff (kind $7F, kinds C),
- * 84:A975 KindA0AnimateFreeOff (kind $A0, kinds D), A5:F603 Kind91FreeOff
- * (kinds $91 and $92, kinds D). The path steps (84:8CAF ActorPathStep,
- * 84:8DFB ActorPathNext) come with kind $73, which calls them.
+ * Two more are each one kind's wait, so its kind's owner writes them (one
+ * kind, one owner): 84:9387 KindAnimateFreeOff (kind $7F, kinds C) and
+ * 84:A975 KindA0AnimateFreeOff (kind $A0, kinds D). The path steps
+ * (84:8CAF ActorPathStep, 84:8DFB ActorPathNext) come with kind $73.
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_e.h"
@@ -41,3 +40,14 @@ int KindAnimateSend(Actor *a)
 
 
 
+
+/*
+ * @routine A5:F603 Kind91FreeOff
+ * WHAT IT DOES: What actors of kinds $91 and $92 do each frame they wait
+ * (and the work of their second entries): end once out of range (box 0).
+ * Shared by two kinds, so it stays with its record file's owner.
+ */
+int Kind91FreeOff(Actor *a)
+{
+    return ActorFreeOutOfRange(a, 0x00) ? ACTOR_ENDED : ACTOR_GOES_ON;
+}
