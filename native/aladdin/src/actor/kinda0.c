@@ -5,7 +5,6 @@
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
-#include "player/player.h"
 
 #define ON OWN_40               /* the fall: nonzero while Aladdin stands on it */
 #define FRAMES OWN_41           /* the shake's frames left */
@@ -19,15 +18,14 @@ enum {
 };
 
 /* Stood on it, or held: ActorSolidForPlayer says he stands on it, or (unless
-   his pad's Down is held) ActorHoldPlayer has him (his code at PlayerHeld).
+   his pad's Down is held) ActorHoldPlayer has him.
    True when one of them says so. */
 static bool stood_or_held(Actor *a)
 {
     if (ActorSolidForPlayer(a, SOLID_BOX) == ACTOR_SOLID_ON_TOP)
         return true;
     if (!(g.pad1_held & DOWN_HELD)) {
-        ActorHoldPlayer(a);
-        return g.actors[0].resume == PLAYER_AT_HELD;
+        return ActorHoldPlayer(a);
     }
     return false;
 }
