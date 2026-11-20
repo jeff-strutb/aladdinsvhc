@@ -204,4 +204,11 @@ void ActorSpawnPair(Actor *a);                      /* 83:D332: two children lik
 /* (kinds B; its stand-in in actor/wanted_b.c) */
 void ActorFlagOnce(Actor *a);           /* 83:CF10 (actor_steps.c), its cases 83:CF31-CF67 (flag_drops.c): drops its children once */
 
+/* (n5-kinds-c, for kinds $2D, $2F, $4F) */
+void ActorMotionPresetY(Actor *a, uint8_t preset);  /* 81:A3EC: the preset's vertical speed and gravity */
+void ActorFallSpeedCap(Actor *a);                   /* 83:B61A */
+uint8_t ActorMapAhead5Down12(Actor *a);             /* 83:B5F6: the class of the map's block 5 ahead of it and 12 below */
+void ActorSpawnRing(Actor *a);                      /* 83:D0A3 */
+void ActorVariantChildStep(Actor *a);               /* 83:D078 */
+
 #endif

@@ -102,5 +102,10 @@ int PlayerOnFirmGroundProbe4(void);              /* 81:B75A */
 
 /* wanted */
 
+/* (n5-kinds-c, for kind $90: it reads the tile's behaviour the wall test
+   left, the original's $0012) ActorOutOfWallProbe4, the probe's findings
+   in *p */
+int ActorOutOfWallProbe4At(Actor *a, MapPoint *p);  /* 81:B5AD */
+
 
 #endif

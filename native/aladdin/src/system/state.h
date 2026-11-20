@@ -562,6 +562,7 @@ typedef struct GameState {
     Actor *free_pool_b[ACTOR_POOL_B_SIZE]; /* $15DA: the second pool's */
     int8_t free_pool_b_top;     /* $15E6 */
     uint8_t kind_count[256];    /* $7E:FF00: by kind, how many are live */
+    uint8_t flier_slots[3];     /* $1478: a guard's three kind $90 fliers, by their +$07: low four bits nonzero, fly on; how each ended ($80 the ground, $40 a wall, 0 its steps ran out) */
     Actor *draw_list[4][32];    /* $1492: the four lists of the actors drawn this frame, $40 bytes each (ActorsInView) */
     uint8_t draw_count[4];      /* $1592, 2 apart: each list's length */
     uint8_t sprite_flicker;     /* $032D: bit 0 set, actors with +$08 bit 4 not drawn this frame; bit 1, those with bit 5 flash */
