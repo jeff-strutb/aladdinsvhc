@@ -39,6 +39,7 @@ const KindCode kinds_e[] = {
     { 0x94, Kind94Spark, NULL, NULL, AnimateWhileWaiting },
     { 0x97, Kind97Start, NULL, NULL, NULL },
     { 0x98, Kind98Start, Kind98Start, NULL, Kind98WaitWork },
+    { 0x9E, Kind9EStart, NULL, NULL, Kind9EWaitWork },
     { 0xA1, KindA1Start, KindA1Start, NULL, KindA1Touch },
     { 0xA6, KindA6Stay, NULL, NULL, NULL },
     { 0, NULL, NULL, NULL, NULL }
