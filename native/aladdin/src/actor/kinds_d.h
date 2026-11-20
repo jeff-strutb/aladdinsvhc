@@ -9,6 +9,9 @@
 
 #include "actor/actor.h"
 
+/* kinds B's, defined in kind8a.c: kind $8A's start, which kind $87's second entry goes on in */
+int LandingPad(Actor *a);       /* 83:F9BA */
+
 /* ---- the kinds' code (each: frames to wait, or ACTOR_ENDED) ---- */
 
 /* kind $6C's resume points, from here: kind $66's holder ($07 bit 4) goes
@@ -37,7 +40,8 @@ int Kind5FSecond(Actor *a);     /* its second entry: on in Kind60Start */      /
 int Kind84Start(Actor *a);      /* 84:95E3 */
 int Kind22Start(Actor *a);      /* 83:9CD2 (second 83:9CDE ends it) */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
-int Kind87Start(Actor *a);      /* 83:F77F: the catcher */
+int Kind87Start(Actor *a);
+int Kind87Second(Actor *a);     /* its second entry: on in LandingPad */      /* 83:F77F: the catcher */
 int Kind5DStart(Actor *a);      /* 83:E29B: kind $5C's cloud */
 int Kind66Start(Actor *a);
 int Kind66Second(Actor *a);     /* its second entry: on in Kind73Start */      /* 84:839E */

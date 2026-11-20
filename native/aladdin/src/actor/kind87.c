@@ -3,9 +3,8 @@
  * its zone it takes hold of him, shakes him about, lets him go, drops, and
  * breaks into five of its children before it ends; a child ($07 nonzero)
  * drops to the ground, waits its turn, and floats away. Its wait routine
- * is ActorKind87Wait. Its second entry (83:F9BA LandingPad) is kind $8A's
- * too: left aside until a record can run another kind's code
- * (kinds-d-shared-kinds.md section 2).
+ * is ActorKind87Wait. Its second entry is kind $8A's start (83:F9BA
+ * LandingPad): Kind87Second hands the record over.
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
@@ -239,6 +238,13 @@ static void stops_touching_kind2d(const Actor *a)
         t->anim_flags |= 0x80;
         t->state = 0x8C;
     }
+}
+
+/* Kind $87's second entry (state $80-$BF): the record goes on in kind $8A's
+   code (83:F9BA LandingPad) from its start. */
+int Kind87Second(Actor *a)
+{
+    return ActorRunAs(a, LandingPad, ACTOR_START);
 }
 
 /*

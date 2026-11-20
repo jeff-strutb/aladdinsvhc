@@ -33,7 +33,7 @@ const KindCode kinds_d[] = {
     { 0x5D, Kind5DStart, NULL, NULL, Kind5DWait },   /* second 83:E352 is its wait routine as code: never reached found */
     { 0x66, Kind66Start, Kind66Second, NULL, ActorKind66Wait },
     { 0x6C, Kind6CStart, Kind6CSecond, NULL, ActorWaitRange00 },
-    { 0x87, Kind87Start, NULL, NULL, ActorKind87Wait },   /* left aside: second 83:F9BA LandingPad (kind $8A's too) */
+    { 0x87, Kind87Start, Kind87Second, NULL, ActorKind87Wait },
     { 0xA4, KindA4Start, NULL, NULL, ActorKindA4Wait },
     { 0, NULL, NULL, NULL, NULL }
 };

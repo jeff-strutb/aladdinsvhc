@@ -206,6 +206,7 @@ typedef struct SpritePiece {
 /* its frame's pieces, valid until the next call; returns how many (the list's count byte) */
 unsigned actor_pieces(const Actor *a, const SpritePiece **pieces);
 void ActorKeepSpot(Actor *a);           /* 81:9D56 (actor_moves.c): its x and y pixels kept (its +$4C, +$4E), for PlayerMoveWithActor */
+int ActorEndIfAhead(Actor *a);                      /* 83:9749 (wait_step.c): ended once more than $120 pixels right of the view's left edge */
 
 /* wanted */
 
@@ -223,9 +224,6 @@ bool ActorOutOfWall8(Actor *a, struct MapPoint *p);  /* A5:EB17 (ground_probes.c
 
 /* (n5-kinds-d for the guard's $07 11 and the scenes; actors A's rise_fall.c, written by n5-kinds-d) */
 void ActorPlaceAtSpot(Actor *a, uint8_t spot);      /* A5:EB1E: on whole pixels at spot `spot` (a byte offset, 4 bytes a spot) of the table at $80:D02C */
-
-/* (n5-kinds-d, for kind $71; wait_step.c) */
-int ActorEndIfAhead(Actor *a);                      /* 83:9749: ended once more than $120 pixels right of the view's left edge */
 
 /* (kinds B; their stand-ins in actor/wanted_b.c) */
 void ActorFallAgainst(Actor *a);        /* 81:A520 (motion.c): gravity taken from the vertical speed, then ActorMoveY. NOTES-core
