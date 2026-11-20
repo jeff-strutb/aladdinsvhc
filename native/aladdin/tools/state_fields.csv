@@ -232,11 +232,24 @@ player_dash,7E1459,1,,1,,value
 player_slowed,7E1457,1,,1,,value
 player_saved_x,7E145D,1,,2,,value
 player_saved_y,7E145F,1,,2,,value
+kind66_touched,7E1435,1,,1,,value
 player_ground_y,7E1455,1,,2,,value
 player_no_actor_landing,7E1427,1,,2,,value
 player_box_wanted,7E1448,1,,1,,value
 player_box,7E1449,1,,1,,value
+test_box_x,7E1484,1,,2,,value
+test_box_y,7E1486,1,,2,,value
+test_box_half_w,7E1488,1,,2,,value
+test_box_half_h,7E148A,1,,2,,value
+player_hurt_count,7E141B,1,,1,,value
+player_in_air,7E141C,1,,1,,value
+player_no_landing,7E145A,1,,1,,value
+player_landed,7E144E,1,,1,,value
+player_on_actor,7E1428,1,,1,,value
 player_hurt_time,7E03F5,1,,1,,value
+player_hurts,7E141B,1,,1,,value
+player_held,7E141C,1,,1,,value
+view_edge_rule,7E145B,1,,1,,value
 health,7E0367,1,,1,,value
 health_marks,7E0365,1,,1,,value
 continues,7E035B,1,,1,,value
@@ -280,8 +293,17 @@ menu_blink_frames,7E0848,1,,1,,value
 menu_choice,7E0849,1,,1,,value
 menu_choice_was,7E084A,1,,1,,value
 menu_cursor_moves,7E084B,1,,1,,value
+scene_cue,7E00BE,1,,1,,value
+scene_cue_2,7E00C0,1,,1,,value
+scene_cue_waited,7E00C2,1,,1,,value
+scripted_cue,7E146C,1,,1,,value
+scene_go_on,7E1B1F,1,,1,,value
 range_x,7E1A44,1,,2,,value
 range_y,7E1A46,1,,2,,value
+demo_frames_left,7E0341,1,,2,,value
+pause_cooldown,7E000B,1,,1,,value
+level_exiting,7E1423,1,,1,,value
+stages_ended,7E1454,1,,1,,value
 actors[].state,7E08DB,36,50,1,,value
 actors[].wait,7E08DC,36,50,1,,value
 actors[].resume,7E08DD,36,50,4,,native (a resume point for the original's PC)
@@ -294,6 +316,8 @@ actors[].y,7E08E9,36,50,3,,16.8
 actors[].view_box,7E08ED,36,50,1,,value
 actors[].facing,7E08EF,36,50,1,,value
 actors[].flip,7E08F0,36,50,1,,value
+actors[].probes,7E08F1,36,50,2,,ref
+actors[].probe_at,7E08F3,36,50,1,,value
 actors[].speed_x,7E08F4,36,50,3,,16.8
 actors[].accel_x,7E08F7,36,50,1,,value
 actors[].speed_y,7E08F8,36,50,3,,16.8
@@ -316,6 +340,7 @@ actors[].next,7E0912,36,50,2,,pointer
 actors[].tile_slot,7E0914,36,50,1,,value
 actors[].stream,7E0925,36,50,2,,ref
 actors[].call_at,,36,,,,native
+actors[].own_pictures,7E0904,36,50,2,,ref
 actors[].bytes[0],7E08E5,36,50,1,,value
 actors[].bytes[1],7E08EC,36,50,1,,value
 actors[].bytes[2],7E08EE,36,50,1,,value
@@ -353,6 +378,7 @@ free_pool_top,7E15E4,1,,1,,value
 free_pool_b,7E15DA,5,2,2,,pointer
 free_pool_b_top,7E15E6,1,,1,,value
 kind_count,7EFF00,256,1,1,,value
+flier_slots,7E1478,3,1,1,,value
 draw_count,7E1592,4,1,1,,value
 sprite_flicker,7E032D,1,,1,,value
 placed,7EC600,256,1,1,,value

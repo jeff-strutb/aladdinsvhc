@@ -486,6 +486,7 @@ typedef struct GameState {
     uint16_t player_slowed;     /* $1457: frames the speed was held up to its least (counted as a word, read as its low byte) */
     uint16_t player_saved_x;    /* $145D: a position kept for the player, pixels */
     uint16_t player_saved_y;    /* $145F */
+    uint8_t kind66_touched;     /* $1435: set while Aladdin touches a kind $66 (its wait routine); the player's frame work clears it */
     uint16_t player_ground_y;   /* $1455: where it last stood, pixels */
     uint16_t player_no_actor_landing; /* $1427: nonzero, Aladdin lands on no actor (ScrollUpdate's kind 2 reads its low 4 bits) */
     uint8_t player_box_wanted;  /* $1448 */

@@ -11,7 +11,7 @@
 #include "player/player.h"
 
 enum {
-    WATCH = ACTOR_RESUME_OWN,   /* each frame: is he in reach? */
+    WATCH = KIND6C_RESUME,      /* each frame: is he in reach? (its own block: kind $66's holder runs this code too) */
     PLACE_HIM,                  /* taken: the next frame he is put at its place */
     HOLD,                       /* until he is let go */
     AGAIN                       /* after 16 frames: over */
