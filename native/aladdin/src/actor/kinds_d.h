@@ -34,6 +34,7 @@ int Kind4BStart(Actor *a);      /* 83:CE2A */
 int Kind4EStart(Actor *a);      /* 83:CFA9 (and 83:CFC1 Kind4EBounced) */
 int Kind5FStart(Actor *a);      /* 83:E465 */
 int Kind84Start(Actor *a);      /* 84:95E3 */
+int Kind22Start(Actor *a);      /* 83:9CD2 (second 83:9CDE ends it) */
 int Kind5CStart(Actor *a);      /* 83:E000: the Genie's head of level 8 */
 int Kind87Start(Actor *a);      /* 83:F77F: the catcher */
 int Kind5DStart(Actor *a);      /* 83:E29B: kind $5C's cloud */
@@ -64,6 +65,7 @@ int Kind44Wait(Actor *a);       /* 83:B488 */
 int Kind71Wait(Actor *a);       /* 83:F3F1 */
 int Kind4EWait(Actor *a);       /* 83:CFF8 */
 int ActorKind84Wait(Actor *a);  /* 83:92E9 */
+int Kind22Wait(Actor *a);       /* 83:9CE2 */
 int Kind27Wait(Actor *a);       /* 83:A012: kind $27's (kinds B's kind27.c has its start) */
 int Kind30Wait(Actor *a);       /* 83:B94A */
 int ActorWaitWake(Actor *a);    /* 83:D2A2: kind $51's (kind51.c) */
