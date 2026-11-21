@@ -16,6 +16,8 @@ void abi_Kind12End(void);
 void abi_Kind21End(void);
 void abi_Kind52Start(void);
 void abi_Kind7FEnd(void);
+void abi_Kind8BSecondReturn(void);
+void abi_Kind8CSecondReturn(void);
 void abi_Kind8FWalkEnd(void);
 void abi_Kind99End(void);
 void abi_Kind9AEnd(void);
@@ -578,4 +580,62 @@ void abi_Kind9AEnd(void)
 void abi_Kind21End(void)
 {
     abi_ActorEndPlaced();
+}
+
+/*
+ * @routine 83:9333 Kind8BSecond
+ * @actor
+ * WHAT IT DOES: Where actors of kind $8B go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind8BSecondReturn,
+ * a bare RTS. Dead: the RTS pulls the loop's own frame (see
+ * Kind33Second); no script and no unit call can judge it.
+ * HOW: JML to Kind8BSecondReturn ($84:9879).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never as a return to anywhere sane: the RTS
+ * pulls the loop's saved D ($0000), and execution goes on at $84:0001,
+ * work RAM through the mirror in bank $84 (its variables run as code).
+ * @unreachable 83:9333-9336 This JML (the RTS it reaches is filed and covered): a record of this
+ * kind in state $8C makes the actor loop JMP here with its own frame on
+ * the stack (PHD, then the JSL's return); the RTS pulls the saved D ($0000)
+ * and the game runs on at $84:0001, the zero page's variables as code (a
+ * kind $8B record forced to state $8C in stage a5 s3, kind $8C the same, executed work RAM $0001
+ * and $0003). Nothing can make the saved D another value, so no input or
+ * poke makes the path sane. A unit call cannot judge it: the JML leaves
+ * bank $83, the RTS pulls 2 of the JSL's 3 pushed bytes and lands at
+ * $84:1FE4, the harness's loop in another bank, with S one byte off the C's
+ * (the four one-RTS seconds of unit_second_rts stay in bank $83 and are
+ * called). Jeff's rule of 2026-11-19 (exempt with proof); master's yes 2026-11-21.
+ */
+void abi_Kind8BSecond(void)
+{
+    abi_Kind8BSecondReturn();
+}
+
+/*
+ * @routine 83:9340 Kind8CSecond
+ * @actor
+ * WHAT IT DOES: Where actors of kind $8C go on from the actor loop in
+ * a state with bit 7 set (the table at $83:8EFD): Kind8CSecondReturn,
+ * a bare RTS. Dead: the RTS pulls the loop's own frame (see
+ * Kind33Second); no script and no unit call can judge it.
+ * HOW: JML to Kind8CSecondReturn ($84:99EC).
+ * Entry: D = the actor's record; reached by the actor loop's jump (JMP
+ * (table,X)) by kind. Exit: never as a return to anywhere sane: the RTS
+ * pulls the loop's saved D ($0000), and execution goes on at $84:0001,
+ * work RAM through the mirror in bank $84 (its variables run as code).
+ * @unreachable 83:9340-9343 This JML (the RTS it reaches is filed and covered): a record of this
+ * kind in state $8C makes the actor loop JMP here with its own frame on
+ * the stack (PHD, then the JSL's return); the RTS pulls the saved D ($0000)
+ * and the game runs on at $84:0001, the zero page's variables as code (a
+ * kind $8B record forced to state $8C in stage a5 s3, kind $8C the same, executed work RAM $0001
+ * and $0003). Nothing can make the saved D another value, so no input or
+ * poke makes the path sane. A unit call cannot judge it: the JML leaves
+ * bank $83, the RTS pulls 2 of the JSL's 3 pushed bytes and lands at
+ * $84:1FE4, the harness's loop in another bank, with S one byte off the C's
+ * (the four one-RTS seconds of unit_second_rts stay in bank $83 and are
+ * called). Jeff's rule of 2026-11-19 (exempt with proof); master's yes 2026-11-21.
+ */
+void abi_Kind8CSecond(void)
+{
+    abi_Kind8CSecondReturn();
 }

@@ -460,3 +460,33 @@ Kind9AEnd:
 %at($A5F3EC)
 Kind21End:
     jml.l ActorEndPlaced
+
+; @routine 83:9333 Kind8BSecond
+; @actor
+; WHAT IT DOES: Where actors of kind $8B go on from the actor loop in
+; a state with bit 7 set (the table at $83:8EFD): Kind8BSecondReturn,
+; a bare RTS. Dead: the RTS pulls the loop's own frame (see
+; Kind33Second); no script and no unit call can judge it.
+; HOW: JML to Kind8BSecondReturn ($84:9879).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never as a return to anywhere sane: the RTS
+; pulls the loop's saved D ($0000), and execution goes on at $84:0001,
+; work RAM through the mirror in bank $84 (its variables run as code).
+%at($839333)
+Kind8BSecond:
+    jml.l Kind8BSecondReturn
+
+; @routine 83:9340 Kind8CSecond
+; @actor
+; WHAT IT DOES: Where actors of kind $8C go on from the actor loop in
+; a state with bit 7 set (the table at $83:8EFD): Kind8CSecondReturn,
+; a bare RTS. Dead: the RTS pulls the loop's own frame (see
+; Kind33Second); no script and no unit call can judge it.
+; HOW: JML to Kind8CSecondReturn ($84:99EC).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind. Exit: never as a return to anywhere sane: the RTS
+; pulls the loop's saved D ($0000), and execution goes on at $84:0001,
+; work RAM through the mirror in bank $84 (its variables run as code).
+%at($839340)
+Kind8CSecond:
+    jml.l Kind8CSecondReturn
