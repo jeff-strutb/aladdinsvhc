@@ -19,3 +19,16 @@ Rule (Jeff, 2026-11-20): an accident is not reproduced unless leaving it out hur
   $0100 original; equal again after 7 frames) and `x` from 2006 (native ahead by $80 a frame, a constant offset after, until the hit at 2024
   puts his record from the dump); no other field of his differs besides the hand-over frames (a hit at 2024) and the exec frame (2234). Observed
   2026-11-20: 37 fields over frames 2005-2024, 2234, 2235: speed_x 7, x 21, y 2, speed_y 2, hand-over and exec fields.
+
+## 2. The platform course maker (kind $47) stalls the game for 85 frames at level $05's start
+
+- **Where:** `actor/course_platform.c`, `PlatformCourseStart` (the record's 83:C96E): the course maker's first turn.
+- **What the original does:** the maker works its whole course out in one turn without yielding (a waypoint every 38 steps from x $2A to x $1000),
+  which takes the original 85 frames of the CPU: from frame 1,142 to 1,227 of `rand_stage_a1_s1` (build/aladdin/wip-kinds-d/work/rec.keepsstage_a1_s1)
+  the maker's record stays in state $08 (running), the next record (kind $70) stays new ($0C), and Aladdin's and the guard's records and all of work RAM
+  but 26 bytes are unchanged between frames 1,150 and 1,200: the game does not advance while it computes.
+- **What the native game does:** computes the same course in the one frame, then goes on; the platforms start 85 frames of play earlier than the original's.
+- **Why it does not hurt gameplay:** nothing moves during the original's stall (the player and the guard are the same in every dump of it), so the game
+  after it is the same, 85 frames sooner; the course itself is the same waypoints.
+- **The check's expected difference:** that play's window from 1,142 on: kinds $47, $70, $08 differ for the whole window by the 85 frames (their
+  frame-to-frame offset); not comparable without shifting the dump. Level $05's other kinds are unaffected.
