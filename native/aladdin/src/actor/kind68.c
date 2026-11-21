@@ -11,6 +11,8 @@
  * at $70:0040; on the retail board's open bus the values differ, so the
  * platform always moves: plan section 1 item 8).
  */
+#include <stddef.h>
+
 #include "actor/kinds_c.h"
 #include "actor/kinds_d.h"
 #include "data/kinds_c_tables.h"
@@ -31,10 +33,12 @@ typedef struct {
     uint8_t shape;              /* +$47: its shape (bit 0 of its ways) */
     uint8_t unused48;
     uint8_t last_x;             /* +$49: its x pixels' low byte when it last wrote */
+    uint8_t unused4c[OWN_4A - OWN_4C];  /* +$4C-$4F: its kept place (ActorKeepSpot) */
     uint8_t alt;                /* +$4A: bit 0 flips at each block step */
 } Kind68Own;
 
 _Static_assert(sizeof(Kind68Own) <= OWN_BYTES, "a view fits the own bytes");
+_Static_assert(offsetof(Kind68Own, last_x) == OWN_49 && offsetof(Kind68Own, alt) == OWN_4A, "the view follows OwnPlace");
 
 static Kind68Own *own(Actor *a) { return (Kind68Own *)a->own.bytes; }
 
