@@ -63,7 +63,8 @@ def task_entry(rom, o, t):
     a = o + 4 + (2 if t == TASK_CREATE else 0)
     return rom[a] | rom[a + 1] << 8 | rom[a + 2] << 16
 STOPS = {0x60, 0x6B, 0x40, 0xDB}           # RTS RTL RTI STP
-SUSPECT = {0x00, 0x02, 0x42, 0xDB}         # BRK COP WDM STP: data, not code
+SUSPECT = {0x42, 0xDB}                     # WDM STP: data, not code
+YIELDS = {0x00, 0x02}                      # BRK COP: an actor's yield (2 bytes: resumes after them); data only when two come together
 STORES = {0x85, 0x95, 0x8D, 0x9D, 0x99, 0x8F, 0x9F, 0x86, 0x8E, 0x84, 0x8C, 0x96, 0x94, 0x91, 0x92, 0x97, 0x87}
 
 
@@ -102,7 +103,7 @@ class Census:
         f = M8 | X8
         for _ in range(3):
             op = self.rom[o]
-            if op in SUSPECT:
+            if op in SUSPECT or op in YIELDS and self.rom[o + 2] in YIELDS:
                 return False
             o += disasm.cpu_len(op, f)
         return True
@@ -136,7 +137,7 @@ class Census:
                     return out, 'bad'
             op = self.rom[o]
             f = self.flags_at(o, f) if m & 1 else f
-            if op in SUSPECT and not m & 1:
+            if not m & 1 and (op in SUSPECT or op in YIELDS and (self.rom[o + 2] in YIELDS or out and self.rom[out[-1][1]] in YIELDS)):
                 return out, 'bad'
             n = disasm.cpu_len(op, f)
             if not m & 1 and any(self.mp[o + k] & 0x47 or self.code[o + k] for k in range(1, n)):
@@ -272,15 +273,15 @@ class Census:
         if o is None:
             return
         seen = []
-        for i in range(64):
+        for i in range(256):
             p = o + 2 * i
             if p + 1 >= len(self.rom) or self.mp[p] & 0x33 or self.code[p]:
                 break
             t = bank | self.rom[p] | self.rom[p + 1] << 8
             if (t & 0xFFFF) < 0x8000 and bank not in (0x7E0000, 0x7F0000):
                 break
-            if any(abs(t - s) < 2 for s in seen):
-                break
+            if t & 0xFFFF == 0xFFFF:
+                continue                    # a state with no entry: the table goes on
             read = bool(self.mp[p] & 4)
             g = self.clean(t, f)
             if g is None and not read:
