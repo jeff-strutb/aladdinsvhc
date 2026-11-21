@@ -44,6 +44,7 @@ static const struct {
 };
 
 static TaskEntry chosen = TASK_ENTRY_NONE;
+static unsigned chosen_items;
 
 /* a number in the environment, or `otherwise` */
 static unsigned env_number(const char *name, unsigned otherwise)
@@ -70,20 +71,27 @@ void DevStartApply(void)
         if (strcmp(screen, screens[i].name))
             continue;
         chosen = screens[i].entry;
-        g.continues = CONTINUES;
-        g.main_layers = LAYERS_PLAY;
-        for (unsigned a = 0; a < 4; a++)
-            g.control_masks[a] = control_option_mask(g.kept_options[0], a);
-        g.gem_sets_total = (uint8_t)env_number("ALADDIN_DEV_ITEMS", screens[i].items);
-        g.progress_sequence = (uint8_t)env_number("ALADDIN_DEV_PART", g.progress_sequence);
-        g.progress_stage = (uint8_t)env_number("ALADDIN_DEV_STAGE", g.progress_stage);
+        chosen_items = screens[i].items;
         return;
     }
     fprintf(stderr, "ALADDIN_DEV_SCREEN: no screen named %s\n", screen);
 }
 
-/* the screen asked for, or TASK_ENTRY_NONE */
+/*
+ * DevStartEntry: the screen asked for, or TASK_ENTRY_NONE. Its state is set
+ * here, as the boot task is about to start it: the boot's own screens set
+ * the layers and the controls up again before this.
+ */
 TaskEntry DevStartEntry(void)
 {
+    if (chosen == TASK_ENTRY_NONE)
+        return chosen;
+    g.continues = CONTINUES;
+    g.main_layers = LAYERS_PLAY;
+    for (unsigned a = 0; a < 4; a++)
+        g.control_masks[a] = control_option_mask(g.kept_options[0], a);
+    g.gem_sets_total = (uint8_t)env_number("ALADDIN_DEV_ITEMS", chosen_items);
+    g.progress_sequence = (uint8_t)env_number("ALADDIN_DEV_PART", g.progress_sequence);
+    g.progress_stage = (uint8_t)env_number("ALADDIN_DEV_STAGE", g.progress_stage);
     return chosen;
 }
