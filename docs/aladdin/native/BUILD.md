@@ -2,7 +2,7 @@
 
 ## Building the native game
 
-The game is `native/aladdin` (its icon `native/aladdin/icon/icon.png`, the box art, which the build turns into each platform's icon), built against nativeshvc's checkout (API 6.5, tested at `8d1745d`) beside this one. Run
+The game is `native/aladdin` (its icon `native/aladdin/icon/icon.png`, the box art, which the build turns into each platform's icon), built against nativeshvc's checkout (API 6.7, tested at `8b5461e`; the sound driver needs 6.6 or later) beside this one. Run
 from the repository root. The cartridge's data is never committed; `extract_assets.py` checks the ROM's SHA-1
 (`bd5fea18ce7456cc0231a39473927d8ea9c6589b`) and writes `native/aladdin/assets/cart.dat`, which the build copies
 beside the program:
@@ -45,9 +45,13 @@ mkdir -p build/aladdin/native/shots-linux && (cd build/aladdin/native/linux && t
 (cd build/aladdin/native/linux && timeout 8 ./aladdin)
 ```
 
-At stage 0 the game shows a blank screen: the headless run prints `updates 120 pictures 120` and writes 120 pictures,
-every pixel black. The headless build's null renderer writes no pictures. The window run is ended by `timeout` (exit
-124).
+The game starts at the copyright card and runs the logo, the opening story, the title and, after about 11,000 updates
+with no input, the attract demo's level 1. The headless run prints `updates 120 pictures 120` and writes one picture per
+update. The headless build's null renderer writes no pictures. The window run is ended by `timeout` (exit 124).
+Keys can be replayed from a file (`--input FILE`, lines `UPDATE key=VKHEX`); the developer's starts and plays are in
+[CHECK.md](CHECK.md). The checks run for the README: `python3 native/aladdin/tools/clean_check.py native/aladdin/src`,
+`python3 native/aladdin/tools/data_check.py "reference/aladdin/Aladdin (USA).sfc"`, and 11,000 updates of each build
+(`./aladdin --headless --updates 11000`, exit 0).
 
 **The Vulkan driver on this machine.** Vulkan prints `dzn is not a conformant Vulkan implementation`. This machine is a
 Hyper-V guest whose GPU, the host's AMD Radeon RX 6950 XT, is shared through GPU partitioning (`/dev/dxg`, kernel driver
