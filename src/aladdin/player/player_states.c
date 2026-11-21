@@ -751,8 +751,8 @@ void abi_PlayerAir(void)
  * WHAT IT DOES: Aladdin in the air: when he is in the ground he lands,
  * else his next frame in the air.
  * HOW: ActorOutOfGround; Z clear: on at PlayerLand; else at PlayerAir.
- * Entry: M 8-bit, X 8-bit (M 16-bit from PlayerLedgeGrab's paths no
- * script runs); D = the player's record; DB = $80; reached at the end of
+ * Entry: M 8-bit, X 8-bit (M 16-bit from PlayerLedgeGrab's wrong-way
+ * ledge path, which rand_pw4_2 runs at frame 2005); D = the player's record; DB = $80; reached at the end of
  * PlayerAir's frame and by a jump from PlayerLedgeGrab. Exit: never
  * returns.
  */
