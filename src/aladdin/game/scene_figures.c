@@ -459,8 +459,8 @@ void abi_PlayerSceneLand(void)
  * move 4 until screen $1E (with V_1A12 set while the view is in its row 2
  * of screens), then move 1 with V_1A10 set and the speed climbing until
  * his x is more than $140 past the view's left edge, when he is put off the
- * screen above and waits for good. cov_ending_ride_end plays
- * the ending on until it is here (about 26000 frames).
+ * screen above and waits for good. cov_ending_ride_on pokes his resume address to it in
+ * the ending (frame 10600) and plays on.
  * HOW: RIDE_41 0; PlayerMoveChange 1; RIDE_COUNT $0149; each frame (BRK
  * first): actor_49 1, ActorBobY, ActorMoveX, RIDE_COUNT down to 0. Move 2:
  * each frame ActorBobY, ActorMoveX until PLAY_SCREEN is $17. RIDE_41 1,

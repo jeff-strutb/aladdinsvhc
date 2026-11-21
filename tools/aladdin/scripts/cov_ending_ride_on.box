@@ -1,0 +1,17 @@
+# The ending's carpet ride past screen 12 (PlayerEndingRideOn, $81:E315), which the ride (PlayerEndingRide) falls into when the scroll
+# reaches screen 12, about 14000 frames into the ending and 2000 frames of a scroll later than the ending's scenes go on to need it.
+# cov_ending's play (stage_a0_s0) to frame 10600, when the ride is in its bobbing stretch: his resume address ($08DE) is poked to $E315,
+# the place the ride falls into, and the play goes on: its first wait ($149 frames); the scroll's screen ($1774, the play field's x
+# screen) poked to $17, as the scroll sets it, ends the second; $1BA frames; the view's row ($1778) poked to 2 for a frame, then the screen
+# to $1E; and his flight on until he is past the view.
+load build/aladdin/states/stage_a0_s0.state
+wait 10600
+poke 0008DE 15,E3
+wait 400
+poke 001774 17
+wait 480
+poke 001778 02
+wait 1
+poke 001778 00
+poke 001774 1E
+wait 900
