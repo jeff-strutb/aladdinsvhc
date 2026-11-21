@@ -105,8 +105,8 @@ uint8_t kind72_flags(uint8_t player_41) { return cart8(cart_offset(FIGURES_BANK,
 #define ENDING_COUNTDOWN_ADDR 0xDB99    /* per stage: the frames played (a word) */
 #define ENDING_HOLD_ADDR 0xDBB3         /* per stage: how many waits of 63 frames follow */
 #define ENDING_TEXT_BANK 0xA5
-#define ENDING_TEXT_PAGES_ADDR 0xE433   /* words by 2 * page + the page set's offset */
-#define ENDING_TEXT_PLACES_ADDR 0xE0AE
+#define ENDING_TEXT_PAGES_ADDR 0xE0AE   /* words by 2 * page + the page set's offset */
+#define ENDING_TEXT_PLACES_ADDR 0xE433  /* the tilemap offsets of each page's lines */
 
 uint32_t ending_wipe_step(uint8_t x)
 {
