@@ -1,6 +1,6 @@
 /*
  * pull_return.c: two helpers of the actors that ride Aladdin along, which keep their caller's return address (PLA, in GOTO_BACK) while
- * they wait and go back to it by ActorBackToCaller; nothing in the ROM calls either. cov_pull_return calls each from a program of three
+ * they wait and go back to it by ActorBackToCaller; nothing in the ROM calls either. no script runs either: a program of three
  * instructions poked into work RAM that an actor record's resume address starts. Written instruction for instruction from the
  * assembly (pull_return.asm).
  */
