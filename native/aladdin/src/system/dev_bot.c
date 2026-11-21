@@ -182,6 +182,7 @@ static const Combo combos[] = {
     { { RIGHT, UP } }, { { LEFT, UP } }, { { RIGHT, DOWN } }, { { UP, JUMP } }, { { RIGHT, JUMP, SWORD } },
     { { APPLE } }, { { RIGHT, APPLE } },
     { { DOWN, JUMP } }, { { UP, RIGHT, JUMP } }, { { UP, LEFT, JUMP } }, { { DOWN, RIGHT, JUMP } }, { { DOWN, LEFT } },
+    { { UP, APPLE } }, { { UP, JUMP, APPLE } }, { { LEFT, APPLE } }, { { JUMP, APPLE } }, { { UP, RIGHT, APPLE } },
 };
 #define COMBOS (sizeof combos / sizeof combos[0])
 
