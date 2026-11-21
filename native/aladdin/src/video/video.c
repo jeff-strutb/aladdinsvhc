@@ -467,14 +467,17 @@ void video_draw(void)
     nshvc_screen scr;
     nshvc_windows win;
     nshvc_blend blend;
-    uint32_t top = 0;
+    uint32_t top = 0, lit = 0;
 
     memset(&scr, 0, sizeof scr);
     scr.brightness = g.brightness;
     scr.blank = g.blank;
     if (g.split_on) {
-        /* the IRQ: dark down to its line, the screen and its layers from the next */
-        top = (g.split_line ? g.split_line : 8) + 1u;
+        /* the IRQ: the screen is dark above its line L and lit from row L (the interrupt is at the line's dot $98 and
+           its writes show before the line is drawn: the original's rows 0-7 are dark for L = 8); the tables the
+           handler restarts give their first value from the row after */
+        lit = g.split_line ? g.split_line : 8;
+        top = lit + 1u;
         scr.blank = 1;
     }
     nshvc_screen_set(&scr);
@@ -511,8 +514,8 @@ void video_draw(void)
     nshvc_sprites_set(shown_sprites, shown_count, 0);
 
     if (top) {
-        nshvc_line(top, NSHVC_LINE_BLANK, g.blank);
-        nshvc_line(top, NSHVC_LINE_BRIGHTNESS, g.brightness);
+        nshvc_line(lit, NSHVC_LINE_BLANK, g.blank);
+        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS, g.brightness);
     }
     video_lines_send(top);
 }
