@@ -40,10 +40,10 @@ static void trace_line(void)
         every = v && *v ? (unsigned)strtoul(v, NULL, 0) : 0;
     }
     if (every && nshvc_updates() % every == 0)
-        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u xmin=%u xmax=%u kind=%u setup=%u\n",
+        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u xmin=%u xmax=%u kind=%u setup=%u figures=%u\n",
                 nshvc_updates(), (unsigned)g.level, (unsigned)(g.actors[0].x >> 8), (unsigned)(g.actors[0].y >> 8),
                 (unsigned)g.health, (unsigned)g.lives, (unsigned)(g.layers[0].scroll_x >> 8), (unsigned)(g.layers[0].scroll_y >> 8),
-                (unsigned)g.level_exiting, (unsigned)g.scroll_x_min, (unsigned)g.scroll_x_max, (unsigned)g.scroll_kind, (unsigned)g.layer_setup_mode);
+                (unsigned)g.level_exiting, (unsigned)g.scroll_x_min, (unsigned)g.scroll_x_max, (unsigned)g.scroll_kind, (unsigned)g.layer_setup_mode, (unsigned)g.figures_touched);
     if (every) {
         static int spots_of = -1;
 
@@ -73,9 +73,19 @@ static void trace_line(void)
 
         for (i = 0; i < ACTOR_RECORDS; i++)
             if (g.actors[i].state)
-                fprintf(stderr, "  actor %u kind=%02X state=%02X x=%d y=%d picture=%02X anim=%02X\n", i, g.actors[i].kind,
+            {
+                unsigned b;
+
+                fprintf(stderr, "  actor %u kind=%02X state=%02X x=%d y=%d picture=%02X anim=%02X", i, g.actors[i].kind,
                         g.actors[i].state, (int)(g.actors[i].x >> 8), (int)(g.actors[i].y >> 8), g.actors[i].picture,
                         g.actors[i].anim);
+                if (getenv("ALADDIN_DEV_ACTORS")[0] == '2') {         /* =2: the kind's own bytes too */
+                    fprintf(stderr, " own=");
+                    for (b = 0; b < 32; b++)
+                        fprintf(stderr, "%02X", g.actors[i].own.bytes[b]);
+                }
+                fprintf(stderr, "\n");
+            }
     }
 }
 

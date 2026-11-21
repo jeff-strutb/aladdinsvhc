@@ -439,7 +439,7 @@ typedef struct { unsigned cell, nseg, exit; double prog; } GeRecord;
 #define GE_CELLS (1u << 20)
 #define GE_MAXREC 400
 static GeEntry **ge_cell, **ge_list;
-static unsigned ge_n, ge_cap, ge_par, ge_rounds = 400, ge_len = 24, ge_hurt = 3, ge_shift = 5, ge_short, ge_stall, ge_dfs_ok = 1;
+static unsigned ge_n, ge_cap, ge_par, ge_rounds = 400, ge_len = 24, ge_hurt = 3, ge_shift = 5, ge_short, ge_stall, ge_dfs_ok = 1, ge_seed = 1234567u;
 
 static unsigned ge_cell_key(void)
 {
@@ -448,7 +448,27 @@ static unsigned ge_cell_key(void)
     return (cx > 1023 ? 1023 : cx) * 1024 + (cy > 1023 ? 1023 : cy);
 }
 
-static double ge_health_weight;
+static double ge_health_weight, ge_figures_weight;
+
+/* how close Aladdin is to a kind $27 figure that can be touched now (the Genie figure flying about after the first was touched): 0 none, else 0.5 to 1 */
+static double ge_open_figure_near(void)
+{
+    unsigned i;
+    double best = 0, d, dx, dy;
+
+    for (i = 1; i < ACTOR_RECORDS; i++) {
+        if (!g.actors[i].state || g.actors[i].kind != 0x27 || !g.actors[i].own.bytes[OWN_42])
+            continue;
+        dx = (double)((int)(g.actors[0].x >> 8) - (int)(g.actors[i].x >> 8));
+        dy = (double)((int)(g.actors[0].y >> 8) - (int)(g.actors[i].y >> 8));
+        d = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+        if (d > 600)
+            d = 600;
+        if (0.5 + (600 - d) / 1200.0 > best)
+            best = 0.5 + (600 - d) / 1200.0;
+    }
+    return best;
+}
 
 static double ge_prog(void)
 {
@@ -457,9 +477,9 @@ static double ge_prog(void)
 
         for (i = 1; i < ACTOR_RECORDS; i++)
             if (g.actors[i].state && g.actors[i].kind == 0x98)
-                return 10000.0 - 1000.0 * g.actors[i].own.bytes[OWN_11];     /* the boss is there: its hits left */
+                return 10000.0 - 1000.0 * (g.actors[i].own.bytes[OWN_11] ? g.actors[i].own.bytes[OWN_11] : 6) + ge_health_weight * g.health;     /* the boss is there: its hits left (6 until it sets them) */
     }
-    return (way_n ? way_score() : g.level_spot_count ? -exit_distance() : (double)(g.actors[0].x >> 8)) + ge_health_weight * g.health;
+    return (way_n ? way_score() : g.level_spot_count ? -exit_distance() : (double)(g.actors[0].x >> 8)) + ge_health_weight * g.health + ge_figures_weight * (g.figures_touched + ge_open_figure_near());
 }
 
 /*
@@ -602,7 +622,8 @@ static void ge_child(const GeEntry *e, unsigned seed, int fd)
         for (k = 0; k < seg; k++)
             step(&in);
         if (g.level != level0 || g.level_exiting) {
-            rec[n++] = (GeRecord){ 0, i + 1, 1, 0 };
+            if (!ge_figures_weight || g.figures_touched)       /* with _GE_FIGURES the exit counts when a figure was touched */
+                rec[n++] = (GeRecord){ 0, i + 1, 1, 0 };
             break;
         }
         if (g.lives < lives0 || (unsigned)g.health + ge_hurt < health0)
@@ -635,7 +656,7 @@ static GeEntry *ge_pick(unsigned *seed)
 /* the search: returns whether it found the exit; the choices go in queue */
 static int ge_search(void)
 {
-    unsigned seed = 1234567u, round, i, found_len = 0, exit_len = ~0u;
+    unsigned seed = ge_seed, round, i, found_len = 0, exit_len = ~0u;
     unsigned char *found = NULL;
     double top = -1e18;
     unsigned top_cell = 0, stall = 0;
@@ -826,6 +847,10 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
                 ge_par = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_ROUNDS")) && *v)
                 ge_rounds = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_SEED")) && *v)
+                ge_seed = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_FIGURES")) && *v)
+                ge_figures_weight = strtod(v, NULL);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_HEALTH")) && *v)
                 ge_health_weight = strtod(v, NULL);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_STALL")) && *v)
