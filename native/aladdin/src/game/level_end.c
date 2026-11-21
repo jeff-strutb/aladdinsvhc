@@ -159,7 +159,7 @@ TaskRun LevelEndTask(Task *t)
         OamBufferClear();
         DisplayDefaults();
         g.scene_count = 0;
-        g.level_end_cue = 0;
+        g.screen_cue = 0;
         g.gem_sets_total = (uint8_t)(g.gem_sets_total + g.gem_sets);
         g.level = END_LEVEL;
         LevelRamSetup();
@@ -261,7 +261,7 @@ TaskRun LevelEndTask(Task *t)
         if (*at == END_PAUSE_1) {
             t->own.level_end.count = PAUSE_SECOND;
         } else if (*at == END_PAUSE_2) {
-            g.level_end_cue++;
+            g.screen_cue++;
             t->own.level_end.count = PAUSE_THIRD;
         } else {
             *at = END_PRESS;

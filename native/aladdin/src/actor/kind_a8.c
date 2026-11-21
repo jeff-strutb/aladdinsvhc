@@ -16,7 +16,7 @@ enum {
 /*
  * @routine 83:FB1A KindA8Start
  * WHAT IT DOES: Actor kind $A8: +$08 bit 1 and +$09 bit 4 set, shown in
- * pose 1; once the screen's cue (g.level_end_cue) is set, when its +$07 is
+ * pose 1; once the screen's cue (g.screen_cue) is set, when its +$07 is
  * below g.gem_sets it waits its delay (by +$07), takes pose 0 and plays
  * sound $28; then it animates for good. Kind $94's second entry runs it
  * (ActorRunAs).
@@ -31,7 +31,7 @@ int KindA8Start(Actor *a)
         a->resume = CUE;
         return 1;
     case CUE:
-        if (!g.level_end_cue)
+        if (!g.screen_cue)
             return 1;
         if (a->spawn_byte < g.gem_sets) {
             a->resume = POSE;

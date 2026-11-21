@@ -99,6 +99,37 @@ DataRef kind93_pictures(void) { DataRef r; r.at = cart_offset(FIGURES_BANK, 0x89
 DataRef kind72_pictures(void) { DataRef r; r.at = cart_offset(FIGURES_BANK, 0x890D); return r; }
 uint8_t kind72_flags(uint8_t player_41) { return cart8(cart_offset(FIGURES_BANK, (uint16_t)(0xD6B3 + player_41))); }
 
+/* the ending's play-back and text (game/ending.c, stage_countdown.c) */
+#define ENDING_WIPE_ADDR 0xDB91         /* per step (4 bytes): the amount the window's edges close by (a long) */
+#define ENDING_SCROLL_ADDR 0xDB92       /* per step (4 bytes): the scroll's change (a word) */
+#define ENDING_COUNTDOWN_ADDR 0xDB99    /* per stage: the frames played (a word) */
+#define ENDING_HOLD_ADDR 0xDBB3         /* per stage: how many waits of 63 frames follow */
+#define ENDING_TEXT_BANK 0xA5
+#define ENDING_TEXT_PAGES_ADDR 0xE433   /* words by 2 * page + the page set's offset */
+#define ENDING_TEXT_PLACES_ADDR 0xE0AE
+
+uint32_t ending_wipe_step(uint8_t x)
+{
+    uint32_t at = cart_offset(FIGURES_BANK, (uint16_t)(ENDING_WIPE_ADDR + x));
+
+    return (uint32_t)cart16(at) | (uint32_t)cart16(at + 2) << 16;
+}
+
+int16_t ending_scroll_step(uint8_t x) { return (int16_t)cart16(cart_offset(FIGURES_BANK, (uint16_t)(ENDING_SCROLL_ADDR + x))); }
+uint16_t ending_stage_frames(uint8_t stage) { return cart16(cart_offset(FIGURES_BANK, (uint16_t)(ENDING_COUNTDOWN_ADDR + 2 * stage))); }
+uint8_t ending_stage_hold(uint8_t stage) { return cart8(cart_offset(FIGURES_BANK, (uint16_t)(ENDING_HOLD_ADDR + stage))); }
+
+static DataRef text_ref(uint16_t table, uint8_t x)
+{
+    DataRef r;
+
+    r.at = cart_offset(ENDING_TEXT_BANK, cart16(cart_offset(ENDING_TEXT_BANK, (uint16_t)(table + x))));
+    return r;
+}
+
+DataRef ending_text_page(uint8_t x) { return text_ref(ENDING_TEXT_PAGES_ADDR, x); }
+DataRef ending_text_places(uint8_t x) { return text_ref(ENDING_TEXT_PLACES_ADDR, x); }
+
 uint8_t genie_slot_start(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_SLOT_START_ADDR + slot))); }
 uint8_t genie_slot_end(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_SLOT_END_ADDR + slot))); }
 uint8_t genie_pointer_end(unsigned slot) { return cart8(cart_offset(GENIE_BANK, (uint16_t)(GENIE_POINTER_END_ADDR + slot))); }

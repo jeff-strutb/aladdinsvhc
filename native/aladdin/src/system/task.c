@@ -210,6 +210,8 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_SOUND_WHILE_SLOT1:  return SoundWhileSlot1Task(t);
     case TASK_ENTRY_RISER_COURSES:      return RiserCoursesTask(t);
     case TASK_ENTRY_SOUND_LATER:        return SoundLaterTask(t);
+    case TASK_ENTRY_ENDING_TEXT:        return EndingTextTask(t);
+    case TASK_ENTRY_ENDING_STAGE_TEXT:  return EndingStageTextTask(t);
     case TASK_ENTRY_NONE:
     case TASK_ENTRIES:
         break;

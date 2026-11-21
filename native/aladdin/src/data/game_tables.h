@@ -64,6 +64,15 @@ DataRef kind93_pictures(void);          /* kind $93's picture list */
 DataRef kind72_pictures(void);          /* kind $72's */
 uint8_t kind72_flags(uint8_t player_41);    /* kind $72's +$08 by the player's byte $41 ($D6B3 +) */
 
+/* ---- the ending's play-back and text (game/ending.c) ---- */
+
+uint32_t ending_wipe_step(uint8_t x);       /* the window's edges' closing amount of the step at byte offset x (4 a step) */
+int16_t ending_scroll_step(uint8_t x);      /* the scroll's change of the step at byte offset x */
+uint16_t ending_stage_frames(uint8_t stage);    /* the frames stage 0-$0C is played (the countdown) */
+uint8_t ending_stage_hold(uint8_t stage);   /* the waits of 63 frames after the stage's scroll */
+DataRef ending_text_page(uint8_t x);        /* the page the word at byte x of the page table names (x = 2 * page + $0E for the timed ones) */
+DataRef ending_text_places(uint8_t x);      /* its list of places */
+
 /* ---- the title's menu (game/menu_mark.c, menu_mark_draw.c) ---- */
 
 #define MENU_CHOICES 3

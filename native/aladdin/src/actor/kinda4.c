@@ -1,6 +1,6 @@
 /*
  * kinda4.c: actor kind $A4, figures of the Genie's screen with its cue
- * (g.genie_screen_cue, as kind $A8's) and its step (g.genie_screen_step):
+ * (g.screen_cue, as kind $A8's) and its step (g.genie_screen_step):
  * by its $07 one blinks while the cue is set, one drops and shakes the
  * screen's y, one rises, flies and leaves a child, and two only pose once
  * and end. Its wait routine is ActorKindA4Wait.
@@ -123,13 +123,13 @@ int KindA4Start(Actor *a)
         }
 
     case PULSE_OFF:
-        if (!g.genie_screen_cue)
+        if (!g.screen_cue)
             return 1;
         a->own.bytes[LEFT] = 0x7F;
         a->resume = PULSE_STEADY;
         return 1;
     case PULSE_STEADY:
-        if (!g.genie_screen_cue)
+        if (!g.screen_cue)
             return pulse_off(a);
         if (--a->own.bytes[LEFT])
             return 1;
@@ -137,7 +137,7 @@ int KindA4Start(Actor *a)
         a->resume = PULSE_BLINK;
         return 1;
     case PULSE_BLINK:
-        if (!g.genie_screen_cue)
+        if (!g.screen_cue)
             return pulse_off(a);
         if (--a->own.bytes[LEFT])
             return 1;

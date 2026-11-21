@@ -71,6 +71,22 @@ typedef struct Task {
             uint8_t prize;          /* the prize the wheel stopped at (0-6) */
             uint8_t signal;         /* the figure's cue for it ($B5: 2, or $80 for a continue) */
         } genie;
+        struct {                /* EndingStagesTask (game/ending.c), slot 0: $0076-$0082 */
+            uint8_t stage;          /* $0076: the stage being played back (its index in the hold table) */
+            uint8_t step;           /* $0077: the play-back's step (0 or 1): its scroll and wipe entries */
+            uint32_t wipe_left;     /* $0078: the window's left edge, 16.8 pixels in bits 8-23 */
+            uint32_t wipe_right;    /* $007C: its right edge */
+            uint16_t frames;        /* $0080: frames of the stage played */
+            uint8_t single;         /* $0082: the one stage played alone (fewer than 50 items) */
+        } ending_stages;
+        struct {                /* EndingTextTask and EndingStageTextTask (game/ending.c): TextBandsReveal's and Conceal's
+                                   step and flip come first, as video/ keeps them */
+            uint8_t step;           /* the band pair being set */
+            uint8_t flip;           /* its low bit picks the buffer the next commit goes to */
+            uint8_t timed;          /* $00F4: 14, the timed pages' place in the page tables; 0 the untimed captions */
+            uint8_t waits;          /* the long waits left after the last page */
+            uint16_t timer;         /* $00EF: frames the page is shown */
+        } ending_text;
         struct {                /* SceneSpinZoomTask (game/ending.c); its angle is the task's parameter */
             uint8_t speed;          /* +$07: the angle's step */
             int8_t zoom;            /* +$08 */
@@ -130,7 +146,7 @@ typedef struct Task {
             uint16_t count;         /* $52: frames left (a byte, or a word while typing) */
             uint8_t attr;           /* $54: the line's attribute byte */
         } story_card;
-        struct {                /* LevelEndTask (game/level_end.c); the walker's x it watches is g.scene_walker_x, the pieces it counts g.scene_count, its pause g.level_end_cue */
+        struct {                /* LevelEndTask (game/level_end.c); the walker's x it watches is g.scene_walker_x, the pieces it counts g.scene_count, its pause g.screen_cue */
             uint8_t next_at;        /* $A7: the walker's x at which the picture's next block is drawn */
             uint8_t block;          /* $A8: the next block of the picture */
             uint8_t step[4];        /* $A9-$AC: each column's step */
@@ -657,7 +673,7 @@ typedef struct GameState {
                                    genie_pose when $FF); they clear it once taken a pose */
     uint8_t genie_pick_one;     /* $00AD on the Genie's screen: nonzero, a pick's animation is 1 */
     uint8_t genie_pose;         /* $00AF: with genie_pick $FF: zero, pose 7; else 9 */
-    uint8_t genie_screen_cue;   /* $00AE: the scene's cue (kinds $A4, $A8): nonzero, its figures show */
+    uint8_t screen_cue;   /* $00AE: the scene's cue (kinds $A4, $A8): nonzero, its figures show */
     uint8_t genie_cue_b7;       /* $00B7: kind $24 shows its second pose once this is 0 (level $27's scene) */
     uint8_t genie_cue_d7;       /* $00D7: kind $24 starts its iris task once this reaches $18 */
     uint8_t story_fly[2];       /* $0076, $0077: kind $9B's part 2 sets them ($40, 0) as it flies off (the ending's story) */
@@ -666,10 +682,10 @@ typedef struct GameState {
     uint8_t story_part1;        /* $007A: counted up by part 1, cleared at its end; negative: parts 0 and 2 go on */
     uint8_t story_part2;        /* $007B: counted up by part 2; part 3 waits for it */
     uint16_t genie_screen_y;    /* $00B0: the Genie's screen (level $2F): its y, which its figures follow (kinds $59, $9E, $A4) */
+    uint8_t ending_page;        /* $00EE: the ending's text page the task of its stage shows (EndingStageScroll sets it, EndingStageTextTask shows it) */
     uint8_t genie_screen_step;  /* $00B5: its step: 0 waits; positive or negative, the way its figures go on */
     uint16_t scene_walker_x;    /* $00A5: kind $8F's x pixels as it crosses, kept for the scene */
     uint8_t scene_count;        /* $00AD: a count the scene steps; kind $94 starts a spark at each new value */
-    uint8_t level_end_cue;      /* $00AE: the level-end screen's cue: kinds $A8 and $A4 show once it is set */
     uint8_t scene_cue_first;    /* $00BD: a scene's first cue (kind $98 sets it when it is beaten) */
     uint8_t scene_cue;          /* $00BE: a scene's cue: its task or figures count it up or set it as the scene goes on */
     uint8_t scene_cue_bf;       /* $00BF: a scene's cue, counted up by Aladdin's scene code (level 5's end: after his pose) */

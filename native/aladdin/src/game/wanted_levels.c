@@ -37,10 +37,3 @@ STAND_IN void PlayerEnter8CFrom1(void)
 {
     unconverted("PlayerEnter8CFrom1");
 }
-
-/* my own, until ending.c lands them (game/ending.c) */
-STAND_IN TaskRun EndingStagesTask(Task *t)
-{
-    unconverted("EndingStagesTask");
-    return task_exit(t);
-}

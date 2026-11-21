@@ -70,6 +70,8 @@ TaskRun StoryTextTask1(Task *t);        /* 81:F344: task entry (the ending story
 /* ending.c: task entries */
 TaskRun SceneSpinZoomTask(Task *t);     /* 80:B1D8 */
 TaskRun EndingStagesTask(Task *t);      /* 82:B29C */
+TaskRun EndingTextTask(Task *t);        /* 82:B0AD */
+TaskRun EndingStageTextTask(Task *t);   /* 82:B0A9 */
 
 
 /* title_task.c */

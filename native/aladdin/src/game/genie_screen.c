@@ -273,7 +273,7 @@ TaskRun GenieScreen(Task *t)
             TaskSlotsFree1To6();
             g.demo_number = 0;
             g.play_mode = 0;
-            g.genie_screen_cue = 0;
+            g.screen_cue = 0;
             g.genie_screen_step = 0;
             g.genie_pose = 0;
             g.genie_pick = 0;
@@ -459,9 +459,12 @@ TaskRun GenieScreen(Task *t)
             g.window_sub = 1;
             g.window_edges[0] = 0;
             g.window_edges[1] = 0xFF;
-            g.window_use[0] = 0x33;
-            g.window_use[1] = 0;
+            g.window_use[0] = 3;        /* $03AA = $33: BG1 and BG2 by window 1; $03AB and $03AC clear */
+            g.window_use[1] = 3;
             g.window_use[2] = 0;
+            g.window_use[3] = 0;
+            g.window_use[4] = 0;
+            g.window_use[5] = 0;
             *at = G_WHEEL_GO;
             return task_wait(t, 1);
         case G_WHEEL_GO:
@@ -472,7 +475,7 @@ TaskRun GenieScreen(Task *t)
             t->own.genie.a8 = 0;
             t->own.genie.slot = 0;
             t->own.genie.zoom = 0;
-            g.genie_screen_cue++;
+            g.screen_cue++;
             *at = G_WAIT_BUTTON;
             /* fall through */
         case G_WAIT_BUTTON:
@@ -483,14 +486,14 @@ TaskRun GenieScreen(Task *t)
                 *at = G_WAIT_BUTTON;
                 break;
             }
-            g.genie_screen_cue = 0;
+            g.screen_cue = 0;
             *at = G_SPIN;
             return task_wait(t, 1);
         case G_SPIN: {
             uint16_t s = speed16(t);
 
             if (s >= SPEED_TOP) {
-                g.genie_screen_cue = 1;
+                g.screen_cue = 1;
                 if (pressed()) {
                     g.genie_pick = 0xFF;
                     *at = G_SLOW_BEGIN;
@@ -513,7 +516,7 @@ TaskRun GenieScreen(Task *t)
             return task_wait(t, 1);
         }
         case G_SLOW_BEGIN:
-            g.genie_screen_cue = 0;
+            g.screen_cue = 0;
             *at = G_SLOW_FRAME;
             /* fall through */
         case G_SLOW_FRAME: {

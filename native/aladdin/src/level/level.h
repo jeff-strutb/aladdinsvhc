@@ -54,4 +54,7 @@ void SequenceStart(Sequence *s);        /* 81:EC6F */
 void SequencesStep(void);               /* 81:EC23 */
 
 
+/* stage_countdown.c */
+void StageCountdownSet(void);           /* 82:B563: g.play_countdown the stage's (g.demo_number's) frames */
+
 #endif
