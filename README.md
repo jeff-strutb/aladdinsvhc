@@ -63,9 +63,10 @@ The bars measure the whole game's S-CPU and SPC700 code, 92,250 B: 92,119 B the 
 | **SPC700 (sound)** | `████████████████████` 100.0%: 2,353/2,353 B | `████████████████████` 100.0%: 2,353/2,353 B |
 <!-- PROGRESS:END -->
 
-The bars read 99.9% and not 100%: 99 B of the game's code are outside them. 91 B are two routines, `83:FBB5` and
-`83:FC23`, filed with C and not yet certified; the decomp-gap session is covering them or proving them dead to the
-decomp's standard. The other 8 B are two jumps exempt by proof. The numbers in the block above are the gate runner's.
+The bars read 100.0% at ledger `bdf23ac7`. The last 91 B were two routines nothing in the ROM calls, `83:FBB5` and
+`83:FC23`; they are dead code, and by the decomp's standard dead code is run by a script and certified like the rest,
+not left out. 139 B in 22 ranges are exempt by proof, each with its proof in its routine's header. The numbers in the
+block above are the gate runner's.
 
 ![Progress map](docs/aladdin/progress-map.svg)
 
@@ -143,13 +144,10 @@ a bug; recordings of the original are kept to find such bugs.
   the lamp's end match); the effects (iris, circle wipe, text bands, effects 8 to 10) have no picture yet. Sound: the
   driver only (41 runs, 330,680 ticks, 0 differ); the sound as the engine mixes it is not sample-exact and has not been
   judged by ear.
-- **The decomp's own gap.** The bars above are the gate runner's and are not edited by hand. They read 99.9%: 99 B of the
-  game's code are outside them. 91 B are two routines, `83:FBB5` (ActorCarryMoveWait, 33 B) and `83:FC23`
-  (ActorCarryBob, 58 B), filed with C but not yet certified, because no script the checks can follow runs them; the
-  decomp-gap session is covering them or proving them dead to the decomp's standard. 8 B are `Kind8BSecond` and
-  `Kind8CSecond`'s jumps, exempt by proof. The earlier "100%" bars had left out real code (1,533 B of reachable code in
-  49 runs, `DECOMP-GAP.txt`); it has since been filed, the census repaired, and 139 B of exempt ranges listed with
-  their proofs.
+- **The decomp's own gap: closed.** The bars above are the gate runner's and are not edited by hand. They read 100.0%
+  (92,250 / 92,250 B, ledger `bdf23ac7`). The earlier "100%" bars had left out real code (1,533 B of reachable code in
+  49 runs, `DECOMP-GAP.txt`); it has since been filed and certified, the census repaired, and 139 B of exempt ranges
+  listed with their proofs.
 - **Departures from the original** ([docs/aladdin/native/DEPARTURES.md](docs/aladdin/native/DEPARTURES.md)), each an
   accident the native game leaves out because it does not hurt play: a ledge that faces the wrong way no longer clears
   the fraction of Aladdin's speed (no play reaches it); the platform course maker's 85-frame stall at level $05's start;
