@@ -32,34 +32,3 @@ void unconverted(const char *name)
         said[count++] = name;
     fprintf(stderr, "unconverted: %s\n", name);
 }
-
-
-
-
-
-
-/* ---- game/, level/, map/ (stage 5's levels and screens): declared in their headers ---- */
-
-
-PLACEHOLDER int PlayerSceneCode(Actor *a)
-{
-    unconverted("PlayerSceneCode");
-    (void)a;
-    return 1;
-}
-
-
-
-
-
-
-
-
-
-
-
-PLACEHOLDER TaskRun EndingStory(Task *t)
-{
-    unconverted("EndingStory");
-    return task_exit(t);
-}

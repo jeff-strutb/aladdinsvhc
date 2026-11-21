@@ -102,9 +102,4 @@ void TitleMenuCursor(void);             /* 81:EDA6, 81:EDA2 TitleMenuCursorLong 
 void MenuMarkDraw(uint16_t place);      /* 81:EF39 */
 void MenuMarkMove(void);                /* 81:EE04 */
 
-/* the player's code filed in game/ (player/player.h: his resume points from
-   PLAYER_RESUME_GAME up; the scenes' PlayerSceneLand, PlayerSceneStand,
-   PlayerEndingRide); returns as PlayerCode */
-int PlayerSceneCode(Actor *a);
-
 #endif
