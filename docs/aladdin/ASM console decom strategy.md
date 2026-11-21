@@ -1,9 +1,12 @@
 # ASM console decomp strategy
 
 What worked and what cost days on the Aladdin (SNES) decomp, written for the
-master session of another hand-written-assembly console game. Aladdin ended at
-M1 100% and M2 100% (90,269 / 90,269 B, 378 scripts identical, commit
-`cffb00c`). Most of the lost time came from a short list of mistakes; they are
+master session of another hand-written-assembly console game. Aladdin first
+read M1 100% and M2 100% (90,269 / 90,269 B, 378 scripts identical, commit
+`cffb00c`). That figure was measured against an incomplete census: the true
+total is 92,250 B, closed at ledger commit `bdf23ac7` (100.0%, 92,250 / 92,250
+B). Section 13 says how the census missed 1,981 B and how to audit the
+denominator. Most of the lost time came from a short list of mistakes; they are
 in section 9. Read that first if you read nothing else.
 
 Aladdin's tools are named here as examples (`tools/aladdin/t3.py`,
@@ -85,8 +88,20 @@ In order of preference:
 5. **Exempt by proof**, only for bytes that no input, no poke and no unit call
    at the routine's own entry can run sanely (a path that would run data, a
    branch needing ROM bytes that are not there). The proof goes in the
-   routine's header with the exact byte range. Aladdin has 131 such bytes in
-   twenty ranges. This is the owner's decision: ask once, then apply it.
+   routine's header with the exact byte range. Aladdin has 139 such bytes in
+   22 ranges (`@unreachable` in `src/aladdin`). This is the owner's decision:
+   ask once, then apply it.
+
+The dead-code standard, as the owner confirmed it on 2026-11-21:
+
+- **Dead code is never exempt for being dead.** It gets a unit call at its own
+  entry or a resume-address poke (items 3 and 4), and certified C.
+- **Exempt by proof only** for bytes that no input, poke or entry call can run
+  sanely.
+- **"The checker cannot follow it" is a limit of the checker, not a proof.**
+  Fix the coverage; do not exempt the bytes. Aladdin's `83:FBB5` and `83:FC23`
+  (91 B) were first left uncovered for this reason and were later run and
+  certified (section 13).
 
 Never force coverage with a call into the middle of a routine or a state that
 crashes the original.
@@ -175,6 +190,8 @@ Trial and error is banned on this owner's projects, and it is also slower.
 | Believing a batch red or a 0.0% report | wrong numbers given to the owner | rerun alone; never publish an unmeasured state |
 | Long tasks started without a prediction | an hour, then a failure | section 8; nothing long without a stated expected result |
 | Shared checker or output folder between runs | a red passed as identical, runs redone | private builds, private folders |
+| Census that discarded blocks and stopped tables early | a "100%" that missed 1,981 B; bars fell to 98.7% and were refilled over a day | section 13: audit the denominator |
+| A poked RAM program never run against the original alone | the original ran corrupted; read as "the checker cannot follow RAM callers"; a script removed, 160 routines below T3 | section 13: run the original alone, dump RAM per frame |
 | Guessing a tool's flags | one tool has no help and rewrites the report on any run | read the tool's source first |
 
 ## 10. Reporting to the owner
@@ -255,3 +272,47 @@ the pauses, and sound. Those are small next to the rest.
   and a session working past that point is spending without proof.
 - A message to a running session waits for its turn to end. A stop
   instruction that matters has to interrupt the turn.
+
+## 13. Audit the denominator
+
+Every bar is a share of the census's total. If the census misses code, the
+bars read 100% and are wrong. Aladdin's first 100% (90,269 B) missed 1,981 B.
+
+**What the census did wrong** (`tools/aladdin/census.py`, fixed in `63d01770`):
+
+| Fault | Effect |
+|---|---|
+| It threw out any block containing BRK or COP as data | BRK and COP are an actor's yield (it resumes after their two bytes), so every untraced actor routine that yields was rejected with its targets |
+| A jump-table walk read at most 64 entries and stopped at the first entry that repeated an earlier one | the six actor kind tables gave 0 to 9 entries each; common stubs repeat, and $FFFF marks "no such state" |
+
+**What followed.** The fix was found by a session asked why four actor kinds
+had no code in the bars (`DECOMP-GAP.txt`: 1,533 B in 49 runs at first). With
+the census fixed, the bars fell from 100% to 98.7% (91,052 / 92,250 B). They
+rose as the found code was filed and covered: 98.8% (91,187 B), 99.9% (92,151
+B), then 100.0% (92,250 / 92,250 B) at `bdf23ac7`.
+
+**Rules:**
+
+1. Read actor and handler tables to their full length. Allow repeated entries;
+   skip "no entry" values.
+2. Do not discard blocks for containing BRK or COP (or the console's
+   equivalent yield). Zeros of data do decode as BRK BRK, so two together can
+   still be refused.
+3. Run a second, relaxed census alongside the strict one. Explain every byte
+   the two disagree on: each is code to file or data to name.
+4. Every untouched gap must fail a decode-as-code test. A gap that decodes as
+   code is not data until proven. (Aladdin's remaining 24,746 untouched bytes
+   in the code banks failed it; that is not a proof they are data.)
+5. Re-audit the denominator whenever a new kind of code appears, and before
+   any "100%" is reported.
+
+**A coverage script that pokes a program into RAM** must first be run against
+the original alone, with work RAM dumped every frame. One such script had a
+branch operand of $FB where $FC was meant. It landed on an XCE (the byte
+before the BRK) and switched the CPU's mode every frame, so the original's own
+run was corrupted (stack wrapped to $FFFE). The failures this caused (A5 and
+A7 divergent on every actor) were first read as "the checker cannot follow RAM
+callers". The script was removed (`78eb548a`) and later restored with the
+operand corrected (`fa53972c`); with $FC the original runs the routines
+sanely and A5 was identical on all 14 routines that had diverged. A dump per
+frame of the original alone would have shown the bad operand at once.
