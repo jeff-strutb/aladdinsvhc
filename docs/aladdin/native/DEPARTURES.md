@@ -32,3 +32,19 @@ Rule (Jeff, 2026-11-20): an accident is not reproduced unless leaving it out hur
   after it is the same, 85 frames sooner; the course itself is the same waypoints.
 - **The check's expected difference:** that play's window from 1,142 on: kinds $47, $70, $08 differ for the whole window by the 85 frames (their
   frame-to-frame offset); not comparable without shifting the dump. Level $05's other kinds are unaffected.
+
+## 3. A carrier-pair sender keeps its own kind (the original turns it into kind $53)
+
+- **Where:** `actor/carrier_pair.c` `CarrierPairSend` (the record's 84:A056), called by kind $97's sender (`actor/kind97.c`).
+- **What the original does:** before each of its two creations it stores the new kind in its own +$06 (`LDA #$38 / STA $06`, then `#$53`), where only the
+  creation routine's A needed the kind, and never puts $97 back. After the first pair its record is a kind $53 (a thing the carrier holds) that runs
+  kind $97's code: in `rand_stage_a5_s1` record 9 is kind $97 at frame 2054 and $53 from 2055 (`build/aladdin/wip-kinds-d/work/rec.keepsstage_a5_s1`,
+  +$06 $97 -> $53 and `kind_count[$53]`, `[$38]` up with the pair); `rand_stage_a5_s2` the same at 3219.
+- **What the native game does:** the sender stays kind $97.
+- **Why it does not hurt gameplay:** the sender's flags are 0 (no wait routine, no sprite, it cannot be hit), so nothing runs or draws by its kind byte; its
+  code goes on by its resume point, not its kind. The only things that read +$06 of a record are its hit box, its animation set, its wait routine and
+  the kind counts when it ends; the first three are unused for a sender, and nothing in the game reads `kind_count` to limit a kind ($97's or $53's):
+  the native tree has no reader of it.
+- **The check's expected difference:** kind $97 and kind $53 on `rand_stage_a5_s1` (from 2055) and `a5_s2` (from 3219): the sender's `kind` (+$06) $97
+  native, $53 original, then everything the check derives from the kind (its comparison as kind $53). The records of the pair's carrier and thing
+  ($38, $53) are exact.
