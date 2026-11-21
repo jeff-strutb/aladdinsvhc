@@ -352,3 +352,21 @@ places, until the level changes), `ALADDIN_DEV_BOT_SEG=6`, `_GE_ROUNDS`, `_GE_LE
 (the depth-first helper), `_GOAL=boss`, or waypoints (`_WAY`, `native/checks/plays/ways.txt`). `ALADDIN_DEV_MAP`/`_PLACED` list a level's map and
 actor placements. Linux only (the copies are forked); run it under the CPU queue (`cpu-run -j 11`). The table of what each play reaches is in
 `build/aladdin/writers/NATIVE-FAULTS.txt` ("PLAYS START TO EXIT").
+
+## Replaying a native play on the original, update by update (2026-11-21)
+
+A play (`native/checks/plays/pPART-STAGE.txt`, keys by native update) is run on the original and on the native game, and `plays/compare.py` gives the first update where the
+player (x, y, health) or the actor list (kind, x, y) differs. The two games do not keep step by video frame: the original often spends two video frames on one logic frame
+(its play-time tick $147C/$147D does not step in the second), and a level's load takes it longer. So:
+
+- `plays/lbox.sh DIR` builds `DIR/lbox`: the decomp's snesbox plus two script commands (`lbox.patch`; `tools/aladdin/snesbox` is not changed). `lstart BYTES` runs the original until
+  the level's first logic frame is done (tick 1), however long the load took. `lhold KEYS BYTES` holds the keys until the tick has stepped once, one LOGIC frame, dumping the first
+  BYTES of work RAM after every video frame (`dNNNNNN`, NNNNNN = the video frame).
+- `LH_FROM=3936 LH_DUMP=8192 python3 plays/to_box.py PLAY.txt OUT.box LAST 1 3900` makes that script (the options pokes and the level select as before, then `lstart`, then one `lhold` per
+  native update from LH_FROM on). Without LH_FROM it makes the older one-video-frame-an-update script (then START_EARLIER must be calibrated by hand, and a lag frame shifts every
+  later key by a frame: a difference that is the harness's, not the game's).
+- Native: `ALADDIN_DEV_ACTORS=1 ALADDIN_DEV_TRACE=1 ./aladdin --headless --updates N --input PLAY.txt > nat.txt` (through the CPU queue). Then
+  `python3 plays/compare.py ORIGDIR nat.txt 3936 LAST 2` (the 2: the tick at update 3936): it maps native update u to the first original frame whose tick reads u - 3934, so lag frames do not count.
+- A death or restart ends the comparison: the native load and the original's differ in length.
+- Found with it (2026-11-21): the original's four-frame freeze of the player after his health reaches 0 in p3-0 is three logic frames and one lag frame (SongPlay's upload to the
+  sound processor in that frame), the same three as the native game's: no difference in the game. p0-1: the native game never counted `g.sprite_flicker` ($032D), see NATIVE-FAULTS.txt.

@@ -9,6 +9,10 @@ P2={0x10:'L',0x20:'R',0x80:'START',0x40:'SELECT',0x08:'X',0x04:'Y',0x02:'A',0x01
 import re
 m=re.search(r'p(\d)-(\d)',inp); PART,STAGE=int(m.group(1)),int(m.group(2))
 import os
+LH=int(os.environ.get('LH_FROM','0'))   # the first native update played as a logic frame (needs lbox: native/checks/plays/lbox.sh), the one after the level's first
+                                        # (its load is waited for by lstart, so START_EARLIER is not needed); 0: one video frame an update
+DUMP=int(os.environ.get('LH_DUMP','131072'))
+FULL_FROM=int(os.environ.get('LH_FULL_FROM','0'))   # LH_DUMP bytes only from this update on (no dump before: to look at a place with full dumps)
 SH=int(os.environ.get('START_EARLIER','0'))    # the original's level load takes about 59 frames longer than native's: START that much earlier lines the level's first frame up
 ev={}
 for l in open(inp):
@@ -27,6 +31,14 @@ for u in range(0,last):
     keys=cur[0]    # pad 2 is not driven: snesbox's 2.X 2.Y 2.A 2.B reach pad 1; the cheat is poked below
     if u==3180: lines.append('poke $000009 01')
     if u==3880-SH: lines.append('poke $00035C %02X' % PART); lines.append('poke $00035D %02X' % STAGE)
+    if LH and 3911<=u<LH:
+        if u==3911: lines.append('lstart %d'%DUMP)   # the original's level load: run until the level's first logic frame is done
+        assert u not in ev or u==3911 or ev[u]==cur, 'a key change while the level loads (update %d)'%u
+        continue
+    if LH and u>=LH:
+        # from the level's first logic frame on (LH_FROM): each native update is one LOGIC frame of the original, whose two-video-frame (lag)
+        # frames hold the same keys (lbox.patch: lhold, dumping each video frame itself)
+        lines.append('lhold %s %d'%('+'.join(keys) if keys else '-',DUMP if u>=FULL_FROM else 0)); continue
     lines.append(('hold %s 1'%'+'.join(keys)) if keys else 'wait 1')
     if u+1>=frm and (u+1-frm)%step==0: lines.append('dump d%06d'%(u+1))
 open(out,'w').write('\n'.join(lines)+'\n')

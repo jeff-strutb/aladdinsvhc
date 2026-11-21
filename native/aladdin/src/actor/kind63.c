@@ -81,8 +81,9 @@ static void spawn_pair(Actor *a)
  * @routine 84:821A ActorShotHitFace
  * WHAT IT DOES: When one of the second pool's shots touches the actor: it
  * faces Aladdin, takes state $CC (hit), keeps its throws flying (+$42) in
- * +$46 (with none, state $8C as well: ActorStateSet8C), and keeps the
- * shot's place in +$48 and +$4A. Kind $63's wait is its only caller.
+ * +$46 (with none, the SHOT is put into state $8C: ActorStateSet8C is given
+ * the record the touch test found, not this one), and keeps the shot's
+ * place in +$48 and +$4A. Kind $63's wait is its only caller.
  */
 static void shot_hit_face(Actor *a)
 {
@@ -94,7 +95,7 @@ static void shot_hit_face(Actor *a)
     a->state = 0xCC;
     own(a)->out_hit = own(a)->out;
     if (!own(a)->out)
-        ActorStateSet8C(a);
+        ActorStateSet8C(shot);
     set_word(own(a)->shot_x, pixels(shot->x));
     set_word(own(a)->shot_y, pixels(shot->y));
 }

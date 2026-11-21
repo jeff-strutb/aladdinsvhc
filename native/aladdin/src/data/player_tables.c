@@ -32,12 +32,11 @@ uint16_t air_settle(uint8_t dash) { return at16((uint16_t)(0xC7A2 + 2u * dash));
 /* $80:C730: four bytes */
 uint8_t jump_preset(uint8_t speed_low_bits) { return at8((uint16_t)(0xC730 + (speed_low_bits & 0x03))); }
 
-/* $80:C718, $80:C720, $80:C728: words by pose (the course's low byte; its
-   last two entries are the bytes of PadFacing's table, as the original
-   reads them) */
+/* $80:C718 and $80:C720: words by pose. $80:C728: BYTES by pose, one a pose ($22 $43 $22 $22): the original's PlayerAppleThrow has pulled
+   the pose back into Y by the time it reads the course, so the course is at $C728 + pose, not + 2 * pose. */
 uint16_t throw_x(uint8_t pose) { return at16((uint16_t)(0xC718 + 2u * (pose & 0x03))); }
 uint16_t throw_y(uint8_t pose) { return at16((uint16_t)(0xC720 + 2u * (pose & 0x03))); }
-uint8_t throw_course(uint8_t pose) { return at8((uint16_t)(0xC728 + 2u * (pose & 0x03))); }
+uint8_t throw_course(uint8_t pose) { return at8((uint16_t)(0xC728 + (pose & 0x03))); }
 
 /* $80:C7EB: 10 bytes a box (the box times 10, 8-bit as the original's X) */
 PlayerBoxEntry player_box_entry(uint8_t box)
@@ -60,10 +59,11 @@ uint8_t camera_aim_of_push(uint8_t push) { return at8((uint16_t)(0xC7E8 + push))
 uint16_t screen_limit_low(uint8_t side) { return at16(side ? 0xC9C9 : 0xC9B9); }
 uint16_t screen_limit_high(uint8_t side) { return at16(side ? 0xC9CB : 0xC9BB); }
 
-/* $82:BE92: five words a box, at the box's byte offset (the original's Y) */
+/* $80:BE92 (the record's comment says bank $82; the routine that reads it runs with DB = $80 and the values only make sense there: box 0 is 26, 52, 37, 74, 20,
+   and the original's landing on a swinging platform of kind $33 puts his y 37 above its y): five words a box, at the box's byte offset (the original's Y) */
 LandBox land_box(uint16_t box)
 {
-    uint32_t o = cart_offset(0x82, (uint16_t)(0xBE92 + box));
+    uint32_t o = cart_offset(0x80, (uint16_t)(0xBE92 + box));
     LandBox b;
 
     b.x_offset = cart16(o);

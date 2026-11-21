@@ -864,6 +864,12 @@ static void init(void)
             g.pad1_pressed = w16(wram, 0x0381);
             memcpy(g.action_held, wram + 0x0383, sizeof g.action_held);
             memcpy(g.action_pressed, wram + 0x0387, sizeof g.action_pressed);
+            /* the Genie screen's task runs in slot 0's turn before the actor loop (its figures, kinds $9E $59 $A4, read what it set this frame) */
+            g.genie_pick = wram[0x00AC];
+            g.genie_pick_one = wram[0x00AD];
+            g.genie_pose = wram[0x00AF];
+            g.genie_screen_y = w16(wram, 0x00B0);
+            g.genie_screen_step = wram[0x00B5];
             g.sprite_flicker = wram[0x032D];    /* the NMI counts it before the loops (the world table leaves "sprite" fields out) */
         }
         freed_by_others();

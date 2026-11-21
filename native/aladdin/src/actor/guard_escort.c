@@ -75,7 +75,13 @@ static int walk(Actor *a)
  * restarting at EscortStaySpot18), A5:EF97 EscortWaitSpot0C (spot $0C;
  * restarting at EscortStaySpot18), A5:EFAE EscortWaitSpot10 (spot $10;
  * restarting at its wait at spot $14, A5:EFC5: until Aladdin is near it
- * there, and on in code no script reaches, A5:EFDE, not converted).
+ * there, then on into A5:EFDE EscortFlyStart: faced the other way (flip 0),
+ * animation 2, thrown off by the motion preset $7E, and each frame
+ * (A5:EFEE) it flies (rise and fall animation, ActorFly) until Aladdin is
+ * more than 192 pixels to its left, when it stays at spot $18 for good;
+ * landing in the ground or leaving it, the preset again. The decomp
+ * record's note that no script reaches A5:EFDE is wrong: p4-2 (level 13,
+ * the escort at x 2304) runs it by falling through from the near test.
  */
 int GuardEscort(Actor *a)
 {
@@ -103,8 +109,21 @@ int GuardEscort(Actor *a)
     case G_ESCORT_SPOT10_NEAR:
         if (!ActorNearPlayerX(a, 0x08))
             return 1;
-        /* on in A5:EFDE: code no script reaches */
-        a->resume = G_ESCORT_STAYING;
+        a->flip = 0;
+        AnimStart(a, 0x02);
+        ActorMotionPreset(a, 0x7E);
+        a->resume = G_ESCORT_FLY;
+        return 1;
+    case G_ESCORT_FLY:
+        if (far_left(a)) {
+            ActorPlaceAtSpot(a, 0x18);
+            a->resume = G_ESCORT_STAYING;
+            return 1;
+        }
+        ActorAnimRiseFall(a);
+        ActorFly(a);
+        if (ActorOutOfGround(a))
+            ActorMotionPreset(a, 0x7E);
         return 1;
     case G_ESCORT_FOLLOW:
         if (!ActorNearPlayerX(a, 0x08))

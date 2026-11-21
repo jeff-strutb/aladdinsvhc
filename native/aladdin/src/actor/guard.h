@@ -57,13 +57,14 @@ enum {
     G_ESCORT_SPOT10_NEAR,       /* each frame until Aladdin is near it there */
     G_ESCORT_FOLLOW,            /* A5:EF3F EscortFollow: each frame until Aladdin is near */
     G_ESCORT_WALK,              /* each frame of its walk after him */
-    G_ESCORT_FALL               /* each frame of its fall off a ledge */
+    G_ESCORT_FALL,              /* each frame of its fall off a ledge */
+    G_ESCORT_FLY                /* A5:EFEE, each frame of the flight A5:EFDE EscortFlyStart starts (Aladdin near its spot $14 wait) */
 };
 #define G_ESCORT_FIRST G_ESCORT_STAY18
 
 /* the scripted figures' ways ($07 1-6; guard_scene.c): from G_SCENE_FIRST */
 enum {
-    G_SCENE_RUNS = G_ESCORT_FALL + 1,   /* A5:EB31 PlayerSceneRuns's entry */
+    G_SCENE_RUNS = G_ESCORT_FLY + 1,   /* A5:EB31 PlayerSceneRuns's entry */
     G_SR_BEGIN, G_SR_RUN, G_SR_DROP, G_SR_PLAYER, G_SR_BACK, G_SR_BACK_RUN, G_SR_REAR, G_SR_JUMP, G_SR_PASS,
     G_SR_LEAP, G_SR_END,
     G_SCENE_FALLPOSE,           /* A5:EEE1 PlayerSceneFallPose */
