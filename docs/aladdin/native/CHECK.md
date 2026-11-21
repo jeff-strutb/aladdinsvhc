@@ -305,3 +305,29 @@ The `rand_*` level scripts are random play from the level's start (`randplay.py`
 level has not been looked at. Not covered by any input-only script: act 8, every stage after stage 0, the Genie
 bonus screen (unless a random play happens to reach it, which has not been checked) and the ending. Reaching those
 by input needs new scripts: played from a password, and written into `tools/aladdin/scripts` like any other.
+
+## Checking every actor kind against the original (the method of kinds D, 2026-11-21)
+
+Aim: for each registered kind (`native/aladdin/src/actor/kinds_*.c`), a recording of the ORIGINAL with its work RAM dumped after every frame, and
+`aladdin_actor_check` (native/checks/actors) comparing the native kind with it. Results go in `build/aladdin/writers/NATIVE-ACTOR-CHECK.txt` (main checkout).
+
+**Tools** (all in `native/checks/`; the scripts in `coverage/` have the main checkout's path `M=` and the writer's build dir `build/aladdin/wip-kinds-d` hard-coded: edit them first):
+- `play_dump.py OUT.box FIRST LAST PLAY.box...` input-only plays from power-on (passwords: `tools/aladdin/states/02_passwords.box` + `tools/aladdin/scripts/rand_pwN_1.box`; the recipe is a prefix, see `coverage/` and the segment trick below).
+- `stage_dump.py OUT.box FIRST LAST 03_stages.box stage_aX_sY PLAY.box` the same from a stage's recipe (`repeat`/`poke` expanded; stage states give levels 4-18 with their kinds).
+- `coverage/scriptdump.py OUT.box SCRIPT.box` any decomp script (`tools/aladdin/scripts/cov_*.box`) with `dump fNNNNN` after every frame; `call`/`set` commands are not supported (reported).
+- `actor_check_kinds.sh DIR FIRST LAST KIND[,KIND...]` one check run, output in `$OUT/kind_KK.txt`: per kind "N fields differ, the first at frame F". Run it with `ALADDIN_CPU_RUN` set to the CPU queue command, `BUILD` = the dir of `aladdin_actor_check` (cmake -S native/checks/actors, NSHVC_ROOT) and an ABSOLUTE `OUT`.
+- `coverage/sect.py SCRIPT KINDS` checks a replayed script SECTION by section; `coverage/covrun.sh`, `covall.sh` run scripts in a queue; `windows.py` splits a play at record-free frames (death restarts); `levelst.py`/`alls.sh`/`long.sh` find a level's load frame and record a stage play; `plc.py LEVEL KIND..` lists a level's placements.
+- Recording: `build/aladdin/box/snesbox --rom build/aladdin/baserom.sfc --script X.box --out DIR` through the CPU queue (`cpu-run -j 1 -m 2G`) (each dump is 128 KB: a 3,500-frame window is 450 MB; delete when done unless asked to keep).
+
+**Pitfalls (each cost a day):**
+1. The first dump must precede the records' creation (level loaded, no record live), or the records already running in it are only FOLLOWED, not compared. After a death restart the records are freed by the level code: start a new window at the last record-free frame (windows.py).
+2. A script's `load` restarts the whole world: check each section between loads separately (sect.py); differences "at the load frame" are not faults.
+3. List a kind WITH the kinds it depends on: $7D with $7C (BackdropMover sets $1A2C first), $A6/$35 with $68/$6D, $63 with $A2, $97 with $53, $68 with $00 (the player's mid-frame x; his dump is the frame's end). Alone, the player/world fields come from the end-of-frame dump (check artifacts (b): his x/y/$1428 after the actors moved them).
+4. A script that pokes a LIVE record (its fields, state, or its kind) cannot be followed by the native record: differences after the poke are not faults. Pokes into a free record that the check sees as made new are fine.
+5. The original lags: a frame whose loop was cut mid-way ($032F/$0330 nonzero in the dump, the tick $147C not stepped) shifts records after the cut by one frame; level $05's course maker stalls the game 85 frames (DEPARTURES.md). Not faults.
+6. Only the first 40 differing fields are printed: run ONE kind at a time (or list companions) for the first lines, and read the dumps themselves (record = $08DB + $50 n; +$00 state, +$06 kind, +$03-$05 resume, own bytes from +$40) to see what the original did.
+7. Native own bytes that name a record hold its INDEX (original: its address $08DB + $50 n), and kind $97's +$4A the free-list place as an index (original: byte offset): the check compares those by meaning.
+8. Never run the game or the check without `--headless --updates N` through the CPU queue; an unknown flag runs the game uncapped.
+9. To find what the original executed in a frame: save states a few frames before (`save NAME` in the script), then `snesbox --trace` over the frames and compare `edges.csv` against a normal window (control transfers by instruction address).
+
+**Finding a recording for a kind:** plays first (stage states 4-18; the random play of 3,000 frames dies early and meets only what is near its start), then the decomp's coverage scripts (`tools/aladdin/scripts/cov_kind*`, `cov_*`: names, comments and `t3.py --qualify ADDR` show which reach a routine), whose pokes put a record of the kind in front of the original; where a script has no frame-by-frame form (unit `call`) or pokes a live record, say so in the table.
