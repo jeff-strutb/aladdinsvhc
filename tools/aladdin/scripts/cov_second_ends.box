@@ -1,0 +1,96 @@
+# The second entries of 22 actor kinds that end the actor (a JML to ActorEndPlaced, or for kind $12 to ActorEnd): kinds $12 $21 $27 $36 $3B $3C $3D
+# $3E $3F $40 $41 $43 $44 $47 $55 $5C $60 $7F $8F $99 $9A and $9D. The actor loop jumps to them for a record in a state with bit 7
+# set (the tables at $83:8DFD and $83:8EFD), which only a kill, a hit or a trigger of the kind sets and no script made these kinds meet.
+# In the first stage of level $11 the free record $0A1B is made each kind in turn (its kind byte $0A21) and put in state $8C; 4 frames run
+# (the loop jumps to the stub, which ends the record), and the pool's free count ($15E4) is put back to $30 so that 22 endings do not run it
+# over its list.
+load build/aladdin/states/stage_a5_s3.state
+wait 30
+poke 000A21 12
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 21
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 27
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 36
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 9D
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 3B
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 3C
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 3D
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 3E
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 3F
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 40
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 41
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 43
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 44
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 47
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 55
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 5C
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 60
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 7F
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 8F
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 99
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00
+poke 000A21 9A
+poke 000A1B 8C
+wait 4
+poke 0015E4 30,00

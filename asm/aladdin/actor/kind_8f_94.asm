@@ -79,7 +79,12 @@ Kind8FWalk:
     bra .lFA86
 
 
-; Kind8FWalk's end, after its second crossing (after KindAnimateSendFAAE).
+; @routine 83:FAB7 Kind8FWalkEnd
+; WHAT IT DOES: Where actor kind $8F ends: after its second crossing
+; (Kind8FWalk), and in its second state (Kind8FSecond).
+; HOW: JML to ActorEndPlaced ($83:96CA).
+; Entry: D = the actor's record; reached by the branch of Kind8FWalk and the JML
+; of Kind8FSecond. Exit: never returns: as ActorEndPlaced.
 %at($83FAB7)
 Kind8FWalkEnd:
     jml.l ActorEndPlaced

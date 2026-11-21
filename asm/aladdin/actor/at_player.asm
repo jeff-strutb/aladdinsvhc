@@ -32,8 +32,15 @@ ActorAtPlayer:
     jsl.l ActorMotionPreset
     jsl.l ActorMove
     rts
-; Kind12AtPlayer's end.
-ActorAtPlayerEnd:
+
+; @routine 81:EC1F Kind12End
+; WHAT IT DOES: Where actor kind $12 ends: when it has seen Aladdin's box
+; wanted change (Kind12AtPlayer), and in its second state (Kind12Second).
+; HOW: JML to ActorEnd ($83:95B8).
+; Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the branches of
+; Kind12AtPlayer and the JML of Kind12Second. Exit: never returns: as ActorEnd.
+%at($81EC1F)
+Kind12End:
     jml.l ActorEnd
 
 ; @routine 81:EBDE Kind12AtPlayer
@@ -60,9 +67,9 @@ Kind12AtPlayer:
     brk.b #$00
     lda.w !player_box_wanted
     cmp.b #$03
-    beq ActorAtPlayerEnd
+    beq Kind12End
     cmp.b #$06
-    beq ActorAtPlayerEnd
+    beq Kind12End
     cmp.b #$12
-    beq ActorAtPlayerEnd
+    beq Kind12End
     bra .frame

@@ -1,0 +1,8 @@
+# Kind $52's second state (the code at $83:D545, which the table at $83:8DFD names): stz $48, sound $24, AnimStart 3, a wait of $A0 frames
+# (BRK, AnimStep), then on. In the first stage of level $11 the free record $0A1B is made a kind $52 and put in state $8C;
+# 260 frames run.
+load build/aladdin/states/stage_a5_s3.state
+wait 30
+poke 000A21 52
+poke 000A1B 8C
+wait 260

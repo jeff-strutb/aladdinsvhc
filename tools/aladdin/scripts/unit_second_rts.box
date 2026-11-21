@@ -1,0 +1,14 @@
+# The second entries of four actor kinds that are one RTS ($33 at $83:BB96, $4F at $83:D108, $71 at $83:F40C, $8A at $83:FA4E), and the two
+# RTS bytes that the second entries of kinds $8B ($83:9333) and $8C ($83:9340) JML to ($84:9879, $84:99EC). The actor loop jumps (not calls)
+# to a second entry for a record in a state with bit 7 set, so its RTS would pull the loop's own saved bytes and the game would run on from
+# garbage: no script can have the loop go there. Each is called at its own entry, as a subroutine, with M and X 8-bit, DB $80 and D the
+# record $0A1B, on the first level's state at frame 10. (The two JML stubs cannot be called: the JML leaves bank $83, so the RTS returns
+# to the wrong bank.)
+load build/aladdin/states/level1.state
+wait 10
+call 83BB96 p=30 db=80 d=0A1B
+call 83D108 p=30 db=80 d=0A1B
+call 83F40C p=30 db=80 d=0A1B
+call 83FA4E p=30 db=80 d=0A1B
+call 849879 p=30 db=80 d=0A1B
+call 8499EC p=30 db=80 d=0A1B

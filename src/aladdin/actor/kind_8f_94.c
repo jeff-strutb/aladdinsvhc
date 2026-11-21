@@ -13,6 +13,7 @@
 #include "actor_anim.h"
 
 void abi_ActorEndPlaced(void);
+void abi_Kind8FWalkEnd(void);
 void abi_ActorMoveX(void);
 void abi_ActorPictureSend(void);
 void abi_ActorSpawn(void);
@@ -98,9 +99,22 @@ void abi_Kind8FWalk(void)
         wr8(dpa(ACTOR_FACING), 0x01);
         wr8(dpa(ACTOR_FLIP), 0x01);
     }
-    abi_ActorEndPlaced();
+    abi_Kind8FWalkEnd();
 }
 
+
+/*
+ * @routine 83:FAB7 Kind8FWalkEnd
+ * WHAT IT DOES: Where actor kind $8F ends: after its second crossing
+ * (Kind8FWalk), and in its second state (Kind8FSecond).
+ * HOW: JML to ActorEndPlaced ($83:96CA).
+ * Entry: D = the actor's record; reached by the branch of Kind8FWalk and the JML
+ * of Kind8FSecond. Exit: never returns: as ActorEndPlaced.
+ */
+void abi_Kind8FWalkEnd(void)
+{
+    abi_ActorEndPlaced();
+}
 
 /*
  * @routine 83:FABB Kind94Spark

@@ -13,6 +13,7 @@ void abi_ActorMotionPreset(void);
 void abi_ActorMove(void);
 void abi_ActorAtPlayer(void);
 void abi_ActorEnd(void);
+void abi_Kind12End(void);
 
 #define PLAYER_2F (PLAYER + 0x2Fu)  /* picks the motion of an actor kept at his place */
 #define AT_PLAYER_MOTIONS 0xCA03u   /* the motion presets, by his $2F (bytes, the DB bank) */
@@ -83,5 +84,18 @@ void abi_Kind12AtPlayer(void)
         if (box == 0x12)
             break;
     }
+    abi_Kind12End();
+}
+
+/*
+ * @routine 81:EC1F Kind12End
+ * WHAT IT DOES: Where actor kind $12 ends: when it has seen Aladdin's box
+ * wanted change (Kind12AtPlayer), and in its second state (Kind12Second).
+ * HOW: JML to ActorEnd ($83:95B8).
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the branches of
+ * Kind12AtPlayer and the JML of Kind12Second. Exit: never returns: as ActorEnd.
+ */
+void abi_Kind12End(void)
+{
     abi_ActorEnd();
 }
