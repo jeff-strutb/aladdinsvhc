@@ -302,10 +302,11 @@ static void compare(int i)
     SAME("state", a->state, r[0x00]);
     if (!r[0x00] && !a->state)
         return;
-    SAME("wait", a->wait, r[0x01]);
+    if (r[0x06] != 0x73)    /* the head waits its frames by a count in +$44 (wait 1) in the original, by its wait count natively: left out for it, with +$44 */
+        SAME("wait", a->wait, r[0x01]);
     SAME("kind", a->kind, r[0x06]);
     SAME("+$07", a->spawn_byte, r[0x07]);
-    SAME("anim_flags", a->anim_flags, r[0x08]);
+    SAME("anim_flags", a->anim_flags & 0xFC, r[0x08] & 0xFC);   /* bits 0-1: the draw list, from the frame count parity (ActorParityBitsSet) of the original's VIDEO frames, which lag frames shift: video only */
     SAME("flags", a->flags, r[0x09]);
     SAME("x", a->x, w24(r, 0x0B));
     SAME("y", a->y, w24(r, 0x0E));
@@ -314,7 +315,8 @@ static void compare(int i)
     SAME("flip", a->flip, r[0x15]);
     SAME("speed_x", (uint32_t)a->speed_x & 0xFFFFFF, w24(r, 0x19));
     SAME("accel_x", a->accel_x, r[0x1C]);
-    SAME("speed_y", (uint32_t)a->speed_y & 0xFFFFFF, w24(r, 0x1D));
+    if (r[0x06] < 0x73 || r[0x06] > 0x75)
+        SAME("speed_y", (uint32_t)a->speed_y & 0xFFFFFF, w24(r, 0x1D));
     SAME("accel_y", a->accel_y, r[0x20]);
     SAME("spawn_at", a->spawn_at, r[0x21]);
     SAME("picture_gfx", (uint16_t)(a->picture_gfx + 0x2000), w16(r, 0x22));
@@ -335,6 +337,14 @@ static void compare(int i)
         uint8_t o = own_at[k];
 
         snprintf(name, sizeof name, "+$%02X", o);
+        /* the chain's pieces (kinds $73-$75) keep where their code was (their resume) in +$35-$36: a ROM address in the original, an enum natively */
+        if ((o == 0x35 || o == 0x36) && r[0x06] >= 0x73 && r[0x06] <= 0x75)
+            continue;
+        /* and the sweep's speed entry (chain_start.c SWEEP_SPEED, +$3A) is the original's +$1D, a byte of its speed y: both left out for those kinds */
+        if (o == 0x3A && r[0x06] >= 0x73 && r[0x06] <= 0x75)
+            continue;
+        if (o == 0x44 && r[0x06] == 0x73)
+            continue;
         if (k + 1 < 32 && own_at[k + 1] == o + 1) {
             /* a record named in two own bytes: the original's address ($08DB + $50 n), natively the index n */
             uint16_t word = w16(r, o), own = (uint16_t)(a->own.bytes[k] | a->own.bytes[k + 1] << 8);

@@ -16,18 +16,27 @@ static void restart_at(Actor *a, uint8_t at) { a->own.bytes[G_RESTART_AT] = at; 
 /*
  * @routine A5:EF83 ActorRestartIfPlayerFarLeft
  * WHAT IT DOES: True when the player is more than 192 pixels left of the
- * actor: its code then goes back to its restart point.
+ * actor: its code then goes back to its restart point. The original adds
+ * the carry it is entered with: walking on the ground the previous frame's
+ * ActorSnapToGround has left it set, so then it is more than 193 pixels
+ * (measured on p4-2: the escort at 514 with him at 321 is not sent back, at
+ * 517 it is).
  */
+static bool far_left_by(const Actor *a, unsigned carry)
+{
+    return (uint16_t)(pixels(g.actors[0].x) + FAR_LEFT + carry) < pixels(a->x);
+}
+
 static bool far_left(const Actor *a)
 {
-    return (uint16_t)(pixels(g.actors[0].x) + FAR_LEFT) < pixels(a->x);
+    return far_left_by(a, 0);
 }
 
 /* A frame of the follow: back to its restart point (run at once) when he
    is far to its left. Returns true when it restarted; `*r` its turn's wait. */
-static bool restarted(Actor *a, int *r)
+static bool restarted(Actor *a, int *r, unsigned carry)
 {
-    if (!far_left(a))
+    if (!far_left_by(a, carry))
         return false;
     a->resume = a->own.bytes[G_RESTART_AT];
     *r = GuardEscort(a);
@@ -131,7 +140,7 @@ int GuardEscort(Actor *a)
         a->flip = 0;
         return walk(a);
     case G_ESCORT_WALK:
-        if (restarted(a, &r))
+        if (restarted(a, &r, 1))     /* on the ground: the carry ActorSnapToGround left */
             return r;
         ActorMoveX(a);
         if (ActorSnapToGround(a, NULL))
@@ -140,7 +149,7 @@ int GuardEscort(Actor *a)
         a->resume = G_ESCORT_FALL;
         return 1;
     case G_ESCORT_FALL:
-        if (restarted(a, &r))
+        if (restarted(a, &r, 0))
             return r;
         ActorAnimRiseFall(a);
         ActorFly(a);
