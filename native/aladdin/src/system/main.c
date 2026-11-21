@@ -14,6 +14,7 @@
 
 #include "audio/music.h"
 #include "data/data.h"
+#include "data/level_tables.h"
 #include "nshvc/nshvc.h"
 #include "system/system.h"
 #include "system/task.h"
@@ -43,6 +44,20 @@ static void trace_line(void)
                 nshvc_updates(), (unsigned)g.level, (unsigned)(g.actors[0].x >> 8), (unsigned)(g.actors[0].y >> 8),
                 (unsigned)g.health, (unsigned)g.lives, (unsigned)(g.layers[0].scroll_x >> 8), (unsigned)(g.layers[0].scroll_y >> 8),
                 (unsigned)g.level_exiting);
+    if (every) {
+        static int spots_of = -1;
+
+        if ((int)g.level != spots_of && g.level_spot_count) {
+            unsigned i;
+
+            spots_of = (int)g.level;
+            fprintf(stderr, "level %u exit spots:", (unsigned)g.level);
+            for (i = 0; i < g.level_spot_count; i++)
+                fprintf(stderr, " (%u,%u)->%02X", (unsigned)spot_x(g.level_spots, i), (unsigned)spot_y(g.level_spots, i),
+                        (unsigned)spot_leads_to(g.level_spots, i));
+            fprintf(stderr, "\n");
+        }
+    }
     if (every && getenv("ALADDIN_DEV_ACTORS") && nshvc_updates() % every == 0) {
         unsigned i;
 

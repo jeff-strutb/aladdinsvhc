@@ -5,12 +5,13 @@
  * alive, no health lost, or the level changed), applies the best for real and appends the update's keys to
  * ALADDIN_DEV_BOT_OUT in the input file's form. ALADDIN_DEV_BOT_SEG (updates a choice holds, default 16),
  * ALADDIN_DEV_BOT_ROLLOUTS and _LEN (the random runs tried when stuck, default 200 of 16 choices), ALADDIN_DEV_BOT_DEPTH (choices looked ahead, default 1), ALADDIN_DEV_BOT_GOAL ("x" right, "-x" left, "y" down,
- * "-y" up: what the score follows). Linux only (fork).
+ * "-y" up, "exit" the level's exit spots: what the score follows; ALADDIN_DEV_BOT_SWITCH=X: from player x X on, "exit"). Linux only (fork).
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "data/level_tables.h"
 #include "nshvc/nshvc.h"
 #include "system/state.h"
 #include "system/system.h"
@@ -78,7 +79,8 @@ static const Combo combos[] = {
 
 static void (*step)(const nshvc_input *);
 static unsigned start, seg = 16, depth = 1;
-static int goal_x = 1, goal_y = 0;
+static int goal_x = 1, goal_y = 0, goal_exit;
+static unsigned switch_x = ~0u;      /* from this x on, the exit is the goal */
 static FILE *out;
 static int chosen = -1;
 static unsigned held_left;
@@ -118,9 +120,27 @@ static void keys_of(int c, nshvc_input *in)
         in->keys[combos[c].keys[i] >> 5] |= 1u << (combos[c].keys[i] & 31);
 }
 
+/* the distance to the level's exit spots (x: the nearest spot's, y: the first's) */
+static double exit_distance(void)
+{
+    double px = (double)(g.actors[0].x >> 8), py = (double)(g.actors[0].y >> 8), best = 1e9, d;
+    unsigned i;
+
+    for (i = 0; i < g.level_spot_count; i++) {
+        d = px - (double)spot_x(g.level_spots, i);
+        if (d < 0)
+            d = -d;
+        if (d < best)
+            best = d;
+    }
+    d = py - (double)spot_y(g.level_spots, 0);
+    return best + (d < 0 ? -d : d);
+}
+
 static double score(void)
 {
-    double s = goal_x * (double)(g.actors[0].x >> 8) + goal_y * (double)(g.actors[0].y >> 8);
+    double s = (goal_exit || (g.actors[0].x >> 8) >= switch_x) && g.level_spot_count ? -exit_distance()
+                                               : goal_x * (double)(g.actors[0].x >> 8) + goal_y * (double)(g.actors[0].y >> 8);
 
     s -= 40.0 * (health0 - g.health) * (g.health < health0);
     if (g.lives < lives0 || g.level != level0 || g.level_exiting)
@@ -268,9 +288,12 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
             if ((v = getenv("ALADDIN_DEV_BOT_DEPTH")) && *v)
                 depth = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GOAL")) && *v) {
+                goal_exit = !strcmp(v, "exit");
                 goal_x = !strcmp(v, "x") - !strcmp(v, "-x");
                 goal_y = !strcmp(v, "y") - !strcmp(v, "-y");
             }
+            if ((v = getenv("ALADDIN_DEV_BOT_SWITCH")) && *v)
+                switch_x = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_ROLLOUTS")) && *v)
                 rollouts = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_LEN")) && *v)
