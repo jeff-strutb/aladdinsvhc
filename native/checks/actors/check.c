@@ -472,6 +472,7 @@ static void made_for_kinds(void)
         const uint8_t *r = wram + RECORD(0);
 
         record_from(p, wram, 0);
+        load_world(wram, 1);            /* his fields as the set-up left them: read from the frame's end, which his start changes little ($0347 bit 7 only) */
         p->state = ACTOR_STATE_NEW;
         p->wait = 0;
         p->resume = ACTOR_START;
