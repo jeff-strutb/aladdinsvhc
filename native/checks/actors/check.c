@@ -33,6 +33,7 @@
 
 #include "nshvc/nshvc.h"
 #include "actor/actor_own.h"
+#include "player/player.h"
 #include "data/actor_tables.h"
 #include "data/data_internal.h"
 
@@ -577,6 +578,52 @@ static void follow_others(void)
     memcpy(g.palette_slot_kind, wram + 0x15ED, 4);
 }
 
+/* Aladdin's record after other code changed it in the loop after his turn
+   (a hit puts him into state $8C; a pad, a holder or a spring sets his resume
+   address to one of his entries): the original's dump has the change, the
+   native turn could not make it, so from the next frame his record is the
+   dump's, with his resume point where the original's address maps. The frame
+   the change comes in still shows as a difference (listed, not counted as his
+   own). Anything else that differs stays a difference. */
+static uint16_t player_entry_of(uint16_t pc)
+{
+    switch (pc) {
+    case 0xD6F8: return PLAYER_AT_HELD;
+    case 0xD77C: return PLAYER_AT_BOUNCE;
+    case 0xD8FD: return PLAYER_AT_SPRUNG;
+    case 0xD992: return PLAYER_AT_CARRIED;
+    case 0xD99B: return PLAYER_AT_GRABBED_HANG;
+    case 0xD9C5: return PLAYER_AT_SWITCH_HANG;
+    case 0xDA14: return PLAYER_AT_FLUNG;
+    case 0xCDD2: return PLAYER_AT_FALL;
+    case 0xCCB6: return PLAYER_AT_STAND;
+    case 0xCB3B: return PLAYER_AT_START;
+    case 0xCBF9: return PLAYER_AT_SPOT_EXIT;
+    case 0xE730: return PLAYER_AT_ESCORT_EXIT;
+    case 0xE7B1: return PLAYER_AT_STAGE_END;
+    default: return 0xFFFF;
+    }
+}
+
+static void resync_player(void)
+{
+    const uint8_t *r = wram + RECORD(0);
+    Actor *a = &g.actors[0];
+    uint16_t entry = player_entry_of(w16(r, 0x03));
+    int hit = r[0x00] == 0x8C && a->state != 0x8C;
+    int sent = entry != 0xFFFF && r[0x00] == ACTOR_STATE_WAITING && a->state == ACTOR_STATE_WAITING && a->resume != entry;
+
+    if (!hit && !sent)
+        return;
+    record_from(a, wram, 0);
+    if (sent)
+        a->resume = entry;
+    a->code = PlayerCode;               /* his code owns his resume point, as the loop made it at his start */
+    load_world(wram, 1);
+    printf("frame %d: actor 0 (kind $%02X) set by other code (%s): his record is the dump's from here\n", frame,
+           a->kind, hit ? "hit, state $8C" : "sent to one of his states");
+}
+
 /* How many times the original ran FrameStep (81:8311) in this frame: its
    PlayTimeTick steps the play time's frames ($147C, 0-59) and seconds
    ($147D) once a call. */
@@ -751,6 +798,7 @@ static void init(void)
             g.pad1_pressed = w16(wram, 0x0381);
             memcpy(g.action_held, wram + 0x0383, sizeof g.action_held);
             memcpy(g.action_pressed, wram + 0x0387, sizeof g.action_pressed);
+            g.sprite_flicker = wram[0x032D];    /* the NMI counts it before the loops (the world table leaves "sprite" fields out) */
         }
         freed_by_others();
         if (custom_kinds)
@@ -789,6 +837,8 @@ static void init(void)
                 compare(i);
             g.actors[i].redraw = wram[RECORD(i) + 0x28];    /* cleared by the sprite code, not compared */
         }
+        if (custom_kinds && is_converted(0x00))
+            resync_player();
         if (custom_kinds)
             follow_others();
     }
