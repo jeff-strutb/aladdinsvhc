@@ -106,6 +106,19 @@ static int record_turn(Actor *a)
 }
 
 /*
+ * One record's turn of the loop: skipped when free, its wait counted down
+ * and its wait routine run while it waits, its code run when its wait runs
+ * out or it starts. False when a TaskExec from its code or wait routine
+ * stops the walk of the records (the later ones do not run this frame).
+ * PlayerLoop and ActorLoop are this over their records; the check
+ * (native/checks/actors) calls it record by record.
+ */
+bool ActorTurn(Actor *a)
+{
+    return record_turn(a) != 0;
+}
+
+/*
  * @routine 83:9475 PlayerLoop
  * WHAT IT DOES: The player's turn of the actor loop: its record run (its
  * kind's code) when its wait runs out or it starts, else its wait routine.

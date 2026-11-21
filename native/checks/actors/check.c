@@ -268,6 +268,7 @@ int __wrap_TileSlotClaim(uint8_t kind, Actor *a)
 /* ---- the comparison ---- */
 
 static long differ_by_kind[256], first_differ_frame[256];
+static long anim_set_differ;        /* AnimSetsLoad against the first dump: not a record's */
 
 static void differ(int i, const char *field, long native, long original)
 {
@@ -279,6 +280,8 @@ static void differ(int i, const char *field, long native, long original)
                native, original);
 }
 
+#define SAME_SET(field, nat, orig) do { compared++; if ((long)(nat) != (long)(orig)) { anim_set_differ++; differing += !custom_kinds; \
+        if (anim_set_differ <= 5) printf("anim sets: %s native $%lX, original $%lX\n", field, (long)(nat), (long)(orig)); } } while (0)
 #define SAME(field, nat, orig) do { compared++; if ((long)(nat) != (long)(orig)) differ(i, field, (long)(nat), (long)(orig)); } while (0)
 
 /* A data reference (a cartridge offset) against the original's word: the
@@ -493,7 +496,17 @@ static void made_for_kinds(void)
             continue;
         if (r[0x00] == ACTOR_STATE_NEW) {
             continue;                   /* made after the loop: copied after it (made_new_after) */
-        } else if (r[0x34] != 0xFF) {
+        } else if (i == 1 && r[0x06] == 0x08 && level_escort(g.level)) {
+            /* the level's escort: EscortStart made it before the loop, and the dump shows it run once */
+            record_from(&g.actors[0], wram, 0);
+            EscortStart();
+            printf("frame %d: actor 1 (kind $08) made by EscortStart\n", frame);
+        } else if (r[0x34] != 0xFF && r[0x34] < placement_count(w16(wram, 0x035E))
+                   && placement_at(w16(wram, 0x035E), r[0x34]).kind == r[0x06]
+                   && !(before[0xC600 + r[0x34]] & 1) && (wram[0xC600 + r[0x34]] & 1)) {
+            /* placed in this frame: the level's placement +$34 names has this kind and its placed flag went
+               up (ActorPlace sets it) in this frame (+$34 is also a kind's own byte, 0 in a record other code
+               made: that follows the dump; the +$07 can not be compared, a kind may change it in its first turn) */
             Placement p = placement_at(w16(wram, 0x035E), r[0x34]);
 
             record_from(a, before, i);
@@ -571,16 +584,16 @@ static int frame_steps(void)
     int was = before[0x147D] * 60 + before[0x147C], now = wram[0x147D] * 60 + wram[0x147C];
     int steps = (now - was + 256 * 60) % (256 * 60), i;
 
-    /* The level's first FrameStep does not tick it: any record that shows a
-       turn of the loop (a new one started, a waiting one's count or state
-       changed) says the loop ran once */
+    /* A FrameStep whose loops ran before this dump and whose tail (ActorsInView, the sprites, the play time's
+       tick) did not yet: the level's first, or one that overran its frame (the original slows down there).
+       Any live actor record (the player's is his turn's: not counted) that changed since the last dump says the
+       loops ran; the tail comes with the next tick */
     if (steps == 0)
-        for (i = 0; i < ACTOR_RECORDS; i++) {
+        for (i = 1; i < ACTOR_RECORDS; i++) {
             const uint8_t *b = before + RECORD(i), *n = wram + RECORD(i);
 
-            if ((b[0] == ACTOR_STATE_NEW && n[0] && n[0] != ACTOR_STATE_NEW)
-                || (b[0] == ACTOR_STATE_WAITING && n[0] == ACTOR_STATE_WAITING && n[1] != b[1]))
-                return -1;      /* once, as the level's first FrameStep: the loops alone */
+            if (b[0] && n[0] && !(b[0] == ACTOR_STATE_NEW && n[0] == ACTOR_STATE_NEW) && memcmp(b, n, 0x50) != 0)
+                return -1;      /* once: the loops alone (a record just made, or just freed, is other code's) */
         }
     return steps;
 }
@@ -599,13 +612,13 @@ static void check_anim_sets(void)
     g.level = w16(wram, 0x035E);
     AnimSetsLoad();
     for (i = 0; i < 256; i++) {
-        SAME("anim set place", g.anim_set_place[i], wram[0x1E000 + i]);
+        SAME_SET("anim set place", g.anim_set_place[i], wram[0x1E000 + i]);
         if (g.anim_set_place[i] != 4 && g.anim_set_place[i] + 1 > n)
             n = g.anim_set_place[i] + 1;
     }
     for (i = 0; i < n; i++) {
-        SAME("set's pictures start", g.anim_set_pictures[i], w16(wram, 0x1E100 + 2 * i));
-        SAME("set's table start", g.anim_set_table[i], w16(wram, 0x1E300 + 2 * i));
+        SAME_SET("set's pictures start", g.anim_set_pictures[i], w16(wram, 0x1E100 + 2 * i));
+        SAME_SET("set's table start", g.anim_set_table[i], w16(wram, 0x1E300 + 2 * i));
     }
     /* the sets' data: up to the last set's end */
     for (i = 0; i < 256; i++)
@@ -619,9 +632,9 @@ static void check_anim_sets(void)
             break;
         }
     for (i = 0; i < (int)bytes; i++)
-        SAME("picture list byte", g.actor_pictures[i], wram[0x2000 + i]);
+        SAME_SET("picture list byte", g.actor_pictures[i], wram[0x2000 + i]);
     for (i = 0; i < (int)words; i++)
-        SAME("animation data word", g.anim_data[i], w16(wram, 0xB000 + 2 * i));
+        SAME_SET("animation data word", g.anim_data[i], w16(wram, 0xB000 + 2 * i));
     printf("anim sets: level $%02X, %d sets, %u picture bytes, %u table words compared\n", g.level, n, bytes, words);
     frame = frame_was;
 }
@@ -632,6 +645,47 @@ static void check_anim_sets(void)
    kinds are listed: his record and fields are the dump's, as his turn left
    them (the end of the frame: what an actor changed in the loop after him
    shows early). */
+/* The loop over the other records with a KINDS argument, one record at a
+   time as the original took them: a record the native code runs (a listed
+   kind, live here) takes its turn; any other (an unlisted kind, one other
+   code made, a free one) is loaded as the dump left it at the end of the
+   frame, right where its turn comes, so the records after it see it as
+   the original's did (the apple that hit a guard is in its new place when
+   the guard looks), and the records before it saw it as the frame began. */
+static void other_records(void)
+{
+    int i;
+
+    for (i = 1; i < ACTOR_RECORDS; i++) {
+        Actor *a = &g.actors[i];
+        int tracked = a->state && is_converted(a->kind) && !untracked[i];
+
+        if (tracked) {
+            if (!ActorTurn(a))
+                return;
+        } else if (!a->state && wram[RECORD(i)] == ACTOR_STATE_NEW) {
+            /* new in the dump: made after the loop, so not there for this frame's: made_new_after copies it */
+        } else {
+            if (wram[RECORD(i)] && is_converted(wram[RECORD(i) + 6]) && !untracked[i] && !a->state) {
+                untracked[i] = 1;
+                printf("frame %d: actor %d (kind $%02X) made by code not compared: followed, not compared\n", frame, i,
+                       wram[RECORD(i) + 6]);
+            }
+            record_from(a, wram, i);
+            if (a->state > ACTOR_STATE_NEW && wram[RECORD(i)] > ACTOR_STATE_NEW)
+            {
+                /* a state a hit puts it in ($8C, $CC): the hit is a later record's (ActorTakesShot sets the shot's
+                   state, and ActorStateSet8C also sets bit 7 of its +$08, which no later shot test lets pass);
+                   the dump's is the frame's end, which follow_others loads after the loop */
+                a->state = ACTOR_STATE_WAITING;
+                a->anim_flags &= 0x7F;
+            }
+        }
+        if (i + 1 >= ACTOR_RECORDS - ACTOR_POOL_SIZE && g.pause_block)
+            return;
+    }
+}
+
 static void loops(void)
 {
     if (custom_kinds) {
@@ -642,10 +696,18 @@ static void loops(void)
         } else {
             record_from(&g.actors[0], wram, 0);
             load_world(wram, 1);
+            if (wram[RECORD(0)] >= 0x80 && before[RECORD(0)] < 0x80) {
+                /* the dump has him hit in this frame (state $8C): by an actor after most of the loop; the
+                   earlier ones saw him as the frame began, so the loop gets that: the hit lands at its end */
+                g.actors[0].state = before[RECORD(0)];
+                g.health = before[0x0367];
+                g.player_hurt_count = before[0x141B];
+            }
         }
-    } else {
-        PlayerLoop();
+        other_records();
+        return;
     }
+    PlayerLoop();
     ActorLoop();
 }
 
@@ -664,6 +726,14 @@ static void init(void)
     load(first, wram);
     check_anim_sets();
     state_from(wram);
+    if (custom_kinds)
+        for (i = 1; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state && g.actors[i].state != ACTOR_STATE_NEW && is_converted(g.actors[i].kind)) {
+                /* running already: where it goes on in its kind's code is the kind's own, unknown here */
+                untracked[i] = 1;
+                printf("frame %d: actor %d (kind $%02X) already running in the first dump: followed, not compared\n", first, i,
+                       g.actors[i].kind);
+            }
     for (frame = first + 1; frame <= last; frame++) {
         memcpy(before, wram, WRAM_SIZE);
         load(frame, wram);
@@ -725,6 +795,9 @@ static void init(void)
         if (differ_by_kind[i])
             printf("actor check: kind $%02X: %ld fields differ, the first at frame %ld\n", i, differ_by_kind[i],
                    first_differ_frame[i]);
+    if (anim_set_differ)
+        printf("actor check: AnimSetsLoad: %ld fields differ from the first dump%s\n", anim_set_differ,
+                   custom_kinds ? " (told, not counted: a first dump that is not a level's, as a title's, has other sets; the dump's tables are used from there)" : "");
     printf("actor check: frames %d-%d, %ld fields compared, %ld differ\n", first + 1, last, compared, differing);
 }
 
