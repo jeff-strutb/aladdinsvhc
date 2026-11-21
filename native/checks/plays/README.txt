@@ -9,3 +9,4 @@ End starts: 0-1 2404,200; 0-2 4196,392; 1-0 3940,300; 1-1 3684,328; 2-0 4452,104
 Start to exit (2026-11-21, n5 play-through): the files pPART-STAGE.txt that end at the level's real exit are made by the archive search
 (ALADDIN_DEV_BOT_GE=10, SEG 6, GE_LEN 60, make.sh: it cuts the file 120 updates after the exit); `ways.txt` lists the others'
 settings. The whole table of what each play reaches is in NATIVE-FAULTS.txt ("PLAYS START TO EXIT").
+3-0 p3-0.txt, 2-0 p2-0.txt: the search's furthest places (not the exits); the level's start-to-exit plays are the other files

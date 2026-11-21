@@ -448,6 +448,7 @@ static unsigned ge_cell_key(void)
     return (cx > 1023 ? 1023 : cx) * 1024 + (cy > 1023 ? 1023 : cy);
 }
 
+static int ge_head;
 static double ge_health_weight, ge_figures_weight;
 
 /* how close Aladdin is to a kind $27 figure that can be touched now (the Genie figure flying about after the first was touched): 0 none, else 0.5 to 1 */
@@ -478,6 +479,14 @@ static double ge_prog(void)
         for (i = 1; i < ACTOR_RECORDS; i++)
             if (g.actors[i].state && g.actors[i].kind == 0x98)
                 return 10000.0 - 1000.0 * (g.actors[i].own.bytes[OWN_11] ? g.actors[i].own.bytes[OWN_11] : 6) + ge_health_weight * g.health;     /* the boss is there: its hits left (6 until it sets them) */
+    }
+    if (ge_head) {
+        unsigned i;
+
+        for (i = 1; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state && g.actors[i].kind == 0x5C)     /* level 8's Genie head: the path point it has reached */
+                return 1000.0 * g.actors[i].own.bytes[OWN_4A] + (double)(g.actors[0].x >> 8) + ge_health_weight * g.health
+                       - ((g.actors[0].y >> 8) > 260 ? 20.0 * (double)((g.actors[0].y >> 8) - 260) : 0.0);     /* falling is no progress */
     }
     return (way_n ? way_score() : g.level_spot_count ? -exit_distance() : (double)(g.actors[0].x >> 8)) + ge_health_weight * g.health + ge_figures_weight * (g.figures_touched + ge_open_figure_near());
 }
@@ -784,6 +793,47 @@ static int ge_search(void)
         if (found && round >= 1)
             break;
     }
+    if (getenv("ALADDIN_DEV_BOT_GE_PROBE") && !found) {
+        /* ALADDIN_DEV_BOT_GE_PROBE=x0,x1,y0,y1,delta[,budget]: the depth-first helper from the shortest entry in that box, to a place
+           delta closer to the goal; prints the choices' count (for finding out whether a move is possible at all) */
+        int x0, x1, y0, y1, bud = 0;
+        double delta;
+        GeEntry *best = NULL;
+        unsigned k;
+
+        if (sscanf(getenv("ALADDIN_DEV_BOT_GE_PROBE"), "%d,%d,%d,%d,%lf,%d", &x0, &x1, &y0, &y1, &delta, &bud) >= 5) {
+            for (k = 0; k < GE_CELLS; k++)
+                if (ge_cell[k]) {
+                    int cx = (int)(k / 1024 << ge_shift), cy = (int)(k % 1024 << ge_shift);
+
+                    if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1 && (!best || ge_cell[k]->len < best->len))
+                        best = ge_cell[k];
+                }
+            if (bud)
+                dfs_budget = (unsigned)bud;
+            if (!best) {
+                fprintf(stderr, "bot: probe: no entry in the box\n");
+            } else {
+                int path[160];
+                pid_t pid;
+
+                dfs_delta = delta;
+                dfs_sh = mmap(NULL, sizeof *dfs_sh, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+                memset((void *)dfs_sh, 0, sizeof *dfs_sh);
+                pid = fork();
+                if (pid == 0) {
+                    in_child = 1;
+                    ge_replay(best);
+                    dfs_base = ge_prog();
+                    dfs(0, path, dfs_base, 0);
+                    _exit(0);
+                }
+                waitpid(pid, NULL, 0);
+                fprintf(stderr, "bot: probe from an entry of %u segments: %s (%u nodes, %u segments)\n", best->len,
+                        dfs_sh->found ? "a way found" : "no way", dfs_sh->nodes, dfs_sh->n);
+            }
+        }
+    }
     if (getenv("ALADDIN_DEV_BOT_GE_DUMP")) {
         FILE *f = fopen(getenv("ALADDIN_DEV_BOT_GE_DUMP"), "w");
         unsigned k;
@@ -847,6 +897,7 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
                 ge_par = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_ROUNDS")) && *v)
                 ge_rounds = (unsigned)strtoul(v, NULL, 0);
+            ge_head = getenv("ALADDIN_DEV_BOT_GE_HEAD") != NULL;      /* level 8: progress is the Genie head's path point */
             if ((v = getenv("ALADDIN_DEV_BOT_GE_SEED")) && *v)
                 ge_seed = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_FIGURES")) && *v)
