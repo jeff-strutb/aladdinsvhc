@@ -1,0 +1,24 @@
+# Actor kind $92 (its start $A5:F5BA, which sets three words of the record
+# $092B and jumps by its place byte $07 to one of four ends, $A5:F5E4 on). No
+# placement or routine of the game's plays creates it where a script goes, so
+# in the first stage of level $12 the free record $0A1B is made a kind $92
+# record in its start state ($0C) four times, with $07 = 0, 1, 2 and 3: the
+# original runs the start itself, and each ends at once ($83:96CA).
+load build/aladdin/states/stage_a6_s0.state
+wait 30
+poke 000A21 92
+poke 000A22 00
+poke 000A1B 0C
+wait 3
+poke 000A21 92
+poke 000A22 01
+poke 000A1B 0C
+wait 3
+poke 000A21 92
+poke 000A22 02
+poke 000A1B 0C
+wait 3
+poke 000A21 92
+poke 000A22 03
+poke 000A1B 0C
+wait 3

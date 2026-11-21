@@ -1,0 +1,25 @@
+# Actor kind $8B's wait ($84:990C, the $13 step 0) with the record's $47 set,
+# which the end of the start sets and which has the wait end the record
+# ($84:9874) the frame it is seen: $84:9942 counts it in $1458. A kind $8B
+# record ($0A1B, start state, its maker the free record $0A6B) runs its rise
+# and waits; then its $47 ($0A62) is set, the record put at Aladdin (as in
+# cov_kind8b.box) with $83:8861's conditions set, and one frame run.
+load build/aladdin/states/stage_a6_s0.state
+wait 30
+poke 000A52 6B,0A
+poke 000A21 8B
+poke 000A1B 0C
+wait 36
+dump k1
+poke 001427 00
+poke 00141B 00
+poke 001448 00,00
+poke 00141C 01
+poke 0008F9 00,00
+poke 000A62 01
+poke 000A63 00
+poke 000A27 F8,04
+poke 000A2A 70,00
+wait 1
+dump k2
+wait 4

@@ -1,0 +1,15 @@
+# Actor kind $8B's wait ($84:9946, the $13 step 1) with $1427 set and the
+# record's $47 set: $84:9962 counts it in $1458 and goes on to step 2. A kind
+# $8B record ($0A1B, start state, its maker the free record $0A6B) runs its
+# rise and waits; then its $13 ($0A2E) is 1, $1427 1 and its $47 ($0A62) 1,
+# and one frame runs (the wait then ends the record).
+load build/aladdin/states/stage_a6_s0.state
+wait 30
+poke 000A52 6B,0A
+poke 000A21 8B
+poke 000A1B 0C
+wait 36
+poke 001427 01
+poke 000A2E 01
+poke 000A62 01
+wait 5

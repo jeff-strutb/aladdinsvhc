@@ -1,0 +1,15 @@
+# Actor kind $4C's start with bit 4 of its place byte $07 set (the part at
+# $A5:F497: a wait of $A0 x $8C frames, then $035E cleared and the sound
+# loop), which no placement of the game has (the five have $00-$04). In the
+# first stage of level $12 the free record $0A1B is made a kind $4C record in
+# its start state ($0C) with $07 = $10; once it is in the wait its two
+# counters ($41, $42) are set to 1, so the wait ends and the original goes on.
+load build/aladdin/states/stage_a6_s0.state
+wait 30
+poke 000A21 4C
+poke 000A22 10
+poke 000A1B 0C
+wait 10
+poke 000A5C 01
+poke 000A5D 01
+wait 200

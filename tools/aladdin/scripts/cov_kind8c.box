@@ -1,0 +1,38 @@
+# Actor kind $8C (its start $84:9979, its $99DA). No placement or routine of
+# the game's plays creates it where a script goes, so in the first stage of
+# level $0D (stage a5 s1: Aladdin's own physics, he stands at x $3A, y $68)
+# the free record $0A1B is made a kind $8C record in its start state ($0C) at
+# x $50, its maker ($37) the free record $0A6B, whose $4E (the "gone" byte)
+# stays 0: the original runs the start itself (the rise, about 30 frames).
+# Then the record is put at y $68 and Aladdin above it (x $50, y $20), to fall
+# onto it (ActorBouncesPlayer, $83:840F: the bounce takes the first loop on
+# to its second, $84:99A8, and $99DA's sound); dropped again in that loop,
+# and in the last, the $57 frames' loop ($84:99C7), which the maker's going
+# ($0A6B's $4E, $0AB9, set to 1) starts; the last loop ends the record
+# ($83:96CA).
+load build/aladdin/states/stage_a5_s1.state
+wait 30
+poke 000A27 50,00
+poke 000A52 6B,0A
+poke 000A21 8C
+poke 000A1B 0C
+wait 40
+poke 000A2A 68,00
+poke 0008E7 50,00
+poke 0008EA 20,00
+wait 25
+dump m1
+wait 30
+dump m1b
+poke 0008E7 50,00
+poke 0008EA 20,00
+wait 25
+dump m2
+poke 000AB9 01
+wait 15
+poke 0008E7 50,00
+poke 0008EA 20,00
+wait 25
+dump m3
+wait 100
+dump m4

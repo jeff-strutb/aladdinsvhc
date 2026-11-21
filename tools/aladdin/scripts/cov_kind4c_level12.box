@@ -1,0 +1,25 @@
+# Actor kind $4C (the start Kind4CStart at $A5:F43D), the five placed at the
+# end of level $12 (placements 144-148, x 7936-8096, y 544-640 in $82:8A7A's
+# list). Play does not reach them before the level's autorun ends it, so the
+# placement walk's state is set where the camera is just short of them: the
+# camera and Aladdin at x $1D80, y $01D0, the placing points ($1BEF, $1BF1)
+# and the column bands ($1BEB, $1BED) with them; the walk then brings the
+# columns $F5-$FD in at 32 pixels a frame as the original does, creates the
+# five and runs their starts. The gems found ($0375) is set to $20 so the
+# start's loop (it plays a sound at its $40 = $50) runs: with the $0375 of the
+# level's start (0) each leaves at once.
+load build/aladdin/states/stage_a6_s0.state
+wait 30
+poke 001777 D0,01
+poke 0019E9 D0,01
+poke 0008EA 40,02
+wait 30
+poke 001773 80,1D
+poke 0019E5 80,1D
+poke 0008E7 00,1E
+poke 001BEB F5,00
+poke 001BED EA,00
+poke 001BEF 80,1D
+poke 001BF1 D0,01
+poke 000375 20
+wait 380

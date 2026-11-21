@@ -1,0 +1,279 @@
+# Actor kind $8B (its start $84:9813, its wait $84:9861 with the $48 steps of
+# $84:987A and the $13 steps of $84:98FF). No placement or routine of the
+# game's plays creates it where a script goes, so in the first stage of level
+# $12 the free record $0A1B is made a kind $8B record in its start state
+# ($0C), its maker ($37) the free record $0A6B, whose $4E (the "gone" byte)
+# stays 0: the original runs the start itself (the rise, about 30 frames).
+# Then, once it waits: its $40 ($0A5B) is set, so the 255-frame loop at
+# $84:9845 runs to its end; its $48 ($0A63) is set a step a frame (5, 6 with
+# $1F ($0A3A) 0 and $FF, 7, 8 with $1F $FF and 0, 1 with $49 ($0A64) $0000 and
+# $FFFF, 2, 3 with $49 $FFFF and 0, 4); and its $13 ($0A2E), with Aladdin by
+# it (the record put at his x, y, and $83:8861's conditions set: $1427 0,
+# $141B 0, $1448 0, $141C 1, $08F9 0): step 0 takes, then step 1 with $1427
+# set, then with it clear, then step 2 with its count $46 ($0A61) 1. Last the
+# loop's end: it then waits $57 frames (COP), and INCs $47, which makes the
+# wait end the record the frame it is seen; so from frame 235 on each frame the
+# record's $09 (/bin/bashA24, bit 7 the wait's) is cleared, the wait does not run, and
+# the record goes on past its BRK to the BRA that is its resume point.
+load build/aladdin/states/stage_a6_s0.state
+wait 30
+poke 000A52 6B,0A
+poke 000A21 8B
+poke 000A1B 0C
+wait 36
+poke 000A5B 01
+poke 000A63 05
+wait 1
+poke 000A63 06
+poke 000A3A 00
+wait 1
+poke 000A63 06
+poke 000A3A FF
+wait 1
+poke 000A63 07
+poke 000A3A FF
+wait 1
+poke 000A63 08
+poke 000A3A 00
+wait 1
+poke 000A63 08
+poke 000A3A FF
+wait 1
+poke 000A63 01
+poke 000A64 00,00
+wait 1
+poke 000A63 01
+poke 000A64 FF,FF
+wait 1
+poke 000A63 02
+wait 1
+poke 000A63 03
+poke 000A64 FF,FF
+wait 1
+poke 000A63 03
+poke 000A64 00,00
+wait 1
+poke 000A63 04
+wait 1
+poke 001427 00
+poke 00141B 00
+poke 001448 00,00
+poke 00141C 01
+poke 0008F9 00,00
+poke 000A63 00
+poke 000A27 08,05
+poke 000A2A 70,00
+wait 1
+dump h1
+wait 1
+poke 001427 00
+wait 1
+dump h2
+poke 000A61 01
+poke 000A2E 02
+wait 1
+dump h3
+wait 235
+dump h4
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+poke 000A24 00
+wait 1
+dump h5
+wait 5
