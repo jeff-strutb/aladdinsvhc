@@ -248,8 +248,7 @@ static void Level07ScreenSetup(void)
     g.main_layers = 0x17;
     UnpackSet(0x1A);
     g.layer_setup_mode = 0x12;
-    g.bg_map_at[1] = 0x3800;
-    g.bg_map_size[1] = 3;
+    g.bg_map[1] = VIDEO_MAP_BACK_TALL;
 }
 
 /*

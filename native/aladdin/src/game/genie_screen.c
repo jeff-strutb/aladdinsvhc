@@ -302,8 +302,8 @@ TaskRun GenieScreen(Task *t)
             NmiEnable();
             g.main_layers = 0;
             g.sub_layers = 0;
-            g.bg_tiles_at[0] = 0x5000;
-            g.bg_tiles_at[1] = 0;
+            g.bg_tiles[0] = VIDEO_TILES_HIGH;
+            g.bg_tiles[1] = VIDEO_TILES_LOW;
             *at = G_MODE7;
             return task_wait(t, 1);
         case G_MODE7:

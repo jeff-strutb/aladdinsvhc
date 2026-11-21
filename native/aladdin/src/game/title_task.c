@@ -172,10 +172,9 @@ TaskRun TitleTask(Task *t)
             return task_wait(t, 0x20);
         case TITLE_BRIGHTEN:
             TaskCreate(FADE_SLOT, 4, TASK_ENTRY_BRIGHTNESS_UP);
-            g.bg_map_at[0] = 0x5C00;        /* BG1 shows the text layer's map and tiles */
-            g.bg_map_size[0] = 0;
-            g.bg_tiles_at[0] = 0x5000;
-            g.bg_tiles_at[1] = 0x5000;
+            g.bg_map[0] = VIDEO_MAP_TEXT;   /* BG1 shows the text layer's map and tiles */
+            g.bg_tiles[0] = VIDEO_TILES_TEXT;
+            g.bg_tiles[1] = VIDEO_TILES_TEXT;
             g.main_layers = 0x11;
             g.sub_layers = 0x11;
             *at = TITLE_SHOWN;

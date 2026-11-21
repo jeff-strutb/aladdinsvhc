@@ -343,6 +343,7 @@ typedef enum {
     VIDEO_MAP_BACK,             /* the original's $4000, 64 x 32: BG2's */
     VIDEO_MAP_FRONT,            /* $4800, 64 x 32: BG1's */
     VIDEO_MAP_TEXT,             /* $5C00, 32 x 32: BG3's, BG1's on the title */
+    VIDEO_MAP_BACK_TALL,        /* $3800, 64 x 64 (pages $3800, $3C00, $4000, $4400): BG2's in level 7 */
     VIDEO_MAP_KINDS
 } VideoMap;
 
@@ -463,9 +464,8 @@ typedef struct GameState {
     uint8_t line_channels_kept; /* $03B5 high nibble: channels 4-7 other code keeps, not for the window effects */
     uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
     uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */
-    uint16_t bg_map_at[3];      /* $03A0-$03A2 bits 2-7: BG1-3's map, as its VRAM word address */
-    uint8_t bg_map_size[3];     /* $03A0-$03A2 bits 0-1: 0 32 x 32, 1 64 wide, 2 64 high, 3 both */
-    uint16_t bg_tiles_at[4];    /* $03A4-$03A5, a nibble each: BG1-4's tiles, as their VRAM word address */
+    VideoMap bg_map[3];         /* $03A0-$03A2: BG1-3's map (its size comes with it) */
+    VideoTiles bg_tiles[4];     /* $03A4-$03A5, a nibble each: BG1-4's tiles (at $5000 the 2bpp or 4bpp set by the mode they draw in) */
     int16_t m7_matrix[4];       /* $038D, $038F, $0391, $0393: Mode 7's a, b, c, d, 8.8 */
     uint16_t m7_centre_x;       /* $0395 */
     uint16_t m7_centre_y;       /* $0397 */

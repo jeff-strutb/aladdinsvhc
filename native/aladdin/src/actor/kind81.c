@@ -174,8 +174,7 @@ int Kind81Code(Actor *a)
             return 1;
         g.play_starts = 0;
         chain_build_nine(a);
-        g.bg_map_at[0] = 0x4000;            /* BG1's map the backdrop's, 64 wide: the original's $41 */
-        g.bg_map_size[0] = 1;
+        g.bg_map[0] = VIDEO_MAP_BACK;       /* BG1's map the backdrop's: the original's $41 */
         a->resume = CHAIN_BUILT;
         return 1;
     case CHAIN_BUILT:
@@ -208,8 +207,7 @@ int Kind81Code(Actor *a)
         if (colour_step(1) != 0x1F)
             return 1;
         SoundQueueAdd(0x46);
-        g.bg_map_at[1] = 0x4800;            /* BG2's map the play field's: the original's $49 */
-        g.bg_map_size[1] = 1;
+        g.bg_map[1] = VIDEO_MAP_FRONT;      /* BG2's map the play field's: the original's $49 */
         g.vram_upload_number = 0x0A;
         a->resume = UPLOAD_SECOND;
         return 1;

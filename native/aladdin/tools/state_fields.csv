@@ -18,6 +18,25 @@ tasks[].parts_go,7E007A,8,18,1,,value
 tasks[].part2_done,7E007B,8,18,1,,value
 tasks[].end_sound,7E007C,8,18,1,,value
 tasks[].end_wait,7E007D,8,18,1,,value
+tasks[].slot,,8,,,,native
+tasks[].zoom,,8,,,,native
+tasks[].reset_wait,,8,,,,native
+tasks[].count_fraction,7E1A1B,8,18,1,,value
+tasks[].gems,,8,,,,native
+tasks[].song,,8,,,,native
+tasks[].prize,,8,,,,native
+tasks[].signal,,8,,,,native
+tasks[].stage,7E0076,8,18,1,,value
+tasks[].step,7E0077,8,18,1,,value
+tasks[].wipe_left,7E0078,8,18,4,,16.8
+tasks[].wipe_right,7E007C,8,18,4,,value
+tasks[].frames,7E0080,8,18,2,,value
+tasks[].single,7E0082,8,18,1,,value
+tasks[].step,,8,,,,native
+tasks[].flip,,8,,,,native
+tasks[].timed,7E00F4,8,18,1,,value
+tasks[].waits,,8,,,,native
+tasks[].timer,7E00EF,8,18,2,,value
 tasks[].speed,7E0076,8,18,1,,value
 tasks[].zoom,7E0077,8,18,1,,value
 tasks[].speed_count,7E0078,8,18,1,,value
@@ -127,9 +146,8 @@ line_data,7EF400,1536,1,1,,value
 line_channels_kept,7E03B5,1,,1,,value
 bg_x,7E19EC,3,8,4,,24.8
 bg_y,7E19F0,3,8,4,,24.8
-bg_map_at,7E03A0,3,2,2,2-7,value
-bg_map_size,7E03A0,3,1,1,0-1,value
-bg_tiles_at,7E03A4,4,4 bits,1,"4 each, from bit 0",value
+bg_map,7E03A0,3,1,,,value
+bg_tiles,7E03A4,4,4 bits,1,"4 each, from bit 0",value
 m7_matrix,7E038D,4,2,2,,8.8
 m7_centre_x,7E0395,1,,2,,value
 m7_centre_y,7E0397,1,,2,,value
@@ -357,7 +375,7 @@ menu_cursor_moves,7E084B,1,,1,,value
 genie_pick,7E00AC,1,,1,,value
 genie_pick_one,7E00AD,1,,1,,value
 genie_pose,7E00AF,1,,1,,value
-genie_screen_cue,7E00AE,1,,1,,value
+screen_cue,7E00AE,1,,1,,value
 genie_cue_b7,7E00B7,1,,1,,value
 genie_cue_d7,7E00D7,1,,1,,value
 story_fly,7E0076,2,1,1,,value
@@ -366,10 +384,10 @@ story_part3_done,7E0079,1,,1,,value
 story_part1,7E007A,1,,1,,value
 story_part2,7E007B,1,,1,,value
 genie_screen_y,7E00B0,1,,2,,value
+ending_page,7E00EE,1,,1,,value
 genie_screen_step,7E00B5,1,,1,,value
 scene_walker_x,7E00A5,1,,2,,value
 scene_count,7E00AD,1,,1,,value
-level_end_cue,7E00AE,1,,1,,value
 scene_cue_first,7E00BD,1,,1,,value
 scene_cue,7E00BE,1,,1,,value
 scene_cue_bf,7E00BF,1,,1,,value
@@ -394,6 +412,14 @@ head_hit_frames,7E1B29,1,,1,,value
 head_flash,7E1B2A,1,,1,,value
 chain_untouchable,7E1B2C,1,,1,,value
 head_pose,7E1B35,1,,1,,value
+chain_step,7E1B19,1,,1,,value
+chain_phase,7E1B1C,1,,1,,value
+chain_round,7E1B1D,1,,1,,value
+rise_sounded,7E1B31,1,,1,,value
+close_count,7E1B32,1,,1,,value
+head_turns,7E1B33,1,,1,,value
+first_sweeps,7E1B34,1,,1,,value
+chain_rise_speed,7E1B2D,1,,3,,value
 chain_head_struck,7E1B2B,1,,1,,value
 boss_beaten,7E1B14,1,,1,,value
 range_x,7E1A44,1,,2,,value

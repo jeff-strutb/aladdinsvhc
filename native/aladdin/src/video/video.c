@@ -41,6 +41,7 @@ void video_init(void)
     maps[VIDEO_MAP_BACK] = nshvc_map_create(64, 32);
     maps[VIDEO_MAP_FRONT] = nshvc_map_create(64, 32);
     maps[VIDEO_MAP_TEXT] = nshvc_map_create(32, 32);
+    maps[VIDEO_MAP_BACK_TALL] = nshvc_map_create(64, 64);
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
 }
@@ -84,8 +85,9 @@ static void tiles_part(nshvc_tiles t, int32_t base, uint32_t size, uint32_t firs
     nshvc_tiles_write(t, at / size, bytes, n / size, NSHVC_TILES_PLANAR);
 }
 
-/* words [first, first + n) of a map of 32 x 32 pages, page 0 at `base` */
-static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, const uint16_t *w)
+/* words [first, first + n) of a map of 32 x 32 pages, page 0 at `base`; the pages lie two across (page 1 right of 0),
+   and in a map 64 high (`rows` 64) two more below (page 2 under 0) */
+static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, const uint16_t *w, unsigned rows)
 {
     while (n > 0) {
         uint32_t at = first - base, page = at >> 10, cell = at & 0x3FF;
@@ -93,7 +95,7 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
 
         if (run > n)
             run = n;
-        nshvc_map_write_snes(m, page * 32 + x, y, run, 1, w);
+        nshvc_map_write_snes(m, (page & 1) * 32 + x, y + (rows == 64 ? (page >> 1) * 32 : 0), run, 1, w);
         first += run;
         w += run;
         n -= run;
@@ -141,16 +143,18 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
             for (uint32_t i = 0; i < k; i++)
                 mode7_word(from + i, p[i]);
     }
+    if ((k = inside(first, n, 0x3800, 0x4800, &from)) != 0)
+        map_part(maps[VIDEO_MAP_BACK_TALL], 0x3800, from, k, w + (from - first), 64);
     if ((k = inside(first, n, 0x4000, 0x4800, &from)) != 0)
-        map_part(maps[VIDEO_MAP_BACK], 0x4000, from, k, w + (from - first));
+        map_part(maps[VIDEO_MAP_BACK], 0x4000, from, k, w + (from - first), 32);
     if ((k = inside(first, n, 0x4800, 0x5000, &from)) != 0)
-        map_part(maps[VIDEO_MAP_FRONT], 0x4800, from, k, w + (from - first));
+        map_part(maps[VIDEO_MAP_FRONT], 0x4800, from, k, w + (from - first), 32);
     if ((k = inside(first, n, 0x5000, 0x8000, &from)) != 0)
         tiles_part(tiles[VIDEO_TILES_HIGH], 0x5000, 16, from, k, w + (from - first));
     if ((k = inside(first, n, 0x5000, 0x7000, &from)) != 0)
         tiles_part(tiles[VIDEO_TILES_TEXT], 0x5000, 8, from, k, w + (from - first));
     if ((k = inside(first, n, 0x5C00, 0x6000, &from)) != 0)
-        map_part(maps[VIDEO_MAP_TEXT], 0x5C00, from, k, w + (from - first));
+        map_part(maps[VIDEO_MAP_TEXT], 0x5C00, from, k, w + (from - first), 32);
 }
 
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how)
@@ -369,29 +373,27 @@ static int video_tile_bpp(int layer)
     return bpp_of[mode & 7][layer];
 }
 
-/* The object a layer's map and tiles are, from the video addresses the game
-   gives them (g.bg_map_at, g.bg_tiles_at); one no screen of the record uses
-   is reported once and the layer left off. */
+/* The object a layer's map and tiles are (g.bg_map, g.bg_tiles); one no screen
+   of the record uses is reported once and the layer left off. */
 static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
 {
     static int told;
-    uint16_t map_at = g.bg_map_at[layer], tiles_at = g.bg_tiles_at[layer];
-    int map = map_at == 0x4000 ? VIDEO_MAP_BACK : map_at == 0x4800 ? VIDEO_MAP_FRONT : map_at == 0x5C00 ? VIDEO_MAP_TEXT : -1;
+    int map = g.bg_map[layer];
     int set = -1;
-
     int bpp = video_tile_bpp(layer);
 
-    if (bpp == 2 && tiles_at == 0x5000)
+    /* the 2bpp set is the one at $5000; the layer's mode says which depth it draws in */
+    if (bpp == 2 && g.bg_tiles[layer] != VIDEO_TILES_LOW)
         set = VIDEO_TILES_TEXT;
-    else if (bpp == 4 && tiles_at == 0x0000)
+    else if (bpp == 4 && g.bg_tiles[layer] == VIDEO_TILES_LOW)
         set = VIDEO_TILES_LOW;
-    else if (bpp == 4 && tiles_at == 0x5000)
+    else if (bpp == 4)
         set = VIDEO_TILES_HIGH;
-    if (map < 0 || set < 0) {
+    if (map < 0 || map >= VIDEO_MAP_KINDS || set < 0) {
         if (!told && !g.blank) {        /* power-on's zeroed bases while the screen is still blank are no screen */
             told = 1;
-            fprintf(stderr, "video: BG%d's map at %04X with tiles at %04X is no screen's of the record; left off\n",
-                    layer + 1, map_at, tiles_at);
+            fprintf(stderr, "video: BG%d's map %d with tiles %d (drawn at %d bits) is no screen's of the record; left off\n",
+                    layer + 1, map, g.bg_tiles[layer], bpp);
         }
         return 0;
     }

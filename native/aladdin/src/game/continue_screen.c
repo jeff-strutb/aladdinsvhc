@@ -100,8 +100,7 @@ TaskRun ContinueScreenTask(Task *t)
         VramCopy(0x23 / 7);
         PaletteLoad(0x60);
         PaletteLoad(0x4A);
-        g.bg_map_at[1] = g.bg_map_at[0];
-        g.bg_map_size[1] = g.bg_map_size[0];
+        g.bg_map[1] = g.bg_map[0];
         LevelGraphicsLoadAll();
         NmiEnable();
         tile_behaviour_clear();
