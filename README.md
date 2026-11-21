@@ -186,18 +186,17 @@ text, the title with its menu and music, and the attract demo, which loads level
 through the market with Abu, past the stall keepers and the guards. By the original pad's keys from the title: Game Start
 into level 1, played, the Pass Word screen and the Options screen. By a developer's start at a screen
 (`ALADDIN_DEV_SCREEN`, [docs/aladdin/native/CHECK.md](docs/aladdin/native/CHECK.md), not the game's way in): the Genie's
-Break Time and the ending's credits.
+Break Time, the continue screen and the ending's credits.
 
 | | |
 |---|---|
 | ![The opening story: the Cave of Wonders](docs/aladdin/native/shots/story.png)<br>The opening story: the Cave of Wonders | ![The title and its menu](docs/aladdin/native/shots/title.png)<br>The title and its menu |
 | ![The Pass Word screen](docs/aladdin/native/shots/password.png)<br>Pass Word, from the title by Down and Start | ![The Options screen](docs/aladdin/native/shots/options.png)<br>Options, from the title by two Downs and Start |
-| ![Level 1 in the attract demo](docs/aladdin/native/shots/level1.png)<br>Level 1 in the attract demo (no input) | ![Game Start into level 1](docs/aladdin/native/shots/level1-play.png)<br>Game Start into level 1, played by keys: Aladdin running, two apples thrown |
+| ![Game Start into level 1](docs/aladdin/native/shots/level1-play.png)<br>Game Start into level 1, played by keys: Aladdin running, two apples thrown (the attract demo plays the same level with no input) | ![The continue screen](docs/aladdin/native/shots/continue.png)<br>The continue screen, reached by the developer's start (`continue`), not by play |
 | ![The Genie's Break Time](docs/aladdin/native/shots/genie.png)<br>The Genie's Break Time, reached by the developer's start (`genie`), not by play | ![The ending's credits](docs/aladdin/native/shots/credits.png)<br>The ending's credits, reached by the developer's start (`credits`), not by play |
 
 The pictures are the engine's own, taken from a headless run of this repository's Linux build (`--shots`, keys replayed
-with `--input`) at the console's size and doubled. The continue screen is not shown: from the developer's start it
-draws only its text ("Will you continue? Pull the rope!") and credit count, with no rope or Genie.
+with `--input`) at the console's size and doubled.
 
 ## The Decompilation Standard
 
