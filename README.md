@@ -119,7 +119,7 @@ a bug; recordings of the original are kept to find such bugs.
   Start gives level 1, where a pad runs, jumps and throws apples (pictures below), and which does not end by itself over
   6,500 updates with no input; Pass Word and Options open from the title. Not checked: entering a password or changing
   an option, a pad's play of any level to its end, the scenes between levels. The Genie screen, the continue screen and
-  the ending's credits have run only from a test entry (not from play), and the faults seen on them are in
+  the ending's credits have run only from a developer's start (not from play), and the faults seen on them are in
   `NATIVE-FAULTS.txt`: the ending's stage play-back dies after about 600 frames of a stage, level 2's first exit did not
   start with the player put at it, the level select started level 1 for two of four parts, and the four level scene
   tasks (levels 3, 5 end, $0D, $10) wait for events no run has made. None of this has been compared with the original.
@@ -184,18 +184,20 @@ That is 53,948 lines of native C and headers in 348 files. The engine's hardware
 What runs, on Linux, from power-on with no input: the copyright card, the logo, the opening story with its scenes and
 text, the title with its menu and music, and the attract demo, which loads level 1 and plays it: Aladdin runs and jumps
 through the market with Abu, past the stall keepers and the guards. By the original pad's keys from the title: Game Start
-into level 1, played, the Pass Word screen and the Options screen.
+into level 1, played, the Pass Word screen and the Options screen. By a developer's start at a screen
+(`ALADDIN_DEV_SCREEN`, [docs/aladdin/native/CHECK.md](docs/aladdin/native/CHECK.md), not the game's way in): the Genie's
+Break Time and the ending's credits.
 
 | | |
 |---|---|
-| ![The opening story: the Cave of Wonders](docs/aladdin/native/shots/story.png)<br>The opening story: the Cave of Wonders | ![The opening story: the tiger's head](docs/aladdin/native/shots/cave.png)<br>The opening story: the tiger's head |
-| ![The title and its menu](docs/aladdin/native/shots/title.png)<br>The title and its menu | ![Level 1 in the attract demo](docs/aladdin/native/shots/level1.png)<br>Level 1 in the attract demo (no input) |
-| ![Game Start into level 1](docs/aladdin/native/shots/level1-play.png)<br>Game Start into level 1, played by keys: Aladdin running, two apples thrown | ![The Pass Word screen](docs/aladdin/native/shots/password.png)<br>Pass Word, from the title by Down and Start |
-| ![The Options screen](docs/aladdin/native/shots/options.png)<br>Options, from the title by two Downs and Start | |
+| ![The opening story: the Cave of Wonders](docs/aladdin/native/shots/story.png)<br>The opening story: the Cave of Wonders | ![The title and its menu](docs/aladdin/native/shots/title.png)<br>The title and its menu |
+| ![The Pass Word screen](docs/aladdin/native/shots/password.png)<br>Pass Word, from the title by Down and Start | ![The Options screen](docs/aladdin/native/shots/options.png)<br>Options, from the title by two Downs and Start |
+| ![Level 1 in the attract demo](docs/aladdin/native/shots/level1.png)<br>Level 1 in the attract demo (no input) | ![Game Start into level 1](docs/aladdin/native/shots/level1-play.png)<br>Game Start into level 1, played by keys: Aladdin running, two apples thrown |
+| ![The Genie's Break Time](docs/aladdin/native/shots/genie.png)<br>The Genie's Break Time, reached by the developer's start (`genie`), not by play | ![The ending's credits](docs/aladdin/native/shots/credits.png)<br>The ending's credits, reached by the developer's start (`credits`), not by play |
 
 The pictures are the engine's own, taken from a headless run of this repository's Linux build (`--shots`, keys replayed
-with `--input`) at the console's size and doubled. The Genie screen, the continue screen and the ending's credits are not
-shown: they run only from a test entry that is not in the tree.
+with `--input`) at the console's size and doubled. The continue screen is not shown: from the developer's start it
+draws only its text ("Will you continue? Pull the rope!") and credit count, with no rope or Genie.
 
 ## The Decompilation Standard
 
