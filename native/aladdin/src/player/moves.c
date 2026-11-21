@@ -277,9 +277,9 @@ void PlayerTopSpeedHold(Actor *a)
 
 /*
  * @routine 81:D179 PlayerTopSpeedCap
- * WHAT IT DOES: His top running speed at least 1.5 pixels a frame: one at
- * or under it becomes it (the record's comment says "at most"; its code, CMP
- * then BCC, stores $0180 when it is not above).
+ * WHAT IT DOES: His top running speed is at least 1.5 pixels a frame: one at
+ * or under it becomes it (the record's comment says "at most"; what the game
+ * does is this).
  */
 void PlayerTopSpeedCap(void)
 {

@@ -597,13 +597,10 @@ static int land_hard_done(Actor *a)
  * (the tile's mirror and his flip must differ, else on in the air), his
  * speeds stopped, the grab's sound and pose; on to hang.
  */
-/* The original's test of a ledge that faces the wrong way jumps to PlayerAirLand
-   with its accumulator 16 bits wide (PlayerLedgeGrab's REP #$20), so
-   ActorOutOfGround's first instruction, STZ on his +$18, stores two bytes and
-   clears +$19 too: the fraction byte of his speed across. Aladdin's play
-   depends on it (the demos' scripted input is timed by his speed), so it is
-   kept as what it did: that byte cleared. (Found by the actor check:
-   rand_pw4_2 frame 2005, speed $0180 became $0100.) */
+/* A ledge that faces the wrong way for him is not caught, and his horizontal
+   speed loses its fraction there (the whole pixels stay: $0180 becomes
+   $0100). The original does this (81:D470 PlayerLedgeGrab into PlayerAirLand)
+   and his timing in the demos' scripted input depends on it. */
 static int ledge_wrong_way(Actor *a)
 {
     a->speed_x = (int32_t)((uint32_t)a->speed_x & ~0xFFu);

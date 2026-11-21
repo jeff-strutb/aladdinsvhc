@@ -46,7 +46,7 @@ static inline uint16_t top_y(Actor *a) { return (uint16_t)(TOP_Y_LOW(a) | TOP_Y_
 /* ---- 24-bit motion ---- */
 
 /* a speed's low word (its fraction and its pixels' low byte), as the
-   original's 16-bit reads and writes of it, its top byte kept */
+   original's word reads and writes of it, its top byte kept */
 static inline uint16_t speed_word(int32_t s) { return (uint16_t)s; }
 static inline int32_t with_speed_word(int32_t s, uint16_t w) { return signed24((((uint32_t)s >> 16 & 0xFFu) << 16) | w); }
 static inline uint16_t x_pixels(const Actor *a) { return pixels(a->x); }
