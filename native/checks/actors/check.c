@@ -776,6 +776,9 @@ static void loops(void)
         } else {
             record_from(&g.actors[0], wram, 0);
             load_world(wram, 1);
+            /* the dump is the frame's end: $1428 (he stands on an actor) holds what the actors set in the frame;
+               the player's turn cleared it as the frame began */
+            g.player_on_actor = 0;
             if (wram[RECORD(0)] >= 0x80 && before[RECORD(0)] < 0x80) {
                 /* the dump has him hit in this frame (state $8C): by an actor after most of the loop; the
                    earlier ones saw him as the frame began, so the loop gets that: the hit lands at its end */
