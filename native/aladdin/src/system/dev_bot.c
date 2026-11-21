@@ -479,6 +479,11 @@ static double ge_prog(void)
         for (i = 1; i < ACTOR_RECORDS; i++)
             if (g.actors[i].state && g.actors[i].kind == 0x98)
                 return 10000.0 - 1000.0 * (g.actors[i].own.bytes[OWN_11] ? g.actors[i].own.bytes[OWN_11] : 6) + ge_health_weight * g.health;     /* the boss is there: its hits left (6 until it sets them) */
+            else if (g.actors[i].state && g.actors[i].kind == 0x73) {      /* the last form's head: health 7 down to below 0 */
+                int h = (int8_t)g.actors[i].own.bytes[OWN_11];
+
+                return 10000.0 - 1000.0 * (h == 0 ? 8 : h + 1) + ge_health_weight * g.health;
+            }
     }
     if (ge_head) {
         unsigned i;
