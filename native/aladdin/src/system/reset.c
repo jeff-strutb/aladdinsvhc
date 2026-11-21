@@ -124,7 +124,7 @@ void GameRamClear(void)
     CLEAR(g.tile_blocks_count);         /* $1BE4 */
     CLEAR(g.tile_blocks_pending);       /* $1BE6 */
     CLEAR(g.block_sources);             /* $1BF5 */
-    CLEAR(g.band_pos);                  /* $7E:F800 */
+    memset(&g.line_data[0x400], 0, 11 * 4);   /* $7E:F800: the drifting backdrop bands' positions */
     for (slot = TASK_SLOTS - 1; slot >= 1; slot--)
         TaskSlotFree(slot);
 }
