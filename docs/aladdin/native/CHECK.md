@@ -246,6 +246,25 @@ and the silent game first differs where the original first makes a sound.
 - **Anything a script reaches by pokes, state recipes with pokes, unit calls or copier RAM.** Only 30 of the 378
   scripts replay by input. The rest set up the game's memory directly, which a native game cannot take.
 
+## A developer's start at a screen (not the game's)
+
+Some screens are far into a play (the Genie, the continue screen, the level end, the story card, the ending). The environment can start the game at one, with the state it reads set. Off unless asked for; read once at the boot task's first step (`system/dev_start.c`):
+
+| Variable | |
+|---|---|
+| `ALADDIN_DEV_SCREEN` | `genie`, `continue`, `level-end`, `story-card`, `ending-story`, `ending` (stages 4-$0B, 60 items), `credits` (the single stage with the credits' text, 10 items) |
+| `ALADDIN_DEV_PART`, `ALADDIN_DEV_STAGE` | the progress (`level-end` and `story-card` read the part; 6 is the last, which goes on to the ending's story) |
+| `ALADDIN_DEV_ITEMS` | the items counted (the ending's stages need 50 or more) |
+| `ALADDIN_DEV_CHEAT=1` | the options' cheat set from the start, for the title's level select |
+
+```bash
+cd build/aladdin/native/linux && ALADDIN_DEV_SCREEN=genie ./aladdin --headless --updates 2500 --shots ../shots-genie
+```
+
+Each screen waits for a button where the game does (the Genie for one to stop the wheel, the level end for a button after its pauses, the continue screen for the rope). Without the variables nothing changes.
+
+The level select by keys (the real way): enter the cheat on pad 2 at the options screen (`controller=1,BUTTONS` lines in the `--input` file: L, R, Start, Select, X, Y, A, B, one press each within 32 frames), leave the options, then at the title hold R and press Up (part) and Right (stage), then Game Start. `ALADDIN_DEV_CHEAT=1` skips the code.
+
 ## The scripts that replay by input
 
 `check_inputs.py --classify` sorts all 378 scripts in `tools/aladdin/scripts`. A script replays by input when it

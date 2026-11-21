@@ -32,6 +32,7 @@ TaskRun BootTask(Task *t)
 
     switch (*at) {
     case BOOT_START:
+        DevStartApply();
         g.text_upload_to = 0x5C00;
         g.text_upload_bytes = 0x0800;
         *at = BOOT_WAITED;
@@ -44,6 +45,8 @@ TaskRun BootTask(Task *t)
         if (r != TASK_GOES_ON)
             return r;
         SoundSetsLoad();
+        if (DevStartEntry() != TASK_ENTRY_NONE)
+            return task_exec(t, DevStartEntry());
         *at = BOOT_LOGO;
         /* fall through */
     case BOOT_LOGO:

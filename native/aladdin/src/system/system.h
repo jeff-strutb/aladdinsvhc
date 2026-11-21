@@ -53,4 +53,8 @@ void GameRamClear(void);                /* 81:9655 */
 void Table15F1Clear(void);              /* 81:968F */
 void LevelTablesClear(void);            /* 81:967B */
 
+/* dev_start.c: a developer's start at a screen, by the environment (ALADDIN_DEV_*; docs/aladdin/native/CHECK.md) */
+void DevStartApply(void);               /* read the environment once: the cheat, the chosen screen's state */
+TaskEntry DevStartEntry(void);          /* the chosen screen's task entry, or TASK_ENTRY_NONE */
+
 #endif
