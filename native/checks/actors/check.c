@@ -297,7 +297,7 @@ static void compare(int i)
     const uint8_t *r = wram + RECORD(i);
     Actor *a = &g.actors[i];
     Actor *next = record_at(w16(r, 0x37));
-    int k;
+    int k, skip_4a = 0;
 
     SAME("state", a->state, r[0x00]);
     if (!r[0x00] && !a->state)
@@ -345,6 +345,21 @@ static void compare(int i)
                 k++;            /* the pair matches */
                 continue;
             }
+        }
+        if (o == 0x49) {
+            /* +$49-$4A: own bytes 25 and 30 (OWN_4A is placed after OWN_4F): a record named there, as above */
+            uint16_t word = w16(r, 0x49), own = (uint16_t)(a->own.bytes[k] | a->own.bytes[30] << 8);
+
+            if (word >= RECORD(0) && word < RECORD(ACTOR_RECORDS) && !((word - RECORD(0)) % 0x50)
+                && own == (uint16_t)((word - RECORD(0)) / 0x50)) {
+                compared += 2;
+                skip_4a = 1;
+                continue;
+            }
+        }
+        if (o == 0x4A && skip_4a) {
+            skip_4a = 0;
+            continue;
         }
         if (o == 0x4A && a->kind == 0x97) {
             /* the free-list place ActorFreeListTake gave: a byte offset (2 a record) in the original, the index natively */
