@@ -114,7 +114,7 @@ void DevStartAt(LevelStart *s)
         if (e && *e)
             have = (unsigned)sscanf(e, "%u,%u,%u,%u", &v[0], &v[1], &v[2], &v[3]);
     }
-    if (have < 2)
+    if (have < 2 || g.level >= 0x14)     /* the screens between levels ($24 ...) start at their own place */
         return;
     s->x = (uint16_t)v[0];
     s->y = (uint16_t)v[1];
