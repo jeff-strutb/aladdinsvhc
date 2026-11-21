@@ -372,6 +372,8 @@ static void compare(int i)
             continue;           /* a pair's second byte, with its first; $4E-$4F: kind $95's hops keep their return there, none here */
         if ((o == 0x43 || o == 0x44 || o == 0x45) && (a->kind == 0x5D || a->kind == 0x8B || a->kind == 0x8C))
             continue;           /* the cloud's rise (Kind5DRise) keeps its caller's return address there: read by nothing, none here */
+        if (o == 0x16 && (a->kind == 0x21 || a->kind == 0x2E || a->kind == 0x40))
+            continue;           /* their starts set +$16 to a probe list no routine reads for them: not kept (kind21.c, kind2e.c, kind40.c) */
         if (o == 0x16 || o == 0x29 || o == 0x4A) {
             /* a place a kind keeps as its own bytes or as a field (probes,
                own_pictures, stream): the word matches in either form */
@@ -744,11 +746,13 @@ static void check_anim_sets(void)
    frame, right where its turn comes, so the records after it see it as
    the original's did (the apple that hit a guard is in its new place when
    the guard looks), and the records before it saw it as the frame began. */
+static int loop_first = 1, loop_last = ACTOR_RECORDS - 1;   /* the records this pass of the loop takes (a cut loop: part of it) */
+
 static void other_records(void)
 {
     int i;
 
-    for (i = 1; i < ACTOR_RECORDS; i++) {
+    for (i = loop_first; i <= loop_last; i++) {
         Actor *a = &g.actors[i];
         int tracked = a->state && is_converted(a->kind) && !untracked[i];
 
@@ -778,35 +782,47 @@ static void other_records(void)
     }
 }
 
+static int loops_in_rest;      /* the pass is the rest of a loop the last dump cut: FrameStep's values are the last dump's */
+
 static void loops(void)
 {
     if (custom_kinds) {
+        const uint8_t *fs = loops_in_rest ? before : wram;
+
         g.range_x = w16(before, 0x1A44);
         g.range_y = w16(before, 0x1A46);
         /* FrameStep sets the player's place as the frame began before PlayerLoop; this frame's end dump holds it */
-        g.frame_start_x = (uint32_t)wram[0x143A] | (uint32_t)wram[0x143B] << 8 | (uint32_t)wram[0x143C] << 16;
-        g.frame_start_y = (uint32_t)wram[0x143D] | (uint32_t)wram[0x143E] << 8 | (uint32_t)wram[0x143F] << 16;
-        if (is_converted(0x00)) {
-            PlayerLoop();
-        } else {
-            record_from(&g.actors[0], wram, 0);
-            load_world(wram, 1);
-            /* the dump is the frame's end: $1428 (he stands on an actor) holds what the actors set in the frame;
-               the player's turn cleared it as the frame began */
-            g.player_on_actor = 0;
-            if (wram[RECORD(0)] >= 0x80 && before[RECORD(0)] < 0x80) {
-                /* the dump has him hit in this frame (state $8C): by an actor after most of the loop; the
-                   earlier ones saw him as the frame began, so the loop gets that: the hit lands at its end */
-                g.actors[0].state = before[RECORD(0)];
-                g.health = before[0x0367];
-                g.player_hurt_count = before[0x141B];
+        g.frame_start_x = (uint32_t)fs[0x143A] | (uint32_t)fs[0x143B] << 8 | (uint32_t)fs[0x143C] << 16;
+        g.frame_start_y = (uint32_t)fs[0x143D] | (uint32_t)fs[0x143E] << 8 | (uint32_t)fs[0x143F] << 16;
+        if (loop_first == 1) {
+            if (is_converted(0x00)) {
+                PlayerLoop();
+            } else {
+                record_from(&g.actors[0], wram, 0);
+                load_world(wram, 1);
+                /* the dump is the frame's end: $1428 (he stands on an actor) holds what the actors set in the frame;
+                   the player's turn cleared it as the frame began */
+                g.player_on_actor = 0;
+                if (wram[RECORD(0)] >= 0x80 && before[RECORD(0)] < 0x80) {
+                    /* the dump has him hit in this frame (state $8C): by an actor after most of the loop; the
+                       earlier ones saw him as the frame began, so the loop gets that: the hit lands at its end */
+                    g.actors[0].state = before[RECORD(0)];
+                    g.health = before[0x0367];
+                    g.player_hurt_count = before[0x141B];
+                }
             }
         }
         other_records();
         return;
     }
-    PlayerLoop();
-    ActorLoop();
+    if (loop_first == 1)
+        PlayerLoop();
+    for (int i = loop_first; i <= loop_last; i++) {
+        if (!ActorTurn(&g.actors[i]))
+            return;
+        if (i + 1 >= ACTOR_RECORDS - ACTOR_POOL_SIZE && g.pause_block)
+            return;
+    }
 }
 
 static void in_view(void)
@@ -818,7 +834,7 @@ static void in_view(void)
 
 static void init(void)
 {
-    int i, steps, tail_pending = 0;
+    int i, steps, stalled, cut_rest = 0, tail_pending = 0;
 
     data_load();
     load(first, wram);
@@ -856,13 +872,41 @@ static void init(void)
         else
             made_by_others(0);
         steps = frame_steps();
-        if (steps > 0 && tail_pending) {
+        /* the loop still in the same record as the last dump (a start that takes several frames: a stall): nothing runs in between */
+        stalled = cut_rest && wram[0x32F] && wram[0x32F] == before[0x32F] && wram[0x330] == before[0x330];
+        if (stalled)
+            steps = 0;
+        /* A loop the NMI cut ($032F, the records left, nonzero in the dump): FrameStep's loop was still running (a record's start that took
+           longer than the frame: the level's first loop, a course maker). This dump has the records up to the one it was in; the next dump has the
+           rest of the loop and the tail (ActorsInView, the play time's tick), and no new loop yet. */
+        if (stalled) {
+            /* nothing */
+        } else if (cut_rest) {
+            loop_first = cut_rest + 1;
+            loops_in_rest = 1;
+            loops();
+            loops_in_rest = 0;
+            loop_first = 1;
+            in_view();
+            if (steps > 0)
+                steps--;
+            cut_rest = 0;
+            tail_pending = 0;
+        } else if (steps > 0 && tail_pending) {
             /* the rest of a FrameStep whose loops ran before the last dump:
                its ActorsInView and its play time's tick came in this frame */
             in_view();
             steps--;
         }
-        tail_pending = 0;
+        if (steps >= 0 && !cut_rest && !stalled)
+            tail_pending = 0;
+        if (!stalled && wram[0x32F] && wram[0x32F] < ACTOR_RECORDS) {
+            loop_last = ACTOR_RECORDS - wram[0x32F];
+            loops();
+            loop_last = ACTOR_RECORDS - 1;
+            cut_rest = ACTOR_RECORDS - wram[0x32F];
+            steps = 0;
+        }
         if (steps < 0) {
             /* a FrameStep's loops ran before this dump and the rest of it did
                not (the level's first: the in-view flag and the play time

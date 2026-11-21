@@ -1,11 +1,11 @@
 #!/bin/sh
 # covrun.sh SCRIPT KIND[,KIND..]: record the decomp's script with a dump after every frame, check the kinds over it (first dump = frame 1), keep the result lines in covres/SCRIPT.txt
-M=${M:-$(git rev-parse --show-toplevel)}; CPU_RUN=${ALADDIN_CPU_RUN:?}; W=$M/build/aladdin/native/coverage-work; WT=${WTREE:-$M}
+M=${M:-$(git rev-parse --show-toplevel)}; CPU_RUN=${ALADDIN_CPU_RUN:?}; W=${W:-$M/build/aladdin/native/coverage-work}; WT=${WTREE:-$M}
 mkdir -p $W/covres; R=$W/covrec_$1; rm -rf $R; mkdir -p $R
 cd $M
 timeout 1700 $CPU_RUN -j 1 -m 2G -- build/aladdin/box/snesbox --rom build/aladdin/baserom.sfc --script $W/sd_$1.box --out $R > $W/covres/$1.log 2>&1
 last=$(ls $R | grep -c wram)
-export ALADDIN_CPU_RUN=$CPU_RUN BUILD=$M/build/aladdin/native/checks/actors OUT=$W/covres/out_$1
+export ALADDIN_CPU_RUN=$CPU_RUN BUILD=${BUILD:-$M/build/aladdin/native/checks/actors} OUT=$W/covres/out_$1
 python3 - $R > $W/covres/$1.kinds <<'PY'
 import sys
 R=sys.argv[1]; seen={}

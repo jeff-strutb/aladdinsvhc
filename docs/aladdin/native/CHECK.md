@@ -330,4 +330,15 @@ Aim: for each registered kind (`native/aladdin/src/actor/kinds_*.c`), a recordin
 8. Never run the game or the check without `--headless --updates N` through the CPU queue; an unknown flag runs the game uncapped.
 9. To find what the original executed in a frame: save states a few frames before (`save NAME` in the script), then `snesbox --trace` over the frames and compare `edges.csv` against a normal window (control transfers by instruction address).
 
+**The all-kinds run (kinds D, 2026-11-21): what was added and learnt** (results: the "EVERY KIND" section of `NATIVE-ACTOR-CHECK.txt`)
+- `coverage/sect.py SCRIPT KINDS` (env `LEVELSPLIT=1`: also sections at each level-number change and where records first appear after none; KINDS `+KK,KK` = checked together; frames beyond a recording's first need no 1-based numbering),
+  `covone.sh`, `agg2.py WORKDIR` (per kind: sections exact / after a restart / after a poke / unexplained, from the live ranges), `table.py` (the table lines), `mass.py` (frames where 3 or more records are freed at once),
+  `classify.py` (what the original did at each unexplained first frame: the loop's cut, a restart = play-time tick reset to 0, records appearing/vanishing), `playkinds.py` (every kind of a recording one by one, also with the player's turn),
+  `tracewhy.sh SCRIPT FRAME` (snesbox --trace: the control transfers new in that frame; 81:825F LevelRamSetup = a restart), `longrec.sh`/`longcheck.sh` (snesbox stops a run at 9,999 frames: a script is run to frame SPLIT without dumps, then from its saved state with dumps).
+- An "exact" result for a kind that is not live is vacuous (nothing is compared of it): check the kind's live frames in the recording (agg2 does).
+- The original's loop is often CUT by the NMI ($032F nonzero, the records left): at the level's first loop (a start that takes longer than a frame), in a course maker. That dump has the records up to the one it was in; the next dump has the rest of
+  the loop and the tail, and no new loop; a cut that stays at the same record for several dumps is a stall (nothing runs between). The check models this (check.c), and a record cut in the middle of its turn shows half done in the original at that one frame.
+- A kind alone sees the dump for everything else: a kind whose creator or helper is not listed differs ($5B needs $55, $63 needs $A2, $97 with $53); list them together. A kind that reads the player ($68) is exact only with kind 00 listed.
+- Kinds $21 $2E $40: +$16 is not compared (a probe list their start sets that no routine reads for them).
+
 **Finding a recording for a kind:** plays first (stage states 4-18; the random play of 3,000 frames dies early and meets only what is near its start), then the decomp's coverage scripts (`tools/aladdin/scripts/cov_kind*`, `cov_*`: names, comments and `t3.py --qualify ADDR` show which reach a routine), whose pokes put a record of the kind in front of the original; where a script has no frame-by-frame form (unit `call`) or pokes a live record, say so in the table.

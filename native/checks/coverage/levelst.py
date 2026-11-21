@@ -1,5 +1,5 @@
 import sys,os,subprocess
-import os; M=os.environ.get('M','/home/strutb/projects/strutb/aladdinsvhc'); WT=os.environ.get('WTREE',M); W=M+'/build/aladdin/native/coverage-work'
+import os; M=os.environ.get('M','/home/strutb/projects/strutb/aladdinsvhc'); WT=os.environ.get('WTREE',M); W=os.environ.get('W',M+'/build/aladdin/native/coverage-work')
 st=sys.argv[1]; play=sys.argv[2]; maxlen=int(sys.argv[3]) if len(sys.argv)>3 else 2400; ST=M+'/tools/aladdin/states/03_stages.box'; PL=(play if '/' in play else M+'/tools/aladdin/scripts/%s.box'%play)
 run=os.environ['ALADDIN_CPU_RUN']
 def snes(box,out):
@@ -28,11 +28,13 @@ subprocess.run(['rm','-rf',W+'/rec']); snes(W+'/r.box',W+'/rec')
 # first dump with no records just before the first record
 first=None
 for f in range(a,b+1):
+    if not os.path.exists(W+'/rec/f%05d.wram'%f): break
     w=open(W+'/rec/f%05d.wram'%f,'rb').read()
     live=sum(1 for k in range(36) if w[0x8DB+0x50*k])
     if live>0 and f>a: first=f-1; break
 kinds=set(); end=b
 for f in range(first,b+1):
+    if not os.path.exists(W+'/rec/f%05d.wram'%f): end=f-1; break
     w=open(W+'/rec/f%05d.wram'%f,'rb').read()
     if (w[0x35E]|w[0x35F]<<8)!=lvl: end=f-1; break
     kinds|=set(w[0x8DB+0x50*k+6] for k in range(36) if w[0x8DB+0x50*k])
