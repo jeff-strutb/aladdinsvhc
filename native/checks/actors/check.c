@@ -335,6 +335,24 @@ static void compare(int i)
         uint8_t o = own_at[k];
 
         snprintf(name, sizeof name, "+$%02X", o);
+        if (k + 1 < 32 && own_at[k + 1] == o + 1) {
+            /* a record named in two own bytes: the original's address ($08DB + $50 n), natively the index n */
+            uint16_t word = w16(r, o), own = (uint16_t)(a->own.bytes[k] | a->own.bytes[k + 1] << 8);
+
+            if (word >= RECORD(0) && word < RECORD(ACTOR_RECORDS) && !((word - RECORD(0)) % 0x50)
+                && own == (uint16_t)((word - RECORD(0)) / 0x50)) {
+                compared += 2;
+                k++;            /* the pair matches */
+                continue;
+            }
+        }
+        if (o == 0x4A && a->kind == 0x97) {
+            /* the free-list place ActorFreeListTake gave: a byte offset (2 a record) in the original, the index natively */
+            compared++;
+            if ((uint8_t)(a->own.bytes[k] * 2) != r[o])
+                differ(i, name, a->own.bytes[k], r[o]);
+            continue;
+        }
         if (o == 0x17 || o == 0x2A || o == 0x4B || o == 0x4E || o == 0x4F)
             continue;           /* a pair's second byte, with its first; $4E-$4F: kind $95's hops keep their return there, none here */
         if ((o == 0x43 || o == 0x44 || o == 0x45) && (a->kind == 0x5D || a->kind == 0x8B || a->kind == 0x8C))
@@ -540,6 +558,14 @@ static void made_new_after(void)
 
         if (!g.actors[i].state && r[0x00] == ACTOR_STATE_NEW && is_converted(r[0x06])) {
             record_from(&g.actors[i], wram, i);
+            /* the slot claim the original's making of it did: the kind's graphics place and the palette slots
+               (a kind that makes records of its own kind finds the slot, as there) */
+            g.kind_look[r[0x06]] = w16(wram, 0x1E700 + 2 * r[0x06]);
+            g.kind_slot[r[0x06]] = wram[0x1EB00 + r[0x06]];
+            for (int k = 0; k < 4; k++) {
+                g.palette_slot_users[k] = wram[0x15E9 + k];
+                g.palette_slot_kind[k] = wram[0x15ED + k];
+            }
             printf("frame %d: actor %d (kind $%02X) made new by other code: copied\n", frame, i, r[0x06]);
         }
     }
