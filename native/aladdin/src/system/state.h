@@ -741,7 +741,7 @@ typedef struct GameState {
     uint8_t flier_slots[3];     /* $1478: a guard's three kind $90 fliers, by their +$07: low four bits nonzero, fly on; how each ended ($80 the ground, $40 a wall, 0 its steps ran out) */
     Actor *draw_list[4][32];    /* $1492: the four lists of the actors drawn this frame, $40 bytes each (ActorsInView) */
     uint8_t draw_count[4];      /* $1592, 2 apart: each list's length */
-    uint8_t sprite_flicker;     /* $032D: bit 0 set, actors with +$08 bit 4 not drawn this frame; bit 1, those with bit 5 flash */
+    uint8_t sprite_flicker;     /* $032D: a frame counter (slot 0's turns): bit 0 set, actors with +$08 bit 4 not drawn this frame; bit 1, those with bit 5 flash */
     uint8_t placed[256];        /* $7E:C600: by placement, bit 0 placed, bit 7 never placed again; [255] $FF, children's */
     uint8_t anim_set_of_kind[256];  /* $7F:F000: by kind, its animation set ($FF none); LevelActorGraphicsLoad's marks meanwhile */
     uint8_t anim_set_place[256];    /* $7F:E000: by kind, its set's place in the level's list of sets (4: not listed) */

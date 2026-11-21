@@ -278,8 +278,10 @@ void TaskScheduler(const nshvc_input *input)
             if (t->state < TASK_READY)
                 continue;
             g.task_current = slot;
-            if (slot == 0)
+            if (slot == 0) {
+                g.sprite_flicker++;      /* counted up each time slot 0's task gets its turn (81:BC8C); the flicker and every-eighth-frame tests read it */
                 InputRead(input);
+            }
             if (t->state == TASK_NEW) {
                 t->resume = 0;
                 memset(t->calls, 0, sizeof t->calls);
