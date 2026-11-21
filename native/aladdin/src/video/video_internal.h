@@ -14,6 +14,9 @@ uint16_t vram_step(uint8_t step_byte);      /* the address step a queue record's
 void video_mode7_off(void);                 /* DisplayDefaults: Mode 7's outside back to repeat, writes no longer reach it */
 void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *map_words);   /* Mode7ScreenSetup's conversion */
 
+/* video.c: a window use nibble of the original's and its logic, as the engine's bits */
+uint8_t video_window_use(uint8_t nibble, uint8_t logic);
+
 /* scroll.c: the layers' positions as the NMI sent them */
 void video_scroll_latch(void);              /* ScrollRegistersWrite (80:8793), from video_vblank */
 int32_t video_layer_x(int layer);

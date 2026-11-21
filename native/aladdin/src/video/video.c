@@ -353,7 +353,7 @@ void video_vblank(void)
 
 /* a window use nibble of the original's (bit 0 window 1 inverted, 1 on,
    2 window 2 inverted, 3 on) and its logic, as the engine's */
-static uint8_t window_use(uint8_t nibble, uint8_t logic)
+uint8_t video_window_use(uint8_t nibble, uint8_t logic)
 {
     return (uint8_t)((nibble & 2 ? NSHVC_WIN1 : 0) | (nibble & 1 ? NSHVC_WIN1_INVERT : 0) |
                      (nibble & 8 ? NSHVC_WIN2 : 0) | (nibble & 4 ? NSHVC_WIN2_INVERT : 0) | (logic & 3) << 4);
@@ -490,7 +490,7 @@ void video_draw(void)
     win.w[1].left = g.window_edges[2];
     win.w[1].right = g.window_edges[3];
     for (int i = 0; i < 6; i++)
-        win.layer_use[i] = window_use(g.window_use[i], g.window_logic[i]);
+        win.layer_use[i] = video_window_use(g.window_use[i], g.window_logic[i]);
     for (int i = 0; i < 5; i++) {
         win.mask_main[i] = (uint8_t)(g.window_main >> i & 1);
         win.mask_sub[i] = (uint8_t)(g.window_sub >> i & 1);

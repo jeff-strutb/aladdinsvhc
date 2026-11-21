@@ -173,6 +173,14 @@ static void send_channel(const LineChannel *c, uint32_t top)
         send(NSHVC_LINE_FIXED, field, set);
         break;
     }
+    case LINE_WINDOW_USE_BG34:
+        /* a byte a line: BG3's window use in its low nibble, BG4's in its high */
+        for (int layer = 2; layer < 4; layer++) {
+            for (int i = 0; i < LINES; i++)
+                field[i] = video_window_use((uint8_t)(value[i] >> (4 * (layer - 2)) & 0xF), g.window_logic[layer]);
+            send((nshvc_line_field)(NSHVC_LINE_WIN_USE + layer), field, set);
+        }
+        break;
     case LINE_M7_A:
         for (int i = 0; i < LINES; i++)
             field[i] = (int16_t)value[i];
