@@ -108,6 +108,42 @@ void DevMapDump(uint64_t u)
     fclose(f);
 }
 
+/*
+ * DevDump: ALADDIN_DEV_DUMP=FILE and ALADDIN_DEV_DUMP_AT=U: the game's whole state (g) as bytes at update U, to find
+ * what differs between two runs (with the type's offsets from a debug build's `ptype /o GameState`).
+ */
+void DevDump(uint64_t u)
+{
+    const char *patch = getenv("ALADDIN_DEV_PATCH");   /* U:OFFSET:SIZE:FILE: at update U that part of the state from a dump */
+    unsigned pu, po, ps;
+    char pf[512];
+
+    if (patch && sscanf(patch, "%u:%u:%u:%511s", &pu, &po, &ps, pf) == 4 && u == pu && po + ps <= sizeof g) {
+        FILE *q = fopen(pf, "rb");
+
+        if (q && !fseek(q, (long)po, SEEK_SET) && fread((char *)&g + po, 1, ps, q) == ps)
+            fprintf(stderr, "patched %u bytes at %u\n", ps, po);
+        if (q)
+            fclose(q);
+    }
+    static const char *path;
+    static unsigned at;
+    static int known;
+    FILE *f;
+
+    if (!known) {
+        const char *v;
+
+        known = 1;
+        path = getenv("ALADDIN_DEV_DUMP");
+        at = (v = getenv("ALADDIN_DEV_DUMP_AT")) && *v ? (unsigned)strtoul(v, NULL, 0) : 0;
+    }
+    if (!path || u != at || !(f = fopen(path, "wb")))
+        return;
+    fwrite(&g, sizeof g, 1, f);
+    fclose(f);
+}
+
 #ifdef __unix__
 #include <sys/wait.h>
 #include <unistd.h>

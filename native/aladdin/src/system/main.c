@@ -40,10 +40,10 @@ static void trace_line(void)
         every = v && *v ? (unsigned)strtoul(v, NULL, 0) : 0;
     }
     if (every && nshvc_updates() % every == 0)
-        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u xmin=%u xmax=%u kind=%u\n",
+        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u xmin=%u xmax=%u kind=%u setup=%u\n",
                 nshvc_updates(), (unsigned)g.level, (unsigned)(g.actors[0].x >> 8), (unsigned)(g.actors[0].y >> 8),
                 (unsigned)g.health, (unsigned)g.lives, (unsigned)(g.layers[0].scroll_x >> 8), (unsigned)(g.layers[0].scroll_y >> 8),
-                (unsigned)g.level_exiting, (unsigned)g.scroll_x_min, (unsigned)g.scroll_x_max, (unsigned)g.scroll_kind);
+                (unsigned)g.level_exiting, (unsigned)g.scroll_x_min, (unsigned)g.scroll_x_max, (unsigned)g.scroll_kind, (unsigned)g.layer_setup_mode);
     if (every) {
         static int spots_of = -1;
 
@@ -58,6 +58,16 @@ static void trace_line(void)
             fprintf(stderr, "\n");
         }
     }
+    if (every && getenv("ALADDIN_DEV_VIDEO") && nshvc_updates() % every == 0)
+        fprintf(stderr, "  video mode=%u bg3p=%u t16=%u map=%u,%u,%u tiles=%u,%u,%u,%u lines=%02X mode7=%u split=%u layers=%02X/%02X "
+                "blend=%u/%u/%u/%u/%02X/%u/%u win=%02X/%02X mosaic=%u/%u fixed=%u,%u,%u\n",
+                (unsigned)g.mode, (unsigned)g.bg3_priority, (unsigned)g.tile_size_16, (unsigned)g.bg_map[0], (unsigned)g.bg_map[1],
+                (unsigned)g.bg_map[2], (unsigned)g.bg_tiles[0], (unsigned)g.bg_tiles[1], (unsigned)g.bg_tiles[2],
+                (unsigned)g.bg_tiles[3], (unsigned)g.line_effects_on, (unsigned)g.mode7_how, (unsigned)g.split_on,
+                (unsigned)g.main_layers, (unsigned)g.sub_layers, (unsigned)g.blend_prevent, (unsigned)g.blend_clip,
+                (unsigned)g.blend_use_sub, (unsigned)g.blend_direct_colour, (unsigned)g.blend_layers, (unsigned)g.blend_half,
+                (unsigned)g.blend_subtract, (unsigned)g.window_main, (unsigned)g.window_sub, (unsigned)g.mosaic_size,
+                (unsigned)g.mosaic_layers, (unsigned)g.fixed_red, (unsigned)g.fixed_green, (unsigned)g.fixed_blue);
     if (every && getenv("ALADDIN_DEV_ACTORS") && nshvc_updates() % every == 0) {
         unsigned i;
 
@@ -85,6 +95,7 @@ static void update(const nshvc_input *input)
     trace_line();
     DevShot(nshvc_updates());
     DevMapDump(nshvc_updates());
+    DevDump(nshvc_updates());
 }
 
 static void draw(float between)
