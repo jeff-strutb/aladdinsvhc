@@ -742,6 +742,9 @@ static void loops(void)
     if (custom_kinds) {
         g.range_x = w16(before, 0x1A44);
         g.range_y = w16(before, 0x1A46);
+        /* FrameStep sets the player's place as the frame began before PlayerLoop; this frame's end dump holds it */
+        g.frame_start_x = (uint32_t)wram[0x143A] | (uint32_t)wram[0x143B] << 8 | (uint32_t)wram[0x143C] << 16;
+        g.frame_start_y = (uint32_t)wram[0x143D] | (uint32_t)wram[0x143E] << 8 | (uint32_t)wram[0x143F] << 16;
         if (is_converted(0x00)) {
             PlayerLoop();
         } else {
