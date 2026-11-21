@@ -54,6 +54,8 @@ void abi_PlayerTopSpeedCap(void);
 void abi_SoundQueueAdd(void);
 void abi_PlayerHeldLetGo(void);
 void abi_PlayerHeldJumpOff(void);
+void abi_PlayerHeldAtPoint(void);
+void abi_PlayerHeldJumpTest(void);
 
 /* Pad 1 and the game's actions (system/controls.c) */
 #define PAD1_DIRS 0x0380u           /* pad 1's high byte: B Y Select Start Up Down Left Right */
@@ -63,6 +65,8 @@ void abi_PlayerHeldJumpOff(void);
 #define JUMP_PRESSED 0x0387u        /* nonzero when the jump's button was just pressed */
 
 /* The player's work RAM */
+#define POINT_X 0x000Cu             /* the probe point's x (word) */
+#define POINT_Y 0x000Eu             /* its y (word) */
 #define TILE_BITS 0x0012u           /* the last probed tile's behaviour (bit 5: it hurts) */
 #define HOVER_ON 0x036Eu            /* nonzero: the fourth action makes him hover */
 #define V_141B 0x141Bu
@@ -105,6 +109,114 @@ static void jsl_call(uint32_t site, void (*fn)(void))
     jsl_frame(site);
     fn();
     cpu.s = (uint16_t)(cpu.s + 3);
+}
+
+/* PlayerHeldAtPoint's frames from its BRK ($81:D582): the box wanted from
+   the pose, then the two exits. With `at_test` the first thing done is the
+   jump test at $81:D5E1 (PlayerHeldJumpTest's entry). */
+static void held_at_point_frames(int at_test)
+{
+    for (;;) {
+        if (!at_test) {
+            actor_yield(0x81D582u);
+            ldx8(ea_dp(ACTOR_FRAME));
+            lda8(ea_absx(HELD_BOXES));
+            sta8(ea_abs(PLAYER_BOX_WANTED));
+            lda8(ea_abs(PAD1_DIRS));
+            and8_v(PAD_DOWN);
+            if (!IF_Z) {
+                abi_PlayerHeldLetGo();
+                return;
+            }
+            lda8(ea_abs(JUMP_PRESSED));
+            if (IF_Z)
+                continue;
+        }
+        at_test = 0;
+        lda8(ea_dp(ACTOR_FRAME));
+        sec();
+        cmp8_v(0x04);
+        if (!IF_C)
+            continue;
+        cmp8_v(0x0D);
+        if (IF_C)
+            continue;
+        abi_PlayerHeldJumpOff();
+        return;
+    }
+}
+
+/*
+ * @routine 81:D538 PlayerHeldAtPoint
+ * @actor
+ * WHAT IT DOES: An older start of Aladdin's held state that nothing in
+ * the ROM sends him to (no code, table or resume address holds $D538):
+ * he is put at the probe point's tile (x and y rounded down to 16, plus
+ * 9 and $0C - 8), his hold's sound and pose, and a kind $12 actor made;
+ * then each frame his box wanted follows his pose, and down on the pad
+ * lets go (PlayerHeldLetGo) and the jump's press tests the pose
+ * (PlayerHeldJumpTest). cov_player_held_start pokes his resume address
+ * to $D538.
+ * HOW: SoundQueueAdd 6; V_141C, AIR_THROW and PLAYER_LANDED 0, V_1427 up;
+ * (16-bit A) x pixels = POINT_X with the low 4 bits cleared, or 9; y
+ * pixels = POINT_Y with the low 4 bits cleared, or $0C, less 8;
+ * PlayerFlagsClear; PlayerMoveStart $10; ActorAllocBLong: a record (N
+ * clear, X 16-bit): its state $0C and kind HOLD_KIND, X 8-bit. Each frame
+ * (BRK first): PLAYER_BOX_WANTED from HELD_BOXES by ACTOR_FRAME; down on
+ * the pad: on at PlayerHeldLetGo; JUMP_PRESSED: on at PlayerHeldJumpTest;
+ * else the next frame.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the actor loop's RTI at the resume address. Exit: never returns.
+ */
+void abi_PlayerHeldAtPoint(void)
+{
+    lda8_v(0x06);
+    jsl_call(0x81D53Au, abi_SoundQueueAdd);
+    stz8(ea_abs(V_141C));
+    stz8(ea_abs(AIR_THROW));
+    stz8(ea_abs(PLAYER_LANDED));
+    MEM8(inc, ea_abs(V_1427));
+    op_rep(P_M);
+    lda16(ea_abs(POINT_X));
+    and16_v(0xFFF0);
+    ora16_v(0x0009);
+    sta16(ea_dp(ACTOR_X + 1));
+    lda16(ea_abs(POINT_Y));
+    and16_v(0xFFF0);
+    ora16_v(0x000C);
+    sec();
+    sbc16_v(0x0008);
+    sta16(ea_dp(ACTOR_Y + 1));
+    op_sep(P_M);
+    call_frame(0xD56A, abi_PlayerFlagsClear);
+    lda8_v(0x10);
+    call_frame(0xD56F, abi_PlayerMoveStart);
+    jsl_call(0x81D570u, abi_ActorAllocBLong);
+    if (!IF_N) {
+        lda8_v(STATE_START);
+        sta8(ea_absx(ACTOR_STATE));
+        lda8_v(HOLD_KIND);
+        sta8(ea_absx(ACTOR_06));
+        op_sep(P_X);
+    }
+    held_at_point_frames(0);
+}
+
+/*
+ * @routine 81:D5E1 PlayerHeldJumpTest
+ * @actor
+ * WHAT IT DOES: The jump's press in PlayerHeldAtPoint's held state: with
+ * his pose (ACTOR_FRAME) 4 to $0C he jumps off (PlayerHeldJumpOff, A =
+ * the pose); else the held frames go on. cov_player_held_start runs it
+ * from PlayerHeldAtPoint; no other code reaches it.
+ * HOW: A = ACTOR_FRAME; below 4 or from $0D: back to PlayerHeldAtPoint's
+ * frame (its BRK at $81:D582); else on into PlayerHeldJumpOff.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by a
+ * branch from PlayerHeldAtPoint. Exit: never returns.
+ */
+void abi_PlayerHeldJumpTest(void)
+{
+    held_at_point_frames(1);
 }
 
 /*

@@ -24,6 +24,8 @@ arch 65816
 !JUMP_PRESSED = $0387           ; nonzero when the jump's button was just pressed
 
 ; The player's work RAM
+!POINT_X = $000C                ; the probe point's x (word)
+!POINT_Y = $000E                ; its y (word)
 !TILE_BITS = $0012              ; the last probed tile's behaviour (bit 5: it hurts)
 !HOVER_ON = $036E               ; nonzero: the fourth action makes him hover
 !V_141B = $141B
@@ -60,6 +62,68 @@ arch 65816
 ; Kinds and states
 !HOLD_KIND = $12                ; the kind of the actor started beside him while held
 !STATE_START = $0C
+
+; @routine 81:D538 PlayerHeldAtPoint
+; @actor
+; WHAT IT DOES: An older start of Aladdin's held state that nothing in the
+; ROM sends him to (no code, table or resume address holds $D538): he is
+; put at the probe point's tile (x and y rounded down to 16, plus 9 and
+; $0C - 8), his hold's sound and pose, and a kind $12 actor made; then
+; each frame his box wanted follows his pose, and down on the pad lets
+; go (PlayerHeldLetGo) and the jump's press tests the pose
+; (PlayerHeldJumpTest). cov_player_held_start pokes his resume address
+; to $D538.
+; HOW: SoundQueueAdd 6; V_141C, AIR_THROW and PLAYER_LANDED 0, V_1427 up;
+; (16-bit A) x pixels = POINT_X with the low 4 bits cleared, or 9; y
+; pixels = POINT_Y with the low 4 bits cleared, or $0C, less 8;
+; PlayerFlagsClear; PlayerMoveStart $10; ActorAllocBLong: a record (N
+; clear, X 16-bit): its state $0C and kind HOLD_KIND, X 8-bit. Each frame
+; (BRK first): PLAYER_BOX_WANTED from HELD_BOXES by ACTOR_FRAME; down on
+; the pad: on at PlayerHeldLetGo; JUMP_PRESSED: on at PlayerHeldJumpTest;
+; else the next frame.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the actor loop's RTI at the resume address. Exit: never returns.
+%at($81D538)
+PlayerHeldAtPoint:
+    lda.b #$06
+    jsl.l SoundQueueAdd
+    stz.w !V_141C
+    stz.w !AIR_THROW
+    stz.w !PLAYER_LANDED
+    inc.w !V_1427
+    rep.b #$20
+    lda.w !POINT_X
+    and.w #$FFF0
+    ora.w #$0009
+    sta.b !actor_x+1
+    lda.w !POINT_Y
+    and.w #$FFF0
+    ora.w #$000C
+    sec
+    sbc.w #$0008
+    sta.b !actor_y+1
+    sep.b #$20
+    jsr.w PlayerFlagsClear
+    lda.b #$10
+    jsr.w PlayerMoveStart
+    jsl.l ActorAllocBLong
+    bmi .frame
+    lda.b #!STATE_START
+    sta.w !actor_state,x
+    lda.b #!HOLD_KIND
+    sta.w !actor_06,x
+    sep.b #$10
+.frame:
+    brk.b #$00
+    ldx.b !ACTOR_FRAME
+    lda.w !HELD_BOXES,x
+    sta.w !player_box_wanted
+    lda.w !PAD1_DIRS
+    and.b #!PAD_DOWN
+    bne PlayerHeldLetGo
+    lda.w !JUMP_PRESSED
+    bne PlayerHeldJumpTest
+    bra .frame
 
 ; @routine 81:D59A PlayerHeldLetGo
 ; @actor
@@ -101,6 +165,25 @@ PlayerHeldLetGo:
     lda.b #$03
     sta.b !FRAMES_40
     jmp.w PlayerAirTimed
+
+; @routine 81:D5E1 PlayerHeldJumpTest
+; @actor
+; WHAT IT DOES: The jump's press in PlayerHeldAtPoint's held state: with
+; his pose (ACTOR_FRAME) 4 to $0C he jumps off (PlayerHeldJumpOff, A =
+; the pose); else the held frames go on. cov_player_held_start runs it
+; from PlayerHeldAtPoint; no other code reaches it.
+; HOW: A = ACTOR_FRAME; below 4 or from $0D: back to PlayerHeldAtPoint's
+; frame (its BRK at $81:D582); else on into PlayerHeldJumpOff.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by a
+; branch from PlayerHeldAtPoint. Exit: never returns.
+%at($81D5E1)
+PlayerHeldJumpTest:
+    lda.b !ACTOR_FRAME
+    sec
+    cmp.b #$04
+    bcc PlayerHeldAtPoint_frame
+    cmp.b #$0D
+    bcs PlayerHeldAtPoint_frame
 
 ; @routine 81:D5EC PlayerHeldJumpOff
 ; @actor

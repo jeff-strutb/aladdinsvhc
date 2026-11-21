@@ -1,0 +1,7 @@
+# The screen set-ups of levels $13 ($81:8D41) and $1F ($81:8E05), each one RTS that the table by level at $81:8802 jumps to. No script
+# plays either level, so each is called at its own entry, as a subroutine, with M and X 8-bit, DB $80, on the first level's state at
+# frame 10 (the jump through the table and this JSR both end by the RTS to the caller).
+load build/aladdin/states/level1.state
+wait 10
+call 818D41 p=30 db=80
+call 818E05 p=30 db=80

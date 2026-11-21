@@ -1,0 +1,35 @@
+# The start of Aladdin's held state that no actor sends him to: 81:D538 (98 bytes, PlayerHeld's code from $81:D6F8 without the copier
+# check: sound 6, his hold and throw counters cleared, V_1427 up, a kind $12 record made, then each frame the box from his pose and the
+# two exits) and the jump-off test it branches to at 81:D5E1 (the pose 4 to $0C, on into PlayerHeldJumpOff). No code, table or resume
+# address in the ROM holds $D538, so it is reached as the actor loop reaches any state: his resume address ($08DE) poked to $D538
+# (and P to $30, M and X 8-bit as every actor start), where the actor loop's RTI then starts it.
+# A. 10 frames into the first level (standing, nothing near) it starts; 8 frames held; B pressed with his pose ($2F, $090A) $0E (outside
+#    4 to $0C: $81:D5E6 and D5EA go back to the frame; nothing steps his pose while he is held), then with the pose 6: on into
+#    PlayerHeldJumpOff.
+# B. The same start; down on the pad: on into PlayerHeldLetGo ($81:D59A).
+# C. The jump test entered at its own entry (the resume address poked to $D5E1, as PlayerHeldJumpTest's A5 calls need): pose $0E, back to the
+#    frames; then pose 6 and B: on into PlayerHeldJumpOff.
+load build/aladdin/states/level1.state
+wait 10
+poke 0008DD 30,38,D5
+wait 8
+poke 00090A 0E
+press B
+wait 4
+poke 00090A 06
+press B
+wait 40
+load build/aladdin/states/level1.state
+wait 10
+poke 0008DD 30,38,D5
+wait 8
+press DOWN
+wait 40
+load build/aladdin/states/level1.state
+wait 10
+poke 0008DD 30,E1,D5
+poke 00090A 0E
+wait 6
+poke 00090A 06
+press B
+wait 40

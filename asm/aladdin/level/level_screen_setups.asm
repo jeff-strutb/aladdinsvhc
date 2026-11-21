@@ -1064,3 +1064,23 @@ ModeBandsSetup:
     lda.w !BAND_SETS+6,x
     sta.w !BAND_LAYERS+7
     rts
+
+; @routine 81:8D41 Level13ScreenSetup
+; WHAT IT DOES: Level $13's screen set-up: nothing (an RTS). No script
+; plays level $13: unit_screen_setup_rts calls it at its own entry.
+; HOW: RTS.
+; Entry: reached by the jump through the table by level at $81:8802
+; (81:87FF). Exit: every register and flag unchanged.
+%at($818D41)
+Level13ScreenSetup:
+    rts
+
+; @routine 81:8E05 Level1FScreenSetup
+; WHAT IT DOES: Level $1F's screen set-up: nothing (an RTS). No script
+; plays level $1F: unit_screen_setup_rts calls it at its own entry.
+; HOW: RTS.
+; Entry: reached by the jump through the table by level at $81:8802
+; (81:87FF). Exit: every register and flag unchanged.
+%at($818E05)
+Level1FScreenSetup:
+    rts
