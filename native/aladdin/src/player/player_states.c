@@ -597,27 +597,20 @@ static int land_hard_done(Actor *a)
  * (the tile's mirror and his flip must differ, else on in the air), his
  * speeds stopped, the grab's sound and pose; on to hang.
  */
-/* A ledge that faces the wrong way for him is not caught, and his horizontal
-   speed loses its fraction there (the whole pixels stay: $0180 becomes
-   $0100). The original does this (81:D470 PlayerLedgeGrab into PlayerAirLand)
-   and his timing in the demos' scripted input depends on it. */
-static int ledge_wrong_way(Actor *a)
-{
-    a->speed_x = (int32_t)((uint32_t)a->speed_x & ~0xFFu);
-    return PlayerGoTo(a, P_AIR_LAND);
-}
-
+/* A ledge that faces the wrong way for him is not caught: on in the air. (The
+   original also takes the fraction off his speed across there: docs/aladdin/
+   native/DEPARTURES.md, 1.) */
 static int ledge_grab(Actor *a)
 {
     uint16_t corner = player_point.x & 0xFFF0;
 
     if (!player_point.mirrored) {
         if (a->flip)
-            return ledge_wrong_way(a);
+            return PlayerGoTo(a, P_AIR_LAND);
         set_x_pixels(a, (uint16_t)(corner + 0x0001));
     } else {
         if (!a->flip)
-            return ledge_wrong_way(a);
+            return PlayerGoTo(a, P_AIR_LAND);
         set_x_pixels(a, (uint16_t)(corner + 0x000F));
     }
     set_y_pixels(a, (uint16_t)((player_point.y & 0xFFF0) + 0x0001));
