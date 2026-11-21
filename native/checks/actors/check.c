@@ -114,7 +114,7 @@ static int world_managed(const char *n)
    not run unless his kinds are listed. */
 static int world_player(const char *n)
 {
-    return !strncmp(n, "player_", 7) || !strcmp(n, "health") || !strncmp(n, "test_box", 8);
+    return !strncmp(n, "player_", 7) || !strcmp(n, "boss_beaten") || !strcmp(n, "health") || !strncmp(n, "test_box", 8);
 }
 
 static void load_world(const uint8_t *w, int player)

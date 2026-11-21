@@ -67,8 +67,8 @@ int Kind4EStart(Actor *a)
         a->resume = SPRING_STEP;
         return 8;
     case SPRING_STEP:
-        if (++a->own.bytes[POSE] < 6) {
-            AnimStart(a, a->own.bytes[POSE]);
+        if (a->own.bytes[POSE] < 5) {   /* it stays 5 at the rest, as the original's */
+            AnimStart(a, ++a->own.bytes[POSE]);
             return 8;
         }
         return rest(a);
