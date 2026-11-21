@@ -126,6 +126,15 @@ enum {
     P_RIDE_BOB_1,
     P_RIDE_BOB_2,
     P_RIDE_BOB_3,
+    P_RIDE_T1,
+    P_RIDE_T2,
+    P_RIDE_T3,
+    P_RIDE_T4,
+    P_RIDE_T5,
+    P_RIDE_T6,
+    P_STORY_1 = PLAYER_BLOCK(5) + 0x60,
+    P_STORY_2, P_STORY_3, P_STORY_4, P_STORY_5, P_STORY_6, P_STORY_7, P_STORY_8, P_STORY_9,
+    P_STORY_10, P_STORY_11, P_STORY_12, P_STORY_13, P_STORY_14,
 
     /* exits.c (its entries in player.h from PLAYER_BLOCK(4)) */
     P_ESCORT_WALK = PLAYER_BLOCK(4) + 0x10,

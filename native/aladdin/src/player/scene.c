@@ -9,10 +9,7 @@
  * them): 81:DDC1 PlayerScenePlaceHigh, 81:DDE0 PlayerScenePlaceLow, 81:DF3A
  * PlayerSceneWaitWalk, 81:DF6F PlayerSceneJumpIn, 81:E0AE PlayerSceneWalkOut,
  * 81:E154 PlayerSceneCued and the steps only they call (81:E224, 81:E22C,
- * 81:E235). Not converted yet: 81:DE79 PlayerStory (it waits on the opening
- * story's parts, whose task has no TaskEntry id, and the story places no
- * player here yet), and the ending ride's continuation at 81:E315 (the
- * record has not filed it).
+ * 81:E235).
  */
 #include "player/player_own.h"
 #include "system/task.h"
@@ -292,7 +289,13 @@ static bool ride_at(uint8_t screen)
  * WHAT IT DOES: ($07 14) He rides the carpet across the ending: right at 2
  * pixels a frame for $57 frames, then bobbing at 3/4 of a pixel a frame as
  * the play field scrolls: move 0 to screen 5, move 3 for $1B0 frames, move
- * 4 to screen 12, and on (the record has not filed what follows).
+ * 4 to screen 12, then (81:E315, which the record has not filed: read from
+ * its bytes) move 1 for $149 frames bobbing up, move 2 to screen $17, move 3
+ * for $1BA frames bobbing down, move 4 to screen $1E (holding the camera
+ * down at screen 2 across), then move 1 accelerating until he is off the
+ * screen's right, when $1B14 is counted up, he is put out of sight (x high
+ * byte $22, y high byte $FE, still, his +$08 $80), and after 255 frames the
+ * camera is held; he stays.
  */
 static int ending_ride(Actor *a)
 {
@@ -359,13 +362,199 @@ static int ride_bob_3(Actor *a)
     ActorMoveX(a);
     if (!ride_at(0x0C))
         return 1;
-    return player_unconverted(a, "PlayerEndingRide's continuation (81:E315): the record has not filed it");
+    POSE_TIMER(a) = 0;
+    PlayerMoveChange(a, 0x01);
+    a->own.bytes[OWN_46] = 0x49;
+    a->own.bytes[OWN_47] = 0x01;
+    return next_frame(a, P_RIDE_T1);
+}
+
+static bool tail_count_done(Actor *a)
+{
+    uint16_t n = (uint16_t)((a->own.bytes[OWN_46] | a->own.bytes[OWN_47] << 8) - 1);
+
+    a->own.bytes[OWN_46] = (uint8_t)n;
+    a->own.bytes[OWN_47] = (uint8_t)(n >> 8);
+    return n == 0;
+}
+
+static uint8_t scroll_screen_x(void) { return (uint8_t)(pixels(g.layers[0].scroll_x) >> 8); }
+static uint8_t scroll_screen_y(void) { return (uint8_t)(pixels(g.layers[0].scroll_y) >> 8); }
+
+static int ride_t1(Actor *a)
+{
+    a->own.bytes[OWN_49] = 1;
+    ActorBobY(a);
+    ActorMoveX(a);
+    if (!tail_count_done(a))
+        return 1;
+    PlayerMoveChange(a, 0x02);
+    return next_frame(a, P_RIDE_T2);
+}
+
+static int ride_t2(Actor *a)
+{
+    ActorBobY(a);
+    ActorMoveX(a);
+    if (scroll_screen_x() != 0x17)
+        return 1;
+    POSE_TIMER(a) = 1;
+    PlayerMoveChange(a, 0x03);
+    a->own.bytes[OWN_46] = 0xBA;
+    a->own.bytes[OWN_47] = 0x01;
+    return next_frame(a, P_RIDE_T3);
+}
+
+static int ride_t3(Actor *a)
+{
+    a->own.bytes[OWN_49] = 0;
+    ActorBobY(a);
+    ActorMoveX(a);
+    if (!tail_count_done(a))
+        return 1;
+    POSE_TIMER(a) = 0;
+    PlayerMoveChange(a, 0x04);
+    return next_frame(a, P_RIDE_T4);
+}
+
+static int ride_t4(Actor *a)
+{
+    ActorBobY(a);
+    ActorMoveX(a);
+    if (scroll_screen_y() == 0x02)
+        g.scroll_y_held = (uint16_t)((g.scroll_y_held & 0xFF00) | 0x01);
+    if (scroll_screen_x() != 0x1E)
+        return 1;
+    g.scroll_y_held &= 0xFF00;
+    PlayerMoveChange(a, 0x01);
+    g.scroll_x_held = (uint16_t)((g.scroll_x_held & 0xFF00) | 0x01);
+    g.view_edge_rule = 0x04;
+    a->accel_x = 0x08;
+    a->accel_y = 0x08;
+    return next_frame(a, P_RIDE_T5);
+}
+
+static int ride_t5(Actor *a)
+{
+    a->own.bytes[OWN_49] = 1;
+    ActorBobY(a);
+    ActorAccelerateX(a);
+    ActorMoveX(a);
+    if ((uint16_t)(pixels(g.layers[0].scroll_x) + 0x0140) >= x_pixels(a))
+        return 1;
+    g.boss_beaten++;
+    set_x_pixels(a, (uint16_t)((x_pixels(a) & 0x00FF) | 0x2200));
+    set_y_pixels(a, (uint16_t)((y_pixels(a) & 0x00FF) | 0xFE00));
+    ActorStopY(a);
+    a->anim_flags = 0x80;
+    a->resume = P_RIDE_T6;
+    return 0xFF;
+}
+
+static int ride_t6(Actor *a)
+{
+    g.scroll_y_held = (uint16_t)((g.scroll_y_held & 0xFF00) | 0x01);
+    g.scroll_x_held = (uint16_t)((g.scroll_x_held & 0xFF00) | 0x01);
+    return next_frame(a, P_STAY);
+}
+
+/*
+ * @routine 81:DE79 PlayerStory
+ * WHAT IT DOES: ($07 7) He is in the ending story's scene: he turns this way
+ * and that (move 5 for 8 frames, then move 0) as its figures come and its
+ * pages of text go (the text task, slot 4, busy), starts the story's next
+ * two pages (the text task 81:F344, parameters 9 and $0B), and when its
+ * parts are done is shown no more (his +$09 bits 6 and 7 cleared, x's high
+ * byte 1).
+ */
+#define TEXT_SLOT 4
+
+static Task *story_task(void) { return &g.tasks[0]; }
+
+static int story_start(Actor *a)
+{
+    a->own_pictures = player_pictures();
+    g.player_box_wanted = 0;
+    g.player_anim_held = 0;
+    a->facing = 1;
+    a->flip = 1;
+    PlayerMoveStart(a, 0x00);
+    a->flags = 0xD0;
+    a->redraw = 0xFF;
+    return next_frame(a, P_STORY_1);
+}
+
+/* a turn: move 5 for 8 frames; it ends with move 0 (the step after) */
+static int story_turn(Actor *a, uint16_t then)
+{
+    PlayerMoveStart(a, 0x05);
+    return wait_then(a, then, 0x08);
+}
+
+static int story_step(Actor *a)
+{
+    switch (a->resume) {
+    case P_STORY_1:
+        if (!story_task()->own.ending_story.figures_in_place)
+            return 1;
+        return story_turn(a, P_STORY_2);
+    case P_STORY_2:
+        PlayerMoveStart(a, 0x00);
+        a->flip = 0;
+        return next_frame(a, P_STORY_3);
+    case P_STORY_3:
+        if (task_busy(TEXT_SLOT))
+            return 1;
+        return wait_then(a, P_STORY_4, 0x20);
+    case P_STORY_4:
+        return story_turn(a, P_STORY_5);
+    case P_STORY_5:
+        PlayerMoveStart(a, 0x00);
+        a->flip++;
+        return wait_then(a, P_STORY_6, 0x20);
+    case P_STORY_6:
+        TaskCreate(TEXT_SLOT, 0x09, TASK_ENTRY_STORY_TEXT1);
+        return next_frame(a, P_STORY_7);
+    case P_STORY_7:
+        if (task_busy(TEXT_SLOT))
+            return 1;
+        return wait_then(a, P_STORY_8, 0x20);
+    case P_STORY_8:
+        return story_turn(a, P_STORY_9);
+    case P_STORY_9:
+        PlayerMoveStart(a, 0x00);
+        a->flip = 0;
+        TaskCreate(TEXT_SLOT, 0x0B, TASK_ENTRY_STORY_TEXT1);
+        return next_frame(a, P_STORY_10);
+    case P_STORY_10:
+        if (task_busy(TEXT_SLOT))
+            return 1;
+        return wait_then(a, P_STORY_11, 0x10);
+    case P_STORY_11:
+        story_task()->own.ending_story.parts_go = 0x80;
+        return next_frame(a, P_STORY_12);
+    case P_STORY_12:
+        if (!story_task()->own.ending_story.part3_done)
+            return 1;
+        return story_turn(a, P_STORY_13);
+    case P_STORY_13:
+        PlayerMoveStart(a, 0x00);
+        a->flip++;
+        return next_frame(a, P_STORY_14);
+    default:                        /* P_STORY_14 */
+        if (story_task()->param == 0x04)
+            return 1;
+        a->flags &= 0x3F;
+        set_x_pixels(a, (uint16_t)((x_pixels(a) & 0x00FF) | 0x0100));
+        return next_frame(a, P_STAY);
+    }
 }
 
 int player_scene_code(Actor *a)
 {
     switch (a->resume) {
     case PLAYER_AT_START_DROPPED:   return start_dropped(a);
+    case PLAYER_AT_STORY:           return story_start(a);
     case PLAYER_AT_START_NEW_GAME:  return start_new_game(a);
     case PLAYER_AT_SCENE_WALK_ON:   return walk_on(a);
     case PLAYER_AT_SCENE_WALK_RIGHT:return walk_right(a);
@@ -398,6 +587,15 @@ int player_scene_code(Actor *a)
     case P_RIDE_BOB_1:              return ride_bob_1(a);
     case P_RIDE_BOB_2:              return ride_bob_2(a);
     case P_RIDE_BOB_3:              return ride_bob_3(a);
-    default:                        return player_unconverted(a, "a resume point of scene.c");
+    case P_RIDE_T1:                 return ride_t1(a);
+    case P_RIDE_T2:                 return ride_t2(a);
+    case P_RIDE_T3:                 return ride_t3(a);
+    case P_RIDE_T4:                 return ride_t4(a);
+    case P_RIDE_T5:                 return ride_t5(a);
+    case P_RIDE_T6:                 return ride_t6(a);
+    default:
+        if (a->resume >= P_STORY_1 && a->resume <= P_STORY_14)
+            return story_step(a);
+        return player_unconverted(a, "a resume point of scene.c");
     }
 }

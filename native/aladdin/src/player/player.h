@@ -56,6 +56,7 @@ enum {
 
     PLAYER_AT_SCENE_CUED = PLAYER_BLOCK(5),         /* 81:E154 PlayerSceneCued: a scene's actor has him */
     PLAYER_AT_START_DROPPED,                        /* 81:DDFF PlayerStartDropped ($07 5) */
+    PLAYER_AT_STORY,                                /* 81:DE79 PlayerStory ($07 7: the ending story's) */
     PLAYER_AT_START_NEW_GAME,                       /* 81:DE32 PlayerStartNewGame ($07 6) */
     PLAYER_AT_SCENE_WALK_ON,                        /* 81:E042 PlayerSceneWalkOn ($07 10) */
     PLAYER_AT_SCENE_WALK_RIGHT,                     /* 81:E126 PlayerSceneWalkRight ($07 11) */

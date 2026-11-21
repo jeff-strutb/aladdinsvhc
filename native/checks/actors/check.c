@@ -133,6 +133,12 @@ static void load_world(const uint8_t *w, int player)
                 to[b] = w[wf->at + k * wf->bytes + b];
         }
     }
+    if (!player) {
+        /* the play field's scroll ($1738 + $3A, $3E: a path with [] the
+           generated table leaves out), which the map tests read for the player */
+        g.layers[0].scroll_x = w24(w, 0x1738 + 0x3A);
+        g.layers[0].scroll_y = w24(w, 0x1738 + 0x3E);
+    }
     if (!player)
         for (k = 0; k < sizeof g.screen_map.places / sizeof g.screen_map.places[0]; k++)
             g.screen_map.places[k] = (uint16_t)(w[0x1F000 + 2 * k] | w[0x1F001 + 2 * k] << 8);
@@ -452,6 +458,33 @@ static void made_for_kinds(void)
 {
     int i;
 
+    /* Aladdin's record, made by the level's set-up in the frame it first runs:
+       new, with what the set-up gave it (his place, kind and +$07, look and
+       box, as the dump has them) and nothing his start sets */
+    if (is_converted(0x00) && !g.actors[0].state && !before[RECORD(0)] && wram[RECORD(0)] && !untracked[0]) {
+        Actor *p = &g.actors[0];
+        const uint8_t *r = wram + RECORD(0);
+
+        record_from(p, wram, 0);
+        p->state = ACTOR_STATE_NEW;
+        p->wait = 0;
+        p->resume = ACTOR_START;
+        p->kind = r[0x06];
+        p->spawn_byte = r[0x07];
+        p->anim_flags = 0;
+        p->flags = 0;
+        p->facing = p->flip = 0;
+        p->speed_x = p->speed_y = 0;
+        p->accel_x = p->accel_y = 0;
+        p->spawn_at = 0;
+        p->redraw = 0;
+        p->probes.at = 0;
+        p->probe_at = 0;
+        p->own_pictures.at = 0;
+        memset(p->own.bytes, 0, sizeof p->own.bytes);
+        printf("frame %d: actor 0 (kind $%02X) made by the level's set-up: new\n", frame, p->kind);
+    }
+
     for (i = 1; i < ACTOR_RECORDS; i++) {
         const uint8_t *r = wram + RECORD(i);
         Actor *a = &g.actors[i];
@@ -637,8 +670,17 @@ static void init(void)
         g.range_x = w16(wram, 0x1A44);
         g.range_y = w16(wram, 0x1A46);
         g.pause_block = wram[0x0404];
-        if (custom_kinds)
+        if (custom_kinds) {
             load_world(before, 0);      /* the world the frame starts from */
+            /* but the pads as this frame read them (before its loops: the
+               task scheduler's first turn): the dump's, not the last frame's */
+            memcpy(g.pad_held, wram + 0x0377, sizeof g.pad_held);
+            memcpy(g.pad_pressed, wram + 0x037B, sizeof g.pad_pressed);
+            g.pad1_held = w16(wram, 0x037F);
+            g.pad1_pressed = w16(wram, 0x0381);
+            memcpy(g.action_held, wram + 0x0383, sizeof g.action_held);
+            memcpy(g.action_pressed, wram + 0x0387, sizeof g.action_pressed);
+        }
         freed_by_others();
         if (custom_kinds)
             made_for_kinds();
@@ -669,7 +711,7 @@ static void init(void)
             made_by_others(1);
         if (!custom_kinds)
             compare_pools();
-        for (i = 1; i < ACTOR_RECORDS; i++) {
+        for (i = custom_kinds && is_converted(0x00) ? 0 : 1; i < ACTOR_RECORDS; i++) {
             if (custom_kinds && !g.actors[i].state && wram[RECORD(i)] && wram[RECORD(i) + 6] != g.actors[i].kind)
                 ;               /* freed here and reused by another kind in the same frame: the original's new record is not the old kind's */
             else if (!untracked[i] && (is_converted(g.actors[i].kind) || is_converted(wram[RECORD(i) + 6])))

@@ -24,7 +24,7 @@ static const struct {
     { 0, "PlayerScenePlaceLow (81:DDE0): no level plays it, not converted" },     /*  4 */
     { PLAYER_AT_START_DROPPED, NULL },      /*  5 */
     { PLAYER_AT_START_NEW_GAME, NULL },      /*  6 */
-    { 0, "PlayerStory (81:DE79)" },             /*  7 */
+    { PLAYER_AT_STORY, NULL },             /*  7 */
     { 0, "PlayerSceneJumpIn (81:DF6F): no level plays it, not converted" },       /*  8 */
     { PLAYER_AT_SCENE_LAND, NULL },         /*  9 */
     { PLAYER_AT_SCENE_WALK_ON, NULL },       /* 10 */
