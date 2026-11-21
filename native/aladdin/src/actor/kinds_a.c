@@ -46,7 +46,7 @@ const KindCode kinds_a[] = {
     { 0x46, Kind46Start, Kind46Start, NULL, Kind46Wait },
     { 0x62, Kind46Start, Kind62Second, NULL, Kind62Wait },
     /* $67: its second entry, kind $68's start, is left aside */
-    { 0x67, Kind67Start, NULL, NULL, Kind67Wait },
+    { 0x67, Kind67Start, Kind67Second, NULL, Kind67Wait },
     { 0x6E, Kind6EStart, Kind6EStart, NULL, Kind6EWait },
     { 0x7C, Kind7CStart, Kind7CStart, NULL, Kind7CWait },
     { 0xA3, KindA3Shot, NULL, NULL, AnimateWhileWaiting },

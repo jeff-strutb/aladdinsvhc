@@ -24,6 +24,7 @@ int Kind70Second(Actor *a);
 int Kind76Second(Actor *a);
 int Kind77Second(Actor *a);
 int Kind62Second(Actor *a);
+int Kind67Second(Actor *a);
 
 /* ---- the kinds' code (each: frames to wait, or ACTOR_ENDED) ---- */
 

@@ -5,6 +5,7 @@
  * entry in kinds_b.c.
  */
 #include "actor/actor_own.h"
+#include "actor/kinds_c.h"
 #include "actor/kinds_d.h"
 
 /* 83:CFA9 Kind4EStart: kind $4D's second entry */
@@ -21,3 +22,6 @@ int Kind62Second(Actor *a) { return ActorRunAs(a, PlatformCourseStart, ACTOR_STA
 
 /* 83:F541 Kind79Rise (kind $79's start): kinds $77 and $78's second entry */
 int Kind77Second(Actor *a) { return ActorRunAs(a, Kind79Rise, ACTOR_START); }
+
+/* 83:E6BB Kind68Code (kind $68's start): kind $67's second entry (83:8DFD) */
+int Kind67Second(Actor *a) { return ActorRunAs(a, Kind68Code, ACTOR_START); }
