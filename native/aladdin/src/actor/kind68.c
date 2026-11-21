@@ -47,7 +47,7 @@ static void set_back(Actor *a, uint16_t v) { a->speed_x = (int32_t)(((uint32_t)a
 
 enum {
     SPAWNER = ACTOR_RESUME_OWN,
-    MOVE_START,                 /* after its first wait: one more frame */
+    FIRST_WAIT,                 /* each frame of its first wait (its +$40 word counts down) */
     MOVE,                       /* each frame of its leg */
     PAUSE,                      /* each frame of its pause at a leg's end */
     STAY,                       /* a copier's: for good (never reached on the retail board) */
@@ -180,6 +180,8 @@ int Kind68Wait(Actor *a)
     uint8_t *on = &a->own.bytes[OWN_16], *was_on = &a->own.bytes[OWN_17];
     uint16_t kept = pixels(player->x);
 
+    /* the original keeps his x in its +$1D (the vertical speed's low word) */
+    a->speed_y = (int32_t)(((uint32_t)a->speed_y & ~0xFFFFu) | kept);
     *on = 0;
     if (a->accel_y) {
         a->accel_y--;
@@ -189,7 +191,7 @@ int Kind68Wait(Actor *a)
         *on = 1;
         player->x = with_pixels(player->x, (uint16_t)(pixels(a->x) - kept_x + pixels(player->x)));
         if (PlayerOnFirmGroundProbe8() || PlayerOnFirmGroundProbe4() || PlayerOnFirmGround())
-            player->x = with_pixels(player->x, kept);
+            player->x = with_pixels(player->x, (uint16_t)a->speed_y);
     }
     if (!(g.scroll_limit_y >> 8))
         return ActorEndPlaced(a);
@@ -247,8 +249,9 @@ static int start(Actor *a)
     o->last_x = (uint8_t)pixels(a->x);
     ActorKeepSpot(a);
     AnimStart(a, k68_pose(o->shape));
-    a->resume = MOVE_START;
-    return k68_start_wait(v07);
+    set_word(o->wait, k68_start_wait(v07));
+    a->resume = FIRST_WAIT;
+    return 1;
 }
 
 /* A frame of its leg: moves; once ten pixels along it writes its blocks
@@ -293,8 +296,11 @@ int Kind68Code(Actor *a)
         return start(a);
     case ACTOR_START_SECOND:
         return ActorRunAs(a, Kind69Start, ACTOR_START);
-    case MOVE_START:
-        a->resume = MOVE;
+    case FIRST_WAIT:
+        set_word(own(a)->wait, (uint16_t)(word(own(a)->wait) - 1));
+        if (word(own(a)->wait))
+            return 1;
+        a->resume = MOVE;           /* the leg's loop begins with its own frame */
         return 1;
     case MOVE:
         return move_frame(a);
@@ -302,7 +308,7 @@ int Kind68Code(Actor *a)
         ActorKeepSpot(a);
         if (--own(a)->wait[0])
             return 1;
-        a->resume = MOVE_START;
+        a->resume = MOVE;
         return 1;
     default:
         return kind_lost(a, "Kind68Code");
