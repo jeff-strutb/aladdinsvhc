@@ -363,8 +363,8 @@ static void playfield_3_stages(void)
  * the level asks: its handler, by g.layer_setup_mode (the original's
  * $083F, times 2): 0 ParallaxHalf, 2 ParallaxFull, 4 ParallaxHalfY, 6
  * ParallaxHalfXY80, 8 ParallaxHalfX, $0A BandTableSet2, $0C ParallaxDrift,
- * $0E BandTable, $10 PlayField3Stages, $12 ParallaxNone (the table at
- * $81:C781).
+ * $0E BandTable, $10 PlayField3Stages, $12 ParallaxNone, $14
+ * BackdropFollowOffsetY (the table at $81:C781, 11 words).
  * HOW: ParallaxUpdateLong (81:C77B), its call for other banks, is this.
  */
 void ParallaxUpdate(void)
@@ -380,6 +380,7 @@ void ParallaxUpdate(void)
     case 0x0E: band_table(0); break;    /* BandTable (81:C848) */
     case 0x10: playfield_3_stages(); break;
     case 0x12: parallax_none(); break;
+    case 0x14: BackdropFollowOffsetY(); break;
     default: {
         static int told;
 
