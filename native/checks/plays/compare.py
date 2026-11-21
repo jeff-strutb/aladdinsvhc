@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """compare.py ORIGDIR NATIVE_ACTORS.txt FROM TO [TICK0] : the original's dumps (to_box.py, one a frame, d%06d; original frame u+1 = native update u) against the native trace
 (ALADDIN_DEV_ACTORS=1 ALADDIN_DEV_TRACE=1 lines): the first update where the player (x y health) differs and the first where the actor list (kind, x, y) differs."""
-import re,struct,sys
+import re,struct,sys,os
+ALIAS={int(x.split(':')[0],16):int(x.split(':')[1],16) for x in os.environ.get('KIND_ALIAS','').split(',') if x}   # KIND_ALIAS=97:53: the native kind $97 counts as $53 (DEPARTURES.md departure 3)
 d,nf,a,b=sys.argv[1],sys.argv[2],int(sys.argv[3]),int(sys.argv[4])
 nat={};cur=None;pl={}
 for l in open(nf):
     m=re.match(r'u=(\d+) level=\d+ x=(\d+) y=(\d+) health=(\d+)',l)
     if m: cur=int(m.group(1)); nat[cur]={}; pl[cur]=tuple(map(int,m.groups()[1:])); continue
     m=re.match(r'  actor (\d+) kind=(\w+) state=(\w+) x=(\d+) y=(\d+)',l)
-    if m and cur is not None: nat[cur][int(m.group(1))]=(int(m.group(2),16),int(m.group(4)),int(m.group(5)))
+    if m and cur is not None: nat[cur][int(m.group(1))]=(ALIAS.get(int(m.group(2),16),int(m.group(2),16)),int(m.group(4)),int(m.group(5)))
 # the original runs its logic at half rate where it is slowed down (the play-time tick $147C/$147D steps every other frame): the native update u is the
 # original frame at which its tick has stepped u-a times since frame a+1 (a logic frame, not a video frame)
 def tick(f):
@@ -44,7 +45,7 @@ for u in range(a,b):
     oa={}
     for n in range(1,36):
         q=0x8DB+0x50*n
-        if w[q]: oa[n]=(w[q+6],struct.unpack('<H',w[q+0x0C:q+0x0E])[0],struct.unpack('<H',w[q+0x0F:q+0x11])[0])
+        if w[q]: oa[n]=(ALIAS.get(w[q+6],w[q+6]),struct.unpack('<H',w[q+0x0C:q+0x0E])[0],struct.unpack('<H',w[q+0x0F:q+0x11])[0])
     na={k:v for k,v in nat.get(u,{}).items() if k}
     if fa is None and u in nat and oa!=na:
         fa=u; dd=[(k,oa.get(k),na.get(k)) for k in sorted(set(oa)|set(na)) if oa.get(k)!=na.get(k)]
