@@ -13,6 +13,40 @@ at `cffb00c`, 85,916 lines, every code byte certified behaviour exact and byte e
 `nshvc_*` from `update` and `draw`, with no register state, bus access, coroutine or imitated hardware between them; `src/aladdin`
 and `asm/aladdin` are never edited and stay the certified reference.
 
+## Where it stands (2026-11-20)
+
+From `build/aladdin/writers/NATIVE-STATUS.txt` (65 landings logged) and `NATIVE-ACTOR-CHECK.txt`, and a run of main at
+`3df5cbf9`.
+
+What is not done, first:
+- **Stage 5 is not done:** 488 of the record's 1,655 routines have no native routine (the README's table gives them by
+  area; merged and dead routines are not in that count). Only five sessions work, and only on what the attract demo
+  reaches (section 5); the kind sessions B to E and the replay session are paused.
+- **The check of actors against the original is not reliable yet** (`NATIVE-ACTOR-CHECK.txt`): its placement test takes
+  records other code makes in the same frame for placements, which gives most of its differences (kinds $10, $11,
+  $12, $13, $34, and $20 after them); the player is loaded one frame ahead of what an actor sees; the first dump
+  must precede record creation. Kinds with no record in a checked play are not checked. The fix belongs to the check
+  (native-setup's, repaired but uncommitted in its worktree at the time of the status).
+- **Nothing past the attract demo is known to work:** playing from the menu, the password, options, continue and
+  Genie screens, the scenes between levels and the ending were run by probe entries or not at all; the chain of
+  level 18 and the continue screen's rope pull have not run.
+- **Stage 1 (record and replay)** exists but is paused; stage 3's driver is checked at the driver (voice events), the
+  sound as the engine mixes it is not judged. Stage 7 (the enhanced game) is not designed; stage 8 (Linux packaging)
+  is not started.
+
+What is true now:
+- Both targets build for Linux (Vulkan) and headless; the clean check reports nothing over 345 files (53,298 lines);
+  the data check passes; headless, with no input, the game runs 11,000 updates from power-on to the attract demo's level
+  1 with exit 0 and prints only its one summary line, `updates 11000 pictures 11000` (the engine prints two
+  Vulkan-driver lines under Dozen).
+- **1,167 of 1,655 routines (71%) have a native routine** (README: actors 655 of 950, video 148 of 226, game 95 of 129,
+  player 103 of 129, level 62 of 65, map 44 of 65, sound 30 of 44, system 30 of 47).
+- The boot (copyright card, logo, opening story, title with music) and the attract demo, which loads level 1 and plays
+  it (Aladdin, Abu, the stall keepers and guards), run natively on Linux; pictures are in the README.
+- The actor check found 0 of 606,824 fields differing over the demo's window (frames 10001-11334, 130 registered kinds
+  but Aladdin's, at `2dc14405`) and exact runs of kinds $08, $20, $51, $6C and others in level 1's plays
+  (`NATIVE-ACTOR-CHECK.txt`).
+
 ## Decisions
 
 | # | Question | Answer |

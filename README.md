@@ -112,23 +112,27 @@ a bug; recordings of the original are kept to find such bugs.
 
 ### Progress (2026-11-20)
 
-The conversion began on 2026-11-19. Counted from the tree: routines of the
-record that have a native routine.
+The conversion began on 2026-11-19. The table is the count of the record's
+`@routine` addresses (`src/aladdin`) that have a native `@routine` in
+`native/aladdin/src` at commit `3df5cbf9`. Routines the native game merged into
+others, replaced by the engine or found dead are not in the count, so the
+converted share is a little higher than the table says.
 
 | Area | Converted | |
 |---|---:|---:|
-| Actors | 453 of 950 | 47% |
-| Video | 137 of 226 | 60% |
-| Game screens | 47 of 129 | 36% |
-| Player | 93 of 129 | 72% |
-| Level | 53 of 65 | 81% |
-| Map | 44 of 65 | 67% |
+| Actors | 655 of 950 | 69% |
+| Video | 148 of 226 | 65% |
+| Game screens | 95 of 129 | 74% |
+| Player | 103 of 129 | 80% |
+| Level | 62 of 65 | 95% |
+| Map | 44 of 65 | 68% |
 | Sound | 30 of 44 | 68% |
-| System, input, math | 29 of 47 | 61% |
-| **Total** | **886 of 1,655** | **53%** |
+| System, input, math | 30 of 47 | 64% |
+| **Total** | **1,167 of 1,655** | **71%** |
 
-That is 37,521 lines of native C in 223 files. The engine's hardware finder
-and the project's clean check report nothing in them.
+That is 53,298 lines of native C and headers in 345 files. The engine's
+hardware finder and the project's clean check (`native/aladdin/tools/clean_check.py`)
+report nothing in them.
 
 What runs, on Linux, from power-on with no input: the copyright card, the
 logo, the opening story with its scenes and text, the title with its menu and
@@ -145,14 +149,31 @@ repository's build (`--shots`) at the console's size and doubled.
 
 ### Not done
 
-- **Nothing past the attract demo is playable.** Starting a game from the
-  menu, the password, options, continue and Genie screens, the scenes
-  between levels and the ending are not converted.
-- **Most actor kinds are not converted,** and many that are have not been
-  run: only what the boot and the attract demo reach has executed.
-- **The check of actors against the original's recording is not yet
-  reliable:** it loads too little of the recording's state, so its
-  differences are mostly its own.
+- **Playing the game is not checked.** From the title, Start leads into level
+  1 and, about 1,800 updates later, back to the title (a headless run with one
+  Start press); whether that is a game or the attract demo has not been
+  established. The password, options, continue and Genie screens, the scenes
+  between levels and the ending are converted in part and were run only by
+  probe entries or not reached by input; the rope pull of the continue screen
+  and the nine-piece chain of level 18 have not run at all.
+- **295 of the 950 actor routines are not converted,** and of the converted
+  kinds only those the boot and the attract demo reach have run. The check of
+  actors against the original's recordings found no native fault on level
+  1's demo at commit `2dc14405` (0 of 606,824 fields differ over the demo's window) and on the kinds
+  it has been run for; most kinds are not yet checked, and levels past 1 only in part,
+  and the check's own placement test needs a fix before its other differences
+  mean anything (`build/aladdin/writers/NATIVE-ACTOR-CHECK.txt`).
+- **Not converted, by area (the counts above; some may be dead and listed as
+  such in their notes):** 78 video routines (mostly window effects, colour
+  fades, actor pictures, Mode 7), 34 game-screen routines (the story scenes
+  10, Genie's tail 6, scene moves 3, the password, options and menu marks), 26
+  player routines (scene starts and steps, the carpet ride, some states), 21
+  map routines (collision and tile changes), 14 sound routines and 17 in
+  system, input and math. The line tables of levels 6 and $11 wait on video's
+  line channel.
+- **The story card runs code as graphics in one poked run:** with an act past 7
+  the card copies bank $80's code to video memory (the run is black on every
+  frame; whether real play reaches it is an open question in the plan).
 - **Sound** is checked at the driver (the same voice events as the original,
   tick for tick, over 41 runs); the sound as the engine plays it is not
   sample-exact, and has not been judged by ear.
