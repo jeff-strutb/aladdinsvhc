@@ -261,15 +261,16 @@ void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *m
             mode7_cells[y * 128 + x] = map_words[2 * (y * 32 + x)];
     mode7_cells_changed = mode7_pixels_changed = 1;
     mode7_up = 1;
-    /* the original's staging left in its bank $7F, which the title's waves
-       read later (window_effects.c): the last block's pixels (tiles 0-63) at
-       $5800, the map's low bytes at $5000 (its first page; the second page's
-       1,024 bytes the original read back from video memory, which no caller
-       holds: left as they are, a known difference) */
+    /* the original's staging left in its bank $7F, which the title's waves read later (window_effects.c): the
+       last block's pixels (tiles 0-63) at $5800, the map's low bytes at $5000, and the back map's second page
+       (1,024 bytes read back from video memory, which no caller holds) at $5400. Measured in a recording of
+       the original (power-on to the title, $7F:5400-$7F:57FF at every 40th frame from the title on): those
+       1,024 bytes are 0 there, as the opening story leaves that page; the waves are the only reader. */
     for (int i = 0; i < 64 * 64; i++)
         g.unpacked[0x5800 + i] = mode7_pixels[i];
     for (int i = 0; i < 32 * 32; i++)
         g.unpacked[0x5000 + i] = map_words[2 * i];
+    memset(&g.unpacked[0x5400], 0, 32 * 32);
     mode7_outside = 1;
 }
 
