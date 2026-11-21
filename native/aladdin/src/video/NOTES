@@ -75,3 +75,15 @@ Folded into callers
 -------------------
   81:F303 LoadListNext, 81:F30A TextTypeNext: a pointer stepped one byte; the lists and the typed text are
          read through typed readers (data/), which step their own place. Nothing to convert.
+
+Known gaps, settled 2026-11-20 (video, from evidence)
+-----------------------------------------------------
+  Per-line palette (CGRAM) changes not persisting into the next picture: only window effects 0 (register set 2, CGADD/
+         CGDATA), 1 and 5 write per-line palette/scroll tables, and those three are dead (WindowEffectTask's creators pass
+         parameters $04 $06 $08 $0C $0E $10 $12 $14 $16 $18 only; ROM scan of every TaskCreate of 82:8000). No player path.
+  Mode 7 staging's second page: measured in a recording of the original (power-on to the title, $7F:5400-$57FF = 0 at the
+         title); the staging now leaves 0 there. The waves (title start, effect 3) are its only reader.
+  VRAM-address fields: g.bg_map / g.bg_tiles (VideoMap / VideoTiles) replace g.bg_map_at / bg_tiles_at / bg_map_size.
+         Level 7's BG2 is a 64 x 64 map (VIDEO_MAP_BACK_TALL, pages $3800 $3C00 $4000 $4400).
+  g.band_pos: nothing reads it (the parallax reads g.line_data + $400); system/reset.c clears it instead of those bytes:
+         with its owner.
