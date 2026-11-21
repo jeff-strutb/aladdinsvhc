@@ -212,7 +212,7 @@ void abi_ActorRiseWhenInReach(void)
  * its caller.
  * HOW: Its return address pulled into GOTO_BACK ($4E); ActorSpawnSameLook
  * with A = $4D; N clear: on into ActorBackToCaller. N set (no record): BRK
- * ($83:FC1F) and again ($83:FC14); no script runs that.
+ * ($83:FC1F) and again ($83:FC14); cov_pull_return runs that.
  * Entry: M 8-bit; D = the actor's record; called by JSR ($83:ACAC).
  * Exit: as ActorBackToCaller.
  */

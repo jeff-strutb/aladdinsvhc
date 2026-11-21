@@ -490,3 +490,17 @@ Kind8BSecond:
 %at($839340)
 Kind8CSecond:
     jml.l Kind8CSecondReturn
+
+; @routine 83:934D Kind8DSecond
+; @actor
+; WHAT IT DOES: Where actors of kind $8D go on from the actor loop in
+; a state with bit 7 set (the table at $83:8EFD): Kind8DGone, the kind's
+; end. No script made the kind meet a kill or a trigger: cov_second_ends
+; puts a free record in state $8C with kind $8D.
+; HOW: JML to Kind8DGone ($84:9B43).
+; Entry: D = the actor's record; reached by the actor loop's jump (JMP
+; (table,X)) by kind.
+; Exit: never returns: as Kind8DGone.
+%at($83934D)
+Kind8DSecond:
+    jml.l Kind8DGone

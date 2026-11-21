@@ -164,7 +164,7 @@ ActorRiseWhenInReach:
 ; its caller.
 ; HOW: Its return address pulled into GOTO_BACK ($4E); ActorSpawnSameLook
 ; with A = $4D; N clear: on into ActorBackToCaller. N set (no record): BRK
-; ($83:FC1F) and again ($83:FC14); no script runs that.
+; ($83:FC1F) and again ($83:FC14); cov_pull_return runs that.
 ; Entry: M 8-bit; D = the actor's record; called by JSR ($83:ACAC).
 ; Exit: as ActorBackToCaller.
 %at($83FC0D)
@@ -173,10 +173,14 @@ ActorSpawnLookWait:
     pla
     sta.b !GOTO_BACK
     sep.b #$20
+.try:
     lda.b !SPAWN_LOOK
     jsl.l ActorSpawnSameLook
-    db $30,$03                  ; bmi to $83:FC1F (BRK, BRA $FC14), no record free
+    bmi.b .wait
     jmp.w ActorBackToCaller
+.wait:
+    brk.b #$00
+    bra.b .try
 
 ; @routine 83:FD2C ActorHopFromTable
 ; @actor
