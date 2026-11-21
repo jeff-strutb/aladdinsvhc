@@ -39,7 +39,7 @@ What is not done, first:
 - **Departures from the original:** one, in DEPARTURES.md (a wrong-way ledge no longer clears the speed fraction; no
   play reaches it).
 - Stage 7 (the enhanced game) is not designed; stage 8 (Linux packaging) is not started; the replay session (stage 1) is
-  paused. Only the attract demo's sessions ran (section 5); the other kinds are converted by the accounts below.
+  paused.
 
 What is true:
 - **Conversion is complete for what the record had.** Four accounts list every routine of the actors, game/level/map/
