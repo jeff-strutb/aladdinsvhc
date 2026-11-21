@@ -498,7 +498,8 @@ static void made_for_kinds(void)
             continue;                   /* made after the loop: copied after it (made_new_after) */
         } else if (i == 1 && r[0x06] == 0x08 && level_escort(g.level)) {
             /* the level's escort: EscortStart made it before the loop, and the dump shows it run once */
-            record_from(&g.actors[0], wram, 0);
+            if (!is_converted(0x00))
+                record_from(&g.actors[0], wram, 0);    /* his place (listed, his record is the native one's) */
             EscortStart();
             printf("frame %d: actor 1 (kind $08) made by EscortStart\n", frame);
         } else if (r[0x34] != 0xFF && r[0x34] < placement_count(w16(wram, 0x035E))
