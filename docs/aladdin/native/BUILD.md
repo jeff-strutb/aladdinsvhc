@@ -24,6 +24,42 @@ ranges are `native/aladdin/tools/assets.csv` (2,024 ranges), made by
 (`tools/aladdin/census.py`) with the same tests as `tools/aladdin/progress.py`; remake it after new traces with
 `python3 native/aladdin/tools/make_assets_csv.py .` (it needs `build/aladdin` traced).
 
+## Platforms (2026-11-21)
+
+The engine's own `tools/nshvc-build PLATFORM GAME_DIR` configures each platform (`headless`, `macos`, `ios`, `android`,
+`windows`, `windows-d3d12`, `linux`); Stunt Race FX's `builder/build.sh` does the same with plain cmake lines. Neither
+project has CI, so Aladdin has none: each platform is built the way those two build it. The game has no platform code
+(`native/aladdin/CMakeLists.txt` is the same five lines as Stunt Race FX's, less its shaders); the hosts, renderers and
+toolchain choices are the engine's. `cart.dat` is made from the ROM, never committed (`native/aladdin/.gitignore`) and
+never packaged: a build copies it beside the program, so a build for anyone else is made without it and the player's
+own is written from their ROM, as Stunt Race FX's builder does.
+
+| Platform | Built how | Commit | What was run |
+|---|---|---|---|
+| Linux (x86_64, Vulkan) | cmake + Ninja, `NSHVC_HOST=linux NSHVC_RENDER=vulkan`, fresh build folder | `a92d22da` (engine `8b5461e`) | Built clean. Headless boot (`--headless --updates 3200 --input keys.txt`, Start at 2400): exit 0, `updates 3200 pictures 3200`, on Vulkan through Mesa dzn. Not run in a window on this commit. |
+| Windows (x86_64, Vulkan) | Cross-built on Linux with mingw-w64 (`apt install mingw-w64`), the lines below | `a92d22da` (engine `8b5461e`) | Built clean (`aladdin.exe`, PE32+ GUI, 2.1 MB, linked static). **Not run**: no Windows machine here and no Wine. |
+| macOS (Metal) | Not built. Needs Xcode's clang and the Metal toolchain; build on a Mac with the lines below | | **Not built, not run.** To be done on Jeff's Mac. |
+
+Windows, from a Linux machine (the Vulkan headers are `/usr/include/vulkan` and `vk_video`; they are put in a folder of
+their own so the Linux system headers are not pulled in after mingw's):
+
+```bash
+mkdir -p build/aladdin/native/vkinc && ln -sfn /usr/include/vulkan build/aladdin/native/vkinc/vulkan && ln -sfn /usr/include/vk_video build/aladdin/native/vkinc/vk_video
+cmake -S native/aladdin -B build/aladdin/native/windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSHVC_ROOT=/home/strutb/projects/strutb/nativeshvc -DNSHVC_HOST=windows -DNSHVC_RENDER=vulkan -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres -DNSHVC_VULKAN_INCLUDE=$PWD/build/aladdin/native/vkinc && cmake --build build/aladdin/native/windows -j 4
+```
+
+Copy `aladdin.exe` and `cart.dat` to a Windows machine with a Vulkan driver and run it (`aladdin.exe --headless --updates 3200 --input keys.txt`
+is the boot check; `keys.txt` holds `2400 key=0D` and `2410`). Direct3D 12 instead of Vulkan needs `-DNSHVC_RENDER=d3d12` and `dxc`.
+
+macOS, on a Mac with Xcode, cmake, ninja, `glslangValidator` and `spirv-cross` (the same lines Stunt Race FX uses; add
+`-DCMAKE_OSX_ARCHITECTURES=arm64` or `x86_64`, and `-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0`, as its builder does for a Mac app):
+
+```bash
+cmake -S native/aladdin -B build/aladdin/native/macos -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSHVC_ROOT=../nativeshvc -DNSHVC_HOST=macos -DNSHVC_RENDER=metal && cmake --build build/aladdin/native/macos
+```
+
+The result is `aladdin.app`, with `cart.dat` in its resources. Run the boot check on the executable inside it.
+
 Linux with Vulkan, and the headless build (no host: the null renderer), out of tree under `build/aladdin/native`
 (`NSHVC_ROOT` is the nativeshvc checkout; on this machine each build and run went through its shared CPU queue, 4 cores for a build and 2 for a run):
 
