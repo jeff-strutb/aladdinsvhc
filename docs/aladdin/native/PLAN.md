@@ -27,9 +27,11 @@ What is not done, first:
   $12, $13, $34, and $20 after them); the player is loaded one frame ahead of what an actor sees; the first dump
   must precede record creation. Kinds with no record in a checked play are not checked. The fix belongs to the check
   (native-setup's, repaired but uncommitted in its worktree at the time of the status).
-- **Nothing past the attract demo is known to work:** playing from the menu, the password, options, continue and
-  Genie screens, the scenes between levels and the ending were run by probe entries or not at all; the chain of
-  level 18 and the continue screen's rope pull have not run.
+- **Playing is checked only at its start:** Start during the opening story skips it to the title, and Start again on
+  the menu (Game Start) gives level 1, which does not end by itself over 6,500 updates with no input (2026-11-20,
+  headless, keys replayed). Beyond that a pad's play of level 1, the password, options, continue and Genie screens,
+  the scenes between levels and the ending were run by probe entries or not at all; the chain of level 18 and the
+  continue screen's rope pull have not run.
 - **Stage 1 (record and replay)** exists but is paused; stage 3's driver is checked at the driver (voice events), the
   sound as the engine mixes it is not judged. Stage 7 (the enhanced game) is not designed; stage 8 (Linux packaging)
   is not started.

@@ -149,13 +149,15 @@ repository's build (`--shots`) at the console's size and doubled.
 
 ### Not done
 
-- **Playing the game is not checked.** From the title, Start leads into level
-  1 and, about 1,800 updates later, back to the title (a headless run with one
-  Start press); whether that is a game or the attract demo has not been
-  established. The password, options, continue and Genie screens, the scenes
-  between levels and the ending are converted in part and were run only by
-  probe entries or not reached by input; the rope pull of the continue screen
-  and the nine-piece chain of level 18 have not run at all.
+- **Playing the game is checked only at its start.** With input (headless, keys
+  replayed): Start during the opening story skips it to the title; Start again
+  on the title's menu (Game Start) gives level 1 as a game, which does not end
+  by itself over 6,500 updates with no further input (Aladdin stands at the
+  start with Abu). A pad's play of the level beyond that, the password, options,
+  continue and Genie screens, the scenes between levels and the ending are
+  converted in part and were run only by probe entries or not reached by input;
+  the rope pull of the continue screen and the nine-piece chain of level 18 have
+  not run at all.
 - **295 of the 950 actor routines are not converted,** and of the converted
   kinds only those the boot and the attract demo reach have run. The check of
   actors against the original's recordings found no native fault on level
