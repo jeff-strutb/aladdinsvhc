@@ -26,6 +26,9 @@ arch 65816
 !K2D_AT_BY = $D133              ; by $07: K2D_AT
 !K2D_NEXT_ARC = $D136           ; by the arc: the second throw's arc
 !K2D_POSES = $D12A              ; by the copy's $07: its first pose
+!K2D_PROBE_Y = $D13C            ; by the pose less 8, a word: the probe's offset below its y
+!POINT_X = $000C                ; the probe point's x (word)
+!POINT_Y = $000E                ; its y (word)
 !SPAWN_COUNTS = $7EFF00         ; by hit box: copies spawned
 !CHECK_A = $83989E              ; two code bytes the ROM check reads: a NOP ($EA) at either
 !CHECK_B = $8398AC              ; means the ROM was changed
@@ -439,3 +442,59 @@ Kind2DStunned:
     lda.b #$80
     tsb.b !actor_09
     jmp.w Kind2DAfterThrow
+
+; @routine 83:A9F7 Kind2DChildAt
+; WHAT IT DOES: A subroutine of the thrown copy of kind $2D that nothing
+; calls or jumps to: from its pose (K2D_ARC, 8 up) and facing it takes a
+; point 8 pixels to its right (to its left when it faces left) and a row
+; below its y by the pose, and where the map has a tile there makes a
+; record of kind $11 at that place, returning A = 1. unit_kind2d_spawn
+; calls it at its own entry.
+; HOW: X = (K2D_ARC - 8) * 2; 16-bit A: point x = its x + 8 (or - 8 when
+; ACTOR_FACING is not 0); point y = its y + K2D_PROBE_Y by X; the map
+; tile at the probe (TileAtProbeLong): none (zero): RTS. ActorAllocBLong
+; (the second pool): none free (N): A = 0, RTS. Else the record's state
+; $0C, kind $11, $07 0, its x and y pixels the point's; A = 1, RTS.
+; Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+; JSR. Exit: A = 1 when it made a record; with no tile, A as TileAt left
+; it; M and X 8-bit.
+%at($83A9F7)
+Kind2DChildAt:
+    lda.b !K2D_ARC
+    sec
+    sbc.b #$08
+    asl a
+    tax
+    rep.b #$21
+    lda.w #$0008
+    ldy.b !actor_facing
+    beq .right
+    lda.w #$FFF8
+.right:
+    adc.b !actor_x+1
+    sta.w !POINT_X
+    lda.b !actor_y+1
+    clc
+    adc.w !K2D_PROBE_Y,x
+    sta.w !POINT_Y
+    jsl.l TileAtProbeLong
+    beq .done
+    jsl.l ActorAllocBLong
+    bmi .none
+    lda.b #$0C
+    sta.w !actor_state,x
+    lda.b #$11
+    sta.w !actor_06,x
+    stz.w !actor_07,x
+    rep.b #$20
+    lda.w !POINT_X
+    sta.w !actor_x+1,x
+    lda.w !POINT_Y
+    sta.w !actor_y+1,x
+    sep.b #$30
+    lda.b #$01
+.done:
+    rts
+.none:
+    lda.b #$00
+    rts

@@ -46,8 +46,14 @@ void abi_TaskExec(void);
 #define RIDE_TIMER ACTOR_40   /* frames of its first stretch */
 #define RIDE_COUNT ACTOR_46   /* frames of its third stretch (word) */
 #define RIDE_41 ACTOR_41      /* 1 through the third stretch, else 0 */
-/* Not yet filed (no script rides that far): the ride on from screen 12. */
-#define ENDING_RIDE_ON 0x81E315u
+#define VIEW_X 0x1773u        /* the view's left edge (pixels, word) */
+#define VIEW_SCREEN_Y 0x1778u /* the view's top edge's high byte: its row of screens */
+#define V_1A10 0x1A10u
+#define V_1A12 0x1A12u
+#define V_1B14 0x1B14u
+void abi_PlayerEndingRideOn(void);
+void abi_ActorAccelerateX(void);
+void abi_ActorStopY(void);
 
 /* The player started with $07 = 9 */
 #define CUE_BE 0x0000BEu      /* the camera trigger task's second cue: cleared as it starts */
@@ -191,7 +197,7 @@ static void ride_bobbing_to(uint32_t brk_at, uint8_t screen)
  * across the ending. He flies right at 2 pixels a frame for $57 frames,
  * then bobs up and down at 3/4 of a pixel a frame as the play field
  * scrolls: in move 0 to screen 5, move 3 for $1B0 frames, move 4 to
- * screen 12, and on (the rest is not filed).
+ * screen 12, and on (PlayerEndingRideOn).
  * HOW: $09 = $D0, $0A = $40, picture list $8917, redraw marked; flip 0;
  * speed $0200; RIDE_41 0; PlayerMoveStart 0; PLAYER_MOVE 0 again. Each
  * frame (BRK first) ActorMoveX, $57 times. Speed $00C0, ACTOR_49 1 (the
@@ -200,9 +206,7 @@ static void ride_bobbing_to(uint32_t brk_at, uint8_t screen)
  * PlayerMoveChange 3, RIDE_COUNT $1B0: each frame ACTOR_49 cleared,
  * ActorBobY and ActorMoveX, until the count is down to 0. RIDE_41 0,
  * PlayerMoveChange 4: each frame ActorBobY and ActorMoveX until
- * PLAY_SCREEN is 12; then on at ENDING_RIDE_ON, which no script reaches
- * yet: its C is not written, and it runs as the original's
- * (jump_routine).
+ * PLAY_SCREEN is 12; then on at PlayerEndingRideOn (it falls into it).
  * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
  * the jump through the player's start table by $07 at $81:CB61 (81:CB56).
  * Exit: never returns.
@@ -269,7 +273,7 @@ void abi_PlayerEndingRide(void)
     a8_load(0x04);
     abi_PlayerMoveChange();
     ride_bobbing_to(0x81E304u, 0x0C);
-    jump_routine(ENDING_RIDE_ON);
+    abi_PlayerEndingRideOn();
 }
 
 /*
@@ -444,4 +448,130 @@ void abi_PlayerSceneLand(void)
         lda8(ea_abs(TASK2_STATE));
     } while (!IF_Z);
     jsl_frame(0x81E03Bu); abi_TaskExec();        /* to NextPartTask: never returns */
+}
+
+/*
+ * @routine 81:E315 PlayerEndingRideOn
+ * @actor
+ * WHAT IT DOES: The rest of Aladdin's ride across the ending, from screen
+ * 12 (PlayerEndingRide falls into it): $149 frames bobbing in move 1, in
+ * move 2 until the scroll is at screen $17, $1BA frames in move 3, in
+ * move 4 until screen $1E (with V_1A12 set while the view is in its row 2
+ * of screens), then move 1 with V_1A10 set and the speed climbing until
+ * his x is more than $140 past the view's left edge, when he is put off the
+ * screen above and waits for good. cov_ending_ride_end plays
+ * the ending on until it is here (about 26000 frames).
+ * HOW: RIDE_41 0; PlayerMoveChange 1; RIDE_COUNT $0149; each frame (BRK
+ * first): actor_49 1, ActorBobY, ActorMoveX, RIDE_COUNT down to 0. Move 2:
+ * each frame ActorBobY, ActorMoveX until PLAY_SCREEN is $17. RIDE_41 1,
+ * move 3, RIDE_COUNT $01BA: each frame actor_49 0, ActorBobY, ActorMoveX
+ * until 0. RIDE_41 0, move 4: each frame ActorBobY, ActorMoveX, VIEW_SCREEN_Y
+ * 2 sets V_1A12, until PLAY_SCREEN is $1E. V_1A12 0, move 1, V_1A10 1,
+ * V_145B 4, accelerations (actor_accel_x, actor_accel_y) 8: each frame
+ * actor_49 1, ActorBobY, ActorAccelerateX, ActorMoveX while VIEW_X + $140
+ * is not below his x (16-bit). Then V_1B14 up, x's high byte $22, y's high byte $FE,
+ * ActorStopY, actor_08 $80, COP $FF, V_1A12 and V_1A10 1, BRK for ever.
+ * Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+ * the fall from PlayerEndingRide (screen 12). Exit: never returns.
+ */
+void abi_PlayerEndingRideOn(void)
+{
+    stz8(ea_dp(RIDE_41));
+    lda8_v(0x01);
+    call_frame(0xE31B, abi_PlayerMoveChange);
+    lda8_v(0x49);
+    sta8(ea_dp(RIDE_COUNT));
+    lda8_v(0x01);
+    sta8(ea_dp(RIDE_COUNT + 1));
+    do {
+        actor_yield(0x81E324u);
+        lda8_v(0x01);
+        sta8(ea_dp(ACTOR_49));
+        jsl_call(0x81E32Au, abi_ActorBobY);
+        jsl_call(0x81E32Eu, abi_ActorMoveX);
+        op_rep(P_M);
+        MEM16(dec, ea_dp(RIDE_COUNT));
+        op_sep(P_M);
+    } while (!IF_Z);
+    lda8_v(0x02);
+    call_frame(0xE33E, abi_PlayerMoveChange);
+    do {
+        actor_yield(0x81E33Fu);
+        jsl_call(0x81E341u, abi_ActorBobY);
+        jsl_call(0x81E345u, abi_ActorMoveX);
+        lda8(ea_abs(PLAY_SCREEN));
+        cmp8_v(0x17);
+    } while (!IF_Z);
+    lda8_v(0x01);
+    sta8(ea_dp(RIDE_41));
+    lda8_v(0x03);
+    call_frame(0xE358, abi_PlayerMoveChange);
+    lda8_v(0xBA);
+    sta8(ea_dp(RIDE_COUNT));
+    lda8_v(0x01);
+    sta8(ea_dp(RIDE_COUNT + 1));
+    do {
+        actor_yield(0x81E361u);
+        stz8(ea_dp(ACTOR_49));
+        jsl_call(0x81E365u, abi_ActorBobY);
+        jsl_call(0x81E369u, abi_ActorMoveX);
+        op_rep(P_M);
+        MEM16(dec, ea_dp(RIDE_COUNT));
+        op_sep(P_M);
+    } while (!IF_Z);
+    stz8(ea_dp(RIDE_41));
+    lda8_v(0x04);
+    call_frame(0xE37B, abi_PlayerMoveChange);
+    do {
+        actor_yield(0x81E37Cu);
+        jsl_call(0x81E37Eu, abi_ActorBobY);
+        jsl_call(0x81E382u, abi_ActorMoveX);
+        lda8(ea_abs(VIEW_SCREEN_Y));
+        cmp8_v(0x02);
+        if (IF_Z) {
+            lda8_v(0x01);
+            sta8(ea_abs(V_1A12));
+        }
+        lda8(ea_abs(PLAY_SCREEN));
+        cmp8_v(0x1E);
+    } while (!IF_Z);
+    stz8(ea_abs(V_1A12));
+    lda8_v(0x01);
+    call_frame(0xE3A0, abi_PlayerMoveChange);
+    lda8_v(0x01);
+    sta8(ea_abs(V_1A10));
+    lda8_v(0x04);
+    sta8(ea_abs(V_145B));
+    lda8_v(0x08);
+    sta8(ea_dp(ACTOR_ACCEL_X));
+    sta8(ea_dp(ACTOR_ACCEL_Y));
+    do {
+        actor_yield(0x81E3B1u);
+        lda8_v(0x01);
+        sta8(ea_dp(ACTOR_49));
+        jsl_call(0x81E3B7u, abi_ActorBobY);
+        jsl_call(0x81E3BBu, abi_ActorAccelerateX);
+        jsl_call(0x81E3BFu, abi_ActorMoveX);
+        op_rep(P_M);
+        lda16(ea_abs(VIEW_X));
+        clc();
+        adc16_v(0x0140);
+        cmp16_v(rd16(ea_dp(ACTOR_X + 1)));
+        op_sep(P_M);
+    } while (IF_C);
+    MEM8(inc, ea_abs(V_1B14));
+    lda8_v(0x22);
+    sta8(ea_dp(ACTOR_X + 2));
+    lda8_v(0xFE);
+    sta8(ea_dp(ACTOR_Y + 2));
+    jsl_call(0x81E3DDu, abi_ActorStopY);
+    lda8_v(0x80);
+    sta8(ea_dp(ACTOR_08));
+    lda8_v(0xFF);
+    actor_wait(0x81E3E7u);
+    lda8_v(0x01);
+    sta8(ea_abs(V_1A12));
+    sta8(ea_abs(V_1A10));
+    for (;;)
+        actor_yield(0x81E3F1u);
 }

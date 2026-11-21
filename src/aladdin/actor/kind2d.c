@@ -33,9 +33,15 @@ void abi_AnimStep(void);
 void abi_ActorPictureSend(void);
 void abi_ActorBouncesPlayer(void);
 void abi_ActorHitByShotCC(void);
+void abi_ActorAllocBLong(void);
+void abi_TileAtProbeLong(void);
+void abi_Kind2DChildAt(void);
 static void throw_at(int again);
 
 #define K2D_FRAMES 0x40u        /* the watch: frames left; the thrown copy: frames of a pose */
+#define K2D_PROBE_Y 0xD13Cu     /* by the pose less 8, a word: the probe's offset below its y */
+#define POINT_X 0x000Cu         /* the probe point's x (word) */
+#define POINT_Y 0x000Eu         /* its y (word) */
 #define K2D_ARC 0x41u           /* the throw's arc (the copy's $07, bit 7 set); the copy: its pose */
 #define K2D_POSE 0x43u          /* the throw's pose: 4 (level), 3 (Aladdin above) */
 #define K2D_COUNT 0x45u         /* the throw's frames left */
@@ -528,4 +534,65 @@ L_83AAC9:
     lda8_v(0x80);  /* 83AAD5 lda */
     tsb8(ea_dp(ACTOR_09));  /* 83AAD7 tsb */
     abi_Kind2DAfterThrow();  /* 83AAD9 jmp */
+}
+
+/*
+ * @routine 83:A9F7 Kind2DChildAt
+ * WHAT IT DOES: A subroutine of the thrown copy of kind $2D that nothing
+ * calls or jumps to: from its pose (K2D_ARC, 8 up) and facing it takes a
+ * point 8 pixels to its right (to its left when it faces left) and a row
+ * below its y by the pose, and where the map has a tile there makes a
+ * record of kind $11 at that place, returning A = 1. unit_kind2d_spawn
+ * calls it at its own entry.
+ * HOW: X = (K2D_ARC - 8) * 2; 16-bit A: point x = its x + 8 (or - 8 when
+ * ACTOR_FACING is not 0); point y = its y + K2D_PROBE_Y by X; the map
+ * tile at the probe (TileAtProbeLong): none (zero): RTS. ActorAllocBLong
+ * (the second pool): none free (N): A = 0, RTS. Else the record's state
+ * $0C, kind $11, $07 0, its x and y pixels the point's; A = 1, RTS.
+ * Entry: M 8-bit, X 8-bit; D = the actor's record; DB = $80; called by
+ * JSR. Exit: A = 1 when it made a record; with no tile, A as TileAt left
+ * it; M and X 8-bit.
+ */
+void abi_Kind2DChildAt(void)
+{
+    lda8(ea_dp(K2D_ARC));
+    sec();
+    sbc8_v(0x08);
+    set_al(asl8_r(al()));
+    tax8();
+    op_rep(P_M | P_C);
+    lda16_v(0x0008);
+    ldy8(ea_dp(ACTOR_FACING));
+    if (!IF_Z)
+        lda16_v(0xFFF8);
+    adc16_v(rd16(ea_dp(ACTOR_X + 1)));
+    sta16(ea_abs(POINT_X));
+    lda16(ea_dp(ACTOR_Y + 1));
+    clc();
+    adc16_v(rd16(ea_absx(K2D_PROBE_Y)));
+    sta16(ea_abs(POINT_Y));
+    jsl_frame(0x83AA18u);
+    abi_TileAtProbeLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    if (IF_Z)
+        return;
+    jsl_frame(0x83AA1Eu);
+    abi_ActorAllocBLong();
+    cpu.s = (uint16_t)(cpu.s + 3);
+    if (IF_N) {
+        lda8_v(0x00);
+        return;
+    }
+    lda8_v(0x0C);
+    sta8(ea_absx(ACTOR_STATE));
+    lda8_v(0x11);
+    sta8(ea_absx(ACTOR_06));
+    stz8(ea_absx(ACTOR_07));
+    op_rep(P_M);
+    lda16(ea_abs(POINT_X));
+    sta16(ea_absx(ACTOR_X + 1));
+    lda16(ea_abs(POINT_Y));
+    sta16(ea_absx(ACTOR_Y + 1));
+    op_sep(P_M | P_X);
+    lda8_v(0x01);
 }

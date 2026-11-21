@@ -1,0 +1,27 @@
+# Actor code that nothing in the ROM starts (no call, jump, table word or resume address holds its address), each started the way the actor
+# loop starts any waiting actor: a free record of the second pool ($0A1B) made a waiting actor (state 1, wait 1, resume P $30, the entry's
+# address in $0A1D-$0A20, kind byte $0A21), so that the loop's RTI starts the original there.
+# A. 84:9A88 (187 bytes with its two subroutines 84:9AFE and 84:9B31): an actor that starts at Aladdin's side (x + $30, y - $20), flies
+#    to rest, then every $30 frames makes a kind $8E child. First level, kind $8D (its neighbour), 400 frames. Its horizontal speed ($19,
+#    record $0A34) is set to 0 three frames in: it never changes it, and at $0180 it leaves the view (and ends) before the code after its
+#    first two loops.
+load build/aladdin/states/level1.state
+wait 10
+poke 000A21 8D
+poke 000A1D 30,88,9A,84
+poke 000A1C 01
+poke 000A1B 01
+wait 3
+poke 000A34 00,00
+wait 400
+# B. A5:EFDE (48 bytes): a start of the escort's code (kind 8): it cannot be reached by his resume address of the ROM; here the escort's
+#    own record ($092B, in stage a3 s0, waiting) has its resume address ($092E) poked to $EFDE and its x ($0937, word) to $0010, within
+#    Aladdin's x + $C0: it goes on (animation 2, a probe, the calls at $A5:EFFF); 25 frames on its x is poked to $3F00 again, far right
+#    of him: $A5:EFFC, the jump to EscortStaySpot18.
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 00092E DE,EF
+poke 000937 10,00
+wait 25
+poke 000937 00,3F
+wait 10

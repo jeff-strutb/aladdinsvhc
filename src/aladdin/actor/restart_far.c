@@ -287,3 +287,50 @@ static void escort_follow(void)
         } while (cpu.p & P_Z);
     }
 }
+
+/*
+ * @routine A5:EFDE EscortFlyStart
+ * @actor
+ * WHAT IT DOES: A start of the escort's code that nothing in the ROM
+ * reaches (no table, call, jump or resume address holds $A5:EFDE): it
+ * flies by the motion preset $7E (animation 2) while Aladdin's x + $C0
+ * reaches its own, else it stays at spot $18 for good. cov_dead_starts
+ * pokes the escort's resume address to it.
+ * HOW: ACTOR_FLIP 0; AnimStart 2. ActorMotionPreset with Y = $7E; each
+ * frame (BRK first): the player's x + $C0 (C as it stands) against the
+ * actor's x: lower, on at EscortStaySpot18; else ActorAnimRiseFall,
+ * ActorFly, ActorOutOfGround: nonzero, the preset again; zero, the next
+ * frame.
+ * Entry: M 8-bit, X 8-bit; D = the escort's record; reached by the actor
+ * loop's RTI at the resume address. Exit: never returns.
+ */
+void abi_EscortFlyStart(void)
+{
+    uint16_t sum, ax;
+
+    wr8(dpa(ACTOR_FLIP), 0);
+    a8_load(0x02);
+    jsl_call(0xA5EFE2u, abi_AnimStart);
+    for (;;) {
+        y8_load(0x7E);
+        jsl_call(0xA5EFE8u, abi_ActorMotionPreset);
+        for (;;) {
+            actor_yield(0xA5EFECu);
+            op_rep(0x20);
+            sum = op_adc16(rd16(dba((uint16_t)PLAYER_X_AT)), FAR_LEFT, &cpu.p);
+            cpu.a = sum;
+            ax = dp16(ACTOR_X + 1);  /* one read: its CMP */
+            cmp16_of(sum, ax);
+            op_sep(0x20);
+            if (!(cpu.p & P_C)) {
+                abi_EscortStaySpot18();
+                return;
+            }
+            call_frame(0xF001, abi_ActorAnimRiseFall);
+            jsl_call(0xA5F002u, abi_ActorFly);
+            jsl_call(0xA5F006u, abi_ActorOutOfGround);
+            if (!(cpu.p & P_Z))
+                break;
+        }
+    }
+}

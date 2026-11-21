@@ -1,0 +1,4 @@
+# The ending's carpet ride past screen 12 (PlayerEndingRide on at ENDING_RIDE_ON, $81:E315): cov_ending's play, run on until his scene code
+# has seen the scroll reach screen 12, $17 and $1E (the first level of the credits' scroll) and goes on to its last wait.
+load build/aladdin/states/stage_a0_s0.state
+wait 26000

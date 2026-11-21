@@ -29,7 +29,11 @@ arch 65816
 !RIDE_COUNT = !actor_46         ; frames of its third stretch (word)
 !RIDE_41 = !actor_41            ; 1 through the third stretch, else 0
 ; Not yet filed (no script rides that far): the ride on from screen 12.
-!ENDING_RIDE_ON = $81E315
+!VIEW_X = $1773                 ; the view's left edge (pixels, word)
+!VIEW_SCREEN_Y = $1778          ; the view's top edge's high byte: its row of screens
+!V_1A10 = $1A10
+!V_1A12 = $1A12
+!V_1B14 = $1B14
 
 ; The player started with $07 = 9.
 !SCENE_STEP_A = $00BD           ; nonzero: the walk-off figure goes on
@@ -151,8 +155,7 @@ PlayerSceneStand:
 ; PlayerMoveChange 3, RIDE_COUNT $1B0: each frame actor_49 cleared,
 ; ActorBobY and ActorMoveX, until the count is down to 0. RIDE_41 0,
 ; PlayerMoveChange 4: each frame ActorBobY and ActorMoveX until
-; PLAY_SCREEN is 12; then on at ENDING_RIDE_ON, which no script reaches
-; yet and is not filed.
+; PLAY_SCREEN is 12; then on at PlayerEndingRideOn (it falls into it).
 ; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
 ; the jump through the player's start table by $07 at $81:CB61 (81:CB56).
 ; Exit: never returns.
@@ -385,3 +388,127 @@ PlayerSceneLand:
     bne .dimming
     jsl.l TaskExec
     dl NextPartTask
+
+; @routine 81:E315 PlayerEndingRideOn
+; @actor
+; WHAT IT DOES: The rest of Aladdin's ride across the ending, from screen
+; 12 (PlayerEndingRide falls into it): $149 frames bobbing in move 1, in
+; move 2 until the scroll is at screen $17, $1BA frames in move 3, in
+; move 4 until screen $1E (with V_1A12 set while the view is in its row 2
+; of screens), then move 1 with V_1A10 set and the speed climbing until
+; his x is more than $140 past the view's left edge, when he is put off the
+; screen above and waits for good. cov_ending_ride_end plays
+; the ending on until it is here (about 26000 frames).
+; HOW: RIDE_41 0; PlayerMoveChange 1; RIDE_COUNT $0149; each frame (BRK
+; first): actor_49 1, ActorBobY, ActorMoveX, RIDE_COUNT down to 0. Move 2:
+; each frame ActorBobY, ActorMoveX until PLAY_SCREEN is $17. RIDE_41 1,
+; move 3, RIDE_COUNT $01BA: each frame actor_49 0, ActorBobY, ActorMoveX
+; until 0. RIDE_41 0, move 4: each frame ActorBobY, ActorMoveX, VIEW_SCREEN_Y
+; 2 sets V_1A12, until PLAY_SCREEN is $1E. V_1A12 0, move 1, V_1A10 1,
+; V_145B 4, accelerations (actor_accel_x, actor_accel_y) 8: each frame
+; actor_49 1, ActorBobY, ActorAccelerateX, ActorMoveX while VIEW_X + $140
+; is not below his x (16-bit). Then V_1B14 up, x's high byte $22, y's high byte $FE,
+; ActorStopY, actor_08 $80, COP $FF, V_1A12 and V_1A10 1, BRK for ever.
+; Entry: M 8-bit, X 8-bit; D = the player's record; DB = $80; reached by
+; the fall from PlayerEndingRide (screen 12). Exit: never returns.
+%at($81E315)
+PlayerEndingRideOn:
+    stz.b !RIDE_41
+    lda.b #$01
+    jsr.w PlayerMoveChange
+    lda.b #$49
+    sta.b !RIDE_COUNT
+    lda.b #$01
+    sta.b !RIDE_COUNT+1
+.first:
+    brk.b #$00
+    lda.b #$01
+    sta.b !actor_49
+    jsl.l ActorBobY
+    jsl.l ActorMoveX
+    rep.b #$20
+    dec.b !RIDE_COUNT
+    sep.b #$20
+    bne .first
+    lda.b #$02
+    jsr.w PlayerMoveChange
+.to_screen_17:
+    brk.b #$00
+    jsl.l ActorBobY
+    jsl.l ActorMoveX
+    lda.w !PLAY_SCREEN
+    cmp.b #$17
+    bne .to_screen_17
+    lda.b #$01
+    sta.b !RIDE_41
+    lda.b #$03
+    jsr.w PlayerMoveChange
+    lda.b #$BA
+    sta.b !RIDE_COUNT
+    lda.b #$01
+    sta.b !RIDE_COUNT+1
+.counted:
+    brk.b #$00
+    stz.b !actor_49
+    jsl.l ActorBobY
+    jsl.l ActorMoveX
+    rep.b #$20
+    dec.b !RIDE_COUNT
+    sep.b #$20
+    bne .counted
+    stz.b !RIDE_41
+    lda.b #$04
+    jsr.w PlayerMoveChange
+.to_screen_1e:
+    brk.b #$00
+    jsl.l ActorBobY
+    jsl.l ActorMoveX
+    lda.w !VIEW_SCREEN_Y
+    cmp.b #$02
+    bne .screen
+    lda.b #$01
+    sta.w !V_1A12
+.screen:
+    lda.w !PLAY_SCREEN
+    cmp.b #$1E
+    bne .to_screen_1e
+    stz.w !V_1A12
+    lda.b #$01
+    jsr.w PlayerMoveChange
+    lda.b #$01
+    sta.w !V_1A10
+    lda.b #$04
+    sta.w !V_145B
+    lda.b #$08
+    sta.b !actor_accel_x
+    sta.b !actor_accel_y
+.fly:
+    brk.b #$00
+    lda.b #$01
+    sta.b !actor_49
+    jsl.l ActorBobY
+    jsl.l ActorAccelerateX
+    jsl.l ActorMoveX
+    rep.b #$20
+    lda.w !VIEW_X
+    clc
+    adc.w #$0140
+    cmp.b !actor_x+1
+    sep.b #$20
+    bcs .fly
+    inc.w !V_1B14
+    lda.b #$22
+    sta.b !actor_x+2
+    lda.b #$FE
+    sta.b !actor_y+2
+    jsl.l ActorStopY
+    lda.b #$80
+    sta.b !actor_08
+    lda.b #$FF
+    cop.b #$00
+    lda.b #$01
+    sta.w !V_1A12
+    sta.w !V_1A10
+.stay:
+    brk.b #$00
+    bra .stay

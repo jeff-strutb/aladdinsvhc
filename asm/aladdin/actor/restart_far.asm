@@ -200,3 +200,41 @@ EscortWaitSpot10:
     ldy.b #$08
     jsl.l ActorNearPlayerX
     bcs .near
+
+; @routine A5:EFDE EscortFlyStart
+; @actor
+; WHAT IT DOES: A start of the escort's code that nothing in the ROM
+; reaches (no table, call, jump or resume address holds $A5:EFDE): it
+; flies by the motion preset $7E (animation 2) while Aladdin's x + $C0
+; reaches its own, else it stays at spot $18 for good. cov_dead_starts
+; pokes the escort's resume address to it.
+; HOW: ACTOR_FLIP 0; AnimStart 2. ActorMotionPreset with Y = $7E; each
+; frame (BRK first): the player's x + $C0 (C as it stands) against the
+; actor's x: lower, on at EscortStaySpot18; else ActorAnimRiseFall,
+; ActorFly, ActorOutOfGround: nonzero, the preset again; zero, the next
+; frame.
+; Entry: M 8-bit, X 8-bit; D = the escort's record; reached by the actor
+; loop's RTI at the resume address. Exit: never returns.
+%at($A5EFDE)
+EscortFlyStart:
+    stz.b !actor_flip
+    lda.b #$02
+    jsl.l AnimStart
+.preset:
+    ldy.b #$7E
+    jsl.l ActorMotionPreset
+.frame:
+    brk.b #$00
+    rep.b #$20
+    lda.w !player_x
+    adc.w #!FAR_LEFT
+    cmp.b !actor_x+1
+    sep.b #$20
+    bcs .fly
+    jmp.w EscortStaySpot18
+.fly:
+    jsr.w ActorAnimRiseFall
+    jsl.l ActorFly
+    jsl.l ActorOutOfGround
+    bne .preset
+    bra .frame
