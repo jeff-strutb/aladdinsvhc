@@ -92,7 +92,7 @@ static int hit(Actor *a)
     if (*health(a) < 0)
         g.chain_head_struck++;
     AnimStart(a, 0x02);
-    ActorPictureSend(a);
+    ActorPictureSendFromKind(a);
     g.head_hit_frames = 0x1F;
     a->resume = HIT_FRAME;
     return 1;
@@ -105,7 +105,7 @@ static int hit_frame(Actor *a)
     PaletteFlash();
     ActorParityBitsSet(a);
     AnimStep(a);
-    ActorPictureSend(a);
+    ActorPictureSendFromKind(a);
     if (g.head_hit_frames)
         return 1;
     if (*health(a) >= 0) {
@@ -182,7 +182,7 @@ int Kind73Work(Actor *a)
         AnimStart(a, g.head_anim);
     }
     AnimStep(a);
-    ActorPictureSend(a);
+    ActorPictureSendFromKind(a);
     ActorPathStep(a);
     if (g.head_flash && !--g.head_flash)
         a->anim_flags &= 0x6F;
