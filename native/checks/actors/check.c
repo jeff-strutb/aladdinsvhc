@@ -337,6 +337,8 @@ static void compare(int i)
         snprintf(name, sizeof name, "+$%02X", o);
         if (o == 0x17 || o == 0x2A || o == 0x4B || o == 0x4E || o == 0x4F)
             continue;           /* a pair's second byte, with its first; $4E-$4F: kind $95's hops keep their return there, none here */
+        if ((o == 0x43 || o == 0x44 || o == 0x45) && (a->kind == 0x5D || a->kind == 0x8B || a->kind == 0x8C))
+            continue;           /* the cloud's rise (Kind5DRise) keeps its caller's return address there: read by nothing, none here */
         if (o == 0x16 || o == 0x29 || o == 0x4A) {
             /* a place a kind keeps as its own bytes or as a field (probes,
                own_pictures, stream): the word matches in either form */

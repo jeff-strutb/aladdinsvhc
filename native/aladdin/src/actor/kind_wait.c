@@ -27,6 +27,7 @@
  *   @routine 83:92F6 ActorKind85Wait: kind $85: KindAnimate9628 (kind_steps.c)
  *   @routine 83:9310 ActorKind87Wait: kind $87: KindWaitF991 (kind_waits.c)
  *   @routine 83:931D ActorKind88Wait: kind $88: Kind88Work (actor_84_misc.c)
+ *   @routine 83:932E ActorKind8BWait: kind $8B: Kind8BWait (kind8b.c)
  *   @routine 83:933B ActorKind8CWait: kind $8C: Kind8CWaitWork (kind_waits_84.c)
  *   @routine 83:9348 ActorKind8DWait: kind $8D: SenderWait8E (small_actor_helpers.c)
  *   @routine 83:9359 ActorKind8FWait: kind $8F: KindAnimateSendFAAE (kind_animate.c)

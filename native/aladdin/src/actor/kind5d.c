@@ -113,6 +113,45 @@ static bool changed(Actor *a)
 }
 
 /*
+ * @routine 83:E3CB Kind5DRise
+ * WHAT IT DOES: The start of the cloud's rise, which kinds $5D, $8B and $8C
+ * share (Kind5DRiseFrame goes on with it): sound $28; its height's offset
+ * (by Aladdin's lives, Kind5CPathByLives, and twice its $07); its $21, $07,
+ * K5D_LANDED, K5D_COUNT and K5D_47 cleared; speed entry $45. (The original
+ * keeps its caller's return address in +$43-$45: read by nothing, not kept
+ * here; the actor check does not compare them.)
+ */
+void Kind5DRiseBegin(Actor *a)
+{
+    SoundQueueAdd(0x28);
+    a->own.bytes[HEIGHT_AT] = (uint8_t)(k5d_heights_at(Kind5CPathByLives()) + (a->spawn_byte << 1));
+    a->spawn_at = 0;
+    a->spawn_byte = 0;
+    a->own.bytes[LANDED] = 0;
+    a->own.bytes[COUNT] = 0;
+    a->own.bytes[CLEARED_47] = 0;
+    ActorSpeedYSet(a, 0x45);
+}
+
+/* One frame of the rise (the original's code after each BRK): up a step
+   (ActorMoveY); until its y is its height's or more, a sparkle (kind $5F,
+   its $07 bit 0 flipped each time) every 4 frames. True once it is up: its
+   caller's code goes on in that same turn. */
+bool Kind5DRiseFrame(Actor *a)
+{
+    ActorMoveY(a);
+    if (pixels(a->y) < k5d_height(a->own.bytes[HEIGHT_AT])) {
+        if (--a->own.bytes[COUNT] & 0x80) {
+            (void)ActorCreateChild8(a, 0x5F);
+            a->own.bytes[COUNT] = 0x03;
+            a->spawn_byte ^= 0x01;
+        }
+        return false;
+    }
+    return true;
+}
+
+/*
  * @routine 83:E29B Kind5DStart
  * WHAT IT DOES: Actor kind $5D, a cloud: rises (Kind5DRise), then waits
  * for Aladdin to land on it; then marks it for its maker, sinks under him
@@ -129,26 +168,12 @@ int Kind5DStart(Actor *a)
 {
     switch (a->resume) {
     case ACTOR_START:
-        SoundQueueAdd(0x28);
-        a->own.bytes[HEIGHT_AT] = (uint8_t)(k5d_heights_at(Kind5CPathByLives()) + (a->spawn_byte << 1));
-        a->spawn_at = 0;
-        a->spawn_byte = 0;
-        a->own.bytes[LANDED] = 0;
-        a->own.bytes[COUNT] = 0;
-        a->own.bytes[CLEARED_47] = 0;
-        ActorSpeedYSet(a, 0x45);
+        Kind5DRiseBegin(a);
         a->resume = RISE;
         return 1;
     case RISE:
-        ActorMoveY(a);
-        if (pixels(a->y) < k5d_height(a->own.bytes[HEIGHT_AT])) {
-            if (--a->own.bytes[COUNT] & 0x80) {
-                (void)ActorCreateChild8(a, 0x5F);
-                a->own.bytes[COUNT] = 0x03;
-                a->spawn_byte ^= 0x01;
-            }
+        if (!Kind5DRiseFrame(a))
             return 1;
-        }
         a->anim_flags = 0x01;
         a->flags = 0x90;
         a->own.bytes[ON] = 0;

@@ -69,6 +69,8 @@ int Kind6CSecond(Actor *a);     /* its second entry: on in Kind65Start */      /
 /* ---- shared with other kinds ---- */
 
 uint8_t Kind5CPathByLives(void);            /* 83:E22A: kind $5C's path by Aladdin's lives (0-2); kind $5D's heights by it */
+void Kind5DRiseBegin(Actor *a);           /* 83:E3CB Kind5DRise, its start: kinds $5D, $8B and $8C */
+bool Kind5DRiseFrame(Actor *a);           /* a frame of it: true once the cloud is up */
 uint8_t Kind5DParentGone(const Actor *a);   /* 83:E3C1 (83:E3BD Long, kind $8B's): its maker (kind $5C, Actor.next) has gone */
 
 /* ---- wait routines (kind_waits.c; each: ACTOR_GOES_ON or ACTOR_ENDED) ---- */

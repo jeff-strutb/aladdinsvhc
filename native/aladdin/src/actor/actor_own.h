@@ -106,6 +106,11 @@ int Kind95Start(Actor *a);
 int SteppedShowActor(Actor *a);     /* kind $96 */
 int Kind82Show(Actor *a);
 int Kind4AShow(Actor *a);
+int Kind4CStart(Actor *a);          /* A5:F43D: the marks at the end of levels $12 and $1C */
+int Kind8BStart(Actor *a);          /* 84:9813: a cloud that takes hold of Aladdin */
+int Kind8BWait(Actor *a);           /* 84:9861 (83:932E's stub) */
+int Kind8CStart(Actor *a);          /* 84:9979: a cloud he bounces off */
+int Kind92Start(Actor *a);          /* A5:F5BA: a marker that puts the escort at its place */
 int Kind85Start(Actor *a);
 int AnimateWhileWaiting(Actor *a);          /* the wait routine of kinds $4A, $82, $85, $95, $96 */
 int AnimateWhileWaitingIf07Bit4(Actor *a);  /* kind $36's */

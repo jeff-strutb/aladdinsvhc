@@ -52,3 +52,16 @@ Not converted, no creator or past a table (each prints its name once if reached)
   83:AF8E Kind36Start's +$07 values 0 and 2 (it stands; it follows a cursor by $00A5): no placement lists them and
           no routine of the record creates a $36 with them; the odd values and moves 3 and 4 (levels $41, $44's
           placements) index the words past the tables in the original, which are code bytes.
+
+Kinds $4C, $8B, $8C and $92 (decomp gap, 2026-11-20): converted (kind4c.c, kind8b.c, kind8c.c, kind92.c; rows in kinds.c). Checked with
+the actor check on per-frame dumps of the decomp's coverage scripts expanded with their pokes before the frame's dump (so a started
+record is seen in state $0C): $4C (cov_kind4c_level12: 57,892 fields, 0 differ; cov_kind4c_bit4 is followed, not compared: its record is
+poked in mid-frame), $8C (a copy of cov_kind8c without the pokes into the record: 34,327 fields, 0 differ, with the bounces and the end),
+$8B (its rise, bobbing and end: 41,693 fields, 0 differ). NOT checked: $8B's grab of Aladdin (Kind8BGrab): the original takes him only when
+$141C (in the air) is set, which no play does in a level with this kind; with $141C poked each frame the check cannot follow (it reads the
+player's fields from the end of the frame, where his code has reset it); the code is written from the asm. $92's start is checked by no play
+(the record is poked).
+Second entries (dead like $4A's and $85's): kind $8B's 83:9333 and $8C's 83:9340 are JMLs to an RTS (84:9879, 84:99EC), not registered.
+Kind $92 sets the escort's resume point to A5:E826 (a scene of the escort: lda $47, jmp ($E82D,x); untraced, not converted): the escort goes to
+the guard's G_NOT_CONVERTED, which reports it.
+

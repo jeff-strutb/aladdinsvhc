@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 #include "actor/actor_own.h"
+#include "actor/kinds_e.h"
 
 /* this file's kinds (the actor core's); the other sessions' are in their own
    files, searched in turn */
@@ -21,6 +22,10 @@ const KindCode kinds_core[] = {
     { 0x95, Kind95Start, NULL, NULL, AnimateWhileWaiting },
     { 0x9D, Kind36Start, Kind36End, NULL, AnimateWhileWaitingIf07Bit4 },  /* the password screen's hands: kind $36's code, its table entries */
     { 0x96, SteppedShowActor, NULL, NULL, AnimateWhileWaiting },
+    { 0x4C, Kind4CStart, NULL, NULL, NULL },                          /* no wait routine: its flags never ask for one */
+    { 0x8B, Kind8BStart, NULL, NULL, Kind8BWait },                    /* second 83:9333: a JML to an RTS (dead, NOTES-core) */
+    { 0x8C, Kind8CStart, NULL, NULL, AnimateWhileWaiting },           /* second 83:9340: a JML to an RTS (dead, NOTES-core) */
+    { 0x92, Kind92Start, NULL, NULL, Kind91FreeOff },
     { 0, NULL, NULL, NULL, NULL }
 };
 
