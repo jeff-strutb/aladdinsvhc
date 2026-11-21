@@ -1,0 +1,38 @@
+# Three routines that pull their own return address (PLA, kept in $4E), yield with BRK and go back to their caller by ActorBackToCaller
+# (JMP $83:FB4F), which nothing in the ROM calls: 83:FBB5 (count $40 frames of ActorMoveY and ActorCarryPlayer, then $41 frames of rest),
+# 83:FC23 (A frames, X pixels a frame in y, turning back at the half), and the tail of ActorSpawnLookWait, 83:FC1F (waiting a frame while no
+# record is free). Each needs a caller to return to, so a free record of the second pool ($0A1B) is made a waiting actor (state 1, wait 1,
+# resume P $30, PC $1F00 in bank $83 = work RAM, where the bytes of a three-instruction program are poked in the zeros of $1F00: JSR to the
+# routine, BRK, BRA back to the BRK: its operand $FC, from the byte after the BRA to the BRK; an earlier $FB landed on the byte before it, an XCE, which switched the CPU's mode a frame), the loop's RTI starts it, and the original runs the routine as its callee. First level, frame 10.
+# A. FBB5 with $40 = 3, $41 = 3.
+# B. FC23 with A = 8, X = 2.
+# C. FC0D (ActorSpawnLookWait) with the first pool's free list empty ($15E4 negative) for 8 frames, then as it was ($32 is its value here).
+load build/aladdin/states/level1.state
+wait 10
+poke 001F00 20,B5,FB,00,00,80,FC
+poke 000A21 12
+poke 000A5B 03,03
+poke 000A1D 30,00,1F,83
+poke 000A1C 01
+poke 000A1B 01
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 001F00 A9,08,A2,02,20,23,FC,00,00,80,FC
+poke 000A21 12
+poke 000A1D 30,00,1F,83
+poke 000A1C 01
+poke 000A1B 01
+wait 60
+load build/aladdin/states/level1.state
+wait 10
+poke 001F00 20,0D,FC,00,00,80,FC
+poke 000A21 12
+poke 000A68 12
+poke 0015E4 FF
+poke 000A1D 30,00,1F,83
+poke 000A1C 01
+poke 000A1B 01
+wait 8
+poke 0015E4 32
+wait 20
