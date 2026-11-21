@@ -110,78 +110,78 @@ of routines that pause, and typed readers in place of cartridge addresses.
 The game's logic is the original's, so a wrong value or a misplaced actor is
 a bug; recordings of the original are kept to find such bugs.
 
+### Not done
+
+- **Not played through.** Only the start is checked: Start during the opening story skips it to the title, and Start
+  again on the menu gives level 1, which does not end by itself over 6,500 updates with no input. A pad's play beyond
+  that, the password and options screens, the scenes between levels and the ending run only from probe entries
+  (`NATIVE-FAULTS.txt`): the ending's stage play-back dies after about 600 frames of a stage, level 2's first exit did
+  not start with the player put at it, the level select from the title started level 1 for two of four parts, and the four
+  level scene tasks (levels 3, 5 end, $0D, $10) wait for events no run has made. None of this has been compared with
+  the original.
+- **Proven against the original only on some plays.** Actors: the level 1 attract demo's window (0 of 606,824 fields
+  differ at commit `2dc14405`), level 1's random plays, and the plays from passwords 1 to 7, with the open differences
+  listed in `NATIVE-ACTOR-CHECK.txt` (kind $46 with another kind in `rand_pw1_2`; $1428 on a platform in `rand_pw5_2`;
+  most kinds have no play that reaches them). Sound: the driver only (41 runs, 330,680 ticks, 0 differ); the sound
+  as the engine mixes it is not sample-exact and has not been judged by ear.
+- **The decomp's own gap.** The "100%" bars left real code out: 1,533 B of reachable code in 49 runs (`DECOMP-GAP.txt`).
+  Since then kinds $4C, $8B, $8C and $92 and 28 second states have been filed and the census repaired; still open are
+  seven orphan runs (574 B, possibly dead), `81:D538`, `81:D5E1`, `83:FC1F`, `A5:E826`'s chain and 7 B. The bars above
+  are the gate runner's and are not edited by hand.
+- **Departures from the original** are in [docs/aladdin/native/DEPARTURES.md](docs/aladdin/native/DEPARTURES.md):
+  one, a ledge that faces the wrong way no longer clears the fraction of Aladdin's speed (no play reaches it).
+- **The story card** copies code as graphics only with an act past 7, in one poked run (black on every frame);
+  whether real play reaches it is open in the plan.
+- **Platforms:** Linux only, run headless and in a window under a Vulkan translation driver. Nothing is packaged.
+- **The enhanced game** (widescreen, higher frame rates) is not designed yet.
+
 ### Progress (2026-11-20)
 
-The conversion began on 2026-11-19. The table is the count of the record's
-`@routine` addresses (`src/aladdin`) that have a native `@routine` in
-`native/aladdin/src` at commit `3df5cbf9`. Routines the native game merged into
-others, replaced by the engine or found dead are not in the count, so the
-converted share is a little higher than the table says.
+The conversion began on 2026-11-19. Four accounts list every routine of the record's actors, game and level code,
+player and video as converted, merged into other native code, replaced by the engine, dead (with the proof) or open
+(`build/aladdin/writers/NATIVE-ACCOUNT-*.txt`, `native/aladdin/src/audio/ROUTINES.md` for the sound):
 
-| Area | Converted | |
+| Account | Routines | Converted | Merged | Replaced | Dead | Open |
+|---|---:|---:|---:|---:|---:|---:|
+| Actors | 950 | 662 | 210 | 0 | 76 | 2 |
+| Game, level, map, system, input | 302 | 242 | 23 | 2 | 35 | 0 |
+| Player | 129 | 108 | 4 | 0 | 17 | 0 |
+| Video | 226 | 148 | 51 | 1 | 26 | 0 |
+| **The four** | **1,607** | **1,160** | **288** | **3** | **154** | **2** |
+
+Sound's 44 routines and math's 4 (one converted, three dead) are accounted for in their own notes: 1,655 in all. The
+2 open routines are kind $92's second state and kind $8C's wait, which the record had no code for when the account was
+written; the record has gained 47 actor routines since (the gap work above), so it now holds 1,702.
+
+By the count of the record's `@routine` addresses that have a native `@routine` in `native/aladdin/src` (merged and dead
+routines are not in it, so it reads lower than the accounts):
+
+| Area | With a native routine | |
 |---|---:|---:|
-| Actors | 655 of 950 | 69% |
+| Actors | 665 of 997 | 67% |
 | Video | 148 of 226 | 65% |
 | Game screens | 95 of 129 | 74% |
-| Player | 103 of 129 | 80% |
+| Player | 104 of 129 | 81% |
 | Level | 62 of 65 | 95% |
 | Map | 44 of 65 | 68% |
 | Sound | 30 of 44 | 68% |
 | System, input, math | 30 of 47 | 64% |
-| **Total** | **1,167 of 1,655** | **71%** |
+| **Total** | **1,178 of 1,702** | **69%** |
 
-That is 53,298 lines of native C and headers in 345 files. The engine's
-hardware finder and the project's clean check (`native/aladdin/tools/clean_check.py`)
-report nothing in them.
+That is 53,948 lines of native C and headers in 348 files. The engine's hardware finder and the project's clean check
+(`native/aladdin/tools/clean_check.py`) report nothing in them.
 
-What runs, on Linux, from power-on with no input: the copyright card, the
-logo, the opening story with its scenes and text, the title with its menu and
-music, and the attract demo, which loads level 1 and plays it: Aladdin runs
-and jumps through the market with Abu, past the stall keepers and the guards.
+What runs, on Linux, from power-on with no input: the copyright card, the logo, the opening story with its scenes and
+text, the title with its menu and music, and the attract demo, which loads level 1 and plays it: Aladdin runs and jumps
+through the market with Abu, past the stall keepers and the guards.
 
 | | |
 |---|---|
 | ![The opening story: the Cave of Wonders](docs/aladdin/native/shots/story.png) | ![The opening story: the tiger's head](docs/aladdin/native/shots/cave.png) |
 | ![The title and its menu](docs/aladdin/native/shots/title.png) | ![Level 1 in the attract demo](docs/aladdin/native/shots/level1.png) |
 
-The pictures are the engine's own, taken from a headless run of this
-repository's build (`--shots`) at the console's size and doubled.
-
-### Not done
-
-- **Playing the game is checked only at its start.** With input (headless, keys
-  replayed): Start during the opening story skips it to the title; Start again
-  on the title's menu (Game Start) gives level 1 as a game, which does not end
-  by itself over 6,500 updates with no further input (Aladdin stands at the
-  start with Abu). A pad's play of the level beyond that, the password, options,
-  continue and Genie screens, the scenes between levels and the ending are
-  converted in part and were run only by probe entries or not reached by input;
-  the rope pull of the continue screen and the nine-piece chain of level 18 have
-  not run at all.
-- **295 of the 950 actor routines are not converted,** and of the converted
-  kinds only those the boot and the attract demo reach have run. The check of
-  actors against the original's recordings found no native fault on level
-  1's demo at commit `2dc14405` (0 of 606,824 fields differ over the demo's window) and on the kinds
-  it has been run for; most kinds are not yet checked, and levels past 1 only in part,
-  and the check's own placement test needs a fix before its other differences
-  mean anything (`build/aladdin/writers/NATIVE-ACTOR-CHECK.txt`).
-- **Not converted, by area (the counts above; some may be dead and listed as
-  such in their notes):** 78 video routines (mostly window effects, colour
-  fades, actor pictures, Mode 7), 34 game-screen routines (the story scenes
-  10, Genie's tail 6, scene moves 3, the password, options and menu marks), 26
-  player routines (scene starts and steps, the carpet ride, some states), 21
-  map routines (collision and tile changes), 14 sound routines and 17 in
-  system, input and math. The line tables of levels 6 and $11 wait on video's
-  line channel.
-- **The story card runs code as graphics in one poked run:** with an act past 7
-  the card copies bank $80's code to video memory (the run is black on every
-  frame; whether real play reaches it is an open question in the plan).
-- **Sound** is checked at the driver (the same voice events as the original,
-  tick for tick, over 41 runs); the sound as the engine plays it is not
-  sample-exact, and has not been judged by ear.
-- **Platforms:** Linux only, run headless and in a window under a Vulkan
-  translation driver. Nothing has been packaged.
-- **The enhanced game** (widescreen, higher frame rates) is not designed yet.
+The pictures are the engine's own, taken from a headless run of this repository's build (`--shots`) at the console's
+size and doubled.
 
 ## The Decompilation Standard
 

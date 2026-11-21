@@ -15,39 +15,46 @@ and `asm/aladdin` are never edited and stay the certified reference.
 
 ## Where it stands (2026-11-20)
 
-From `build/aladdin/writers/NATIVE-STATUS.txt` (65 landings logged) and `NATIVE-ACTOR-CHECK.txt`, and a run of main at
-`3df5cbf9`.
+From `build/aladdin/writers/NATIVE-STATUS.txt`, `NATIVE-ACTOR-CHECK.txt`, `NATIVE-FAULTS.txt`, the four
+`NATIVE-ACCOUNT-*.txt` files and [DEPARTURES.md](DEPARTURES.md), and a run of main at `b6e4236f`.
 
 What is not done, first:
-- **Stage 5 is not done:** 488 of the record's 1,655 routines have no native routine (the README's table gives them by
-  area; merged and dead routines are not in that count). Only five sessions work, and only on what the attract demo
-  reaches (section 5); the kind sessions B to E and the replay session are paused.
-- **The check of actors against the original is not reliable yet** (`NATIVE-ACTOR-CHECK.txt`): its placement test takes
-  records other code makes in the same frame for placements, which gives most of its differences (kinds $10, $11,
-  $12, $13, $34, and $20 after them); the player is loaded one frame ahead of what an actor sees; the first dump
-  must precede record creation. Kinds with no record in a checked play are not checked. The fix belongs to the check
-  (native-setup's, repaired but uncommitted in its worktree at the time of the status).
-- **Playing is checked only at its start:** Start during the opening story skips it to the title, and Start again on
-  the menu (Game Start) gives level 1, which does not end by itself over 6,500 updates with no input (2026-11-20,
-  headless, keys replayed). Beyond that a pad's play of level 1, the password, options, continue and Genie screens,
-  the scenes between levels and the ending were run by probe entries or not at all; the chain of level 18 and the
-  continue screen's rope pull have not run.
-- **Stage 1 (record and replay)** exists but is paused; stage 3's driver is checked at the driver (voice events), the
-  sound as the engine mixes it is not judged. Stage 7 (the enhanced game) is not designed; stage 8 (Linux packaging)
-  is not started.
+- **The game is not played through.** Checked: Start skips the opening story, Game Start gives level 1, which does not
+  end by itself over 6,500 updates with no input. Everything after is run by probe entries only and not compared with
+  the original: the open faults are the ending's stage play-back (the player dies after about 600 frames of a stage),
+  level 2's first exit (it did not start with the player put at it; may be the probe), the level select (two of four
+  parts started level 1) and the four level scene tasks (never triggered). `NATIVE-FAULTS.txt` has them with owners.
+- **What is proven against the original is partial.** Actors: the level 1 demo window (0 of 606,824 fields differ),
+  level 1's random plays, the plays from passwords 1 to 7; open differences in `NATIVE-ACTOR-CHECK.txt` (kind $46 in
+  `rand_pw1_2`, $1428 on a platform in `rand_pw5_2`); most kinds have no play that reaches them. The check itself had
+  artifacts (records other code makes in the same frame, the player's place one frame late) that the kinds sessions
+  and native-setup have been repairing; its differences are read against that file. Sound: the driver only (41 runs,
+  330,680 ticks, 0 differ); the engine's mix is not judged by ear.
+- **The decomp gap** (`DECOMP-GAP.txt`): 1,533 B of reachable code in 49 runs were outside the bars. Filed since: kinds
+  $4C, $8B, $8C, $92 (`a47355c5`; native `845591b1`, 0 differ on $4C, $8B, $8C; $92 and $8B's hold of Aladdin
+  unchecked: no play reaches them), 28 second states (`80b75e3e`, the gate runner running), the census repaired
+  (`63d01770`: untouched code bytes 25,913 to 24,746). Open: seven orphan runs (574 B, possibly dead), `81:D538`,
+  `81:D5E1`, `83:FC1F`, the chain at `A5:E826`, 7 B. The README's bars are the gate runner's (90,947 of 90,954 B when
+  written); they move with its ledger commits and are not edited by hand.
+- **Departures from the original:** one, in DEPARTURES.md (a wrong-way ledge no longer clears the speed fraction; no
+  play reaches it).
+- Stage 7 (the enhanced game) is not designed; stage 8 (Linux packaging) is not started; the replay session (stage 1) is
+  paused. Only the attract demo's sessions ran (section 5); the other kinds are converted by the accounts below.
 
-What is true now:
-- Both targets build for Linux (Vulkan) and headless; the clean check reports nothing over 345 files (53,298 lines);
-  the data check passes; headless, with no input, the game runs 11,000 updates from power-on to the attract demo's level
-  1 with exit 0 and prints only its one summary line, `updates 11000 pictures 11000` (the engine prints two
-  Vulkan-driver lines under Dozen).
-- **1,167 of 1,655 routines (71%) have a native routine** (README: actors 655 of 950, video 148 of 226, game 95 of 129,
-  player 103 of 129, level 62 of 65, map 44 of 65, sound 30 of 44, system 30 of 47).
+What is true:
+- **Conversion is complete for what the record had.** Four accounts list every routine of the actors, game/level/map/
+  system/input, player and video code: 1,607 routines, 1,160 converted, 288 merged into other native code, 3 replaced by
+  the engine, 154 dead (each with its proof) and 2 open (kind $92's second state and kind $8C's wait, which the record
+  had no code for when written; the record has 47 more routines since, the gap above). Sound's 44 and math's 4 are
+  accounted for in `src/audio/ROUTINES.md` and `src/math/NOTES`: 1,655 in all.
+- **By the count of native `@routine` tags** (merged and dead are not in it): 1,178 of the record's 1,702 routines
+  (69%): actors 665 of 997, video 148 of 226, game 95 of 129, player 104 of 129, level 62 of 65, map 44 of 65, sound
+  30 of 44, system, input and math 30 of 47.
+- Both targets build for Linux (Vulkan) and headless with no warning in the game's code; the clean check reports
+  nothing over 348 files (53,948 lines); the data check passes; headless and Linux, with no input, 11,000 updates from
+  power-on to the attract demo's level 1 exit 0 and print only the game's one summary line.
 - The boot (copyright card, logo, opening story, title with music) and the attract demo, which loads level 1 and plays
-  it (Aladdin, Abu, the stall keepers and guards), run natively on Linux; pictures are in the README.
-- The actor check found 0 of 606,824 fields differing over the demo's window (frames 10001-11334, 130 registered kinds
-  but Aladdin's, at `2dc14405`) and exact runs of kinds $08, $20, $51, $6C and others in level 1's plays
-  (`NATIVE-ACTOR-CHECK.txt`).
+  it, run natively on Linux (pictures in the README).
 
 ## Decisions
 
