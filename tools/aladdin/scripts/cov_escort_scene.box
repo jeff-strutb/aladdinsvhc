@@ -1,0 +1,42 @@
+# The escort's scene code that kind $92 sends it to ($A5:E826, which jumps by the escort's $47 to $E835, $E96C or $E9C0): kind $92's start
+# ($A5:F5BA) sets the escort's resume address ($092E) to $E826, copies its own x and y into the escort's ($0937, $093A) and its own $07 into
+# the escort's $47 ($0972), then ends. In stage a3 s0 (level 8, the escort alive in record $092B) the free record $0A1B is made a kind $92
+# record in its start state ($0C) with $07 = 0, 1, 2 and 3 in a play each (the record's x $0A27 and y $0A2A where the ROM places it: $0BC0, $0118 for $07 0, $0AF0, 0 for $07 1), and
+# the escort goes on from E826 as the original has it.
+# The $07 = 0 scene waits for the game's counter ($146F, which the scene's own task counts to $2C) or for Aladdin to be $90 ahead of it: the
+# counter is poked to $2C every 30 frames, as the game sets it, and the scene runs to its end (a jump to $A5:E5B6).
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000A21 92
+poke 000A22 00
+poke 000A27 C0,0B
+poke 000A2A 18,01
+poke 000A1B 0C
+repeat 26
+wait 30
+poke 00146F 2C
+end
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000A21 92
+poke 000A22 01
+poke 000A27 F0,0A
+poke 000A2A 00,00
+poke 000A1B 0C
+wait 600
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000A21 92
+poke 000A22 02
+poke 000A27 F0,0A
+poke 000A2A 00,00
+poke 000A1B 0C
+wait 600
+load build/aladdin/states/stage_a3_s0.state
+wait 30
+poke 000A21 92
+poke 000A22 03
+poke 000A27 F0,0A
+poke 000A2A 00,00
+poke 000A1B 0C
+wait 600
