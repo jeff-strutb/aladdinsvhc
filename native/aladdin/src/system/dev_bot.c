@@ -4,7 +4,7 @@
  * combination for those updates in a forked copy of the whole process, scores where Aladdin ends (further right,
  * alive, no health lost, or the level changed), applies the best for real and appends the update's keys to
  * ALADDIN_DEV_BOT_OUT in the input file's form. ALADDIN_DEV_BOT_SEG (updates a choice holds, default 16),
- * ALADDIN_DEV_BOT_DEPTH (choices looked ahead, default 1), ALADDIN_DEV_BOT_GOAL ("x" right, "-x" left, "y" down,
+ * ALADDIN_DEV_BOT_ROLLOUTS and _LEN (the random runs tried when stuck, default 200 of 16 choices), ALADDIN_DEV_BOT_DEPTH (choices looked ahead, default 1), ALADDIN_DEV_BOT_GOAL ("x" right, "-x" left, "y" down,
  * "-y" up: what the score follows). Linux only (fork).
  */
 #include <stdio.h>
@@ -271,6 +271,12 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
                 goal_x = !strcmp(v, "x") - !strcmp(v, "-x");
                 goal_y = !strcmp(v, "y") - !strcmp(v, "-y");
             }
+            if ((v = getenv("ALADDIN_DEV_BOT_ROLLOUTS")) && *v)
+                rollouts = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_LEN")) && *v)
+                rollout_len = (unsigned)strtoul(v, NULL, 0);
+            if (rollout_len > MAXQ)
+                rollout_len = MAXQ;
             if ((v = getenv("ALADDIN_DEV_BOT_OUT")) && *v)
                 out = fopen(v, "w");
         }

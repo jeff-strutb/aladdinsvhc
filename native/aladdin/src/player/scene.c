@@ -5,11 +5,12 @@
  * that follows a landing, the scene that waits for its cue and walks off,
  * the standing scene and the ending's ride.
  *
- * Not converted, dead (the record: no level plays them; no script reaches
- * them): 81:DDC1 PlayerScenePlaceHigh, 81:DDE0 PlayerScenePlaceLow, 81:DF3A
- * PlayerSceneWaitWalk, 81:DF6F PlayerSceneJumpIn, 81:E0AE PlayerSceneWalkOut,
- * 81:E154 PlayerSceneCued and the steps only they call (81:E224, 81:E22C,
- * 81:E235).
+ * PlayerSceneJumpIn ($07 8) and PlayerSceneWalkOut ($07 13) are played (level
+ * 3's and level $10's scenes: found by a play by keys; the record says no level
+ * plays them). Not converted (nothing found plays them): 81:DDC1
+ * PlayerScenePlaceHigh, 81:DDE0 PlayerScenePlaceLow, 81:DF3A
+ * PlayerSceneWaitWalk, 81:E154 PlayerSceneCued and the steps only they call
+ * (81:E224, 81:E22C, 81:E235).
  */
 #include "player/player_own.h"
 #include "system/task.h"
@@ -172,6 +173,97 @@ static int walk_right_frame(Actor *a)
         return 1;
     PlayerMoveStart(a, 0x19);
     return wait_then(a, P_WALK_RIGHT_POSED, 0x80);
+}
+
+/*
+ * @routine 81:DF6F PlayerSceneJumpIn
+ * WHAT IT DOES: ($07 8: level 3's and level $10's scenes) He walks right
+ * for 24 frames (move 2, speed entry 3), jumps (preset $4D) and flies
+ * with his jump's poses until he falls into the ground, lands with its
+ * sound and pose ($19) for 128 frames, and stands.
+ */
+static int jump_in(Actor *a)
+{
+    a->facing = 0;
+    a->flip = 0;
+    PlayerMoveStart(a, 0x02);
+    ActorSpeedXSet(a, 0x03);
+    WAIT_FRAMES(a) = 0x18;
+    return next_frame(a, P_JUMP_IN_WALK);
+}
+
+static int jump_in_walk(Actor *a)
+{
+    ActorMoveX(a);
+    if (--WAIT_FRAMES(a))
+        return 1;
+    ActorMotionPreset(a, 0x4D);
+    POSE_FRAMES(a) = 0;
+    POSE_TIMER(a) = 0;
+    return next_frame(a, P_DROPPED_FRAME);
+}
+
+/*
+ * @routine 81:E0AE PlayerSceneWalkOut
+ * WHAT IT DOES: ($07 13: level 3's last scene) He walks right at one pixel
+ * a frame to the scene's cue point (x $0650 or more by its bytes), stands
+ * until the scene's cue (bit 7 of g.scene_cue), walks on for 256 frames
+ * with the escort's state set to 3, then as the screen fades (sound $F6,
+ * the brightness task) walks on; at the end of the fade the restart point
+ * and the stage are cleared, the story's part counted up, and the level's
+ * end task goes on.
+ */
+static int walk_out(Actor *a)
+{
+    a->facing = 0;
+    a->flip = 0;
+    g.view_edge_rule = 0x04;
+    g.scene_exits++;
+    PlayerMoveStart(a, 0x02);
+    a->speed_x = 1 << 8;
+    return next_frame(a, P_WALK_OUT_WALK);
+}
+
+static int walk_out_walk(Actor *a)
+{
+    ActorMoveX(a);
+    if (((x_pixels(a) >> 8) & 0xFF) < 0x06 || (x_pixels(a) & 0xFF) < 0x50)
+        return 1;
+    PlayerMoveStart(a, 0x00);
+    g.scene_cue++;
+    return next_frame(a, P_WALK_OUT_CUE);
+}
+
+static int walk_out_cue(Actor *a)
+{
+    if (!(g.scene_cue & 0x80))
+        return 1;
+    PlayerMoveStart(a, 0x02);
+    POSE_FRAMES(a) = 0;
+    g.actors[1].own.bytes[OWN_4D] = 0x03;
+    return next_frame(a, P_WALK_OUT_ON);
+}
+
+static int walk_out_on(Actor *a)
+{
+    ActorMoveX(a);
+    if (--POSE_FRAMES(a))
+        return 1;
+    SoundQueueF6With1();
+    TaskCreate(SCENE_SLOT, 0x04, TASK_ENTRY_BRIGHTNESS_DOWN);
+    return next_frame(a, P_WALK_OUT_FADE);
+}
+
+static int walk_out_fade(Actor *a)
+{
+    ActorMoveX(a);
+    if (task_busy(SCENE_SLOT))
+        return 1;
+    g.level_restart = 0;
+    g.progress_stage = 0;
+    g.progress_sequence++;
+    TaskExecRunning(TASK_ENTRY_LEVEL_END);
+    return 1;
 }
 
 /*
@@ -558,6 +650,13 @@ int player_scene_code(Actor *a)
     case PLAYER_AT_START_NEW_GAME:  return start_new_game(a);
     case PLAYER_AT_SCENE_WALK_ON:   return walk_on(a);
     case PLAYER_AT_SCENE_WALK_RIGHT:return walk_right(a);
+    case PLAYER_AT_SCENE_JUMP_IN:   return jump_in(a);
+    case PLAYER_AT_SCENE_WALK_OUT:  return walk_out(a);
+    case P_JUMP_IN_WALK:            return jump_in_walk(a);
+    case P_WALK_OUT_WALK:           return walk_out_walk(a);
+    case P_WALK_OUT_CUE:            return walk_out_cue(a);
+    case P_WALK_OUT_ON:             return walk_out_on(a);
+    case P_WALK_OUT_FADE:           return walk_out_fade(a);
     case PLAYER_AT_SCENE_LAND:      return scene_land(a);
     case PLAYER_AT_SCENE_STAND:     return scene_stand(a);
     case PLAYER_AT_ENDING_RIDE:     return ending_ride(a);

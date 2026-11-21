@@ -25,12 +25,12 @@ static const struct {
     { PLAYER_AT_START_DROPPED, NULL },      /*  5 */
     { PLAYER_AT_START_NEW_GAME, NULL },      /*  6 */
     { PLAYER_AT_STORY, NULL },             /*  7 */
-    { 0, "PlayerSceneJumpIn (81:DF6F): no level plays it, not converted" },       /*  8 */
+    { PLAYER_AT_SCENE_JUMP_IN, NULL },     /*  8 */
     { PLAYER_AT_SCENE_LAND, NULL },         /*  9 */
     { PLAYER_AT_SCENE_WALK_ON, NULL },       /* 10 */
     { PLAYER_AT_SCENE_WALK_RIGHT, NULL },    /* 11 */
     { 0, "PlayerSceneCued (81:E154): no level plays it, not converted" },         /* 12 */
-    { 0, "PlayerSceneWalkOut (81:E0AE): no level plays it, not converted" },      /* 13 */
+    { PLAYER_AT_SCENE_WALK_OUT, NULL },    /* 13 */
     { PLAYER_AT_ENDING_RIDE, NULL },        /* 14 */
     { PLAYER_AT_SCENE_STAND, NULL },        /* 15 */
 };
