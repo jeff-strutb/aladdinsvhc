@@ -253,8 +253,8 @@
 <rect x="698.4" y="417.2" width="29.1" height="29.2" fill="#3fb950"><title>PlayerInFrontBoxByFlip  81AF01  58B  T4  [actor]</title></rect>
 <rect x="728.1" y="417.2" width="29.1" height="29.2" fill="#3fb950"><title>ActorDownedByHarmlessShot  838208  58B  T4  [actor]</title></rect>
 <rect x="757.8" y="417.2" width="29.1" height="29.2" fill="#3fb950"><title>PlayerLandsOnActor  83848D  58B  T4  [actor]</title></rect>
-<rect x="787.4" y="417.2" width="29.1" height="29.2" fill="#3fb950"><title>Kind3BPart0  83C05E  58B  T4  [actor]</title></rect>
-<rect x="817.1" y="417.2" width="29.1" height="29.2" fill="#d29922"><title>ActorCarryBob  83FC23  58B  T2  [actor]</title></rect>
+<rect x="787.4" y="417.2" width="29.1" height="29.2" fill="#3fb950"><title>ActorCarryBob  83FC23  58B  T4  [actor]</title></rect>
+<rect x="817.1" y="417.2" width="29.1" height="29.2" fill="#3fb950"><title>Kind3BPart0  83C05E  58B  T4  [actor]</title></rect>
 <rect x="394.7" y="447.0" width="27.7" height="30.1" fill="#3fb950"><title>ActorFreeListSort  81ADC0  57B  T4  [actor]</title></rect>
 <rect x="394.7" y="477.8" width="27.7" height="30.1" fill="#3fb950"><title>Kind20Patrol  8397F9  57B  T4  [actor]</title></rect>
 <rect x="394.7" y="508.5" width="27.7" height="30.1" fill="#3fb950"><title>ActorGoToPoint  83FC5D  57B  T4  [actor]</title></rect>
@@ -399,8 +399,8 @@
 <rect x="500.7" y="739.8" width="21.4" height="22.3" fill="#3fb950"><title>Kind52Second  83D545  33B  T4  [actor]</title></rect>
 <rect x="500.7" y="762.7" width="21.4" height="22.3" fill="#3fb950"><title>Kind57Third  83DB9A  33B  T4  [actor]</title></rect>
 <rect x="500.7" y="785.5" width="21.4" height="22.3" fill="#3fb950"><title>Kind5AWait  83DEF3  33B  T4  [actor]</title></rect>
-<rect x="500.7" y="808.4" width="21.4" height="22.3" fill="#3fb950"><title>Kind86OutOfView  8497EE  33B  T4  [actor]</title></rect>
-<rect x="500.7" y="831.3" width="21.4" height="22.3" fill="#d29922"><title>ActorCarryMoveWait  83FBB5  33B  T2  [actor]</title></rect>
+<rect x="500.7" y="808.4" width="21.4" height="22.3" fill="#3fb950"><title>ActorCarryMoveWait  83FBB5  33B  T4  [actor]</title></rect>
+<rect x="500.7" y="831.3" width="21.4" height="22.3" fill="#3fb950"><title>Kind86OutOfView  8497EE  33B  T4  [actor]</title></rect>
 <rect x="500.7" y="854.1" width="21.4" height="21.6" fill="#3fb950"><title>ActorNearViewX  81AD48  32B  T4  [actor]</title></rect>
 <rect x="500.7" y="876.3" width="21.4" height="21.6" fill="#3fb950"><title>ActorNearViewY  81AD84  32B  T4  [actor]</title></rect>
 <rect x="522.7" y="575.6" width="21.4" height="21.6" fill="#3fb950"><title>ActorKindSetup  82AA61  32B  T4  [actor]</title></rect>
@@ -1730,4 +1730,4 @@
 <rect x="1589.7" y="856.5" width="8.2" height="13.6" fill="#3fb950"><title>MultiplyBy  81A7E6  11B  T4  [math]</title></rect>
 <rect x="1589.7" y="873.7" width="8.2" height="13.6" fill="#3fb950"><title>PadConfirmPressed  80A04F  13B  T4  [input]</title></rect>
 <rect x="1589.7" y="890.9" width="8.2" height="7.0" fill="#c8ccd2"><title>code the census found    8B  T1  [not run by any script yet]</title></rect>
-<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 1719 &#183; T3 behaviour-exact 0 &#183; 92,151/92,250 bytes exact (99.9%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
+<text x="8" y="920" font-size="13" fill="#e6edf3">T4 byte-exact 1721 &#183; T3 behaviour-exact 0 &#183; 92,242/92,250 bytes exact (100.0%) &#183; green=T4 blue=T3 amber=T2 gray=T1</text></svg>
