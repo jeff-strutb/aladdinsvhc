@@ -382,9 +382,12 @@ Kind8ASecond:
     rts
 
 ; @routine 84:9383 Kind7FEnd
+; @actor
 ; WHAT IT DOES: Where the second state of kind $7F ends the actor:
 ; ActorEndPlaced.
 ; HOW: JML to ActorEndPlaced ($83:96CA).
+; Its callers' C calls it inside C, which A5 does not see as a call: cov_end_entries resumes a
+; waiting record here (the actor loop's RTI at the record's resume address).
 ; Entry: D = the actor's record; reached by the JML of Kind7FSecond
 ; ($83:92BE).
 ; Exit: never returns: as ActorEndPlaced.
@@ -417,9 +420,12 @@ Kind8CSecondReturn:
     rts
 
 ; @routine 84:A434 Kind99End
+; @actor
 ; WHAT IT DOES: Where the second state of kind $99 ends the actor:
 ; ActorEndPlaced.
 ; HOW: JML to ActorEndPlaced ($83:96CA).
+; Its callers' C calls it inside C, which A5 does not see as a call: cov_end_entries resumes a
+; waiting record here (the actor loop's RTI at the record's resume address).
 ; Entry: D = the actor's record; reached by the JML of Kind99Second
 ; ($83:93D4).
 ; Exit: never returns: as ActorEndPlaced.
@@ -428,9 +434,12 @@ Kind99End:
     jml.l ActorEndPlaced
 
 ; @routine 84:A4DF Kind9AEnd
+; @actor
 ; WHAT IT DOES: Where the second state of kind $9A ends the actor:
 ; ActorEndPlaced.
 ; HOW: JML to ActorEndPlaced ($83:96CA).
+; Its callers' C calls it inside C, which A5 does not see as a call: cov_end_entries resumes a
+; waiting record here (the actor loop's RTI at the record's resume address).
 ; Entry: D = the actor's record; reached by the JML of Kind9ASecond
 ; ($83:93E1).
 ; Exit: never returns: as ActorEndPlaced.
@@ -439,9 +448,12 @@ Kind9AEnd:
     jml.l ActorEndPlaced
 
 ; @routine A5:F3EC Kind21End
+; @actor
 ; WHAT IT DOES: Where the second state of kind $21 ends the actor:
 ; ActorEndPlaced.
 ; HOW: JML to ActorEndPlaced ($83:96CA).
+; Its callers' C calls it inside C, which A5 does not see as a call: cov_end_entries resumes a
+; waiting record here (the actor loop's RTI at the record's resume address).
 ; Entry: D = the actor's record; reached by the JML of Kind21Second
 ; ($83:922F).
 ; Exit: never returns: as ActorEndPlaced.

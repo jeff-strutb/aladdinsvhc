@@ -1,0 +1,45 @@
+# The end entries that only the second entries reach, each a JML
+# to ActorEnd or ActorEndPlaced: Kind12End ($81:EC1F), Kind21End ($A5:F3EC), Kind7FEnd ($84:9383), Kind8FWalkEnd ($83:FAB7), Kind99End
+# ($84:A434) and Kind9AEnd ($84:A4DF). In the C the callers reach them by a call inside C, which no per-call check sees; in the original
+# nothing runs them from the actor loop. As cov_kind38_end does for Kind38End, the loop's RTI starts the actor there: in the first stage
+# of level $11 the free record $0A1B is made a waiting actor of each kind in turn (state 1, wait 1, resume P $30 and the entry's address
+# in $0A1D-$0A20, kind byte $0A21), so the loop counts its wait out and RTIs to the entry, which ends the record. 4 frames run, and the
+# pool's free count ($15E4) is put back to $30 so that 6 endings do not run it over its list.
+load build/aladdin/states/stage_a5_s3.state
+wait 30
+poke 000A21 12
+poke 000A1D 30,1F,EC,81
+poke 000A1C 01
+poke 000A1B 01
+wait 4
+poke 0015E4 30,00
+poke 000A21 21
+poke 000A1D 30,EC,F3,A5
+poke 000A1C 01
+poke 000A1B 01
+wait 4
+poke 0015E4 30,00
+poke 000A21 7F
+poke 000A1D 30,83,93,84
+poke 000A1C 01
+poke 000A1B 01
+wait 4
+poke 0015E4 30,00
+poke 000A21 8F
+poke 000A1D 30,B7,FA,83
+poke 000A1C 01
+poke 000A1B 01
+wait 4
+poke 0015E4 30,00
+poke 000A21 99
+poke 000A1D 30,34,A4,84
+poke 000A1C 01
+poke 000A1B 01
+wait 4
+poke 0015E4 30,00
+poke 000A21 9A
+poke 000A1D 30,DF,A4,84
+poke 000A1C 01
+poke 000A1B 01
+wait 4
+poke 0015E4 30,00

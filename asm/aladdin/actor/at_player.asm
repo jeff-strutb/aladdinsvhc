@@ -34,9 +34,12 @@ ActorAtPlayer:
     rts
 
 ; @routine 81:EC1F Kind12End
+; @actor
 ; WHAT IT DOES: Where actor kind $12 ends: when it has seen Aladdin's box
 ; wanted change (Kind12AtPlayer), and in its second state (Kind12Second).
 ; HOW: JML to ActorEnd ($83:95B8).
+; Its callers' C calls it inside C, which A5 does not see as a call: cov_end_entries resumes a
+; waiting record here (the actor loop's RTI at the record's resume address).
 ; Entry: M 8-bit, X 8-bit; D = the actor's record; reached by the branches of
 ; Kind12AtPlayer and the JML of Kind12Second. Exit: never returns: as ActorEnd.
 %at($81EC1F)
