@@ -587,7 +587,7 @@ static int story_step(Actor *a)
 {
     switch (a->resume) {
     case P_STORY_1:
-        if (!story_task()->own.ending_story.figures_in_place)
+        if (!g.story_in_place)
             return 1;
         return story_turn(a, P_STORY_2);
     case P_STORY_2:
@@ -623,10 +623,10 @@ static int story_step(Actor *a)
             return 1;
         return wait_then(a, P_STORY_11, 0x10);
     case P_STORY_11:
-        story_task()->own.ending_story.parts_go = 0x80;
+        g.story_part1 = 0x80;
         return next_frame(a, P_STORY_12);
     case P_STORY_12:
-        if (!story_task()->own.ending_story.part3_done)
+        if (!g.story_part3_done)
             return 1;
         return story_turn(a, P_STORY_13);
     case P_STORY_13:

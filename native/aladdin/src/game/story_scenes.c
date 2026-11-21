@@ -116,10 +116,10 @@ static TaskRun scene5_start(Task *t)
     TaskRun r;
 
     if (*at == S_START) {
-        t->own.ending_story.figures_in_place = 0;
-        t->own.ending_story.part3_done = 0;
-        t->own.ending_story.parts_go = 0;
-        t->own.ending_story.part2_done = 0;
+        g.story_in_place = 0;
+        g.story_part3_done = 0;
+        g.story_part1 = 0;
+        g.story_part2 = 0;
         for (unsigned e = FIGURES_FIRST; e <= FIGURES_LAST; e++)
             story_actor_place(e);
         TaskCreate(WINDOW_SLOT, 0x18, TASK_ENTRY_WINDOW_EFFECT);

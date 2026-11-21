@@ -49,13 +49,9 @@ typedef struct Task {
             uint16_t part3_done;    /* $0079: counted up by the story's third part at its end */
             uint16_t part2_done;    /* $007B: counted up by its second part */
         } story;
-        struct {                /* slot 0 in the ending's story (game/story_scenes.c): $0076-$007D, the bytes its scenes' figures
-                                   (kind $9B's parts) read and set */
+        struct {                /* slot 0 in the ending's story (game/story_scenes.c): $0076, $007C and $007D (the figures' shared
+                                   bytes $0078-$007B are g.story_in_place, story_part3_done, story_part1, story_part2) */
             uint16_t frames_left;   /* $0076: frames the scene still runs */
-            uint8_t figures_in_place;   /* $0078: counted up by part 2 once in place */
-            uint8_t part3_done;     /* $0079: counted up by part 3 at its end; part 1 waits for it */
-            uint8_t parts_go;       /* $007A: counted up by part 1, cleared at its end; negative: parts 0 and 2 go on */
-            uint8_t part2_done;     /* $007B: counted up by part 2; part 3 waits for it */
             uint8_t end_sound;      /* $007C: nonzero, the parameter of sound command $F6 queued as the scene ends */
             uint8_t end_wait;       /* $007D: the frames waited after it */
         } ending_story;
