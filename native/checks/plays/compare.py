@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""compare.py ORIGDIR NATIVE_ACTORS.txt FROM TO : the original's dumps (to_box.py, one a frame, d%06d; original frame u+1 = native update u) against the native trace
+(ALADDIN_DEV_ACTORS=1 ALADDIN_DEV_TRACE=1 lines): the first update where the player (x y health) differs and the first where the actor list (kind, x, y) differs."""
+import re,struct,sys
+d,nf,a,b=sys.argv[1],sys.argv[2],int(sys.argv[3]),int(sys.argv[4])
+nat={};cur=None;pl={}
+for l in open(nf):
+    m=re.match(r'u=(\d+) level=\d+ x=(\d+) y=(\d+) health=(\d+)',l)
+    if m: cur=int(m.group(1)); nat[cur]={}; pl[cur]=tuple(map(int,m.groups()[1:])); continue
+    m=re.match(r'  actor (\d+) kind=(\w+) state=(\w+) x=(\d+) y=(\d+)',l)
+    if m and cur is not None: nat[cur][int(m.group(1))]=(int(m.group(2),16),int(m.group(4)),int(m.group(5)))
+# the original runs its logic at half rate where it is slowed down (the play-time tick $147C/$147D steps every other frame): the native update u is the
+# original frame at which its tick has stepped u-a times since frame a+1 (a logic frame, not a video frame)
+def tick(f):
+    w=open('%s/d%06d.wram'%(d,f),'rb').read(0x1500); return w[0x147D]*60+w[0x147C]
+frame_of={}; steps=0; t0=tick(a+1); frame_of[a]=a+1; prev=t0
+import os
+f=a+2
+while os.path.exists('%s/d%06d.wram'%(d,f)):
+    t=tick(f)
+    if t!=prev: steps+=1; frame_of[a+steps]=f; prev=t
+    f+=1
+fp=fa=None
+for u in range(a,b):
+    if u not in frame_of: break
+    w=open('%s/d%06d.wram'%(d,frame_of[u]),'rb').read(0x1500)
+    r=0x8DB
+    o=(struct.unpack('<H',w[r+0x0C:r+0x0E])[0],struct.unpack('<H',w[r+0x0F:r+0x11])[0],w[0x367])
+    if fp is None and u in pl and o!=pl[u]: fp=u; print('player first differs at update %d: original (x,y,health) %s native %s'%(u,o,pl[u]))
+    oa={}
+    for n in range(1,36):
+        q=0x8DB+0x50*n
+        if w[q]: oa[n]=(w[q+6],struct.unpack('<H',w[q+0x0C:q+0x0E])[0],struct.unpack('<H',w[q+0x0F:q+0x11])[0])
+    na={k:v for k,v in nat.get(u,{}).items() if k}
+    if fa is None and u in nat and oa!=na:
+        fa=u; dd=[(k,oa.get(k),na.get(k)) for k in sorted(set(oa)|set(na)) if oa.get(k)!=na.get(k)]
+        print('actors first differ at update %d: (record, original, native) %s'%(u,dd[:5]))
+    if fp is not None and fa is not None: break
+print('player',fp,'actors',fa)

@@ -363,11 +363,13 @@ static int carrier(Actor *a)
     pot->facing = a->facing;
     pot->flip = (uint8_t)(a->facing ^ 1);
     ActorSpawnPlace(a, pot);
-    own16_set(pot, POT_PARENT, (uint16_t)(a - g.actors));
-    own16_set(a, POT, (uint16_t)(pot - g.actors));
     if (pot < a) {
         Actor kept;
 
+        /* each names ITSELF before the swap (the original stores its own address in the pot's +$40 and the guard's POT
+           word): the records' contents change places, so after it each names the other's record */
+        own16_set(pot, POT_PARENT, (uint16_t)(pot - g.actors));
+        own16_set(a, POT, (uint16_t)(a - g.actors));
         a->resume = CARRIER_WAITS;
         kept = *pot;
         *pot = *a;
@@ -376,6 +378,8 @@ static int carrier(Actor *a)
            (the original's JMP Kind42Start) */
         return ActorRunAs(a, Kind42Start, ACTOR_START);
     }
+    own16_set(pot, POT_PARENT, (uint16_t)(a - g.actors));
+    own16_set(a, POT, (uint16_t)(pot - g.actors));
     a->resume = CARRIER_WAITS;
     return 1;
 }
