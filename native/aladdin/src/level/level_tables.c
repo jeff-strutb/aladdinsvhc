@@ -9,6 +9,7 @@
 #include "video/video.h"
 #include "level/level.h"
 #include "system/state.h"
+#include "system/system.h"
 
 #define VIEW_HALF 0x0080        /* the range point: the view's corner + this, in x and y */
 
@@ -36,7 +37,11 @@ void LevelStartPlace(void)
     LevelStart s = level_start((uint8_t)g.level, g.level_restart);
     Actor *player = &g.actors[0];
     ScrollLayer *field = &g.layers[0], *backdrop = &g.layers[1];
-    uint16_t bx = s.camera_x, by = s.camera_y;
+    uint16_t bx, by;
+
+    DevStartAt(&s);
+    bx = s.camera_x;
+    by = s.camera_y;
 
     player->x = whole_set(player->x, s.x);
     player->facing = s.facing_left;

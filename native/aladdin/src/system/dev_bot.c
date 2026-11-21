@@ -11,7 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "actor/actor_own.h"
 #include "data/level_tables.h"
+#include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "system/state.h"
 #include "system/system.h"
@@ -54,6 +56,58 @@ void DevShot(uint64_t u)
     fclose(f);
 }
 
+/*
+ * DevMapDump: ALADDIN_DEV_MAP=FILE and ALADDIN_DEV_MAP_AT=U (default 4150): at update U, the level's map as text,
+ * a character a 16-pixel tile (' ' empty, '#' solid, '/' '\\' a slope, '-' one he passes through, 'E' an exit spot,
+ * 'S' where Aladdin is), the line starting with its y in pixels; for planning a play's waypoints.
+ */
+void DevMapDump(uint64_t u)
+{
+    static const char *path;
+    static unsigned at = 4150;
+    static int known, done;
+    FILE *f;
+    Actor dummy;
+    unsigned x, y, i, width = 320, height = 96;
+
+    if (!known) {
+        const char *v;
+
+        known = 1;
+        path = getenv("ALADDIN_DEV_MAP");
+        if ((v = getenv("ALADDIN_DEV_MAP_AT")) && *v)
+            at = (unsigned)strtoul(v, NULL, 0);
+    }
+    if (!path || done || u != at || !(f = fopen(path, "w")))
+        return;
+    done = 1;
+    memset(&dummy, 0, sizeof dummy);
+    dummy.kind = 1;
+    for (y = 0; y < height; y++) {
+        fprintf(f, "%4u ", y * 16);
+        for (x = 0; x < width; x++) {
+            MapPoint p;
+            char c;
+
+            memset(&p, 0, sizeof p);
+            p.x = (uint16_t)(x * 16 + 8);
+            p.y = (uint16_t)(y * 16 + 8);
+            TileAt(&dummy, &p);
+            c = p.kind == 0 ? ' ' : p.kind == 1 ? '#' : (p.behaviour & TILE_MIRRORED) ? '\\' : '/';
+            if (p.kind && (p.behaviour & TILE_THROUGH))
+                c = '-';
+            for (i = 0; i < g.level_spot_count; i++)
+                if (spot_x(g.level_spots, i) / 16 == x && spot_y(g.level_spots, 0) / 16 == y)
+                    c = 'E';
+            if ((g.actors[0].x >> 8) / 16 == x && (g.actors[0].y >> 8) / 16 == y)
+                c = 'S';
+            fputc(c, f);
+        }
+        fputc('\n', f);
+    }
+    fclose(f);
+}
+
 #ifdef __unix__
 #include <sys/wait.h>
 #include <unistd.h>
@@ -79,7 +133,7 @@ static const Combo combos[] = {
 
 static void (*step)(const nshvc_input *);
 static unsigned start, seg = 16, depth = 1;
-static int goal_x = 1, goal_y = 0, goal_exit;
+static int goal_x = 1, goal_y = 0, goal_exit, goal_boss;
 static unsigned switch_x = ~0u;      /* from this x on, the exit is the goal */
 static FILE *out;
 static int chosen = -1;
@@ -137,9 +191,20 @@ static double exit_distance(void)
     return best + (d < 0 ? -d : d);
 }
 
+/* a boss (kind $98, Jafar's first form): its hits left (+$11) */
+static double boss_hits(void)
+{
+    unsigned i;
+
+    for (i = 1; i < ACTOR_RECORDS; i++)
+        if (g.actors[i].state && g.actors[i].kind == 0x98)
+            return (double)g.actors[i].own.bytes[OWN_11];
+    return 0;
+}
+
 static double score(void)
 {
-    double s = (goal_exit || (g.actors[0].x >> 8) >= switch_x) && g.level_spot_count ? -exit_distance()
+    double s = goal_boss ? -1000.0 * boss_hits() + 500.0 * g.scene_cue_first : (goal_exit || (g.actors[0].x >> 8) >= switch_x) && g.level_spot_count ? -exit_distance()
                                                : goal_x * (double)(g.actors[0].x >> 8) + goal_y * (double)(g.actors[0].y >> 8);
 
     s -= 40.0 * (health0 - g.health) * (g.health < health0);
@@ -289,6 +354,7 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
                 depth = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GOAL")) && *v) {
                 goal_exit = !strcmp(v, "exit");
+                goal_boss = !strcmp(v, "boss");
                 goal_x = !strcmp(v, "x") - !strcmp(v, "-x");
                 goal_y = !strcmp(v, "y") - !strcmp(v, "-y");
             }

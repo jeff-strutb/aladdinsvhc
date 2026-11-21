@@ -40,10 +40,10 @@ static void trace_line(void)
         every = v && *v ? (unsigned)strtoul(v, NULL, 0) : 0;
     }
     if (every && nshvc_updates() % every == 0)
-        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u\n",
+        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u xmin=%u xmax=%u kind=%u\n",
                 nshvc_updates(), (unsigned)g.level, (unsigned)(g.actors[0].x >> 8), (unsigned)(g.actors[0].y >> 8),
                 (unsigned)g.health, (unsigned)g.lives, (unsigned)(g.layers[0].scroll_x >> 8), (unsigned)(g.layers[0].scroll_y >> 8),
-                (unsigned)g.level_exiting);
+                (unsigned)g.level_exiting, (unsigned)g.scroll_x_min, (unsigned)g.scroll_x_max, (unsigned)g.scroll_kind);
     if (every) {
         static int spots_of = -1;
 
@@ -84,6 +84,7 @@ static void update(const nshvc_input *input)
     step(DevBotInput(nshvc_updates(), &bot) ? &bot : input);
     trace_line();
     DevShot(nshvc_updates());
+    DevMapDump(nshvc_updates());
 }
 
 static void draw(float between)

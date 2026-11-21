@@ -56,8 +56,11 @@ void LevelTablesClear(void);            /* 81:967B */
 /* dev_start.c: a developer's start at a screen, by the environment (ALADDIN_DEV_*; docs/aladdin/native/CHECK.md) */
 void DevStartApply(void);               /* read the environment once: the cheat, the chosen screen's state */
 bool DevBotInput(uint64_t u, nshvc_input *in);   /* a developer's player: the input for this update, false the engine's own (dev_bot.c) */
+void DevMapDump(uint64_t u);           /* the level's map as text by the environment (dev_bot.c) */
 void DevShot(uint64_t u);              /* a picture every N updates by the environment (dev_bot.c) */
 void DevBotStep(void (*step)(const nshvc_input *));
+struct LevelStart;
+void DevStartAt(struct LevelStart *s);   /* ALADDIN_DEV_AT=x,y: where a level's play starts (dev_start.c) */
 TaskEntry DevStartEntry(void);          /* the chosen screen's task entry, or TASK_ENTRY_NONE */
 
 #endif

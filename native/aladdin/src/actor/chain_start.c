@@ -42,7 +42,7 @@ enum {
 static uint8_t pick(Actor *a, uint8_t base)
 {
     (void)a;
-    return (uint8_t)RandomFromList((uint8_t)(((g.chain_round | g.chain_round_or) + base) << 1));
+    return (uint8_t)RandomFromList((uint8_t)((g.chain_round | g.chain_round_or) + base));
 }
 
 /*
@@ -65,7 +65,7 @@ static int sweep_begin(Actor *a)
         g.first_sweeps--;
     else
         g.riser_course = pick(a, RANDOM_SWEEP);
-    a->own.bytes[SWEEP_SPEED] = (uint8_t)RandomFromList((uint8_t)((g.chain_round + RANDOM_SPEED) << 1));
+    a->own.bytes[SWEEP_SPEED] = (uint8_t)RandomFromList((uint8_t)(g.chain_round + RANDOM_SPEED));
     a->own.bytes[SWEEP_FRAMES] = 0xFF;
     a->resume = SWEEP_RUN;
     return 1;

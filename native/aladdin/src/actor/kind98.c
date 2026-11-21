@@ -11,7 +11,7 @@
 #include "video/video.h"
 
 #define TOP 0x38                /* the y (pixels' low byte) it bobs at */
-#define RANDOM_LIST 0x3E        /* RandomFromList's list: its way, 0 or 2 */
+#define RANDOM_LIST (0x3E >> 1) /* RandomFromList's list (the original's X = $3E): its way, 0 or 2 */
 #define DROP_KIND 0x9A
 #define SPAWN_KIND 0x23
 #define THROW_KIND 0xA5

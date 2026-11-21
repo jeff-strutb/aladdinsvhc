@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "data/level_tables.h"
+#include "data/system_tables.h"
 #include "system/state.h"
 #include "system/system.h"
 #include "system/task.h"
@@ -94,4 +95,29 @@ TaskEntry DevStartEntry(void)
     g.progress_sequence = (uint8_t)env_number("ALADDIN_DEV_PART", g.progress_sequence);
     g.progress_stage = (uint8_t)env_number("ALADDIN_DEV_STAGE", g.progress_stage);
     return chosen;
+}
+
+/*
+ * DevStartAt: ALADDIN_DEV_AT=x,y[,camera_x,camera_y] (pixels): a level's play starts there (its first start and its
+ * restarts), for reaching a level's end by a developer without playing all of it. The camera defaults to the place
+ * less the view's half.
+ */
+void DevStartAt(LevelStart *s)
+{
+    static int known;
+    static unsigned have, v[4];
+    const char *e;
+
+    if (!known) {
+        known = 1;
+        e = getenv("ALADDIN_DEV_AT");
+        if (e && *e)
+            have = (unsigned)sscanf(e, "%u,%u,%u,%u", &v[0], &v[1], &v[2], &v[3]);
+    }
+    if (have < 2)
+        return;
+    s->x = (uint16_t)v[0];
+    s->y = (uint16_t)v[1];
+    s->camera_x = have >= 3 ? (uint16_t)v[2] : (uint16_t)(v[0] > 128 ? v[0] - 128 : 0);
+    s->camera_y = have >= 4 ? (uint16_t)v[3] : (uint16_t)(v[1] > 112 ? v[1] - 112 : 0);
 }

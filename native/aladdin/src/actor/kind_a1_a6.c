@@ -9,7 +9,7 @@
 
 #define BOUNCE_LONG 0x6A        /* the long bounce, taken once; after it $68 */
 #define BOUNCE_AFTER 0x68
-#define BOUNCE_LIST 0x40        /* RandomFromList's list of its bounces */
+#define BOUNCE_LIST (0x40 >> 1) /* RandomFromList's list of its bounces (the original's X = $40; the list is X / 2) */
 
 /* its own bytes */
 typedef struct {
