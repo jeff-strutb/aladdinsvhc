@@ -5,13 +5,18 @@
  * alive, no health lost, or the level changed), applies the best for real and appends the update's keys to
  * ALADDIN_DEV_BOT_OUT in the input file's form. ALADDIN_DEV_BOT_SEG (updates a choice holds, default 16),
  * ALADDIN_DEV_BOT_ROLLOUTS and _LEN (the random runs tried when stuck, default 200 of 16 choices), ALADDIN_DEV_BOT_DEPTH (choices looked ahead, default 1), ALADDIN_DEV_BOT_GOAL ("x" right, "-x" left, "y" down,
- * "-y" up, "exit" the level's exit spots: what the score follows; ALADDIN_DEV_BOT_SWITCH=X: from player x X on, "exit"). Linux only (fork).
+ * "-y" up, "exit" the level's exit spots: what the score follows; ALADDIN_DEV_BOT_SWITCH=X: from player x X on, "exit").
+ * ALADDIN_DEV_BOT_WAY="x,y;x,y;...": waypoints, planned from the map (DevMapDump) and pictures: the player goes to each in turn
+ * (y -1: only x counts, x -1: only y), goes back to the nearest earlier one when it falls well below the last reached on a climb, and after the
+ * last follows the exit spots. ALADDIN_DEV_BOT_GE=N: the search by an archive of places (below), N copies at a time: it finds the
+ * whole way to the level's exit before the first update is played. Linux only (fork).
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "actor/actor_own.h"
+#include "data/actor_tables.h"
 #include "data/level_tables.h"
 #include "map/map.h"
 #include "nshvc/nshvc.h"
@@ -59,7 +64,8 @@ void DevShot(uint64_t u)
 /*
  * DevMapDump: ALADDIN_DEV_MAP=FILE and ALADDIN_DEV_MAP_AT=U (default 4150): at update U, the level's map as text,
  * a character a 16-pixel tile (' ' empty, '#' solid, '/' '\\' a slope, '-' one he passes through, 'E' an exit spot,
- * 'S' where Aladdin is), the line starting with its y in pixels; for planning a play's waypoints.
+ * 'S' where Aladdin is), the line starting with its y in pixels; for planning a play's waypoints. ALADDIN_DEV_PLACED=FILE:
+ * at the same update, the level's actor placements (kind, byte, x, y).
  */
 void DevMapDump(uint64_t u)
 {
@@ -78,7 +84,17 @@ void DevMapDump(uint64_t u)
         if ((v = getenv("ALADDIN_DEV_MAP_AT")) && *v)
             at = (unsigned)strtoul(v, NULL, 0);
     }
-    if (!path || done || u != at || !(f = fopen(path, "w")))
+    if (done || u != at)
+        return;
+    if (getenv("ALADDIN_DEV_PLACED") && (f = fopen(getenv("ALADDIN_DEV_PLACED"), "w"))) {
+        for (i = 0; i < placement_count(g.level); i++) {
+            Placement pl = placement_at(g.level, i);
+
+            fprintf(f, "%u kind=%02X byte=%02X x=%u y=%u\n", i, pl.kind, pl.byte, pl.x_word & 0x3FFF, pl.y_word & 0x3FFF);
+        }
+        fclose(f);
+    }
+    if (!path || !(f = fopen(path, "w")))
         return;
     done = 1;
     memset(&dummy, 0, sizeof dummy);
@@ -164,6 +180,7 @@ static const Combo combos[] = {
     { { RIGHT, SWORD } }, { { LEFT, SWORD } }, { { SWORD } }, { { UP } }, { { DOWN } },
     { { RIGHT, UP } }, { { LEFT, UP } }, { { RIGHT, DOWN } }, { { UP, JUMP } }, { { RIGHT, JUMP, SWORD } },
     { { APPLE } }, { { RIGHT, APPLE } },
+    { { DOWN, JUMP } }, { { UP, RIGHT, JUMP } }, { { UP, LEFT, JUMP } }, { { DOWN, RIGHT, JUMP } }, { { DOWN, LEFT } },
 };
 #define COMBOS (sizeof combos / sizeof combos[0])
 
@@ -174,7 +191,7 @@ static unsigned switch_x = ~0u;      /* from this x on, the exit is the goal */
 static FILE *out;
 static int chosen = -1;
 static unsigned held_left;
-#define MAXQ 32
+#define MAXQ 6000
 static int queue[MAXQ];
 static unsigned queued;
 static unsigned stuck;
@@ -238,9 +255,38 @@ static double boss_hits(void)
     return 0;
 }
 
+/*
+ * Waypoints (ALADDIN_DEV_BOT_WAY="x,y;x,y;..."): the player goes to each place in turn (near: within 20 pixels across,
+ * 28 up and down); after the last, the level's exit spots are the goal.
+ */
+#define MAXWAY 64
+static int way_x[MAXWAY], way_y[MAXWAY];
+static unsigned way_n, way_at;
+
+static int near_way(unsigned i)
+{
+    int dx = (int)(g.actors[0].x >> 8) - way_x[i], dy = (int)(g.actors[0].y >> 8) - way_y[i];
+
+    return (way_x[i] < 0 || (dx > -20 && dx < 20)) && (way_y[i] < 0 || (dy > -28 && dy < 28));
+}
+
+static double way_score(void)
+{
+    unsigned i = way_at;
+    double dx, dy;
+
+    while (i < way_n && near_way(i))
+        i++;
+    if (i >= way_n)
+        return 1000.0 * i - (g.level_spot_count ? exit_distance() : 0);
+    dx = way_x[i] < 0 ? 0 : (double)((int)(g.actors[0].x >> 8) - way_x[i]);
+    dy = way_y[i] < 0 ? 0 : (double)((int)(g.actors[0].y >> 8) - way_y[i]);
+    return 1000.0 * i - (dx < 0 ? -dx : dx) - (dy < 0 ? -dy : dy);
+}
+
 static double score(void)
 {
-    double s = goal_boss ? -1000.0 * boss_hits() + 500.0 * g.scene_cue_first : (goal_exit || (g.actors[0].x >> 8) >= switch_x) && g.level_spot_count ? -exit_distance()
+    double s = way_n ? way_score() : goal_boss ? -1000.0 * boss_hits() + 500.0 * g.scene_cue_first : (goal_exit || (g.actors[0].x >> 8) >= switch_x) && g.level_spot_count ? -exit_distance()
                                                : goal_x * (double)(g.actors[0].x >> 8) + goal_y * (double)(g.actors[0].y >> 8);
 
     s -= 40.0 * (health0 - g.health) * (g.health < health0);
@@ -295,13 +341,22 @@ static double look(unsigned d, int *best)
 static int random_combo(unsigned *seed)
 {
     static const struct { int combo; unsigned weight; } w[] = {
-        { 1, 30 }, { 3, 25 }, { 5, 5 }, { 2, 8 }, { 4, 5 }, { 9, 4 }, { 10, 3 }, { 6, 10 }, { 8, 5 }, { 0, 5 },
+        { 1, 28 }, { 3, 22 }, { 5, 5 }, { 2, 8 }, { 4, 5 }, { 9, 4 }, { 10, 3 }, { 6, 8 }, { 8, 5 }, { 0, 5 },
+        { 14, 3 }, { 11, 3 }, { 12, 1 },
     };
     unsigned r = (unsigned)rand_r(seed) % 100, i;
+    int flip = 0;
 
+    if (way_at < way_n)
+        flip = way_x[way_at] < (int)(g.actors[0].x >> 8);      /* the next waypoint is to the left: mirror the keys */
     for (i = 0; i < sizeof w / sizeof w[0]; i++) {
-        if (r < w[i].weight)
-            return w[i].combo;
+        if (r < w[i].weight) {
+            int c = w[i].combo;
+
+            if (flip)
+                c = c == 1 ? 2 : c == 2 ? 1 : c == 3 ? 4 : c == 4 ? 3 : c == 6 ? 7 : c == 11 ? 12 : c == 12 ? 11 : c;
+            return c;
+        }
         r -= w[i].weight;
     }
     return 1;
@@ -372,6 +427,218 @@ static double explore(void)
 }
 
 /*
+ * The search by an archive of places (ALADDIN_DEV_BOT_GE=N, N copies at a time; _GE_ROUNDS, _GE_LEN): keeps, for each 32-pixel
+ * cell Aladdin has stood in, the shortest choices that got there from the start; each round N copies take an entry (the less
+ * tried the likelier, the one nearest the goal of the few drawn), play its choices again, then try random choices for _GE_LEN
+ * segments and report every cell they stood in. The first choices to a level change (the exit) are played for real. The goal is
+ * the waypoints' (ALADDIN_DEV_BOT_WAY) or the level's exit spots. ALADDIN_DEV_BOT_GE_DUMP=FILE: the cells (x y choices tries) at the end.
+ */
+typedef struct { unsigned len, visits; unsigned char *p; double prog; } GeEntry;
+typedef struct { unsigned cell, nseg, exit; double prog; } GeRecord;
+#define GE_CELLS (1u << 20)
+#define GE_MAXREC 400
+static GeEntry **ge_cell, **ge_list;
+static unsigned ge_n, ge_cap, ge_par, ge_rounds = 400, ge_len = 24;
+
+static unsigned ge_cell_key(void)
+{
+    unsigned cx = (g.actors[0].x >> 8) >> 5, cy = (g.actors[0].y >> 8) >> 5;
+
+    return (cx > 1023 ? 1023 : cx) * 1024 + (cy > 1023 ? 1023 : cy);
+}
+
+static double ge_prog(void)
+{
+    return way_n ? way_score() : g.level_spot_count ? -exit_distance() : (double)(g.actors[0].x >> 8);
+}
+
+static GeEntry *ge_add(const unsigned char *base, unsigned blen, const unsigned char *suffix, unsigned slen, double prog)
+{
+    GeEntry *e = malloc(sizeof *e);
+
+    if (ge_n == ge_cap) {
+        ge_cap = ge_cap ? ge_cap * 2 : 1024;
+        ge_list = realloc(ge_list, ge_cap * sizeof *ge_list);
+    }
+    e->len = blen + slen;
+    e->visits = 0;
+    e->prog = prog;
+    e->p = malloc(e->len ? e->len : 1);
+    memcpy(e->p, base, blen);
+    memcpy(e->p + blen, suffix, slen);
+    ge_list[ge_n++] = e;
+    return e;
+}
+
+static void ge_replay(const GeEntry *e)
+{
+    nshvc_input in;
+    unsigned i, k;
+
+    for (i = 0; i < e->len; i++) {
+        keys_of(e->p[i], &in);
+        for (k = 0; k < seg; k++)
+            step(&in);
+    }
+}
+
+/* in a copy: play entry e again, then random choices; writes the report to fd */
+static void ge_child(const GeEntry *e, unsigned seed, int fd)
+{
+    GeRecord rec[GE_MAXREC];
+    unsigned char suffix[GE_MAXREC];
+    unsigned n = 0, i, k;
+    int c = 1;
+    nshvc_input in;
+
+    unsigned len = ge_len;
+    int persist = (unsigned)rand_r(&seed) % 100 < 12;     /* one choice held all the way: for a wait, such as a scene that starts after a pause */
+
+    in_child = 1;
+    ge_replay(e);
+    if (persist)
+        len = ge_len * 6;
+    for (i = 0; i < len && i < GE_MAXREC; i++) {
+        if (i == 0 || (!persist && (unsigned)rand_r(&seed) % 100 < 45)) {
+            c = (unsigned)rand_r(&seed) % 100 < 35 ? (int)((unsigned)rand_r(&seed) % COMBOS) : random_combo(&seed);
+            if ((unsigned)rand_r(&seed) % 100 < 22)
+                c = c == 1 ? 2 : c == 2 ? 1 : c == 3 ? 4 : c == 4 ? 3 : c == 6 ? 7 : c == 7 ? 6 : c == 11 ? 12 : c == 12 ? 11 : c;
+        }
+        suffix[i] = (unsigned char)c;
+        keys_of(c, &in);
+        for (k = 0; k < seg; k++)
+            step(&in);
+        if (g.level != level0 || g.level_exiting) {
+            rec[n++] = (GeRecord){ 0, i + 1, 1, 0 };
+            break;
+        }
+        if (g.lives < lives0 || g.health + 3 < health0)
+            break;
+        rec[n++] = (GeRecord){ ge_cell_key(), i + 1, 0, ge_prog() };
+    }
+    if (write(fd, &n, sizeof n) == sizeof n && write(fd, rec, n * sizeof rec[0]) == (ssize_t)(n * sizeof rec[0]))
+        if (write(fd, suffix, n) != (ssize_t)n)
+            _exit(1);
+    _exit(0);
+}
+
+static GeEntry *ge_pick(unsigned *seed)
+{
+    GeEntry *best = NULL;
+    unsigned t, tries = 0;
+
+    for (t = 0; t < 4 && tries < 400; tries++) {
+        GeEntry *e = ge_list[(unsigned)rand_r(seed) % ge_n];
+
+        if ((double)((unsigned)rand_r(seed) % 1000) / 1000.0 > 1.0 / (1.0 + 0.7 * e->visits))
+            continue;
+        t++;
+        if (!best || e->prog > best->prog)
+            best = e;
+    }
+    return best ? best : ge_list[0];
+}
+
+/* the search: returns whether it found the exit; the choices go in queue */
+static int ge_search(void)
+{
+    unsigned seed = 1234567u, round, i, found_len = 0, exit_len = ~0u;
+    unsigned char *found = NULL;
+    double top = -1e18;
+    unsigned top_cell = 0;
+    GeEntry *top_entry = NULL;
+
+    ge_cell = calloc(GE_CELLS, sizeof *ge_cell);
+    ge_cell[ge_cell_key()] = ge_add(NULL, 0, NULL, 0, ge_prog());
+    for (round = 0; round < ge_rounds; round++) {
+        struct { pid_t pid; int fd; GeEntry *e; } w[16];
+        unsigned j, par = ge_par > 16 ? 16 : ge_par;
+
+        for (j = 0; j < par; j++) {
+            int fd[2];
+
+            w[j].e = ge_pick(&seed);
+            w[j].e->visits++;
+            if (pipe(fd))
+                return 0;
+            w[j].pid = fork();
+            if (w[j].pid == 0) {
+                close(fd[0]);
+                ge_child(w[j].e, (unsigned)rand_r(&seed) + j, fd[1]);
+            }
+            close(fd[1]);
+            w[j].fd = fd[0];
+        }
+        for (j = 0; j < par; j++) {
+            GeRecord rec[GE_MAXREC];
+            unsigned char suffix[GE_MAXREC];
+            unsigned n = 0;
+            FILE *f = fdopen(w[j].fd, "r");
+
+            if (f && fread(&n, sizeof n, 1, f) == 1 && n <= GE_MAXREC && fread(rec, sizeof rec[0], n, f) == n && fread(suffix, 1, n, f) == n) {
+                for (i = 0; i < n; i++) {
+                    unsigned len = w[j].e->len + rec[i].nseg;
+
+                    if (rec[i].exit) {
+                        if (len < exit_len) {
+                            exit_len = len;
+                            free(found);
+                            found = malloc(len);
+                            memcpy(found, w[j].e->p, w[j].e->len);
+                            memcpy(found + w[j].e->len, suffix, rec[i].nseg);
+                            found_len = len;
+                        }
+                        continue;
+                    }
+                    if (!ge_cell[rec[i].cell])
+                        ge_cell[rec[i].cell] = ge_add(w[j].e->p, w[j].e->len, suffix, rec[i].nseg, rec[i].prog);
+                    else if (len + 2 < ge_cell[rec[i].cell]->len) {
+                        GeEntry *old = ge_cell[rec[i].cell];
+
+                        old->len = len;
+                        old->p = realloc(old->p, len);
+                        memcpy(old->p, w[j].e->p, w[j].e->len);
+                        memcpy(old->p + w[j].e->len, suffix, rec[i].nseg);
+                    }
+                    if (rec[i].prog > top) {
+                        top = rec[i].prog;
+                        top_cell = rec[i].cell;
+                        top_entry = ge_cell[rec[i].cell];
+                    }
+                }
+            }
+            if (f)
+                fclose(f);
+            waitpid(w[j].pid, NULL, 0);
+        }
+        if (round % 10 == 0 || found)
+            fprintf(stderr, "bot: round %u: %u cells, best progress %.0f at (%u,%u)%s\n", round, ge_n, top, top_cell / 1024 * 32, top_cell % 1024 * 32, found ? ", EXIT found" : "");
+        if (found && round >= 1)
+            break;
+    }
+    if (getenv("ALADDIN_DEV_BOT_GE_DUMP")) {
+        FILE *f = fopen(getenv("ALADDIN_DEV_BOT_GE_DUMP"), "w");
+        unsigned k;
+
+        for (k = 0; f && k < GE_CELLS; k++)
+            if (ge_cell[k])
+                fprintf(f, "%u %u %u %u\n", k / 1024 * 32, k % 1024 * 32, ge_cell[k]->len, ge_cell[k]->visits);
+        if (f)
+            fclose(f);
+    }
+    if (!found) {
+        if (top_entry)
+            for (queued = 0; queued < top_entry->len && queued < MAXQ; queued++)
+                queue[queued] = top_entry->p[queued];     /* played for real: where it got furthest */
+        return 0;
+    }
+    queued = 0;
+    for (i = 0; i < found_len && i < MAXQ; i++)
+        queue[queued++] = found[i];
+    return 1;
+}
+
+/*
  * DevBotInput: the input to use for this update: false, the engine's own. u is the engine's update count.
  */
 bool DevBotInput(uint64_t u, nshvc_input *in)
@@ -394,8 +661,26 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
                 goal_x = !strcmp(v, "x") - !strcmp(v, "-x");
                 goal_y = !strcmp(v, "y") - !strcmp(v, "-y");
             }
+            if ((v = getenv("ALADDIN_DEV_BOT_WAY")) && *v) {
+                const char *q = v;
+                int x, y, n;
+
+                while (way_n < MAXWAY && sscanf(q, "%d,%d%n", &x, &y, &n) == 2) {
+                    way_x[way_n] = x;
+                    way_y[way_n++] = y;
+                    q += n;
+                    if (*q == ';')
+                        q++;
+                }
+            }
             if ((v = getenv("ALADDIN_DEV_BOT_SWITCH")) && *v)
                 switch_x = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE")) && *v)
+                ge_par = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_ROUNDS")) && *v)
+                ge_rounds = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_LEN")) && *v)
+                ge_len = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_ROLLOUTS")) && *v)
                 rollouts = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_LEN")) && *v)
@@ -422,11 +707,42 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
     if (!held_left) {
         if (!step)
             return false;
+        while (way_at < way_n && near_way(way_at)) {
+            fprintf(stderr, "bot: waypoint %u (%d,%d) reached at update %llu\n", way_at, way_x[way_at], way_y[way_at], (unsigned long long)u);
+            way_at++;
+        }
+        if (way_at > 0 && way_at < way_n && way_y[way_at - 1] >= 0 && way_y[way_at] >= 0 && way_y[way_at] < way_y[way_at - 1] && (int)(g.actors[0].y >> 8) > way_y[way_at - 1] + 90) {
+            /* fell well below the last waypoint reached: start again from the nearest one before it */
+            unsigned j, best = 0;
+            long bd = 1L << 60;
+
+            for (j = 0; j < way_at; j++) {
+                long dx = (int)(g.actors[0].x >> 8) - way_x[j], dy = (int)(g.actors[0].y >> 8) - way_y[j], d = dx * dx + dy * dy;
+
+                if (d < bd) {
+                    bd = d;
+                    best = j;
+                }
+            }
+            fprintf(stderr, "bot: fell, back to waypoint %u at update %llu\n", best, (unsigned long long)u);
+            way_at = best;
+        }
         level0 = (uint8_t)g.level;
         lives0 = g.lives;
         health0 = g.health;
         if (g.level_exiting || g.level != level0)
             return false;
+        if (ge_par) {
+            static int ge_done;
+
+            if (!ge_done) {
+                ge_done = 1;
+                if (ge_search())
+                    fprintf(stderr, "bot: the exit's choices found at update %llu: %u segments\n", (unsigned long long)u, queued);
+                else
+                    fprintf(stderr, "bot: no exit found by the archive search; the furthest place is played: %u segments\n", queued);
+            }
+        }
         if (queued) {
             chosen = queue[0];
             memmove(queue, queue + 1, (--queued) * sizeof queue[0]);
