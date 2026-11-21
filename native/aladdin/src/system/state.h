@@ -460,7 +460,7 @@ typedef struct GameState {
     uint8_t text_bands[16];     /* $1C8E: the text bands' window bytes (video/text_bands.c) */
     uint8_t text_band_values[32]; /* $1C9E and $1CAE: the two buffers TextBandsCommit hands the line effect's channel */
     uint8_t line_data[LINE_DATA_SIZE]; /* $7E:F400-$7E:F9FF: the per-line effects' tables and data (the window edges at
-                                   $F800 among them; g.band_pos is the parallax's view of $F800 on) */
+                                   $F800 among them; from $F800 the parallax keeps its bands' positions) */
     uint8_t line_channels_kept; /* $03B5 high nibble: channels 4-7 other code keeps, not for the window effects */
     uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
     uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */
@@ -533,7 +533,6 @@ typedef struct GameState {
     uint16_t scroll_y_before;   /* $19E9 */
     uint16_t camera_stopped_x;  /* $1A0C: nonzero, an empty block stopped the scroll across */
     uint16_t camera_stopped_y;  /* $1A0E */
-    uint32_t band_pos[11];      /* $7E:F800: the drifting backdrop bands' positions, 4 bytes each */
     uint32_t band_drift;        /* $1A2F-$1A31: 24 bits from its fraction byte */
     uint8_t palette_cycle_running[6]; /* $15F1 + 14 n: nonzero while palette cycle record n runs (its other
                                          bytes are video/'s to add) */

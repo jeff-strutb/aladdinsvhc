@@ -245,7 +245,6 @@ scroll_x_before,7E19E5,1,,2,,value
 scroll_y_before,7E19E9,1,,2,,value
 camera_stopped_x,7E1A0C,1,,2,,value
 camera_stopped_y,7E1A0E,1,,2,,value
-band_pos,7EF800,11,4,4,,value
 band_drift,7E1A2F,1,,3,,value
 palette_cycle_running,7E15F1,6,E,1,,value
 palette_cycle[].cycle,7E15F2,6,E,1,,value
