@@ -10,6 +10,7 @@
  */
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "audio/music.h"
 #include "data/data.h"
@@ -27,11 +28,47 @@ static void init(void)
     video_init();
 }
 
-static void update(const nshvc_input *input)
+/* ALADDIN_DEV_TRACE=N: every N updates, a line on stderr with where the play is (for planning a play's keys) */
+static void trace_line(void)
+{
+    static unsigned every = ~0u;
+    const char *v;
+
+    if (every == ~0u) {
+        v = getenv("ALADDIN_DEV_TRACE");
+        every = v && *v ? (unsigned)strtoul(v, NULL, 0) : 0;
+    }
+    if (every && nshvc_updates() % every == 0)
+        fprintf(stderr, "u=%" PRIu64 " level=%u x=%u y=%u health=%u lives=%u scroll=%u scrolly=%u exiting=%u\n",
+                nshvc_updates(), (unsigned)g.level, (unsigned)(g.actors[0].x >> 8), (unsigned)(g.actors[0].y >> 8),
+                (unsigned)g.health, (unsigned)g.lives, (unsigned)(g.layers[0].scroll_x >> 8), (unsigned)(g.layers[0].scroll_y >> 8),
+                (unsigned)g.level_exiting);
+    if (every && getenv("ALADDIN_DEV_ACTORS") && nshvc_updates() % every == 0) {
+        unsigned i;
+
+        for (i = 0; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state)
+                fprintf(stderr, "  actor %u kind=%02X state=%02X x=%d y=%d picture=%02X anim=%02X\n", i, g.actors[i].kind,
+                        g.actors[i].state, (int)(g.actors[i].x >> 8), (int)(g.actors[i].y >> 8), g.actors[i].picture,
+                        g.actors[i].anim);
+    }
+}
+
+static void step(const nshvc_input *input)
 {
     NmiHandler();
     TaskScheduler(input);
     NmiPictureWork();
+}
+
+static void update(const nshvc_input *input)
+{
+    nshvc_input bot;
+
+    DevBotStep(step);
+    step(DevBotInput(nshvc_updates(), &bot) ? &bot : input);
+    trace_line();
+    DevShot(nshvc_updates());
 }
 
 static void draw(float between)
