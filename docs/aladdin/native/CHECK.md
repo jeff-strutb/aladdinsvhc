@@ -342,3 +342,13 @@ Aim: for each registered kind (`native/aladdin/src/actor/kinds_*.c`), a recordin
 - Kinds $21 $2E $40: +$16 is not compared (a probe list their start sets that no routine reads for them).
 
 **Finding a recording for a kind:** plays first (stage states 4-18; the random play of 3,000 frames dies early and meets only what is near its start), then the decomp's coverage scripts (`tools/aladdin/scripts/cov_kind*`, `cov_*`: names, comments and `t3.py --qualify ADDR` show which reach a routine), whose pokes put a record of the kind in front of the original; where a script has no frame-by-frame form (unit `call`) or pokes a live record, say so in the table.
+
+## Plays by keys, start to a level's exit (the developer's player)
+
+`native/checks/plays/pPART-STAGE.txt` are `--input` files: the level select by keys, then the keys the developer's player (`system/dev_bot.c`)
+found. Replay: `native/checks/plays/run.sh FILE UPDATES [PICTURES_DIR [EVERY [FROM]]]`. Make one: `native/checks/plays/make.sh PART STAGE LAST`
+with `ALADDIN_DEV_BOT_GE=10` (the archive search: it keeps for each place the shortest keys that got there and tries random keys from the
+places, until the level changes), `ALADDIN_DEV_BOT_SEG=6`, `_GE_ROUNDS`, `_GE_LEN`, `_GE_HURT`, `_GE_HEALTH`, `_GE_CELL`, `_GE_SHORT`, `_GE_STALL`
+(the depth-first helper), `_GOAL=boss`, or waypoints (`_WAY`, `native/checks/plays/ways.txt`). `ALADDIN_DEV_MAP`/`_PLACED` list a level's map and
+actor placements. Linux only (the copies are forked); run it under the CPU queue (`cpu-run -j 11`). The table of what each play reaches is in
+`build/aladdin/writers/NATIVE-FAULTS.txt` ("PLAYS START TO EXIT").

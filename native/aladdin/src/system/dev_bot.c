@@ -161,6 +161,7 @@ void DevDump(uint64_t u)
 }
 
 #ifdef __unix__
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -438,18 +439,108 @@ typedef struct { unsigned cell, nseg, exit; double prog; } GeRecord;
 #define GE_CELLS (1u << 20)
 #define GE_MAXREC 400
 static GeEntry **ge_cell, **ge_list;
-static unsigned ge_n, ge_cap, ge_par, ge_rounds = 400, ge_len = 24;
+static unsigned ge_n, ge_cap, ge_par, ge_rounds = 400, ge_len = 24, ge_hurt = 3, ge_shift = 5, ge_short, ge_stall, ge_dfs_ok = 1;
 
 static unsigned ge_cell_key(void)
 {
-    unsigned cx = (g.actors[0].x >> 8) >> 5, cy = (g.actors[0].y >> 8) >> 5;
+    unsigned cx = (g.actors[0].x >> 8) >> ge_shift, cy = (g.actors[0].y >> 8) >> ge_shift;
 
     return (cx > 1023 ? 1023 : cx) * 1024 + (cy > 1023 ? 1023 : cy);
 }
 
+static double ge_health_weight;
+
 static double ge_prog(void)
 {
-    return way_n ? way_score() : g.level_spot_count ? -exit_distance() : (double)(g.actors[0].x >> 8);
+    if (goal_boss) {
+        unsigned i;
+
+        for (i = 1; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state && g.actors[i].kind == 0x98)
+                return 10000.0 - 1000.0 * g.actors[i].own.bytes[OWN_11];     /* the boss is there: its hits left */
+    }
+    return (way_n ? way_score() : g.level_spot_count ? -exit_distance() : (double)(g.actors[0].x >> 8)) + ge_health_weight * g.health;
+}
+
+/*
+ * The depth-first helper of the archive search: from a place, tries key choices depth first (each node a copy of the game, the
+ * choices that favour the goal's side first) for a way that gets closer to the goal by dfs_delta (or leaves the level); a state
+ * seen before (a table the copies share) is not tried again; a branch stops when Aladdin loses a life or health, when it
+ * makes no progress for dfs_stale segments, or at dfs_depth; the search stops after dfs_budget nodes. It finds the exact
+ * chains of jumps (platforms that move, ropes, pegs) the random tries almost never hit.
+ */
+typedef struct {
+    volatile unsigned found, n, nodes, exit, cell;
+    volatile double prog;
+    int path[160];
+    unsigned char seen[1u << 22];
+} DfsShared;
+static DfsShared *dfs_sh;
+static double dfs_base, dfs_delta = 24.0;
+static unsigned dfs_budget = 8000, dfs_stale = 14, dfs_depth = 90;
+
+static unsigned dfs_key(void)
+{
+    const Actor *a = &g.actors[0];
+    unsigned h = (unsigned)(a->x >> 10) * 2654435761u;
+
+    h ^= ((unsigned)(a->y >> 10) + 0x9E3779B9u) * 2246822519u;
+    h ^= ((unsigned)(a->speed_x >> 7) & 0xFF) * 3266489917u;
+    h ^= (((unsigned)(a->speed_y >> 7) & 0xFF) + 77u) * 668265263u;
+    h ^= ((unsigned)a->resume * 374761393u) ^ ((unsigned)a->anim << 9);
+    h ^= h >> 15;
+    return h & ((1u << 22) - 1);
+}
+
+static void dfs(unsigned depth, int *path, double best, unsigned best_depth)
+{
+    static const int right[] = { 3, 1, 5, 11, 14, 9, 6, 4, 2, 0, 10, 12, 7, 8, 13 };
+    unsigned c, key;
+    double here;
+
+    if (dfs_sh->found)
+        return;
+    here = ge_prog();
+    if (g.level != level0 || g.level_exiting || here > dfs_base + dfs_delta) {
+        if (__sync_bool_compare_and_swap(&dfs_sh->found, 0, 1)) {
+            memcpy(dfs_sh->path, path, depth * sizeof path[0]);
+            dfs_sh->n = depth;
+            dfs_sh->exit = g.level != level0 || g.level_exiting;
+            dfs_sh->cell = ge_cell_key();
+            dfs_sh->prog = here;
+        }
+        return;
+    }
+    if (depth >= dfs_depth || dfs_sh->nodes >= dfs_budget)
+        return;
+    if (here > best) {
+        best = here;
+        best_depth = depth;
+    }
+    if (depth - best_depth > dfs_stale)
+        return;
+    key = dfs_key();
+    if (dfs_sh->seen[key])
+        return;
+    dfs_sh->seen[key] = 1;
+    dfs_sh->nodes++;
+    for (c = 0; c < 15 && !dfs_sh->found; c++) {
+        pid_t pid = fork();
+
+        if (pid == 0) {
+            nshvc_input in;
+            unsigned i;
+
+            path[depth] = right[c];
+            keys_of(path[depth], &in);
+            for (i = 0; i < seg; i++)
+                step(&in);
+            if (g.level != level0 || g.level_exiting || (g.lives >= lives0 && (unsigned)g.health + ge_hurt >= health0))
+                dfs(depth + 1, path, best, best_depth);
+            _exit(0);
+        }
+        waitpid(pid, NULL, 0);
+    }
 }
 
 static GeEntry *ge_add(const unsigned char *base, unsigned blen, const unsigned char *suffix, unsigned slen, double prog)
@@ -498,6 +589,8 @@ static void ge_child(const GeEntry *e, unsigned seed, int fd)
     ge_replay(e);
     if (persist)
         len = ge_len * 6;
+    else if (ge_short)
+        len = 4 + (unsigned)rand_r(&seed) % ge_len;      /* mostly short tries: more of them from the places at the edge */
     for (i = 0; i < len && i < GE_MAXREC; i++) {
         if (i == 0 || (!persist && (unsigned)rand_r(&seed) % 100 < 45)) {
             c = (unsigned)rand_r(&seed) % 100 < 35 ? (int)((unsigned)rand_r(&seed) % COMBOS) : random_combo(&seed);
@@ -512,7 +605,7 @@ static void ge_child(const GeEntry *e, unsigned seed, int fd)
             rec[n++] = (GeRecord){ 0, i + 1, 1, 0 };
             break;
         }
-        if (g.lives < lives0 || g.health + 3 < health0)
+        if (g.lives < lives0 || (unsigned)g.health + ge_hurt < health0)
             break;
         rec[n++] = (GeRecord){ ge_cell_key(), i + 1, 0, ge_prog() };
     }
@@ -545,8 +638,9 @@ static int ge_search(void)
     unsigned seed = 1234567u, round, i, found_len = 0, exit_len = ~0u;
     unsigned char *found = NULL;
     double top = -1e18;
-    unsigned top_cell = 0;
+    unsigned top_cell = 0, stall = 0;
     GeEntry *top_entry = NULL;
+    double top_seen = -1e18;
 
     ge_cell = calloc(GE_CELLS, sizeof *ge_cell);
     ge_cell[ge_cell_key()] = ge_add(NULL, 0, NULL, 0, ge_prog());
@@ -611,8 +705,61 @@ static int ge_search(void)
                 fclose(f);
             waitpid(w[j].pid, NULL, 0);
         }
+        if (top > top_seen + 8.0) {
+            top_seen = top;
+            stall = 0;
+        } else
+            stall++;
+        if (!found && ge_stall && stall >= ge_stall && top_entry && ge_dfs_ok) {
+            /* stuck: the depth-first helper from the place that got furthest */
+            int path[160];
+            pid_t pid;
+
+            stall = 0;
+            if (!dfs_sh) {
+                dfs_sh = mmap(NULL, sizeof *dfs_sh, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+                if (dfs_sh == MAP_FAILED)
+                    dfs_sh = NULL;
+            }
+            if (dfs_sh) {
+                memset((void *)dfs_sh, 0, sizeof *dfs_sh);
+                pid = fork();
+                if (pid == 0) {
+                    in_child = 1;
+                    ge_replay(top_entry);
+                    dfs_base = ge_prog();
+                    dfs(0, path, dfs_base, 0);
+                    _exit(0);
+                }
+                waitpid(pid, NULL, 0);
+                if (dfs_sh->found) {
+                    GeEntry *e = ge_add(top_entry->p, top_entry->len, (const unsigned char *)"", 0, dfs_sh->prog);
+                    unsigned k;
+
+                    e->p = realloc(e->p, top_entry->len + dfs_sh->n + 1);
+                    for (k = 0; k < dfs_sh->n; k++)
+                        e->p[top_entry->len + k] = (unsigned char)dfs_sh->path[k];
+                    e->len = top_entry->len + dfs_sh->n;
+                    if (dfs_sh->exit) {
+                        free(found);
+                        found = malloc(e->len);
+                        memcpy(found, e->p, e->len);
+                        found_len = e->len;
+                    } else {
+                        if (!ge_cell[dfs_sh->cell])
+                            ge_cell[dfs_sh->cell] = e;
+                        top = dfs_sh->prog;
+                        top_cell = dfs_sh->cell;
+                        top_entry = e;
+                        top_seen = top;
+                    }
+                    fprintf(stderr, "bot: the depth-first helper moved on %u segments (%u nodes)%s\n", dfs_sh->n, dfs_sh->nodes, dfs_sh->exit ? ": EXIT" : "");
+                } else
+                    fprintf(stderr, "bot: the depth-first helper found nothing in %u nodes\n", dfs_sh->nodes);
+            }
+        }
         if (round % 10 == 0 || found)
-            fprintf(stderr, "bot: round %u: %u cells, best progress %.0f at (%u,%u)%s\n", round, ge_n, top, top_cell / 1024 * 32, top_cell % 1024 * 32, found ? ", EXIT found" : "");
+            fprintf(stderr, "bot: round %u: %u cells, best progress %.0f at (%u,%u)%s\n", round, ge_n, top, top_cell / 1024 << ge_shift, top_cell % 1024 << ge_shift, found ? ", EXIT found" : "");
         if (found && round >= 1)
             break;
     }
@@ -622,7 +769,7 @@ static int ge_search(void)
 
         for (k = 0; f && k < GE_CELLS; k++)
             if (ge_cell[k])
-                fprintf(f, "%u %u %u %u\n", k / 1024 * 32, k % 1024 * 32, ge_cell[k]->len, ge_cell[k]->visits);
+                fprintf(f, "%u %u %u %u\n", k / 1024 << ge_shift, k % 1024 << ge_shift, ge_cell[k]->len, ge_cell[k]->visits);
         if (f)
             fclose(f);
     }
@@ -679,6 +826,16 @@ bool DevBotInput(uint64_t u, nshvc_input *in)
                 ge_par = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_ROUNDS")) && *v)
                 ge_rounds = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_HEALTH")) && *v)
+                ge_health_weight = strtod(v, NULL);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_STALL")) && *v)
+                ge_stall = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_CELL")) && *v)
+                ge_shift = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_SHORT")) && *v)
+                ge_short = (unsigned)strtoul(v, NULL, 0);
+            if ((v = getenv("ALADDIN_DEV_BOT_GE_HURT")) && *v)
+                ge_hurt = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_GE_LEN")) && *v)
                 ge_len = (unsigned)strtoul(v, NULL, 0);
             if ((v = getenv("ALADDIN_DEV_BOT_ROLLOUTS")) && *v)
