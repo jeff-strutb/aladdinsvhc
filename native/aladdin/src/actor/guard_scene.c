@@ -13,6 +13,8 @@
  * there and a read gives the bus's last byte, the address's high byte $70,
  * which is what the start kept ($71 less 1): so it always walks.
  */
+#include <stdio.h>
+
 #include "actor/guard.h"
 #include "actor/kinds_d.h"
 
@@ -76,6 +78,63 @@ static void walk_step(Actor *a)
 {
     ActorMoveX(a);
     (void)ActorSnapToGround(a, NULL);
+}
+
+/*
+ * @routine A5:E9C0 GuardSceneEnd
+ * WHAT IT DOES: The end of a scene: the actor goes on as GuardStop with its
+ * +$08 low bits 1, +$41 and its state (+$4D) 0.
+ */
+static int scene_end(Actor *a)
+{
+    a->anim_flags = (uint8_t)((a->anim_flags & 0x03) | 0x01);
+    a->own.bytes[OWN_41] = 0;
+    a->own.bytes[G_STATE] = 0;
+    return guard_stop(a);
+}
+
+/*
+ * @routine A5:E96C GuardSceneCharge
+ * WHAT IT DOES: Scene 1: the actor charges left by motion $88 for $C0
+ * frames (animation $1B), flies by $87 while it rises, flies against by
+ * $88 until it falls again, flies against 256 frames more, and ends the
+ * scene (GuardSceneEnd).
+ */
+static int scene_charge(Actor *a)
+{
+    a->anim_flags |= 0x03;
+    a->own.bytes[OWN_41]++;
+    AnimStart(a, 0x1B);
+    a->facing = a->flip = 1;
+    a->own.bytes[COUNT] = 0xC0;
+    ActorMotionPreset(a, 0x88);
+    a->resume = G_SC_MOVE;
+    return 1;
+}
+
+/*
+ * @routine A5:E826 GuardSceneStart
+ * WHAT IT DOES: Where kind $92 sends the escort: by the marker's $07 kept
+ * in its +$47: 0 the walk out (A5:E835 GuardSceneWalkOut, not converted:
+ * reported), 1 the charge, 2 and 3 the end.
+ */
+static int scene_start(Actor *a)
+{
+    switch (a->own.bytes[OWN_47]) {
+    case 1:
+        return scene_charge(a);
+    case 2:
+    case 3:
+        return scene_end(a);
+    default: {
+        static int told;
+
+        if (!told++)
+            fprintf(stderr, "GuardSceneStart: scene %u (A5:E835 GuardSceneWalkOut) not converted\n", a->own.bytes[OWN_47]);
+        a->resume = G_NOT_CONVERTED;
+        return 1;
+    }
+    }
 }
 
 /*
@@ -448,6 +507,34 @@ int GuardScene(Actor *a)
     case G_DI_FOREVER:
         ActorMoveX(a);
         return 1;
+    case G_SCENE_START:
+        return scene_start(a);
+    case G_SC_MOVE:
+        ActorMove(a);
+        if (--a->own.bytes[COUNT])
+            return 1;
+        ActorMotionPreset(a, 0x87);
+        a->resume = G_SC_FLY;
+        return 1;
+    case G_SC_FLY:
+        ActorFly(a);
+        if (a->speed_y < 0)
+            return 1;
+        ActorMotionPreset(a, 0x88);
+        a->resume = G_SC_AGAINST;
+        return 1;
+    case G_SC_AGAINST:
+        ActorFlyAgainst(a);
+        if (a->speed_y >= 0)
+            return 1;
+        a->own.bytes[COUNT] = 0;
+        a->resume = G_SC_AGAINST_WAIT;
+        return 1;
+    case G_SC_AGAINST_WAIT:
+        ActorFlyAgainst(a);
+        if (--a->own.bytes[COUNT])
+            return 1;
+        return scene_end(a);
     default:
         return 1;
     }

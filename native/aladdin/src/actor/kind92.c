@@ -15,8 +15,8 @@
 /*
  * @routine A5:F5BA Kind92Start
  * WHAT IT DOES: Actor kind $92: flags bit 7 set; the escort's x and y are its
- * own, its resume point the code at A5:E826 (the escort's own scene, not
- * converted: the guard's G_NOT_CONVERTED reports it), its +$47 its $07. By
+ * own, its resume point the code at A5:E826 (the escort's own scene,
+ * guard_scene.c), its +$47 its $07. By
  * $07: 0, the escort's state and its busy count cleared; 1, 2, 3, the state
  * cleared. Then it ends.
  */
@@ -27,7 +27,7 @@ int Kind92Start(Actor *a)
     a->flags |= 0x80;
     e->x = with_pixels(e->x, pixels(a->x));
     e->y = with_pixels(e->y, pixels(a->y));
-    e->resume = G_NOT_CONVERTED;
+    e->resume = G_SCENE_START;
     e->own.bytes[ESCORT_47] = a->spawn_byte;
     switch (a->spawn_byte) {
     case 0:

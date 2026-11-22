@@ -77,7 +77,9 @@ enum {
     G_WO_FALL, G_WO_MARK, G_WO_POSE1, G_WO_POSE2, G_WO_PLAYER, G_WO_TURN, G_WO_CUE, G_WO_AFTER, G_WO_FOREVER,
     G_SCENE_DROPIN,             /* A5:ED0F PlayerSceneDropIn */
     G_DI_FALL, G_DI_SPOT, G_DI_LEAP, G_DI_POSE_ENTRY, G_DI_POSE, G_DI_HURT, G_DI_LEAP2, G_DI_FALL2, G_DI_P1,
-    G_DI_WAIT07, G_DI_WALK, G_DI_WAIT_BE, G_DI_P2, G_DI_WALK2, G_DI_FOREVER
+    G_DI_WAIT07, G_DI_WALK, G_DI_WAIT_BE, G_DI_P2, G_DI_WALK2, G_DI_FOREVER,
+    G_SCENE_START,              /* A5:E826 GuardSceneStart: where kind $92 sends the escort; by its +$47 */
+    G_SC_MOVE, G_SC_FLY, G_SC_AGAINST, G_SC_AGAINST_WAIT    /* A5:E96C GuardSceneCharge's loops */
 };
 #define G_SCENE_FIRST G_SCENE_RUNS
 
