@@ -17,6 +17,12 @@
 /* the most lines a picture has (view.h's size limit); the picture's lines are view.h of them */
 #define LINES 4096
 
+/* the picture's lines: the view's in a level, the original's 224 on a still screen (centred in the view by the origin) */
+static int picture_lines(void)
+{
+    return video_level_view() ? view.h : VIEW_ORIGINAL_H;
+}
+
 /* bytes a line each target takes from its data */
 static const uint8_t line_bytes[LINE_TARGETS] = {
     [LINE_TM] = 1, [LINE_TS] = 1, [LINE_PALETTE] = 4, [LINE_BG1_Y] = 2, [LINE_BG2_X] = 2, [LINE_BG3_Y] = 2,
@@ -56,7 +62,7 @@ static uint8_t pointed_byte(uint32_t address)
 static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LINES], uint8_t set[LINES])
 {
     uint32_t line = top, k = line_bytes[c->target], at = c->cart.at ? 0 : c->table_at, held = 0;
-    uint32_t rows = (uint32_t)view.h;
+    uint32_t rows = (uint32_t)picture_lines();
     int any = 0;
 
     while (line < rows) {
@@ -98,7 +104,7 @@ static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LI
 /* the lines a channel set, from the first it set, to one engine field */
 static void send(nshvc_line_field field, const int32_t *values, const uint8_t set[LINES])
 {
-    uint32_t first = 0, rows = (uint32_t)view.h;
+    uint32_t first = 0, rows = (uint32_t)picture_lines();
 
     while (first < rows && !set[first])
         first++;
@@ -111,7 +117,7 @@ static void send_channel(const LineChannel *c, uint32_t top)
     static uint32_t value[LINES];
     static int32_t field[LINES];
     static uint8_t set[LINES];
-    int rows = view.h;
+    int rows = picture_lines();
 
     memset(set, 0, (size_t)rows);
     channel_values(c, top, value, set);
@@ -142,11 +148,13 @@ static void send_channel(const LineChannel *c, uint32_t top)
         break;
     case LINE_WINDOW1:
     case LINE_WINDOW2:
+        /* the original's columns; on a still screen the engine's origin does not move windows, so dx is added
+           (a level has none of these: its windows are the wide channels'; dx is 0 at 256 wide) */
         for (int i = 0; i < rows; i++)
-            field[i] = (int32_t)(value[i] & 0xFF);
+            field[i] = (int32_t)(value[i] & 0xFF) + (video_level_view() ? 0 : view.dx);
         send(c->target == LINE_WINDOW1 ? NSHVC_LINE_WIN1_LEFT : NSHVC_LINE_WIN2_LEFT, field, set);
         for (int i = 0; i < rows; i++)
-            field[i] = (int32_t)(value[i] >> 8 & 0xFF);
+            field[i] = (int32_t)(value[i] >> 8 & 0xFF) + (video_level_view() ? 0 : view.dx);
         send(c->target == LINE_WINDOW1 ? NSHVC_LINE_WIN1_RIGHT : NSHVC_LINE_WIN2_RIGHT, field, set);
         break;
     case LINE_WINDOW1_WIDE:
@@ -223,7 +231,7 @@ void video_lines_send(uint32_t top)
 
 int video_lines_tile_mode(void)
 {
-    int rows = view.h;
+    int rows = picture_lines();
 
     for (int ch = 1; ch < 8; ch++) {
         const LineChannel *c = &g.line_channel[ch];
