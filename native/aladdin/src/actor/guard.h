@@ -79,7 +79,9 @@ enum {
     G_DI_FALL, G_DI_SPOT, G_DI_LEAP, G_DI_POSE_ENTRY, G_DI_POSE, G_DI_HURT, G_DI_LEAP2, G_DI_FALL2, G_DI_P1,
     G_DI_WAIT07, G_DI_WALK, G_DI_WAIT_BE, G_DI_P2, G_DI_WALK2, G_DI_FOREVER,
     G_SCENE_START,              /* A5:E826 GuardSceneStart: where kind $92 sends the escort; by its +$47 */
-    G_SC_MOVE, G_SC_FLY, G_SC_AGAINST, G_SC_AGAINST_WAIT    /* A5:E96C GuardSceneCharge's loops */
+    G_SC_MOVE, G_SC_FLY, G_SC_AGAINST, G_SC_AGAINST_WAIT,   /* A5:E96C GuardSceneCharge's loops */
+    G_SW_AHEAD1, G_SW_DROP1, G_SW_WALK1, G_SW_FALL1, G_SW_FALL2, G_SW_FALL3, G_SW_FALL4,    /* A5:E835 GuardSceneWalkOut's loops */
+    G_SW_AHEAD2, G_SW_DROP2, G_SW_WALK2, G_SW_FALL5
 };
 #define G_SCENE_FIRST G_SCENE_RUNS
 

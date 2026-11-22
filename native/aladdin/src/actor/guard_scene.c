@@ -80,6 +80,56 @@ static void walk_step(Actor *a)
     (void)ActorSnapToGround(a, NULL);
 }
 
+/* the scene's wait test (A5:E957 GuardSceneAhead): the lift's rider kind $2C, or Aladdin more than $90 ahead of it */
+static bool scene_ahead(const Actor *a)
+{
+    return g.rider_kind == 0x2C || (uint16_t)(pixels(a->x) + 0x90) < pixels(g.actors[0].x);
+}
+
+/* one frame of a fall of the walk out: rises or falls, true once it is no longer rising and is out of the ground */
+static bool scene_fall_done(Actor *a)
+{
+    ActorAnimRiseFall(a);
+    ActorFly(a);
+    if (a->speed_y < 0)
+        return false;
+    return ActorOutOfGround(a) != 0;
+}
+
+/* the wait over: the drop ($12, animation $0B, facing 0) */
+static int scene_drop_begin(Actor *a, int next)
+{
+    ActorSpeedYFromA5(a, 0x12);
+    a->facing = a->flip = 0;
+    AnimStart(a, 0x0B);
+    a->resume = next;
+    return 1;
+}
+
+/* a wait of the walk out: animation 0 and the rider kind cleared */
+static int scene_wait_begin(Actor *a, int next)
+{
+    AnimStart(a, 0);
+    g.rider_kind = 0;
+    a->resume = next;
+    return 1;
+}
+
+/*
+ * @routine A5:E835 GuardSceneWalkOut
+ * WHAT IT DOES: Scene 0: the actor stands (animation 0) until the rider
+ * kind is $2C or Aladdin is $90 ahead, then drops (animation $0B) to y
+ * below $BC, walks by motion $85 (animation $16) to x $0D00, falls four
+ * times (motions $7D, $7C, $7C, then turned round $7B), waits again, drops
+ * to y below $58, walks to x $0FA0, falls a last time and ends as GuardStop
+ * with +$41 0 and its state 4.
+ */
+static int scene_walk_out(Actor *a)
+{
+    a->own.bytes[OWN_41]++;
+    return scene_wait_begin(a, G_SW_AHEAD1);
+}
+
 /*
  * @routine A5:E9C0 GuardSceneEnd
  * WHAT IT DOES: The end of a scene: the actor goes on as GuardStop with its
@@ -115,8 +165,7 @@ static int scene_charge(Actor *a)
 /*
  * @routine A5:E826 GuardSceneStart
  * WHAT IT DOES: Where kind $92 sends the escort: by the marker's $07 kept
- * in its +$47: 0 the walk out (A5:E835 GuardSceneWalkOut, not converted:
- * reported), 1 the charge, 2 and 3 the end.
+ * in its +$47: 0 the walk out (A5:E835), 1 the charge, 2 and 3 the end.
  */
 static int scene_start(Actor *a)
 {
@@ -126,11 +175,14 @@ static int scene_start(Actor *a)
     case 2:
     case 3:
         return scene_end(a);
+    case 0:
+        return scene_walk_out(a);
     default: {
         static int told;
 
+        /* past the table's four scenes: the original jumps where the next words point */
         if (!told++)
-            fprintf(stderr, "GuardSceneStart: scene %u (A5:E835 GuardSceneWalkOut) not converted\n", a->own.bytes[OWN_47]);
+            fprintf(stderr, "GuardSceneStart: scene %u (past its table) not converted\n", a->own.bytes[OWN_47]);
         a->resume = G_NOT_CONVERTED;
         return 1;
     }
@@ -507,6 +559,68 @@ int GuardScene(Actor *a)
     case G_DI_FOREVER:
         ActorMoveX(a);
         return 1;
+    case G_SW_AHEAD1:
+        if (!scene_ahead(a))
+            return 1;
+        return scene_drop_begin(a, G_SW_DROP1);
+    case G_SW_DROP1:
+        ActorMoveY(a);
+        if ((pixels(a->y) >> 8) != 0 || (pixels(a->y) & 0xFF) >= 0xBC)
+            return 1;
+        AnimStart(a, 0x16);
+        ActorMotionPreset(a, 0x85);
+        a->resume = G_SW_WALK1;
+        return 1;
+    case G_SW_WALK1:
+        ActorMove(a);
+        if (((pixels(a->x) >> 8) & 0xFF) < 0x0D)
+            return 1;
+        ActorMotionPreset(a, 0x7D);
+        a->resume = G_SW_FALL1;
+        return 1;
+    case G_SW_FALL1:
+    case G_SW_FALL2:
+        if (!scene_fall_done(a))
+            return 1;
+        ActorMotionPreset(a, 0x7C);
+        a->resume = a->resume == G_SW_FALL1 ? G_SW_FALL2 : G_SW_FALL3;
+        return 1;
+    case G_SW_FALL3:
+        if (!scene_fall_done(a))
+            return 1;
+        a->facing = a->flip = 1;
+        ActorMotionPreset(a, 0x7B);
+        a->resume = G_SW_FALL4;
+        return 1;
+    case G_SW_FALL4:
+        if (!scene_fall_done(a))
+            return 1;
+        return scene_wait_begin(a, G_SW_AHEAD2);
+    case G_SW_AHEAD2:
+        if (!scene_ahead(a))
+            return 1;
+        return scene_drop_begin(a, G_SW_DROP2);
+    case G_SW_DROP2:
+        ActorMoveY(a);
+        if ((pixels(a->y) >> 8) != 0 || (pixels(a->y) & 0xFF) >= 0x58)
+            return 1;
+        AnimStart(a, 0x16);
+        ActorMotionPreset(a, 0x85);
+        a->resume = G_SW_WALK2;
+        return 1;
+    case G_SW_WALK2:
+        ActorMove(a);
+        if (((pixels(a->x) >> 8) & 0xFF) < 0x0F || (pixels(a->x) & 0xFF) < 0xA0)
+            return 1;
+        ActorMotionPreset(a, 0x7B);
+        a->resume = G_SW_FALL5;
+        return 1;
+    case G_SW_FALL5:
+        if (!scene_fall_done(a))
+            return 1;
+        a->own.bytes[OWN_41] = 0;
+        a->own.bytes[G_STATE] = 4;
+        return guard_stop(a);
     case G_SCENE_START:
         return scene_start(a);
     case G_SC_MOVE:
