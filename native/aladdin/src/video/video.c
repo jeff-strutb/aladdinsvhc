@@ -66,16 +66,10 @@ static void view_changed(int changed)
         sprite_lists_make();
 }
 
-/* the rows a level's picture crops: 8, or 12 in level 2 (Level02ScreenSetup's split line), the same as video_cropped_rows once the level is set up */
-static int level_crop_rows(uint8_t level)
-{
-    return level == 0x02 || level == 0x15 ? 12 : 8;
-}
-
-void video_view_level(uint8_t level)
+void video_view_level(void)
 {
     level_loading = 1;
-    view_changed(view_choose(level_crop_rows(level)));
+    view_changed(view_choose());
 }
 
 void video_view_still(void)
@@ -86,14 +80,7 @@ void video_view_still(void)
 
 void video_view_level_done(void)
 {
-    static int told;
-
     level_loading = 0;
-    if (!told && video_cropped_rows() != level_crop_rows((uint8_t)g.level) && !getenv("ALADDIN_VIEW")) {
-        told = 1;
-        fprintf(stderr, "video: level %02X crops %d rows, not the %d the view was made for\n", (unsigned)g.level,
-                (int)video_cropped_rows(), level_crop_rows((uint8_t)g.level));
-    }
 }
 
 void video_init(void)

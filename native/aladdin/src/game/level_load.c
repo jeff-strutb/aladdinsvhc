@@ -136,7 +136,7 @@ TaskRun LevelLoad(Task *t)
     case LOAD_BUILD:
         NmiDisable();
         ScreenBlank();
-        video_view_level((uint8_t)g.level);     /* the view from the window, once for the level, before any of its limits */
+        video_view_level();     /* the view from the window, once for the level, before any of its limits */
         LevelRamSetup();
         DisplayDefaults();
         if (g.level < HUD_LEVELS)

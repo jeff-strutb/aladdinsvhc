@@ -8,9 +8,7 @@
  * that at 256 x 224 (dx = dy = 0) it is the original's value.
  *
  * The view is not game state: it is not in g, and no play records it. It
- * is chosen from the window: one game pixel is `scale` window pixels across
- * and down (Jeff, 2026-11-22: a fixed pixel scale, so a bigger window shows
- * more of the level, never stretched). It changes only where a level loads
+ * is chosen from the window: from the window's proportion (Jeff, 2026-11-22: not its resolution; square game pixels, never stretched). It changes only where a level loads
  * and where a still screen starts (video_view_level and video_view_still,
  * video.h), never during a level: a window resized in a level keeps the
  * level's view and the engine fits the picture to the window, its shape
@@ -32,13 +30,13 @@ typedef struct View {
 
 extern View view;
 
-/* At init: reads ALADDIN_VIEW and ALADDIN_VIEW_SCALE, and sets the view for a still screen. */
+/* At init: reads ALADDIN_VIEW, and sets the view for a still screen. */
 void view_init(void);
 
-/* The view for a level whose picture crops its top `crop` rows (video_cropped_rows), or for a still screen, from the
-   window as it is now. Returns 1 if the view's size changed. ALADDIN_VIEW=WxH, when set, gives the view and the
+/* The view for a level (its picture 8 rows shorter than the view: the crop; level 2 crops 12), or for a still screen,
+   from the window's proportion as it is now. Returns 1 if the view's size changed. ALADDIN_VIEW=WxH, when set, gives the view and the
    window is not read; with no window (headless) the view is 256 x 224. */
-int view_choose(int crop);
+int view_choose(void);
 int view_choose_still(void);
 
 #endif
