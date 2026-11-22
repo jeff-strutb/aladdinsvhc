@@ -34,12 +34,14 @@ static uint8_t mode7_outside;       /* outside the plane transparent (Mode7Scree
    sent it left it (the original's sprite table keeps its last upload) */
 static nshvc_sprite *shown_sprites;
 static uint32_t shown_count;
+static nshvc_sprite *moved_sprites;  /* the shown sprites moved by the crop or a still screen's origin (video_draw) */
 
 void video_init(void)
 {
     OamInit();
     shown_sprites = calloc(OamSpriteCapacity(), sizeof *shown_sprites);
-    if (!shown_sprites) {
+    moved_sprites = calloc(OamSpriteCapacity(), sizeof *moved_sprites);
+    if (!shown_sprites || !moved_sprites) {
         fprintf(stderr, "video: no memory for the shown sprites\n");
         exit(1);
     }
@@ -590,14 +592,12 @@ void video_draw(void)
     int32_t sprite_dx = video_level_view() ? 0 : view.dx, sprite_dy = video_level_view() ? -(int32_t)lit : view.dy;
 
     if (sprite_dx || sprite_dy) {
-        static nshvc_sprite moved[sizeof shown_sprites / sizeof shown_sprites[0]];
-
-        memcpy(moved, shown_sprites, shown_count * sizeof moved[0]);
+        memcpy(moved_sprites, shown_sprites, shown_count * sizeof moved_sprites[0]);
         for (uint32_t i = 0; i < shown_count; i++) {
-            moved[i].x += sprite_dx;
-            moved[i].y += sprite_dy;
+            moved_sprites[i].x += sprite_dx;
+            moved_sprites[i].y += sprite_dy;
         }
-        nshvc_sprites_set(moved, shown_count, 0);
+        nshvc_sprites_set(moved_sprites, shown_count, 0);
     } else {
         nshvc_sprites_set(shown_sprites, shown_count, 0);
     }

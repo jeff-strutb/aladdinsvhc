@@ -30,7 +30,7 @@ one() {   # name updates input
     echo $? > "$out/$1.$side.exit"
   done
   if [ "$(cat "$out/$1.base.exit")" != 0 ] || [ "$(cat "$out/$1.new.exit")" != 0 ]; then
-    echo "DIFFERS $1: a run failed (exit $(cat "$out/$1.base.exit") / $(cat "$out/$1.new.exit")): $(head -c 200 "$out/$1.new.err")"
+    echo "DIFFERS $1: a run failed (exit $(cat "$out/$1.base.exit") / $(cat "$out/$1.new.exit")): $(head -c 200 "$out/$1.new.err" | tr '\n' ' ')"
   elif cmp -s "$out/$1.base.err" "$out/$1.new.err" && cmp -s "$out/$1.base.out" "$out/$1.new.out"; then
     echo "same    $1"
   else
