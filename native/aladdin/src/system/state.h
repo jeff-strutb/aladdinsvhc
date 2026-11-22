@@ -505,8 +505,7 @@ typedef struct GameState {
     uint16_t text_upload_to;    /* $03DF: the VRAM word address it goes to */
     uint16_t text_upload_bytes; /* $03E1 */
     uint8_t text_parts_pending[3]; /* $0836: nonzero, that part of the text map goes */
-    nshvc_sprite sprites[128];  /* $7E:FA80 and $7E:FC80, the sprite table, as the engine's sprites */
-    uint16_t sprite_count;      /* replaces the sprite table's free count and cursors ($084D, $0852, $0854) */
+    uint16_t sprite_count;      /* replaces the sprite table's free count and cursors ($084D, $0852, $0854); the table ($7E:FA80, $7E:FC80) is video/oam.c's list */
     uint8_t vram_upload_number; /* $0834: nonzero, the number of a fixed upload to make */
     uint8_t vram_queue_pending; /* $0858: nonzero, the queue is ready */
     uint8_t vram_queue_count;   /* $0859 */
