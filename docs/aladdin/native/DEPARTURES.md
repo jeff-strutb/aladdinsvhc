@@ -48,3 +48,11 @@ Rule (Jeff, 2026-11-20): an accident is not reproduced unless leaving it out hur
 - **The check's expected difference:** kind $97 and kind $53 on `rand_stage_a5_s1` (from 2055) and `a5_s2` (from 3219): the sender's `kind` (+$06) $97
   native, $53 original, then everything the check derives from the kind (its comparison as kind $53). The records of the pair's carrier and thing
   ($38, $53) are exact.
+
+## 4. Starting a song costs the starting task one video frame in the original (SongPlay uploads to the sound processor)
+
+- **Where:** `audio/` `SongPlay` (81:FA23): the record's code uploads the song's list to the SPC700 through `SpcUpload` (sound commands held, `SOUND_HOLD`); the native game starts the song at once.
+- **What the original does:** the upload takes video time inside the caller's turn. Seen twice on the original: (a) p3-0 (level 8) when the player's life-loss state starts song $2A, one video frame in which the play-time tick does not step (four video frames of frozen player, three logic frames); (b) p1-1, level 5's closing scene: the scene task (slot 3 in the original) sets cue $BF and calls SongPlay($2F) in update 9072 and is still running (state $08, wait 0) when the frame is dumped; its next TaskWait($10) is then counted from the following frame, so cue $BD (set by the effect task created when that wait ends) comes 17 updates after $BF, 16 in the native game (original $BF 9072, $BD 9089; native 9072, 9088; the camera move and the figures $2E/$70/$93 follow one update earlier too). The HDMA channels are free then ($03B6 = $80, bits 4-6 free) and the effect task's first run is in the update it is created: not the cause.
+- **What the native game does:** the song starts at once; a task that starts a song goes on in the same frame.
+- **Why it does not hurt gameplay:** the cost is a hardware wait (the upload) that the native sound has no equivalent of; it moves a scripted scene or a life's loss by one frame. The player's control during such a frame is not lost (the original's own logic frame is simply late).
+- **The check's expected difference:** one update (one logic frame) later in the original, per song started by a task or by an actor's state that then waits: the first difference of p1-1 at update 9089 (placements) and the actors that follow; p3-0's one lag frame at the player's death.
