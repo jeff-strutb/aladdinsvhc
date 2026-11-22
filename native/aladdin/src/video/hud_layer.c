@@ -25,6 +25,11 @@
  * (write_words in video.c), in a level or not, so it is always the text
  * map's; video_draw uses it only in a level (video_level_view).
  *
+ * The two groups are at the corners of a band no wider than 16:9 of the
+ * picture's shown height (Jeff, 2026-11-22: so that a very wide view does not
+ * put them at the screen's edges), centred in the view, and never narrower
+ * than the original's 256 columns: at 256 x 224 the band is the view.
+ *
  * Later refinement (VIEW.md 6.2): the groups are put at the display's safe
  * area (nshvc_display_info) and not at the view's own corners.
  */
@@ -49,6 +54,8 @@
 
 #define LEFT_COLUMNS_SHOWN 80       /* the view's first columns that take the left page (the left rectangle's 10 columns) */
 #define RIGHT_COLUMNS_SHOWN 88      /* the view's last columns that take the right page (the right rectangle's 11 columns) */
+#define HUD_WIDEST_W 16              /* the band's widest shape, width over height: 16:9 */
+#define HUD_WIDEST_H 9
 #define LEFT_FIRST_LINE (8 * LEFT_ROW_FIRST)
 #define LEFT_LAST_LINE (8 * LEFT_ROW_LAST + 7)
 #define RIGHT_FIRST_LINE (8 * RIGHT_ROW_FIRST)
@@ -122,18 +129,34 @@ void hud_layer_write(unsigned x, unsigned y, unsigned n, const uint16_t *words)
  */
 void hud_layer_set(nshvc_layer *l, int32_t scroll_x)
 {
-    int32_t middle = scroll_x + 8 * MID_COLUMN - view.dx;
-    int32_t left = scroll_x;
-    int32_t right = scroll_x + 8 * RIGHT_COLUMN - (view.w - VIEW_ORIGINAL_W);
-    uint32_t right_from = (uint32_t)(view.w - RIGHT_COLUMNS_SHOWN);
+    int32_t shown_h = view.h - video_cropped_rows();
+    int32_t band = shown_h * HUD_WIDEST_W / HUD_WIDEST_H & ~1;
+    int32_t inset, middle, left, right;
+    uint32_t left_to, right_from;
+
+    if (band < VIEW_ORIGINAL_W)
+        band = VIEW_ORIGINAL_W;
+    if (band > view.w)
+        band = view.w;
+    inset = (view.w - band) / 2;
+    middle = scroll_x + 8 * MID_COLUMN - view.dx;
+    left = scroll_x - inset;
+    right = scroll_x + 8 * RIGHT_COLUMN + VIEW_ORIGINAL_W - (inset + band);
+    left_to = (uint32_t)(inset + LEFT_COLUMNS_SHOWN);
+    right_from = (uint32_t)(inset + band - RIGHT_COLUMNS_SHOWN);
 
     l->map = hud_map;
     l->wrap = 0;
     l->scroll_x = middle;
     for (int32_t line = LEFT_FIRST_LINE; line <= LEFT_LAST_LINE && line < view.h; line++) {
-        nshvc_line_from((uint32_t)line, 0, NSHVC_LINE_SCROLL_X + 2, left);
-        nshvc_line_from((uint32_t)line, LEFT_COLUMNS_SHOWN, NSHVC_LINE_SCROLL_X + 2, middle);
-        if (line >= RIGHT_FIRST_LINE && line <= RIGHT_LAST_LINE)
+        if (inset)
+            nshvc_line_from((uint32_t)line, 0, NSHVC_LINE_SCROLL_X + 2, middle);
+        nshvc_line_from((uint32_t)line, inset, NSHVC_LINE_SCROLL_X + 2, left);
+        nshvc_line_from((uint32_t)line, (int32_t)left_to, NSHVC_LINE_SCROLL_X + 2, middle);
+        if (line >= RIGHT_FIRST_LINE && line <= RIGHT_LAST_LINE) {
             nshvc_line_from((uint32_t)line, (int32_t)right_from, NSHVC_LINE_SCROLL_X + 2, right);
+            if (inset)
+                nshvc_line_from((uint32_t)line, (int32_t)(inset + band), NSHVC_LINE_SCROLL_X + 2, middle);
+        }
     }
 }

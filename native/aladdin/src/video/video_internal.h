@@ -25,6 +25,7 @@ uint8_t video_window_use(uint8_t nibble, uint8_t logic);
 void hud_layer_init(void);                  /* from video_init */
 void hud_layer_write(unsigned x, unsigned y, unsigned n, const uint16_t *words);   /* n cells of the text map's row y from column x on */
 void hud_layer_set(nshvc_layer *l, int32_t scroll_x);   /* BG3 `l` drawn in a level's view, its corners' lines cut */
+int32_t video_cropped_rows(void);          /* the split's dark rows cropped from the picture's top; 0 without the split */
 int video_level_view(void);                 /* 1 while a level is the screen: its view is the whole view, not the original's 256 x 224 */
 
 /* where each level window effect's table is in g.wide_data (the LINE_WINDOW*_WIDE channels' tables) */

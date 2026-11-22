@@ -515,6 +515,12 @@ static void draw_mode7(void)
     nshvc_mode7_set(&m);
 }
 
+/* the rows cropped from the top of the picture: the IRQ split's dark rows L (8, or the level's split line), 0 without it */
+int32_t video_cropped_rows(void)
+{
+    return g.split_on ? (int32_t)(g.split_line ? g.split_line : 8) : 0;
+}
+
 void video_draw(void)
 {
     nshvc_screen scr;
@@ -534,7 +540,7 @@ void video_draw(void)
            (Jeff, 2026-11-22): the picture starts at the original's line L, so its height is the view's less L and
            its origin is -L; the line tables, the layers' scrolls and the line numbers of every effect keep the
            original's counting (the engine counts lines from the origin), and the sprites are moved up L below */
-        lit = g.split_line ? g.split_line : 8;
+        lit = (uint32_t)video_cropped_rows();
         top = lit + 1u;
         scr.blank = 1;
         scr.height = view.h - (int32_t)lit;
