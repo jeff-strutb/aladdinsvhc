@@ -1,7 +1,7 @@
 #!/bin/sh
 # fill_shots.sh APP OUTDIR VIEW [JOBS [PATTERN]]: pictures of every level at its start, at its right end, and at the rooms the
 # camera locks (levels 3, $0D, $10, $11's arena), at the view VIEW (WxH), for looking at the fill past a level's edges
-# (video/level_fill.c). APP is a window build's executable (macOS: aladdin.app/Contents/MacOS/aladdin); a window build
+# (video/level_fill.c; only the map dump draws the level's four edges red, the game's pictures do not). APP is a window build's executable (macOS: aladdin.app/Contents/MacOS/aladdin); a window build
 # draws in real time, so JOBS runs go at once (default 8), each about 70 seconds. Run from the repository root.
 # PATTERN (a grep -E on the list's names, default all) takes some of them. A picture is OUTDIR/VIEW-NAME-uNNNNNN.png, the picture only (the window's black bars cut off).
 set -u
