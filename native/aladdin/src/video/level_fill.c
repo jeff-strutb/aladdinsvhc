@@ -30,8 +30,11 @@
  *     edge cuts a prop, the cells beyond come from a whole copy of it elsewhere in the level. Where nothing has both
  *     neighbours the cell is taken with the inward one alone, and failing that is blank (D, counted unfilled).
  * No collision kind is looked at: the margins are pictures and nothing reads their kind.
- * SEAMLESS. A vertical margin (top, bottom) is seamless for a layer when it has no unseen pair; FillReport.seam_up and
- * seam_down say it, and the view (video/view.c) shows past the top and bottom only where both layers are.
+ * WHAT IS SEEN. The view is never taller than the original's and at least 288 across (video/view.c), so only the left and right
+ * margins can be seen, and the top and bottom ones only where the original itself scrolls past the map's edge (the backdrop's
+ * scroll is negative in level $10: the original's own picture, which the exact bands of the top margin continue as the ring
+ * wrapped). The exact search is therefore made for the left and right margins; the top and bottom ones are made by the exact
+ * bands and the depth at a time path, and are not worked further.
  * The right margin is filled first, then the left, then the bottom over every column of the whole, then the top, the
  * corners included.
  *
@@ -877,11 +880,8 @@ static void count_unseen(FillReport *r)
                 if (side < 0)
                     continue;
                 r->pairs[side]++;
-                if (!seen_at(i, dir == 0 ? 1 : lv.fw)) {
+                if (!seen_at(i, dir == 0 ? 1 : lv.fw))
                     r->unseen[side]++;
-                    if (side >= 2 && x >= lv.ox && x2 < lv.ox + lv.lw)
-                        r->unseen_cols[side - 2]++;     /* in the level's own columns: what a view as wide as the original's shows */
-                }
             }
 }
 
@@ -1363,6 +1363,11 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
        that the pairs the level never has are as far from the seam as can be. */
     int best_attempt = -1, best_depth = 0;
 
+    if (!rows) {
+        /* the top and bottom margins: no view shows them (see the head of this file); the exact bands, then the depth at a time path */
+        memset(banned, 0, sizeof banned);
+        goto depth_at_a_time;
+    }
     for (int attempt = 0; attempt < 3 && best_depth < s->depth; attempt++) {
         int lo = 0, hi = s->depth, found_full = 0;
         Side probe = *s;
@@ -1459,6 +1464,7 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
         if (getenv("ALADDIN_DEV_FILL"))
             fprintf(stderr, "fill: side u=(%d,%d) no depth can be made without a pair the level never has\n", s->ux, s->uy);
     }
+depth_at_a_time:
     /* no consistent fill found (none, or the budget ran out): the depth at a time path, which keeps the fewest broken pairs */
     memset(banned, 0, sizeof banned);
     for (int round = 0; round < ROUNDS; round++) {
@@ -1691,6 +1697,4 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     repair();
     report->unfilled = unfilled;
     count_unseen(report);
-    report->seam_down = below > 0 && report->unseen_cols[1] == 0;
-    report->seam_up = oy > 0 && report->unseen_cols[0] == 0;
 }

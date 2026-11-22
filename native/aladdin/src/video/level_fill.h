@@ -39,10 +39,8 @@ typedef struct FillReport {
     FillBand down[FILL_COLS_MAX];   /* by column of the whole */
     FillBand up[FILL_COLS_MAX];     /* by column of the whole */
     unsigned ids, ids_over;         /* the level's different metatiles, and those past the table */
-    unsigned seam_up, seam_down;    /* 1: no unseen pair in the top / bottom margin (see level_fill.c) */
     unsigned pairs[4], unseen[4];   /* by side (left, right, top, bottom): the pairs of touching metatiles in the margin and across its seam, and those the level's own layout never has */
     unsigned unfilled;              /* cells no candidate could give (left blank) */
-    unsigned unseen_cols[2];        /* the top's and the bottom's unseen pairs over the level's own columns (the seam flags read these: a view as wide as the original's shows no corner) */
     uint8_t outcome[4];             /* by side (left, right, top, bottom): how the exact search ended, FILL_OUTCOME_* */
 } FillReport;
 

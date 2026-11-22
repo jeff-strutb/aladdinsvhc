@@ -37,7 +37,5 @@ const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *
                                  uint32_t *margin_y);
 const FillReport *level_maps_fill(int layer);
 void level_maps_provenance(int layer, const int32_t **src, const uint8_t **kind);
-/* whether both layers go on seamlessly past the level's top and bottom edges (level_fill.c) */
-void level_maps_seamless(int *top, int *bottom);
 
 #endif

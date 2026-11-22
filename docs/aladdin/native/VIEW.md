@@ -4,7 +4,7 @@ Written 2026-11-22 at `b36b712` from reading `native/aladdin/src`, the engine (`
 `src/engine/picture.c`) and tables read from the ROM. Nothing here was built or run. Stage 7 of [PLAN.md](PLAN.md): this is
 the design shown to Jeff before it is built.
 
-**The direction (Jeff, 2026-11-22):** resolution agnostic (true widescreen, portrait, landscape), done as the view of the
+**The direction (Jeff, 2026-11-22):** resolution agnostic across landscape shapes, down to 4:3 ("Just don't support portrait. Landscape down to 4:3 dimensions only."), done as the view of the
 level expanding, including the distances at which things spawn, wake, animate and trigger, not as a wider field of view.
 
 **How this meets it, in one line:** the game's one hard-wired 256 x 224 view becomes a view of W x H game pixels chosen from the
@@ -27,14 +27,18 @@ it, so what the player can see is live, and a 256 x 224 view gives exactly today
 
 ## 2. The view's size
 
-The view in game pixels, from the window's shape `a` (width / height):
+The view in game pixels, from the window's shape `a` (width / height), taken as at least 4:3 (Jeff, 2026-11-22):
 
-- Landscape (`a` ≥ 8/7): H = 224, W = round(224 · a), to an even number.
-- Portrait or narrow (`a` < 8/7): W = 256, H = round(256 / a).
+- The picture shown is 216 lines (the original's 224 less the 8 a level crops) and round(216 · max(a, 4/3)) across, even, so at
+  least 288. In a level the view is 224 tall (216 and the crop rows): H = 224, Δy = 0.
+- A window narrower than 4:3 shows that 4:3 picture letterboxed; nothing is ever taller than the original's view. Portrait is
+  not supported.
+- `ALADDIN_VIEW=WxH` (a check) is clamped the same way: the height is the original's, the width at least 288, except exactly
+  256 x 224, the identity check.
 
 The original's 256 x 224 is always inside the view, so nothing the original showed is ever cut. A larger window at the same
 shape shows the same view, sharper. Section 5 covers what happens where a level is smaller than the view. The rest of this
-document writes Δx = (W − 256) / 2 and Δy = (H − 224) / 2, both 0 or more.
+document writes Δx = (W − 256) / 2, 0 or more (Δy is 0).
 
 Today `video_draw` sets no size: `nshvc_screen_set` is called with width and height 0 (`video/video.c:491`).
 
@@ -231,18 +235,18 @@ exactly. It is a proposal; nothing of it is built.
 4. The level's backdrop alone, where the play field has nothing to give (level $0A's empty screens): what the original shows
    behind every empty place.
 
-Each level's result is shown to Jeff as pictures before it lands. In portrait, the 256 px tall levels need the same
-treatment above and below (ceilings, sky and floors); their vertical periods are not yet measured.
+Each level's result is shown to Jeff as pictures before it lands. The view is never taller than the original's, so only the left
+and right margins are seen; the top and bottom ones only where the original itself scrolls past the map's edge.
 
-### 5.x Fill on four sides, completed by context, and the view fitted to what the fill can show (2026-11-22)
+### 5.x Fill on four sides, completed by context (2026-11-22; landscape only)
 
-- Each level map has 1,024 px of fill past every edge (a wrapping band backdrop: top and bottom only); the level's (0, 0) is at the map's margin (`level_maps_margin`).
-- The bar: every pair of metatiles that touch, across or down, in a margin or across its seam with the level, should occur touching the same way in the level's own layout. A prop cut by the edge is complete when no seam pair is unseen. `FillReport.unseen` counts the pairs that are not, by side (a pair between a side margin's cell and a top or bottom one is the latter's: those margins make the corners); the dump prints them (`NN-fill.txt`) and the fill4 output tabulates them (`BAR.md`, `EVIDENCE.md`). It is not 0 everywhere: of 140 map-layer sides (levels 0 to $11, four sides each, level $07's backdrop being a picture) 87 are at 0 unseen and 0 unfilled, 51 cannot be (arc consistency leaves no cell that has only the level's own pairs, or the exhaustive search ends before the margin does, or a lower bound from the level's own cells), 2 are open (the search gave up on its limit). 26,401 unseen pairs and 768 unfilled cells remain in all. A pair is seen if it occurs anywhere in the level, so it does not catch a straight edge made of two tiles that each border the other somewhere; a 2 x 2 block bar would (measured for one region in `WHY.md`, not enforced).
-- The methods, in order: B (exact period, the nearest stretch that repeats), then E and R at the top and bottom (an empty edge goes on empty; the last 1 to 4 cells go round), each kept only where every pair it makes is the level's, then the exact search: constraint satisfaction over the side's cells (depth 1 to 64 by band), domains the metatiles a chain of the remaining cells can follow, constraints the level's across and down pairs (the seam with the level included), arc consistency, then depth-first assignment in depth-major order with the value order by context (the copy the neighbours are part of first, then the best 8 x 7 cell context match, then a seeded hash), each choice propagated and a dead end backed out across depths. A side that cannot be made to the end is made to the deepest depth that can (so the pairs the level never has are the farthest from the seam), and the rest by a second search with the seam pairs let go. So a prop the edge cuts is copied whole from where the level has it whole: level 0's cut window at the left edge gets its left part from level columns 126 to 129. Where the search gives up on its limit (150 million word operations, 8 x cells + 20,000 nodes) or no fill exists, the earlier depth-at-a-time path and a min-conflicts mending make what they can.
+- Each level map has 1,024 px of fill past every edge (a wrapping band backdrop: top and bottom only); the level's (0, 0) is at the map's margin (`level_maps_margin`). Only the left and right margins are seen: the view is at least 288 across and never taller than the original's. The top and bottom margins hold the exact bands (what the original's ring wrapped, where its backdrop scrolls above the map: level $10's, -96) and the depth at a time path, and no work is spent on them.
+- The bar: every pair of metatiles that touch, across or down, in a margin or across its seam with the level, should occur touching the same way in the level's own layout. A prop cut by the edge is complete when no seam pair is unseen. `FillReport.unseen` counts the pairs that are not, by side; the dump prints them (`NN-fill.txt`) and the fill4 output tabulates them (`EVIDENCE.md`). A pair is seen if it occurs anywhere in the level, so the bar does not catch a straight edge made of two tiles that each border the other somewhere; a 2 x 2 block bar would (measured for one region in `WHY.md`, not enforced).
+- Left and right, levels 0 to $11, both layers (70 sides, level $07's backdrop being a picture): 48 are at 0 unseen and 0 unfilled; the other 22 cannot be (arc consistency leaves no cell that has only the level's own pairs, or the exhaustive search ends before the margin does); none is open. 998 unseen pairs and 23 unfilled cells remain in those 70.
+- The methods, in order: B (exact period, the nearest stretch that repeats), kept only where every pair it makes is the level's, then the exact search: constraint satisfaction over the side's cells (depth 1 to 64 by band), domains the metatiles a chain of the remaining cells can follow, constraints the level's across and down pairs (the seam included), arc consistency, then depth-first assignment in depth-major order with the value order by context (the copy the neighbours are part of first, then the best 8 x 7 cell context match, then a seeded hash), each choice propagated and a dead end backed out across depths. A side that cannot be made to the end is made to the deepest depth that can (so the pairs the level never has are the farthest from the seam), and the rest by a second search with the seam pairs let go. So a prop the edge cuts is copied whole from where the level has it whole: level 0's cut window at the left edge gets its left part from level columns 126 to 129.
 - Empty places (negative screen entries) inside a layout stay blank: made like the margin they change the 256 x 224 pictures (the original draws them blank), so a view that shows them (level $0A's shaft beside its empty screens) shows them blank.
 - No collision kind is looked at (the margins are pictures); the level's own map is not touched.
-- At 256 x 224 the pictures are the original's: 19 plays, 4,569 pictures every 50 updates, compared with the ring-based game's, 0 differ. (The backdrop's scroll is negative in level $10, seen at -96 and -95 in the plays p5-1, p5-2, so the original shows the ring's wrap above the backdrop; the top margin's B bands continue each column at 256 px, which is that wrap. The first version's bottom-margin wrap differed.)
-- A level whose top or bottom margin has an unseen pair in either layer is shown no taller than the original's 216 lines, and as wide as the window's proportion makes that (`view_fit_level`, `video/view.c`; the band of the status line is never wider than the view, and under 168 columns the right group sits under the left, `video/hud_layer.c`). No unseen pair at both: $00 to $03 (they keep the window's full height); the other 14 narrow (122 columns at 9:16, 100 at 9:19.5). The fit needs the frame (the game's logic reads nothing of the view).
+- At 256 x 224 the pictures are the original's: 19 plays, 4,569 pictures every 50 updates, compared with the ring-based game's, 0 differ.
 
 ## 6. Screens and effects that are not the level
 
@@ -252,7 +256,7 @@ The copyright card, logo, title, opening story, story cards, STAGE CLEAR, passwo
 ending story, credits and "The End" are each one 32 x 32-tile picture, or Mode 7 from such a map, with actors at fixed screen
 places. None can show more without new art.
 
-**Proposed (decision 4):** each is drawn as the original's 256 x 224, centred with `origin_x/y` = (Δx, Δy), with
+**Proposed (decision 4):** each is drawn as the original's 256 x 224, centred with `origin_x/y` = (Δx, 0), with
 `show_*` black around it. Per-line tables and windows are offset by the origin. The ending's stages are real levels played
 back, so they take the level view.
 
@@ -275,7 +279,7 @@ circle wipe are gated to < $100 and < $E0; `circle_wipe.c:59-80`, `iris_close_ta
 | Circle wipe, iris (level ends) | Centre in view terms; radius grows to cover the view's far corner; edges 16 bit. "Full" and "none" become 0..W−1 |
 | Effect 8/11 (level 5's end), 10 (level 5's spot) | Same: boxes and spot around the view's centre, 16-bit edges |
 | Level 5's IRQ split (lines 0 to 8, or 12, dark in every level: `video.c:483-490`, `level_screen_setups.c:145,488`) | The dark band stays at the view's top, at its line count |
-| Level 6: colour gradient over the top 96 lines, 11 parallax bands of 182 lines, sprites off from line 181 (80:BA7E, 80:B991, 80:B99E) | Lines are moved by Δy, and the last band and the colour hold to H. The sprite cut at 181 is read before it is changed (it may hide the backdrop's art) |
+| Level 6: colour gradient over the top 96 lines, 11 parallax bands of 182 lines, sprites off from line 181 (80:BA7E, 80:B991, 80:B99E) | Lines are not moved (Δy is 0), and the last band and the colour hold to H. The sprite cut at 181 is read before it is changed (it may hide the backdrop's art) |
 | Parallax band tables (levels 0, 2, 3; `parallax.c:250-262`) | The band split covers H lines instead of 224. The last band already runs to $7FFF |
 
 On still screens, effects keep the original's numbers inside the centred 256 x 224.
@@ -305,7 +309,7 @@ This is decision 1.
   original view. Actor state and the player, update by update, must be identical to `b36b712`'s native build
   (`compare.py`, native against native). This proves each rule reduces to today's value. It also covers the parts the
   original never had (the whole-level map, the sprite budget).
-- **At wider and taller views:** the same plays run at 400 x 224, 480 x 270 and 224 x 400. They may differ, because more is
+- **At wider views:** the same plays run at 288 x 224 (4:3, the narrowest; a window of 900 x 1600 shows it letterboxed), 400 x 224 and 480 x 224. They may differ, because more is
   live. The check is that every play still reaches its exit, and that the following counters stay at 0: no 9-bit wraps, no
   failed placements for want of a record or slot, no sprites dropped, no ring overwrite (the ring is gone). Pictures are taken
   at each level's start, at its widest point and at its locks, for Jeff's look in a window.

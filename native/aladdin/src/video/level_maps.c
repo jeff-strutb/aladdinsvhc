@@ -96,7 +96,6 @@
 #include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
-#include "video/view.h"
 
 #define MAP_WORDS (FILL_CELLS_MAX * 4)  /* the most tiles a layer's map has: the level and its margins, 2 x 2 tiles a metatile */
 #define POOL_SIZE 96
@@ -245,12 +244,9 @@ static void build_layer(int layer, unsigned layout)
 void LevelMapsBuild(void)
 {
     unsigned back = level_map_layout_count(g.level) > 1 ? 1u : 0u;
-    int top, bottom;
 
     build_layer(0, 0);
     build_layer(1, back);
-    level_maps_seamless(&top, &bottom);
-    view_fit_level(top, bottom);        /* the frame shows only what the fill goes on with */
 }
 
 void LevelMapsOff(void)
@@ -356,12 +352,6 @@ void level_maps_provenance(int layer, const int32_t **src, const uint8_t **kind)
 const FillReport *level_maps_fill(int layer)
 {
     return &fill_report[layer];
-}
-
-void level_maps_seamless(int *top, int *bottom)
-{
-    *top = fill_report[0].seam_up && fill_report[1].seam_up;
-    *bottom = fill_report[0].seam_down && fill_report[1].seam_down;
 }
 
 /*
