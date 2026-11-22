@@ -236,7 +236,7 @@ static void fill_runs(FILE *f, const FillBand *b, unsigned from, unsigned to, un
                     b[i].method ? b[i].method : '-',
                     b[i].method == FILL_EMPTY ? "empty edge, goes on empty" :
                     b[i].method == FILL_CYCLE ? "the last cells go round, each step a pair the level has" :
-                    b[i].method == FILL_MADE ? "made from the level's own metatiles, by adjacency" :
+                    b[i].method == FILL_SYNTH ? "synthesised: the level's best context match, cell by cell" :
                     b[i].method == FILL_BACKDROP ? "backdrop alone (blank)" : "none");
         i = j + 1;
     }
@@ -254,8 +254,8 @@ static void fill_side(FILE *f, const char *side, const FillBand *b, unsigned n, 
     fprintf(f, " past the %s edge, by 16 px %s%s:\n", side, what, !strcmp(what, "column") ? " of the whole" : " of the level");
     fill_runs(f, b, 0, n, origin, what);
     for (unsigned i = 0; i < n; i++)
-        count[b[i].method == FILL_EXACT ? 0 : b[i].method == FILL_MADE ? 1 : b[i].method == FILL_EMPTY ? 3 : b[i].method == FILL_CYCLE ? 4 : 2]++;
-    fprintf(f, " %s bands: %u exact, %u made, %u backdrop, %u empty, %u cycle\n", side, count[0], count[1], count[2], count[3], count[4]);
+        count[b[i].method == FILL_EXACT ? 0 : b[i].method == FILL_SYNTH ? 1 : b[i].method == FILL_EMPTY ? 3 : b[i].method == FILL_CYCLE ? 4 : 2]++;
+    fprintf(f, " %s bands: %u exact, %u synthesised, %u backdrop, %u empty, %u cycle\n", side, count[0], count[1], count[2], count[3], count[4]);
 }
 
 static void fill_write(const char *dir, unsigned level)
@@ -277,6 +277,8 @@ static void fill_write(const char *dir, unsigned level)
         fill_side(f, "left", r->left, r->lh, 0, "row", r->ox > 0);
         fill_side(f, "bottom", r->down, r->fw, r->ox, "column", r->fh > r->lh + r->oy);
         fill_side(f, "top", r->up, r->fw, r->ox, "column", r->oy > 0);
+        fprintf(f, " unseen pairs (of the pairs touching in each margin and its seam): left %u of %u, right %u of %u, top %u of %u, bottom %u of %u; %u cells unfilled\n",
+                r->unseen[0], r->pairs[0], r->unseen[1], r->pairs[1], r->unseen[2], r->pairs[2], r->unseen[3], r->pairs[3], r->unfilled);
         fprintf(f, " seamless past the top: %s; past the bottom: %s\n", r->seam_up ? "yes" : "no", r->seam_down ? "yes" : "no");
     }
     fclose(f);
