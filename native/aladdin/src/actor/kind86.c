@@ -5,6 +5,7 @@
  * it; the pair can hold him, and its zone hurts him.
  */
 #include "actor/actor_own.h"
+#include "video/view.h"
 #include "audio/sound.h"
 
 /* its own bytes */
@@ -113,9 +114,9 @@ static void Kind86ChildAbove(Actor *a)
  */
 static int Kind86OutOfView(const Actor *a)
 {
-    if ((uint16_t)(g.range_x - pixels(a->x) + REACH_X) >= SPAN_X)
+    if ((uint16_t)(g.range_x - pixels(a->x) + REACH_X + view.dx) >= (uint16_t)(SPAN_X + 2 * view.dx))
         return 1;
-    return (uint16_t)(g.range_y - pixels(a->y) + REACH_Y) >= SPAN_Y;
+    return (uint16_t)(g.range_y - pixels(a->y) + REACH_Y + view.dy) >= (uint16_t)(SPAN_Y + 2 * view.dy);
 }
 
 /* A frame of its cycle after the hold: its height kept and the stand

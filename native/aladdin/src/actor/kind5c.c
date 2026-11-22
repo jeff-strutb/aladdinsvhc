@@ -8,6 +8,7 @@
  * Aladdin out of health it only bobs. Its wait routine is Kind5CWait.
  */
 #include "actor/actor_own.h"
+#include "video/view.h"
 #include "actor/kinds_d.h"
 #include "data/kinds_d_tables.h"
 #include "video/video.h"
@@ -343,7 +344,7 @@ int Kind5CWait(Actor *a)
     bob_about_line(a);
     AnimStep(a);
     ActorPictureSend(a);
-    if ((uint16_t)(pixels(a->x) - g.range_x + 0x140) >= 0x280) {
+    if ((uint16_t)(pixels(a->x) - g.range_x + 0x140 + view.dx) >= (uint16_t)(0x280 + 2 * view.dx)) {
         a->resume = GONE_AT;
         return ACTOR_GOES_ON;
     }

@@ -6,6 +6,7 @@
 
 #include "actor/actor_own.h"
 #include "data/actor_tables.h"
+#include "video/view.h"
 
 /*
  * @routine 81:9198 ActorsInView
@@ -13,13 +14,17 @@
  * flags): those in use whose view box, placed on them, holds the range
  * point (g.range_x, g.range_y); and lists those with bit 3 of anim_flags
  * set in g.draw_lists by anim_flags' bits 0-1, counted in g.draw_counts.
- * The lists hold 32 each: in the original a 33rd runs into the next
- * list's words; here it is left out and reported once.
+ * The lists hold 32 each at 256 x 224 (a larger view: 32 x the view's area
+ * over 256 x 224, up to DRAW_LIST_MAX): in the original a 33rd runs into the
+ * next list's words; here it is left out and reported once.
  */
 void ActorsInView(void)
 {
     int i;
+    int32_t room = (32 * view.w * view.h + VIEW_ORIGINAL_W * VIEW_ORIGINAL_H - 1) / (VIEW_ORIGINAL_W * VIEW_ORIGINAL_H);
 
+    if (room > DRAW_LIST_MAX)
+        room = DRAW_LIST_MAX;
     for (i = 0; i < 4; i++)
         g.draw_count[i] = 0;
     for (i = 1; i < ACTOR_RECORDS; i++) {
@@ -35,7 +40,7 @@ void ActorsInView(void)
             if (a->anim_flags & 0x08) {
                 int list = a->anim_flags & 0x03;
 
-                if (g.draw_count[list] < 32) {
+                if (g.draw_count[list] < room) {
                     g.draw_list[list][g.draw_count[list]++] = a;
                 } else {
                     static int told;

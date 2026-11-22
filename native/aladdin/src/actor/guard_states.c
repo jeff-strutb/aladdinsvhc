@@ -5,6 +5,7 @@
  * side, or running off to the right.
  */
 #include <stdio.h>
+#include "video/view.h"
 
 #include "actor/guard.h"
 #include "actor/kinds_d.h"
@@ -86,18 +87,20 @@ static void run_off(Actor *a)
 /*
  * @routine A5:F2E5 GuardFaceView
  * WHAT IT DOES: The guard's state 2: it faces toward the point actors are
- * kept in range of: left when it is more than 96 pixels right of it,
- * right when it is more than 96 pixels left of it.
+ * kept in range of: left when it is more than 96 * w / 256 pixels right of it,
+ * right when it is more than that left of it (96 at 256 across).
  */
 static void face_view(Actor *a)
 {
-    uint16_t ahead = (uint16_t)(g.range_x + 0x60);
+    /* its dead zone is round the player (the camera keeps him at the point): 96 either side, grown with the view (decision 2) */
+    uint16_t half = (uint16_t)((0x60 * view.w + VIEW_ORIGINAL_W / 2) / VIEW_ORIGINAL_W);
+    uint16_t ahead = (uint16_t)(g.range_x + half);
 
     if (ahead < pixels(a->x)) {
         a->facing = a->flip = 1;
         return;
     }
-    if ((uint16_t)(ahead - pixels(a->x)) >= 0x00C0)
+    if ((uint16_t)(ahead - pixels(a->x)) >= (uint16_t)(2 * half))
         a->facing = a->flip = 0;
 }
 

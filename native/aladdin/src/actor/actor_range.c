@@ -4,6 +4,7 @@
  * place them again.
  */
 #include "actor/actor_own.h"
+#include "video/view.h"
 #include "data/actor_a_tables.h"
 
 /*
@@ -79,7 +80,8 @@ int ActorEndFarWithChildren(Actor *a)
 {
     if (a->flags & 0x40)
         return ACTOR_GOES_ON;
-    if ((uint16_t)(g.range_x - pixels(a->x) + 0x100) < 0x200 && (uint16_t)(g.range_y - pixels(a->y) + 0x100) < 0x200)
+    if ((uint16_t)(g.range_x - pixels(a->x) + 0x100 + view.dx) < (uint16_t)(0x200 + 2 * view.dx)
+        && (uint16_t)(g.range_y - pixels(a->y) + 0x100 + view.dy) < (uint16_t)(0x200 + 2 * view.dy))
         return ACTOR_GOES_ON;
     ActorFreePlaced(&g.actors[a->own.bytes[OWN_40]]);
     if (a->own.bytes[OWN_44] != 1)

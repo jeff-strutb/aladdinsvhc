@@ -9,6 +9,7 @@
  * its kind's owner (one kind, one owner).
  */
 #include "actor/kinds_c.h"
+#include "video/view.h"
 
 /* ---- the views of the kinds' own bytes these routines read ---- */
 
@@ -148,7 +149,7 @@ int Kind41Wait(Actor *a)
     if (!o->active) {
         if (!(a->spawn_byte & 0x18))
             return ActorEndOutOfRange(a, 0x00);
-        if ((uint16_t)(pixels(a->x) - 0x100) < g.range_x)
+        if ((uint16_t)(pixels(a->x) - 0x100 - view.dx) < g.range_x)
             return ACTOR_GOES_ON;
         return ActorEndPlaced(a);
     }

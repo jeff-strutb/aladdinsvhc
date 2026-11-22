@@ -12,6 +12,7 @@
  * platform always moves: plan section 1 item 8).
  */
 #include <stddef.h>
+#include "video/view.h"
 
 #include "actor/kinds_c.h"
 #include "actor/kinds_d.h"
@@ -134,7 +135,7 @@ static bool player_on(Actor *a)
     bool rising = (int8_t)(player->speed_y >> 16) < 0;
     uint8_t base;
 
-    if ((uint16_t)(pixels(a->y) - g.range_y + 0xC0) >= 0x0180)
+    if ((uint16_t)(pixels(a->y) - g.range_y + 0xC0 + view.dy) >= (uint16_t)(0x0180 + 2 * view.dy))
         return false;
     if ((uint8_t)g.player_no_actor_landing)
         return false;
