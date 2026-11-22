@@ -71,6 +71,9 @@ void vram_fill(uint16_t address, uint16_t word, uint32_t count);
 
 void ScrollStateClear(void);                /* 81:96CB */
 void DisplayDefaults(void);                 /* 81:9865 */
+void video_view_level(uint8_t level);      /* a level starts loading: the view from the window (view.h), before its limits are set */
+void video_view_still(void);               /* a still screen starts (DisplayDefaults): the view from the window, unless a level is loading */
+void video_view_level_done(void);          /* the level's screen is set up: a later DisplayDefaults is a still screen */
 void video_level_view_set(int on);          /* a level is the screen (LevelScreenSetup: 1) or no longer (DisplayDefaults: 0): the effects and the text layer take the level's view */
 void VramCopy(int entry);               /* 81:F5DC: entry of the first copy table (the record's X / 7) */
 void VramCopy2(int entry);              /* 81:F60D: entry of the second */

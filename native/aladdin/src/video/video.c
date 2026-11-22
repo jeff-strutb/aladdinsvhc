@@ -36,15 +36,69 @@ static nshvc_sprite *shown_sprites;
 static uint32_t shown_count;
 static nshvc_sprite *moved_sprites;  /* the shown sprites moved by the crop or a still screen's origin (video_draw) */
 
-void video_init(void)
+/* the lists of sprites that are sized for the view: the game's (OamInit) and the picture's two */
+static void sprite_lists_make(void)
 {
     OamInit();
+    free(shown_sprites);
+    free(moved_sprites);
     shown_sprites = calloc(OamSpriteCapacity(), sizeof *shown_sprites);
     moved_sprites = calloc(OamSpriteCapacity(), sizeof *moved_sprites);
+    shown_count = 0;
     if (!shown_sprites || !moved_sprites) {
         fprintf(stderr, "video: no memory for the shown sprites\n");
         exit(1);
     }
+}
+
+/*
+ * The view changes only here, where a level loads and where a still screen starts (view.h). Everything that keeps
+ * something sized from the view is redone: the sprite lists (the budget follows the view's area). Everything else
+ * the game derives from the view reads it where it is used, or is set after this by the level's own set-up (the
+ * camera's limits and aim, the range point, the spawn window, the line tables, the window edges); a level's load
+ * runs this first, before LevelScrollLimits.
+ */
+static int level_loading;       /* video_view_level ran and LevelScreenSetup has not yet: a DisplayDefaults in between keeps the level's view */
+
+static void view_changed(int changed)
+{
+    if (changed && shown_sprites)
+        sprite_lists_make();
+}
+
+/* the rows a level's picture crops: 8, or 12 in level 2 (Level02ScreenSetup's split line), the same as video_cropped_rows once the level is set up */
+static int level_crop_rows(uint8_t level)
+{
+    return level == 0x02 || level == 0x15 ? 12 : 8;
+}
+
+void video_view_level(uint8_t level)
+{
+    level_loading = 1;
+    view_changed(view_choose(level_crop_rows(level)));
+}
+
+void video_view_still(void)
+{
+    if (!level_loading)
+        view_changed(view_choose_still());
+}
+
+void video_view_level_done(void)
+{
+    static int told;
+
+    level_loading = 0;
+    if (!told && video_cropped_rows() != level_crop_rows((uint8_t)g.level) && !getenv("ALADDIN_VIEW")) {
+        told = 1;
+        fprintf(stderr, "video: level %02X crops %d rows, not the %d the view was made for\n", (unsigned)g.level,
+                (int)video_cropped_rows(), level_crop_rows((uint8_t)g.level));
+    }
+}
+
+void video_init(void)
+{
+    sprite_lists_make();
     tiles[VIDEO_TILES_LOW] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_HIGH] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_TEXT] = nshvc_tiles_create(2, 1024, 1);
@@ -557,6 +611,8 @@ void video_draw(void)
         scr.show_top = view.dy;
         scr.show_bottom = view.dy + VIEW_ORIGINAL_H;
     }
+    if (view.square)        /* the picture at its own shape: square game pixels, fitted to the window and letterboxed if the window's shape is not its */
+        scr.aspect = (float)scr.width / (float)scr.height;
     nshvc_screen_set(&scr);
 
     nshvc_mode_set(g.mode, g.bg3_priority, 0);

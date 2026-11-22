@@ -537,4 +537,5 @@ void LevelScreenSetup(void)
     case 0x1C: AutoScrollScreenSetup(0x0E); g.window_main = 0x04; break;
     default: break;
     }
+    video_view_level_done();
 }

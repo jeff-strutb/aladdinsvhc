@@ -38,6 +38,7 @@ static uint32_t sprite_budget(void)
 void OamInit(void)
 {
     budget = sprite_budget();
+    free(list);                         /* the view changed at a level's load or a still screen: the list is sized again */
     list = calloc(budget, sizeof *list);
     if (!list) {
         fprintf(stderr, "oam: no memory for %u sprites\n", (unsigned)budget);
