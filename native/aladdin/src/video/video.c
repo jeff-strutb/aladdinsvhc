@@ -10,6 +10,7 @@
 #include "nshvc/nshvc.h"
 #include "data/video_tables.h"
 #include "system/state.h"
+#include "system/system.h"
 #include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
@@ -167,6 +168,8 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
         write_words(0, w + part, n - part);
         return;
     }
+    if (DevVramShadow)
+        memcpy(DevVramShadow + first, w, n * sizeof *w);
 
     if ((k = inside(first, n, 0x0000, 0x4000, &from)) != 0) {
         const uint16_t *p = w + (from - first);

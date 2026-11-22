@@ -56,6 +56,9 @@ void LevelTablesClear(void);            /* 81:967B */
 /* dev_start.c: a developer's start at a screen, by the environment (ALADDIN_DEV_*; docs/aladdin/native/CHECK.md) */
 void DevStartApply(void);               /* read the environment once: the cheat, the chosen screen's state */
 bool DevBotInput(uint64_t u, nshvc_input *in);   /* a developer's player: the input for this update, false the engine's own (dev_bot.c) */
+void DevMapDumpLevel(uint64_t u);       /* ALADDIN_DEV_MAPDUMP=DIR: the level's whole map as pictures, at update 1, then the run ends (dev_mapdump.c) */
+int DevMapDumpHeld(void);               /* the dump holds the loaded level on the screen (ALADDIN_DEV_MAPDUMP_HOLD) */
+extern uint16_t *DevVramShadow;         /* non-null while the dump is on: video.c copies each video memory write here */
 void DevMapDump(uint64_t u);           /* the level's map as text by the environment (dev_bot.c) */
 void DevDump(uint64_t u);              /* the whole state as bytes at an update by the environment (dev_bot.c) */
 void DevShot(uint64_t u);              /* a picture every N updates by the environment (dev_bot.c) */
