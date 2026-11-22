@@ -370,3 +370,5 @@ player (x, y, health) or the actor list (kind, x, y) differs. The two games do n
 - A death or restart ends the comparison: the native load and the original's differ in length.
 - Found with it (2026-11-21): the original's four-frame freeze of the player after his health reaches 0 in p3-0 is three logic frames and one lag frame (SongPlay's upload to the
   sound processor in that frame), the same three as the native game's: no difference in the game. p0-1: the native game never counted `g.sprite_flicker` ($032D), see NATIVE-FAULTS.txt.
+
+`ALADDIN_DEV_RECORD=FILE` (system/main.c): whatever keys and controller buttons are played, in the window or by `--input`, are written as an `--input` file (a line at each update where they change); play a level by hand with it set, then `native/checks/plays/run.sh FILE UPDATES` replays it. Checked: replaying `p0-2.txt` with it set writes the same keys at the same updates.

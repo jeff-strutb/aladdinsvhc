@@ -96,9 +96,54 @@ static void step(const nshvc_input *input)
     NmiPictureWork();
 }
 
+/*
+ * ALADDIN_DEV_RECORD=FILE: the keys and controller buttons a person plays, as an --input file (a line "UPDATE key=XX ...
+ * controller=N,BITS" at each update where they change), so a play by hand can be kept and replayed (native/checks/plays/run.sh).
+ */
+static void record_input(const nshvc_input *input)
+{
+    static FILE *f;
+    static int known;
+    static nshvc_input last;
+    static uint16_t last_buttons[8];
+    unsigned i, k, n = 0;
+    int changed = 0;
+
+    if (!known) {
+        const char *v = getenv("ALADDIN_DEV_RECORD");
+
+        known = 1;
+        if (v && *v)
+            f = fopen(v, "w");
+    }
+    if (!f)
+        return;
+    for (i = 0; i < 8; i++) {
+        changed |= input->keys[i] != last.keys[i];
+        changed |= input->controller[i].on && input->controller[i].buttons != last_buttons[i];
+    }
+    if (!changed)
+        return;
+    fprintf(f, "%" PRIu64, nshvc_updates());
+    for (i = 0; i < 8; i++)
+        for (k = 0; k < 32; k++)
+            if (input->keys[i] >> k & 1u)
+                fprintf(f, " key=%02X", i * 32 + k), n++;
+    for (i = 0; i < 8; i++)
+        if (input->controller[i].on && input->controller[i].buttons)
+            fprintf(f, " controller=%u,%X", i, (unsigned)input->controller[i].buttons);
+    fprintf(f, "\n");
+    fflush(f);
+    last = *input;
+    for (i = 0; i < 8; i++)
+        last_buttons[i] = input->controller[i].buttons;
+}
+
 static void update(const nshvc_input *input)
 {
     nshvc_input bot;
+
+    record_input(input);
 
     DevBotStep(step);
     step(DevBotInput(nshvc_updates(), &bot) ? &bot : input);
