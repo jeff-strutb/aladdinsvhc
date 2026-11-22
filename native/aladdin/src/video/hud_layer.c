@@ -30,6 +30,10 @@
  * put them at the screen's edges), centred in the view, and never narrower
  * than the original's 256 columns: at 256 x 224 the band is the view.
  *
+ * A view narrower than the two groups side by side (80 + 88 = 168 columns: a level's view fitted to what its fill can
+ * show, view.c) has the right group under the left one, at the left group's last line on, still at the band's right
+ * edge; the band is never wider than the view.
+ *
  * Later refinement (VIEW.md 6.2): the groups are put at the display's safe
  * area (nshvc_display_info) and not at the view's own corners.
  */
@@ -133,6 +137,7 @@ void hud_layer_set(nshvc_layer *l, int32_t scroll_x)
     int32_t band = shown_h * HUD_WIDEST_W / HUD_WIDEST_H & ~1;
     int32_t inset, middle, left, right;
     uint32_t left_to, right_from;
+    int stacked;
 
     if (band < VIEW_ORIGINAL_W)
         band = VIEW_ORIGINAL_W;
@@ -144,6 +149,7 @@ void hud_layer_set(nshvc_layer *l, int32_t scroll_x)
     right = scroll_x + 8 * RIGHT_COLUMN + VIEW_ORIGINAL_W - (inset + band);
     left_to = (uint32_t)(inset + LEFT_COLUMNS_SHOWN);
     right_from = (uint32_t)(inset + band - RIGHT_COLUMNS_SHOWN);
+    stacked = band < LEFT_COLUMNS_SHOWN + RIGHT_COLUMNS_SHOWN;
 
     l->map = hud_map;
     l->wrap = 0;
@@ -153,10 +159,20 @@ void hud_layer_set(nshvc_layer *l, int32_t scroll_x)
             nshvc_line_from((uint32_t)line, 0, NSHVC_LINE_SCROLL_X + 2, middle);
         nshvc_line_from((uint32_t)line, inset, NSHVC_LINE_SCROLL_X + 2, left);
         nshvc_line_from((uint32_t)line, (int32_t)left_to, NSHVC_LINE_SCROLL_X + 2, middle);
-        if (line >= RIGHT_FIRST_LINE && line <= RIGHT_LAST_LINE) {
+        if (!stacked && line >= RIGHT_FIRST_LINE && line <= RIGHT_LAST_LINE) {
             nshvc_line_from((uint32_t)line, (int32_t)right_from, NSHVC_LINE_SCROLL_X + 2, right);
             if (inset)
                 nshvc_line_from((uint32_t)line, (int32_t)(inset + band), NSHVC_LINE_SCROLL_X + 2, middle);
+        }
+    }
+    if (stacked) {
+        /* the right group's lines, shown from the line after the left group's: the layer's scroll y brings them there */
+        int32_t shift = LEFT_LAST_LINE + 1 - RIGHT_FIRST_LINE;
+
+        for (int32_t line = RIGHT_FIRST_LINE + shift; line <= RIGHT_LAST_LINE + shift && line < view.h; line++) {
+            nshvc_line_from((uint32_t)line, 0, NSHVC_LINE_SCROLL_Y + 2, l->scroll_y - shift);
+            nshvc_line_from((uint32_t)line, 0, NSHVC_LINE_SCROLL_X + 2, middle);
+            nshvc_line_from((uint32_t)line, (int32_t)right_from, NSHVC_LINE_SCROLL_X + 2, right);
         }
     }
 }

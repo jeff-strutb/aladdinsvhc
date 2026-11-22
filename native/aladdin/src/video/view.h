@@ -2,7 +2,7 @@
  * view.h: the view of the level, in game pixels (docs/aladdin/native/VIEW.md).
  *
  * The original's view is 256 x 224. The native game's is w x h, never
- * smaller than that on either axis, and dx = (w - 256) / 2, dy = (h - 224) / 2
+ * smaller than that on either axis (except a level's view fitted to what its fill can show, below), and dx = (w - 256) / 2, dy = (h - 224) / 2
  * are how far each side of the original's view it reaches. Every rule that
  * was a 256 x 224 screen size in the original is written from these, so
  * that at 256 x 224 (dx = dy = 0) it is the original's value.
@@ -38,5 +38,10 @@ void view_init(void);
    window is not read; with no window (headless) the view is 256 x 224. */
 int view_choose(void);
 int view_choose_still(void);
+
+/* A level's view, once its maps are built: where the level does not go on seamlessly past both its top and its bottom
+   (level_maps_seamless), the view is no taller than the original's picture and as wide as the window's proportion
+   makes it (can be under 256). Returns 1 if the view's size changed. A forced or still view is left. */
+int view_fit_level(int top_seamless, int bottom_seamless);
 
 #endif

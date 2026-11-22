@@ -9,6 +9,13 @@
  * starts that many rows down; level 2 crops 12, so its picture is 4 rows shorter inside the same view and the engine
  * fits it (video_draw's aspect) with 4 rows of letterbox, whatever the window. A still screen's view is the shown size,
  * at least 256 x 224, with the original's screen centred in it by video_draw.
+ *
+ * Fitted to the level (view_fit_level). Past a level's top and bottom edges the frame can show only what the level's art
+ * goes on with seamlessly (video/level_fill.c: both layers, every column). A level where it does not at both edges
+ * shows no more than the original's 216 lines, and its width is those lines times the window's proportion, which can be
+ * less than 256 (the original's screen then fills the frame's height and is cut at the sides, centred): the picture
+ * fills the window with no bars. The fit is made where the level's maps are built, during its load, once; a window
+ * or ALADDIN_VIEW choice of the view is not fitted (ALADDIN_VIEW shows the fill as it is).
  */
 #include <math.h>
 #include <stdio.h>
@@ -24,6 +31,7 @@ View view = { VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0, 0, 0 };
 #define MOST 4096
 
 static int forced;              /* ALADDIN_VIEW gave the view */
+static double window_a;         /* the window's proportion the level's view was chosen from; 0: none (no window, or forced) */
 static int32_t forced_w, forced_h;
 
 /* a size kept to the original's at least, and even, so that the original's view sits at whole pixels in it */
@@ -68,9 +76,11 @@ static void shown_size(int32_t *w, int32_t *h)
         d.height = (int32_t)fh;
     }
     *w = *h = 0;
+    window_a = 0;
     if (d.width <= 0 || d.height <= 0)
         return;
     a = (double)d.width / (double)d.height;
+    window_a = a;
     if (a >= (double)VIEW_ORIGINAL_W / SHOWN_H) {
         *h = SHOWN_H;
         *w = size_of(even_near(SHOWN_H * a), VIEW_ORIGINAL_W);
@@ -101,6 +111,7 @@ int view_choose(void)
 {
     int32_t w, h;
 
+    window_a = 0;
     if (forced)
         return set(forced_w, forced_h, 1);
     shown_size(&w, &h);
@@ -119,4 +130,17 @@ int view_choose_still(void)
     if (w == 0)
         return set(VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0);
     return set(size_of(w, VIEW_ORIGINAL_W), size_of(h, VIEW_ORIGINAL_H), 1);
+}
+
+int view_fit_level(int top_seamless, int bottom_seamless)
+{
+    int32_t w;
+
+    /* only a view that was taller than the original's (a window narrower than 256 : 216) has frame above and below */
+    if (forced || window_a <= 0 || view.h <= VIEW_ORIGINAL_H || (top_seamless && bottom_seamless))
+        return 0;
+    w = (int32_t)even_near(SHOWN_H * window_a);
+    if (w < 2)
+        w = 2;
+    return set(w, SHOWN_H + LEVEL_CROP, 1);
 }

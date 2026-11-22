@@ -87,6 +87,7 @@
  * a layer has and kept for the next level of that size.
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "data/data.h"
 #include "data/scroll_tables.h"
@@ -95,6 +96,7 @@
 #include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "video/view.h"
 
 #define MAP_WORDS (FILL_CELLS_MAX * 4)  /* the most tiles a layer's map has: the level and its margins, 2 x 2 tiles a metatile */
 #define POOL_SIZE 96
@@ -180,6 +182,7 @@ static void build_layer(int layer, unsigned layout)
     uint32_t w, h;
 
     m->on = 0;
+    memset(&fill_report[layer], 0, sizeof fill_report[layer]);
     if ((size_t)fw * fh > FILL_CELLS_MAX) {
         fprintf(stderr, "video: a level map of %u x %u metatiles is more than %d; its margins are not made\n", fw, fh, FILL_CELLS_MAX);
         ox = oy = 0;
@@ -238,9 +241,12 @@ static void build_layer(int layer, unsigned layout)
 void LevelMapsBuild(void)
 {
     unsigned back = level_map_layout_count(g.level) > 1 ? 1u : 0u;
+    int top, bottom;
 
     build_layer(0, 0);
     build_layer(1, back);
+    level_maps_seamless(&top, &bottom);
+    view_fit_level(top, bottom);        /* the frame shows only what the fill goes on with */
 }
 
 void LevelMapsOff(void)
@@ -340,6 +346,12 @@ const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *
 const FillReport *level_maps_fill(int layer)
 {
     return &fill_report[layer];
+}
+
+void level_maps_seamless(int *top, int *bottom)
+{
+    *top = fill_report[0].seam_up && fill_report[1].seam_up;
+    *bottom = fill_report[0].seam_down && fill_report[1].seam_down;
 }
 
 /*

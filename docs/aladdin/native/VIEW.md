@@ -234,6 +234,14 @@ exactly. It is a proposal; nothing of it is built.
 Each level's result is shown to Jeff as pictures before it lands. In portrait, the 256 px tall levels need the same
 treatment above and below (ceilings, sky and floors); their vertical periods are not yet measured.
 
+### 5.x Fill on four sides, and the view fitted to what the fill can show (2026-11-22)
+
+- Each level map has 1,024 px of fill past every edge (a wrapping band backdrop: top and bottom only); the level's (0, 0) is at the map's margin (`level_maps_margin`). Left and top are the right and bottom bands seen from the other edge.
+- Top and bottom bands use, in order: B (exact repeat, the top's reaching the edge), E (the edge cell draws nothing, so the margin draws nothing), R (the last 1 to 4 cells go round, the one new step being a pair the level has elsewhere), then C and D as before. A layer's top or bottom is seamless when every column is B, R or E; C and D are made up. The play field's C may use any metatile at the top and bottom (the margin is a picture; nothing reads its kind).
+- At 256 x 224 the pictures are the original's: 19 plays, 4,569 pictures every 50 updates, compared with the ring-based game's, 0 differ. The backdrop's scroll is negative in level $10 (seen at -96 and -95 in the plays p5-1, p5-2), so the original shows the ring's wrap above the backdrop; the top margin's B bands continue each column at 256 px, which is that wrap. (The first version's bottom margin was what that wrap showed, and differed.)
+- A level whose top or bottom is not seamless for both layers is shown no taller than the original's 216 lines, and as wide as the window's proportion makes that (`view_fit_level`, `video/view.c`; the band of the status line is never wider than the view, and under 168 columns the right group sits under the left, `video/hud_layer.c`). Seamless at both: $01, $02, $03. Every other level narrows (122 columns at 9:16, 100 at 9:19.5). `TABLE-VERTICAL.md` in the fill4 output gives each layer's columns by method and why.
+
+
 ## 6. Screens and effects that are not the level
 
 ### 6.1 Still screens

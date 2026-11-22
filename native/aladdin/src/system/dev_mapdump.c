@@ -234,6 +234,8 @@ static void fill_runs(FILE *f, const FillBand *b, unsigned from, unsigned to, un
         else
             fprintf(f, "  %s %u-%u (px %d-%d): %c %s\n", what, i, j, ((int)i - (int)origin) * 16, ((int)j - (int)origin) * 16 + 15,
                     b[i].method ? b[i].method : '-',
+                    b[i].method == FILL_EMPTY ? "empty edge, goes on empty" :
+                    b[i].method == FILL_CYCLE ? "the last cells go round, each step a pair the level has" :
                     b[i].method == FILL_MADE ? "made from the level's own metatiles, by adjacency" :
                     b[i].method == FILL_BACKDROP ? "backdrop alone (blank)" : "none");
         i = j + 1;
@@ -243,7 +245,7 @@ static void fill_runs(FILE *f, const FillBand *b, unsigned from, unsigned to, un
 /* one side's bands: the runs, then a count of the methods */
 static void fill_side(FILE *f, const char *side, const FillBand *b, unsigned n, unsigned origin, const char *what, int present)
 {
-    unsigned count[3] = { 0, 0, 0 };
+    unsigned count[5] = { 0, 0, 0, 0, 0 };
 
     if (!present) {
         fprintf(f, " past the %s edge: none (%s)\n", side, !strcmp(side, "left") || !strcmp(side, "right") ? "the layer repeats by wrapping at its own width" : "no margin");
@@ -252,8 +254,8 @@ static void fill_side(FILE *f, const char *side, const FillBand *b, unsigned n, 
     fprintf(f, " past the %s edge, by 16 px %s%s:\n", side, what, !strcmp(what, "column") ? " of the whole" : " of the level");
     fill_runs(f, b, 0, n, origin, what);
     for (unsigned i = 0; i < n; i++)
-        count[b[i].method == FILL_EXACT ? 0 : b[i].method == FILL_MADE ? 1 : 2]++;
-    fprintf(f, " %s bands: %u exact, %u made, %u backdrop\n", side, count[0], count[1], count[2]);
+        count[b[i].method == FILL_EXACT ? 0 : b[i].method == FILL_MADE ? 1 : b[i].method == FILL_EMPTY ? 3 : b[i].method == FILL_CYCLE ? 4 : 2]++;
+    fprintf(f, " %s bands: %u exact, %u made, %u backdrop, %u empty, %u cycle\n", side, count[0], count[1], count[2], count[3], count[4]);
 }
 
 static void fill_write(const char *dir, unsigned level)
@@ -275,6 +277,7 @@ static void fill_write(const char *dir, unsigned level)
         fill_side(f, "left", r->left, r->lh, 0, "row", r->ox > 0);
         fill_side(f, "bottom", r->down, r->fw, r->ox, "column", r->fh > r->lh + r->oy);
         fill_side(f, "top", r->up, r->fw, r->ox, "column", r->oy > 0);
+        fprintf(f, " seamless past the top: %s; past the bottom: %s\n", r->seam_up ? "yes" : "no", r->seam_down ? "yes" : "no");
     }
     fclose(f);
 }
@@ -538,10 +541,21 @@ static void dump_level(const char *dir, unsigned level)
 
         if (words) {
             Pic fillp = render_words(words, mw, mh, lw, lh, mx, my, ZERO_MAGENTA);
+            FILE *wf;
+            char wpath[512];
 
             snprintf(name, sizeof name, "%02X-fill%s.ppm", level, layer ? "back" : "field");
             pic_write(dir, name, &fillp, 0);
             pic_free(&fillp);
+            /* the map's words as they are (six u32: width, height, the level's width and height, its left and top, in tiles; then the u16 words) */
+            snprintf(wpath, sizeof wpath, "%s/%02X-words%s.bin", dir, level, layer ? "back" : "field");
+            if ((wf = fopen(wpath, "wb"))) {
+                uint32_t head[6] = { mw, mh, lw, lh, mx, my };
+
+                fwrite(head, sizeof head, 1, wf);
+                fwrite(words, sizeof *words, (size_t)mw * mh, wf);
+                fclose(wf);
+            }
         }
     }
     fill_write(dir, level);

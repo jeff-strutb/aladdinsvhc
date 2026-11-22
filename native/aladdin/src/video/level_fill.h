@@ -16,7 +16,7 @@
 #define FILL_COLS_MAX 1024
 
 /* how a band (a row of metatiles past the right or left edge, a column past the bottom or top edge) was filled */
-enum { FILL_NONE = 0, FILL_EXACT = 'B', FILL_MADE = 'C', FILL_BACKDROP = 'D' };
+enum { FILL_NONE = 0, FILL_EXACT = 'B', FILL_EMPTY = 'E', FILL_CYCLE = 'R', FILL_MADE = 'C', FILL_BACKDROP = 'D' };
 
 typedef struct FillBand {
     uint8_t method;
@@ -32,6 +32,7 @@ typedef struct FillReport {
     FillBand down[FILL_COLS_MAX];   /* by column of the whole */
     FillBand up[FILL_COLS_MAX];     /* by column of the whole */
     unsigned ids, ids_over;         /* the level's different metatiles, and those past the table */
+    unsigned seam_up, seam_down;    /* 1: every column of the level continues seamlessly past the top / bottom edge (see level_fill.c) */
 } FillReport;
 
 /* `cells` holds fw x fh metatiles row by row, the level's lw x lh with its top left cell at column ox, row oy (the margins

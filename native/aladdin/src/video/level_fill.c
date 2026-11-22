@@ -18,13 +18,24 @@
  *     on beyond the edge as that stretch's pattern, at the position's own phase (cell i is the stretch's cell
  *     i - k p, k least with it inside the stretch's last period). The cells are the game's own and the continuation
  *     is exact. Measured on the metatile words of the level's map: equal words are equal pixels.
+ *   E, empty (the top and bottom margins only): a band whose level cell at the edge draws nothing goes on drawing
+ *     nothing, so the other layer or the colour behind shows. Tried after B, since a stretch whose pattern ends in
+ *     empty cells goes on as the pattern.
+ *   R, cycle (the top and bottom margins only): the band's last 1 to 4 cells go on round and round, where the one step
+ *     they add, the edge cell to the cycle's first, is a pair the level has somewhere: a floor or a wall of earth goes
+ *     on down as the level's own earth does where it is deeper.
  *   C, made: a band with no such stretch is laid cell by cell, from the edge outward, from the level's own metatiles:
  *     a cell may be a metatile only where each side already decided is a pair that occurs somewhere in the level (the
- *     cell inward, the band before it; the band after it where that band is of kind B). The play field uses
- *     only metatiles with no collision (kind empty), the backdrop any. The choice is weighted by how often the level
+ *     cell inward, the band before it; the band after it where that band is of kind B). The play field's left and
+ *     right margins use only metatiles with no collision (kind empty), everything else any: the margins are
+ *     pictures and nothing reads their kind, and a floor goes on down as earth only if the earth may be used. The choice is weighted by how often the level
  *     has each metatile, from a fixed seed (xorshift32 of the level and layer), so every play is the same. A band
  *     that finds no metatile is tried again ATTEMPTS times in all, then is D.
  *   D, backdrop: blank cells, so the other layer or the colour behind shows, as at an empty place.
+ * SEAMLESS. A vertical margin (top, bottom) is seamless for a layer when each of the level's columns is R, E or B (the bottom's
+ * stretch may end two cells before the edge, the top's must reach it): the art goes on exactly, or on by steps the level
+ * itself has, or nothing is drawn. FillReport.seam_up and seam_down say it, and the view (video/view.c) shows past the top and bottom only where
+ * both layers are. C and D are made up, not the level's own continuation, so they are not seamless.
  * The right margin is filled first (each row of the level), then the left, then the bottom margin over every column of
  * the whole, then the top, the corners included (columns that already have the side margins' cells).
  *
@@ -35,6 +46,7 @@
 #include <string.h>
 
 #include "data/game_tables.h"
+#include "data/scroll_tables.h"
 #include "map/map.h"
 #include "video/level_fill.h"
 
@@ -45,6 +57,7 @@
 #define GAP_DOWN 2                  /* and within 32 pixels of the bottom edge: the original's camera never shows the last 32 */
 #define IDS_MAX 1024
 #define ATTEMPTS 8
+#define CYCLE_MAX 4                 /* the longest cycle (cells) the R method repeats: a floor of 32 pixels is 2 */
 #define NO_ID 0xFFFFu
 #define NONE 0xFFFEu
 #define IMPOSSIBLE (-2)
@@ -61,6 +74,7 @@ static struct {
     uint32_t below[IDS_MAX][IDS_MAX / 32];
     unsigned ids, over;
     uint32_t rng;
+    int any_kind;                   /* 1: a made cell may be a metatile of any kind (the top and bottom margins), 0: one with no collision only (the play field's sides) */
 } lv;
 
 typedef struct Stretch {
@@ -138,7 +152,7 @@ static int neighbour(uint16_t cell)
 
 static int allowed(unsigned id, int left, int up, int right, int down)
 {
-    return lv.decorative[id] && (left == ABSENT || pair_in(lv.across, (unsigned)left, id)) &&
+    return (lv.decorative[id] || lv.any_kind) && (left == ABSENT || pair_in(lv.across, (unsigned)left, id)) &&
            (up == ABSENT || pair_in(lv.below, (unsigned)up, id)) && (right == ABSENT || pair_in(lv.across, id, (unsigned)right)) &&
            (down == ABSENT || pair_in(lv.below, id, (unsigned)down));
 }
@@ -243,14 +257,47 @@ static int make_band(uint16_t *cells, ptrdiff_t fw, ptrdiff_t o, ptrdiff_t sa, p
     return 0;
 }
 
+/* whether a metatile draws nothing: every one of its four tiles is tile 0 (a blank place is no cell at all) */
+static int edge_empty(uint16_t cell, DataRef metatiles)
+{
+    if (cell == FILL_BLANK)
+        return 1;
+    for (unsigned half = 0; half < 8; half += 2)
+        if (level_metatile_word(metatiles, (uint16_t)(cell | 0x8000), half) & 0x03FFu)
+            return 0;
+    return 1;
+}
+
+/* the R method: the band's last p cells (p up to CYCLE_MAX) go on round and round, where the one step they add (the edge
+   cell to the cycle's first) is a pair the level has somewhere (the other steps are the band's own). The cells' order
+   along the band is `sa` on: for the bottom margin each cell is below the one before, for the top margin above it. */
+static int cycle_extend(uint16_t *v, ptrdiff_t sa, unsigned n, unsigned total)
+{
+    for (unsigned p = 1; p <= CYCLE_MAX && p <= n; p++) {
+        uint16_t edge = v[(ptrdiff_t)(n - 1) * sa], first = v[(ptrdiff_t)(n - p) * sa];
+        unsigned a = lv.id_of[edge], b = lv.id_of[first];
+
+        if (a == NO_ID || b == NO_ID)
+            continue;
+        if (sa > 0 ? !pair_in(lv.below, a, b) : !pair_in(lv.below, b, a))
+            continue;
+        for (unsigned i = n; i < total; i++)
+            v[(ptrdiff_t)i * sa] = v[(ptrdiff_t)(n - p + (i - n) % p) * sa];
+        return 1;
+    }
+    return 0;
+}
+
 /* one margin: `bands` bands, band k's cell i at index base + k * sb + i * sa of the cells, the level's n of them (i < n),
    `total` in all. `rows` says which gap the exact method allows (rows of the level for the left and right margins, columns
    for the top and bottom). */
 static void fill_margin(uint16_t *cells, unsigned fw, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned n,
-                        unsigned total, int rows, FillBand *report)
+                        unsigned total, int rows, DataRef metatiles, FillBand *report)
 {
     uint8_t fixed[FILL_COLS_MAX];
     Stretch s;
+
+    lv.any_kind = !rows;
 
     memset(fixed, 0, sizeof fixed);
     for (unsigned k = 0; k < bands; k++) {
@@ -262,6 +309,15 @@ static void fill_margin(uint16_t *cells, unsigned fw, ptrdiff_t base, ptrdiff_t 
             report[k].method = FILL_EXACT;
             report[k].period = (uint16_t)s.p;
             report[k].gap = (uint16_t)(n - s.b);
+        } else if (!rows && edge_empty(v[(ptrdiff_t)(n - 1) * sa], metatiles)) {
+            /* the level's last cell is empty (nothing drawn): the margin goes on empty */
+            for (unsigned i = n; i < total; i++)
+                v[(ptrdiff_t)i * sa] = FILL_BLANK;
+            fixed[k] = 1;
+            report[k].method = FILL_EMPTY;
+        } else if (!rows && cycle_extend(v, sa, n, total)) {
+            fixed[k] = 1;
+            report[k].method = FILL_CYCLE;
         }
     }
     for (unsigned k = 0; k < bands; k++) {
@@ -299,11 +355,22 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     report->ids_over = lv.over;
     /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
     if (right)
-        fill_margin(cells, fw, top, 1, w, lh, lw, lw + right, 1, report->right);
+        fill_margin(cells, fw, top, 1, w, lh, lw, lw + right, 1, metatiles, report->right);
     if (ox)
-        fill_margin(cells, fw, top + (ptrdiff_t)lw - 1, -1, w, lh, lw, lw + ox, 1, report->left);
+        fill_margin(cells, fw, top + (ptrdiff_t)lw - 1, -1, w, lh, lw, lw + ox, 1, metatiles, report->left);
     if (below)
-        fill_margin(cells, fw, (ptrdiff_t)oy * w, w, 1, fw, lh, lh + below, 0, report->down);
+        fill_margin(cells, fw, (ptrdiff_t)oy * w, w, 1, fw, lh, lh + below, 0, metatiles, report->down);
     if (oy)
-        fill_margin(cells, fw, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh, lh + oy, 0, report->up);
+        fill_margin(cells, fw, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh, lh + oy, 0, metatiles, report->up);
+    /* a vertical margin is seamless when each column of the level goes on from its edge exactly: an empty edge, or a
+       stretch that repeats up to the edge (the bottom's last two cells are the ones the original's camera never showed,
+       so a stretch may end before them; the top's first cell is shown, so there it may not) */
+    report->seam_down = below > 0;
+    report->seam_up = oy > 0;
+    for (unsigned k = ox; k < ox + lw; k++) {
+        if (below && report->down[k].method != FILL_EMPTY && report->down[k].method != FILL_CYCLE && report->down[k].method != FILL_EXACT)
+            report->seam_down = 0;
+        if (oy && report->up[k].method != FILL_EMPTY && report->up[k].method != FILL_CYCLE && !(report->up[k].method == FILL_EXACT && report->up[k].gap == 0))
+            report->seam_up = 0;
+    }
 }
