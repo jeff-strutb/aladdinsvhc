@@ -104,6 +104,9 @@ void TileBlockQueue(uint16_t to, uint16_t t);       /* 81:A287 */
 
 /* ---- sprites (video/oam.c) ---- */
 
+void OamInit(void);                        /* at init, after view_init: the sprite list, sized for the view */
+const nshvc_sprite *OamSprites(void);      /* the frame's sprites, as far as g.sprite_count */
+uint32_t OamSpriteCapacity(void);          /* how many the list holds */
 void OamBufferClear(void);                  /* 81:95D5 */
 void OamBuildBegin(void);                   /* 81:9230 */
 void OamDrawActors(void);                   /* 81:9258 */

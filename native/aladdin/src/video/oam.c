@@ -3,18 +3,57 @@
  * engine's sprites, in the original's order (the first in front); the
  * frame's end sends them when g.frame_ready says the frame is built.
  */
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "actor/actor.h"
 #include "system/state.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "video/view.h"
 
-#define SPRITES 128
+#define SPRITES 128             /* the original's sprites, at its view */
 #define FLASH_PALETTE 0x0A00    /* palette 5, as the tile word's bits */
 
 /* the sprites not yet used this frame (the original's $084D) */
-static uint16_t sprites_free;
+static uint32_t sprites_free;
+
+/* the frame's sprites, as the engine's, sized at init for the view */
+static nshvc_sprite *list;
+static uint32_t budget;
+
+/*
+ * The sprites a view allows: the original's 128 at 256 x 224, and for a
+ * larger view 128 scaled by its area, rounded up.
+ */
+static uint32_t sprite_budget(void)
+{
+    uint64_t area = (uint64_t)view.w * (uint64_t)view.h;
+    uint64_t whole = (uint64_t)VIEW_ORIGINAL_W * VIEW_ORIGINAL_H;
+
+    return (uint32_t)(((uint64_t)SPRITES * area + whole - 1) / whole);
+}
+
+void OamInit(void)
+{
+    budget = sprite_budget();
+    list = calloc(budget, sizeof *list);
+    if (!list) {
+        fprintf(stderr, "oam: no memory for %u sprites\n", (unsigned)budget);
+        exit(1);
+    }
+}
+
+const nshvc_sprite *OamSprites(void)
+{
+    return list;
+}
+
+uint32_t OamSpriteCapacity(void)
+{
+    return budget;
+}
 
 /*
  * @routine 81:95D5 OamBufferClear
@@ -29,14 +68,15 @@ void OamBufferClear(void)
 
 /*
  * @routine 81:9230 OamBuildBegin
- * WHAT IT DOES: Starts the frame's sprites: none used, all 128 free, the
- * frame not ready.
+ * WHAT IT DOES: Starts the frame's sprites: none used, all free (128 at the
+ * original's view, more in a larger one: see sprite_budget), the frame not
+ * ready.
  */
 void OamBuildBegin(void)
 {
     g.frame_ready = 0;
     g.sprite_count = 0;
-    sprites_free = SPRITES;
+    sprites_free = budget;
 }
 
 /* the point of the level at the screen's top left, for sprites */
@@ -45,8 +85,8 @@ static int16_t origin_x, origin_y;
 /*
  * @routine 81:9309 OamDrawActor
  * WHAT IT DOES: Puts one actor's frame into this frame's sprites at its
- * place on the screen: each piece within 32 lines above to 224 down gets a
- * sprite; a frame with as many pieces as are left, or more, is not drawn.
+ * place on the screen: each piece within 32 lines above to the view's height
+ * down gets a sprite; a frame with as many pieces as are left, or more, is not drawn.
  * HOW: Flickering actors (+$08 bit 4) skipped on frames whose
  * g.sprite_flicker has bit 0; the palette from the actor's look, or the
  * flash palette (+$08 bit 5 and g.sprite_flicker bit 1, which no script
@@ -54,7 +94,9 @@ static int16_t origin_x, origin_y;
  * flip across turned over), y and tile word plus the actor's tile base,
  * its priority from +$09 bits 4-5 turned over. Every piece counts against
  * the sprites left, drawn or not. The piece's tile word bit 12 makes it
- * 16 x 16 (else 8 x 8). x keeps the original's 9 bits.
+ * 16 x 16 (else 8 x 8). x is the piece's whole place in the view (the
+ * original's 9 bits, which showed a piece 256 or more across at the left, are
+ * not kept).
  */
 static void draw_actor(const Actor *a)
 {
@@ -72,7 +114,7 @@ static void draw_actor(const Actor *a)
     n = actor_pieces(a, &p);
     if (n >= sprites_free)
         return;
-    sprites_free = (uint16_t)(sprites_free - n);
+    sprites_free -= n;
     at_x = (int16_t)((uint16_t)(a->x >> 8) - (uint16_t)origin_x);
     at_y = (int16_t)((uint16_t)(a->y >> 8) - (uint16_t)origin_y);
     base = (uint16_t)(a->look & 0x01FF);
@@ -83,15 +125,15 @@ static void draw_actor(const Actor *a)
         uint16_t word;
         nshvc_sprite *s;
 
-        if ((uint16_t)(y + 32) >= 0x100)
-            continue;                   /* off the screen's height */
+        if (y < -32 || y >= view.h)
+            continue;                   /* off the view's height */
         word = (uint16_t)(((p->tile + base) & 0xCFFF) | priority);
         if (mirrored)
             word ^= 0x4000;
         word |= palette;
-        s = &g.sprites[g.sprite_count++];
+        s = &list[g.sprite_count++];
         memset(s, 0, sizeof *s);
-        s->x = (int32_t)(((uint16_t)x & 0x1FF) ^ 0x100) - 0x100;
+        s->x = x;
         s->y = y;
         s->width = s->height = (uint16_t)(p->tile & 0x1000 ? 2 : 1);
         s->tiles = video_sprite_tiles();

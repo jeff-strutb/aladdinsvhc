@@ -4,6 +4,7 @@
  * the picture (video.h says when the loop calls each).
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "nshvc/nshvc.h"
@@ -31,11 +32,17 @@ static uint8_t mode7_outside;       /* outside the plane transparent (Mode7Scree
 
 /* the sprites the picture shows: the game's list as the last frame that
    sent it left it (the original's sprite table keeps its last upload) */
-static nshvc_sprite shown_sprites[128];
+static nshvc_sprite *shown_sprites;
 static uint32_t shown_count;
 
 void video_init(void)
 {
+    OamInit();
+    shown_sprites = calloc(OamSpriteCapacity(), sizeof *shown_sprites);
+    if (!shown_sprites) {
+        fprintf(stderr, "video: no memory for the shown sprites\n");
+        exit(1);
+    }
     tiles[VIDEO_TILES_LOW] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_HIGH] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_TEXT] = nshvc_tiles_create(2, 1024, 1);
@@ -316,7 +323,7 @@ void video_vblank(void)
 {
     video_scroll_latch();
     if (g.frame_ready) {
-        memcpy(shown_sprites, g.sprites, g.sprite_count * sizeof g.sprites[0]);
+        memcpy(shown_sprites, OamSprites(), g.sprite_count * sizeof shown_sprites[0]);
         shown_count = g.sprite_count;
         if (g.vram_queue_pending) {
             for (int i = 0; i < g.vram_queue_count; i++) {
