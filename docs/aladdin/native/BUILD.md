@@ -38,7 +38,7 @@ own is written from their ROM, as Stunt Race FX's builder does.
 |---|---|---|---|
 | Linux (x86_64, Vulkan) | cmake + Ninja, `NSHVC_HOST=linux NSHVC_RENDER=vulkan`, fresh build folder | `a92d22da` (engine `8b5461e`) | Built clean. Headless boot (`--headless --updates 3200 --input keys.txt`, Start at 2400): exit 0, `updates 3200 pictures 3200`, on Vulkan through Mesa dzn. Not run in a window on this commit. |
 | Windows (x86_64, Vulkan) | Cross-built on Linux with mingw-w64 (`apt install mingw-w64`), the lines below | `a92d22da` (engine `8b5461e`) | Built clean (`aladdin.exe`, PE32+ GUI, 2.1 MB, linked static). **Not run**: no Windows machine here and no Wine. |
-| macOS (Metal) | Not built. Needs Xcode's clang and the Metal toolchain; build on a Mac with the lines below | | **Not built, not run.** To be done on Jeff's Mac. |
+| macOS (Metal, arm64) | cmake + Ninja on Jeff's Mac (Xcode 27.2, Metal toolchain), the lines below with `-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0` | `b36b712` (engine `2d4726f`); the view work on engine 6.8 (`21a6c32`) | Built clean (0 warnings). Headless 11,000 updates, exit 0; pictures written; the app opened in a window. The first build stopped at start on the stack check: the tile writer's overrun, fixed in `b36b712`. A headless run of the app's program reads `cart.dat` from `PORT_RESDIR` (set it to the bundle's `Contents/Resources`). |
 
 Windows, from a Linux machine (the Vulkan headers are `/usr/include/vulkan` and `vk_video`; they are put in a folder of
 their own so the Linux system headers are not pulled in after mingw's):

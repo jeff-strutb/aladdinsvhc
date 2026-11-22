@@ -100,7 +100,7 @@ exists and the raw intake for everything else (`tools/aladdin/image.py`).
 ## The native game: Aladdin Remastered
 
 `native/aladdin` is the game on [nativeshvc](https://github.com/jeff-strutb/nativeshvc),
-a native engine, with Linux as the first platform. Each `update` is one 60 Hz
+a native engine, built and run on Linux and macOS. Each `update` is one 60 Hz
 frame of the original's work; `draw` describes the picture from the game's
 state. The game's C reaches the engine only through its calls (`nshvc_*`): no
 register-shaped state, no translation layer and no imitated PPU, DMA, sound
@@ -135,7 +135,7 @@ What was proven and what was not, number by number, is in [docs/aladdin/native/F
   recording, the others are exact where a recording follows them, and kind $9E (20 fields) is the open row the later work
   left. Screen effects: the title ribbon, circle wipe, iris, text bands and effects 8, 10, 11 and 12 compared; effects 3, 4 and
   kind $69's circle looked at only; effect 9 is never on screen. Sound: the driver only (41 runs, 330,680 ticks, 0 differ).
-- **Not done.** Windows is cross-built and never run; macOS is not built; nothing is packaged. The sound has not been judged by
+- **Not done.** Windows is cross-built and never run; nothing is packaged. The sound has not been judged by
   ear and the engine's mix is not sample-exact. Neither boss was won in full, and levels 16 and 17 have no play to their
   exit by keys. The compare tool cannot cross a restart or a continue screen. Level 18's play has no comparison listed.
   Kinds that no recording can follow ($44, $84's start, $5F's start, $5C's path, $22's and $87's second entries, $64, $9B
@@ -152,15 +152,43 @@ What was proven and what was not, number by number, is in [docs/aladdin/native/F
   scenes run 10 to 52 frames shorter native.
 - **The story card** copies code as graphics only with an act past 7, in one poked run (black on every frame);
   whether real play reaches it is open in the plan.
-- **Platforms:** Linux (Vulkan and headless) is built and run. Windows is cross-built and not run; macOS is not built
+- **Platforms:** Linux (Vulkan and headless) and macOS (Metal, arm64) are built and run. Windows is cross-built and not run
   ([docs/aladdin/native/BUILD.md](docs/aladdin/native/BUILD.md)).
-- **The enhanced game** (widescreen, higher frame rates) is not designed yet.
+- **The view at any shape** is built but not yet chosen from the window: see below. Higher frame rates are not designed.
+
+### The view at any shape
+
+Jeff's direction: widescreen, portrait and any shape, done by showing more of the level, not by a wider field of view. The
+design, the measurements behind it and his decisions are [docs/aladdin/native/VIEW.md](docs/aladdin/native/VIEW.md).
+
+- **What is built.** The view is W x H game pixels (`src/video/view.h`). The camera, its limits, the spawn window, the
+  range point and every "near the screen" box the actors test, the sprite list and the player's ground test are all written
+  from it, so whatever the screen shows is live: drawn, solid, hittable and running its scripts. The wake-up distances
+  measured from Aladdin grow with the view too (Jeff's decision). Each level's play field and backdrop are whole-level
+  engine maps, replacing the console's streamed strip, which bounded the view at about 464 by 224. The levels' dark top
+  rows (8, 12 in level 2) are cropped from the picture. The status line keeps to the corners of a centred band at most
+  16:9 wide. The title, story, menus and other still screens are the original's 256 x 224, centred, with black around.
+- **Checked.** At 256 x 224 every rule gives the original's value: `native/checks/view/same.sh` runs the boot and all 20
+  plays and compares the player, every live actor with its own bytes and the video fields update by update against the
+  build before the work (21 runs, 0 differ), and level and still-screen pictures are byte-identical (the level pictures less
+  the cropped rows). At 400 x 224, 480 x 270 and 256 x 400 every play runs to its end without a fault.
+- **Not done.** The view is set by a developer's setting (`ALADDIN_VIEW=WxH`); choosing it from the window is next (Jeff:
+  a fixed pixel size, so a bigger screen shows more of the level). The recorded plays are key sequences made for the
+  original's game, so at a wider view (more enemies awake) most leave their path: no play has yet been made that wins a
+  level at a wide view. Kinds that need a palette past the console's 8 are not yet given one (the engine has them from
+  API 6.8), so at wide views a few placements in levels 0, 1 and 3 do not appear. Filling the space past a small level or
+  a locked room with the level's own art is analysed (VIEW.md section 5) and not built.
+
+| ![400 x 224](docs/aladdin/native/shots/view-400x224.png)<br>Level 0 at 400 x 224 | ![640 x 224](docs/aladdin/native/shots/view-640x224.png)<br>The same moment at 640 x 224: the status line kept to a 16:9 band |
+|---|---|
 
 ### Faults found by playing and by the check, and fixed
 
 Each was found by a play by keys or by the field-by-field check against the original, then fixed; the evidence is in
 `NATIVE-FAULTS.txt` and `NATIVE-ACTOR-CHECK.txt`, and FINAL.md lists each with its commit.
 
+- The text map's upload (1,024 words) overran a 512-byte buffer in the tile writer on every platform; Linux overwrote its
+  stack unseen and macOS's stack check stopped the game at start (`b36b712`: the tile writer sends runs of 256 words).
 - Jafar's first form (level 16) stopped at its first random pick: `RandomFromList` took the list's X where the native game wants
   X / 2 (`56e4efad`; the same slip in kind $A1/$A6's bounce list and the chain's two picks).
 - Level 3's scene (Jasmine's escape) never ran: `PlayerSceneJumpIn` and `PlayerSceneWalkOut` had been left unconverted
