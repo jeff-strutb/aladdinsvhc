@@ -13,3 +13,7 @@ settings. The whole table of what each play reaches is in NATIVE-FAULTS.txt ("PL
 boss16-2hits.txt: level 16 (5-2) by keys to Jafar's first form (arrives with health 10 at ~7900) and two stomps on him, planned from the record
 (pad bounce: kind $9A's pad + the jump held through the landing, then falling onto the swoop: hits 6 -> 5 at update 8380, 5 -> 4 at 9752; health 4 there:
 kind $6D, the homing things kind $23 sends, hit him while he waited). Not a start-to-exit play. The method is in the notes folder (n5-playthrough2-handover.md).
+
+Boss flow (2026-11-21): boss16-2hits.txt (level 16) and p5-3.txt (level 17) are replayed by boss-flow.sh 16|17 with the boss's health set by
+ALADDIN_DEV_OWN (the patch is in the script's header) so the real stomp the play lands is the last. These two fights are proven by patched health
+and one real stomp each, NOT won in full: level 16 reaches level 17 (9660), level 17 reaches the ending's story (8740), the credits (26560) and "The End".

@@ -87,7 +87,7 @@ static void trace_line(void)
                     for (b = 0; b < 32; b++)
                         fprintf(stderr, "%02X", g.actors[i].own.bytes[b]);
                 }
-                fprintf(stderr, "\n");
+                fprintf(stderr, " resume=%X\n", (unsigned)g.actors[i].resume);
             }
     }
 }

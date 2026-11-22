@@ -142,6 +142,20 @@ void DevDump(uint64_t u)
         if (q)
             fclose(q);
     }
+    /* ALADDIN_DEV_OWN=U:KIND:INDEX:VALUE: at update U every live record of that kind (hex) has its own byte INDEX set to
+       VALUE (kind $98 keeps its hits left at index 1), whatever the layout of the state */
+    const char *own_set = getenv("ALADDIN_DEV_OWN");
+    unsigned ou, ok, oi, ov;
+
+    if (own_set && sscanf(own_set, "%u:%x:%u:%u", &ou, &ok, &oi, &ov) == 4 && u == ou && oi < OWN_BYTES) {
+        unsigned i;
+
+        for (i = 1; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state && g.actors[i].kind == ok) {
+                g.actors[i].own.bytes[oi] = (uint8_t)ov;
+                fprintf(stderr, "set record %u kind %02X own byte %u to %u at update %u\n", i, ok, oi, ov, ou);
+            }
+    }
     static const char *path;
     static unsigned at;
     static int known;

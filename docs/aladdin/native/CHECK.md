@@ -372,3 +372,27 @@ player (x, y, health) or the actor list (kind, x, y) differs. The two games do n
   sound processor in that frame), the same three as the native game's: no difference in the game. p0-1: the native game never counted `g.sprite_flicker` ($032D), see NATIVE-FAULTS.txt.
 
 `ALADDIN_DEV_RECORD=FILE` (system/main.c): whatever keys and controller buttons are played, in the window or by `--input`, are written as an `--input` file (a line at each update where they change); play a level by hand with it set, then `native/checks/plays/run.sh FILE UPDATES` replays it. Checked: replaying `p0-2.txt` with it set writes the same keys at the same updates.
+
+## The two last fights: the flow after the last hit, by patched health (2026-11-21)
+
+Jeff's decision: the bosses of level 16 (Jafar's first form, kind $98) and level 17 (the snake, kind $73) are NOT beaten in full by keys (three sessions
+could not). They are proven as flow: a real stomp by keys on the boss, with the boss's health set by the developer's patch before it so that this one
+stomp is the last. **These two fights are not won in full; each was proven by patched health and one real stomp.** The patch is
+`ALADDIN_DEV_OWN=U:KIND:INDEX:VALUE` (`system/dev_bot.c`, `DevDump`): at update U every live record of that kind (hex) gets its own byte INDEX set to VALUE
+(the record's own bytes, layout-independent; `ALADDIN_DEV_PATCH`, the raw state patch, is the other way).
+
+One command each, from the repository root with `ALADDIN_CPU_RUN` set (the arguments after the level are `plays/run.sh`'s: updates, a pictures directory,
+the interval, the first picture):
+
+```bash
+native/checks/plays/boss-flow.sh 16
+native/checks/plays/boss-flow.sh 17
+```
+
+| Level | Play and patch | Seen (native game, headless, pictures from the Linux build) |
+|---|---|---|
+| 16 (5-2), kind $98 | `boss16-2hits.txt`; at update 8000 kind $98's own byte 1 (hits left, 6 as it starts) set to 1 | the play's first stomp, update 8379: the record goes to state $8C with 0 hits left; hit pose 8382-8387, then Jafar dissolves (pictures 13 down to 0 until 8427) and the record ends about 8436; the camera is freed (xmin 4512, xmax 32672 at 8420); the play's right key walks Aladdin to the exit (4841,168), `level_exiting` 8540; the stage-clear screen (level $24, "STAGE 6 CLEAR", pass word, "CONGRATULATIONS!") from 8700; level 17 loads at 9660 ("FINAL BATTLE"). Run to 10500, exit 0 |
+| 17 (5-3), kind $73 | `p5-3.txt`; at update 5500 kind $73's own byte 1 (health, 7 as it starts) set to 0 | the play's stomp, update 5577: health 0 to -1 (beaten; `g.chain_head_struck` up), the head flashes 31 frames, the chain falls 5610-5720, the finale (the head sliding across, the fade) until the ending's story (level $39) loads at 8740; the story's six scenes (Jafar's wish, Genie, "JUST CALL ME AL." held 12,288 frames by the ROM's table), the credits (level $1C) from 26560, "The End" held to the end of the run (40000). Exit 0 |
+
+The ending was reached from level 17's real end with no developer start after the patch. At "The End" the game does nothing more (its text task waits a frame at a time
+for good; run to 40000, no screen change). Faults found are in `NATIVE-FAULTS.txt` (PLAYER SCENE CUED).
