@@ -19,12 +19,14 @@
 #include "system/system.h"
 #include "system/task.h"
 #include "system/unconverted.h"
+#include "video/view.h"
 
 static uint64_t pictures;
 
 static void init(void)
 {
     data_load();
+    view_init();
     PowerOn();
     video_init();
 }

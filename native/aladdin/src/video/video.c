@@ -11,6 +11,7 @@
 #include "system/state.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "video/view.h"
 
 #define LINES 224
 
@@ -478,6 +479,8 @@ void video_draw(void)
     uint32_t top = 0, lit = 0;
 
     memset(&scr, 0, sizeof scr);
+    scr.width = view.w;
+    scr.height = view.h;
     scr.brightness = g.brightness;
     scr.blank = g.blank;
     if (g.split_on) {
