@@ -13,3 +13,13 @@ function before comparing.
  bbox.py DIR HALF          per picture the box that differs from the outside colour (HALF 1 for the original's 512x448)
  side.py ORIG NAT OUT.png  original, native and the differing pixels side by side
  sheet.py OUT.png FILES... contact sheet
+
+ winbox.py ORIGDIR OPFX NATDIR NPFX FIRST LAST STEP   per update the lit box of a window in both pictures (the original sampled at its even column)
+
+Reading the original's pictures (2026-11-21): a shot is 512 x 448 with every row doubled and the COLUMNS FILTERED (about a third of the column pairs
+differ, in every picture): at an edge the odd column of a pair is a blend of its neighbours. Sample the even column (2x), never a nearest-neighbour
+resize (it takes the odd one and shows every window's left edge one pixel early). Colours: the native pictures are not put through bsnes's gamma of
+1.5 and are not 5-bit; compare patch means after the same gamma (side.py), never pixel by pixel (the filter alone makes 20 % of the pixels differ).
+The original on a NATIVE PLAY, update by update: native/checks/plays/lbox.sh and to_box.py (CHECK.md), then insert `shot NAME` after the `lhold` of the
+update wanted (the native update n is the n-th lhold from LH_FROM); the native picture at the same update number is the one to compare. Where a
+picture is wanted without a play: stage_aX_sY.state, `load`, `wait`, `shot`.
