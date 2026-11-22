@@ -133,6 +133,7 @@ static int wait_ground(Actor *a)
     SoundQueueF6With1();
     g.actors[0].resume = PLAYER_AT_SCENE_WALK_RIGHT;
     g.scroll_x_held++;
+    /* the limits are the original's (a 256 view's left and top edges); ScrollUpdate takes the view's 2 dx and 2 dy off them */
     /* the original counts a word up at $1A05, which straddles the scroll's
        limit across ($1A04, its high byte) and down ($1A06, its low byte) */
     low = (uint16_t)((g.scroll_limit_x >> 8) | (g.scroll_limit_y & 0xFF) << 8);

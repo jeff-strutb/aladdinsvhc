@@ -12,12 +12,12 @@
 #include "map/map.h"
 #include "player/player.h"
 #include "system/state.h"
+#include "video/view.h"
 
 enum { EDGE_KEEP_X, EDGE_KEEP, EDGE_PUSH, EDGE_HURT, EDGE_NONE };
 enum { LIMIT_LEAST = 0, LIMIT_MOST = 1, LIMIT_EDGE = 4 };    /* view_edge_limit's entries */
 
 #define HURT_MARGIN 0x0030      /* ViewEdgeHurt: this far past either side */
-#define VIEW_WIDTH 0x0100
 
 static uint16_t view_x(void) { return (uint16_t)(g.layers[0].scroll_x >> 8); }
 static uint16_t x_of(const Actor *a) { return (uint16_t)(a->x >> 8); }
@@ -25,13 +25,13 @@ static uint16_t x_of(const Actor *a) { return (uint16_t)(a->x >> 8); }
 /* the view's x plus a limit at or right of the player (the original's C) */
 static bool limit_at_or_past(unsigned limit, const Actor *player)
 {
-    return (uint16_t)(view_x() + view_edge_limit(limit)) >= x_of(player);
+    return (uint16_t)(view_x() + view_edge_limit(limit) + (limit == LIMIT_MOST ? 2 * view.dx : 0)) >= x_of(player);
 }
 
 /*
  * @routine 81:E9CD ViewEdgePush
  * WHAT IT DOES: View-edge rule 2: at either side of the view (16 pixels
- * in), the player is pushed back onto the screen while he is off firm
+ * in; the view is view.h's, so the right is w - 16), the player is pushed back onto the screen while he is off firm
  * ground; on firm ground he is not, and once at or left of the view's left
  * edge he is hurt and the rule becomes 3 (ViewEdgeHurt).
  */
@@ -53,7 +53,8 @@ static void ViewEdgePush(Actor *player)
  * @routine 81:EA11 ViewEdgeHurt
  * WHAT IT DOES: View-edge rule 3: when the player is more than 48 pixels
  * past either side of the view, he is hurt and the rule becomes 4 (none).
- * Not while the view is within 48 pixels of the map's left end.
+ * Not while the view is within 48 pixels of the map's left end. The view's
+ * right side is its w (view.h) from the left.
  */
 static void ViewEdgeHurt(Actor *player)
 {
@@ -61,7 +62,7 @@ static void ViewEdgeHurt(Actor *player)
 
     if (left & 0x8000)
         return;
-    if (left < x_of(player) && (uint16_t)(view_x() + VIEW_WIDTH + HURT_MARGIN) >= x_of(player))
+    if (left < x_of(player) && (uint16_t)(view_x() + view.w + HURT_MARGIN) >= x_of(player))
         return;
     g.view_edge_rule = EDGE_NONE;
     PlayerEnter8CFrom1();

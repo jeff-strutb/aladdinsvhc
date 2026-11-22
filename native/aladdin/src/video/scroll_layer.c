@@ -72,7 +72,11 @@ static uint16_t level_tile_word(uint32_t at)
  * WHAT IT DOES: Sets how far the play field may scroll, right and down,
  * from the level's main layout: its width and height in screens, less one,
  * times 256.
- * HOW: The record reads the layout's size bytes (width less one, height
+ * HOW: These are the original's, for its 256 x 224 view: the last view's
+ * left and top edge. ScrollUpdate takes the view's (view.h) 2 dx and 2 dy
+ * off them, so the view's right and lower edges stop at the level's, and
+ * the player's fall (PlayerFallenTest) stays at (rows - 1) * 256 + $E6.
+ * The record reads the layout's size bytes (width less one, height
  * less one) from the layouts' table; data/'s counts are those plus one for
  * every level the table has (no size byte is $80 or more).
  */

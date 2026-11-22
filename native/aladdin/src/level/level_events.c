@@ -206,7 +206,7 @@ TaskRun ClimbTopTask(Task *t)
             if ((uint16_t)(g.layers[0].scroll_y >> 8) != 0 || (px & 0xFF) < 0x80 || (py & 0xFF) >= 0x78)
                 return task_wait(t, 1);
         }
-        g.scroll_limit_y &= 0x00FF;
+        g.scroll_limit_y &= 0x00FF;     /* the original's limit (a view's top edge): no more down; ScrollUpdate takes 2 dy off it, to 0 */
         if (g.level != CLIMB_LEVEL_TWIN) {
             g.main_layers = 0x17;
             g.sub_layers = 0x10;
