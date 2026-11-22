@@ -324,7 +324,8 @@ Stages V2, V3, V5 and V9 touch separate files and can run side by side.
 ## 10. Decisions for Jeff
 
 Answered 2026-11-22:
-- **1, palette slots:** (a), the engine is asked for more sprite palettes.
+- **1, palette slots:** (a), the engine is asked for sprite palettes. Jeff: any number of sprite palettes, not a larger
+  fixed number (engine API 6.8, built on the engine's `sprite-palettes` branch, not merged).
 - **2, wake distances measured from Aladdin:** scaled with the view, as the screen-relative ones are.
 - **3:** no black: fill with matching art (section 5, analysis made, nothing built).
 - **4:** still screens centred, with black around (built).
