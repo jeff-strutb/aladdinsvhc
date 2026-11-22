@@ -33,18 +33,39 @@ void PaletteLoad(int set)
 }
 
 /*
+ * How many colours from palette `first` a save or fade of `count` palettes
+ * reaches: those of the palettes up to the SNES's 16 (256 colours), and,
+ * when the palettes include the last of them (15, a sprite palette), all the
+ * sprite palettes past it (the slots past the original's four; first 16 or
+ * more names one of those alone).
+ */
+static unsigned fade_entries(unsigned first, unsigned count)
+{
+    unsigned from = (unsigned)first * 16, n = (unsigned)count * 16;
+
+    if (first >= 16)
+        return from + n <= PALETTE_ENTRIES ? n : PALETTE_ENTRIES - from;
+    if (from + n > 256)
+        n = 256 - from;
+    if (first + count > 15)
+        n += 16u * (slots_count() - SLOTS_STD);
+    return n;
+}
+
+/*
  * @routine 81:9DAA PaletteSave
  * WHAT IT DOES: Keeps `count` palettes (1-16) from palette `first` on, for a
  * fade to work from.
  * HOW: Where they start noted (as a byte offset, as the original keeps it),
  * then their colours copied to the same places of the kept colours.
  */
-void PaletteSave(uint8_t first, uint8_t count)
+void PaletteSave(uint16_t first, uint8_t count)
 {
     unsigned from = (unsigned)first * 16;
+    unsigned n = fade_entries(first, count);
 
     g.palette_saved_at = (uint16_t)(from * 2);
-    for (unsigned i = 0; i < (unsigned)count * 16 && from + i < 256; i++)
+    for (unsigned i = 0; i < n; i++)
         g.palette_saved[from + i] = g.palette[from + i];
 }
 
@@ -117,8 +138,9 @@ static uint16_t colour_step(uint16_t colour, int16_t step)
 void PaletteFadeStep(int8_t step, uint8_t count)
 {
     unsigned from = g.palette_saved_at / 2u;
+    unsigned n = fade_entries(from / 16, count);
 
-    for (unsigned i = 0; i < (unsigned)count * 16 && from + i < 256; i++)
+    for (unsigned i = 0; i < n; i++)
         g.palette[from + i] = colour_step(g.palette_saved[from + i], step);
     g.palette_upload++;
 }

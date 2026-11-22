@@ -73,7 +73,7 @@ void ActorFree(Actor *a)
  */
 void ActorTileSlotRelease(Actor *a)
 {
-    uint8_t slot = a->tile_slot;
+    uint16_t slot = a->tile_slot;
 
     if (slot && --g.palette_slot_users[slot - 1] == 0) {
         uint8_t kind = g.palette_slot_kind[slot - 1];

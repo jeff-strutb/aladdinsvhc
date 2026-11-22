@@ -6,6 +6,7 @@
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
 #include "data/kinds_d_tables.h"
+#include "video/slot_gfx.h"
 #include "video/video.h"
 
 #define FADE OWN_40             /* the fade's step: -$20 up to 8 */
@@ -38,7 +39,7 @@ static int place_and_fade(Actor *a)
         a->y = with_pixels(a->y, ka7_place_y(0));
     }
     a->flags = 0x20;
-    PaletteSave((uint8_t)((((a->look >> 8) & 0x0E) >> 1) | 0x08), 1);
+    PaletteSave((uint16_t)look_palette_number(a->look), 1);
     a->own.bytes[FADE] = 0xE0;
     PaletteFadeStep((int8_t)0xE0, 1);
     g.blend_use_sub = 1;

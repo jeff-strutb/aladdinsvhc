@@ -17,6 +17,7 @@
 
 #include "actor/actor_own.h"
 #include "data/actor_tables.h"
+#include "video/slot_gfx.h"
 #include "video/view.h"
 
 /* The index ($7E:C100-$7E:C5FF; the original's clear runs on through
@@ -295,8 +296,11 @@ void PlacementsScroll(void)
 static int slots_claim(uint8_t kind, Actor *a, int count)
 {
     int first, k;
+    int slots = (int)slots_count();
 
-    for (first = 0; first + count <= 4; first++) {
+    for (first = 0; first + count <= slots; first++) {
+        if (first < SLOTS_STD && first + count > SLOTS_STD)
+            continue;                   /* a run is one range of tiles: not across the original's four and the rest */
         for (k = 0; k < count && !g.palette_slot_users[first + k]; k++)
             ;
         if (k < count)
@@ -304,9 +308,9 @@ static int slots_claim(uint8_t kind, Actor *a, int count)
         for (k = 0; k < count; k++)
             g.palette_slot_users[first + k]++;
         g.palette_slot_kind[first] = kind;
-        a->tile_slot = (uint8_t)(first + 1);
-        g.kind_slot[kind] = (uint8_t)(first + 1);
-        a->look = palette_slot_look((uint8_t)(first + 1));
+        a->tile_slot = (uint16_t)(first + 1);
+        g.kind_slot[kind] = (uint16_t)(first + 1);
+        a->look = slot_look((unsigned)first + 1);
         g.kind_look[kind] = a->look;
         return 0;
     }
@@ -346,7 +350,7 @@ static void ActorKindTilesQueue(uint8_t kind)
             return;
         }
         c = &g.vram_queue[g.vram_queue_count++];
-        c->to = (uint16_t)(((g.kind_look[kind] & 0x01FF) << 4) + 0x6000);
+        c->to = look_vram(g.kind_look[kind], 0);
         c->from = &g.unpacked[g.kind_gfx_at[kind] % sizeof g.unpacked];
         c->bytes = bytes;
         c->step = 0x80;
