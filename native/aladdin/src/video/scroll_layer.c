@@ -18,7 +18,6 @@
 #include "video/scroll_layer.h"
 #include "video/video.h"
 #include "video/video_internal.h"
-#include "video/view.h"
 
 enum { EDGE_LEFT, EDGE_RIGHT, EDGE_TOP, EDGE_BOTTOM };
 
@@ -351,16 +350,11 @@ static void edge_place_at(ScrollLayer *l, int e, uint16_t x, uint16_t y)
 /*
  * @routine 81:C146 EdgePlace
  * WHAT IT DOES: Puts one of a layer's edges where it starts: its scroll plus
- * the edge's start from the table, just off the screen on its side (the
- * right edge's 2 dx further, off the view's side: view.h).
+ * the edge's start from the table, just off the screen on its side.
  */
 static void edge_place(ScrollLayer *l, int e)
 {
-    int16_t start = edge_start_x((unsigned)e);
-
-    if (e == EDGE_RIGHT)
-        start = (int16_t)(start + 2 * view.dx);     /* just off the view's right side, as 16 off the original's */
-    edge_place_at(l, e, (uint16_t)(pixels(l->scroll_x) + start),
+    edge_place_at(l, e, (uint16_t)(pixels(l->scroll_x) + edge_start_x((unsigned)e)),
                   (uint16_t)(pixels(l->scroll_y) + edge_start_y((unsigned)e)));
 }
 
@@ -609,8 +603,7 @@ void LayersCopyToVram(void)
  * WHAT IT DOES: As a level starts, fills both scroll layers' video maps from
  * the level's map, then sets the layers up to scroll from there:
  * LayersSetup; then for each layer, column after column from the left edge
- * (48, or 66 in levels 0, 2, 3, 6, $14 and $15; the view (view.h) adds
- * its 2 dx / 8 to the 48, to the 64 the ring holds): LayerDrawColumn on the
+ * (48, or 66 in levels 0, 2, 3, 6, $14 and $15): LayerDrawColumn on the
  * left side, EdgeStepRight for the left edge, LayersCopyToVram; then
  * LayersSetup again.
  * HOW: LayersFillLong (81:C05C), its call for other banks, is this.
@@ -626,8 +619,6 @@ void LayersFill(void)
         ScrollLayer *l = &g.layers[layer];
 
         g.fill_columns_left = (uint8_t)(wide ? 0x42 : 0x30);
-        if (!wide)      /* the view's 2 dx more across, to the ring's 64 columns (a wide level's 66 already wrap it) */
-            g.fill_columns_left = (uint8_t)(0x30 + 2 * view.dx / 8 > 0x40 ? 0x40 : 0x30 + 2 * view.dx / 8);
         do {
             layer_draw_column(l, 1);
             edge_step_right(l, EDGE_LEFT);
