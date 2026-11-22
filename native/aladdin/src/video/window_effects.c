@@ -6,6 +6,14 @@
  * Converted so far: the task, the channel search and start, effects 2, 3
  * and 6 (with the waves), 4, 7, 8, 9, 10, 11 and 12. Effects 0, 1 and 5 are
  * dead (video/NOTES).
+ *
+ * In a level (video_level_view) the circle (effect 2) and effects 8, 10 and
+ * 11 are in the view's columns (VIEW.md 6.3): their windows are the
+ * LINE_WINDOW*_WIDE channels, a table of 5 bytes an entry in g.wide_data (a
+ * line count, then the left and right edges, 16 bits each), built here from
+ * the places in the level and the view's width and height. The edges the
+ * original gave as 0 and $FF are 0 and the view's last column; its lines are
+ * the view's lines. At 256 x 224 each is the original's window.
  */
 #include <stdio.h>
 
@@ -13,7 +21,9 @@
 #include "data/video_tables.h"
 #include "system/state.h"
 #include "system/task.h"
+#include "video/video_internal.h"
 #include "video/video_tasks.h"
+#include "video/view.h"
 
 #define LINE_DATA_AT 0xF400u        /* where g.line_data starts in the original's bank $7E */
 #define WINDOW_EDGES 0x0400u        /* the window's edges per line ($7E:F800), in g.line_data */
@@ -22,6 +32,42 @@
 #define WAVES_BYTES 0x200u
 
 enum { NO_CHANNEL = -1 };
+
+/* a wide window table's entries: `lines` lines of the window left..right, in runs of at most 127, from byte `at` of
+   g.wide_data, none past `end`; returns where the next goes */
+static unsigned wide_run(unsigned at, unsigned end, int32_t lines, uint16_t left, uint16_t right)
+{
+    while (lines > 0 && at + 5 <= end) {
+        unsigned n = lines > 127 ? 127u : (unsigned)lines;
+
+        g.wide_data[at] = (uint8_t)n;
+        g.wide_data[at + 1] = (uint8_t)left;
+        g.wide_data[at + 2] = (uint8_t)(left >> 8);
+        g.wide_data[at + 3] = (uint8_t)right;
+        g.wide_data[at + 4] = (uint8_t)(right >> 8);
+        at += 5;
+        lines -= (int32_t)n;
+    }
+    return at;
+}
+
+/* the table's end: a count of 0, from where the last entry ended */
+static void wide_end(unsigned at)
+{
+    g.wide_data[at] = 0;
+}
+
+/* a window effect's channel turned to a wide window (window 1 or 2) with its table at `at` of g.wide_data */
+static void wide_channel(int ch, LineTarget target, unsigned at)
+{
+    LineChannel *c = &g.line_channel[ch];
+
+    c->target = (uint8_t)target;
+    c->direct = 1;
+    c->table_at = (uint16_t)at;
+    c->cart.at = 0;
+    g.line_table_at[ch - 4] = (uint16_t)at;
+}
 
 /* the per-line target a register set's transfer reaches */
 static int target_of(uint8_t reg)
@@ -329,56 +375,47 @@ static uint16_t view_y(void) { return (uint16_t)(g.layers[0].scroll_y >> 8); }
 
 /*
  * @routine 82:8417 WindowBoxAt
- * WHAT IT DOES: Adds to the table being built at `out` the lines of a window
- * 128 pixels wide and up to 96 lines tall whose top left is the level point
- * x, y; returns the bytes added, or -1 (the original's C set, nothing
- * added) when the box is off the screen.
+ * WHAT IT DOES: Adds to the wide table being built from byte `at` (to `end`)
+ * the lines of a window 128 pixels wide and up to 96 lines tall whose top left
+ * is the level point x, y; returns where the table now ends, `at` itself when
+ * the box is off the view (the original's C set, nothing added).
  * HOW: The point less the play field's scroll (across, down) is off when
- * across is outside -128 to 255 or down outside -96 to 223. Entries of 3
- * bytes, a line count then the window's left and right: lines above the box
- * (down above 0) as entries of no window (left $FF, right 0), two when more
- * than 127; then the box's lines (96, fewer at the screen's bottom, or down
- * + 97 when it starts above the screen) with the window from across to
- * across + 128, clipped to 0 and 255. (82:8415 WindowBoxOff, the original's
- * way off, is this return.)
+ * across is outside -128 to the view's width less 1 or down outside -96 to
+ * its height less 1 (the original's 255 and 223). Entries of a line count and the
+ * window's left and right (16 bits): lines above the box (down above 0) as
+ * entries of no window; then the box's lines (96, fewer at the view's bottom,
+ * or down + 97 when it starts above it) with the window from across to
+ * across + 128, clipped to 0 and the view's last column. (82:8415
+ * WindowBoxOff, the original's way off, is this return.)
  */
-static int box_at(uint8_t *out, uint16_t x, uint16_t y)
+static unsigned box_at(unsigned at, unsigned end, int32_t x, int32_t y)
 {
-    uint16_t across = (uint16_t)(x - view_x()), down = (uint16_t)(y - view_y()), lines;
-    unsigned n = 0;
+    int32_t across = (int16_t)(uint16_t)(x - view_x()), down = (int16_t)(uint16_t)(y - view_y()), lines;
+    uint16_t left, right;
 
-    if (!(across < 0x0100 || (uint16_t)(across + 0x0080) < 0x0100))
-        return -1;
-    if (!(down < 0x00E0 || (uint16_t)(down + 0x0060) < 0x00E0))
-        return -1;
-    if ((down & 0x8000) || !down) {
-        lines = (uint16_t)(down + 0x0061);
+    if (across < -128 || across >= view.w)
+        return at;
+    if (down < -96 || down >= view.h)
+        return at;
+    if (down <= 0) {
+        lines = down + 0x61;
     } else {
-        if (down >= 0x0080) {
-            out[n++] = (uint8_t)(down - 0x007F);
-            out[n++] = 0xFF;
-            out[n++] = 0x00;
-            down = 0x007F;
-        }
-        out[n++] = (uint8_t)down;
-        out[n++] = 0xFF;
-        out[n++] = 0x00;
-        lines = (uint16_t)(0x00E0 - (uint16_t)(y - view_y()));
-        if (lines >= 0x0060)
-            lines = 0x0060;
+        at = wide_run(at, end, down, WIDE_NONE, 0);
+        lines = view.h - down;
+        if (lines >= 0x60)
+            lines = 0x60;
     }
-    out[n++] = (uint8_t)lines;
-    if (across & 0x8000) {
-        out[n++] = 0x00;
-        out[n++] = (uint8_t)(across + 0x0080);
-    } else if ((uint16_t)(0x0100 - across) >= 0x0081) {
-        out[n++] = (uint8_t)across;
-        out[n++] = (uint8_t)(across + 0x80);
+    if (across < 0) {
+        left = 0;
+        right = (uint16_t)(across + 0x80);
+    } else if (view.w - across >= 0x81) {
+        left = (uint16_t)across;
+        right = (uint16_t)(across + 0x80);
     } else {
-        out[n++] = (uint8_t)across;
-        out[n++] = 0xFF;
+        left = (uint16_t)across;
+        right = (uint16_t)(view.w - 1);
     }
-    return (int)n;
+    return wide_run(at, end, lines, left, right);
 }
 
 /* the resume points of effects 8-11 (WindowEffectTask's) */
@@ -389,31 +426,22 @@ enum { BOX_FRAME = 40, LOWER_FRAME, SPOT_FRAME, SPOT_CLOSE, NARROW_FRAME };
 #define BOX1_Y 0x00F8
 #define BOX2_X 0x0D60
 #define BOX2_Y 0x01D8
-#define BOX_TABLE_BYTES 16          /* what each frame's table is: 16 bytes, in one of two halves ($10 apart) */
 
 /* effect 8: each frame the table in the half not being read is rebuilt: the
    boxes' entries, an entry of 1 line of no window, the end, and window 1's
    edges from its first entry */
 static TaskRun box_frame(Task *t, uint16_t *at)
 {
-    uint8_t built[48];
-    unsigned x = 0, table = t->own.box.flip ? 0x10u : 0u;
-    int n;
+    unsigned table = WIDE_BOXES + (t->own.box.flip ? 0x200u : 0u), end = table + 0x200, x = table;
 
     t->own.box.flip ^= 1;
     g.line_table_at[t->own.box.channel - 4] = (uint16_t)table;
-    if ((n = box_at(built, BOX1_X, BOX1_Y)) >= 0)
-        x += (unsigned)n;
-    if ((n = box_at(built + x, BOX2_X, BOX2_Y)) >= 0)
-        x += (unsigned)n;
-    built[x] = 0x01;
-    built[x + 1] = 0xFF;
-    built[x + 2] = 0x00;
-    built[x + 3] = 0x00;
-    g.window_edges[0] = built[1];
-    g.window_edges[1] = built[2];
-    for (unsigned i = 0; i < BOX_TABLE_BYTES; i++)
-        g.line_data[table + i] = built[i];
+    x = box_at(x, end, BOX1_X, BOX1_Y);
+    x = box_at(x, end, BOX2_X, BOX2_Y);
+    x = wide_run(x, end, 1, WIDE_NONE, 0);
+    wide_end(x);
+    g.window_edges[0] = (uint16_t)(g.wide_data[table + 1] | g.wide_data[table + 2] << 8);
+    g.window_edges[1] = (uint16_t)(g.wide_data[table + 3] | g.wide_data[table + 4] << 8);
     *at = BOX_FRAME;
     return task_wait(t, 1);
 }
@@ -443,6 +471,21 @@ static TaskRun lower_frame(Task *t, uint16_t *at)
     return task_wait(t, 1);
 }
 
+/* effect 11: its wide table from the line data the original keeps: the lines of no window the byte at $F480 counts
+   (line_data[0x80], which steps up each frame from 1), then twice the count at $F483 (line_data[0x83], which steps
+   down) lines of the window from the left edge (line_data[0x92], which steps up) to the view's last column less it,
+   then one line of none */
+static void narrow_table(void)
+{
+    unsigned at = WIDE_NARROW, end = WIDE_NARROW + 0x200;
+    uint16_t left = g.line_data[0x92];
+
+    at = wide_run(at, end, g.line_data[0x80], WIDE_NONE, 0);
+    at = wide_run(at, end, 2 * g.line_data[0x83], left, (uint16_t)(view.w - 1 - left));
+    at = wide_run(at, end, 1, WIDE_NONE, 0);
+    wide_end(at);
+}
+
 /* effect 11: a window narrowing over the lines above $00F8 of the level; its table's edges and line count step each frame */
 static TaskRun narrow_frame(Task *t, uint16_t *at)
 {
@@ -451,6 +494,7 @@ static TaskRun narrow_frame(Task *t, uint16_t *at)
     g.line_data[0x93] = (uint8_t)~g.line_data[0x92];
     g.line_data[0x83]--;
     g.line_data[0x86] = g.line_data[0x83];
+    narrow_table();
     if (!g.line_data[0x83])
         return task_exit(t);
     *at = NARROW_FRAME;
@@ -462,6 +506,21 @@ static TaskRun narrow_frame(Task *t, uint16_t *at)
 #define SPOT_Y 0x0144
 #define SPOT_TABLE 0x0100           /* its table (the original's $7E:F500), 32 bytes, kept at +$20 */
 #define SPOT_KEPT 0x0120
+#define SPOT_LINES (WIDE_SPOT + 0x1FE)  /* in g.wide_data: the lines the spot's window covers, 16 bits (the original's two counts, a byte each) */
+
+/* effect 10's wide table: the window from the spot's left edge to its right (window 2's edges) for the lines
+   the spot covers, then one line of none; nothing at all (the table at its end) while the spot is off the view */
+static void spot_table(void)
+{
+    unsigned at = WIDE_SPOT, end = WIDE_SPOT + 0x1FE;
+    int32_t lines = g.wide_data[SPOT_LINES] | g.wide_data[SPOT_LINES + 1] << 8;
+
+    if (lines) {
+        at = wide_run(at, end, lines, g.window_edges[2], g.window_edges[3]);
+        at = wide_run(at, end, 1, WIDE_NONE, 0);
+    }
+    wide_end(at);
+}
 
 /* the colour maths and fixed colour effect 10 leaves off */
 static void spot_colours_off(void)
@@ -489,10 +548,11 @@ static TaskRun spot_closing(Task *t, uint16_t *at)
 static TaskRun spot_closed_step(Task *t, uint16_t *at)
 {
     g.window_edges[2]++;
-    g.line_data[SPOT_TABLE + 0x12] = g.window_edges[2];
+    g.line_data[SPOT_TABLE + 0x12] = (uint8_t)g.window_edges[2];
     g.window_edges[3]--;
-    g.line_data[SPOT_TABLE + 0x13] = g.window_edges[3];
-    if (g.window_edges[3] >= g.window_edges[2])
+    g.line_data[SPOT_TABLE + 0x13] = (uint8_t)g.window_edges[3];
+    spot_table();
+    if ((int16_t)g.window_edges[3] >= (int16_t)g.window_edges[2])
         return spot_closing(t, at);
     spot_colours_off();
     g.line_effects_on &= (uint8_t)~(1u << t->own.box.channel);
@@ -501,21 +561,24 @@ static TaskRun spot_closed_step(Task *t, uint16_t *at)
 
 static TaskRun spot_frame(Task *t, uint16_t *at)
 {
-    uint16_t down = (uint16_t)(SPOT_Y - view_y() - g.layer_offset_y);
+    int32_t down = (int16_t)(uint16_t)(SPOT_Y - view_y() - g.layer_offset_y);
 
-    if (down < 0x00E0) {
-        uint16_t across = (uint16_t)(SPOT_X - view_x() - g.bg1_x_shift);
+    if (down >= 0 && down < view.h) {
+        int32_t across = (int16_t)(uint16_t)(SPOT_X - view_x() - g.bg1_x_shift);
 
-        if (across < 0x0100) {
-            unsigned right = (uint8_t)across + 0x10u;
+        if (across >= 0 && across < view.w) {
+            int32_t right = across + 0x10, lines;
 
-            if (right > 0xFF)
-                right = 0xFF;
+            if (right > view.w - 1)
+                right = view.w - 1;
             g.line_data[SPOT_KEPT + 0x13] = (uint8_t)right;
-            g.window_edges[3] = (uint8_t)right;
+            g.window_edges[3] = (uint16_t)right;
             g.line_data[SPOT_KEPT + 0x12] = (uint8_t)across;
-            g.window_edges[2] = (uint8_t)across;
+            g.window_edges[2] = (uint16_t)across;
             g.line_data[SPOT_KEPT + 0x00] = g.line_data[SPOT_KEPT + 0x03] = (uint8_t)((down >> 1) + (down & 1));
+            lines = 2 * ((down >> 1) + (down & 1));
+            g.wide_data[SPOT_LINES] = (uint8_t)lines;
+            g.wide_data[SPOT_LINES + 1] = (uint8_t)(lines >> 8);
             g.fixed_red = 0x08;
             g.fixed_green = 0x08;
             g.fixed_blue = 0x10;
@@ -529,6 +592,7 @@ static TaskRun spot_frame(Task *t, uint16_t *at)
             /* the kept table back over the live one (the original queues the move for the NMI) */
             for (unsigned i = 0; i < 0x20; i++)
                 g.line_data[SPOT_TABLE + i] = g.line_data[SPOT_KEPT + i];
+            spot_table();
             if (g.scene_cue_close)
                 return spot_closing(t, at);
             *at = SPOT_FRAME;
@@ -536,6 +600,7 @@ static TaskRun spot_frame(Task *t, uint16_t *at)
         }
     }
     g.line_data[SPOT_TABLE] = 0x00;
+    g.wide_data[SPOT_LINES] = g.wide_data[SPOT_LINES + 1] = 0;
     g.fixed_red = 0;
     g.fixed_green = 0;
     g.fixed_blue = 0;
@@ -546,6 +611,7 @@ static TaskRun spot_frame(Task *t, uint16_t *at)
     g.blend_layers = 0x13;
     g.blend_half = 1;
     g.blend_subtract = 0;
+    spot_table();
     *at = SPOT_FRAME;
     return task_wait(t, 1);
 }
@@ -606,6 +672,8 @@ TaskRun WindowEffectTask(Task *t)
     case 0x04:
         if ((ch = hdma_start(0x04, 0x06, 0x0000)) == NO_CHANNEL)
             return task_wait(t, 1);
+        if (video_level_view())         /* a level's circle: its edges in the view's columns (circle_wipe.c) */
+            wide_channel(ch, LINE_WINDOW1_WIDE, WIDE_CIRCLE);
         channel_on(ch);
         return task_exit(t);
     case 0x06:
@@ -624,6 +692,8 @@ TaskRun WindowEffectTask(Task *t)
         if ((ch = hdma_start(0x0E, 0x0E, 0x0000)) == NO_CHANNEL)
             return task_wait(t, 1);
         g.scene_cue_first++;
+        wide_channel(ch, LINE_WINDOW1_WIDE, WIDE_BOXES);
+        wide_end(WIDE_BOXES);
         channel_on(ch);
         t->own.box.channel = (uint8_t)ch;
         t->own.box.flip = 0;
@@ -640,6 +710,9 @@ TaskRun WindowEffectTask(Task *t)
     case 0x14:                          /* effect 10: window and colour maths round a spot of the level */
         if ((ch = hdma_start(0x10, 0x0C, 0x0100)) == NO_CHANNEL)
             return task_wait(t, 1);
+        wide_channel(ch, LINE_WINDOW2_WIDE, WIDE_SPOT);
+        g.wide_data[SPOT_LINES] = g.wide_data[SPOT_LINES + 1] = 0;
+        spot_table();
         channel_on(ch);
         t->own.box.channel = (uint8_t)ch;
         g.line_data[0x110] = 0xFF;
@@ -656,14 +729,16 @@ TaskRun WindowEffectTask(Task *t)
     case 0x16:                          /* effect 11: a window narrowing over the lines above $00F8 of the level */
         if ((ch = hdma_start(0x12, 0x0C, 0x0080)) == NO_CHANNEL)
             return task_wait(t, 1);
+        wide_channel(ch, LINE_WINDOW2_WIDE, WIDE_NARROW);
         channel_on(ch);
-        g.window_edges[2] = 0xFF;
+        g.window_edges[2] = WIDE_NONE;
         g.window_edges[3] = 0x00;
         g.line_data[0x90] = 0xFF;
         g.line_data[0x91] = 0x00;
         g.line_data[0x92] = 0x00;
         g.line_data[0x93] = 0xFF;
         g.line_data[0x83] = g.line_data[0x86] = (uint8_t)((uint8_t)(0x00F8 - view_y()) + 0x30);
+        narrow_table();
         *at = NARROW_FRAME;
         return task_wait(t, 1);
     case 0x08:

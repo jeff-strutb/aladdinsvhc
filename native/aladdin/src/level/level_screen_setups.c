@@ -17,6 +17,7 @@
 #include "system/unconverted.h"
 #include "video/video.h"
 #include "video/video_tasks.h"
+#include "video/view.h"
 
 #define NMI_SHADOW_SPLIT 1      /* $31 to the NMI's switches: the IRQ on (the NMI itself off until NmiEnable) */
 #define CYCLE_RECORD_BYTES 14   /* a palette cycle's record, from $15F1 */
@@ -196,13 +197,37 @@ static void Level05ScreenSetup(void)
     layers(0x17, 0x10, 0x03, 0x53);
 }
 
+#define LEVEL6_LAYER_LINES 0x0300u  /* in g.line_data (the original's $7E:F700): level 6's main-layers table, copied, free there */
+
+/* Level 6's main layers by line, the table at 80:B99E copied to the line data with its first run
+   view.dy lines longer: the original's lines start view.dy lines down in the view, and the sprites go off
+   where they did (line 181, in the original's lines), held to the view's bottom as the table's end holds them */
+static void level6_layer_lines(DataRef table)
+{
+    unsigned at = LEVEL6_LAYER_LINES;
+
+    for (unsigned i = 0; line_table_byte(table, 2 * i) != 0 && at + 3 < LINE_DATA_SIZE; i++) {
+        unsigned lines = line_table_byte(table, 2 * i);
+
+        if (i == 0 && lines + (unsigned)view.dy < 128)
+            lines += (unsigned)view.dy;
+        g.line_data[at++] = (uint8_t)lines;
+        g.line_data[at++] = line_table_byte(table, 2 * i + 1);
+    }
+    g.line_data[at] = 0;
+    g.line_channel[1].target = LINE_TM;
+    g.line_channel[1].direct = 1;
+    g.line_channel[1].table_at = LEVEL6_LAYER_LINES;
+    g.line_channel[1].cart.at = 0;
+}
+
 /*
  * @routine 81:8995 Level06ScreenSetup
  * WHAT IT DOES: Level 6's screen set-up: BandsSpeedUpTask (slot 3) and
  * ColourBandTask (slot 6); value sequences $0C, $0F, $12, $15 and palette
  * cycles 4-7; the view-edge rule 3, scroll kind 2, layer set-up mode $0C,
  * the backdrop following in y only; per-line effects on channels 1 (the main
- * screen's layers from the table at $80:B99E) and 2 (BG2's x from $7E:F400), the band
+ * screen's layers from the table at $80:B99E, copied with its first run view.dy lines longer) and 2 (BG2's x from $7E:F400), the band
  * lines from $80:B991 copied to the band table. The per-line part waits
  * for a per-line effect that names a table in the cartridge (video/'s
  * LineChannel names g.line_data only): reported, not made.
@@ -223,10 +248,10 @@ static void Level06ScreenSetup(void)
     g.scroll_kind = 0x02;
     g.layer_setup_mode = 0x0C;
     g.bg2_follows = BG2_FOLLOWS_Y;
-    line_effect(1, LINE_TM, line_table_at(0x80, 0xB99E));
+    level6_layer_lines(line_table_at(0x80, 0xB99E));
     bg2_scroll_lines_on(2);
     for (unsigned band = 0; band < level6_band_count(); band++)
-        g.line_data[3 * band] = level6_band_lines(band);
+        g.line_data[3 * band] = (uint8_t)(level6_band_lines(band) + (band == 0 ? view.dy : 0));
     g.line_effects_on = 0x06;
 }
 
@@ -483,6 +508,7 @@ static void AutoScrollScreenSetup(uint8_t scroll_kind)
  */
 void LevelScreenSetup(void)
 {
+    video_level_view_set(1);
     g.view_edge_rule = 0;
     g.nmi_on = 0;
     g.split_on = NMI_SHADOW_SPLIT;

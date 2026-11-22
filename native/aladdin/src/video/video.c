@@ -13,8 +13,6 @@
 #include "video/video_internal.h"
 #include "video/view.h"
 
-#define LINES 224
-
 /* the objects (video.h lists the video addresses each shows) */
 static nshvc_tiles tiles[VIDEO_TILE_KINDS];
 static nshvc_map maps[VIDEO_MAP_KINDS];
@@ -45,6 +43,7 @@ void video_init(void)
     maps[VIDEO_MAP_BACK_TALL] = nshvc_map_create(64, 64);
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
+    hud_layer_init();
 }
 
 nshvc_tiles video_sprite_tiles(void)
@@ -111,6 +110,21 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
     }
 }
 
+/* cells [first, first + n) of the text map (row by row, 32 a row) to the map a level draws its text layer from */
+static void text_map_part(uint32_t first, uint32_t n, const uint16_t *w)
+{
+    while (n > 0) {
+        uint32_t x = first & 31, run = 32 - x;
+
+        if (run > n)
+            run = n;
+        hud_layer_write(x, first >> 5, run, w);
+        first += run;
+        w += run;
+        n -= run;
+    }
+}
+
 /* the part of [first, first + n) inside [lo, hi), as its first and count; 0 if none */
 static uint32_t inside(uint32_t first, uint32_t n, uint32_t lo, uint32_t hi, uint32_t *from)
 {
@@ -162,8 +176,10 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
         tiles_part(tiles[VIDEO_TILES_HIGH], 0x5000, 16, from, k, w + (from - first));
     if ((k = inside(first, n, 0x5000, 0x7000, &from)) != 0)
         tiles_part(tiles[VIDEO_TILES_TEXT], 0x5000, 8, from, k, w + (from - first));
-    if ((k = inside(first, n, 0x5C00, 0x6000, &from)) != 0)
+    if ((k = inside(first, n, 0x5C00, 0x6000, &from)) != 0) {
         map_part(maps[VIDEO_MAP_TEXT], 0x5C00, from, k, w + (from - first), 32);
+        text_map_part(from - 0x5C00, k, w + (from - first));
+    }
 }
 
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how)
@@ -429,6 +445,8 @@ static void draw_layers(void)
         l.scroll_y = video_layer_y(i);
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
+        if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT)
+            hud_layer_set(&l, l.scroll_x);      /* the text layer in a level: the status line at the view's corners */
         nshvc_layer_set((uint8_t)i, &l);
     }
 }
@@ -486,7 +504,8 @@ void video_draw(void)
     if (g.split_on) {
         /* the IRQ: the screen is dark above its line L and lit from row L (the interrupt is at the line's dot $98 and
            its writes show before the line is drawn: the original's rows 0-7 are dark for L = 8); the tables the
-           handler restarts give their first value from the row after */
+           handler restarts give their first value from the row after. The dark band is the view's top lines, at the
+           original's count at any view height (VIEW.md 6.3); the lines count from the picture's first, as the views do */
         lit = g.split_line ? g.split_line : 8;
         top = lit + 1u;
         scr.blank = 1;

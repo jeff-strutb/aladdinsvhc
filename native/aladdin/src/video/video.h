@@ -71,6 +71,7 @@ void vram_fill(uint16_t address, uint16_t word, uint32_t count);
 
 void ScrollStateClear(void);                /* 81:96CB */
 void DisplayDefaults(void);                 /* 81:9865 */
+void video_level_view_set(int on);          /* a level is the screen (LevelScreenSetup: 1) or no longer (DisplayDefaults: 0): the effects and the text layer take the level's view */
 void VramCopy(int entry);               /* 81:F5DC: entry of the first copy table (the record's X / 7) */
 void VramCopy2(int entry);              /* 81:F60D: entry of the second */
 void UnpackSet(int set);                /* 81:BAF1: packed set to g.unpacked */
