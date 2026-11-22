@@ -77,12 +77,20 @@ static void tiles_part(nshvc_tiles t, int32_t base, uint32_t size, uint32_t firs
         not_whole_tiles((uint16_t)first, n);
         return;
     }
-    /* the planar bytes in the original's order: each word low, then high */
-    for (uint32_t i = 0; i < n; i++) {
-        bytes[2 * i] = (uint8_t)w[i];
-        bytes[2 * i + 1] = (uint8_t)(w[i] >> 8);
+    /* the planar bytes in the original's order: each word low, then high; in runs of 256 words
+       (whole tiles of 16 or 8 words), since a write can be longer than bytes (the text map's 1,024) */
+    while (n > 0) {
+        uint32_t run = n < 256 ? n : 256;
+
+        for (uint32_t i = 0; i < run; i++) {
+            bytes[2 * i] = (uint8_t)w[i];
+            bytes[2 * i + 1] = (uint8_t)(w[i] >> 8);
+        }
+        nshvc_tiles_write(t, at / size, bytes, run / size, NSHVC_TILES_PLANAR);
+        at += run;
+        w += run;
+        n -= run;
     }
-    nshvc_tiles_write(t, at / size, bytes, n / size, NSHVC_TILES_PLANAR);
 }
 
 /* words [first, first + n) of a map of 32 x 32 pages, page 0 at `base`; the pages lie two across (page 1 right of 0),
