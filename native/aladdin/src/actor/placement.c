@@ -13,8 +13,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <stdlib.h>
+
 #include "actor/actor_own.h"
 #include "data/actor_tables.h"
+#include "video/view.h"
 
 /* The index ($7E:C100-$7E:C5FF; the original's clear runs on through
    $7E:C7FF, which also clears g.placed and a page no code names). */
@@ -137,9 +140,47 @@ static void ActorPlace(Actor *a, uint8_t number)
     a->placement = number;
 }
 
+/* The window a placement is created in, from the camera at the last
+   placing: 64 pixels before it to 64 past the view's far edge across (w
+   + 128 long), and 64 before to 96 past it down (h + 160 long). At 256 x
+   224 both are the original's 384 ($0180). The bands below cover the
+   window to within one band of its far end: the far band starts 32 before
+   the far end (w + 32 across, h + 64 down; the original's $120). */
+#define WINDOW_BEFORE 0x40
+#define WINDOW_AFTER_ACROSS 64
+#define WINDOW_AFTER_DOWN 96
+#define BAND 32
+
+static uint16_t window_length(int across)
+{
+    return (uint16_t)(across ? view.w + WINDOW_BEFORE + WINDOW_AFTER_ACROSS
+                             : view.h + WINDOW_BEFORE + WINDOW_AFTER_DOWN);
+}
+
+/* The far band's offset from the camera: the window's far end less a band. */
+static uint16_t far_band_offset(int across)
+{
+    return (uint16_t)(across ? view.w + WINDOW_AFTER_ACROSS - BAND
+                             : view.h + WINDOW_AFTER_DOWN - BAND);
+}
+
+/* Developer count (ALADDIN_PLACE_FAIL=1): placements that failed for want
+   of a record or a palette slot; printed to stderr as they happen, and
+   not game state. */
+static int place_fail_trace(void)
+{
+    static int on = -1;
+
+    if (on < 0) {
+        const char *e = getenv("ALADDIN_PLACE_FAIL");
+
+        on = e && *e && *e != '0';
+    }
+    return on;
+}
+
 /* Placement `number` created and placed, unless it is placed or gone, or
-   its place across (`across`) or down is more than 64 pixels before or 320
-   past `from`. */
+   its place across (`across`) or down is outside the window from `from`. */
 static void bring_one(uint8_t number, int across, uint16_t from)
 {
     Placement p;
@@ -150,11 +191,14 @@ static void bring_one(uint8_t number, int across, uint16_t from)
         return;
     p = placement_at(g.level, number);
     at = across ? p.x_word : p.y_word;
-    if ((uint16_t)(at + 0x40 - from) >= 0x0180)
+    if ((uint16_t)(at + WINDOW_BEFORE - from) >= window_length(across))
         return;
     a = ActorCreate(p.kind);
     if (a)
         ActorPlace(a, number);
+    else if (place_fail_trace())
+        fprintf(stderr, "PLACE_FAIL %s level=%d number=%u kind=%02X\n", g.free_pool_top < 0 ? "record" : "slot",
+                (int)g.level, number, p.kind);
 }
 
 /*
@@ -186,8 +230,8 @@ static void PlacementsDown(uint8_t column)
 /*
  * @routine 82:A72C PlacementsStart
  * WHAT IT DOES: Indexes the level's placements as it starts, sets the
- * placing points from the camera, and creates the actors of the 12 column
- * bands from 64 pixels left of the camera.
+ * placing points from the camera, and creates the actors of the column
+ * bands from 64 pixels left of the camera to the far band (12 at 256 wide).
  */
 void PlacementsStart(void)
 {
@@ -198,13 +242,14 @@ void PlacementsStart(void)
     PlacementsIndex();
     g.placed[0xFF] = 0xFF;
     placing.y = y;
-    placing.row_below = (uint16_t)((y + 0x0120) >> 5);
+    placing.row_below = (uint16_t)((y + far_band_offset(0)) >> 5);
     placing.row_above = (uint16_t)((uint16_t)(y - 0x0040) >> 5);
     placing.x = x;
-    placing.column_right = (uint16_t)((x + 0x0120) >> 5);
+    placing.column_right = (uint16_t)((x + far_band_offset(1)) >> 5);
     placing.column_left = (uint16_t)((uint16_t)(x - 0x0040) >> 5);
     band = (uint8_t)placing.column_left;
-    for (n = 12; n; n--)
+    /* the bands from the left one to the far one, each: 12 at 256 wide */
+    for (n = (uint8_t)(placing.column_right - placing.column_left) + 1; n; n--)
         PlacementsDown(band++);
 }
 
