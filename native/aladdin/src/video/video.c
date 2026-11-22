@@ -545,9 +545,12 @@ static void draw_layers(void)
         if (i < 2 && level_maps_active(i)) {
             /* a level's layer: its whole-level map, at its scroll as a signed 16-bit position (the map wraps at its own
                size, not at 512 or 1,024) */
+            int32_t mx, my;
+
             l.map = level_maps_object(i);
-            l.scroll_x = (int16_t)l.scroll_x;
-            l.scroll_y = (int16_t)l.scroll_y;
+            level_maps_margin(i, &mx, &my);     /* the level's (0, 0) is inside the map's margins */
+            l.scroll_x = (int16_t)l.scroll_x + mx;
+            l.scroll_y = (int16_t)l.scroll_y + my;
         }
         if (i < 2 && video_level_view())
             l.scroll_x -= view.dx;      /* the original's screen is dx across in the view (video_draw) */

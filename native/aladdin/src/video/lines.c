@@ -167,9 +167,15 @@ static void send_channel(const LineChannel *c, uint32_t top)
     case LINE_BG3_Y:
         /* 10 bits as the hardware's scroll; a layer shown from a level's whole-level map (video/level_maps.c) is
            longer than that, so its scroll is a signed 16-bit position */
-        for (int i = 0; i < LINES; i++)
-            field[i] = level_maps_active(c->target == LINE_BG2_X ? 1 : 0) && c->target != LINE_BG3_Y ? (int32_t)(int16_t)value[i]
-                                                                                                      : (int32_t)(value[i] & 0x3FF);
+        for (int i = 0; i < LINES; i++) {
+            int layer = c->target == LINE_BG2_X ? 1 : 0;
+            int32_t mx, my;
+
+            level_maps_margin(layer, &mx, &my);     /* the level's (0, 0) is inside the map's margins */
+            field[i] = level_maps_active(layer) && c->target != LINE_BG3_Y
+                           ? (int32_t)(int16_t)value[i] + (c->target == LINE_BG2_X ? mx : my)
+                           : (int32_t)(value[i] & 0x3FF);
+        }
         if (c->target == LINE_BG2_X && video_level_view())
             for (int i = 0; i < LINES; i++)
                 field[i] -= view.dx;    /* the original's screen is dx across in a level's view (video_draw) */

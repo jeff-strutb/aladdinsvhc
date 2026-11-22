@@ -1,14 +1,15 @@
 /*
  * view.c: the view of the level (view.h).
  *
- * The rule (Jeff, 2026-11-22): the view is chosen from the window's proportion a = width / height, not from its
- * resolution, so a 1080p and a 4K window of one shape show the same game view; game pixels stay square.
- *   a >= 256 / 216 (landscape, or wider than the original's shown picture): 216 lines shown, round(216 a) across.
- *   narrower: 256 across, round(256 / a) lines shown.
- * Both are made even. A level's view adds the crop rows (LEVEL_CROP, 8) to the shown height, since its picture
- * starts that many rows down; level 2 crops 12, so its picture is 4 rows shorter inside the same view and the engine
- * fits it (video_draw's aspect) with 4 rows of letterbox, whatever the window. A still screen's view is the shown size,
- * at least 256 x 224, with the original's screen centred in it by video_draw.
+ * The rule (Jeff, 2026-11-22: "Just don't support portrait. Landscape down to 4:3 dimensions only."): the view is chosen
+ * from the window's proportion a = width / height, not from its resolution, so a 1080p and a 4K window of one shape show the
+ * same game view; game pixels stay square. The proportion is taken as at least 4:3. The picture shown is 216 lines (the
+ * original's 224 less the 8 a level crops) and round(216 a) across, even, so at least 288: a window of 4:3 or wider shows
+ * that, and a window narrower than 4:3 shows the 4:3 picture letterboxed (the engine fits it to the window, its shape
+ * kept). Nothing is ever taller than the original's. A level's view adds the crop rows (LEVEL_CROP, 8) to the shown
+ * height, since its picture starts that many rows down; level 2 crops 12, so its picture is 4 rows shorter inside the same
+ * view and the engine fits it (video_draw's aspect) with 4 rows of letterbox, whatever the window. A still screen's view is
+ * the shown size, at least 256 x 224, with the original's screen centred in it by video_draw.
  */
 #include <math.h>
 #include <stdio.h>
@@ -20,6 +21,7 @@
 View view = { VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0, 0, 0 };
 
 #define SHOWN_H 216             /* the original's 224 rows less the 8 a level crops */
+#define NARROWEST_W 288         /* the shown picture at 4:3: 216 x 4 / 3 */
 #define LEVEL_CROP 8
 #define MOST 4096
 
@@ -42,9 +44,12 @@ void view_init(void)
     long w, h;
 
     if (e && sscanf(e, "%ldx%ld", &w, &h) == 2) {
+        /* the same limits as a window's: the original's height, at least 288 across, but for the original's own 256 x 224
+           (the check that the game is the original's) */
         forced = 1;
-        forced_w = size_of(w, VIEW_ORIGINAL_W);
-        forced_h = size_of(h, VIEW_ORIGINAL_H);
+        (void)h;
+        forced_h = VIEW_ORIGINAL_H;
+        forced_w = w == VIEW_ORIGINAL_W && h == VIEW_ORIGINAL_H ? VIEW_ORIGINAL_W : size_of(w, NARROWEST_W);
     }
     view_choose_still();
 }
@@ -71,13 +76,10 @@ static void shown_size(int32_t *w, int32_t *h)
     if (d.width <= 0 || d.height <= 0)
         return;
     a = (double)d.width / (double)d.height;
-    if (a >= (double)VIEW_ORIGINAL_W / SHOWN_H) {
-        *h = SHOWN_H;
-        *w = size_of(even_near(SHOWN_H * a), VIEW_ORIGINAL_W);
-    } else {
-        *w = VIEW_ORIGINAL_W;
-        *h = size_of(even_near(VIEW_ORIGINAL_W / a), SHOWN_H);
-    }
+    if (a < 4.0 / 3.0)
+        a = 4.0 / 3.0;
+    *h = SHOWN_H;
+    *w = size_of(even_near(SHOWN_H * a), NARROWEST_W);
 }
 
 static int set(int32_t w, int32_t h, int square)

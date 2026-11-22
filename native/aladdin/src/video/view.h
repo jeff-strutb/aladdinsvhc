@@ -1,8 +1,8 @@
 /*
  * view.h: the view of the level, in game pixels (docs/aladdin/native/VIEW.md).
  *
- * The original's view is 256 x 224. The native game's is w x h, never
- * smaller than that on either axis, and dx = (w - 256) / 2, dy = (h - 224) / 2
+ * The original's view is 256 x 224. The native game's is w x h, 224 tall and
+ * at least 288 across (landscape down to 4:3: Jeff, 2026-11-22), and dx = (w - 256) / 2, dy = (h - 224) / 2 = 0
  * are how far each side of the original's view it reaches. Every rule that
  * was a 256 x 224 screen size in the original is written from these, so
  * that at 256 x 224 (dx = dy = 0) it is the original's value.
