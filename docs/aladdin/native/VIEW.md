@@ -195,10 +195,44 @@ The level data sets the bounds.
 - **Narrower than a wide view:** the snake's arena ($11, 768 px, locked to a screen), level $0A's 256 px shaft beside empty
   screens, level 4's shaft, the boss room of $10 (locked at $11A0 to $12A0), and the chain arena (kind $81, held at $200).
 
-**Rule proposed (decision 3):** the view is never larger than what the level or the locked room has. Where a level is shorter
-or narrower than the view, the view shrinks on that axis to the level's size. The picture shows it centred, with the rest
-black (`show_left/right/top/bottom`). Room locks shrink the view to the room's width the same way. Empty screen places inside
-a level's rectangle are drawn black, as blank tiles.
+**Jeff (2026-11-22): no black.** Analyse how cleanly the space can be filled with matching pixel art, repeated or
+generated. The analysis below was made from the whole-level pictures of the developer's map dump (`ALADDIN_DEV_MAPDUMP`, every
+level the game loads, checked against the game's own pictures for levels 0, 4 and $10), measuring where the art repeats
+exactly. It is a proposal; nothing of it is built.
+
+**What the measurements show.**
+- **Locked rooms in the middle of a level have real level on both sides.** Level 3's room ($0500-$05FF) is between streets, and
+  level $0D's treasure room ($0A00-$0AFF) is between caves. A wider view centred on the room shows that real map. Nothing needs
+  making; the lock stays a gameplay lock (the player cannot walk out of it). The arenas' left sides ($10's room, $11's arena,
+  kind $81's) are the real corridors that led to them.
+- **Past a level's end, the floors repeat exactly.** Measured band by band, the floor, brick and spike rows repeat every 32 px
+  without one differing pixel next to the rooms of $10 and $11 and level 3's end. Continuing them by that period is seamless,
+  and every pixel is the game's own.
+- **Many backdrops repeat exactly across their whole width:** levels 0, 3 and 6 every 512 px, levels 8 and 9 every 768. The
+  whole-level maps already wrap them, so they continue past the level's edge with no seam at all. The snake arena's backdrop
+  (arches and pillar groups) repeats every 384 px with 717 of 98,304 pixels differing (0.7%, small ornaments): wrapping it at its
+  768 px puts the seam where the art already meets itself.
+- **Organic art has no period:** Jafar's cloud band (measured: no period up to 256 px with fewer than 6,000 differing pixels),
+  the caves of $0D, the sky beside level $0A's shaft (its backdrop is mostly empty places, so it shows one flat colour). Plain
+  repetition shows a seam there.
+- The very edge of most levels is unique (an exit, an end wall, a sign): the whole-height columns of the last 256 px repeat in no
+  level. Repetition must be taken band by band from just inside those features, not from the last column.
+
+**Proposed fill, in order of preference, all decided per level at load and the same in every play:**
+1. Real map where the level has it (locked rooms, arenas' approaches).
+2. Exact band-by-band repetition: each 16 px band of the play field continued at its own measured period, taken from the
+   nearest stretch that repeats exactly; backdrops that repeat continue by wrapping. Seamless by construction, every pixel the
+   game's own, nothing new.
+3. For bands with no period (organic art): new arrangements of the level's own 16 x 16 tiles, chosen so every tile sits only
+   next to tiles it sits next to somewhere in that level (the adjacency rules read from the level's map), from a fixed seed.
+   Every pixel is still the game's own; only the arrangement is new. Only decorative tiles are used (no collision behaviour), so
+   the fill is scenery: nothing can be stood on, no actor is placed in it, and the camera's limits are the level's own (the fill
+   shows only where the view is larger than the level or the room).
+4. The level's backdrop alone, where the play field has nothing to give (level $0A's empty screens): what the original shows
+   behind every empty place.
+
+Each level's result is shown to Jeff as pictures before it lands. In portrait, the 256 px tall levels need the same
+treatment above and below (ceilings, sky and floors); their vertical periods are not yet measured.
 
 ## 6. Screens and effects that are not the level
 
@@ -292,7 +326,10 @@ Stages V2, V3, V5 and V9 touch separate files and can run side by side.
 Answered 2026-11-22:
 - **1, palette slots:** (a), the engine is asked for more sprite palettes.
 - **2, wake distances measured from Aladdin:** scaled with the view, as the screen-relative ones are.
-- **3, 4 and 5:** to be discussed before they are built. Stages V3, V8 and V9's still screens are held.
+- **3:** no black: fill with matching art (section 5, analysis made, nothing built).
+- **4:** still screens centred, with black around (built).
+- **5:** whole-level maps (built).
+- **The levels' dark top rows (8, 12 in level 2) are cropped** from the picture, not shown (built).
 - **6, the view's size:** Jeff asked for it to be explained.
 
 Built so far: `src/video/view.h` and `view.c` hold the view, set from `ALADDIN_VIEW=WxH` (a developer's setting) until rule 6 is
