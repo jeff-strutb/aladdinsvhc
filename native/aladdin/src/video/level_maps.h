@@ -21,6 +21,8 @@ void LevelMapsBackdropOff(void);
 void LevelMapsFreeze(void);
 /* TileChangesApply: the 16 x 16 tile at pixel x, y of the play field becomes `tile` (a level tile word) */
 void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile);
+/* a screen map place patched in play (level $0A's place $21): that screen of the play field is built again from the place */
+void LevelMapsPlace(unsigned place);
 /* whether layer 0 (the play field) or 1 (the backdrop) is shown from its level map now, and that map */
 int level_maps_active(int layer);
 nshvc_map level_maps_object(int layer);

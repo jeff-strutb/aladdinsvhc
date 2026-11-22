@@ -11,6 +11,7 @@
 #include "level/level.h"
 #include "system/state.h"
 #include "system/task.h"
+#include "video/level_maps.h"
 
 #define BAND_SPEEDS 0x500       /* $7E:F900 in g.line_data: the bands' speeds, 4 bytes apart (the low word) */
 #define BANDS_FAST_FROM 0x0680  /* the view's x from which the bands speed up */
@@ -224,6 +225,7 @@ TaskRun ClimbTopTask(Task *t)
         if ((view_x() >> 8) != 0x01)
             return task_wait(t, 1);
         g.screen_map.places[0x21] = (uint16_t)((g.screen_map.places[0x21] & 0x00FF) | 0xFE00);
+        LevelMapsPlace(0x21);           /* the whole-level map shows it at once */
         break;
     }
     return task_exit(t);

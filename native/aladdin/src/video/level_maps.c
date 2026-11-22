@@ -29,11 +29,12 @@
  *                                                          the backdrop's border (outside its layout):
  *                                                          the map has none, nothing shows them.
  *   Screen map patches in play (level_events.c: place
- *     $21 of $0A; kind $81's place $23)                   -> NOT followed: the original redrew a patched
- *                                                          place only when the ring next drew it. At
- *                                                          the original's view neither is on screen;
- *                                                          for a wider view they need LevelMapsBuild's
- *                                                          place redone (reported, not changed here).
+ *     $21 of $0A; kind $81's place $23)                   -> $0A's place $21: LevelMapsPlace builds that screen
+ *                                                          again at once (the original redrew a patched place
+ *                                                          only when the ring next drew it). Kind $81's place
+ *                                                          $23 is written after LevelMapsFreeze, when the level
+ *                                                          maps are off and nothing draws the layers again: its
+ *                                                          high byte is the animation sets', not a screen's.
  *   Frozen layers (edges = 0): level 6's and 7's
  *     backdrop (level_backdrop.c), kind $81's arena       -> level 6: a map of the backdrop's first 512
  *                                                          pixels, drawn once as the ring was. Level 7:
@@ -317,4 +318,45 @@ const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *
 const FillReport *level_maps_fill(int layer)
 {
     return &fill_report[layer];
+}
+
+/*
+ * LevelMapsPlace: a screen map place patched in play (a level's own events: level $0A's place $21 to $FE): the
+ * screen at that place of the play field's layout is built again from the place's word, in the map and the engine
+ * object, as LevelMapsTile does for one tile. A place that is not a screen of the layout is left alone. The original
+ * redrew a patched place only when its ring next drew it; the map shows it at once, which a view wider than the
+ * original's can see.
+ */
+void LevelMapsPlace(unsigned place)
+{
+    LevelMap *m = &layer_map[0];
+    DataRef metatiles = level_metatiles(g.map_level);
+    unsigned base = (unsigned)(layer_setup_entry(0).map_base_high << 8) / 2u;
+    unsigned rel = place - base, cy, cx;
+    uint16_t screen = g.screen_map.places[place % SCREEN_MAP_PLACES];
+
+    if (!m->on || place < base || rel % SCREEN_PLACE_ROW == 0 || rel < SCREEN_PLACE_ROW)
+        return;
+    cy = rel / SCREEN_PLACE_ROW - 1;
+    cx = rel % SCREEN_PLACE_ROW - 1;
+    if ((cx + 1) * METATILE_TILES * 2u > m->level_w || (cy + 1) * METATILE_TILES * 2u > m->level_h)
+        return;
+    for (unsigned my = 0; my < METATILE_TILES; my++)
+        for (unsigned mx = 0; mx < METATILE_TILES; mx++) {
+            uint16_t *at = &m->words[((cy * METATILE_TILES + my) * 2u) * m->w + (cx * METATILE_TILES + mx) * 2u];
+            uint16_t tile;
+
+            if (screen & NEGATIVE_PLACE) {
+                at[0] = at[1] = at[m->w] = at[m->w + 1] = 0;
+                continue;
+            }
+            tile = screen_tile(screen, my * 0x20u + mx * 2u);
+            at[0] = tile_word(metatiles, tile, 0);
+            at[1] = tile_word(metatiles, tile, 2);
+            at[m->w] = tile_word(metatiles, tile, 4);
+            at[m->w + 1] = tile_word(metatiles, tile, 6);
+        }
+    for (unsigned row = 0; row < METATILE_TILES * 2u; row++)
+        nshvc_map_write_snes(m->map, cx * METATILE_TILES * 2u, cy * METATILE_TILES * 2u + row, METATILE_TILES * 2u, 1,
+                             &m->words[(cy * METATILE_TILES * 2u + row) * m->w + cx * METATILE_TILES * 2u]);
 }
