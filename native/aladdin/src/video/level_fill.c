@@ -57,6 +57,11 @@
 #define CTX_SIDE 3
 #define CAND_MAX 256                /* S: the most candidates scored for a cell; more are sampled evenly */
 #define TIES_MAX 64
+/* Empty places (FILL_BLANK) that run in from a level's edge could be made like the margin beyond them (trimmed bands, the band's own
+   cells ending where they begin; the code is here). They are not: the original draws them blank, and the 256 x 224 pictures must be the
+   original's (with them made, 9 to 132 pictures of 7 of the 19 plays differed). So they are the level's cells, as a blank cell, and a view
+   that shows them (level $0A's shaft beside its empty screens) shows them blank. */
+#define FILL_TRIM_VOIDS 0
 #define NO_ID 0xFFFFu
 #define UNSET 0xFFFDu               /* a margin cell not yet made */
 
@@ -64,6 +69,7 @@
    (`below`: b is under a) */
 static struct {
     uint16_t id_of[65536];
+    uint16_t cell_of[IDS_MAX];                      /* the metatile of each id */
     uint32_t across[IDS_MAX][IDS_MAX / 32];
     uint32_t below[IDS_MAX][IDS_MAX / 32];
     uint32_t across_t[IDS_MAX][IDS_MAX / 32];       /* the same pairs by their second metatile: the ones that go before it */
@@ -71,6 +77,10 @@ static struct {
     uint32_t vset[IDS_MAX][IDS_MAX / 32];           /* S: for a side, by the id of an inward neighbour, the ids of the cells that can go outward of it */
     unsigned ids, over;
     uint32_t rng;
+    uint8_t real[FILL_CELLS_MAX];                   /* the level's cells (y * lw + x) that are the level's own: not an empty place (FILL_BLANK) */
+    uint8_t tag[FILL_CELLS_MAX];                    /* the level's cells made by the fill (an empty place that runs to an edge): 1 left, 2 right, 3 top, 4 bottom; else 0 */
+    unsigned trim_left[FILL_ROWS_MAX], trim_right[FILL_ROWS_MAX];       /* by row: the empty places from each edge in */
+    unsigned trim_top[FILL_COLS_MAX], trim_bottom[FILL_COLS_MAX];       /* by column of the whole */
     /* the cells being filled: fw x fh, the level lw x lh with its top left at (ox, oy) */
     uint16_t *cells;
     int fw, fh, lw, lh, ox, oy;
@@ -80,10 +90,28 @@ static struct {
     uint8_t out_ok[IDS_MAX];        /* the side's metatiles that have a candidate to go on outward from (they are the inward neighbour of some position) */
     uint32_t ext[IDS_MAX][IDS_MAX / 32];            /* S: pairs (u, v) that go on: seen, and the metatiles outward of u and of v again have a seen pair */
     uint32_t ext_t[IDS_MAX][IDS_MAX / 32];
+    uint32_t reach[IDS_MAX][IDS_MAX / 32];          /* S: for u, the metatiles that begin a pair that goes on, outward of u: a pair (u, v) can be gone on from if v's outward set meets it */
+    uint32_t has_above[IDS_MAX / 32];               /* the metatiles with a metatile of the level above them / below them somewhere: the corner bands' cells must have one, for the top and bottom margins to go on from them */
+    uint32_t has_below[IDS_MAX / 32];
     uint32_t out_mask[IDS_MAX / 32];        /* the ids that have a position to go on outward from */
     uint8_t lat_ok[IDS_MAX];        /* ... and one beyond them along the band (they have a neighbour that way in the level) */
     uint32_t pos_store[FILL_CELLS_MAX];
 } lv;
+
+/* where each margin cell of S came from: the level's cell index (y * lw + x), or -1 (the level's own, or made by another method) */
+static int32_t source_of[FILL_CELLS_MAX];
+static uint8_t kind_of[FILL_CELLS_MAX];        /* how each cell was made: FILL_KIND_* (level_fill.h) */
+
+const int32_t *level_fill_source(void)
+{
+    return source_of;
+}
+
+const uint8_t *level_fill_kind(void)
+{
+    return kind_of;
+}
+
 
 typedef struct Stretch {
     unsigned p, b;                  /* the period; the stretch ends before cell b */
@@ -192,11 +220,14 @@ static void learn(void)
         for (int c = 0; c < lv.lw; c++) {
             uint16_t cell = level[(size_t)r * lv.fw + c];
 
+            if (!lv.real[(size_t)r * lv.lw + c])
+                continue;
             if (lv.id_of[cell] == NO_ID) {
                 if (lv.ids == IDS_MAX) {
                     lv.over++;
                     continue;
                 }
+                lv.cell_of[lv.ids] = cell;
                 lv.id_of[cell] = (uint16_t)lv.ids++;
             }
         }
@@ -204,13 +235,13 @@ static void learn(void)
         for (int c = 0; c < lv.lw; c++) {
             unsigned a = lv.id_of[level[(size_t)r * lv.fw + c]];
 
-            if (a == NO_ID)
+            if (a == NO_ID || !lv.real[(size_t)r * lv.lw + c])
                 continue;
-            if (c + 1 < lv.lw && lv.id_of[level[(size_t)r * lv.fw + c + 1]] != NO_ID) {
+            if (c + 1 < lv.lw && lv.real[(size_t)r * lv.lw + c + 1] && lv.id_of[level[(size_t)r * lv.fw + c + 1]] != NO_ID) {
                 pair_set(lv.across, a, lv.id_of[level[(size_t)r * lv.fw + c + 1]]);
                 pair_set(lv.across_t, lv.id_of[level[(size_t)r * lv.fw + c + 1]], a);
             }
-            if (r + 1 < lv.lh && lv.id_of[level[(size_t)(r + 1) * lv.fw + c]] != NO_ID) {
+            if (r + 1 < lv.lh && lv.real[(size_t)(r + 1) * lv.lw + c] && lv.id_of[level[(size_t)(r + 1) * lv.fw + c]] != NO_ID) {
                 pair_set(lv.below, a, lv.id_of[level[(size_t)(r + 1) * lv.fw + c]]);
                 pair_set(lv.below_t, lv.id_of[level[(size_t)(r + 1) * lv.fw + c]], a);
             }
@@ -261,7 +292,7 @@ static int band_seen(ptrdiff_t o, ptrdiff_t sa, ptrdiff_t sb, unsigned k, unsign
 /* the exact methods on one margin: `bands` bands, band k's cell i at index base + k * sb + i * sa, the level's n of them
    (i < n), `total` in all. `rows` says which gap the exact method allows (1: the left and right margins). A band made
    only where its pairs are the level's (band_seen); the others stay UNSET for S. */
-static void fill_exact(ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned n, unsigned total, int rows,
+static void fill_exact(ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, const unsigned *n_of, unsigned total, int rows,
                        DataRef metatiles, FillBand *report, uint8_t *fixed, const uint8_t *banned)
 {
     Stretch s;
@@ -269,6 +300,7 @@ static void fill_exact(ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned band
     for (unsigned k = 0; k < bands; k++) {
         uint16_t *v = lv.cells + base + (ptrdiff_t)k * sb;
         ptrdiff_t o = base + (ptrdiff_t)k * sb;
+        unsigned n = n_of[k];
         int method = 0;
 
         fixed[k] = 0;
@@ -285,9 +317,22 @@ static void fill_exact(ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned band
         } else if (!rows && cycle_extend(v, sa, n, total)) {
             method = FILL_CYCLE;
         }
+        if (method && rows && (k == 0 || k + 1 == bands)) {
+            /* a corner band: its cells must have a metatile above (the first) or below (the last) in the level, for the top and bottom margins */
+            const uint32_t *mask = k == 0 ? lv.has_above : lv.has_below;
+
+            for (unsigned i = n; i < total; i++) {
+                unsigned id = lv.id_of[v[(ptrdiff_t)i * sa]];
+
+                if (id == NO_ID || !(mask[id >> 5] >> (id & 31) & 1u))
+                    method = 0;
+            }
+        }
         if (method && !banned[k] && band_seen(o, sa, sb, k, n, total, fixed)) {
             fixed[k] = 1;
             report[k].method = (uint8_t)method;
+            for (unsigned i = n; i < total; i++)
+                kind_of[o + (ptrdiff_t)i * sa] = method == FILL_EXACT ? FILL_KIND_EXACT : method == FILL_EMPTY ? FILL_KIND_EMPTY : FILL_KIND_CYCLE;
         } else {
             for (unsigned i = n; i < total; i++)
                 v[(ptrdiff_t)i * sa] = UNSET;
@@ -297,14 +342,13 @@ static void fill_exact(ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned band
 
 /* ---- S, synthesis ---- */
 
-/* where each margin cell of S came from: the level's cell index (y * lw + x), or -1 (the level's own, or made by another method) */
-static int32_t source_of[FILL_CELLS_MAX];
-
 typedef struct Side {
     int ux, uy;                     /* the step inward, toward the level */
     int lx, ly;                     /* the step along the band */
     int bx, by;                     /* the level's edge cell of band 0 */
     int depth, along;               /* the cells outward, the bands */
+    int dmin;                       /* the first depth made: 1, or less where empty places run in from the edge (depth 0 is the edge cell, negative inside) */
+    const unsigned *n_of;           /* by band: the level's cells of it that are its own (the rest, empty places to the edge, are made) */
 } Side;
 
 static uint16_t level_cell(int x, int y)
@@ -314,7 +358,7 @@ static uint16_t level_cell(int x, int y)
 
 static int in_level(int x, int y)
 {
-    return x >= 0 && y >= 0 && x < lv.lw && y < lv.lh;
+    return x >= 0 && y >= 0 && x < lv.lw && y < lv.lh && lv.real[(size_t)y * lv.lw + x];
 }
 
 /* the level positions whose inward neighbour (by `side`) is a metatile with an id, kept by that id */
@@ -341,10 +385,28 @@ static void index_side(const Side *s)
         lv.out_ok[i] = lv.bucket_start[i + 1] > lv.bucket_start[i];
         lv.lat_ok[i] = (uint8_t)(lv.out_ok[i] && any);
     }
+    /* out_mask: the metatiles a chain of copies can go on from for ever: the largest set in which each has an outward
+       neighbour (a metatile of the level that sits outward of it) that is in the set too. A cell made of any other
+       would be a dead end a few cells further out (a metatile only the level's edge has). */
     memset(lv.out_mask, 0, sizeof lv.out_mask);
     for (unsigned i = 0; i < IDS_MAX; i++)
         if (lv.out_ok[i])
             lv.out_mask[i >> 5] |= 1u << (i & 31);
+    for (int changed = 1; changed;) {
+        changed = 0;
+        for (unsigned i = 0; i < lv.ids; i++) {
+            unsigned hit = 0;
+
+            if (!(lv.out_mask[i >> 5] >> (i & 31) & 1u))
+                continue;
+            for (unsigned w = 0; w < IDS_MAX / 32 && !hit; w++)
+                hit = (lv.vset[i][w] & lv.out_mask[w]) != 0;
+            if (!hit) {
+                lv.out_mask[i >> 5] &= ~(1u << (i & 31));
+                changed = 1;
+            }
+        }
+    }
     lv.bucket_pos = lv.pos_store;
     memset(lv.vset, 0, sizeof lv.vset);
     for (int y = 0; y < lv.lh; y++)
@@ -355,35 +417,46 @@ static void index_side(const Side *s)
         for (int x = 0; x < lv.lw; x++)
             if (in_level(x + s->ux, y + s->uy) && lv.id_of[level_cell(x + s->ux, y + s->uy)] != NO_ID)
                 lv.bucket_pos[fill[lv.id_of[level_cell(x + s->ux, y + s->uy)]]++] = (uint32_t)(y * lv.lw + x);
-    /* ext: for a pair (u, v) along the band that the level has, whether the metatiles that can go outward of u and of v
-       have a pair too (the next depth's cells beside each other can then be right) */
-    memset(lv.ext, 0, sizeof lv.ext);
-    memset(lv.ext_t, 0, sizeof lv.ext_t);
-    for (unsigned u = 0; u < lv.ids; u++) {
-        uint32_t reach[IDS_MAX / 32];
-        const uint32_t *succ = s->lx ? lv.across[u] : lv.below[u];
+    /* ext: the pairs (u, v) along the band that the level has and that can go on outward for ever: the metatiles that can
+       go outward of u and of v again have such a pair, and so on (the largest such set of pairs, by repeated narrowing from
+       the seen pairs). A depth's cells are chosen among these, so the next depths' cells can still be beside each other. */
+    for (unsigned u = 0; u < IDS_MAX; u++)
+        memcpy(lv.ext[u], s->lx ? lv.across[u] : lv.below[u], sizeof lv.ext[u]);
+    for (int round = 0; round < 16; round++) {
+        int changed = 0;
 
-        /* reach: the metatiles that sit along the band from some metatile outward of u */
-        memset(reach, 0, sizeof reach);
-        for (unsigned w = 0; w < IDS_MAX / 32; w++)
-            for (uint32_t bits = lv.vset[u][w]; bits; bits &= bits - 1) {
-                const uint32_t *row = s->lx ? lv.across[w * 32 + (unsigned)__builtin_ctz(bits)] : lv.below[w * 32 + (unsigned)__builtin_ctz(bits)];
+        for (unsigned u = 0; u < lv.ids; u++) {
+            uint32_t *reach = lv.reach[u];
 
-                for (unsigned i = 0; i < IDS_MAX / 32; i++)
-                    reach[i] |= row[i];
-            }
-        for (unsigned w = 0; w < IDS_MAX / 32; w++)
-            for (uint32_t bits = succ[w]; bits; bits &= bits - 1) {
-                unsigned v = w * 32 + (unsigned)__builtin_ctz(bits), hit = 0;
+            /* reach: the metatiles that sit along the band, in a pair that goes on, from some metatile outward of u */
+            memset(reach, 0, sizeof lv.reach[u]);
+            for (unsigned w = 0; w < IDS_MAX / 32; w++)
+                for (uint32_t bits = lv.vset[u][w]; bits; bits &= bits - 1) {
+                    const uint32_t *row = lv.ext[w * 32 + (unsigned)__builtin_ctz(bits)];
 
-                for (unsigned i = 0; i < IDS_MAX / 32 && !hit; i++)
-                    hit = (lv.vset[v][i] & reach[i]) != 0;
-                if (hit) {
-                    pair_set(lv.ext, u, v);
-                    pair_set(lv.ext_t, v, u);
+                    for (unsigned i = 0; i < IDS_MAX / 32; i++)
+                        reach[i] |= row[i];
                 }
-            }
+            for (unsigned w = 0; w < IDS_MAX / 32; w++)
+                for (uint32_t bits = lv.ext[u][w]; bits; bits &= bits - 1) {
+                    unsigned v = w * 32 + (unsigned)__builtin_ctz(bits), hit = 0;
+
+                    for (unsigned i = 0; i < IDS_MAX / 32 && !hit; i++)
+                        hit = (lv.vset[v][i] & reach[i]) != 0;
+                    if (!hit) {
+                        lv.ext[u][w] &= ~(1u << (v & 31));
+                        changed = 1;
+                    }
+                }
+        }
+        if (!changed)
+            break;
     }
+    memset(lv.ext_t, 0, sizeof lv.ext_t);
+    for (unsigned u = 0; u < lv.ids; u++)
+        for (unsigned w = 0; w < IDS_MAX / 32; w++)
+            for (uint32_t bits = lv.ext[u][w]; bits; bits &= bits - 1)
+                pair_set(lv.ext_t, w * 32 + (unsigned)__builtin_ctz(bits), u);
 }
 
 static int known_at(int x, int y)
@@ -515,7 +588,7 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
     if (s->depth <= 0 || lv.lw * lv.lh == 0)
         return;
     index_side(s);
-    for (int d = 1; d <= s->depth; d++) {
+    for (int d = s->dmin; d <= s->depth; d++) {
         int any = 0;
 
         /* which metatiles each cell may be */
@@ -533,11 +606,22 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
 
                 any = 1;
                 if (id != NO_ID) {
-                    uint32_t both[SET_WORDS];
+                    uint32_t both[SET_WORDS], corner[SET_WORDS];
+
+                    memcpy(corner, lv.vset[id], sizeof corner);
+                    if (s->lx == 0 && (t == 0 || t == s->along - 1)) {      /* a side margin's corner band: a cell the top or bottom margin can go on from */
+                        const uint32_t *mask = t == 0 ? lv.has_above : lv.has_below;
+                        uint32_t narrowed[SET_WORDS];
+
+                        for (unsigned w = 0; w < SET_WORDS; w++)
+                            narrowed[w] = corner[w] & mask[w];
+                        if (!set_empty(narrowed))
+                            memcpy(corner, narrowed, sizeof corner);
+                    }
 
                     for (unsigned w = 0; w < SET_WORDS; w++)
-                        both[w] = lv.vset[id][w] & lv.out_mask[w];
-                    memcpy(set_v[t], set_empty(both) ? lv.vset[id] : both, sizeof set_v[t]);    /* the ones that can be gone on from */
+                        both[w] = corner[w] & lv.out_mask[w];
+                    memcpy(set_v[t], set_empty(both) ? corner : both, sizeof set_v[t]);    /* the ones that can be gone on from */
                 } else
                     memset(set_v[t], 0, sizeof set_v[t]);
             }
@@ -678,9 +762,17 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
                     }
             }
             if (cand_n[t] == 0) {
-                /* nothing goes beside this inward neighbour in the level: positions of the level, at a cost for the pair no one has */
-                for (uint32_t at = 0; at < (uint32_t)(lv.lw * lv.lh) && cand_n[t] < KEEP; at += fallback_stride)
-                    add_candidate(t, (int32_t)at, 0, 1);
+                /* nothing goes beside this inward neighbour in the level (it is a metatile only the level's edge has): the one
+                   pair no one has is made, with a metatile that can be gone on from, and the cells outward of it are right again */
+                for (uint32_t at = 0; at < (uint32_t)(lv.lw * lv.lh) && cand_n[t] < KEEP; at += fallback_stride) {
+                    unsigned vid = lv.id_of[level_cell((int)(at % (unsigned)lv.lw), (int)(at / (unsigned)lv.lw))];
+
+                    if (vid != NO_ID && (lv.out_mask[vid >> 5] >> (vid & 31) & 1u))
+                        add_candidate(t, (int32_t)at, context_score(s, tx, ty, (int)(at % (unsigned)lv.lw), (int)(at / (unsigned)lv.lw)), 1);
+                }
+                if (cand_n[t] == 0)
+                    for (uint32_t at = 0; at < (uint32_t)(lv.lw * lv.lh) && cand_n[t] < KEEP; at += fallback_stride)
+                        add_candidate(t, (int32_t)at, 0, 1);
                 for (unsigned i = 0; i < cand_n[t]; i++)
                     cand[t][i].node = (int16_t)(cand[t][i].node + COST_UNSEEN / 4);
             }
@@ -700,9 +792,17 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
                     const Cand *p = &cand[t - 1][i];
                     int32_t step = p->cost + c->node;
 
-                    if (!pair_along(s, p->value, c->value))
+                    if (!pair_along(s, p->value, c->value)) {
+                        /* a pair the level never has: the least of them is one the next depth can put right */
+                        unsigned pi = lv.id_of[p->value], ci = lv.id_of[c->value], healable = 0;
+
                         step += COST_UNSEEN;
-                    else if (lv.id_of[p->value] != NO_ID && lv.id_of[c->value] != NO_ID &&
+                        if (pi != NO_ID && ci != NO_ID)
+                            for (unsigned i2 = 0; i2 < IDS_MAX / 32 && !healable; i2++)
+                                healable = (lv.vset[ci][i2] & lv.reach[pi][i2]) != 0;
+                        if (!healable)
+                            step += COST_UNSEEN;
+                    } else if (lv.id_of[p->value] != NO_ID && lv.id_of[c->value] != NO_ID &&
                              !pair_in(lv.ext, lv.id_of[p->value], lv.id_of[c->value]))
                         step += COST_UNSEEN / 2;
                     else if (!(p->pos >= 0 && c->pos == p->pos + s->lx + s->ly * lv.lw))
@@ -731,6 +831,7 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
                 if (lv.cells[ti] == UNSET) {
                     lv.cells[ti] = c->value;
                     source_of[ti] = c->pos;
+                    kind_of[ti] = c->node >= COST_UNSEEN / 4 ? FILL_KIND_FALLBACK : FILL_KIND_SYNTH;
                     if (!report[t].method)
                         report[t].method = FILL_SYNTH;
                     if (c->node >= COST_UNSEEN / 4)
@@ -756,10 +857,15 @@ static void count_unseen(FillReport *r)
 
                 if (x2 >= lv.fw || y2 >= lv.fh)
                     continue;
-                for (int pt = 0; pt < 2 && side < 0; pt++) {
-                    int cx = pt ? x2 : x, cy = pt ? y2 : y;
+                for (int pt = 0; pt < 2; pt++) {
+                    int cx = pt ? x2 : x, cy = pt ? y2 : y, sd;
 
-                    side = cx < lv.ox ? 0 : cx >= lv.ox + lv.lw ? 1 : cy < lv.oy ? 2 : cy >= lv.oy + lv.lh ? 3 : -1;
+                    if (cx >= lv.ox && cx < lv.ox + lv.lw && cy >= lv.oy && cy < lv.oy + lv.lh)
+                        sd = lv.tag[(size_t)(cy - lv.oy) * lv.lw + cx - lv.ox] - 1;       /* made inside the level: an empty place run to an edge */
+                    else
+                        sd = cx < lv.ox ? 0 : cx >= lv.ox + lv.lw ? 1 : cy < lv.oy ? 2 : 3;
+                    if (sd >= 0 && (side < 0 || sd < side))
+                        side = sd;
                 }
                 if (side < 0)
                     continue;
@@ -775,18 +881,29 @@ static unsigned conflicts(const Side *s, const FillBand *report, uint8_t *banned
 {
     unsigned found = 0;
 
-    for (int d = 1; d <= s->depth; d++)
+    for (int d = s->dmin; d <= s->depth; d++)
         for (int t = 0; t + 1 < s->along; t++) {
             int tx = s->bx + t * s->lx - d * s->ux, ty = s->by + t * s->ly - d * s->uy;
             size_t ti = (size_t)ty * lv.fw + tx;
 
             if (pair_along(s, lv.cells[ti], lv.cells[ti + (ptrdiff_t)s->ly * lv.fw + s->lx]))
                 continue;
-            for (int k = t; k <= t + 1; k++)
-                if ((report[k].method == FILL_EXACT || report[k].method == FILL_EMPTY || report[k].method == FILL_CYCLE) && !banned[k]) {
-                    banned[k] = 1;
-                    found++;
-                }
+            for (int k = t; k <= t + 1; k++) {
+                int lo = k, hi = k;
+
+                if (!(report[k].method == FILL_EXACT || report[k].method == FILL_EMPTY || report[k].method == FILL_CYCLE))
+                    continue;
+                /* the whole run of exact bands it is in: a neighbour made to fit it would only move the trouble to the next */
+                while (lo > 0 && (report[lo - 1].method == FILL_EXACT || report[lo - 1].method == FILL_EMPTY || report[lo - 1].method == FILL_CYCLE))
+                    lo--;
+                while (hi + 1 < s->along && (report[hi + 1].method == FILL_EXACT || report[hi + 1].method == FILL_EMPTY || report[hi + 1].method == FILL_CYCLE))
+                    hi++;
+                for (int j = lo; j <= hi; j++)
+                    if (!banned[j]) {
+                        banned[j] = 1;
+                        found++;
+                    }
+            }
         }
     return found;
 }
@@ -794,7 +911,7 @@ static unsigned conflicts(const Side *s, const FillBand *report, uint8_t *banned
 /* a margin made whole: the exact bands, then S; where an exact band and its neighbour do not fit, up to ROUNDS times
    again with those bands left to S */
 #define ROUNDS 3
-static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned n, unsigned total, int rows,
+static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
                         DataRef metatiles, FillBand *report, unsigned *unfilled)
 {
     uint8_t fixed[FILL_COLS_MAX], banned[FILL_COLS_MAX];
@@ -803,7 +920,7 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
     for (int round = 0; round < ROUNDS; round++) {
         unsigned before = *unfilled;
 
-        for (int d = 1; d <= s->depth; d++)
+        for (int d = s->dmin; d <= s->depth; d++)
             for (int t = 0; t < s->along; t++) {
                 size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
 
@@ -811,11 +928,83 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
                 source_of[ti] = -1;
             }
         memset(report, 0, bands * sizeof *report);
-        fill_exact(base, sa, sb, bands, n, total, rows, metatiles, report, fixed, banned);
+        fill_exact(base, sa, sb, bands, s->n_of, total, rows, metatiles, report, fixed, banned);
         synth_side(s, report, unfilled);
         if (round + 1 == ROUNDS || !conflicts(s, report, banned))
             break;
         *unfilled = before;
+    }
+}
+
+/* the unseen pairs a margin cell is in (with its four neighbours, the level's included) */
+static unsigned cell_conflicts(int x, int y, uint16_t v)
+{
+    unsigned n = 0;
+    const uint16_t *c = lv.cells;
+    size_t i = (size_t)y * lv.fw + x;
+
+    if (x > 0 && !seen_across(c[i - 1], v))
+        n++;
+    if (x + 1 < lv.fw && !seen_across(v, c[i + 1]))
+        n++;
+    if (y > 0 && !seen_down(c[i - lv.fw], v))
+        n++;
+    if (y + 1 < lv.fh && !seen_down(v, c[i + lv.fw]))
+        n++;
+    return n;
+}
+
+/* Local search over the margins (min-conflicts): each margin cell in an unseen pair takes the metatile of the level that
+   leaves it in the fewest, among those the rounds before it left it in, a tie going to the cell's own, else (sideways, to leave
+   a plateau) to a pseudo-random one. Run until no unseen pair is left or REPAIR_SWEEPS sweeps. The synthesis makes the
+   pairs along and between its bands right wherever a path exists; what its depth-by-depth order and the corners leave is
+   mended here. */
+#define REPAIR_SWEEPS 24
+static void repair(void)
+{
+    uint16_t order_unused = 0;
+
+    (void)order_unused;
+    for (int sweep = 0; sweep < REPAIR_SWEEPS; sweep++) {
+        unsigned bad = 0, moved = 0;
+
+        for (int y = 0; y < lv.fh; y++)
+            for (int x = 0; x < lv.fw; x++) {
+                uint16_t cur;
+                unsigned have, best, ties = 0;
+                uint16_t pick = 0;
+
+                if (x >= lv.ox && x < lv.ox + lv.lw && y >= lv.oy && y < lv.oy + lv.lh && !lv.tag[(size_t)(y - lv.oy) * lv.lw + x - lv.ox])
+                    continue;                           /* the level's own cell, or an empty place inside it */
+                cur = lv.cells[(size_t)y * lv.fw + x];
+                have = cell_conflicts(x, y, cur);
+                if (!have)
+                    continue;
+                bad++;
+                best = have;
+                for (unsigned id = 0; id < lv.ids; id++) {
+                    unsigned n = cell_conflicts(x, y, lv.cell_of[id]);
+
+                    if (n < best) {
+                        best = n;
+                        ties = 1;
+                        pick = lv.cell_of[id];
+                    } else if (n == best && n < have + 1 && lv.cell_of[id] != cur) {
+                        ties++;
+                        if (next_random() % ties == 0)
+                            pick = lv.cell_of[id];
+                    }
+                }
+                if (ties && (best < have || (best == have && (next_random() & 3u) == 0))) {
+                    lv.cells[(size_t)y * lv.fw + x] = pick;
+                    kind_of[(size_t)y * lv.fw + x] = FILL_KIND_REPAIR;
+                    source_of[(size_t)y * lv.fw + x] = -1;
+                    moved++;
+                }
+            }
+        if (!bad)
+            break;
+        (void)moved;
     }
 }
 
@@ -845,36 +1034,116 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     lv.lh = (int)lh;
     lv.ox = (int)ox;
     lv.oy = (int)oy;
+    /* the level's own cells: an empty place (FILL_BLANK) is not one. Empty places that run in from an edge are made like the
+       margin beyond them, the band's own cells ending where they begin; those inside, with a cell of the level's each side, stay empty. */
+    for (unsigned y = 0; y < lh; y++)
+        for (unsigned x = 0; x < lw; x++)
+            lv.real[(size_t)y * lw + x] = !FILL_TRIM_VOIDS || cells[(size_t)(oy + y) * fw + ox + x] != FILL_BLANK;
     learn();
+    memset(lv.has_above, 0, sizeof lv.has_above);
+    memset(lv.has_below, 0, sizeof lv.has_below);
+    for (unsigned i = 0; i < lv.ids; i++)
+        for (unsigned w = 0; w < IDS_MAX / 32; w++) {
+            if (lv.below_t[i][w])
+                lv.has_above[i >> 5] |= 1u << (i & 31);
+            if (lv.below[i][w])
+                lv.has_below[i >> 5] |= 1u << (i & 31);
+        }
     memset(source_of, 0xFF, sizeof source_of);
+    memset(kind_of, 0, sizeof kind_of);
+    memset(lv.tag, 0, sizeof lv.tag);
+    memset(lv.trim_left, 0, sizeof lv.trim_left);
+    memset(lv.trim_right, 0, sizeof lv.trim_right);
+    memset(lv.trim_top, 0, sizeof lv.trim_top);
+    memset(lv.trim_bottom, 0, sizeof lv.trim_bottom);
     report->ids = lv.ids;
     report->ids_over = lv.over;
     for (unsigned y = 0; y < fh; y++)
         for (unsigned x = 0; x < fw; x++)
             if (x < ox || x >= ox + lw || y < oy || y >= oy + lh)
                 cells[(size_t)y * fw + x] = UNSET;
+    for (unsigned y = 0; y < lh; y++) {
+        unsigned a = 0, b = 0;
 
-    /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
-    if (right) {
-        sd = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh };
-        make_margin(&sd, top, 1, w, lh, lw, lw + right, 1, metatiles, report->right, &unfilled);
+        while (a < lw && !lv.real[(size_t)y * lw + a])
+            a++;
+        if (a == lw)
+            continue;                                   /* no cell of the level's in the row: it is no band's */
+        while (!lv.real[(size_t)y * lw + lw - 1 - b])
+            b++;
+        lv.trim_left[y] = a;
+        lv.trim_right[y] = b;
+        for (unsigned x = 0; x < a; x++) {
+            cells[(size_t)(oy + y) * fw + ox + x] = UNSET;
+            lv.tag[(size_t)y * lw + x] = 1;
+        }
+        for (unsigned x = lw - b; x < lw; x++) {
+            cells[(size_t)(oy + y) * fw + ox + x] = UNSET;
+            lv.tag[(size_t)y * lw + x] = 2;
+        }
     }
-    if (ox) {
-        sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh };
-        make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw, lw + ox, 1, metatiles, report->left, &unfilled);
+    for (unsigned x = 0; x < lw; x++) {
+        unsigned a = 0, b = 0;
+
+        while (a < lh && !lv.real[(size_t)a * lw + x])
+            a++;
+        if (a == lh)
+            continue;
+        while (!lv.real[(size_t)(lh - 1 - b) * lw + x])
+            b++;
+        lv.trim_top[ox + x] = a;
+        lv.trim_bottom[ox + x] = b;
+        for (unsigned y = 0; y < a; y++) {
+            if (cells[(size_t)(oy + y) * fw + ox + x] != UNSET)
+                lv.tag[(size_t)y * lw + x] = 3;
+            cells[(size_t)(oy + y) * fw + ox + x] = UNSET;
+        }
+        for (unsigned y = lh - b; y < lh; y++) {
+            if (cells[(size_t)(oy + y) * fw + ox + x] != UNSET)
+                lv.tag[(size_t)y * lw + x] = 4;
+            cells[(size_t)(oy + y) * fw + ox + x] = UNSET;
+        }
     }
-    if (below) {
-        sd = (Side){ 0, -1, 1, 0, 0, (int)(oy + lh - 1), (int)below, (int)fw };
-        make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh, lh + below, 0, metatiles, report->down, &unfilled);
-    }
-    if (oy) {
-        sd = (Side){ 0, 1, 1, 0, 0, (int)oy, (int)oy, (int)fw };
-        make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh, lh + oy, 0, metatiles, report->up, &unfilled);
+    {
+        /* by band, the level's cells that are its own */
+        static unsigned n_right[FILL_ROWS_MAX], n_left[FILL_ROWS_MAX], n_top[FILL_COLS_MAX], n_bottom[FILL_COLS_MAX];
+        unsigned max_right = 0, max_left = 0, max_top = 0, max_bottom = 0;
+
+        for (unsigned y = 0; y < lh; y++) {
+            n_right[y] = lw - lv.trim_right[y];
+            n_left[y] = lw - lv.trim_left[y];
+            max_right = lv.trim_right[y] > max_right ? lv.trim_right[y] : max_right;
+            max_left = lv.trim_left[y] > max_left ? lv.trim_left[y] : max_left;
+        }
+        for (unsigned x = 0; x < fw; x++) {
+            n_bottom[x] = lh - lv.trim_bottom[x];
+            n_top[x] = lh - lv.trim_top[x];
+            max_bottom = lv.trim_bottom[x] > max_bottom ? lv.trim_bottom[x] : max_bottom;
+            max_top = lv.trim_top[x] > max_top ? lv.trim_top[x] : max_top;
+        }
+        /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
+        if (right) {
+            sd = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh, 1 - (int)max_right, n_right };
+            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled);
+        }
+        if (ox) {
+            sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1 - (int)max_left, n_left };
+            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled);
+        }
+        if (below) {
+            sd = (Side){ 0, -1, 1, 0, 0, (int)(oy + lh - 1), (int)below, (int)fw, 1 - (int)max_bottom, n_bottom };
+            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled);
+        }
+        if (oy) {
+            sd = (Side){ 0, 1, 1, 0, 0, (int)oy, (int)oy, (int)fw, 1 - (int)max_top, n_top };
+            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled);
+        }
     }
     for (unsigned y = 0; y < fh; y++)
         for (unsigned x = 0; x < fw; x++)
             if (cells[(size_t)y * fw + x] == UNSET)
                 cells[(size_t)y * fw + x] = FILL_BLANK;
+    repair();
     report->unfilled = unfilled;
     count_unseen(report);
     report->seam_down = below > 0 && report->unseen[3] == 0;

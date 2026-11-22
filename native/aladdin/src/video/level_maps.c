@@ -121,6 +121,8 @@ static LevelMap layer_map[2];
 static uint16_t field_words[MAP_WORDS], back_words[MAP_WORDS];
 static uint16_t cells[FILL_CELLS_MAX];      /* a layer's metatiles, level and margins, for the fill */
 static FillReport fill_report[2];
+static int32_t prov_src[2][FILL_CELLS_MAX];      /* the fill's provenance by cell, per layer (level_fill_source, _kind): for the map dump */
+static uint8_t prov_kind[2][FILL_CELLS_MAX];
 
 /* the engine objects made so far, by layer and size */
 static struct { uint8_t layer; uint32_t w, h; nshvc_map map; } pool[POOL_SIZE];
@@ -220,6 +222,8 @@ static void build_layer(int layer, unsigned layout)
         }
     LevelFill(cells, lw, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
               &fill_report[layer]);
+    memcpy(prov_src[layer], level_fill_source(), (size_t)fw * fh * sizeof(int32_t));
+    memcpy(prov_kind[layer], level_fill_kind(), (size_t)fw * fh);
     for (unsigned r = 0; r < fh; r++)
         for (unsigned c = 0; c < fw; c++) {
             uint16_t *at = &words[(size_t)(r * 2u) * w + c * 2u];
@@ -341,6 +345,12 @@ const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *
     *level_w = m->level_w;
     *level_h = m->level_h;
     return m->on ? m->words : NULL;
+}
+
+void level_maps_provenance(int layer, const int32_t **src, const uint8_t **kind)
+{
+    *src = prov_src[layer];
+    *kind = prov_kind[layer];
 }
 
 const FillReport *level_maps_fill(int layer)

@@ -558,6 +558,19 @@ static void dump_level(const char *dir, unsigned level)
                 fwrite(words, sizeof *words, (size_t)mw * mh, wf);
                 fclose(wf);
             }
+            /* the fill's provenance (fw x fh cells): u32 fw, fh, level width, height in cells, left, top in cells; then the int32 sources, then the kind bytes */
+            snprintf(wpath, sizeof wpath, "%s/%02X-prov%s.bin", dir, level, layer ? "back" : "field");
+            if ((wf = fopen(wpath, "wb"))) {
+                uint32_t head[6] = { mw / 2, mh / 2, lw / 2, lh / 2, mx / 2, my / 2 };
+                const int32_t *src;
+                const uint8_t *kind;
+
+                level_maps_provenance(layer, &src, &kind);
+                fwrite(head, sizeof head, 1, wf);
+                fwrite(src, sizeof *src, (size_t)head[0] * head[1], wf);
+                fwrite(kind, 1, (size_t)head[0] * head[1], wf);
+                fclose(wf);
+            }
         }
     }
     fill_write(dir, level);

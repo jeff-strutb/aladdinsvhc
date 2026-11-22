@@ -18,6 +18,9 @@
 /* how a band (a row of metatiles past the right or left edge, a column past the bottom or top edge) was filled */
 enum { FILL_NONE = 0, FILL_EXACT = 'B', FILL_EMPTY = 'E', FILL_CYCLE = 'R', FILL_SYNTH = 'S', FILL_BACKDROP = 'D' };
 
+/* how a cell of the whole was made (level_fill_kind) */
+enum { FILL_KIND_LEVEL = 0, FILL_KIND_EXACT, FILL_KIND_EMPTY, FILL_KIND_CYCLE, FILL_KIND_SYNTH, FILL_KIND_FALLBACK, FILL_KIND_REPAIR };
+
 typedef struct FillBand {
     uint8_t method;
     uint16_t period;                /* exact: the metatiles it repeats after */
@@ -42,5 +45,10 @@ typedef struct FillReport {
    the play field (only metatiles with no collision are made new), 0 for the backdrop. `seed` fixes the arrangement. */
 void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, unsigned ox, unsigned oy, int field, DataRef metatiles, uint32_t seed,
                FillReport *report);
+
+/* the last LevelFill's provenance by cell of the whole (fw x fh): the level cell index (y * lw + x) a synthesised cell was copied from, else -1;
+   and the kind. For the developer's map dump. */
+const int32_t *level_fill_source(void);
+const uint8_t *level_fill_kind(void);
 
 #endif
