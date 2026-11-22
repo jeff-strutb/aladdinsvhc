@@ -17,6 +17,7 @@
 #include "system/state.h"
 #include "video/parallax.h"
 #include "video/video_internal.h"
+#include "video/view.h"
 
 /* the places in g.line_data (the original's $7E:F400 on) */
 enum {
@@ -239,7 +240,7 @@ static void band_scrolls(uint16_t set, uint16_t count)
  * scroll y + 8, the count the set's bands; BandScrolls. Then in the other
  * of the two tables than last frame's, after a 3-byte head: for each band
  * the screen's line reaches (its edges in the level), an entry of its
- * lines (to its lower edge, at most the 224 left; two entries past 127:
+ * lines (to its lower edge, at most the view's height left (224 at 256 x 224); two entries past 127:
  * the lines less 127, then 127) and its scroll; a 0 to end (two bytes, as
  * the original's word store). The head: one line at the top band's
  * scroll, which BG2's x takes too. The backdrop's x is the play field's
@@ -259,7 +260,7 @@ static void band_table(uint16_t set)
     g.band_table_buffer ^= 2;
     table = (uint16_t)(band_table_place(g.band_table_buffer) - LINE_DATA_AT);
     y = table;
-    st16(BAND_LINES_LEFT, 224);
+    st16(BAND_LINES_LEFT, (uint16_t)view.h);
     st16(BAND_EDGE, band_edge_word(set));
     st16(BAND_AT, 0);
     for (;;) {

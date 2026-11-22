@@ -11,6 +11,7 @@
 #include "player/player.h"
 #include "system/state.h"
 #include "system/task.h"
+#include "video/view.h"
 
 #define ENTRY_X 0x0E20          /* where he must be, with the view's y under 256 */
 #define SCENE_PLAYER_BYTE 0x0A
@@ -44,7 +45,7 @@ static uint16_t view_y(void) { return (uint16_t)(g.layers[0].scroll_y >> 8); }
 
 /* the colour maths and the windows for the second song: the layers the
    windows and the sum use, layer windows on for BG1-3 and the sprites,
-   their logic, and the edges 0 and $FF */
+   their logic, and the edges 0 and the view's last column ($FF at 256 wide) */
 static void second_song_screen(void)
 {
     static const uint8_t logic[6] = { 1, 1, 1, 0, 1, 0 };
@@ -64,9 +65,9 @@ static void second_song_screen(void)
         g.window_logic[i] = logic[i];
     }
     g.window_edges[0] = 0x00;
-    g.window_edges[1] = 0xFF;
+    g.window_edges[1] = (uint16_t)(view.w - 1);
     g.window_edges[2] = 0x00;
-    g.window_edges[3] = 0xFF;
+    g.window_edges[3] = (uint16_t)(view.w - 1);
 }
 
 /* the 8 by 7 block of the map copied by its tiles, row by row */

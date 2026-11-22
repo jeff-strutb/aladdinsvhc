@@ -79,6 +79,7 @@ void DisplayDefaults(void)
     g.mosaic_layers = 0;
     g.line_effects_on = 0;
     video_mode7_off();
+    video_level_view_set(0);
     g.mode7_how = 0;
     g.split_on = 0;                     /* the interrupt shadow's $01 */
 }
