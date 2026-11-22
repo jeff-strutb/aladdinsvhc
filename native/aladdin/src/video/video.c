@@ -504,11 +504,15 @@ void video_draw(void)
     if (g.split_on) {
         /* the IRQ: the screen is dark above its line L and lit from row L (the interrupt is at the line's dot $98 and
            its writes show before the line is drawn: the original's rows 0-7 are dark for L = 8); the tables the
-           handler restarts give their first value from the row after. The dark band is the view's top lines, at the
-           original's count at any view height (VIEW.md 6.3); the lines count from the picture's first, as the views do */
+           handler restarts give their first value from the row after. The dark rows are cropped, not shown
+           (Jeff, 2026-11-22): the picture starts at the original's line L, so its height is the view's less L and
+           its origin is -L; the line tables, the layers' scrolls and the line numbers of every effect keep the
+           original's counting (the engine counts lines from the origin), and the sprites are moved up L below */
         lit = g.split_line ? g.split_line : 8;
         top = lit + 1u;
         scr.blank = 1;
+        scr.height = view.h - (int32_t)lit;
+        scr.origin_y = -(int32_t)lit;
     }
     nshvc_screen_set(&scr);
 
@@ -541,7 +545,17 @@ void video_draw(void)
     nshvc_blend_set(&blend);
 
     nshvc_sprites_show((uint8_t)(g.main_layers >> 4 & 1), (uint8_t)(g.sub_layers >> 4 & 1));
-    nshvc_sprites_set(shown_sprites, shown_count, 0);
+    if (lit) {
+        /* the engine's origin does not move sprites: the cropped rows' L lines up (the sprite list as the game left it is kept) */
+        static nshvc_sprite cropped[sizeof shown_sprites / sizeof shown_sprites[0]];
+
+        memcpy(cropped, shown_sprites, shown_count * sizeof cropped[0]);
+        for (uint32_t i = 0; i < shown_count; i++)
+            cropped[i].y -= (int32_t)lit;
+        nshvc_sprites_set(cropped, shown_count, 0);
+    } else {
+        nshvc_sprites_set(shown_sprites, shown_count, 0);
+    }
 
     if (top) {
         nshvc_line(lit, NSHVC_LINE_BLANK, g.blank);
