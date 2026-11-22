@@ -2,9 +2,9 @@
  * story_actor_9b.c: actor kind $9B, a figure of the story's scenes: by its
  * $07 one of four parts, each moving and posing on the story's cues and
  * starting the story's text task (slot 4) with the next scene's number.
- * The cues are g.story_part1, story_part2, story_part3_done, story_in_place
- * and story_fly (the original's $0076-$007B), and the story's text task
- * (slot 4) being busy ($00CF).
+ * The cues are g.story_part1, story_part2, story_part3_done and story_in_place
+ * (the original's $0078-$007B), and the story's text task (slot 4) being
+ * busy ($00CF).
  */
 #include "actor/actor_own.h"
 #include "actor/kinds_d.h"
@@ -12,6 +12,8 @@
 
 #define FRAMES OWN_40           /* frames left of a step */
 #define STORY_SLOT 4            /* the story's text task's slot */
+#define STORY_TASK_SLOT 0       /* the ending's story task: its frames left are the original's $0076, which his flight sets */
+#define FLY_OFF_FRAMES 0x40
 
 enum {
     P0_WAIT = ACTOR_RESUME_OWN, P0_END,
@@ -51,7 +53,9 @@ static void place(Actor *a, uint16_t x, uint16_t y)
  * end; part 2 flies in and out on set motions, starts scenes 8, $0C and
  * $0D, counts story_in_place and story_part2 up, and flies on for good;
  * part 3 waits for story_part2, walks across, starts scene $0F and counts
- * story_part3_done up. Parts 1-3 stay for good at their ends.
+ * story_part3_done up. Part 2 leaving sets the story task's frames left to
+ * $40 (the original's $0076, the scene's own counter): the scene ends 64
+ * frames later. Parts 1-3 stay for good at their ends.
  */
 int Kind9BStory(Actor *a)
 {
@@ -282,8 +286,7 @@ int Kind9BStory(Actor *a)
     case P2_P:
         if (g.story_part1 || task_busy(STORY_SLOT))
             return 1;
-        g.story_fly[0] = 0x40;
-        g.story_fly[1] = 0;
+        g.tasks[STORY_TASK_SLOT].own.ending_story.frames_left = FLY_OFF_FRAMES;    /* the scene ends that many frames after he leaves */
         ActorMotionPreset(a, 0x71);
         a->resume = P2_FLY;
         return 1;

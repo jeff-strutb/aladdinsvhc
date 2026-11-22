@@ -16,7 +16,7 @@ TaskRun ShakeTask(Task *t);                 /* 81:A1D5 */
 TaskRun Bg1WobbleTask(Task *t);             /* 81:9F98 */
 TaskRun WindowEffectTask(Task *t);          /* 82:8000 */
 TaskRun ColourBandTask(Task *t);            /* 81:A00C */
-TaskRun IrisCloseTask(Task *t);             /* 80:B263: the iris scenes make it (g.scene_cue_first the iris, slot 3) */
+TaskRun IrisCloseTask(Task *t);             /* 80:B263: the iris scenes make it (its parameter the iris, slot 3) */
 TaskRun TextBlinkTask(Task *t);             /* 81:9E3B: the player's start makes it (slot 2) */
 
 /* the ending's text (video/text_bands.c): channel 5's bands and the page; the bands' state is the task's

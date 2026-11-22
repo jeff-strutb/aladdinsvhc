@@ -16,7 +16,7 @@
  * @routine 80:B263 IrisCloseTask
  * WHAT IT DOES: Closes the screen down to nothing round a point: starts
  * the window effect, masks layers 1 and 2 by the windows, and draws a
- * circle round the point of the iris g.scene_cue_first names whose radius
+ * circle round the point of the iris its parameter names (the original's $00BD, slot 3's parameter byte: 0 the full screen's, 1 the half) whose radius
  * (g.scene_cue) shrinks by one each frame from its start until it is 0,
  * then ends.
  * HOW: The window effect in slot 6 (parameter 4); the main and sub screens'
@@ -40,8 +40,8 @@ TaskRun IrisCloseTask(Task *t)
         g.window_use[1] = 0x3;
         for (int i = 2; i < 6; i++)
             g.window_use[i] = 0;
-        g.scene_cue = iris_radius(g.scene_cue_first);
-        iris_centre(g.scene_cue_first, &t->own.iris.x, &t->own.iris.y);
+        g.scene_cue = iris_radius(t->param);
+        iris_centre(t->param, &t->own.iris.x, &t->own.iris.y);
         break;
     case 1:
         if (!--g.scene_cue)

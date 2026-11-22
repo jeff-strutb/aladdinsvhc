@@ -8,6 +8,10 @@
 #include "system/task.h"
 #include "video/video.h"
 
+#define SPIN_SLOT 4             /* the scene's spinning zoom task (the original's $00D7 is its zoom) */
+#define SPIN_ZOOM_CUE 0x18
+#define IRIS_SLOT 3             /* the iris task kind $24 starts (the original's $00B7 is its state) */
+
 enum {
     CUE_D7 = ACTOR_RESUME_OWN,  /* kind $24: each frame until its cue */
     CUE_B7,                     /* then until the second cue */
@@ -36,13 +40,13 @@ int Kind24Start(Actor *a)
         a->resume = CUE_D7;
         return 1;
     case CUE_D7:
-        if (g.genie_cue_d7 < 0x18)
+        if ((uint8_t)g.tasks[SPIN_SLOT].own.spin_zoom.zoom < SPIN_ZOOM_CUE)
             return 1;
-        TaskCreate(3, 1, TASK_ENTRY_IRIS_CLOSE);
+        TaskCreate(IRIS_SLOT, 1, TASK_ENTRY_IRIS_CLOSE);
         a->resume = CUE_B7;
         return 1;
     case CUE_B7:
-        if (g.genie_cue_b7)
+        if (task_busy(IRIS_SLOT))
             return 1;
         g.main_layers = 0x10;
         AnimStart(a, 1);
