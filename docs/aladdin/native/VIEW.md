@@ -284,8 +284,12 @@ The title, the Genie wheel and the ending spin use Mode 7 on still screens. They
   one slot per kind and a class 4 kind one per actor, and a kind can need 1 to 3. Counted from placement data, the slots
   needed in some window exceed 4 in levels 0, 3, $0C, $0F and $15 at 400 x 224 or 480 x 270. **In those places a wider view
   means enemies that never appear.**
-- The engine's palette is 256 entries, so there are only 8 sprite palettes. The slots take 4 to 7; what holds 0 to 3 was not
-  read for this document. The slots cannot be raised by the game alone.
+- **Built (V10):** the slots are `ceil(4 * w * h / (256 * 224))` (at most 1,028, the slot tiles' 16-bit numbers), 4 at 256 x 224.
+  Slots 1 to 4 are the original's. Slot s of 5 and up has sprite palette s + 3 (entries 256 + 16 (s - 5), engine 6.8) and 64
+  sprite tiles of its own in a tile set of its own (`video_slot_tiles`), not in the 1,024-tile set. `Actor.look` and
+  `g.kind_look` are 32 bits: the low 16 are the original's, bits 16 up the slot when it is 5 or more (`video/slot_gfx.h`).
+  Measured on the plays at 400 x 224 and 480 x 270, failed placements for want of a slot went from 0 to 5 per run (levels 0,
+  1, 3) to 0.
 
 This is decision 1.
 
@@ -317,7 +321,7 @@ Each stage is one area, landed with its 256 x 224 check passing.
 | V7 | Player clamps and view edges | V4 |
 | V8 | Levels smaller than the view, and room locks (decision 3) | V4 |
 | V9 | Still screens centred, HUD anchored, effects in view terms, level 6's and level $11's line tables | V1 |
-| V10 | Palette slots (decision 1) | the decision; maybe an engine request |
+| V10 | Palette slots (decision 1): built | the decision; engine 6.8 |
 
 Stages V2, V3, V5 and V9 touch separate files and can run side by side.
 

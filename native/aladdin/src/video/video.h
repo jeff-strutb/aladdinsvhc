@@ -63,7 +63,7 @@ typedef enum {
 /* count: words for VRAM_WORDS, bytes for the others */
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how);
 /* count words, the address stepping by `step` after each (1, 32 or 128) */
-void vram_write_stepped(uint16_t address, const void *data, uint32_t count, uint16_t step);
+void vram_write_stepped(uint32_t address, const void *data, uint32_t count, uint16_t step);
 /* one word count times from address on */
 void vram_fill(uint16_t address, uint16_t word, uint32_t count);
 
@@ -89,7 +89,7 @@ void Mode7ScreenSetup(uint8_t row_flag);    /* the title's call until then: syst
 /* ---- palettes (video/palette.c, palette_cycles.c) ---- */
 
 void PaletteLoad(int set);              /* 81:98C5 */
-void PaletteSave(uint8_t first, uint8_t count);         /* 81:9DAA: palettes first.. kept to fade from */
+void PaletteSave(uint16_t first, uint8_t count);         /* 81:9DAA: palettes first.. kept to fade from */
 void PaletteFadeStep(int8_t step, uint8_t count);       /* 81:9DCD */
 void LevelPalettesLoad(void);               /* 81:86BF */
 void PaletteCycleStart(uint8_t slot, uint8_t cycle);    /* 81:EC8E */

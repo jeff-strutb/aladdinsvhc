@@ -141,7 +141,7 @@ static int start(Actor *a)
     a->facing = 0;
     a->flip = 0;
     if (!(a->spawn_byte & 0x10))
-        a->look = (uint16_t)((a->look & ~0x0E00) | 0x0A00);
+        a->look = (a->look & ~0x0E00u) | 0x0A00;
     switch (part) {
     case 0:
         return pose_wait(a, 0x00, 0x10, P0_SPEED);

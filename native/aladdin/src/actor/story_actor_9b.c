@@ -62,7 +62,7 @@ int Kind9BStory(Actor *a)
     switch (a->resume) {
     case ACTOR_START:
         a->flags |= 0x10;
-        a->look &= 0xF1FF;
+        a->look &= ~0x0E00u;
         a->own.bytes[OWN_42] = 0;
         a->own.bytes[OWN_44] = 0;
         switch (a->spawn_byte) {

@@ -90,7 +90,9 @@ static int16_t origin_x, origin_y;
  * HOW: Flickering actors (+$08 bit 4) skipped on frames whose
  * g.sprite_flicker has bit 0; the palette from the actor's look, or the
  * flash palette (+$08 bit 5 and g.sprite_flicker bit 1, which no script
- * sets); each piece's x (its mirrored x when the actor faces right, the
+ * sets), or an actor's slot past the original's four: its tiles from its
+ * own tile set, its palette 3 + the slot's number while its look's are 7;
+ * each piece's x (its mirrored x when the actor faces right, the
  * flip across turned over), y and tile word plus the actor's tile base,
  * its priority from +$09 bits 4-5 turned over. Every piece counts against
  * the sprites left, drawn or not. The piece's tile word bit 12 makes it
@@ -103,6 +105,7 @@ static void draw_actor(const Actor *a)
     const SpritePiece *p;
     unsigned n;
     uint16_t palette, base, priority;
+    unsigned slot = look_slot(a->look);       /* 5 and up: tiles and palette of its own */
     int16_t at_x, at_y;
     int mirrored = a->flip & 1;
 
@@ -136,9 +139,15 @@ static void draw_actor(const Actor *a)
         s->x = x;
         s->y = y;
         s->width = s->height = (uint16_t)(p->tile & 0x1000 ? 2 : 1);
-        s->tiles = video_sprite_tiles();
-        s->tile = (uint16_t)(256 + (word & 0x1FF));
-        s->palette = (uint8_t)(word >> 9 & 7);
+        if (slot) {
+            s->tiles = video_slot_tiles();
+            s->tile = (uint16_t)(SLOT_TILES * (slot - 5) + (p->tile & 0x1FF));
+            s->palette = (word & SLOT_PALETTE_BITS) == SLOT_PALETTE_BITS ? slot + 3 : (uint32_t)(word >> 9 & 7);
+        } else {
+            s->tiles = video_sprite_tiles();
+            s->tile = (uint16_t)(256 + (word & 0x1FF));
+            s->palette = (uint8_t)(word >> 9 & 7);
+        }
         s->priority = (uint8_t)(word >> 12 & 3);
         s->hflip = (uint8_t)(word >> 14 & 1);
         s->vflip = (uint8_t)(word >> 15 & 1);

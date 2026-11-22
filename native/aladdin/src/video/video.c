@@ -20,6 +20,7 @@
 static nshvc_tiles tiles[VIDEO_TILE_KINDS];
 static nshvc_map maps[VIDEO_MAP_KINDS];
 static nshvc_tiles mode7_tiles;
+static nshvc_tiles slot_tiles;     /* the tiles of the slots past the original's four, if the view has any */
 static nshvc_map mode7_map;
 
 /* Mode 7's map and pixels as the game's own arrays: 128 x 128 tiles, and
@@ -52,9 +53,16 @@ void video_init(void)
     maps[VIDEO_MAP_FRONT] = nshvc_map_create(64, 32);
     maps[VIDEO_MAP_TEXT] = nshvc_map_create(32, 32);
     maps[VIDEO_MAP_BACK_TALL] = nshvc_map_create(64, 64);
+    if (slots_count() > SLOTS_STD)
+        slot_tiles = nshvc_tiles_create(4, SLOT_TILES * (slots_count() - SLOTS_STD), 1);
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
+}
+
+nshvc_tiles video_slot_tiles(void)
+{
+    return slot_tiles;
 }
 
 nshvc_tiles video_sprite_tiles(void)
@@ -239,10 +247,39 @@ void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite ho
     }
 }
 
-void vram_write_stepped(uint16_t address, const void *data, uint32_t count, uint16_t step)
+/* words of the slot tile set from word address `address` (VRAM_SLOT_TILES on), whole tiles only */
+static void slot_words(uint32_t address, const uint16_t *w, uint32_t n)
+{
+    uint32_t at = address - VRAM_SLOT_TILES;
+    uint32_t tiles_in = SLOT_TILES * (slots_count() - SLOTS_STD) * 16u;
+
+    if (slots_count() <= SLOTS_STD || at >= tiles_in)
+        return;
+    if (at + n > tiles_in)
+        n = tiles_in - at;
+    tiles_part(slot_tiles, 0, 16, at, n, w);
+}
+
+void vram_write_stepped(uint32_t address, const void *data, uint32_t count, uint16_t step)
 {
     const uint8_t *b = (const uint8_t *)data;
 
+    if (address >= VRAM_SLOT_TILES) {
+        /* a slot's tiles: contiguous (the queue's uploads step by 1, or 0x80 after the high byte, which is 1) */
+        for (uint32_t i = 0; i < count;) {
+            uint16_t w[256];
+            uint32_t run = count - i < 256 ? count - i : 256;
+
+            if (step != 1)
+                run = 1;
+            for (uint32_t k = 0; k < run; k++)
+                w[k] = (uint16_t)(b[2 * (i + k)] | b[2 * (i + k) + 1] << 8);
+            slot_words(address, w, run);
+            address += run * step;
+            i += run;
+        }
+        return;
+    }
     if (step == 1) {
         vram_write(address, data, count, VRAM_WORDS);
         return;
@@ -385,6 +422,8 @@ void video_vblank(void)
     if (g.palette_upload) {
         g.palette_upload = 0;
         nshvc_palette_write(0, 256, g.palette);
+        if (slots_count() > SLOTS_STD)
+            nshvc_palette_write(256, 16u * (slots_count() - SLOTS_STD), g.palette + 256);
     }
     g.uploads_held = 0;                 /* the NMI clears it each frame */
     /* the NMI points channels 4-7 that are on at their tables' places */

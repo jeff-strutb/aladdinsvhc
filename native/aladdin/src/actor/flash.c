@@ -20,7 +20,7 @@ void ActorLookFlash(Actor *a)
         high = (uint8_t)(((a->look >> 8) & 0xF1) | 0x06);
     else
         high = (uint8_t)(g.kind_look[a->kind] >> 8);
-    a->look = (uint16_t)((a->look & 0x00FF) | high << 8);
+    a->look = (a->look & 0xFFFF00FFu) | (uint32_t)high << 8;   /* the slot past the original's four (bits 16 up) stays */
 }
 
 /*
