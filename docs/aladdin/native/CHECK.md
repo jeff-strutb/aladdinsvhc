@@ -396,3 +396,12 @@ native/checks/plays/boss-flow.sh 17
 
 The ending was reached from level 17's real end with no developer start after the patch. At "The End" the game does nothing more (its text task waits a frame at a time
 for good; run to 40000, no screen change). Faults found are in `NATIVE-FAULTS.txt` (PLAYER SCENE CUED).
+
+## The whole map of a level as pictures (developer tool)
+
+`ALADDIN_DEV_MAPDUMP=DIR ALADDIN_DEV_MAPDUMP_LEVEL=N` (headless, `--updates 3`) loads level N as `LevelLoad` does, writes
+`LL-field`, `LL-field-grid`, `LL-back`, `LL-both`, `LL-start`, `LL-backmap` (`.ppm`) and `LL-info.txt` into DIR (LL the level in hex)
+and ends the run (`native/aladdin/src/system/dev_mapdump.c`). The pictures are the map through the metatiles, the tile sets and the
+palette as the load leaves them, one pixel a game pixel, colour 0 flat magenta; `sips -s format png` converts them. With
+`ALADDIN_DEV_MAPDUMP_HOLD=1` the run goes on with the loaded level held on the screen, so the engine's own picture of it can be
+written (`--shots`) and compared with `LL-start`. It changes nothing while the variable is unset.

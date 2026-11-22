@@ -148,6 +148,10 @@ static void update(const nshvc_input *input)
 {
     nshvc_input bot;
 
+    if (DevMapDumpHeld()) {
+        NmiPictureWork();
+        return;
+    }
     record_input(input);
 
     DevBotStep(step);
@@ -155,6 +159,7 @@ static void update(const nshvc_input *input)
     trace_line();
     DevShot(nshvc_updates());
     DevMapDump(nshvc_updates());
+    DevMapDumpLevel(nshvc_updates());
     DevDump(nshvc_updates());
 }
 
