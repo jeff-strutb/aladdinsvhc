@@ -11,7 +11,8 @@ to readable, commented source that rebuilds the original ROM byte for
 byte, prove every routine behaves exactly as the original did, and then
 run that source natively on today's hardware, with no emulation of any
 processor. Here the first two are done, for every byte of the game's
-code; the native game is being built now, with Linux first. From there a
+code; the native game runs on Linux and is checked against the original
+(docs/aladdin/native/FINAL.md says how far). From there a
 game can grow: modern frame rates, widescreen, and builds for macOS,
 Windows, Linux, iPhone, iPad and Android, all without losing the game
 your players remember.
@@ -117,51 +118,48 @@ a bug; recordings of the original are kept to find such bugs.
 
 ### Not done
 
-- **Not played through.** Levels are numbered from 0 here (level 0 is part 0 stage 0; 19 levels in all). Plays by keys
-  (a developer's player, `native/checks/plays/`, replayed from power-on with the level select) took levels 0, 15 and 18
-  (the last: no deaths, its exit, the bonus clear and password screen and the ending's story cards) from start to exit,
-  and level 3 from start to end: Jasmine's scene, STAGE 1 CLEAR, the password screen and the story card. Eleven more
-  levels (1, 2, 5 to 11, 13 and 14) had their exit walked into from a start placed near it (`ALADDIN_DEV_AT`): each
-  leads on to the next screen, and level 13's scene and STAGE 5 CLEAR run. Not reached by any play: the exits of
-  levels 4, 12 and 17 (the plays stop at a tower, a climb and the first platforms), the end of level 16, whose Jafar
-  scene and fight run but whom no play has beaten, and the Genie's Break Time after a real level end (it has run only
-  from a developer's start). The continue screen was reached by play: all lives lost in level 0, then the rope, the
-  Genie and the credit spent. All seven passwords were accepted by keys and led to parts 1 to 7 (levels 4, 6, 8, 11,
-  14, 18 and 17). The four level scene tasks (levels 3, 5's end, 13 and 16) have each run. Plays are native-only
-  except where the next item says a recording was compared. No full play-through has been done; one is in progress.
-- **Proven against the original only on some plays** (`NATIVE-ACTOR-CHECK.txt`: a recording of the original and the native
-  game compared field by field, frame by frame). Levels: 1 (the attract demo's window, 0 of 606,824 fields differ, and
-  four random plays), $04, $06, $08, $0B, $0E, $11 and $12 from passwords 1 to 7, the ending's stage 8 (the player and
-  kinds $27, $35, $49, $6C and $A0: 476,462 fields), and stage plays of levels $05, $07, $09, $0A, $0C, $0D, $0F and
-  $10. Kinds exact on some play: $00 (Aladdin, except hand-over frames), $08, $20, $21, $2E, $30, $34, $35, $4B, $51,
-  $6C and $A0. Kinds exact only on the decomp's coverage scripts replayed as recordings: $4E, $5C (bob), $5D, $5F
-  (frames 51 to 140), $66 second, $6A, $71, $84 wait, $87 catch, $91, $9B (to frame 5,282), $9C, $24, $A4 wait, $A5 wait
-  and $A7. Still not checkable that way: $22's second entry, $5C's path, $87's second entry, $44, $84's start, $5F's
-  start, $9B after frame 5,283, $A4's ways and $69 (what each would take is in the file); the every-kind table is
-  still being made. Differences the file lists as open: kind $46 with another kind in `rand_pw1_2`, $1428 on a platform
-  in `rand_pw5_2`, kinds $60 and $63 (owned by the player's and the kinds' sessions), $8D and the 85-frame stall of
-  kind $47 (departure 2). Video: the attract demo's pictures compared with the original's recording (title, level 1,
-  the lamp's end match); the effects (iris, circle wipe, text bands, effects 8 to 10) have no picture yet. Sound: the
-  driver only (41 runs, 330,680 ticks, 0 differ); the sound as the engine mixes it is not sample-exact and has not been
-  judged by ear.
+What was proven and what was not, number by number, is in [docs/aladdin/native/FINAL.md](docs/aladdin/native/FINAL.md).
+
+- **Played by keys.** Levels are numbered from 0 here (level 0 is part 0 stage 0; 19 levels in all). A developer's player
+  (`native/checks/plays/`, replayed from power-on with the level select) took 16 levels from start to their real exit (0, 1,
+  2, 4 to 15 and 18) and level 3 from start to its scene, STAGE 1 CLEAR and story card. Level 9 ends at the Genie's Break
+  Time by a real level end. All seven passwords were accepted by keys (parts 1 to 7). The continue screen was reached by
+  play. The two boss levels, 16 (Jafar's first form) and 17 (the snake), are **not won in full**: by Jeff's decision each was
+  proven by patched boss health and one real stomp by keys, then the defeat, the level end, the next screens, the ending's
+  story, the credits and "The End" ran.
+- **Proven against the original.** 18 plays (every level but 18) were replayed on the original, one logic frame per native
+  update, and are identical (the player's x, y and health, the actor list's kind, x and y) to the update FINAL.md gives for
+  each, from 5,877 to 10,893; level 17 with the patched health is identical from 3936 to 7301 and through the finale. The
+  ending was compared by cues and frames in two runs of the original: cues equal, scenes 10 to 52 frames shorter native.
+  The every-kind table covers 133 kinds against 244 coverage scripts and the stage plays; 8 kinds are never met by a
+  recording, the others are exact where a recording follows them, and kind $9E (20 fields) is the open row the later work
+  left. Screen effects: the title ribbon, circle wipe, iris, text bands and effects 8, 10, 11 and 12 compared; effects 3, 4 and
+  kind $69's circle looked at only; effect 9 is never on screen. Sound: the driver only (41 runs, 330,680 ticks, 0 differ).
+- **Not done.** Windows is cross-built and never run; macOS is not built; nothing is packaged. The sound has not been judged by
+  ear and the engine's mix is not sample-exact. Neither boss was won in full, and levels 16 and 17 have no play to their
+  exit by keys. The compare tool cannot cross a restart or a continue screen. Level 18's play has no comparison listed.
+  Kinds that no recording can follow ($44, $84's start, $5F's start, $5C's path, $22's and $87's second entries, $64, $9B
+  after frame 5,283, $A4's ways, $69) are listed with what each would take in `NATIVE-ACTOR-CHECK.txt`.
 - **The decomp's own gap: closed.** The bars above are the gate runner's and are not edited by hand. They read 100.0%
   (92,250 / 92,250 B, ledger `bdf23ac7`). The earlier "100%" bars had left out real code (1,533 B of reachable code in
   49 runs, `DECOMP-GAP.txt`); it has since been filed and certified, the census repaired, and 139 B of exempt ranges
   listed with their proofs.
 - **Departures from the original** ([docs/aladdin/native/DEPARTURES.md](docs/aladdin/native/DEPARTURES.md)), each an
-  accident the native game leaves out because it does not hurt play: a ledge that faces the wrong way no longer clears
-  the fraction of Aladdin's speed (no play reaches it); the platform course maker's 85-frame stall at level $05's start;
-  and a carrier-pair sender keeps its own kind.
+  accident the native game leaves out because it does not hurt play. Game logic: a ledge that faces the wrong way no longer
+  clears the fraction of Aladdin's speed (no play reaches it); the platform course maker's 85-frame stall at level $05's start;
+  a carrier-pair sender keeps its own kind. Console speed, not game logic: starting a song costs the starting task a video
+  frame in the original; unpacking a screen's graphics takes the original's task about a hundred video frames; the ending's
+  scenes run 10 to 52 frames shorter native.
 - **The story card** copies code as graphics only with an act past 7, in one poked run (black on every frame);
   whether real play reaches it is open in the plan.
-- **Platforms:** Linux only today, run headless and in a window under a Vulkan translation driver; Windows and macOS
-  builds are in progress. Nothing is packaged.
+- **Platforms:** Linux (Vulkan and headless) is built and run. Windows is cross-built and not run; macOS is not built
+  ([docs/aladdin/native/BUILD.md](docs/aladdin/native/BUILD.md)).
 - **The enhanced game** (widescreen, higher frame rates) is not designed yet.
 
 ### Faults found by playing and by the check, and fixed
 
 Each was found by a play by keys or by the field-by-field check against the original, then fixed; the evidence is in
-`NATIVE-FAULTS.txt` and `NATIVE-ACTOR-CHECK.txt`.
+`NATIVE-FAULTS.txt` and `NATIVE-ACTOR-CHECK.txt`, and FINAL.md lists each with its commit.
 
 - Jafar's first form (level 16) stopped at its first random pick: `RandomFromList` took the list's X where the native game wants
   X / 2 (`56e4efad`; the same slip in kind $A1/$A6's bounce list and the chain's two picks).
@@ -172,7 +170,12 @@ Each was found by a play by keys or by the field-by-field check against the orig
 - Aladdin's top speed cap (`486c4ed7`; the demo's frames 10031 to 10158 then match in every field) and the original's
   16-bit ledge quirk (`25d29f04`, later left out as departure 1).
 - The ending's stage 8 killed the player: the work-RAM clear at a game start kept stage 7's scroll kind, the original
-  clears its whole range (82 fields it missed); the ending play-back now runs stages 4 to 11 with no death.
+  clears its whole range (82 fields it missed; `e0d1199a`).
+- Found by replaying plays on the original update by update: a kind $63 hit by an apple, the apple's course, the landing
+  boxes' bank (`2d1875a4`); `g.sprite_flicker` never counted (`a4c5b33d`); the escort's restart carry (`3c4ec70e`); the
+  snake's scrambled head (`e8f2c300`); kind $92's escort scenes (`58ad9519`, `cdfbcc6e`); the ending story's fifth scene
+  that never ended (`689d74b7`); the ending's shared bytes (`818bb9be`); the chain's extra path step (`68e971c1`),
+  `PlayerSceneCued` and the chain's slide step (`b9ed8649`, `fe93c0dc`); level 5's IRQ screen one row early (`32eeff06`).
 - An "ACTION" text drawn on the play field of two levels was not a fault: it is the original's own blinking text task.
 
 ### Progress (2026-11-21)
@@ -203,7 +206,7 @@ Linux runs of 11,000 updates from power-on exit 0.
 What runs, on Linux, from power-on with no input: the copyright card, the logo, the opening story with its scenes and
 text, the title with its menu and music, and the attract demo, which loads level 1 and plays it: Aladdin runs and jumps
 through the market with Abu, past the stall keepers and the guards. By the original pad's keys from the title: Game Start
-into level 1, played, the Pass Word screen (all seven passwords) and the Options screen; from the level select, plays to the exits and ending listed under Not done. By a developer's start at a screen
+into level 1, played, the Pass Word screen (all seven passwords) and the Options screen; from the level select, the plays to the exits and the ending listed above. By a developer's start at a screen
 (`ALADDIN_DEV_SCREEN`, [docs/aladdin/native/CHECK.md](docs/aladdin/native/CHECK.md), not the game's way in): the Genie's
 Break Time and the ending's credits (the continue screen is also reached by play).
 

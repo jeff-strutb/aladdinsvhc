@@ -15,30 +15,27 @@ and `asm/aladdin` are never edited and stay the certified reference.
 
 ## Where it stands (2026-11-21)
 
-From `build/aladdin/writers/NATIVE-STATUS.txt`, `NATIVE-ACTOR-CHECK.txt`, `NATIVE-FAULTS.txt`, the four
-`NATIVE-ACCOUNT-*.txt` files and [DEPARTURES.md](DEPARTURES.md), and a run of main at `a92d22da`. The README's native
-section says the same in full; it is the one kept current.
+The state at main's tip is [FINAL.md](FINAL.md): what was proven and how, the faults fixed, the departures, what is not done,
+and the commands to rerun each check. The README's native section says the same in short. This list is the part of it that
+still bears on the plan.
 
 What is not done, first:
-- **The game is not played through; one is in progress.** By keys, levels 0, 15 and 18 (the last, to the ending's story)
-  were played from start to exit and level 3 from start to end; eleven more levels' exits were walked into from a start
-  placed near them; all seven passwords were accepted. Not reached: the exits of levels 4, 12 and 17, the end of level
-  16 (Jafar's scene and fight run; he has not been beaten), and the Genie's Break Time after a real level end. Plays
-  are native-only except where the check compared them.
-- **What is proven against the original is partial.** The attract demo's window (0 of 606,824 fields differ), random
-  plays and stage plays of 16 levels, the ending's stage 8, and the decomp's coverage scripts replayed as recordings
-  (kinds $4E, $5C, $5D, $5F, $66, $6A, $71, $84, $87, $91, $9B, $9C, $24, $A4, $A5, $A7 in part); nine cases are not
-  checkable that way (`NATIVE-ACTOR-CHECK.txt` says what each would take); open differences: kind $46 with another
-  kind, $1428 on a platform, kinds $60, $63 and $8D. The every-kind table is in progress. Sound: the driver only (41
-  runs, 330,680 ticks, 0 differ); not judged by ear. The video's effects (iris, circle wipe, text bands, effects 8 to
-  10) have no picture yet.
-- **The decomp gap** (`DECOMP-GAP.txt`): the gate runner's bars read 99.9% (92,151 of 92,250 B): 91 B are two routines,
-  `83:FBB5` and `83:FC23`, filed with C and not certified (no script the checks can follow runs them; being covered or
-  proven dead by the decomp-gap session); 8 B are exempt by proof.
-- **Departures from the original:** three, in DEPARTURES.md (a wrong-way ledge no longer clears the speed fraction; the
-  85-frame stall of kind $47's course maker; a carrier-pair sender keeps its own kind).
-- Stage 7 (the enhanced game) is not designed; stage 8 (packaging) is not started; Windows and macOS builds are in
-  progress (Linux only today); the replay session (stage 1) is paused.
+- **The two bosses are not won in full.** By keys, 16 levels were played from start to their real exit and level 3 to its
+  scene and story card; levels 16 (Jafar's first form) and 17 (the snake) reach their bosses and are proven by patched health
+  and one real stomp each (Jeff's decision), with the flow after it run to "The End".
+- **What is proven against the original is partial.** 18 plays (every level but 18) are identical to the original update by
+  update to the numbers in FINAL.md; the ending is compared (scenes 10 to 52 frames shorter native); the every-kind table
+  covers 133 kinds (8 never met by a recording, kind $9E's 20 fields open, a list of kinds no recording can follow). The
+  compare tool cannot cross a restart or a continue screen. Sound: the driver only (41 runs, 330,680 ticks, 0 differ); not
+  judged by ear. Screen effects: effects 3 and 4 and kind $69's circle looked at only; the rest compared or never on screen.
+- **The decomp gap is closed:** the gate runner's bars read 100.0% (92,250 of 92,250 B, ledger `bdf23ac7`); 139 B are exempt
+  by proof.
+- **Departures from the original:** six, in DEPARTURES.md. Three are game logic (a wrong-way ledge no longer clears the speed
+  fraction; the 85-frame stall of kind $47's course maker; a carrier-pair sender keeps its own kind). Three are console speed
+  (a song's start costs the task a frame; unpacking a screen's graphics takes the original about a hundred frames; the
+  ending's scenes run a few frames shorter).
+- Stage 7 (the enhanced game) is not designed; stage 8 (packaging) is not started; Windows is cross-built and not run, macOS
+  is not built (BUILD.md); the replay session (stage 1) is paused.
 
 What is true:
 - **Conversion is complete for what the record had.** Four accounts (2026-11-20) list every routine of the actors,
@@ -50,10 +47,10 @@ What is true:
   (69%); 55,020 lines of C and headers in 352 files.
 - Both targets build for Linux (Vulkan) and headless; the clean check reports nothing over the 350 files of `src`; the
   data check passes; headless and Linux, with no input, 11,000 updates from power-on to the attract demo exit 0.
-- **Faults found by plays and by the field-by-field check, and fixed:** Jafar's random pick (`56e4efad`),
-  `PlayerSceneJumpIn` / `PlayerSceneWalkOut` (`c5a384cb`), kind $68's timing (`22cc5db9`, `c4b4e918`), kind $4E's spring
-  (`b4edf6c2`), Aladdin's top speed cap (`486c4ed7`), and the work-RAM clear that left stage 7's scroll kind for the
-  ending's stage 8. The stage clear drawn with garbage after level 5's end was the developer's start leaking into
+- **Faults found by plays and by the field-by-field check, and fixed:** each with its commit in FINAL.md (Jafar's random
+  pick, level 3's scene, kind $68's timing, kind $4E's spring, the top speed cap, the work-RAM clear, the apple and the
+  landing boxes, `g.sprite_flicker`, the escort, the snake's head, kind $92's scenes, the ending story, the chain, the
+  fight-won scene). The stage clear drawn with garbage after level 5's end was the developer's start leaking into
   level $24 (fixed), not a game fault.
 - The boot (copyright card, logo, opening story, title with music) and the attract demo run natively on Linux
   (pictures in the README).
