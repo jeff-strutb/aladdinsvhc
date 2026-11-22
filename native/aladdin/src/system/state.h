@@ -626,6 +626,7 @@ typedef struct GameState {
     uint8_t pause_block;        /* $0404: nonzero, no pause, and the actor loop runs only actors[1..7] past the player */
     uint8_t paused;             /* $0405: counted up while the game is paused */
     uint8_t play_starts;        /* $03FA: counted up each time a level's play is set up */
+    uint8_t play_wait;          /* $03FB: nonzero, the frames each turn of the play loop waits (else 1): 8 from the point the chain scene's jump starts (PlayerSceneCued) */
     uint8_t layer_setup_mode;   /* $083F: the level's layer set-up mode */
     uint32_t frame_start_x;     /* $143A-$143C: the player's x as the frame began, 16.8 */
     uint32_t frame_start_y;     /* $143D-$143F: its y */

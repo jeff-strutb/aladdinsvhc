@@ -51,9 +51,9 @@ enum { LOOP_STEP, LOOP_PAUSE, LOOP_WAITED };
  * LevelExitCheck, HudRefresh, PauseCheck; a frame's wait, again while
  * vram_queue_pending is set. In a demo: Start newly pressed, or the demo's
  * frames counted down to 0, TaskExec TitleAfterFadeOut. (The original
- * waits $03FB frames when that byte is nonzero; only the copier check,
- * MirrorCheckTask, ever sets it, and on the retail board it never does:
- * one frame.)
+ * waits g.play_wait ($03FB) frames when that byte is nonzero: the chain
+ * scene's jump (PlayerSceneCued) sets it to 8, and the copier check would
+ * set it to $3F; else one frame.)
  */
 TaskRun PlayLoop(Task *t)
 {
@@ -75,10 +75,10 @@ TaskRun PlayLoop(Task *t)
             if (r != TASK_GOES_ON)
                 return r;
             *at = LOOP_WAITED;
-            return task_wait(t, 1);
+            return task_wait(t, g.play_wait ? g.play_wait : 1);
         case LOOP_WAITED:
             if (g.vram_queue_pending)
-                return task_wait(t, 1);
+                return task_wait(t, g.play_wait ? g.play_wait : 1);
             *at = LOOP_STEP;
             if (g.play_mode == PLAY_DEMO
                 && (((g.pad1_pressed >> 8) & START_HIGH) || --g.demo_frames_left == 0))

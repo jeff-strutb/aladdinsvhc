@@ -9,11 +9,12 @@
  * 3's and level $10's scenes: found by a play by keys; the record says no level
  * plays them). Not converted (nothing found plays them): 81:DDC1
  * PlayerScenePlaceHigh, 81:DDE0 PlayerScenePlaceLow, 81:DF3A
- * PlayerSceneWaitWalk, 81:E154 PlayerSceneCued and the steps only they call
- * (81:E224, 81:E22C, 81:E235).
+ * PlayerSceneWaitWalk, which nothing found plays. PlayerSceneCued ($07 12) is
+ * played by the chain's fight-won scene (level 17's finale).
  */
 #include "player/player_own.h"
 #include "system/task.h"
+#include "video/video.h"
 
 #define SCENE_SLOT 2
 
@@ -369,6 +370,157 @@ static int scene_stand(Actor *a)
     return wait_then(a, P_STAND_SCENE_DONE, 0x20);
 }
 
+/*
+ * @routine 81:E154 PlayerSceneCued
+ * @routine 81:E224 PlayerSceneMoveStep
+ * @routine 81:E22C PlayerSceneAnimStart
+ * @routine 81:E235 PlayerSceneAnimStep
+ * WHAT IT DOES: ($07 12: the chain's fight-won scene, level 17) Aladdin
+ * runs to x low byte $80 (right or left, by which side he is on), shows pose
+ * $13 until the scene's first cue (g.rise_sounded, the head risen past y
+ * $B0), pose $1C for 8 frames, waits $70 frames, runs left (animation 1)
+ * until the second cue (g.close_count, the closing list started) and 6
+ * frames more, then jumps with sound 2 and the play loop waiting 8 frames a
+ * turn (g.play_wait) until he is on a solid actor, and stays in pose $0F.
+ * The steps: a frame of the animation and his picture sent, with the step
+ * across before it when he is running.
+ */
+#define CUED_X_MIDDLE 0x80
+#define CUED_RUN_SPEED 0x03         /* the speed entries: the run to the middle, the run left */
+#define CUED_RUN_LEFT_SPEED 0x6F
+#define CUED_JUMP_PRESET 0x05
+#define CUED_LOOK_FRAMES 8
+#define CUED_PAUSE_FRAMES 0x70
+#define CUED_RUN_ON_FRAMES 6
+#define CUED_JUMP_SOUND 0x02
+#define CUED_PLAY_WAIT 8
+
+static void anim_send(Actor *a, uint8_t anim)
+{
+    AnimStart(a, anim);
+    ActorPictureSend(a);
+}
+
+static void anim_step(Actor *a)
+{
+    AnimStep(a);
+    ActorPictureSend(a);
+}
+
+static void move_step(Actor *a)
+{
+    ActorMoveX(a);
+    anim_step(a);
+}
+
+static int scene_cued(Actor *a)
+{
+    anim_send(a, 0x00);
+    ActorSpeedXSet(a, CUED_RUN_SPEED);
+    g.player_in_air = 0;
+    g.player_hurt_count = 0;
+    if ((uint8_t)x_pixels(a) < CUED_X_MIDDLE) {
+        a->flip = 0;
+        a->facing = 0;
+        return next_frame(a, P_CUED_RUN_RIGHT);
+    }
+    a->flip = 1;
+    a->facing = 1;
+    return next_frame(a, P_CUED_RUN_LEFT);
+}
+
+static int cued_arrived(Actor *a)
+{
+    set_x_pixels(a, (uint16_t)((x_pixels(a) & 0xFF00) | CUED_X_MIDDLE));
+    a->flip = 0;
+    anim_send(a, 0x13);
+    return next_frame(a, P_CUED_POSE);
+}
+
+static int cued_run_right(Actor *a)
+{
+    move_step(a);
+    if ((uint8_t)x_pixels(a) < CUED_X_MIDDLE)
+        return 1;
+    return cued_arrived(a);
+}
+
+static int cued_run_left(Actor *a)
+{
+    move_step(a);
+    if ((uint8_t)x_pixels(a) >= CUED_X_MIDDLE)
+        return 1;
+    return cued_arrived(a);
+}
+
+static int cued_pose(Actor *a)
+{
+    if (!g.rise_sounded)
+        return 1;
+    anim_send(a, 0x1C);
+    POSE_FRAMES(a) = CUED_LOOK_FRAMES;
+    return next_frame(a, P_CUED_LOOK);
+}
+
+static int cued_look(Actor *a)
+{
+    anim_step(a);
+    if (--POSE_FRAMES(a))
+        return 1;
+    g.scene_exits++;
+    return wait_then(a, P_CUED_LOOKED, CUED_PAUSE_FRAMES);
+}
+
+static int cued_looked(Actor *a)
+{
+    anim_send(a, 0x01);
+    a->flip = 1;
+    a->facing = 1;
+    ActorSpeedXSet(a, CUED_RUN_LEFT_SPEED);
+    return next_frame(a, P_CUED_RUN);
+}
+
+static int cued_run(Actor *a)
+{
+    move_step(a);
+    if (!g.close_count)
+        return 1;
+    POSE_FRAMES(a) = CUED_RUN_ON_FRAMES;
+    return next_frame(a, P_CUED_RUN_ON);
+}
+
+static int cued_run_on(Actor *a)
+{
+    move_step(a);
+    if (--POSE_FRAMES(a))
+        return 1;
+    SoundQueueAdd(CUED_JUMP_SOUND);
+    g.play_wait = CUED_PLAY_WAIT;
+    anim_send(a, 0x0E);
+    a->facing = 1;
+    a->flip = 0;
+    g.player_in_air = 1;
+    g.player_on_actor = 0;
+    ActorMotionPreset(a, CUED_JUMP_PRESET);
+    return next_frame(a, P_CUED_JUMP);
+}
+
+static int cued_jump(Actor *a)
+{
+    anim_step(a);
+    ActorFly(a);
+    if (!g.player_on_actor)
+        return 1;
+    anim_send(a, 0x0F);
+    return next_frame(a, P_CUED_LANDED);
+}
+
+static int cued_landed(Actor *a)
+{
+    anim_step(a);
+    return 1;
+}
+
 /* a frame of the ending's ride: bobbing and moving until the play field's
    screen is `screen` */
 static bool ride_at(uint8_t screen)
@@ -660,6 +812,16 @@ int player_scene_code(Actor *a)
     case PLAYER_AT_SCENE_LAND:      return scene_land(a);
     case PLAYER_AT_SCENE_STAND:     return scene_stand(a);
     case PLAYER_AT_ENDING_RIDE:     return ending_ride(a);
+    case PLAYER_AT_SCENE_CUED:      return scene_cued(a);
+    case P_CUED_RUN_RIGHT:          return cued_run_right(a);
+    case P_CUED_RUN_LEFT:           return cued_run_left(a);
+    case P_CUED_POSE:               return cued_pose(a);
+    case P_CUED_LOOK:               return cued_look(a);
+    case P_CUED_LOOKED:             return cued_looked(a);
+    case P_CUED_RUN:                return cued_run(a);
+    case P_CUED_RUN_ON:             return cued_run_on(a);
+    case P_CUED_JUMP:               return cued_jump(a);
+    case P_CUED_LANDED:             return cued_landed(a);
     case P_DROPPED_FRAME:           return dropped_frame(a);
     case P_DROPPED_LANDED:          return PlayerGoTo(a, PLAYER_AT_STAND);
     case P_WALK_ON_FALL:            return walk_on_fall(a);
