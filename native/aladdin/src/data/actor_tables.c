@@ -9,6 +9,7 @@
  */
 #include "data/actor_tables.h"
 #include "data/data_internal.h"
+#include "video/view.h"
 
 static uint8_t at8(uint8_t bank, uint16_t addr) { return cart8(cart_offset(bank, addr)); }
 static uint16_t at16(uint8_t bank, uint16_t addr) { return cart16(cart_offset(bank, addr)); }
@@ -118,6 +119,11 @@ ViewBox view_box(uint8_t at)
     b.x_span = at16(0x80, (uint16_t)(0xBA04 + at));
     b.y_off = at16(0x80, (uint16_t)(0xBA06 + at));
     b.y_span = at16(0x80, (uint16_t)(0xBA08 + at));
+    /* the box grows with the view: each side by dx across, dy down */
+    b.x_off = (uint16_t)(b.x_off + view.dx);
+    b.x_span = (uint16_t)(b.x_span + 2 * view.dx);
+    b.y_off = (uint16_t)(b.y_off + view.dy);
+    b.y_span = (uint16_t)(b.y_span + 2 * view.dy);
     return b;
 }
 

@@ -4,9 +4,16 @@
  */
 #include "data/actor_a_tables.h"
 #include "data/data_internal.h"
+#include "video/view.h"
 
 static uint8_t at8(uint8_t bank, uint16_t addr) { return cart8(cart_offset(bank, addr)); }
 static uint16_t at16(uint8_t bank, uint16_t addr) { return cart16(cart_offset(bank, addr)); }
+
+/* a distance from the player grown with the view, in proportion (decision 2), to whole pixels: n * view / original, rounded */
+static uint16_t scaled(uint16_t n, int32_t view_size, int32_t original)
+{
+    return (uint16_t)(((int32_t)n * view_size + original / 2) / original);
+}
 
 ViewBox range_box(uint8_t at)
 {
@@ -16,6 +23,11 @@ ViewBox range_box(uint8_t at)
     b.x_span = at16(0x80, (uint16_t)(0xCE75 + at));
     b.y_off = at16(0x80, (uint16_t)(0xCE77 + at));
     b.y_span = at16(0x80, (uint16_t)(0xCE79 + at));
+    /* the box grows with the view: each side by dx across, dy down */
+    b.x_off = (uint16_t)(b.x_off + view.dx);
+    b.x_span = (uint16_t)(b.x_span + 2 * view.dx);
+    b.y_off = (uint16_t)(b.y_off + view.dy);
+    b.y_span = (uint16_t)(b.y_span + 2 * view.dy);
     return b;
 }
 
@@ -32,13 +44,13 @@ HitBox near_box(uint8_t at)
 {
     HitBox b;
 
-    b.half_w = at16(0x80, (uint16_t)(0xBC43 + at));
-    b.half_h = at16(0x80, (uint16_t)(0xBC45 + at));
+    b.half_w = scaled(at16(0x80, (uint16_t)(0xBC43 + at)), view.w, VIEW_ORIGINAL_W);
+    b.half_h = scaled(at16(0x80, (uint16_t)(0xBC45 + at)), view.h, VIEW_ORIGINAL_H);
     return b;
 }
 
-uint16_t near_span_x(uint8_t at) { return at16(0x80, (uint16_t)(0xBC7B + at)); }
-uint16_t near_span_y(uint8_t at) { return at16(0x80, (uint16_t)(0xBC85 + at)); }
+uint16_t near_span_x(uint8_t at) { return scaled(at16(0x80, (uint16_t)(0xBC7B + at)), view.w, VIEW_ORIGINAL_W); }
+uint16_t near_span_y(uint8_t at) { return scaled(at16(0x80, (uint16_t)(0xBC85 + at)), view.h, VIEW_ORIGINAL_H); }
 
 FrontBox front_box(uint8_t at)
 {

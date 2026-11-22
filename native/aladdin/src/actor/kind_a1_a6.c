@@ -4,6 +4,7 @@
  * point actors are kept in range of).
  */
 #include "actor/actor_own.h"
+#include "video/view.h"
 #include "actor/kinds_e.h"
 #include "data/kinds_e_tables.h"
 
@@ -150,7 +151,7 @@ int KindA6Stay(Actor *a)
         a->resume = STAY;
         return 1;
     default:
-        if ((uint16_t)(g.range_y - pixels(a->y) + 0x0100) < 0x0200)
+        if ((uint16_t)(g.range_y - pixels(a->y) + 0x0100 + view.dy) < (uint16_t)(0x0200 + 2 * view.dy))
             return 1;
         return ActorEndPlaced(a);
     }

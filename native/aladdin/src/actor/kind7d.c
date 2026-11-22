@@ -5,6 +5,7 @@
  * once it is far from the point actors are kept in range of.
  */
 #include "actor/actor_a.h"
+#include "video/view.h"
 #include "actor/kinds_c.h"             /* Kind7ECode (kind $7E, n5-kinds-c's) */
 #include "data/actor_a_tables.h"
 #include "map/map.h"
@@ -115,7 +116,7 @@ static void Kind7DStep(Actor *a)
  * WHAT IT DOES: Kind $7D's wait routine (also 83:929F ActorKind7DWait, its
  * stub): its y the kept height less the backdrop's offset (the word at
  * $1A2C: the pixels of g.backdrop_offset_y (with its high word)), a step of its state, and it ends
- * once more than 224 pixels from the point actors are kept in range of.
+ * once more than 224 pixels (+ the view's dx) across from the point actors are kept in range of.
  */
 int Kind7DWait(Actor *a)
 {
@@ -123,7 +124,7 @@ int Kind7DWait(Actor *a)
 
     a->y = with_pixels(a->y, (uint16_t)(base - (uint16_t)((g.backdrop_offset_y | (uint32_t)g.backdrop_offset_y_high << 16) >> 8)));
     Kind7DStep(a);
-    if ((uint16_t)(pixels(a->x) - g.range_x + 0xE0) < 0x01C0)
+    if ((uint16_t)(pixels(a->x) - g.range_x + 0xE0 + view.dx) < (uint16_t)(0x01C0 + 2 * view.dx))
         return ACTOR_GOES_ON;
     return ActorEndPlaced(a);
 }

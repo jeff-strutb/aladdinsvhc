@@ -4,6 +4,7 @@
  * then carries him up; landed on or shot, it falls away.
  */
 #include <stdio.h>
+#include "video/view.h"
 
 #include "actor/actor_own.h"
 #include "audio/sound.h"
@@ -125,7 +126,7 @@ int Kind79Rise(Actor *a)
             a->flags = 0x90;
             a->view_box = 0x08;
         } else {
-            a->y = with_pixels(a->y, (uint16_t)(g.range_y + 0x70));
+            a->y = with_pixels(a->y, (uint16_t)(g.range_y + 0x70 + view.dy));
         }
         a->anim_flags = 0x02;
         AnimStart(a, 0);
@@ -224,10 +225,10 @@ int Kind79Rise(Actor *a)
  */
 static int Kind79InRange(Actor *a)
 {
-    if ((uint16_t)(g.range_x - pixels(a->x) + 0xD0) >= 0x01A0) {
+    if ((uint16_t)(g.range_x - pixels(a->x) + 0xD0 + view.dx) >= (uint16_t)(0x01A0 + 2 * view.dx)) {
         return ActorEndPlaced(a);
     }
-    if ((uint16_t)(g.range_y - pixels(a->y) + 0x98) < 0x0148)
+    if ((uint16_t)(g.range_y - pixels(a->y) + 0x98 + view.dy) < (uint16_t)(0x0148 + 2 * view.dy))
         return ACTOR_GOES_ON;
     if (k79(a)->taken && g.health)
         g.actors[0].resume = PLAYER_AT_FALL;

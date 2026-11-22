@@ -236,6 +236,7 @@ typedef struct Actor {
     } own;
 } Actor;
 
+#define DRAW_LIST_MAX 192       /* the most a draw list can hold: 32 at 256 x 224, 32 x the view's area up to this (draw_count is a byte) */
 #define ACTOR_RECORDS 36        /* the player's and 35 more: $08DB to $141A */
 #define ACTOR_POOL_SIZE 28      /* the records from $0B5B */
 #define ACTOR_POOL_B_SIZE 5     /* the records from $09CB */
@@ -733,7 +734,7 @@ typedef struct GameState {
     uint8_t guard_count;        /* $1475: a guard's start count, from cartridge RAM by its kind (none on retail: open bus, $70, plus 1) */
     uint8_t guard_kind_times2;  /* $1476: the kind a guard was started as, times 2 */
     uint8_t flier_slots[3];     /* $1478: a guard's three kind $90 fliers, by their +$07: low four bits nonzero, fly on; how each ended ($80 the ground, $40 a wall, 0 its steps ran out) */
-    Actor *draw_list[4][32];    /* $1492: the four lists of the actors drawn this frame, $40 bytes each (ActorsInView) */
+    Actor *draw_list[4][DRAW_LIST_MAX];    /* $1492: the four lists of the actors drawn this frame, 32 each at 256 x 224 (the original: $40 bytes each), more for a larger view (ActorsInView) */
     uint8_t draw_count[4];      /* $1592, 2 apart: each list's length */
     uint8_t sprite_flicker;     /* $032D: a frame counter (slot 0's turns): bit 0 set, actors with +$08 bit 4 not drawn this frame; bit 1, those with bit 5 flash */
     uint8_t placed[256];        /* $7E:C600: by placement, bit 0 placed, bit 7 never placed again; [255] $FF, children's */

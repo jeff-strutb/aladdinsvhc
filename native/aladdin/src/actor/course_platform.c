@@ -16,6 +16,7 @@
  * by record, as +$37 is Actor.next here.
  */
 #include "actor/actor_own.h"
+#include "video/view.h"
 #include "actor/kinds_d.h"
 #include "audio/sound.h"
 #include "data/actor_a_tables.h"
@@ -395,7 +396,7 @@ int PlatformCourseStart(Actor *a)
         return 1;
     }
     case MAKER: {
-        uint16_t scroll = pixels(g.layers[0].scroll_x), mid = (uint16_t)(scroll + 0x80);
+        uint16_t scroll = pixels(g.layers[0].scroll_x), mid = (uint16_t)(scroll + 0x80 + view.dx);
 
         if (scroll >= g.scroll_x_before) {
             if (mid >= pixels(waypoint((int)course_live + 1)->x))
