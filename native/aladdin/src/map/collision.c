@@ -22,9 +22,10 @@
 #include "data/game_tables.h"
 #include "map/map.h"
 #include "system/state.h"
+#include "video/view.h"
 
 #define PROBE_Y 2               /* a probe's y offset, after its x offset */
-#define VIEW_HEIGHT 0x00F0      /* a point more than this below the view's top is off it */
+#define VIEW_HEIGHT 0x00F0      /* the original's: a point more than this below the view's top is off it (224 lines and 16 more) */
 #define LEVEL_TALL_A 0x000A     /* levels whose map the player tests off the view's top and bottom too, */
 #define LEVEL_TALL_B 0x000F     /* once the view has moved down */
 #define TILE_ROWS_MASK 0x01E0   /* a tile place's row bits: 16 rows of $20 bytes */
@@ -81,8 +82,8 @@ void ProbeRight(const Actor *a, MapPoint *p)
 /*
  * @routine 81:B7F2 ProbeOnView
  * WHAT IT DOES: For the player, says whether a point is above the view's
- * top or more than 240 pixels below it (at the top itself counts as
- * above), except on levels $0A and $0F once the view has moved down
+ * top or more than the view's height and 16 pixels below it (240 for the
+ * original's 224 lines; at the top itself counts as above), except on levels $0A and $0F once the view has moved down
  * (their maps are tested whole). The original then returns from the tile
  * lookup with behaviour and kind 0: TileAt does so here.
  */
@@ -94,7 +95,7 @@ static bool ProbeOnViewOff(const Actor *a, const MapPoint *p)
         return false;
     if (top != 0 && (g.level == LEVEL_TALL_A || g.level == LEVEL_TALL_B))
         return false;
-    return top >= p->y || (uint16_t)(top + VIEW_HEIGHT) < p->y;
+    return top >= p->y || (uint16_t)(top + VIEW_HEIGHT + 2 * view.dy) < p->y;
 }
 
 /*
