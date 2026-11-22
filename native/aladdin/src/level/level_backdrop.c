@@ -6,6 +6,7 @@
  */
 #include "level/level.h"
 #include "system/state.h"
+#include "video/level_maps.h"
 #include "video/video.h"
 
 #define BACKDROP_CLEAR_AT 0x3800    /* the video word address cleared */
@@ -24,6 +25,7 @@ void LevelBackdropStart(void)
     case 0x07:
     case 0x17:
         vram_fill(BACKDROP_CLEAR_AT, 0, BACKDROP_CLEAR_WORDS);
+        LevelMapsBackdropOff();         /* the backdrop is the picture uploaded into BACK_TALL, not the level's map */
         /* fall through */
     case 0x06:
         g.layers[1].edges = 0;

@@ -7,12 +7,16 @@
 #include <stdint.h>
 
 #include "nshvc/nshvc.h"
+#include "system/state.h"
 
 /* video.c */
 nshvc_tiles video_sprite_tiles(void);       /* the sprites' tile set (their names are its tiles 256 on) */
 uint16_t vram_step(uint8_t step_byte);      /* the address step a queue record's step byte gives */
 void video_mode7_off(void);                 /* DisplayDefaults: Mode 7's outside back to repeat, writes no longer reach it */
 void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *map_words);   /* Mode7ScreenSetup's conversion */
+
+/* video.c: BG1's or BG2's video map (VIDEO_MAP_FRONT, VIDEO_MAP_BACK; 64 x 32) written whole from its words, row by row */
+void video_map_write(VideoMap map, const uint16_t *words);
 
 /* video.c: a window use nibble of the original's and its logic, as the engine's bits */
 uint8_t video_window_use(uint8_t nibble, uint8_t logic);

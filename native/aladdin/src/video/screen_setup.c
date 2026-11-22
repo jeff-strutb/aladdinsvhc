@@ -3,6 +3,7 @@
  * their defaults before a screen is built.
  */
 #include "system/state.h"
+#include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 
@@ -57,6 +58,7 @@ void DisplayDefaults(void)
     g.mode = 1;                         /* the original's 9 */
     g.bg3_priority = 1;
     g.tile_size_16 = 0;
+    LevelMapsOff();                     /* no level's layers are shown: the video maps are the picture */
     g.bg_map[0] = VIDEO_MAP_FRONT;      /* BG1 the play field's map */
     g.bg_map[1] = VIDEO_MAP_BACK;       /* BG2 the backdrop's */
     g.bg_map[2] = VIDEO_MAP_TEXT;       /* BG3 the text map */

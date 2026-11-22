@@ -9,17 +9,35 @@
  * (g.layers: 0 the play field, 1 the backdrop) keeps four edges, each a
  * place in its video map and the same place in the level's map, and steps
  * them a tile at a time as it draws.
+ *
+ * That is for the title ($40) and the Genie wheel ($2F) only, which call
+ * LayersFill to put a level's map into the video maps as a picture. A
+ * level's layers are whole-level engine maps (video/level_maps.c): there
+ * LayersFill builds them, and LayersScroll draws nothing, since the map has
+ * every tile. The routines of the ring (LayerQueueColumn, LayerQueueRow,
+ * LayerDrawColumn, LayerDrawRow, the EdgeStep routines, LayerCopyToVram) are
+ * kept as they were for those two screens.
  */
 #include <stdio.h>
 
 #include "data/data.h"
 #include "data/scroll_tables.h"
 #include "system/state.h"
+#include "video/level_maps.h"
 #include "video/scroll_layer.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 
 enum { EDGE_LEFT, EDGE_RIGHT, EDGE_TOP, EDGE_BOTTOM };
+
+#define TITLE_LEVEL 0x40            /* the levels whose map is a picture in the video maps, not a level's layers */
+#define GENIE_LEVEL 0x2F
+
+/* whether this level's map is drawn into the video maps by the ring (the title's and the Genie wheel's) */
+static int ring_level(void)
+{
+    return g.level == TITLE_LEVEL || g.level == GENIE_LEVEL;
+}
 
 /* each edge's bit in a layer's edge mask */
 static const uint8_t edge_bit[4] = { 0x02, 0x01, 0x08, 0x04 };
@@ -525,6 +543,8 @@ static void draw_queued(int rows)
  */
 void LayersScroll(void)
 {
+    if (!ring_level())
+        return;                     /* a level's layers are whole-level maps */
     for (int layer = 0; layer < 2; layer++)
         if (g.layers[layer].edges || g.layers[layer].column_parts) {
             layer_queue(layer, 0);
@@ -605,7 +625,9 @@ void LayersCopyToVram(void)
  * LayersSetup; then for each layer, column after column from the left edge
  * (48, or 66 in levels 0, 2, 3, 6, $14 and $15): LayerDrawColumn on the
  * left side, EdgeStepRight for the left edge, LayersCopyToVram; then
- * LayersSetup again.
+ * LayersSetup again. For a level's play (not the title's or the Genie
+ * wheel's): LayersSetup, then both layers' whole-level maps built
+ * (LevelMapsBuild).
  * HOW: LayersFillLong (81:C05C), its call for other banks, is this.
  */
 void LayersFill(void)
@@ -614,6 +636,13 @@ void LayersFill(void)
     int wide = level == 0x00 || level == 0x15 || level == 0x14 || level == 0x02 || level == 0x03 || level == 0x06;
 
     LayersSetup();
+    if (!ring_level()) {
+        /* a level's layers: whole-level maps built from the level's map; the fill's counters end at 0 */
+        g.fill_layers_left = 0;
+        g.fill_columns_left = 0;
+        LevelMapsBuild();
+        return;
+    }
     g.fill_layers_left = 2;
     for (int layer = 0; layer < 2; layer++) {
         ScrollLayer *l = &g.layers[layer];
