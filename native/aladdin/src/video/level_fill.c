@@ -39,6 +39,8 @@
  * map/collision.c and map/tile_changes.c read nothing else, so nothing can stand on, hit or change a fill tile.
  */
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "data/game_tables.h"
@@ -90,6 +92,7 @@ static struct {
     uint8_t out_ok[IDS_MAX];        /* the side's metatiles that have a candidate to go on outward from (they are the inward neighbour of some position) */
     uint32_t ext[IDS_MAX][IDS_MAX / 32];            /* S: pairs (u, v) that go on: seen, and the metatiles outward of u and of v again have a seen pair */
     uint32_t ext_t[IDS_MAX][IDS_MAX / 32];
+    uint32_t vset_t[IDS_MAX][IDS_MAX / 32];         /* the same by the outer metatile: the ones that can sit inward of it */
     uint32_t reach[IDS_MAX][IDS_MAX / 32];          /* S: for u, the metatiles that begin a pair that goes on, outward of u: a pair (u, v) can be gone on from if v's outward set meets it */
     uint32_t has_above[IDS_MAX / 32];               /* the metatiles with a metatile of the level above them / below them somewhere: the corner bands' cells must have one, for the top and bottom margins to go on from them */
     uint32_t has_below[IDS_MAX / 32];
@@ -413,6 +416,11 @@ static void index_side(const Side *s)
         for (int x = 0; x < lv.lw; x++)
             if (in_level(x + s->ux, y + s->uy) && lv.id_of[level_cell(x + s->ux, y + s->uy)] != NO_ID && lv.id_of[level_cell(x, y)] != NO_ID)
                 pair_set(lv.vset, lv.id_of[level_cell(x + s->ux, y + s->uy)], lv.id_of[level_cell(x, y)]);
+    memset(lv.vset_t, 0, sizeof lv.vset_t);
+    for (unsigned i = 0; i < lv.ids; i++)
+        for (unsigned w = 0; w < IDS_MAX / 32; w++)
+            for (uint32_t bits = lv.vset[i][w]; bits; bits &= bits - 1)
+                pair_set(lv.vset_t, w * 32 + (unsigned)__builtin_ctz(bits), i);
     for (int y = 0; y < lv.lh; y++)
         for (int x = 0; x < lv.lw; x++)
             if (in_level(x + s->ux, y + s->uy) && lv.id_of[level_cell(x + s->ux, y + s->uy)] != NO_ID)
@@ -587,7 +595,6 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
 
     if (s->depth <= 0 || lv.lw * lv.lh == 0)
         return;
-    index_side(s);
     for (int d = s->dmin; d <= s->depth; d++) {
         int any = 0;
 
@@ -845,8 +852,8 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
     }
 }
 
-/* the unseen pairs in each side's margin (the left, right, top, bottom in that order of claim for a pair that touches
-   more than one), and the pairs there are */
+/* the unseen pairs in each side's margin (a pair that touches more than one is the top's or the bottom's if it touches a row above or
+   below the level, as the top and bottom margins make the corners; else the left's or the right's), and the pairs there are */
 static void count_unseen(FillReport *r)
 {
     for (int y = 0; y < lv.fh; y++)
@@ -863,16 +870,432 @@ static void count_unseen(FillReport *r)
                     if (cx >= lv.ox && cx < lv.ox + lv.lw && cy >= lv.oy && cy < lv.oy + lv.lh)
                         sd = lv.tag[(size_t)(cy - lv.oy) * lv.lw + cx - lv.ox] - 1;       /* made inside the level: an empty place run to an edge */
                     else
-                        sd = cx < lv.ox ? 0 : cx >= lv.ox + lv.lw ? 1 : cy < lv.oy ? 2 : 3;
-                    if (sd >= 0 && (side < 0 || sd < side))
-                        side = sd;
+                        sd = cy < lv.oy ? 2 : cy >= lv.oy + lv.lh ? 3 : cx < lv.ox ? 0 : 1;      /* the corners belong to the top and bottom margins, which make them */
+                    if (sd >= 0 && (side < 0 || sd > side))
+                        side = sd;         /* a pair between a side margin's cell and a top or bottom margin's is the latter's: it is made after */
                 }
                 if (side < 0)
                     continue;
                 r->pairs[side]++;
-                if (!seen_at(i, dir == 0 ? 1 : lv.fw))
+                if (!seen_at(i, dir == 0 ? 1 : lv.fw)) {
                     r->unseen[side]++;
+                    if (side >= 2 && x >= lv.ox && x2 < lv.ox + lv.lw)
+                        r->unseen_cols[side - 2]++;     /* in the level's own columns: what a view as wide as the original's shows */
+                }
             }
+}
+
+/* ---- the exact search: constraint satisfaction over a margin's cells ----
+   Variables: every cell of the side (depth 1 to s->depth, band 0 to s->along - 1), its domain a set of metatile ids. Constraints:
+   the pair with the cell inward (a metatile the level has outward of it: vset; at depth 1 the level's edge cell), and the
+   pair with the next cell along the band (the level's across or down pairs). A cell already set (an exact band) is a single
+   value. Domains start as the metatiles a chain of copies can go on from for ever (out_mask), the corner bands' cells
+   narrowed to ones a top or bottom margin can go on from, and are made arc consistent (a value stays only where each
+   neighbour has a value that goes with it). The cells are then given values in depth-major order, the value order by
+   context score (ties by a seeded hash), each choice propagated, and a dead end backs up to the choice before it, across
+   depths. What is made has no pair the level never has. A budget of nodes ends the search (1 returned for a fill, 0 for none). */
+#define CSP_VARS_MAX (FILL_MARGIN * FILL_COLS_MAX)
+#define CSP_TRAIL_MAX 40000
+#define CSP_CANDS 24                /* the values tried for a cell, the best by context score */
+#define CSP_NODES(vars) (8u * (vars) + 20000u)
+
+static uint32_t csp_dom[CSP_VARS_MAX][SET_WORDS];
+static struct { uint32_t var; uint32_t old[SET_WORDS]; } csp_trail[CSP_TRAIL_MAX];
+static unsigned csp_trail_n;
+static uint32_t csp_queue[CSP_VARS_MAX];
+static unsigned csp_qhead, csp_qlen;
+static uint8_t csp_queued[CSP_VARS_MAX];
+static int csp_depth, csp_along;
+static const Side *csp_side_cur;
+static int csp_relax;               /* 0: every pair must be the level's; 1: the seam pair of the bands that have no chain to the end of the margin is let go; 2: every seam pair; 3: and the pairs along the band at depth 1 */
+
+static int csp_tail_forever;        /* 1: the last depth's cells must be ones a chain can go on from for ever (the margin goes on past it) */
+static int csp_gave_up;             /* the last search ended on its work or trail limit, not on a proof */
+static uint64_t csp_ops, csp_ops_limit;      /* the work done (revisions' word operations) and the most a search may do: past it the search is given up */
+
+static int csp_enqueue(uint32_t v)
+{
+    if (csp_queued[v])
+        return 1;
+    csp_queued[v] = 1;
+    csp_queue[(csp_qhead + csp_qlen++) % CSP_VARS_MAX] = v;
+    return 1;
+}
+
+/* n's domain narrowed to what goes with some value of c's: rel(v) for each value v of c. 0 if n's domain is empty or the trail is full. */
+static int csp_revise(uint32_t n, uint32_t c, const uint32_t (*rel)[SET_WORDS])
+{
+    uint32_t acc[SET_WORDS], now[SET_WORDS];
+    int changed = 0;
+
+    memset(acc, 0, sizeof acc);
+    for (unsigned w = 0; w < SET_WORDS; w++)
+        for (uint32_t bits = csp_dom[c][w]; bits; bits &= bits - 1) {
+            const uint32_t *r = rel[w * 32 + (unsigned)__builtin_ctz(bits)];
+
+            csp_ops += SET_WORDS;
+
+            for (unsigned i = 0; i < SET_WORDS; i++)
+                acc[i] |= r[i];
+        }
+    for (unsigned i = 0; i < SET_WORDS; i++) {
+        now[i] = csp_dom[n][i] & acc[i];
+        changed |= now[i] != csp_dom[n][i];
+    }
+    if (!changed)
+        return 1;
+    if (csp_trail_n == CSP_TRAIL_MAX || csp_ops > csp_ops_limit) {
+        csp_gave_up = 1;
+        return 0;
+    }
+    csp_trail[csp_trail_n].var = n;
+    memcpy(csp_trail[csp_trail_n].old, csp_dom[n], sizeof csp_dom[n]);
+    csp_trail_n++;
+    memcpy(csp_dom[n], now, sizeof now);
+    if (set_empty(now))
+        return 0;
+    csp_enqueue(n);
+    return 1;
+}
+
+static void csp_undo(unsigned mark)
+{
+    while (csp_trail_n > mark) {
+        csp_trail_n--;
+        memcpy(csp_dom[csp_trail[csp_trail_n].var], csp_trail[csp_trail_n].old, sizeof csp_dom[0]);
+    }
+    for (; csp_qlen; csp_qlen--)
+        csp_queued[csp_queue[csp_qhead++ % CSP_VARS_MAX]] = 0;
+    csp_qhead = 0;
+}
+
+/* arc consistency from the queued cells; 0 on a domain with no value (the queue is then cleared) */
+static int csp_propagate(void)
+{
+    const Side *s = csp_side_cur;
+    const uint32_t (*after)[SET_WORDS] = s->lx ? lv.across : lv.below;
+    const uint32_t (*before)[SET_WORDS] = s->lx ? lv.across_t : lv.below_t;
+
+    while (csp_qlen) {
+        uint32_t c = csp_queue[csp_qhead++ % CSP_VARS_MAX];
+        int d = (int)(c / (unsigned)csp_along) + 1, t = (int)(c % (unsigned)csp_along);
+
+        csp_qlen--;
+        csp_queued[c] = 0;
+        if ((d < csp_depth && !csp_revise(c + (uint32_t)csp_along, c, lv.vset)) ||
+            (d > 1 && !csp_revise(c - (uint32_t)csp_along, c, lv.vset_t)) ||
+            (!(csp_relax >= 3 && d == 1) && t + 1 < csp_along && !csp_revise(c + 1, c, after)) ||
+            (!(csp_relax >= 3 && d == 1) && t > 0 && !csp_revise(c - 1, c, before))) {
+            for (; csp_qlen; csp_qlen--)
+                csp_queued[csp_queue[csp_qhead++ % CSP_VARS_MAX]] = 0;
+            csp_qhead = 0;
+            return 0;
+        }
+    }
+    csp_qhead = 0;
+    return 1;
+}
+
+static int csp_single(uint32_t v)
+{
+    int found = -1;
+
+    for (unsigned w = 0; w < SET_WORDS; w++)
+        if (csp_dom[v][w]) {
+            if (found >= 0 || (csp_dom[v][w] & (csp_dom[v][w] - 1)))
+                return -1;
+            found = (int)(w * 32 + (unsigned)__builtin_ctz(csp_dom[v][w]));
+        }
+    return found;
+}
+
+#define CSP_POOL (1u << 20)
+static uint16_t csp_pool_val[CSP_POOL];     /* the candidate values of the choices on the stack, each in the order to try */
+static int32_t csp_pool_pos[CSP_POOL];      /* the level position each is taken from, -1 if none */
+static unsigned csp_pool_top;
+
+typedef struct CspFrame {
+    uint32_t var;
+    unsigned mark;                  /* the trail before this choice */
+    unsigned off, n, next;          /* its candidates in the pool, how many, the next to try */
+} CspFrame;
+
+static CspFrame csp_frames[CSP_VARS_MAX];
+
+/* the values of a cell's domain in the order to try them: best context first (and the copy of its neighbours' sources first of all) */
+static int csp_order_cmp(const void *a, const void *b)
+{
+    uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
+
+    return x < y ? -1 : x > y;
+}
+
+static void csp_candidates(const Side *s, int d, int t, CspFrame *f)
+{
+    int tx = s->bx + t * s->lx - d * s->ux, ty = s->by + t * s->ly - d * s->uy;
+    size_t ti = (size_t)ty * lv.fw + tx;
+    unsigned id = lv.id_of[lv.cells[ti + (ptrdiff_t)s->uy * lv.fw + s->ux]];
+    static int16_t best[IDS_MAX];
+    static int32_t best_pos[IDS_MAX];
+    static uint64_t order[IDS_MAX];
+    int32_t psrc = source_of[ti + (ptrdiff_t)s->uy * lv.fw + s->ux];
+    int32_t lsrc = t > 0 ? source_of[ti - (ptrdiff_t)s->ly * lv.fw - s->lx] : -1;
+    uint32_t v = (uint32_t)(d - 1) * (uint32_t)csp_along + (uint32_t)t;
+    unsigned count = 0;
+
+    memset(best, 0xFF, sizeof best);
+    if (id != NO_ID) {
+        uint32_t from = lv.bucket_start[id], to = lv.bucket_start[id + 1], n = to - from, stride = n / (2 * CAND_MAX) + 1;
+
+        for (uint32_t b = from + (n ? next_random() % stride : 0); b < to; b += stride) {
+            uint32_t at = lv.bucket_pos[b];
+            unsigned vid = lv.id_of[level_cell((int)(at % (unsigned)lv.lw), (int)(at / (unsigned)lv.lw))];
+            int sc;
+
+            if (vid == NO_ID || !(csp_dom[v][vid >> 5] >> (vid & 31) & 1u))
+                continue;
+            sc = (int)context_score(s, tx, ty, (int)(at % (unsigned)lv.lw), (int)(at / (unsigned)lv.lw));
+            if (sc > best[vid]) {
+                best[vid] = (int16_t)sc;
+                best_pos[vid] = (int32_t)at;
+            }
+        }
+        /* the continuations of the copies the neighbours are part of: first */
+        for (int p = 0; p < 2; p++) {
+            int32_t src = p ? lsrc : psrc;
+            int px, py;
+
+            if (src < 0)
+                continue;
+            px = (int)(src % lv.lw) + (p ? s->lx : -s->ux);
+            py = (int)(src / lv.lw) + (p ? s->ly : -s->uy);
+            if (in_level(px, py)) {
+                unsigned vid = lv.id_of[level_cell(px, py)];
+
+                if (vid != NO_ID && (csp_dom[v][vid >> 5] >> (vid & 31) & 1u)) {
+                    best[vid] = (int16_t)(1000 - p);
+                    best_pos[vid] = py * lv.lw + px;
+                }
+            }
+        }
+    }
+    for (unsigned w = 0; w < SET_WORDS; w++)
+        for (uint32_t bits = csp_dom[v][w]; bits; bits &= bits - 1) {
+            unsigned vid = w * 32 + (unsigned)__builtin_ctz(bits);
+            int sc = best[vid] < 0 ? 0 : best[vid];
+
+            order[count++] = ((uint64_t)(2000 - sc) << 40) | ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFFFu) << 16) | vid;
+        }
+    qsort(order, count, sizeof order[0], csp_order_cmp);
+    f->off = csp_pool_top;
+    f->n = 0;
+    for (unsigned k = 0; k < count && csp_pool_top < CSP_POOL; k++) {
+        unsigned vid = (unsigned)(order[k] & 0xFFFFu);
+
+        csp_pool_val[csp_pool_top] = (uint16_t)vid;
+        csp_pool_pos[csp_pool_top] = best[vid] < 0 ? -1 : best_pos[vid];
+        csp_pool_top++;
+        f->n++;
+    }
+    f->next = 0;
+}
+
+static uint8_t csp_assigned[CSP_VARS_MAX];
+static unsigned csp_last_nodes, csp_last_budget, csp_last_v;
+
+static size_t csp_cell(const Side *s, uint32_t v)
+{
+    int d = (int)(v / (unsigned)s->along) + 1, t = (int)(v % (unsigned)s->along);
+
+    return (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+}
+
+static void csp_clear_from(const Side *s, uint32_t from, uint32_t to)
+{
+    for (uint32_t j = from; j < to; j++)
+        if (csp_assigned[j]) {
+            lv.cells[csp_cell(s, j)] = UNSET;
+            source_of[csp_cell(s, j)] = -1;
+            csp_assigned[j] = 0;
+        }
+}
+
+/* 1 if the side is made whole (its cells set), else 0 with its cells as they were */
+static uint32_t csp_reach[FILL_MARGIN + 2][SET_WORDS];     /* [j]: the metatiles a chain of j more cells can go outward from */
+
+
+static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, int relax)
+{
+    unsigned vars = (unsigned)(s->depth * s->along), sp = 0, nodes = 0, budget = CSP_NODES(vars);
+    uint32_t v, hw = 0;
+
+    if (s->depth <= 0 || s->dmin != 1 || vars > CSP_VARS_MAX || lv.lw * lv.lh == 0)
+        return 0;
+    /* a cell at depth d must be a metatile that j = depth - d more can follow: reach[0] is all, reach[j + 1] those with an outward
+       neighbour in reach[j] */
+    for (unsigned w = 0; w < SET_WORDS; w++)
+        csp_reach[0][w] = 0;
+    for (unsigned i = 0; i < lv.ids; i++)
+        csp_reach[0][i >> 5] |= 1u << (i & 31);
+    for (int j = 0; j < s->depth; j++) {
+        memset(csp_reach[j + 1], 0, sizeof csp_reach[0]);
+        for (unsigned i = 0; i < lv.ids; i++) {
+            unsigned hit = 0;
+
+            for (unsigned w = 0; w < SET_WORDS && !hit; w++)
+                hit = (lv.vset[i][w] & csp_reach[j][w]) != 0;
+            if (hit)
+                csp_reach[j + 1][i >> 5] |= 1u << (i & 31);
+        }
+    }
+    csp_relax = relax;
+    csp_ops = 0;
+    csp_gave_up = 0;
+    csp_ops_limit = 150000000ull;
+    csp_side_cur = s;
+    csp_depth = s->depth;
+    csp_along = s->along;
+    csp_trail_n = 0;
+    csp_qhead = csp_qlen = 0;
+    memset(csp_queued, 0, vars);
+    memset(csp_assigned, 0, vars);
+    for (int d = 1; d <= s->depth; d++)
+        for (int t = 0; t < s->along; t++) {
+            uint32_t var = (uint32_t)(d - 1) * (uint32_t)s->along + (uint32_t)t;
+            size_t ti = csp_cell(s, var);
+            uint32_t *dom = csp_dom[var];
+
+            if (lv.cells[ti] != UNSET) {
+                unsigned kid = lv.id_of[lv.cells[ti]];
+
+                memset(dom, 0, sizeof csp_dom[0]);
+                if (kid == NO_ID)
+                    return 0;
+                dom[kid >> 5] |= 1u << (kid & 31);
+            } else {
+                memcpy(dom, csp_tail_forever && d == s->depth ? lv.out_mask : csp_reach[s->depth - d], sizeof csp_dom[0]);
+                if (d == 1) {
+                    unsigned eid = lv.id_of[lv.cells[ti + (ptrdiff_t)s->uy * lv.fw + s->ux]];
+
+                    if (eid == NO_ID)
+                        return 0;
+                    uint32_t seam[SET_WORDS];
+                    unsigned forced = 1;
+
+                    for (unsigned w = 0; w < SET_WORDS; w++) {
+                        seam[w] = dom[w] & lv.vset[eid][w];
+                        forced &= seam[w] == 0;
+                    }
+                    if (relax == 0 || (relax == 1 && !forced))
+                        memcpy(dom, seam, sizeof seam);     /* the seam pair must be the level's (else it is let go, and counts) */
+                }
+                if (corner && s->lx == 0 && (t == 0 || t == s->along - 1)) {
+                    const uint32_t *mask = t == 0 ? lv.has_above : lv.has_below;
+
+                    for (unsigned w = 0; w < SET_WORDS; w++)
+                        dom[w] &= mask[w];
+                }
+            }
+            if (set_empty(dom))
+                return 0;
+        }
+    for (v = 0; v < vars; v++)
+        csp_enqueue(v);
+    if (!csp_propagate()) {
+        csp_undo(0);
+        return 0;
+    }
+    csp_trail_n = 0;                /* the first narrowing stays */
+    csp_pool_top = 0;
+    if (ac_only)
+        return 1;
+    for (v = 0; v < vars;) {
+        CspFrame *f;
+        int placed = 0, resumed = 0;
+
+        if (sp && csp_frames[sp - 1].var == v) {
+            f = &csp_frames[sp - 1];
+            csp_pool_top = f->off + f->n;
+            csp_undo(f->mark);
+            resumed = 1;
+        } else {
+            int single = csp_single(v);
+
+            if (single >= 0) {              /* decided by what came before: no choice here */
+                if (lv.cells[csp_cell(s, v)] == UNSET) {
+                    lv.cells[csp_cell(s, v)] = lv.cell_of[single];
+                    source_of[csp_cell(s, v)] = -1;
+                    csp_assigned[v] = 1;
+                }
+                if (v + 1 > hw)
+                    hw = v + 1;
+                v++;
+                continue;
+            }
+            f = &csp_frames[sp++];
+            f->var = v;
+            f->mark = csp_trail_n;
+            csp_candidates(s, (int)(v / (unsigned)s->along) + 1, (int)(v % (unsigned)s->along), f);
+        }
+        (void)resumed;
+        while (f->next < f->n && nodes < budget) {
+            unsigned vid = csp_pool_val[f->off + f->next];
+            int32_t pos = csp_pool_pos[f->off + f->next];
+
+            f->next++;
+            nodes++;
+            if (csp_trail_n + 1 >= CSP_TRAIL_MAX) {
+                nodes = budget;
+                break;
+            }
+            csp_trail[csp_trail_n].var = v;
+            memcpy(csp_trail[csp_trail_n].old, csp_dom[v], sizeof csp_dom[0]);
+            csp_trail_n++;
+            memset(csp_dom[v], 0, sizeof csp_dom[0]);
+            csp_dom[v][vid >> 5] |= 1u << (vid & 31);
+            csp_enqueue(v);
+            if (csp_propagate()) {
+                lv.cells[csp_cell(s, v)] = lv.cell_of[vid];
+                source_of[csp_cell(s, v)] = pos;
+                csp_assigned[v] = 1;
+                placed = 1;
+                break;
+            }
+            csp_undo(f->mark);
+        }
+        if (placed) {
+            if (v + 1 > hw)
+                hw = v + 1;
+            v++;
+            continue;
+        }
+        if (nodes >= budget)
+            break;
+        /* every candidate failed: back up to the choice before, across depths */
+        csp_pool_top = csp_frames[sp - 1].off;
+        sp--;
+        if (!sp)
+            break;
+        csp_clear_from(s, csp_frames[sp - 1].var, hw);
+        hw = csp_frames[sp - 1].var;
+        v = csp_frames[sp - 1].var;
+    }
+    csp_last_nodes = nodes;
+    csp_last_budget = budget;
+    csp_last_v = v;
+    if (v < vars) {
+        csp_clear_from(s, 0, vars);
+        csp_undo(0);
+        return 0;
+    }
+    for (int t = 0; t < s->along; t++)
+        if (!report[t].method)
+            report[t].method = FILL_SYNTH;
+    for (uint32_t j = 0; j < vars; j++)
+        if (csp_assigned[j])
+            kind_of[csp_cell(s, j)] = FILL_KIND_SYNTH;
+    csp_undo(0);
+    return 1;
 }
 
 /* the exact bands of a margin that a synthesised neighbour could not be made to match (an unseen pair between the two), for
@@ -911,11 +1334,132 @@ static unsigned conflicts(const Side *s, const FillBand *report, uint8_t *banned
 /* a margin made whole: the exact bands, then S; where an exact band and its neighbour do not fit, up to ROUNDS times
    again with those bands left to S */
 #define ROUNDS 3
+/* the side's cells unset and the exact bands laid (those not banned) */
+static void prepare_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
+                           DataRef metatiles, FillBand *report, uint8_t *fixed, const uint8_t *banned)
+{
+    for (int d = s->dmin; d <= s->depth; d++)
+        for (int t = 0; t < s->along; t++) {
+            size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+
+            lv.cells[ti] = UNSET;
+            source_of[ti] = -1;
+            kind_of[ti] = 0;
+        }
+    memset(report, 0, bands * sizeof *report);
+    fill_exact(base, sa, sb, bands, s->n_of, total, rows, metatiles, report, fixed, banned);
+}
+
 static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
-                        DataRef metatiles, FillBand *report, unsigned *unfilled)
+                        DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome)
 {
     uint8_t fixed[FILL_COLS_MAX], banned[FILL_COLS_MAX];
 
+    index_side(s);
+    /* The exact search. Three set-ups: with the exact bands as they are and the corner bands' cells ones the top and bottom margins
+       can go on from; without the exact bands; and without the corner condition. For each, arc consistency says how many depths
+       can be made with no pair the level never has (the most, by halving: fewer depths is never harder). A side that can be made all
+       the way is made. One that cannot is made as far as it can, and the depths beyond are made by the depth at a time path, so
+       that the pairs the level never has are as far from the seam as can be. */
+    int best_attempt = -1, best_depth = 0;
+
+    for (int attempt = 0; attempt < 3 && best_depth < s->depth; attempt++) {
+        int lo = 0, hi = s->depth, found_full = 0;
+        Side probe = *s;
+
+        memset(banned, attempt >= 1, sizeof banned);
+        /* the whole depth first (a side that can be made is made, and left made); if not, one depth, then the most by halving */
+#define PROBE(depth_) (prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned), probe.depth = (depth_), \
+                       csp_tail_forever = 0, csp_last_nodes = csp_last_v = 0, csp_side(&probe, report, attempt < 2, 0, 0))
+        if (PROBE(s->depth)) {
+            found_full = 1;
+            lo = hi;
+        } else if (!PROBE(1)) {
+            if (attempt == 2 && !csp_gave_up)
+                *outcome = FILL_OUTCOME_PROVED;         /* the search ends: no cell can be made with the level's own pairs */
+            hi = 0;
+        } else {
+            lo = 1;
+            hi = s->depth - 1;
+            while (lo < hi) {
+                int mid = (lo + hi + 1) / 2;
+
+                if (PROBE(mid))
+                    lo = mid;
+                else
+                    hi = mid - 1;
+            }
+        }
+#undef PROBE
+        if (found_full) {
+            *outcome = FILL_OUTCOME_MADE;
+            if (getenv("ALADDIN_DEV_FILL"))
+                fprintf(stderr, "fill: side u=(%d,%d) csp made %d of %d depths (attempt %d), nodes %u of %u\n", s->ux, s->uy, s->depth, s->depth, attempt, csp_last_nodes, csp_last_budget);
+            return;
+        }
+        if (lo > best_depth || best_attempt < 0) {
+            best_depth = lo;
+            best_attempt = attempt;
+        }
+    }
+    if (best_depth > 0) {
+        Side part = *s;
+
+        memset(banned, best_attempt >= 1, sizeof banned);
+        prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+        part.depth = best_depth;
+        csp_tail_forever = 0;
+        csp_last_nodes = csp_last_v = 0;
+        if (csp_side(&part, report, best_attempt < 2, 0, 0)) {
+            *outcome = FILL_OUTCOME_PARTIAL;
+            if (getenv("ALADDIN_DEV_FILL"))
+                fprintf(stderr, "fill: side u=(%d,%d) csp made %d of %d depths (attempt %d), nodes %u of %u\n", s->ux, s->uy, best_depth, s->depth, best_attempt, csp_last_nodes, csp_last_budget);
+            /* the margin beyond: the one place the level's pairs run out, the cells there made with the fewest pairs let go (first those of the
+               bands with no way on, then every seam pair, then those along the band), and every pair beyond as the level has it */
+            part = *s;
+            part.bx = s->bx - best_depth * s->ux;
+            part.by = s->by - best_depth * s->uy;
+            part.depth = s->depth - best_depth;
+            csp_tail_forever = 0;
+            for (int relax = 1; relax <= 3; relax++) {
+                csp_last_nodes = csp_last_v = 0;
+                if (csp_side(&part, report, 0, 0, relax)) {
+                    if (getenv("ALADDIN_DEV_FILL"))
+                        fprintf(stderr, "fill: side u=(%d,%d) the rest made, the break at depth %d, relaxed %d\n", s->ux, s->uy, best_depth + 1, relax);
+                    return;
+                }
+            }
+            part = *s;
+            part.dmin = best_depth + 1;
+            synth_side(&part, report, unfilled);
+            return;
+        }
+        *outcome = FILL_OUTCOME_GAVE_UP;
+    } else {
+        /* not even the first cells can be made without a pair the level never has (the side is one of those the level's own cells cannot
+           fill): the fewest such pairs, all at the seam. The seam pair of the bands that have no way on is let go first, then every
+           seam pair, then the pairs along the band at depth 1. The cells beyond are made with none. */
+        for (int relax = 1; relax <= 3; relax++)
+            for (int attempt = 2; attempt <= 2; attempt++) {
+                memset(banned, 1, sizeof banned);
+                prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+                csp_tail_forever = 0;
+                if (!csp_side(s, report, attempt < 2, 1, relax))
+                    continue;
+                csp_last_nodes = csp_last_v = 0;
+                if (csp_side(s, report, attempt < 2, 0, relax)) {
+                    *outcome = FILL_OUTCOME_RELAXED;
+                    if (getenv("ALADDIN_DEV_FILL"))
+                        fprintf(stderr, "fill: side u=(%d,%d) csp made all depths with the seam relaxed (level %d), nodes %u of %u\n", s->ux, s->uy, relax, csp_last_nodes, csp_last_budget);
+                    return;
+                }
+            }
+        if (!*outcome)
+            *outcome = FILL_OUTCOME_GAVE_UP;
+        if (getenv("ALADDIN_DEV_FILL"))
+            fprintf(stderr, "fill: side u=(%d,%d) no depth can be made without a pair the level never has\n", s->ux, s->uy);
+    }
+    /* no consistent fill found (none, or the budget ran out): the depth at a time path, which keeps the fewest broken pairs */
     memset(banned, 0, sizeof banned);
     for (int round = 0; round < ROUNDS; round++) {
         unsigned before = *unfilled;
@@ -926,6 +1470,7 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
 
                 lv.cells[ti] = UNSET;
                 source_of[ti] = -1;
+                kind_of[ti] = 0;
             }
         memset(report, 0, bands * sizeof *report);
         fill_exact(base, sa, sb, bands, s->n_of, total, rows, metatiles, report, fixed, banned);
@@ -1124,19 +1669,19 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
         /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
         if (right) {
             sd = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh, 1 - (int)max_right, n_right };
-            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled);
+            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled, &report->outcome[1]);
         }
         if (ox) {
             sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1 - (int)max_left, n_left };
-            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled);
+            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0]);
         }
         if (below) {
             sd = (Side){ 0, -1, 1, 0, 0, (int)(oy + lh - 1), (int)below, (int)fw, 1 - (int)max_bottom, n_bottom };
-            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled);
+            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled, &report->outcome[3]);
         }
         if (oy) {
             sd = (Side){ 0, 1, 1, 0, 0, (int)oy, (int)oy, (int)fw, 1 - (int)max_top, n_top };
-            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled);
+            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled, &report->outcome[2]);
         }
     }
     for (unsigned y = 0; y < fh; y++)
@@ -1146,6 +1691,6 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     repair();
     report->unfilled = unfilled;
     count_unseen(report);
-    report->seam_down = below > 0 && report->unseen[3] == 0;
-    report->seam_up = oy > 0 && report->unseen[2] == 0;
+    report->seam_down = below > 0 && report->unseen_cols[1] == 0;
+    report->seam_up = oy > 0 && report->unseen_cols[0] == 0;
 }

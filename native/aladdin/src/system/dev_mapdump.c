@@ -279,6 +279,8 @@ static void fill_write(const char *dir, unsigned level)
         fill_side(f, "top", r->up, r->fw, r->ox, "column", r->oy > 0);
         fprintf(f, " unseen pairs (of the pairs touching in each margin and its seam): left %u of %u, right %u of %u, top %u of %u, bottom %u of %u; %u cells unfilled\n",
                 r->unseen[0], r->pairs[0], r->unseen[1], r->pairs[1], r->unseen[2], r->pairs[2], r->unseen[3], r->pairs[3], r->unfilled);
+        fprintf(f, " unseen over the level's own columns: top %u, bottom %u\n", r->unseen_cols[0], r->unseen_cols[1]);
+        fprintf(f, " exact search: left %c, right %c, top %c, bottom %c\n", r->outcome[0] ? r->outcome[0] : '-', r->outcome[1] ? r->outcome[1] : '-', r->outcome[2] ? r->outcome[2] : '-', r->outcome[3] ? r->outcome[3] : '-');
         fprintf(f, " seamless past the top: %s; past the bottom: %s\n", r->seam_up ? "yes" : "no", r->seam_down ? "yes" : "no");
     }
     fclose(f);

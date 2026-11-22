@@ -18,6 +18,10 @@
 /* how a band (a row of metatiles past the right or left edge, a column past the bottom or top edge) was filled */
 enum { FILL_NONE = 0, FILL_EXACT = 'B', FILL_EMPTY = 'E', FILL_CYCLE = 'R', FILL_SYNTH = 'S', FILL_BACKDROP = 'D' };
 
+/* how the exact search of a side ended: 0 not run (no margin), made whole, made with seam pairs let go, made to some depth (the rest by the depth at a time path), proved
+   (arc consistency leaves no cell that has only the level's own pairs: the side cannot be 0), given up (its work limit) */
+enum { FILL_OUTCOME_NONE = 0, FILL_OUTCOME_MADE = 'M', FILL_OUTCOME_RELAXED = 'R', FILL_OUTCOME_PARTIAL = 'P', FILL_OUTCOME_PROVED = 'X', FILL_OUTCOME_GAVE_UP = 'G' };
+
 /* how a cell of the whole was made (level_fill_kind) */
 enum { FILL_KIND_LEVEL = 0, FILL_KIND_EXACT, FILL_KIND_EMPTY, FILL_KIND_CYCLE, FILL_KIND_SYNTH, FILL_KIND_FALLBACK, FILL_KIND_REPAIR };
 
@@ -38,6 +42,8 @@ typedef struct FillReport {
     unsigned seam_up, seam_down;    /* 1: no unseen pair in the top / bottom margin (see level_fill.c) */
     unsigned pairs[4], unseen[4];   /* by side (left, right, top, bottom): the pairs of touching metatiles in the margin and across its seam, and those the level's own layout never has */
     unsigned unfilled;              /* cells no candidate could give (left blank) */
+    unsigned unseen_cols[2];        /* the top's and the bottom's unseen pairs over the level's own columns (the seam flags read these: a view as wide as the original's shows no corner) */
+    uint8_t outcome[4];             /* by side (left, right, top, bottom): how the exact search ended, FILL_OUTCOME_* */
 } FillReport;
 
 /* `cells` holds fw x fh metatiles row by row, the level's lw x lh with its top left cell at column ox, row oy (the margins
