@@ -7,7 +7,6 @@
 #include "player/player_own.h"
 #include "level/level.h"
 #include "video/video.h"
-#include "video/view.h"
 
 #define NO_FALL_LEVEL_1 0x07    /* levels where falling out of the bottom does not hurt */
 #define NO_FALL_LEVEL_2 0x12
@@ -57,8 +56,6 @@ void TestBoxPlace(const Actor *a)
  * is more than 230 pixels below the scroll's lowest place (or below the
  * scroll itself while an empty block stops it up or down). Above the map's
  * top (his y negative) is above.
- * HOW: g.scroll_limit_y is the original's, (rows - 1) * 256, whatever the
- * view's height (view.h), so the fall is (rows - 1) * 256 + $E6 at any view.
  */
 bool PlayerFallenTest(void)
 {
@@ -98,12 +95,11 @@ void PlayerHurtCountdown(Actor *a)
  * @routine 81:E990 PlayerKeepOnScreenX
  * WHAT IT DOES: Keeps the actor's x on screen: 16 to 240 pixels from the
  * play field's left edge (at or left of the least, it goes to the least).
- * The view (view.h): 16 to w - 16.
  */
 void PlayerKeepOnScreenX(Actor *a)
 {
     uint16_t scroll = pixels(g.layers[0].scroll_x), x = x_pixels(a);
-    uint16_t low = (uint16_t)(scroll + screen_limit_low(0)), high = (uint16_t)(scroll + screen_limit_high(0) + 2 * view.dx);
+    uint16_t low = (uint16_t)(scroll + screen_limit_low(0)), high = (uint16_t)(scroll + screen_limit_high(0));
 
     if (low >= x)
         set_x_pixels(a, low);
@@ -114,7 +110,7 @@ void PlayerKeepOnScreenX(Actor *a)
 /*
  * @routine 81:E9AD PlayerKeepOnScreen
  * WHAT IT DOES: Keeps the actor on screen: x as PlayerKeepOnScreenX, y 24
- * to 216 pixels from the play field's top. The view (view.h): 24 to h - 8.
+ * to 216 pixels from the play field's top.
  */
 void PlayerKeepOnScreen(Actor *a)
 {
@@ -124,7 +120,7 @@ void PlayerKeepOnScreen(Actor *a)
     scroll = pixels(g.layers[0].scroll_y);
     y = y_pixels(a);
     low = (uint16_t)(scroll + screen_limit_low(1));
-    high = (uint16_t)(scroll + screen_limit_high(1) + 2 * view.dy);
+    high = (uint16_t)(scroll + screen_limit_high(1));
     if (low >= y)
         set_y_pixels(a, low);
     else if (high < y)

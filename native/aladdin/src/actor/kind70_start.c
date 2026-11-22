@@ -71,7 +71,7 @@ int Kind70Start(Actor *a)
         a->resume = POSE1;
         return 0x20;
     case HIT_WAIT:
-        if (!(a->flags & 0x40))
+        if (!ACTOR_ON_SCREEN(a))
             return 1;
         g.scripted_cue++;
         a->resume = HIT_CUE;

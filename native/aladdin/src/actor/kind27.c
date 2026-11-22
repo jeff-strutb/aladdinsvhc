@@ -53,7 +53,7 @@ static void Kind27Trail(Actor *a)
 
     if (g.sprite_flicker & 0x0F)
         return;
-    if (!(g.sprite_flicker & 0x10) && (a->flags & 0x40))
+    if (!(g.sprite_flicker & 0x10) && ACTOR_ON_SCREEN(a))
         SoundQueueAdd(0x37);
     a->spawn_at = 0;
     child = ActorSpawn(a, a->kind);

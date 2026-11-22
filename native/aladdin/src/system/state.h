@@ -227,6 +227,8 @@ typedef struct Actor {
     int (*code)(struct Actor *a); /* native: the code that owns its resume point (actor.h's ActorCode): its kind's entry, or what ActorRunAs gave it */
     uint16_t call_at;           /* native: where a shared routine that waits inside it goes on (actor.h), 0 none;
                                    the original kept its caller's return at +$4E and its own place in +$02-$05 */
+    uint8_t on_screen;          /* native: set by ActorsInView with the in-view flag (bit 6 of flags): the original's own 256 x 224 view box holds the
+                                   range point, as that flag meant at the original's view; see ACTOR_ON_SCREEN */
     DataRef own_pictures;       /* +$29-$2A, for the kinds that send their own pictures: the list ActorPictureSend sends them
                                    from (the original's word in the data bank); those kinds' +$29 is this, the others' own.bytes */
     union {
@@ -381,10 +383,7 @@ typedef struct Sequence {
    NMI restarted every channel at its table each frame. */
 typedef enum {
     LINE_TM, LINE_TS, LINE_PALETTE, LINE_BG1_Y, LINE_BG2_X, LINE_BG3_Y, LINE_WINDOW1, LINE_WINDOW2,
-    LINE_MODE, LINE_M7_A, LINE_FIXED, LINE_WINDOW_USE_BG34,
-    LINE_WINDOW1_WIDE, LINE_WINDOW2_WIDE,   /* a level's windows in the view's columns (VIEW.md 6.3): 4 bytes a line, the left then the
-                                               right edge, each 16 bits, from g.wide_data (not the original's; the cartridge has none) */
-    LINE_TARGETS
+    LINE_MODE, LINE_M7_A, LINE_FIXED, LINE_WINDOW_USE_BG34, LINE_TARGETS
 } LineTarget;
 
 typedef struct LineChannel {
@@ -397,7 +396,6 @@ typedef struct LineChannel {
 } LineChannel;
 
 #define LINE_DATA_SIZE 0x600
-#define WIDE_DATA_SIZE 0x4900       /* g.wide_data: the boxes', the spot's and the narrowing window's tables (0x800), then the circle's, 4 bytes a line (4,096 lines) and a count a run */
 
 /* ---- the state ---- */
 
@@ -442,7 +440,7 @@ typedef struct GameState {
     uint8_t mode;               /* $039D bits 0-2: the picture mode */
     uint8_t bg3_priority;       /* $039D bit 3 */
     uint8_t tile_size_16;       /* $039D bits 4-7: BG1-BG4 with 16 x 16 tiles */
-    uint16_t window_edges[4];   /* $03A6-$03A9: window 1 left, right, window 2 left, right; in a level, the view's columns (a byte in the original) */
+    uint8_t window_edges[4];    /* $03A6-$03A9: window 1 left, right, window 2 left, right */
     uint8_t window_use[6];      /* $03AA, a nibble each: per BG1-4, sprites, colour: bit 0 window 1 inverted, 1 on, 2 window 2 inverted, 3 on */
     uint8_t window_logic[6];    /* $03AD, 2 bits each: per BG1-4, sprites, colour: 0 or, 1 and, 2 xor, 3 xnor */
     uint8_t blend_prevent;      /* $03AF bits 4-5 */
@@ -462,7 +460,6 @@ typedef struct GameState {
     uint8_t text_band_values[32]; /* $1C9E and $1CAE: the two buffers TextBandsCommit hands the line effect's channel */
     uint8_t line_data[LINE_DATA_SIZE]; /* $7E:F400-$7E:F9FF: the per-line effects' tables and data (the window edges at
                                    $F800 among them; from $F800 the parallax keeps its bands' positions) */
-    uint8_t wide_data[WIDE_DATA_SIZE];  /* the tables of the LINE_WINDOW*_WIDE channels (video/window_effects.c, circle_wipe.c): not in the original */
     uint8_t line_channels_kept; /* $03B5 high nibble: channels 4-7 other code keeps, not for the window effects */
     uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
     uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */

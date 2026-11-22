@@ -7,7 +7,6 @@
  * is, only while it is near.
  */
 #include <stdio.h>
-#include "video/view.h"
 
 #include "actor/actor_a.h"
 #include "audio/sound.h"
@@ -227,10 +226,10 @@ static void BackdropPictureStep(Actor *a)
     a->own.bytes[PICTURE_AT] = at;
 }
 
-/* whether `mine` is within 256 + `extra` (the view's dx or dy) of `from` (either side) */
-static bool near_point(uint16_t mine, uint16_t from, int32_t extra)
+/* whether `mine` is within 256 of `from` (either side) */
+static bool near_point(uint16_t mine, uint16_t from)
 {
-    return (uint16_t)(mine - from + 0x0100 + extra) < (uint16_t)(0x0200 + 2 * extra);
+    return (uint16_t)(mine - from + 0x0100) < 0x0200;
 }
 
 /*
@@ -245,7 +244,7 @@ static void BackdropActorShow(const Actor *a)
 {
     uint16_t x = pixels(a->x), y = pixels(a->y);
 
-    if (near_point(x, g.range_x, view.dx) && near_point(y, g.range_y, view.dy)) {
+    if (near_point(x, g.range_x) && near_point(y, g.range_y)) {
         g.layers[1].scroll_x = with_pixels(g.layers[1].scroll_x,
                                            (uint16_t)(0 - (uint16_t)(x - pixels(g.layers[0].scroll_x) - 0x0080)));
         g.layers[1].scroll_y = with_pixels(g.layers[1].scroll_y,

@@ -7,12 +7,11 @@
 #include "data/system_tables.h"
 #include "player/player.h"
 #include "video/video.h"
-#include "video/view.h"
 #include "level/level.h"
 #include "system/state.h"
 #include "system/system.h"
 
-#define VIEW_HALF 0x0080        /* the range point: the view's corner + this + the view's dx, dy */
+#define VIEW_HALF 0x0080        /* the range point: the view's corner + this, in x and y */
 
 /* 16.8 positions: the whole pixels set, the fraction kept */
 static uint32_t whole_set(uint32_t at, uint16_t pixels)
@@ -28,7 +27,7 @@ static uint32_t whole_set(uint32_t at, uint16_t pixels)
  * HOW: The play field's scroll, its position before the move and its drawn
  * edges take the camera's place; the backdrop takes it halved, in x unless
  * on level $10 or with a layer set-up mode, in y unless on levels 0, 3,
- * $0D, $14 or $1A. The range point is the scroll + $80 + the view's dx, dy; the
+ * $0D, $14 or $1A. The range point is the scroll + $80 each way; the
  * scroll x between 0 and $7F00. (The original also clears the first byte
  * of the play field's layer record; that byte has no field yet: video/'s
  * ScrollLayer does not name bytes $00-$27.)
@@ -62,8 +61,8 @@ void LevelStartPlace(void)
         by >>= 1;
     backdrop->scroll_y = whole_set(backdrop->scroll_y, by);
     backdrop->drawn_y = by;
-    g.range_x = (uint16_t)(s.camera_x + VIEW_HALF + view.dx);
-    g.range_y = (uint16_t)(s.camera_y + VIEW_HALF + view.dy);
+    g.range_x = (uint16_t)(s.camera_x + VIEW_HALF);
+    g.range_y = (uint16_t)(s.camera_y + VIEW_HALF);
     g.scroll_x_min = 0;
     g.scroll_x_max = 0x7F00;
 }

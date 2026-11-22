@@ -18,6 +18,10 @@ void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *m
 /* video.c: BG1's or BG2's video map (VIDEO_MAP_FRONT, VIDEO_MAP_BACK; 64 x 32) written whole from its words, row by row */
 void video_map_write(VideoMap map, const uint16_t *words);
 
+/* lines.c: a window's left or right edge of the original's columns, in the picture's (the frame beside the screen) */
+int32_t video_window_left(int32_t left);
+int32_t video_window_right(int32_t right);
+
 /* video.c: a window use nibble of the original's and its logic, as the engine's bits */
 uint8_t video_window_use(uint8_t nibble, uint8_t logic);
 
@@ -27,13 +31,6 @@ void hud_layer_write(unsigned x, unsigned y, unsigned n, const uint16_t *words);
 void hud_layer_set(nshvc_layer *l, int32_t scroll_x);   /* BG3 `l` drawn in a level's view, its corners' lines cut */
 int32_t video_cropped_rows(void);          /* the split's dark rows cropped from the picture's top; 0 without the split */
 int video_level_view(void);                 /* 1 while a level is the screen: its view is the whole view, not the original's 256 x 224 */
-
-/* where each level window effect's table is in g.wide_data (the LINE_WINDOW*_WIDE channels' tables) */
-#define WIDE_BOXES 0x000            /* effect 8: two halves of 0x200 bytes, built in turn */
-#define WIDE_SPOT 0x400             /* effect 10: 0x200 bytes, the last two the spot's line count */
-#define WIDE_NARROW 0x600           /* effect 11: 0x200 bytes */
-#define WIDE_CIRCLE 0x800           /* the circle wipe: view.h lines, in runs of 127 each after a count byte */
-#define WIDE_NONE 0xFFFFu           /* a window's left edge when there is no window: past every right edge */
 
 /* scroll.c: the layers' positions as the NMI sent them */
 void video_scroll_latch(void);              /* ScrollRegistersWrite (80:8793), from video_vblank */

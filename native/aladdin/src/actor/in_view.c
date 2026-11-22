@@ -36,7 +36,11 @@ void ActorsInView(void)
         b = view_box(a->view_box);
         if ((uint16_t)(g.range_x - pixels(a->x) + b.x_off) < b.x_span
             && (uint16_t)(g.range_y - pixels(a->y) + b.y_off) < b.y_span) {
+            ViewBox o = view_box_screen(a->view_box);
+
             a->flags |= 0x40;
+            a->on_screen = (uint8_t)((uint16_t)(g.range_x - pixels(a->x) + o.x_off) < o.x_span
+                                     && (uint16_t)(g.range_y - pixels(a->y) + o.y_off) < o.y_span);
             if (a->anim_flags & 0x08) {
                 int list = a->anim_flags & 0x03;
 
@@ -51,6 +55,7 @@ void ActorsInView(void)
             }
         } else {
             a->flags &= (uint8_t)~0x40;
+            a->on_screen = 0;
         }
     }
 }

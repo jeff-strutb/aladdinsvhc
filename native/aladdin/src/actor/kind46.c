@@ -219,7 +219,7 @@ int Kind46Start(Actor *a)
                 return ActorEndPlaced(a);
             return 1;
         }
-        if ((a->flags & 0x40) && !a->own.bytes[KIND62])
+        if (ACTOR_ON_SCREEN(a) && !a->own.bytes[KIND62])
             SoundQueueAdd(0x18);
         return landed(a);
     case FALL_ON:

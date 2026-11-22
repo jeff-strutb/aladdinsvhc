@@ -155,7 +155,7 @@ int Kind2FCode(Actor *a)
     case ACTOR_START_SECOND:
         return downed(a);
     case LIE:
-        if (!(a->flags & 0x40))
+        if (!ACTOR_ON_SCREEN(a))
             return 1;
         own(a)->frames = 0x08;
         a->resume = BEFORE_RISE;

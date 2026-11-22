@@ -57,7 +57,7 @@ int Kind6CStart(Actor *a)
     case WATCH:
         if (g.player_no_landing & 0x80)
             return 1;
-        if ((g.level & 0xFF) == 0x0A && !(a->flags & 0x40))
+        if ((g.level & 0xFF) == 0x0A && !ACTOR_ON_SCREEN(a))
             return 1;
         if (g.player_hurt_count || !in_reach(a))
             return 1;

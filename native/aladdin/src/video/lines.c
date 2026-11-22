@@ -15,19 +15,28 @@
 #include "video/video_internal.h"
 #include "video/view.h"
 
-/* the most lines a picture has (view.h's size limit); the picture's lines are view.h of them */
-#define LINES 4096
+#define LINES 224
 
-/* the picture's lines: the view's in a level, the original's 224 on a still screen (centred in the view by the origin) */
-static int picture_lines(void)
+/*
+ * A window's edges in the picture's columns: the original's 256 columns sit at view.dx (the engine's origin moves
+ * the layers and the lines, not the windows). A left edge at the screen's left edge (0) and a right edge at its
+ * right edge (255) go on to the picture's, so the columns beside the original's screen behave as its edge columns
+ * (a window that covers a line to its end covers the frame beside it; an empty one stays empty).
+ */
+int32_t video_window_left(int32_t left)
 {
-    return video_level_view() ? view.h : VIEW_ORIGINAL_H;
+    return left == 0 ? 0 : left + view.dx;
+}
+
+int32_t video_window_right(int32_t right)
+{
+    return right == VIEW_ORIGINAL_W - 1 ? view.w - 1 : right + view.dx;
 }
 
 /* bytes a line each target takes from its data */
 static const uint8_t line_bytes[LINE_TARGETS] = {
     [LINE_TM] = 1, [LINE_TS] = 1, [LINE_PALETTE] = 4, [LINE_BG1_Y] = 2, [LINE_BG2_X] = 2, [LINE_BG3_Y] = 2,
-    [LINE_WINDOW1] = 2, [LINE_WINDOW2] = 2, [LINE_WINDOW1_WIDE] = 4, [LINE_WINDOW2_WIDE] = 4, [LINE_MODE] = 1, [LINE_M7_A] = 2, [LINE_FIXED] = 1,
+    [LINE_WINDOW1] = 2, [LINE_WINDOW2] = 2, [LINE_MODE] = 1, [LINE_M7_A] = 2, [LINE_FIXED] = 1,
     [LINE_WINDOW_USE_BG34] = 1,
 };
 
@@ -39,11 +48,9 @@ static uint8_t data_at(uint32_t at)
 #define LINE_DATA_AT 0xF400u        /* where g.line_data starts in the original's bank $7E */
 #define TEXT_BAND_VALUES_AT 0x1C9Eu /* where g.text_band_values starts in the original's work RAM */
 
-/* a table's byte: the cartridge's (a level's own table), the wide windows' (g.wide_data) or the line data's */
+/* a table's byte: the cartridge's (a level's own table) or the line data's */
 static uint8_t table_byte(const LineChannel *c, uint32_t at)
 {
-    if (c->target == LINE_WINDOW1_WIDE || c->target == LINE_WINDOW2_WIDE)
-        return at < WIDE_DATA_SIZE ? g.wide_data[at] : 0;
     return c->cart.at ? line_table_byte(c->cart, at) : data_at(at);
 }
 
@@ -63,10 +70,9 @@ static uint8_t pointed_byte(uint32_t address)
 static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LINES], uint8_t set[LINES])
 {
     uint32_t line = top, k = line_bytes[c->target], at = c->cart.at ? 0 : c->table_at, held = 0;
-    uint32_t rows = (uint32_t)picture_lines();
     int any = 0;
 
-    while (line < rows) {
+    while (line < LINES) {
         uint8_t count = table_byte(c, at++);
         uint32_t lines, from;
         int repeat;
@@ -82,7 +88,7 @@ static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LI
             from = (uint32_t)(table_byte(c, at) | table_byte(c, at + 1) << 8);
             at += 2;
         }
-        for (uint32_t i = 0; i < lines && line < rows; i++, line++) {
+        for (uint32_t i = 0; i < lines && line < LINES; i++, line++) {
             if (i == 0 || repeat) {
                 held = 0;
                 for (uint32_t b = 0; b < k; b++)
@@ -96,7 +102,7 @@ static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LI
         }
     }
     /* past the table's end the register keeps its last value */
-    for (; any && line < rows; line++) {
+    for (; any && line < LINES; line++) {
         value[line] = held;
         set[line] = 1;
     }
@@ -105,28 +111,27 @@ static void channel_values(const LineChannel *c, uint32_t top, uint32_t value[LI
 /* the lines a channel set, from the first it set, to one engine field */
 static void send(nshvc_line_field field, const int32_t *values, const uint8_t set[LINES])
 {
-    uint32_t first = 0, rows = (uint32_t)picture_lines();
+    uint32_t first = 0;
 
-    while (first < rows && !set[first])
+    while (first < LINES && !set[first])
         first++;
-    if (first < rows)
-        nshvc_lines(first, rows - first, field, values + first);
+    if (first < LINES)
+        nshvc_lines(first, LINES - first, field, values + first);
 }
 
 static void send_channel(const LineChannel *c, uint32_t top)
 {
     static uint32_t value[LINES];
     static int32_t field[LINES];
-    static uint8_t set[LINES];
-    int rows = picture_lines();
+    uint8_t set[LINES];
 
-    memset(set, 0, (size_t)rows);
+    memset(set, 0, sizeof set);
     channel_values(c, top, value, set);
     switch (c->target) {
     case LINE_TM:
     case LINE_TS:
         for (int layer = 0; layer < 5; layer++) {
-            for (int i = 0; i < rows; i++)
+            for (int i = 0; i < LINES; i++)
                 field[i] = (int32_t)(value[i] >> layer & 1);
             if (layer < 4)
                 send((nshvc_line_field)((c->target == LINE_TM ? NSHVC_LINE_MAIN : NSHVC_LINE_SUB) + layer), field, set);
@@ -135,47 +140,39 @@ static void send_channel(const LineChannel *c, uint32_t top)
         }
         break;
     case LINE_MODE:
-        for (int i = 0; i < rows; i++)
+        for (int i = 0; i < LINES; i++)
             field[i] = (int32_t)(value[i] & 7);
         send(NSHVC_LINE_MODE, field, set);
-        for (int i = 0; i < rows; i++)
+        for (int i = 0; i < LINES; i++)
             field[i] = (int32_t)(value[i] >> 3 & 1);
         send(NSHVC_LINE_BG3_PRIORITY, field, set);
         for (int layer = 0; layer < 4; layer++) {
-            for (int i = 0; i < rows; i++)
+            for (int i = 0; i < LINES; i++)
                 field[i] = value[i] >> (4 + layer) & 1 ? 16 : 8;
             send((nshvc_line_field)(NSHVC_LINE_TILE_SIZE + layer), field, set);
         }
         break;
     case LINE_WINDOW1:
     case LINE_WINDOW2:
-        /* the original's columns; on a still screen the engine's origin does not move windows, so dx is added
-           (a level has none of these: its windows are the wide channels'; dx is 0 at 256 wide) */
-        for (int i = 0; i < rows; i++)
-            field[i] = (int32_t)(value[i] & 0xFF) + (video_level_view() ? 0 : view.dx);
+        /* the original's columns, in the picture's: the engine's origin does not move windows (video_window_left) */
+        for (int i = 0; i < LINES; i++)
+            field[i] = video_window_left((int32_t)(value[i] & 0xFF));
         send(c->target == LINE_WINDOW1 ? NSHVC_LINE_WIN1_LEFT : NSHVC_LINE_WIN2_LEFT, field, set);
-        for (int i = 0; i < rows; i++)
-            field[i] = (int32_t)(value[i] >> 8 & 0xFF) + (video_level_view() ? 0 : view.dx);
+        for (int i = 0; i < LINES; i++)
+            field[i] = video_window_right((int32_t)(value[i] >> 8 & 0xFF));
         send(c->target == LINE_WINDOW1 ? NSHVC_LINE_WIN1_RIGHT : NSHVC_LINE_WIN2_RIGHT, field, set);
-        break;
-    case LINE_WINDOW1_WIDE:
-    case LINE_WINDOW2_WIDE:
-        /* the view's columns, 16 bits each: no window is a left past the right (0xFFFF) */
-        for (int i = 0; i < rows; i++)
-            field[i] = (int32_t)(value[i] & 0xFFFF);
-        send(c->target == LINE_WINDOW1_WIDE ? NSHVC_LINE_WIN1_LEFT : NSHVC_LINE_WIN2_LEFT, field, set);
-        for (int i = 0; i < rows; i++)
-            field[i] = (int32_t)(value[i] >> 16 & 0xFFFF);
-        send(c->target == LINE_WINDOW1_WIDE ? NSHVC_LINE_WIN1_RIGHT : NSHVC_LINE_WIN2_RIGHT, field, set);
         break;
     case LINE_BG1_Y:
     case LINE_BG2_X:
     case LINE_BG3_Y:
         /* 10 bits as the hardware's scroll; a layer shown from a level's whole-level map (video/level_maps.c) is
            longer than that, so its scroll is a signed 16-bit position */
-        for (int i = 0; i < rows; i++)
+        for (int i = 0; i < LINES; i++)
             field[i] = level_maps_active(c->target == LINE_BG2_X ? 1 : 0) && c->target != LINE_BG3_Y ? (int32_t)(int16_t)value[i]
                                                                                                       : (int32_t)(value[i] & 0x3FF);
+        if (c->target == LINE_BG2_X && video_level_view())
+            for (int i = 0; i < LINES; i++)
+                field[i] -= view.dx;    /* the original's screen is dx across in a level's view (video_draw) */
         send(c->target == LINE_BG1_Y ? NSHVC_LINE_SCROLL_Y + 0 : c->target == LINE_BG2_X ? NSHVC_LINE_SCROLL_X + 1
                                                                                          : NSHVC_LINE_SCROLL_Y + 2,
              field, set);
@@ -185,7 +182,7 @@ static void send_channel(const LineChannel *c, uint32_t top)
            to its low 5 bits; the others keep theirs, from the frame's */
         uint8_t r = g.fixed_red, gr = g.fixed_green, b = g.fixed_blue;
 
-        for (int i = 0; i < rows; i++) {
+        for (int i = 0; i < LINES; i++) {
             if (set[i]) {
                 uint8_t v = (uint8_t)value[i];
 
@@ -204,13 +201,13 @@ static void send_channel(const LineChannel *c, uint32_t top)
     case LINE_WINDOW_USE_BG34:
         /* a byte a line: BG3's window use in its low nibble, BG4's in its high */
         for (int layer = 2; layer < 4; layer++) {
-            for (int i = 0; i < rows; i++)
+            for (int i = 0; i < LINES; i++)
                 field[i] = video_window_use((uint8_t)(value[i] >> (4 * (layer - 2)) & 0xF), g.window_logic[layer]);
             send((nshvc_line_field)(NSHVC_LINE_WIN_USE + layer), field, set);
         }
         break;
     case LINE_M7_A:
-        for (int i = 0; i < rows; i++)
+        for (int i = 0; i < LINES; i++)
             field[i] = (int16_t)value[i];
         send(NSHVC_LINE_M7_A, field, set);
         break;
@@ -235,8 +232,6 @@ void video_lines_send(uint32_t top)
 
 int video_lines_tile_mode(void)
 {
-    int rows = picture_lines();
-
     for (int ch = 1; ch < 8; ch++) {
         const LineChannel *c = &g.line_channel[ch];
         uint32_t value[LINES];
@@ -246,7 +241,7 @@ int video_lines_tile_mode(void)
             continue;
         memset(set, 0, sizeof set);
         channel_values(c, 0, value, set);
-        for (int i = 0; i < rows; i++)
+        for (int i = 0; i < LINES; i++)
             if (set[i] && (value[i] & 7) != 7)
                 return (int)(value[i] & 7);
     }

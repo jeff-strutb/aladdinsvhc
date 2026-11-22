@@ -66,6 +66,7 @@ uint16_t spawn_offset_y(uint8_t at);           /* down */
 typedef struct ViewBox {
     uint16_t x_off, x_span, y_off, y_span;
 } ViewBox;
+ViewBox view_box_screen(uint8_t at);           /* the same, the original's (not grown with the view) */
 ViewBox view_box(uint8_t at);                  /* at: an actor's view_box (0, 8, 16, 24, 32) */
 
 /* ---- the story figures (kinds $95, $96) ---- */

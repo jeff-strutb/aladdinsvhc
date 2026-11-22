@@ -6,7 +6,6 @@
  * second entry (84:9B43) ends it off the screen.
  */
 #include "actor/kinds_c.h"
-#include "video/view.h"
 #include "data/kinds_c_tables.h"
 
 /* its own bytes (kind $8D keeps the turns, kind $8E its frames and copies) */
@@ -43,7 +42,7 @@ static int gone(Actor *a)
 /*
  * @routine 84:99ED Kind8DCircle
  * WHAT IT DOES: Actor kind $8D: starts 16 pixels left of the view and 256
- * below its top (32 below the view's bottom), flies on direction $1B until near Aladdin (box $2C), then
+ * below its top, flies on direction $1B until near Aladdin (box $2C), then
  * circles him twice at radius $48 (its flip toward him), flies off on
  * direction $1D for 80 frames, and ends off the screen.
  */
@@ -54,7 +53,7 @@ static int start8d(Actor *a)
     a->view_box = 0x18;
     a->own_pictures = k8d_pictures();
     a->x = with_pixels(a->x, (uint16_t)(pixels(g.layers[0].scroll_x) - 0x10));
-    a->y = with_pixels(a->y, (uint16_t)(pixels(g.layers[0].scroll_y) + 0x100 + 2 * view.dy));
+    a->y = with_pixels(a->y, (uint16_t)(pixels(g.layers[0].scroll_y) + 0x100));
     AnimStart(a, 0);
     a->facing = 0x1B;
     a->flip = 0;

@@ -154,38 +154,53 @@ any size, and the largest is 1024 x 96 tiles of 8 px.
 This is a change of mechanism within the direction, not a new direction. It is listed as decision 5 because it replaces
 converted code.
 
-### 4.4 Range point, boxes and kinds' constants
+### 4.4 The original frame (Jeff, 2026-11-22)
 
-- The range point is the view's middle shifted as the original's was: `range = corner + ($80 + Δx, $80 + Δy)`.
-- Every `view_box` and `range_box` half-size grows by Δx across and Δy down. The margins past the screen's edges stay the
-  original's: an actor wakes, is drawn and becomes solid at the same distance past the edge as before, wherever that edge now
-  is. This is the "animation and trigger distance" of the direction. Everything the player can see is drawn, can be hit, can
-  hit back and runs its scripts.
-- Each direct constant in 3.3 gets the same rule: across sizes + Δx, down sizes + Δy, and "screen middle" + Δx.
-  `kind6d.c:47` (spawn just off screen) becomes $90 + Δx.
-- Placements against the camera (`kind27.c:82`, `kind8d.c:55-56`, `kinda7.c:34`, `carrier_pair.c:42`, `kind97.c:70`,
-  `kind79.c:124-128`, `kind6e.c:150-153`) are each read and given their meaning: "from the left edge" stays, "below the
-  screen" becomes `+ H + 32`, and "the middle" becomes `+ W/2`. Three tables they use are not yet read (80:D8FE, kinda7's,
-  kind6e's).
+The game plays at the original's 256 x 224 against the original's camera. The view is a frame round that screen: the original's
+screen sits at (Δx, Δy) in the view, and the engine draws the level's layers beyond its edges. The camera, the scroll limits and
+stops, the player's clamps, the view-edge rules, the collision probe and the range point (the middle of the original's screen)
+all have the original's values. What the view adds is liveness, in three kinds of use:
+
+- **(a) Camera and player: the original's.** `ScrollUpdate` and its limits, `CameraStop*`, `PlayerKeepOnScreen*`, `ViewEdge*`,
+  `ProbeOnViewOff`, `PlayerFallenTest`, the level 5 end scene's windows, the range point.
+- **(b) Liveness over the whole view: scaled.** The spawn window (placement), the despawn tests (`range_box`,
+  `ActorEndFarWithChildren`, `ActorEndIfAhead`, the kinds' own range tests), the in-view flag (bit 6 of the actor's flags: drawn,
+  hit, solid and standable, and where a shot ends), the draw lists and the sprite budget. A box grows by Δx on each side across and
+  Δy up and down round the same range point, so everything the view shows is live: an apple flies its whole arc and can hit
+  whatever it reaches, an enemy in the frame is drawn, hittable and goes on with its untriggered behaviour.
+- **(c) Triggers: the original's screen.** The player-proximity wakes (`near_box`, `near_span_x/y`: the table's values, not
+  scaled), the screen-relative starts and waits (a script, sound or step that waited for the in-view flag; `kind6d` "spawn just off
+  screen", `kind79` and `kind8d` starting below the screen, `course_platform`'s screen middle, the guard's dead zone) measured against the
+  original's 256 x 224. A second flag, `Actor.on_screen`, is set by `ActorsInView` beside the in-view flag from the original's own
+  `view_box`; `ACTOR_ON_SCREEN(a)` is the flag set and `on_screen` set, and the sites of kind (c) ask it. At 256 x 224 the two
+  flags are the same test.
+
+Section 8 lists the checks: at 256 x 224 the game is the original's; wider, the trigger log
+(`ALADDIN_DEV_TRIGGERS=1`) shows no trigger fired past its original distance.
 
 ### 4.5 Spawning
 
-- The window becomes camera −64 to camera + W + 64 across and camera −64 to camera + H + 96 down. These are the original's
-  margins, with each axis kept apart.
-- The initial band count becomes (W + 128) / 32.
-- One band a frame stays as it is: the camera moves at most 3 px a frame across and 6 down, under one band's 32 px.
+The window is measured from the view's edges (camera less Δx, Δy), 64 pixels before them to 64 past across and 96 past down. The
+initial band count follows the window's length. One band a frame stays as it is (the camera moves 3 pixels a frame across, 6
+down, under a band's 32).
 
 ### 4.6 Sprites
 
-- The 9-bit wrap goes. Screen x is a full int32.
-- The y cull becomes −32 to H − 1.
-- The 128-sprite budget and the 32-actor draw lists grow with the view. The engine has no count limit and per-line limits stay
-  off. The budget is sized so that the original view never drops what it does today.
+The 9-bit wrap goes: x is a full int, and a piece is kept from -32 above the view's top to its bottom. The budget (128) and the draw
+lists (32) scale with the view's area. The sprites are the original's coordinates, moved by (Δx, Δy less the cropped rows) when
+sent, as the layers are.
 
-### 4.7 Player clamps and view edges
+### 4.7 The display of the frame
 
-- `PlayerKeepOnScreenX/Y` (80:C9B9) becomes 16 to W − 16 and 24 to H − 8.
-- `ViewEdgePush` and `ViewEdgeHurt` (`level/view_edges.c:19-68`) measure from the view's edges, and the hurt margin stays $30.
+`video_draw` sets the picture to the view and moves the original's screen to (Δx, Δy less the level's crop rows L). Down, the
+engine's origin does it (layers, per-line tables). Across it is done in the layers' scrolls, the per-line BG2 scroll and the
+sprites, since a split inside a line cannot be placed left of the engine's origin and the status line (hud_layer.c) needs one at
+the view's edge. Windows: the original's columns plus Δx; an edge at the screen's own edge (0, 255) goes on to the picture's
+edge, so a window that covered a line to its end covers the frame beside it, and an empty one stays empty (`lines.c`).
+`colour_bands.c`, `parallax.c`, `circle_wipe.c`, `window_effects.c` and the level 6 line tables are the original's: the tables count
+lines from the original's top, a line past the table's end holds its last value, and a row above the original's top takes the
+picture's starting state. The status line stays at the view's top corners across; in portrait it follows the original's top
+line (the engine's origin moves its lines).
 
 ## 5. Where there is no more level to show
 
@@ -295,10 +310,10 @@ This is decision 1.
   original view. Actor state and the player, update by update, must be identical to `b36b712`'s native build
   (`compare.py`, native against native). This proves each rule reduces to today's value. It also covers the parts the
   original never had (the whole-level map, the sprite budget).
-- **At wider and taller views:** the same plays run at 400 x 224, 480 x 270 and 224 x 400. They may differ, because more is
-  live. The check is that every play still reaches its exit, and that the following counters stay at 0: no 9-bit wraps, no
-  failed placements for want of a record or slot, no sprites dropped, no ring overwrite (the ring is gone). Pictures are taken
-  at each level's start, at its widest point and at its locks, for Jeff's look in a window.
+- **At wider and taller views:** the game traces legitimately differ (more is live). `native/checks/view/wide.sh` runs the boot
+  and every play at the view with `ALADDIN_DEV_TRIGGERS=1`: every run must exit 0 with no trap text, and
+  `trigger_check.py` must find every trigger that fired (a near test, or the original-screen flag) inside its original limits.
+  Pictures are taken at each level's start, at its widest point and at its locks, for Jeff's look in a window.
 - **Still screens and effects:** pictures at each view, compared with the 256 x 224 picture cut from their middle. They must
   be identical inside it and black outside.
 
@@ -326,12 +341,12 @@ Stages V2, V3, V5 and V9 touch separate files and can run side by side.
 Answered 2026-11-22:
 - **1, palette slots:** (a), the engine is asked for sprite palettes. Jeff: any number of sprite palettes, not a larger
   fixed number (engine API 6.8, built on the engine's `sprite-palettes` branch, not merged).
-- **2, wake distances measured from Aladdin:** scaled with the view, as the screen-relative ones are.
+- **2, wake distances measured from Aladdin:** the original's, not scaled (Jeff 2026-11-22: the game is the original's, the view a frame; enemies in the frame stay live but are not triggered past the original's distances).
 - **3:** no black: fill with matching art (section 5, analysis made, nothing built).
 - **4:** still screens centred, with black around (built).
 - **5:** whole-level maps (built).
 - **The levels' dark top rows (8, 12 in level 2) are cropped** from the picture, not shown (built).
-- **6, the view's size:** Jeff asked for it to be explained.
+- **6, the view's size:** the window's proportion (landscape: 216 shown lines and round(216 a) across; narrower: 256 across and round(256 / a) lines; both even, plus the level's crop rows).
 
 Built so far: `src/video/view.h` and `view.c` hold the view, set from `ALADDIN_VIEW=WxH` (a developer's setting) until rule 6 is
 settled, and `video_draw` sets the screen to it. `native/checks/view/same.sh` is section 8's check at 256 x 224.

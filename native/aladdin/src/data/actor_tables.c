@@ -127,6 +127,18 @@ ViewBox view_box(uint8_t at)
     return b;
 }
 
+/* the original's box, not grown with the view: ActorsInView's on_screen */
+ViewBox view_box_screen(uint8_t at)
+{
+    ViewBox b;
+
+    b.x_off = at16(0x80, (uint16_t)(0xBA02 + at));
+    b.x_span = at16(0x80, (uint16_t)(0xBA04 + at));
+    b.y_off = at16(0x80, (uint16_t)(0xBA06 + at));
+    b.y_span = at16(0x80, (uint16_t)(0xBA08 + at));
+    return b;
+}
+
 /* ---- the story figures ---- */
 
 uint8_t k95_flight_frames(uint8_t step) { return at8(0x80, (uint16_t)(0xD8F6 + step)); }

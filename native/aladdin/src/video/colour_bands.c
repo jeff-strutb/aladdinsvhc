@@ -6,7 +6,6 @@
 #include "system/state.h"
 #include "system/task.h"
 #include "video/video_tasks.h"
-#include "video/view.h"
 
 #define BAND_CHANNEL 7
 #define BAND_TABLES 0x0100u         /* the two buffers, from $7E:F500 (g.line_data's $100) */
@@ -18,10 +17,7 @@
  * bands from the 18th on dimmed by its step (not below 0), points the
  * channel at it, and flips the buffer.
  * HOW: The table (a line count and a value a pair, direct) is written into
- * the line data as the original's, and the channel pointed at it. Its lines
- * start at the original's top line, which is view.dy lines down in the view
- * (VIEW.md 6.3): the first band is that many lines longer; the last colour
- * is held to the view's bottom, as a table's end holds it.
+ * the line data as the original's, and the channel pointed at it.
  */
 static void colour_bands_write(Task *t)
 {
@@ -36,9 +32,6 @@ static void colour_bands_write(Task *t)
     g.line_table_at[BAND_CHANNEL - 4] = (uint16_t)at;
     for (unsigned i = 0; i < n; i++) {
         uint8_t lines = colour_band_byte(2 * i), value = colour_band_byte(2 * i + 1);
-
-        if (i == 0)                     /* the view's lines above the original's top take the first band's colour */
-            lines = (uint8_t)(lines + view.dy > 127 ? 127 : lines + view.dy);
 
         if (2 * i >= DIMMED_FROM) {
             value = (uint8_t)(value - t->own.bands.step);

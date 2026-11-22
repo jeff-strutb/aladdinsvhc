@@ -52,6 +52,7 @@ int KindA1Start(Actor *a)
     case ACTOR_START:
         a->anim_flags = 0x03;
         a->flags = 0xD0;
+        a->on_screen = 1;
         a->facing = 0x01;
         own(a)->long_taken = 0;
         own(a)->hits = 0;

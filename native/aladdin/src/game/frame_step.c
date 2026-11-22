@@ -12,9 +12,8 @@
 #include "system/task.h"
 #include "system/unconverted.h"
 #include "video/video.h"
-#include "video/view.h"
 
-#define VIEW_HALF 0x0080        /* the range point: the view's corner + this + the view's dx, dy */
+#define VIEW_HALF 0x0080        /* the range point: the view's corner + this, in x and y */
 
 /*
  * @routine 81:8311 FrameStep
@@ -27,7 +26,7 @@
  * HOW: The player's place kept as the frame began; the tile block queue
  * emptied and the frame not ready; PlayerLoop, OamBuildBegin, ActorLoop,
  * ScrollUpdate, TileChangesApply, LayersScroll, PlacementsScroll,
- * PlayTimeTick; the range point = the view's corner + $80 + the view's dx, dy;
+ * PlayTimeTick; the range point = the view's corner + $80 each way;
  * SequencesStep, PaletteCyclesStep; ActorsInView, OamDrawActors; the three
  * marks counted up; BgFollowLayers. An actor's TaskExec (system/task.h)
  * ends the frame where it happens: true then, and nothing after it runs.
@@ -50,8 +49,8 @@ bool FrameStep(void)
     LayersScroll();
     PlacementsScroll();
     PlayTimeTick();
-    g.range_x = (uint16_t)((g.layers[0].scroll_x >> 8) + VIEW_HALF + view.dx);
-    g.range_y = (uint16_t)((g.layers[0].scroll_y >> 8) + VIEW_HALF + view.dy);
+    g.range_x = (uint16_t)((g.layers[0].scroll_x >> 8) + VIEW_HALF);
+    g.range_y = (uint16_t)((g.layers[0].scroll_y >> 8) + VIEW_HALF);
     if (!(g.paused | g.pause_block)) {
         SequencesStep();
         PaletteCyclesStep();

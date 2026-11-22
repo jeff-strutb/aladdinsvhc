@@ -126,8 +126,8 @@ static void draw_actor(const Actor *a)
         uint16_t word;
         nshvc_sprite *s;
 
-        if (y < -32 || y >= view.h)
-            continue;                   /* off the view's height */
+        if (y < -32 - view.dy || y >= VIEW_ORIGINAL_H + view.dy)
+            continue;                   /* off the view's height (the original's screen is dy down in it) */
         word = (uint16_t)(((p->tile + base) & 0xCFFF) | priority);
         if (mirrored)
             word ^= 0x4000;
