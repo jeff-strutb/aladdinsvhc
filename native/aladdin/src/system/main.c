@@ -79,6 +79,9 @@ static void trace_line(void)
                 fprintf(stderr, "  actor %u kind=%02X state=%02X x=%d y=%d picture=%02X anim=%02X", i, g.actors[i].kind,
                         g.actors[i].state, (int)(g.actors[i].x >> 8), (int)(g.actors[i].y >> 8), g.actors[i].picture,
                         g.actors[i].anim);
+                if (i == 0)                                           /* his test box: centre, half-sizes, box number */
+                    fprintf(stderr, " tb=%d,%d,%u,%u,%02X", (int)(int16_t)g.test_box_x, (int)(int16_t)g.test_box_y,
+                            (unsigned)g.test_box_half_w, (unsigned)g.test_box_half_h, (unsigned)g.player_box);
                 if (getenv("ALADDIN_DEV_ACTORS")[0] == '2') {         /* =2: the kind's own bytes too */
                     fprintf(stderr, " own=");
                     for (b = 0; b < 32; b++)

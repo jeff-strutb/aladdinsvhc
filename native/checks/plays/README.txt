@@ -10,3 +10,6 @@ Start to exit (2026-11-21, n5 play-through): the files pPART-STAGE.txt that end 
 (ALADDIN_DEV_BOT_GE=10, SEG 6, GE_LEN 60, make.sh: it cuts the file 120 updates after the exit); `ways.txt` lists the others'
 settings. The whole table of what each play reaches is in NATIVE-FAULTS.txt ("PLAYS START TO EXIT").
 3-0 p3-0.txt, 2-0 p2-0.txt: the search's furthest places (not the exits); the level's start-to-exit plays are the other files
+boss16-2hits.txt: level 16 (5-2) by keys to Jafar's first form (arrives with health 10 at ~7900) and two stomps on him, planned from the record
+(pad bounce: kind $9A's pad + the jump held through the landing, then falling onto the swoop: hits 6 -> 5 at update 8380, 5 -> 4 at 9752; health 4 there:
+kind $6D, the homing things kind $23 sends, hit him while he waited). Not a start-to-exit play. The method is in the notes folder (n5-playthrough2-handover.md).
