@@ -13,6 +13,7 @@
 #include "audio/sound.h"
 #include "map/map.h"
 #include "player/player.h"
+#include "video/level_maps.h"
 
 #define SCROLL_TO 0x0200        /* the view's x the scroll ends at */
 #define K81_X 0x01E0            /* Aladdin's x from which the scene begins */
@@ -153,6 +154,7 @@ static int scroll(Actor *a)
     g.layers[0].scroll_x = with_pixels(g.layers[0].scroll_x, SCROLL_TO);
     g.layers[0].edges = 0;
     g.layers[1].edges = 0;
+    LevelMapsFreeze();                  /* the layers' tiles about the scroll go into the video maps the arena's uploads change */
     a->resume = WAIT_CUE;
     return 1;
 }

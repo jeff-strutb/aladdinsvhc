@@ -9,6 +9,7 @@
 #include "nshvc/nshvc.h"
 #include "data/video_tables.h"
 #include "system/state.h"
+#include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 #include "video/view.h"
@@ -109,6 +110,12 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
         w += run;
         n -= run;
     }
+}
+
+/* a play field or backdrop's video map (64 x 32) written whole, from its 64 x 32 words row by row (LevelMapsFreeze) */
+void video_map_write(VideoMap map, const uint16_t *words)
+{
+    nshvc_map_write_snes(maps[map], 0, 0, 64, 32, words);
 }
 
 /* the part of [first, first + n) inside [lo, hi), as its first and count; 0 if none */
@@ -427,6 +434,13 @@ static void draw_layers(void)
         l.tile_size = (uint8_t)(g.tile_size_16 >> i & 1 ? 16 : 8);
         l.scroll_x = video_layer_x(i);
         l.scroll_y = video_layer_y(i);
+        if (i < 2 && level_maps_active(i)) {
+            /* a level's layer: its whole-level map, at its scroll as a signed 16-bit position (the map wraps at its own
+               size, not at 512 or 1,024) */
+            l.map = level_maps_object(i);
+            l.scroll_x = (int16_t)l.scroll_x;
+            l.scroll_y = (int16_t)l.scroll_y;
+        }
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
         nshvc_layer_set((uint8_t)i, &l);

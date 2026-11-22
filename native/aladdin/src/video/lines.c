@@ -11,6 +11,7 @@
 #include "nshvc/nshvc.h"
 #include "data/video_tables.h"
 #include "system/state.h"
+#include "video/level_maps.h"
 #include "video/video_internal.h"
 
 #define LINES 224
@@ -146,8 +147,11 @@ static void send_channel(const LineChannel *c, uint32_t top)
     case LINE_BG1_Y:
     case LINE_BG2_X:
     case LINE_BG3_Y:
+        /* 10 bits as the hardware's scroll; a layer shown from a level's whole-level map (video/level_maps.c) is
+           longer than that, so its scroll is a signed 16-bit position */
         for (int i = 0; i < LINES; i++)
-            field[i] = (int32_t)(value[i] & 0x3FF);
+            field[i] = level_maps_active(c->target == LINE_BG2_X ? 1 : 0) && c->target != LINE_BG3_Y ? (int32_t)(int16_t)value[i]
+                                                                                                      : (int32_t)(value[i] & 0x3FF);
         send(c->target == LINE_BG1_Y ? NSHVC_LINE_SCROLL_Y + 0 : c->target == LINE_BG2_X ? NSHVC_LINE_SCROLL_X + 1
                                                                                          : NSHVC_LINE_SCROLL_Y + 2,
              field, set);

@@ -15,11 +15,8 @@
 #include "data/game_tables.h"
 #include "map/map.h"
 #include "system/state.h"
+#include "video/level_maps.h"
 #include "video/video.h"
-
-#define VIEW_WIDTH 0x0120           /* the box a change is drawn in: the drawn area with 8 pixels round it */
-#define VIEW_HEIGHT 0x00F8
-#define VIEW_MARGIN 8
 
 /*
  * @routine 81:9C50 MapTileAddress
@@ -43,67 +40,38 @@ uint16_t MapTileAddress(uint16_t x, uint16_t y)
 
 /*
  * @routine 81:9A64 TileChangeQueueQuarter
- * WHAT IT DOES: Queues one 8 x 8 quarter of a changed map tile for the NMI
- * to write to video memory: at the tile's VRAM word plus the quarter's
- * offset, the quarter's word of the new tile's metatile.
+ * Removed: it queued one 8 x 8 quarter of a changed tile for the NMI to
+ * write to the play field's ring. The play field is a whole-level map now
+ * (video/level_maps.c): LevelMapsTile writes the four quarters at once.
+ * Removed with it: the helper that tested the change was in the ring's
+ * drawn area (with 8 pixels round it, a static helper with no routine of its
+ * own); the map has every tile, so every change is made.
  */
-static void TileChangeQueueQuarter(unsigned *queue_at, uint16_t vram, uint16_t tile, unsigned quarter)
-{
-    TileQuarter q = tile_quarter(quarter);
-    VramWord *w = &g.vram_words[*queue_at % VRAM_WORDS_SIZE];
-
-    w->to = (uint16_t)(vram + q.vram_offset);
-    w->word = metatile_word(level_metatiles(g.map_level), (uint16_t)(tile + 2u * q.place));
-    g.vram_words_count++;
-    ++*queue_at;
-}
-
-/* The point inside the box around the drawn area, on one axis: as the
-   original's (at - middle + half) < size, in 16 bits. */
-static int in_view(uint16_t at, uint16_t drawn, uint16_t size)
-{
-    uint16_t from = (uint16_t)(drawn - VIEW_MARGIN);
-    uint16_t half = (uint16_t)(size / 2);
-    uint16_t middle = (uint16_t)(from + half);
-
-    return (uint16_t)(at - middle + half) < size;
-}
 
 /*
  * @routine 81:999A TileChangesApply
  * WHAT IT DOES: Applies the map tile changes queued this frame: each
- * change's new tile goes into the level's tiles, and one inside the drawn
- * area (with 8 pixels round it) has its four quarters queued for the NMI
- * to write to video memory, bottom right first. Then the change queue
- * empties, and the NMI's write is asked for when anything was queued.
- * HOW: The original tests the count's low byte alone before it starts (and
- * the queue count's low byte at the end), as here; its word queue starts
- * again from its first record, as here.
+ * change's new tile goes into the level's tiles and into the play field's
+ * map (the four tiles of the 16 x 16 tile). Then the change queue empties.
+ * HOW: The original tests the count's low byte alone before it starts, as
+ * here; it wrote only the changes inside the ring's drawn area, as quarters
+ * queued for the NMI (bottom right first), and asked for the NMI's write
+ * when any were queued: the map is whole, so each change is written (the
+ * word queue it used, g.vram_words, is no longer written here).
  */
 void TileChangesApply(void)
 {
-    unsigned queue_at = 0, i = 0;
-    uint16_t w = (uint16_t)(g.layers[0].drawn_x + VIEW_WIDTH - VIEW_MARGIN - (uint16_t)(g.layers[0].drawn_x - VIEW_MARGIN));
-    uint16_t h = (uint16_t)(g.layers[0].drawn_y + VIEW_HEIGHT - VIEW_MARGIN - (uint16_t)(g.layers[0].drawn_y - VIEW_MARGIN));
+    unsigned i = 0;
 
     if (!(g.tile_changes_count & 0xFFu))
         return;
-    g.vram_words_count = 0;
     do {
         TileChange *c = &g.tile_changes[i++ % TILE_CHANGES_SIZE];
-        uint16_t vram = TilemapWord(c->x, c->y);
 
         g.level_tiles[MapTileAddress(c->x, c->y) % LEVEL_TILES_WORDS] = c->tile;
-        if (in_view(c->x, g.layers[0].drawn_x, w) && in_view(c->y, g.layers[0].drawn_y, h)) {
-            TileChangeQueueQuarter(&queue_at, vram, c->tile, 3);
-            TileChangeQueueQuarter(&queue_at, vram, c->tile, 2);
-            TileChangeQueueQuarter(&queue_at, vram, c->tile, 1);
-            TileChangeQueueQuarter(&queue_at, vram, c->tile, 0);
-        }
+        LevelMapsTile(c->x, c->y, c->tile);
     } while (--g.tile_changes_count);
     g.tile_changes_end = 0;
-    if (g.vram_words_count & 0xFFu)
-        g.vram_words_pending++;
 }
 
 /*
@@ -137,11 +105,17 @@ uint16_t MapTileAt(uint16_t x, uint16_t y)
 /*
  * @routine 81:9B6D MapTileSet
  * WHAT IT DOES: Puts tile `tile` into the level's map under point x, y
- * (not on screen: TileChangeAdd does both).
+ * (not queued for the screen: TileChangeAdd does both).
+ * HOW: The original drew nothing here, and the tile showed once the ring
+ * next drew that column or row from the level's tiles (level 5's closing
+ * scene copies a block of tiles this way and the block is on screen). The
+ * play field's whole-level map is the level's tiles as they are, so it is
+ * written too (LevelMapsTile).
  */
 void MapTileSet(uint16_t tile, uint16_t x, uint16_t y)
 {
     g.level_tiles[MapTileAddress(x, y) % LEVEL_TILES_WORDS] = tile;
+    LevelMapsTile(x, y, tile);
 }
 
 /*
