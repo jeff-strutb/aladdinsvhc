@@ -9,6 +9,7 @@
 
 #include "system/state.h"
 #include "video/video.h"
+#include "video/view.h"
 
 /* the play field's scroll, whole pixels */
 static uint16_t pixels(uint32_t position)
@@ -45,6 +46,35 @@ static uint32_t block_start(uint8_t block)
     return (uint32_t)block << 16;
 }
 
+/* whether every block down the column x, from y to `last`, is not empty:
+   the first, each 256 on and the last (at 256 x 224 the original's two) */
+static int column_clear(uint16_t x, uint16_t y, uint16_t last)
+{
+    uint16_t at = y;
+
+    for (;;) {
+        if (BlockAt(x, at) < 0)
+            return 0;
+        if ((uint16_t)(last - at) < 0x100)
+            return BlockAt(x, last) >= 0;
+        at = (uint16_t)(at + 0x100);
+    }
+}
+
+/* the same along the row y, from x to `last` */
+static int row_clear(uint16_t x, uint16_t y, uint16_t last)
+{
+    uint16_t at = x;
+
+    for (;;) {
+        if (BlockAt(at, y) < 0)
+            return 0;
+        if ((uint16_t)(last - at) < 0x100)
+            return BlockAt(last, y) >= 0;
+        at = (uint16_t)(at + 0x100);
+    }
+}
+
 /*
  * @routine 81:CA84 CameraStopAcross
  * WHAT IT DOES: Stops the play field scrolling into an empty block across:
@@ -54,6 +84,11 @@ static uint32_t block_start(uint8_t block)
  * start (right), and g.camera_stopped_x counts it.
  * HOW: The bottom row's y moving left is the top's + $FF plus BlockAt's
  * carry (the original's ADC after it: bit 1 of the y); moving right + $FF.
+ * The view (view.h): the far edges are the original's $FF + 2 dx across and
+ * + 2 dy down (the view's w - 1, and h + 31), every block along the edge
+ * is tested, and moving right the scroll goes to the empty block's start
+ * less w (at 256 the original's block start; an empty block at the scroll
+ * itself leaves it at its block's start).
  */
 void CameraStopAcross(void)
 {
@@ -62,15 +97,18 @@ void CameraStopAcross(void)
 
     g.camera_stopped_x = 0;
     if (x < g.scroll_x_before) {
-        if (BlockAt(x, y) >= 0 && BlockAt(x, (uint16_t)(y + 0xFF + (y >> 1 & 1))) >= 0)
+        if (column_clear(x, y, (uint16_t)(y + 0xFF + 2 * view.dy + (y >> 1 & 1))))
             return;
         l->scroll_x = block_start((uint8_t)((x >> 8) + 1));
     } else {
-        uint16_t right = (uint16_t)(x + 0xFF);
+        uint16_t right = (uint16_t)(x + 0xFF + 2 * view.dx);
 
-        if (BlockAt(right, y) >= 0 && BlockAt(right, (uint16_t)(y + 0xFF)) >= 0)
+        if (column_clear(right, y, (uint16_t)(y + 0xFF + 2 * view.dy)))
             return;
-        l->scroll_x = block_start((uint8_t)(x >> 8));
+        if ((right & 0xFF00) <= x)
+            l->scroll_x = block_start((uint8_t)(x >> 8));
+        else
+            l->scroll_x = (uint32_t)(uint16_t)((right & 0xFF00) - view.w) << 8;
     }
     g.camera_stopped_x++;
 }
@@ -82,6 +120,10 @@ void CameraStopAcross(void)
  * columns; moving down (or not), at its bottom edge (255 down). Over an
  * empty block the scroll Y goes to the next block's start (up) or its
  * block's start (down), and g.camera_stopped_y counts it.
+ * HOW: The view (view.h): as CameraStopAcross, with the bottom edge at
+ * + $FF + 2 dy, the right column at + $FF + 2 dx, every block along the
+ * edge tested, and the scroll Y moving down going to the empty block's
+ * start less h + 32.
  */
 void CameraStopUpDown(void)
 {
@@ -89,15 +131,18 @@ void CameraStopUpDown(void)
     uint16_t x = pixels(l->scroll_x), y = pixels(l->scroll_y);
 
     if (y < g.scroll_y_before) {
-        if (BlockAt(x, y) >= 0 && BlockAt((uint16_t)(x + 0xFF), y) >= 0)
+        if (row_clear(x, y, (uint16_t)(x + 0xFF + 2 * view.dx)))
             return;
         l->scroll_y = block_start((uint8_t)((y >> 8) + 1));
     } else {
-        uint16_t bottom = (uint16_t)(y + 0xFF);
+        uint16_t bottom = (uint16_t)(y + 0xFF + 2 * view.dy);
 
-        if (BlockAt(x, bottom) >= 0 && BlockAt((uint16_t)(x + 0xFF), bottom) >= 0)
+        if (row_clear(x, bottom, (uint16_t)(x + 0xFF + 2 * view.dx)))
             return;
-        l->scroll_y = block_start((uint8_t)(y >> 8));
+        if ((bottom & 0xFF00) <= y)
+            l->scroll_y = block_start((uint8_t)(y >> 8));
+        else
+            l->scroll_y = (uint32_t)(uint16_t)((bottom & 0xFF00) - 0x100 - 2 * view.dy) << 8;
     }
     g.camera_stopped_y++;
 }

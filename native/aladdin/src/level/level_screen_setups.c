@@ -420,6 +420,7 @@ static void Level11ScreenSetup(void)
 {
     g.layer_setup_mode = 0x02;
     UnpackSet(0x21);
+    /* the limit is the original's (the last 256 view's left edge, here $100); ScrollUpdate takes the view's 2 dx off it */
     g.scroll_limit_x = (uint16_t)((g.scroll_limit_x & 0x00FF) | 0x0100);
     for (unsigned i = 0x3C0; i < 0x400; i++)
         g.text_map[i] = 0x4000;
