@@ -66,6 +66,8 @@ static int run_record(Actor *a)
     }
     if (r == ACTOR_ENDED)
         return ACTOR_ENDED;
+    if (r == ACTOR_NEXT_RECORD)
+        return ACTOR_NEXT_RECORD;       /* state stays running, wait 0: its next turn is at the next frame's loop */
     a->state = ACTOR_STATE_WAITING;
     a->wait = (uint8_t)r;               /* 256 frames: 0, which the countdown takes round */
     return r;
@@ -100,7 +102,7 @@ static int record_turn(Actor *a)
     r = run_record(a);
     if (r == ACTOR_EXEC)
         return 0;
-    if (r != ACTOR_ENDED)
+    if (r != ACTOR_ENDED && r != ACTOR_NEXT_RECORD)
         wait_work(a);
     return !task_exec_pending();
 }

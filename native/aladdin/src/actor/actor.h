@@ -36,6 +36,9 @@
 
 #define ACTOR_ENDED 0           /* a kind's code or wait routine ended its actor */
 #define ACTOR_GOES_ON 1         /* a wait routine's actor waits on */
+#define ACTOR_NEXT_RECORD (-101) /* a kind's code leaves for the next record without yielding (the original's jump to
+                                    ActorLoopNext): its record stays state $08, its wait routine does not run this frame,
+                                    and it goes on at once at its next turn */
 
 enum {
     ACTOR_START = 0,            /* state $0C-$7F: the kind's start entry */

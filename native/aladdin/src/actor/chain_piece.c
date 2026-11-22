@@ -12,14 +12,16 @@
  * WHAT IT DOES: A piece of the chain (or its head) goes back to what it
  * was doing before it was struck: its resume point from its own +$35-$36
  * (kept when it was struck), anim_flags bit 4 and flags bit 7 set; it goes
- * on at its next turn (the original leaves for the next record: ACTOR_LOOP_NEXT).
+ * on at its next turn. The original leaves for the next record (ActorLoopNext, not
+ * ActorLoopBack): the wait routine does not run in this frame, so the head and its
+ * pieces take no path step in it (ACTOR_NEXT_RECORD).
  */
 int ChainPieceEnd(Actor *a)
 {
     a->resume = (uint16_t)(a->own.bytes[OWN_35] | a->own.bytes[OWN_36] << 8);
     a->anim_flags |= 0x10;
     a->flags |= 0x80;
-    return 1;
+    return ACTOR_NEXT_RECORD;
 }
 
 #define PIECE_NUMBER OWN_40     /* +$40: the piece's place in the chain (8: the one that ends the fight) */
