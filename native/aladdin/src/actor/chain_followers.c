@@ -159,8 +159,10 @@ static int slide_step(Actor *a)
         side = 2;
         dist = (uint16_t)-diff;
     }
+    /* the row's steps are words at an odd place in the table (84:89E5 reads the threshold at +1): the original's step load adds
+       the compare's carry, set when the distance is not less than the threshold, to the side */
     if (dist >= slide_step_word(y + 1))
-        step = slide_step_word(y + side);
+        step = slide_step_word(y + side + 1);
     else
         step = diff;
     at = (uint16_t)(at + step);
