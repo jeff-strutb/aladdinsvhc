@@ -38,6 +38,7 @@
 #include "map/map.h"
 #include "system/state.h"
 #include "system/system.h"
+#include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 
@@ -185,6 +186,79 @@ static Pic render_layout(unsigned first, unsigned cols, unsigned rows, int zero)
                 }
         }
     return p;
+}
+
+
+/* a layer's map as the game shows it (video/level_maps.c): the level and the fill past its right and bottom edges, a
+   red line along the level's own edges */
+static Pic render_words(const uint16_t *words, uint32_t w, uint32_t h, uint32_t level_w, uint32_t level_h, int zero)
+{
+    Pic p = pic_new((int)(w * 8), (int)(h * 8));
+
+    for (uint32_t r = 0; r < h; r++)
+        for (uint32_t c = 0; c < w; c++)
+            draw_tile(&p, (int)(c * 8), (int)(r * 8), words[(size_t)r * w + c], zero);
+    for (int y = 0; y < p.h; y++)
+        if (level_w * 8 < w * 8u)
+            p.px[(size_t)y * p.w + level_w * 8] = RGB(255, 0, 0);
+    for (int x = 0; x < p.w; x++)
+        if (level_h * 8 < h * 8u)
+            p.px[(size_t)level_h * 8 * p.w + x] = RGB(255, 0, 0);
+    return p;
+}
+
+/* the fill's bands, runs of the same method and period together, in pixels of the level */
+static void fill_runs(FILE *f, const FillBand *b, unsigned from, unsigned to, const char *what)
+{
+    for (unsigned i = from; i < to;) {
+        unsigned j = i, gap_least = b[i].gap, gap_most = b[i].gap;
+
+        while (j + 1 < to && b[j + 1].method == b[i].method && b[j + 1].period == b[i].period) {
+            j++;
+            gap_least = b[j].gap < gap_least ? b[j].gap : gap_least;
+            gap_most = b[j].gap > gap_most ? b[j].gap : gap_most;
+        }
+        if (b[i].method == FILL_EXACT)
+            fprintf(f, "  %s %u-%u (px %u-%u): B exact, period %u px, repeating stretch ends %u-%u px inside the edge\n", what, i, j,
+                    i * 16, j * 16 + 15, b[i].period * 16, gap_least * 16, gap_most * 16);
+        else
+            fprintf(f, "  %s %u-%u (px %u-%u): %c %s\n", what, i, j, i * 16, j * 16 + 15, b[i].method ? b[i].method : '-',
+                    b[i].method == FILL_MADE ? "made from the level's own metatiles, by adjacency" :
+                    b[i].method == FILL_BACKDROP ? "backdrop alone (blank)" : "none");
+        i = j + 1;
+    }
+}
+
+static void fill_write(const char *dir, unsigned level)
+{
+    char path[512];
+    FILE *f;
+
+    snprintf(path, sizeof path, "%s/%02X-fill.txt", dir, level);
+    f = fopen(path, "w");
+    if (!f)
+        return;
+    for (int layer = 0; layer < 2; layer++) {
+        const FillReport *r = level_maps_fill(layer);
+        unsigned count[3] = { 0, 0, 0 };
+
+        fprintf(f, "level $%02X, %s: level %u x %u px, with the fill %u x %u px; %u different metatiles (%u past the table)\n", level,
+                layer ? "backdrop" : "play field", r->lw * 16, r->lh * 16, r->fw * 16, r->fh * 16, r->ids, r->ids_over);
+        if (r->fw > r->lw) {
+            fprintf(f, " past the right edge, by 16 px row of the level:\n");
+            fill_runs(f, r->right, 0, r->lh, "row");
+        } else {
+            fprintf(f, " past the right edge: none (the layer repeats by wrapping at its own width)\n");
+        }
+        if (r->fh > r->lh) {
+            fprintf(f, " past the bottom edge, by 16 px column of the whole:\n");
+            fill_runs(f, r->down, 0, r->fw, "column");
+            for (unsigned i = 0; i < r->fw; i++)
+                count[r->down[i].method == FILL_EXACT ? 0 : r->down[i].method == FILL_MADE ? 1 : 2]++;
+            fprintf(f, " bottom bands: %u exact, %u made, %u backdrop\n", count[0], count[1], count[2]);
+        }
+    }
+    fclose(f);
 }
 
 /* BG2's video map as the load left it: base and the pages' layout as video.c's map_part */
@@ -440,6 +514,19 @@ static void dump_level(const char *dir, unsigned level)
     backmap = render_backmap();
     snprintf(name, sizeof name, "%02X-backmap.ppm", level);
     pic_write(dir, name, &backmap, 0);
+    for (int layer = 0; layer < 2; layer++) {
+        uint32_t mw, mh, lw, lh;
+        const uint16_t *words = level_maps_words(layer, &mw, &mh, &lw, &lh);
+
+        if (words) {
+            Pic fillp = render_words(words, mw, mh, lw, lh, ZERO_MAGENTA);
+
+            snprintf(name, sizeof name, "%02X-fill%s.ppm", level, layer ? "back" : "field");
+            pic_write(dir, name, &fillp, 0);
+            pic_free(&fillp);
+        }
+    }
+    fill_write(dir, level);
     info_write(dir, level, cols, rows, has_back, bcols, brows, ox, oy, bx0, by0);
     pic_free(&field);
     pic_free(&back);

@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "nshvc/nshvc.h"
+#include "video/level_fill.h"
 
 /* LayersFill, for a level's play: both layers' maps built from the level's map and the layers shown from them */
 void LevelMapsBuild(void);
@@ -23,5 +24,10 @@ void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile);
 /* whether layer 0 (the play field) or 1 (the backdrop) is shown from its level map now, and that map */
 int level_maps_active(int layer);
 nshvc_map level_maps_object(int layer);
+
+/* the developer's map dump: a layer's whole map words (NULL when not built), its size and the level's own, in tiles,
+   and how each band past the level's edges was filled */
+const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *level_w, uint32_t *level_h);
+const FillReport *level_maps_fill(int layer);
 
 #endif
