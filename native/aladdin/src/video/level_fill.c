@@ -1,0 +1,300 @@
+/*
+ * level_fill.c: scenery for the space a view shows past a level's right and bottom edges, from the level's own
+ * metatiles (docs/aladdin/native/VIEW.md section 5; Jeff 2026-11-22: no black).
+ *
+ * DESIGN NOTE. The camera never shows past a level's left or top edge (its scroll is not below 0), and shows past its
+ * right or bottom edge only where the view is larger than the level: the limits right and down are the view's edges
+ * (video/scroll_update.c), and the held views of the rooms and arenas (scroll_x_min/max, kind $81) are left edges.
+ * So the whole-level maps (video/level_maps.c) are made larger by FILL_MARGIN metatiles past those two edges and this
+ * fills them. Each layer is filled on its own, a metatile (16 x 16 pixels) a cell, from the level's cells, in the
+ * order VIEW.md gives. A "band" is a row of cells for the right margin and a column of cells for the bottom margin.
+ *
+ *   B, exact: the band's cells in the level repeat with a period p (cell i equals cell i + p) over a stretch of at
+ *     least 3 periods and 4 cells, p up to 64, and ending within GAP_ACROSS (one screen) of the right edge or
+ *     GAP_DOWN (32 pixels) of the bottom one: further in, a stretch is part of the level's own picture (a building's
+ *     wall) and continuing it would be wrong. Of such stretches the one ending nearest the edge is used (the
+ *     smaller period on a tie), so a unique feature at the edge (an exit, an end wall) is skipped, and the band goes
+ *     on beyond the edge as that stretch's pattern, at the position's own phase (cell i is the stretch's cell
+ *     i - k p, k least with it inside the stretch's last period). The cells are the game's own and the continuation
+ *     is exact. Measured on the metatile words of the level's map: equal words are equal pixels.
+ *   C, made: a band with no such stretch is laid cell by cell, from the edge outward, from the level's own metatiles:
+ *     a cell may be a metatile only where each side already decided is a pair that occurs somewhere in the level (the
+ *     left and the one above; the right and the one below where a band of kind B fixed them). The play field uses
+ *     only metatiles with no collision (kind empty), the backdrop any. The choice is weighted by how often the level
+ *     has each metatile, from a fixed seed (xorshift32 of the level and layer), so every play is the same. A band
+ *     that finds no metatile is tried again ATTEMPTS times in all, then is D.
+ *   D, backdrop: blank cells, so the other layer or the colour behind shows, as at an empty place.
+ * The right margin is filled first (each row of the level), then the bottom margin over every column of the whole,
+ * the corner included (columns that already have the right margin's cells).
+ *
+ * The fill is in the layers' engine maps only. The level's own map (g.level_tiles, g.screen_map) is not touched and
+ * map/collision.c and map/tile_changes.c read nothing else, so nothing can stand on, hit or change a fill tile.
+ */
+#include <string.h>
+
+#include "data/game_tables.h"
+#include "map/map.h"
+#include "video/level_fill.h"
+
+#define PERIOD_MAX 64
+#define COPIES_MIN 3
+#define CELLS_MIN 4
+#define GAP_ACROSS 16               /* a stretch must end within one screen of the right edge: past the edge the unique features are the last screen's */
+#define GAP_DOWN 2                  /* and within 32 pixels of the bottom edge: the original's camera never shows the last 32 */
+#define IDS_MAX 1024
+#define ATTEMPTS 8
+#define NO_ID 0xFFFFu
+#define NONE 0xFFFEu
+#define IMPOSSIBLE (-2)
+#define ABSENT (-1)
+
+/* the level's different metatiles (ids), how often each is, whether it has no collision, and which pairs sit side by
+   side (`across`: b is right of a) or one above the other (`below`: b is under a) */
+static struct {
+    uint16_t id_of[65536];
+    uint16_t cell_of[IDS_MAX];
+    uint32_t count[IDS_MAX];
+    uint8_t decorative[IDS_MAX];
+    uint32_t across[IDS_MAX][IDS_MAX / 32];
+    uint32_t below[IDS_MAX][IDS_MAX / 32];
+    unsigned ids, over;
+    uint32_t rng;
+} lv;
+
+typedef struct Stretch {
+    unsigned p, b;                  /* the period; the stretch ends before cell b */
+} Stretch;
+
+static uint32_t next_random(void)
+{
+    uint32_t x = lv.rng;
+
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    lv.rng = x;
+    return x;
+}
+
+static int pair_in(const uint32_t (*m)[IDS_MAX / 32], unsigned a, unsigned b)
+{
+    return (int)(m[a][b >> 5] >> (b & 31) & 1u);
+}
+
+static void pair_set(uint32_t (*m)[IDS_MAX / 32], unsigned a, unsigned b)
+{
+    m[a][b >> 5] |= 1u << (b & 31);
+}
+
+/* the stretch of the n cells v[0], v[stride] ... that ends nearest the end and repeats; 0 when there is none */
+static int find_stretch(const uint16_t *v, unsigned stride, unsigned n, unsigned gap_most, Stretch *best)
+{
+    int found = 0;
+
+    for (unsigned p = 1; p <= PERIOD_MAX && p < n; p++) {
+        unsigned run = 0;
+        /* the matching positions a stretch of COPIES_MIN periods and CELLS_MIN cells has: its length less p */
+        unsigned least = (COPIES_MIN - 1) * p;
+
+        if (p < CELLS_MIN && CELLS_MIN - p > least)
+            least = CELLS_MIN - p;
+
+        for (unsigned i = 0; i + p <= n; i++) {
+            int match = i + p < n && v[(size_t)i * stride] == v[(size_t)(i + p) * stride];
+
+            if (match) {
+                run++;
+                continue;
+            }
+            /* the run of matching positions ends at i: the stretch is run + p cells ending at i + p */
+            if (run >= least && n - (i + p) <= gap_most && (!found || i + p > best->b)) {
+                best->p = p;
+                best->b = i + p;
+                found = 1;
+            }
+            run = 0;
+        }
+    }
+    return found;
+}
+
+/* cells n.. of the band as the stretch's pattern goes on */
+static void extend(uint16_t *v, unsigned stride, unsigned n, unsigned total, const Stretch *s)
+{
+    unsigned from = s->b - s->p;
+
+    for (unsigned i = n; i < total; i++)
+        v[(size_t)i * stride] = v[(size_t)(from + (i - from) % s->p) * stride];
+}
+
+/* the id of a cell as a neighbour: ABSENT for no neighbour is the caller's; a metatile the table does not hold is
+   IMPOSSIBLE (nothing is known to sit beside it) */
+static int neighbour(uint16_t cell)
+{
+    return lv.id_of[cell] == NO_ID ? IMPOSSIBLE : (int)lv.id_of[cell];
+}
+
+static int allowed(unsigned id, int left, int up, int right, int down)
+{
+    return lv.decorative[id] && (left == ABSENT || pair_in(lv.across, (unsigned)left, id)) &&
+           (up == ABSENT || pair_in(lv.below, (unsigned)up, id)) && (right == ABSENT || pair_in(lv.across, id, (unsigned)right)) &&
+           (down == ABSENT || pair_in(lv.below, id, (unsigned)down));
+}
+
+/* a cell of the level's metatiles beside the neighbours given (ABSENT: none; IMPOSSIBLE: the cell cannot be made),
+   weighted by how often each metatile is in the level; NONE where none may be */
+static uint16_t make_cell(int left, int up, int right, int down)
+{
+    uint64_t total = 0, pick;
+
+    if (left == IMPOSSIBLE || up == IMPOSSIBLE || right == IMPOSSIBLE || down == IMPOSSIBLE)
+        return NONE;
+    for (unsigned id = 0; id < lv.ids; id++)
+        if (allowed(id, left, up, right, down))
+            total += lv.count[id];
+    if (total == 0)
+        return NONE;
+    pick = next_random() % total;
+    for (unsigned id = 0; id < lv.ids; id++)
+        if (allowed(id, left, up, right, down)) {
+            if (pick < lv.count[id])
+                return lv.cell_of[id];
+            pick -= lv.count[id];
+        }
+    return NONE;
+}
+
+/* the level's metatiles into the table: ids, counts, which have no collision, and the pairs side by side */
+static void learn(const uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, int field, DataRef metatiles)
+{
+    memset(lv.id_of, 0xFF, sizeof lv.id_of);
+    memset(lv.count, 0, sizeof lv.count);
+    memset(lv.across, 0, sizeof lv.across);
+    memset(lv.below, 0, sizeof lv.below);
+    lv.ids = lv.over = 0;
+    for (unsigned r = 0; r < lh; r++)
+        for (unsigned c = 0; c < lw; c++) {
+            uint16_t cell = cells[(size_t)r * fw + c];
+
+            if (lv.id_of[cell] == NO_ID) {
+                if (lv.ids == IDS_MAX) {
+                    lv.over++;
+                    continue;
+                }
+                lv.id_of[cell] = (uint16_t)lv.ids;
+                lv.cell_of[lv.ids] = cell;
+                lv.decorative[lv.ids] =
+                    (uint8_t)(cell == FILL_BLANK || !field ||
+                              tile_kind(tile_behaviour_byte(metatiles, (uint16_t)(cell >> 3))) == TILE_KIND_EMPTY);
+                lv.ids++;
+            }
+            lv.count[lv.id_of[cell]]++;
+        }
+    for (unsigned r = 0; r < lh; r++)
+        for (unsigned c = 0; c < lw; c++) {
+            unsigned a = lv.id_of[cells[(size_t)r * fw + c]];
+
+            if (a == NO_ID)
+                continue;
+            if (c + 1 < lw && lv.id_of[cells[(size_t)r * fw + c + 1]] != NO_ID)
+                pair_set(lv.across, a, lv.id_of[cells[(size_t)r * fw + c + 1]]);
+            if (r + 1 < lh && lv.id_of[cells[(size_t)(r + 1) * fw + c]] != NO_ID)
+                pair_set(lv.below, a, lv.id_of[cells[(size_t)(r + 1) * fw + c]]);
+        }
+}
+
+/* row r of the right margin, laid from the edge: left and up are decided; down is where the row under is of kind B */
+static int make_row(uint16_t *cells, unsigned fw, unsigned lw, unsigned lh, unsigned r, const uint8_t *fixed)
+{
+    for (unsigned attempt = 0; attempt < ATTEMPTS; attempt++) {
+        unsigned c = lw;
+
+        for (; c < fw; c++) {
+            uint16_t v = make_cell(neighbour(cells[(size_t)r * fw + c - 1]), r > 0 ? neighbour(cells[(size_t)(r - 1) * fw + c]) : ABSENT,
+                                   ABSENT, r + 1 < lh && fixed[r + 1] ? neighbour(cells[(size_t)(r + 1) * fw + c]) : ABSENT);
+
+            if (v == NONE)
+                break;
+            cells[(size_t)r * fw + c] = v;
+        }
+        if (c == fw)
+            return 1;
+    }
+    return 0;
+}
+
+/* column c of the bottom margin, laid from the edge: up and left are decided; right is where the column beside is of
+   kind B */
+static int make_column(uint16_t *cells, unsigned fw, unsigned lh, unsigned fh, unsigned c, const uint8_t *fixed)
+{
+    for (unsigned attempt = 0; attempt < ATTEMPTS; attempt++) {
+        unsigned r = lh;
+
+        for (; r < fh; r++) {
+            uint16_t v = make_cell(c > 0 ? neighbour(cells[(size_t)r * fw + c - 1]) : ABSENT, neighbour(cells[(size_t)(r - 1) * fw + c]),
+                                   c + 1 < fw && fixed[c + 1] ? neighbour(cells[(size_t)r * fw + c + 1]) : ABSENT, ABSENT);
+
+            if (v == NONE)
+                break;
+            cells[(size_t)r * fw + c] = v;
+        }
+        if (r == fh)
+            return 1;
+    }
+    return 0;
+}
+
+/* one margin: `bands` bands, band k's cells at offset(k) + i * stride, i from 0, the level's n of them, `total` in all.
+   `column` says which kind of band it is (the rows of the right margin or the columns of the bottom one). */
+static void fill_margin(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, int column, FillBand *report)
+{
+    unsigned bands = column ? fw : lh, n = column ? lh : lw, total = column ? fh : fw;
+    unsigned stride = column ? fw : 1;
+    uint8_t fixed[FILL_COLS_MAX];
+    Stretch s;
+
+    memset(fixed, 0, sizeof fixed);
+    for (unsigned k = 0; k < bands; k++) {
+        uint16_t *v = column ? cells + k : cells + (size_t)k * fw;
+
+        if (find_stretch(v, stride, n, column ? GAP_DOWN : GAP_ACROSS, &s)) {
+            extend(v, stride, n, total, &s);
+            fixed[k] = 1;
+            report[k].method = FILL_EXACT;
+            report[k].period = (uint16_t)s.p;
+            report[k].gap = (uint16_t)(n - s.b);
+        }
+    }
+    for (unsigned k = 0; k < bands; k++) {
+        if (fixed[k])
+            continue;
+        if (column ? make_column(cells, fw, lh, fh, k, fixed) : make_row(cells, fw, lw, lh, k, fixed)) {
+            report[k].method = FILL_MADE;
+        } else {
+            for (unsigned i = n; i < total; i++)
+                (column ? cells + k : cells + (size_t)k * fw)[(size_t)i * stride] = FILL_BLANK;
+            report[k].method = FILL_BACKDROP;
+        }
+        fixed[k] = 1;
+    }
+}
+
+void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, int field, DataRef metatiles, uint32_t seed,
+               FillReport *report)
+{
+    memset(report, 0, sizeof *report);
+    report->lw = lw;
+    report->lh = lh;
+    report->fw = fw;
+    report->fh = fh;
+    if (lh > FILL_ROWS_MAX || fw > FILL_COLS_MAX || (fw == lw && fh == lh))
+        return;
+    lv.rng = seed ? seed : 1;
+    learn(cells, lw, lh, fw, field, metatiles);
+    report->ids = lv.ids;
+    report->ids_over = lv.over;
+    if (fw > lw)
+        fill_margin(cells, lw, lh, fw, fh, 0, report->right);
+    if (fh > lh)
+        fill_margin(cells, lw, lh, fw, fh, 1, report->down);
+}
