@@ -55,6 +55,28 @@ void OamInit(void)
     }
 }
 
+/* the view changed in play (VIEW.md 4.8): the lists made to the new budget, what they hold kept (the frame's sprites are rebuilt by the next step) */
+void OamResize(void)
+{
+    uint32_t was = budget;
+
+    budget = sprite_budget();
+    list = realloc(list, budget * sizeof *list);
+    owner = realloc(owner, budget * sizeof *owner);
+    anchor = realloc(anchor, budget * sizeof *anchor);
+    anchor_fx = realloc(anchor_fx, budget * sizeof *anchor_fx);
+    if (!list || !owner || !anchor || !anchor_fx) {
+        fprintf(stderr, "oam: no memory for %u sprites\n", (unsigned)budget);
+        exit(1);
+    }
+    if (budget > was) {
+        memset(list + was, 0, (budget - was) * sizeof *list);
+        memset(owner + was, 0, (budget - was) * sizeof *owner);
+        memset(anchor + was, 0, (budget - was) * sizeof *anchor);
+        memset(anchor_fx + was, 0, (budget - was) * sizeof *anchor_fx);
+    }
+}
+
 const nshvc_sprite *OamSprites(void)
 {
     return list;

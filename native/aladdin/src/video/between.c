@@ -132,6 +132,17 @@ void between_kept_at(unsigned i, const char **name, void **live, size_t *used, s
     *owned = kept[i].owned;
 }
 
+/* a kept part set anew in "was" and "now" from its live state: the view following the window (VIEW.md 4.8) has no eased slide between two shapes,
+   and the picture of the update it changes in draws the new one */
+void between_reset_part(const void *live)
+{
+    for (unsigned i = 0; i < kept_count; i++)
+        if (kept[i].live == live) {
+            memcpy(kept[i].was, live, kept[i].bytes);
+            memcpy(kept[i].now, live, kept[i].bytes);
+        }
+}
+
 void between_rekeep(void *old, void *p, size_t bytes)
 {
     for (unsigned i = 0; i < kept_count; i++)

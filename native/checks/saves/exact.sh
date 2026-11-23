@@ -1,7 +1,9 @@
 #!/bin/sh
 # exact.sh BIN A_PLAY U LEN B_PLAY V [fault]: a save is the exact moment (docs/aladdin/native/SAVES.md).
 #   A: A_PLAY run with ALADDIN_DEV_SAVE_AT=U (slot 0 saved at the start of update U), on to U+LEN, developer traces kept.
-#   (EXACT_A_ENV="NAME=VALUE" sets one more variable for A only, e.g. ALADDIN_DEV_SCREEN=genie.)
+#   (EXACT_A_ENV="NAME=VALUE" sets one more variable for A only, e.g. ALADDIN_DEV_SCREEN=genie; EXACT_B_ENV the same for B only: a window of another
+#   shape, ALADDIN_VIEW=512x224, with which the view follows after the load, VIEW.md 4.8. The traces then differ by what the wider or narrower view
+#   makes live: see native/checks/view/shape_load.sh.)
 #   B: another run (B_PLAY, or "-" for the title with no keys) that loads the slot at the start of update V and goes on with A's
 #      keys from there (A's pad state at U at update V+1, A's later lines shifted by V+1-U), to V+1+LEN.
 #   The traces (the player, every live actor with its own bytes, the video fields) from A's update U and B's update V+1 are
@@ -68,9 +70,9 @@ if [ -n "${EXACT_MENU_SAVE:-}" ]; then   # the slot is written again through the
   run m "$out/m.txt" $((u + 100)) || exit 1
   grep -q "save screen opened from the game" "$out/m.err" || { echo "the pause menu's save screen did not open"; exit 1; }
 fi
-if [ -n "$fault" ]; then run b "$out/b.txt" $((v + 1 + len)) ALADDIN_DEV_LOAD_AT=$v ALADDIN_DEV_FAULT=1 || exit 1
-elif [ -n "${EXACT_UI:-}" ]; then run b "$out/b.txt" $((v + 1 + len)) || exit 1
-else run b "$out/b.txt" $((v + 1 + len)) ALADDIN_DEV_LOAD_AT=$v || exit 1; fi
+if [ -n "$fault" ]; then run b "$out/b.txt" $((v + 1 + len)) ALADDIN_DEV_LOAD_AT=$v ALADDIN_DEV_FAULT=1 ${EXACT_B_ENV:-} || exit 1
+elif [ -n "${EXACT_UI:-}" ]; then run b "$out/b.txt" $((v + 1 + len)) ${EXACT_B_ENV:-} || exit 1
+else run b "$out/b.txt" $((v + 1 + len)) ALADDIN_DEV_LOAD_AT=$v ${EXACT_B_ENV:-} || exit 1; fi
 if [ -z "${EXACT_UI:-}" ]; then grep -q "loaded slot 0: loaded" "$out/b.err" || { echo "B did not load"; head -5 "$out/b.err"; exit 1; }; fi
 norm "$out/a.err" "$u" > "$out/a.trace"
 norm "$out/b.err" $((v + 1)) > "$out/b.trace"

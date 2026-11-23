@@ -66,6 +66,8 @@ void between_art_load(const uint8_t *in, size_t len, unsigned palette_entries);
 void between_rebase(void);
 uint64_t between_layout(uint64_t h);
 void between_rekeep(void *old, void *p, size_t bytes);
+/* a kept part's "was" and "now" set anew from its live state (the view following the window: nothing eases between two shapes) */
+void between_reset_part(const void *live);
 
 /* while a picture draws (from "was"): whether it is eased, by how much, the live ("now") state and a kept part's now */
 struct GameState;

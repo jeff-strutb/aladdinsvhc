@@ -23,6 +23,11 @@ void LevelMapsFreeze(void);
 void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile);
 /* a screen map place patched in play (level $0A's place $21): that screen of the play field is built again from the place */
 void LevelMapsPlace(unsigned place);
+/* the view changed in play (VIEW.md 4.8): whether a layer's margins would be other than they are at a view whose original screen sits `dx`
+   pixels in from each side, and the margins made again (the layout's words as they are now are kept); LevelMapsResize returns the layers made */
+int LevelMapsNeedResize(int32_t dx);
+int LevelMapsResize(void);
+void LevelMapsReset(void);
 /* the developer's state hash (ALADDIN_DEV_STATE_HASH): the layers' maps and their words, folded into h */
 uint64_t level_maps_hash(uint64_t h);
 /* the snapshot (system/snapshot.c): the layers' records and words as bytes, and back; max, save, check (fits), load (1 on success) */

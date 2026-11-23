@@ -77,6 +77,7 @@ void ScrollStateClear(void);                /* 81:96CB */
 void DisplayDefaults(void);                 /* 81:9865 */
 void video_view_level(void);         /* a level starts loading: the view from the window (view.h), before its limits are set */
 void video_view_still(void);               /* a still screen starts (DisplayDefaults): the view from the window, unless a level is loading */
+void video_view_follow(void);              /* at an update's start: the view follows the window (VIEW.md 4.8) */
 void video_view_level_done(void);          /* the level's screen is set up: a later DisplayDefaults is a still screen */
 void video_title_view_set(int on);          /* the title is the screen (TitleTask: 1) or no longer (DisplayDefaults: 0): its picture is not cut to the original's frame (VIEW.md 6.5) */
 void video_level_view_set(int on);          /* a level is the screen (LevelScreenSetup: 1) or no longer (DisplayDefaults: 0): the effects and the text layer take the level's view */
@@ -113,6 +114,7 @@ void TileBlockQueue(uint16_t to, uint16_t t);       /* 81:A287 */
 
 /* ---- sprites (video/oam.c) ---- */
 
+void OamResize(void);                      /* the view changed in play: the list sized for the new view, its contents kept */
 void OamInit(void);                        /* at init, after view_init: the sprite list, sized for the view */
 const nshvc_sprite *OamSprites(void);
 const uint8_t *OamSpriteOwners(void);

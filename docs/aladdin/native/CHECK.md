@@ -418,6 +418,24 @@ Builds: the tree before the change (`HEAD` of main, with the options screen) and
 - Pictures of the menu with the mark on each line, and the press on SAVED GAMES and LEVEL SELECT (A at 3000 and Start at 3040 on LEVEL SELECT; A at 3260 and Start at 3300 on SAVED GAMES): the pictures every 2nd update from 2600 to 3418 and the task trace (`ALADDIN_TASK_TRACE=1`) are the same, byte for byte, as a run of the same keys without the presses (410 pictures; 22 trace lines, the last the menu's window effect at 2622); on the build before the change the same press at 3040 starts the fade (a task at 3040) and the options screen.
 
 
+## The view following the window (developer variables and checks; VIEW.md 4.8)
+
+The view follows the window at an update's start, in a level, on a still screen and with the pause menu open. Headless there is no window, so the changes are made by the developer's variables (all read at an update's start):
+
+| Variable | What it does |
+|---|---|
+| `ALADDIN_DEV_VIEW_AT=UPDATE:WxH[,UPDATE:WxH...]` | at each update named the view asked for becomes WxH (the original's height, at least 288 across, as `ALADDIN_VIEW` is clamped), taken at once with no wait. Up to 512 entries. With `ALADDIN_VIEW=WxH` the run starts at that view (a level started at 256 x 224 is not the check: start at 288x224); alone it starts at the headless 256 x 224 |
+| `ALADDIN_DEV_WINDOW_AT=UPDATE:WxH[,...]` | at each update named the window's pixels the rule reads become WxH (1920x1080 is 16:9), so the view follows by the rule and waits as a window's does: a change that needs the level maps' margins made again is taken once the target has held 6 updates. `ALADDIN_VIEW_WINDOW=WxH` is the window before the first |
+| `ALADDIN_DEV_VIEW=1` | prints each view chosen and, for each change in a level, the maps made again and the time it took (`view followed the window at update N: M level maps made again, X ms`) |
+| `ALADDIN_DEV_NO_SPRITES=1` | the picture without sprites: the level's layers and the status line alone |
+| `ALADDIN_DEV_SLOTS=1` | prints each palette slot a kind takes (`SLOT u=N kind=KK slot=S of C`) |
+
+`native/checks/view/change.sh APP OUTDIR PLAY LAST FROM TO UPDATE [K]` (APP a macOS build, the pictures need Metal; PLAY a file of `native/checks/plays` or `-` for the boot; `CHANGE_ENV="NAME=VALUE ..."` adds environment to the three runs, e.g. `ALADDIN_DEV_SCREEN=genie` or `ALADDIN_DEV_NO_SPRITES=1`): the play is run to LAST three times with the trace and a picture every update from UPDATE on: *chg* starts at FROM wide and changes to TO at UPDATE, *same* stays at FROM, *fresh* starts at TO. `change_report.py` then prints the traces of chg against same and against fresh (the player's line, the video line, the actors), and for K pictures from UPDATE + 1 the width, how many are identical to fresh's, for each that differs the pixels and the box they are in and whether the two games differ in state at that update (a difference with no state difference is listed UNEXPLAINED), and the added columns that are all black (levels only: a still screen's are black by design). A picture `uN` is the one drawn after update N - 1.
+
+`native/checks/view/shape_load.sh BIN A_PLAY U LEN B_PLAY V A_VIEW B_VIEW` (a save made at one shape and loaded at another: `saves/exact.sh` with `EXACT_A_ENV`/`EXACT_B_ENV` `ALADDIN_VIEW=...`, then the player's, video and actor lines of the two compared; the same shape must be the same). `native/checks/view/level_select_open.txt` is an `--input` file that opens the title's LEVEL SELECT (Start at 2400, Down twice, Z at 2760), for `change.sh` on a screen that is not a level (pass its absolute path as PLAY).
+
+Results, 2026-11-23: VIEW.md 4.8 "As built" and 4.9.
+
 ## The beaten levels' record, the level pictures and the level start (2026-11-23, LEVELSELECT.md)
 
 Stage 1 of the level select (the screen is not built, LEVELSELECT.md section 6). macOS headless builds, `build/aladdin/native/base` (71ea8d0) and `new`; each run under `perl -e 'alarm N'` (this Mac has no `timeout`).
@@ -434,6 +452,7 @@ Stage 1 of the level select (the screen is not built, LEVELSELECT.md section 6).
 - `native/checks/pause_check/grid_build.sh OUT` then `OUT BASE.ppm W H game|title PAGE SEL ASK USED OUT.ppm [CROP.ppm]`: the slots' screen over a game picture (pictures in `docs/aladdin/native/shots/saves-*.png`); the crop equals the picture's own pixels (0 of 6,912 differ).
 - A developer's picture (`ALADDIN_DEV_SHOTS`) is also taken while the pause menu is open; the headless renderer draws no overlays, so the screens are composed by these tools as `pause_check menu` composes the pause menu.
 - `native/checks/saves/exact.sh BIN A_PLAY U LEN B_PLAY V [fault]` (header of the script; `EXACT_A_ENV`, `EXACT_UI`, `EXACT_MENU_SAVE`): a save at update U of one run loaded at update V of another (or from the title through SAVED GAMES by keys, `title_load_keys.txt`); the traces from the load on are the same, update for update; results in SAVES.md (7 runs: 6 same, the planted fault caught).
+
 ## Runahead (developer variables and checks; FRAMERATE.md section 9)
 
 `ALADDIN_RUNAHEAD=N`: the ahead steps a tick takes after the real one. Default 1 in a window, 0 (off) in a headless run; 0 turns it

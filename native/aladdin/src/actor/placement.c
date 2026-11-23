@@ -53,6 +53,8 @@ static struct {
     uint16_t row_above, row_below, column_right, column_left, x, y;
 } console;
 static uint8_t console_reached[256];
+static uint8_t rebase_due;          /* the view changed: the window is set again at the next PlacementsScroll */
+RUNAHEAD_KEEP(rebase_due)
 
 #define CONSOLE_WINDOW 0x0180
 #define CONSOLE_FAR_BAND 0x0120
@@ -283,20 +285,15 @@ static void PlacementsDown(uint8_t column)
         bring_one(number, 0, placing.y);
 }
 
-/*
- * @routine 82:A72C PlacementsStart
- * WHAT IT DOES: Indexes the level's placements as it starts, sets the
- * placing points from the camera, and creates the actors of the column
- * bands from 64 pixels left of the camera to the far band (12 at 256 wide).
- */
-void PlacementsStart(void)
+/* The spawn window set from the camera: the placing points, and the actors of the column bands from 64 pixels left of the view's edge to the far
+   band created (12 bands at 256 wide) unless placed or gone. The window follows the view's edges, so this is also what a change of the view
+   asks for (PlacementsViewChanged), with the placements and what is placed as they are. */
+static void place_window(void)
 {
     uint16_t y = camera_y(), x = camera_x();
     uint8_t band;
     int n;
 
-    PlacementsIndex();
-    g.placed[0xFF] = 0xFF;
     placing.y = y;
     placing.row_below = (uint16_t)((y + far_band_offset(0)) >> 5);
     placing.row_above = (uint16_t)((uint16_t)(y - 0x0040) >> 5);
@@ -307,6 +304,23 @@ void PlacementsStart(void)
     /* the bands from the left one to the far one, each: 12 at 256 wide */
     for (n = (uint8_t)(placing.column_right - placing.column_left) + 1; n; n--)
         PlacementsDown(band++);
+}
+
+/*
+ * @routine 82:A72C PlacementsStart
+ * WHAT IT DOES: Indexes the level's placements as it starts, sets the
+ * placing points from the camera, and creates the actors of the column
+ * bands from 64 pixels left of the camera to the far band (12 at 256 wide).
+ */
+void PlacementsStart(void)
+{
+    uint8_t band;
+    int n;
+
+    rebase_due = 0;
+    PlacementsIndex();
+    g.placed[0xFF] = 0xFF;
+    place_window();
     /* native: the original's placing, from its own camera */
     memset(console_reached, 0, sizeof console_reached);
     console.y = pixels(g.layers[0].scroll_y);
@@ -318,6 +332,13 @@ void PlacementsStart(void)
     band = (uint8_t)console.column_left;
     for (n = (uint8_t)(console.column_right - console.column_left) + 1; n; n--)
         console_down(band++);
+}
+
+/* native: the view changed in play (VIEW.md 4.8): the window is set again, from the camera, at the next PlacementsScroll (the frame's own place for
+   placing: nothing is made outside a frame, as at a level's end or while paused) */
+void PlacementsViewChanged(void)
+{
+    rebase_due = 1;
 }
 
 /* One axis of PlacementsScroll: the camera at `camera` 32 or more from
@@ -348,6 +369,10 @@ static void scroll_axis(uint16_t camera, uint16_t *last, uint16_t *ahead, uint16
  */
 void PlacementsScroll(void)
 {
+    if (rebase_due) {
+        rebase_due = 0;
+        place_window();
+    }
     scroll_axis(camera_x(), &placing.x, &placing.column_right, &placing.column_left, PlacementsDown);
     scroll_axis(camera_y(), &placing.y, &placing.row_below, &placing.row_above, PlacementsAcross);
     /* native: the original's placing, by its own camera */
@@ -384,6 +409,8 @@ static int slots_claim(uint8_t kind, Actor *a, int count)
         g.palette_slot_kind[first] = kind;
         a->tile_slot = (uint16_t)(first + 1);
         g.kind_slot[kind] = (uint16_t)(first + 1);
+        if (getenv("ALADDIN_DEV_SLOTS"))        /* developer's: which palette slot a kind took, and when */
+            fprintf(stderr, "SLOT u=%llu kind=%02X slot=%d of %d\n", (unsigned long long)nshvc_updates(), kind, first + 1, slots);
         a->look = slot_look((unsigned)first + 1);
         g.kind_look[kind] = a->look;
         return 0;
