@@ -509,6 +509,7 @@ static void draw_layers(void)
             int32_t mx, my;
 
             l.map = level_maps_object(i);
+            level_maps_note(i, (int16_t)l.scroll_x, (int16_t)l.scroll_y);
             level_maps_margin(i, &mx, &my);     /* the level's (0, 0) is inside the map's margins */
             l.scroll_x = (int16_t)l.scroll_x + mx;
             l.scroll_y = (int16_t)l.scroll_y + my;

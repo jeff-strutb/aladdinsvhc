@@ -87,6 +87,8 @@
  * a layer has and kept for the next level of that size.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <string.h>
 
 #include "data/data.h"
@@ -96,6 +98,7 @@
 #include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "video/view.h"
 
 #define MAP_WORDS (FILL_CELLS_MAX * 4)  /* the most tiles a layer's map has: the level and its margins, 2 x 2 tiles a metatile */
 #define POOL_SIZE 96
@@ -120,6 +123,15 @@ static LevelMap layer_map[2];
 static uint16_t field_words[MAP_WORDS], back_words[MAP_WORDS];
 static uint16_t cells[FILL_CELLS_MAX];      /* a layer's metatiles, level and margins, for the fill */
 static FillReport fill_report[2];
+static double fill_clock;
+
+static double fill_now(void)
+{
+    struct timespec t;
+
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
+}
 static int32_t prov_src[2][FILL_CELLS_MAX];      /* the fill's provenance by cell, per layer (level_fill_source, _kind): for the map dump */
 static uint8_t prov_kind[2][FILL_CELLS_MAX];
 
@@ -178,8 +190,14 @@ static void build_layer(int layer, unsigned layout)
     int band = layer == 1 && (g.layer_setup_mode == 0x0A || g.layer_setup_mode == 0x0C || g.layer_setup_mode == 0x0E);
     unsigned columns = band && layout_columns > 2 ? 2 : layout_columns;
     unsigned lw = columns * METATILE_TILES, lh = rows * METATILE_TILES;     /* the layout in metatiles */
-    unsigned ox = band ? 0 : FILL_MARGIN, oy = FILL_MARGIN;                 /* the fill's margins left and above; a wrapping backdrop has none across */
-    unsigned fw = lw + 2 * ox, fh = lh + 2 * oy;                            /* the whole, with the margins on every side */
+    /* The margins are as deep as a view shows (docs VIEW.md 5.x): across, the frame round the original's screen, view.dx pixels (the view
+       changes only where a level loads, before this), and a cell more; the backdrop's also the 128 pixels past its layout that the original's
+       own window reaches in levels $0F and $10 (the plays' counts, level_maps_note). Down and up, none for the play field (its window never
+       leaves the layout: the camera's limits) and 7 cells for the backdrop (the original's window goes 96 pixels above level $10's). A wrapping
+       backdrop has none across. */
+    unsigned dx_cells = (unsigned)((view.dx + 15) / 16) + 1u + (layer == 1 ? 8u : 0u);
+    unsigned ox = band ? 0 : dx_cells, oy = layer == 1 ? 7u : 0u;
+    unsigned fw = lw + 2 * ox, fh = lh + 2 * oy;                            /* the whole, with the margins */
     uint32_t w, h;
 
     m->on = 0;
@@ -219,8 +237,11 @@ static void build_layer(int layer, unsigned layout)
                     cells[(size_t)(oy + cy * METATILE_TILES + my) * fw + ox + cx * METATILE_TILES + mx] =
                         screen & NEGATIVE_PLACE ? (uint16_t)FILL_BLANK : (uint16_t)(screen_tile(screen, my * 0x20u + mx * 2u) & 0x7FFFu);
         }
+    fill_clock = fill_now();
     LevelFill(cells, lw, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
               &fill_report[layer]);
+    if (getenv("ALADDIN_DEV_FILL"))
+        fprintf(stderr, "fillms layer %d level %u x %u cells, whole %u x %u: %.1f ms\n", layer, lw, lh, fw, fh, (fill_now() - fill_clock) * 1000.0);
     memcpy(prov_src[layer], level_fill_source(), (size_t)fw * fh * sizeof(int32_t));
     memcpy(prov_kind[layer], level_fill_kind(), (size_t)fw * fh);
     for (unsigned r = 0; r < fh; r++)
@@ -321,6 +342,48 @@ void LevelMapsFreeze(void)
         video_map_write(layer ? VIDEO_MAP_BACK : VIDEO_MAP_FRONT, ring);
     }
     LevelMapsOff();
+}
+
+/* a developer's note (ALADDIN_DEV_OVER=FILE): how far past the level's own layout each layer's window (scroll x, y, 256 x 224) goes, per level, at the
+   end of the run: left, right, top, bottom in pixels (0: never) */
+static struct { int32_t v[4]; } over_seen[2][64];
+static const char *over_file;
+
+static void over_report(void)
+{
+    FILE *f = over_file ? fopen(over_file, "a") : NULL;
+
+    if (!f)
+        return;
+    for (int l = 0; l < 2; l++)
+        for (int n = 0; n < 64; n++)
+            if (over_seen[l][n].v[0] || over_seen[l][n].v[1] || over_seen[l][n].v[2] || over_seen[l][n].v[3])
+                fprintf(f, "level %02X layer %d left %d right %d top %d bottom %d\n", n, l, over_seen[l][n].v[0], over_seen[l][n].v[1],
+                        over_seen[l][n].v[2], over_seen[l][n].v[3]);
+    fclose(f);
+}
+
+void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y)
+{
+    static int known;
+    const LevelMap *m = &layer_map[layer];
+    int32_t v[4];
+
+    if (!known) {
+        known = 1;
+        over_file = getenv("ALADDIN_DEV_OVER");
+        if (over_file)
+            atexit(over_report);
+    }
+    if (!over_file || !m->on || m->wraps)
+        return;
+    v[0] = -scroll_x;
+    v[1] = scroll_x + 256 - (int32_t)m->level_w * 8;
+    v[2] = -scroll_y;
+    v[3] = scroll_y + 224 - (int32_t)m->level_h * 8;
+    for (int i = 0; i < 4; i++)
+        if (v[i] > over_seen[layer][g.level & 63].v[i])
+            over_seen[layer][g.level & 63].v[i] = v[i];
 }
 
 void level_maps_margin(int layer, int32_t *x, int32_t *y)
