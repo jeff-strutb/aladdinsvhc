@@ -19,6 +19,13 @@ void video_mode7_build(uint8_t row_flag, const uint8_t *planar, const uint8_t *m
 /* video.c: BG1's or BG2's video map (VIDEO_MAP_FRONT, VIDEO_MAP_BACK; 64 x 32) written whole from its words, row by row */
 void video_map_write(VideoMap map, const uint16_t *words);
 
+/* line_history.c: the heights list kept (at init); level $11's BG2 given its offset table (draw_layers) */
+void line_history_init(void);
+void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t margin_y, int32_t tall);
+
+/* lines.c: whether a mode effect that is on puts any line in mode `mode` */
+int video_lines_have_mode(int mode);
+
 /* lines.c: a window's left or right edge of the original's columns, in the picture's (the frame beside the screen) */
 int32_t video_window_left(int32_t left);
 int32_t video_window_right(int32_t right);

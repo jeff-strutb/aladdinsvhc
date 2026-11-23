@@ -253,6 +253,7 @@ void video_init(void)
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
+    line_history_init();
     /* what the picture reads that an update changes, kept as the update before's world (between.h) */
     between_keep(shown_sprites, lists_cap * sizeof *shown_sprites);
     between_keep(shown_owner, lists_cap * sizeof *shown_owner);
@@ -704,6 +705,10 @@ static int video_tile_bpp(int layer)
 
 /* The object a layer's map and tiles are (g.bg_map, g.bg_tiles); one no screen
    of the record uses is reported once and the layer left off. */
+static const int32_t map_rows[VIDEO_MAP_KINDS] = {        /* each video map's rows, as made (video_init) */
+    [VIDEO_MAP_BACK] = 32, [VIDEO_MAP_FRONT] = 32, [VIDEO_MAP_TEXT] = 32, [VIDEO_MAP_BACK_TALL] = 64,
+};
+
 static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
 {
     static int told;
@@ -765,6 +770,17 @@ static void draw_layers(void)
         l.wrap = 1;
         if (i == 0 && video_title_view())
             l.wrap = 0;     /* the title's menu rows are BG1's text map (the title's mode-1 lines): drawn once at the original's frame, not repeated every 256 across the whole view (VIEW.md 6.5) */
+        if (i == 1 && video_level_view() && (uint8_t)g.level == 0x11 && video_lines_have_mode(2)) {
+            /* the floor's columns (line_history.c), in the terms of the map BG2 draws: the level's, with its margin, or a
+               video map (in the arena: $4800, 64 x 32) */
+            int32_t mx = 0, my = 0, tall = map_rows[g.bg_map[1]] * 8;
+
+            if (level_maps_active(1)) {
+                level_maps_margin(1, &mx, &my);
+                tall = level_maps_height(1);
+            }
+            line_history_offsets(&l, video_layer_x(1), video_layer_x(2), my, tall);
+        }
         if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT) {
             l.scroll_x_sub = l.scroll_y_sub = 0;    /* the status line stays on the screen's pixels */
             hud_layer_set(&l, l.scroll_x);      /* the text layer in a level: the status line at the view's corners */

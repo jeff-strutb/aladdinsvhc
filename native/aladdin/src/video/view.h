@@ -22,6 +22,7 @@
 
 #define VIEW_ORIGINAL_W 256
 #define VIEW_ORIGINAL_H 224
+#define VIEW_WIDEST_W 4096         /* the widest view a window or ALADDIN_VIEW can give */
 
 typedef struct View {
     int32_t w, h;       /* the view, in game pixels; both even */

@@ -395,6 +395,25 @@ int video_lines_tile_mode(void)
     return 1;
 }
 
+/* whether a mode effect that is on puts any line in mode `mode` (offset-per-tile is drawn only on such lines) */
+int video_lines_have_mode(int mode)
+{
+    for (int ch = 1; ch < 8; ch++) {
+        const LineChannel *c = &g.line_channel[ch];
+        uint32_t value[LINES];
+        uint8_t set[LINES];
+
+        if (!(g.line_effects_on >> ch & 1) || c->target != LINE_MODE)
+            continue;
+        memset(set, 0, sizeof set);
+        channel_values(c, 0, value, set);
+        for (int i = 0; i < LINES; i++)
+            if (set[i] && (int)(value[i] & 7) == mode)
+                return 1;
+    }
+    return 0;
+}
+
 /* the developer's (between.c, ALADDIN_DEV_STEPS): a hash of the window edges each line shows, from the channels that
    set them, and of the frame's own window edges */
 uint32_t video_lines_windows_hash(void)

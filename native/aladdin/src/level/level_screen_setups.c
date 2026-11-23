@@ -423,6 +423,7 @@ static void Level11ScreenSetup(void)
     g.scroll_limit_x = (uint16_t)((g.scroll_limit_x & 0x00FF) | 0x0100);
     for (unsigned i = 0x3C0; i < 0x400; i++)
         g.text_map[i] = 0x4000;
+    LineHistoryClear();
     line_effect(1, LINE_MODE, line_table_at(0x80, 0xB9C3));
     line_effect(2, LINE_BG3_Y, line_table_at(0x80, 0xB9CA));
     line_effect(3, LINE_TM, line_table_at(0x80, 0xB9D4));

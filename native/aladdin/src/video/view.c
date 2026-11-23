@@ -23,7 +23,7 @@ View view = { VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0, 0, 0 };
 #define SHOWN_H 216             /* the original's 224 rows less the 8 a level crops */
 #define NARROWEST_W 288         /* the shown picture at 4:3: 216 x 4 / 3 */
 #define LEVEL_CROP 8
-#define MOST 4096
+#define MOST VIEW_WIDEST_W
 
 static long window_w, window_h; /* ALADDIN_DEV_WINDOW_AT: the window's pixels the rule reads, from that update on (0: none given) */
 static int forced;              /* ALADDIN_VIEW gave the view */

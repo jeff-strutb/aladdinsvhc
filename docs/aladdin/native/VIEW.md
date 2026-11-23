@@ -636,3 +636,29 @@ The questions as they were put:
   answers it, after V5 and V6.
 - Level 6's sprite cut at line 181, and what level 7's 512 x 512 backdrop shows past 256 x 224.
 - Whether a backdrop that does not repeat (levels 4, $12) looks right when wrapped.
+
+## Level $11's floor: offset-per-tile (2026-11-23)
+
+**Fault.** In the snake's arena the original draws the lines below the status band in mode 2 (line table $80:B9C3; BG3's y
+$F0 there, $80:B9CA), so each BG2 column takes its vertical scroll from the text map's row 31, where ActorYHistoryPush (84:8EBD)
+keeps the riser's last 32 heights: the floor is a wave across the screen. The native game sent the row but never gave the engine
+an offset-per-tile map, so every column showed the newest height and Aladdin (whose y was the original's) seemed to stand on air
+or sink into the ledge.
+
+**Fix (Jeff's decisions, 2026-11-23).** Engine API 6.14 adds `nshvc_layer.offset_per_tile_own`: the offsets as a table of the
+layer's own (row 0 across, row 1 down, column c - 1 for offset column c), not read through BG3 (in a level BG3 is the status
+line's own map, hud_layer.c). `video/line_history.c` keeps the heights whole in a list longer than the row (kept with the world,
+between.h; in snapshots and saves, so saves made before are refused as any layout change makes them) and builds BG2's table each
+picture, in the terms of the map BG2 draws (in the arena the video map $4800, 512 x 256), on level $11 while a mode effect puts
+lines in mode 2. A wider view continues the wave to its right edge with the older heights; left of the original's first offset
+column the floor is the newest height, as the original's column 0 is (no height exists there). The row 30 entries ($4000) give
+BG2's x in whole characters and are the same picture as none; any other would be reported once on stderr.
+
+**Checked.** p5-3 on the original (lbox, a picture and work RAM a native update, 5150-5410) against the native at 256 x 224: the
+player's x and y the same at all 261 updates; the floor's rows per 8-pixel column (rows 172-199, below the player's feet), native
+update u against the original's u - 1 (the headless picture is the update before's, between.h): 0 rows off in all 32 columns in
+65 of 65 updates sampled (5152-5408, every 4th). Before the fix the same measure gave up to 22 rows off. Native traces (player,
+every actor) the same before and after the fix at 256 and 398 wide; runahead off against on, world hash every update, p5-3 to
+6000: the same. At 398 and 512 the play is a wide view's own (the riser's y differs from the 256 play's from update 5207 in the
+build before the fix too), so the wide pictures were looked at, not measured against the original. Engine: the scenes
+offset-per-tile-own2 and -own4 (Metal) match bsnes, and fail with the flag off.
