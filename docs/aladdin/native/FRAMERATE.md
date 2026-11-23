@@ -435,7 +435,9 @@ largest difference 0.0000 of an update), no picture repeated. 3,709 of 3,798 mov
 17 ms off the refresh (a draw call late, the next early, e.g. 28.5 ms then 4.5 ms), so their moments step 1.3 to 2.0 and
 0.3 to 0.7. That is the engine's loop calling `draw` off the display's refresh, not the easing: a picture timed by the
 time it will be shown (the display's), not the time it is drawn, would need the engine's loop to pass it. A question
-for Jeff, not made. Still by Jeff's eye: how it looks.
+for Jeff: planned in ENGINE_REQUESTS.md section 4, with the presentation times measured (each picture's moment follows
+its real presentation to about 1 ms; drawn to shown 49 ms; nothing shown while the window is covered, yet two pictures
+an update drawn). Still by Jeff's eye: how it looks.
 
 **Other renderers.** Vulkan, on this Mac through MoltenVK (the null host's loader): the engine's tests `brightness_sub`,
 `subpixel`, `depth`, `palettes`, `mesh` ok, and the 118 scenes at 1x and 4x the same as Metal's, 236 pictures, 0
