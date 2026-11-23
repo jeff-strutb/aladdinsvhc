@@ -1,0 +1,157 @@
+2400 key=0D
+2402
+2700 key=28
+2703
+2715 key=26
+2718
+3700 key=57
+3720 key=57 key=26
+3723 key=57
+3730 key=57 key=26
+3733 key=57
+3740 key=57 key=26
+3743 key=57
+3750 key=57 key=27
+3753 key=57
+3760 key=57 key=27
+3763 key=57
+3775
+3900 key=0D
+3903
+4160 key=27 key=41
+4176 key=27 key=41
+4192 key=27 key=41
+4208 key=27 key=41
+4224 key=27 key=41
+4240 key=27 key=41
+4256 key=27
+4428
+4444
+4460
+4476
+4492 key=27
+4508 key=27
+4524 key=41
+4540 key=27
+4556 key=5A
+4572 key=27
+4588 key=5A
+4604
+4620 key=27 key=5A
+4636 key=27
+4652 key=27 key=5A
+4668 key=27 key=5A
+4684 key=5A
+4700 key=27 key=41
+4716 key=27
+4732 key=27
+4748 key=27
+4764 key=27
+4780 key=41
+4796 key=27
+4812 key=5A
+4828 key=27
+4844 key=5A
+4860
+4876 key=27 key=5A
+4892 key=27
+4908 key=27 key=5A
+4924 key=27 key=5A
+4940 key=5A
+4956 key=27 key=41
+4972 key=27
+4988 key=27
+5004 key=27
+5020 key=27
+5036 key=41
+5052 key=27
+5068 key=5A
+5084 key=27
+5100 key=5A
+5116
+5132
+5148
+5164
+5180
+5196 key=27
+5212 key=27
+5228 key=41
+5244 key=27
+5260 key=5A
+5276 key=27
+5292 key=5A
+5308
+5324 key=27 key=5A
+5340 key=27
+5356 key=27 key=5A
+5372 key=27 key=5A
+5388 key=5A
+5404 key=27 key=41
+5420 key=27
+5436 key=27
+5452 key=27
+5468 key=27
+5484 key=41
+5500 key=27
+5516 key=5A
+5532 key=27
+5548 key=5A
+5564
+5580 key=27 key=5A
+5596 key=27
+5612 key=27 key=5A
+5628 key=27 key=5A
+5644 key=5A
+5660 key=27 key=41
+5676 key=27
+5692 key=27
+5708 key=27 key=5A
+5724 key=27 key=5A
+5740 key=27 key=5A
+5756 key=27 key=41
+5772 key=27 key=41
+5788 key=27 key=41
+5804 key=27 key=41
+5820 key=27 key=5A
+5836 key=27 key=5A
+5852 key=25
+5868 key=25 key=5A
+5884 key=27 key=5A
+5900 key=25 key=5A
+5916 key=25
+5932 key=27 key=5A
+5948 key=27
+5964
+5980
+5996
+6012
+6028 key=27
+6044 key=27 key=41
+6060 key=5A
+6076 key=27 key=41
+6092 key=27 key=5A
+6108 key=27
+6124 key=27 key=5A
+6140 key=27 key=5A
+6156 key=27 key=41
+6172 key=27 key=5A
+6188 key=27 key=41
+6204 key=27 key=5A
+6220 key=27
+6236 key=25 key=5A
+6252 key=27 key=41
+6268 key=27 key=5A
+6284 key=25
+6300
+6316 key=27 key=5A
+6332 key=27 key=5A
+6348 key=27
+6364 key=27
+6380 key=27
+6396 key=27
+6412 key=27
+6428 key=27 key=5A
+6444 key=27 key=41
+6460 key=27
+6476 key=27 key=5A
+6492 key=27 key=5A
