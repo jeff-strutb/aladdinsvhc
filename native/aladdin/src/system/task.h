@@ -64,7 +64,6 @@ typedef enum {
     TASK_ENTRY_MODE7_ZOOM_IN,       /* 81:B157 Mode7ZoomInTask (video/) */
     TASK_ENTRY_WINDOW_EFFECT,       /* 82:8000 WindowEffectTask (video/) */
     TASK_ENTRY_STORY_TEXT,          /* 81:F332 StoryTextTask (game/story_text.c) */
-    TASK_ENTRY_OPTIONS,             /* 83:8979 OptionsTask (stage 5) */
     TASK_ENTRY_PASSWORD,            /* 84:AD50 PasswordScreen (stage 5) */
     TASK_ENTRY_GAME_START,          /* 81:8095 GameStartTask (stage 5) */
     TASK_ENTRY_DEMO,                /* 81:8031 DemoTask (stage 5) */

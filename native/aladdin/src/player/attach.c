@@ -22,7 +22,7 @@ int PlayerLandOnActor(const Actor *a, uint16_t box)
     Actor *p = &g.actors[0];
     LandBox b;
 
-    if (!(a->flags & 0x40) || g.player_on_actor || no_actor_landing() || p->speed_y < 0)
+    if (!actor_in_play(a) || g.player_on_actor || no_actor_landing() || p->speed_y < 0)
         return 0;
     b = land_box(box);
     if ((uint16_t)(x_pixels(a) - x_pixels(p) + b.x_offset) >= b.width)

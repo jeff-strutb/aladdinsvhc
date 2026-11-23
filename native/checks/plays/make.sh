@@ -1,5 +1,5 @@
 #!/bin/sh
-# make.sh PART STAGE LAST_UPDATE [DEPTH]: plays level PART STAGE (the level select by keys, then the developer's player, dev_bot.c,
+# make.sh PART STAGE LAST_UPDATE [DEPTH]: plays level PART STAGE (the level select by keys, with ALADDIN_DEV_CHEAT=1 set, then the developer's player, dev_bot.c,
 # from update 4100) with the headless build and writes native/checks/plays/pPART-STAGE.txt: an --input file (the select's keys,
 # then the player's) that run.sh replays. ALADDIN_CPU_RUN names the CPU queue command. Run from the repository root with the
 # headless build in build/aladdin/native/headless. The player's settings pass through the environment (ALADDIN_DEV_BOT_SEG, _GOAL,
@@ -11,9 +11,9 @@ part=$1 stage=$2 last=$3 depth=${4:-1}
 root=$(pwd)
 plays=$root/native/checks/plays
 tmp=$(mktemp -d)
-python3 "$plays/level_select_input.py" "$part" "$stage" "$tmp/pre.txt"
+python3 "$plays/select_input.py" "$part" "$stage" "$tmp/pre.txt"
 cd "$root/build/aladdin/native/headless"
-ALADDIN_DEV_BOT=4100 ALADDIN_DEV_BOT_DEPTH=$depth ALADDIN_DEV_BOT_OUT="$tmp/bot.txt" ALADDIN_DEV_TRACE=${TRACE:-400} \
+ALADDIN_DEV_CHEAT=1 ALADDIN_DEV_BOT=4100 ALADDIN_DEV_BOT_DEPTH=$depth ALADDIN_DEV_BOT_OUT="$tmp/bot.txt" ALADDIN_DEV_TRACE=${TRACE:-400} \
   "${ALADDIN_CPU_RUN:?set ALADDIN_CPU_RUN to the CPU queue command}" -j ${J:-2} -m ${M:-3G} -- ./aladdin --headless --updates "$last" --input "$tmp/pre.txt" 2>&1 | grep -v '^WARNING\|^Dropped\|^  actor\|^u=[0-3]' | tee "$tmp/log.txt"
 if [ -z "$END" ]; then
   n=$(sed -n 's/.*found at update [0-9]*: \([0-9]*\) segments.*/\1/p' "$tmp/log.txt" | tail -1)

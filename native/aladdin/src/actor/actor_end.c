@@ -26,7 +26,9 @@ static int stack_full(const char *which)
  */
 void ActorClear(Actor *a)
 {
-    g.kind_count[a->kind]--;
+    if (a->outside_play != 1)           /* native: 1, not counted with its kind since a scene's clear kept it */
+        g.kind_count[a->kind]--;
+    a->outside_play = 0;
     ActorClearFields(a);
 }
 
@@ -98,6 +100,8 @@ void ActorTileSlotRelease(Actor *a)
  */
 void ActorFreePlaced(Actor *a)
 {
+    if (a->state != ACTOR_STATE_FREE && a->placed_here)
+        PlacementConsoleForget(a->placement);   /* native: the original's placing may reach it again */
     if (!(g.placed[a->placement] & 0x80))
         g.placed[a->placement] = 0;
     ActorClear(a);

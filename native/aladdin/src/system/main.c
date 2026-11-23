@@ -18,6 +18,7 @@
 #include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
+#include "system/runahead.h"
 #include "system/screen_mode.h"
 #include "system/settings.h"
 #include "system/system.h"
@@ -172,8 +173,11 @@ static void record_input(const nshvc_input *input)
 
 static void update(const nshvc_input *input)
 {
-    nshvc_input bot;
+    nshvc_input bot, select;
 
+    runahead_begin();           /* the real world back, if the last tick ran ahead */
+    if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
+        input = &select;
     between_update_begin();
     if (DevMapDumpHeld()) {
         NmiPictureWork();
@@ -195,6 +199,7 @@ static void update(const nshvc_input *input)
     DevMapDumpLevel(nshvc_updates());
     DevDump(nshvc_updates());
     between_update_end();
+    runahead_after(input, step);    /* the picture's world: the real one stepped on with the pad held (runahead.h) */
 }
 
 /* a picture: the update before's world, eased towards the newest by `between` (video/between.h) */
@@ -214,6 +219,7 @@ int main(int argc, char **argv)
 {
     static nshvc_game game;
 
+    runahead_init(argc, argv);
     game.title = "Aladdin";
     game.id = "aladdin";
     game.update_hz = 60;

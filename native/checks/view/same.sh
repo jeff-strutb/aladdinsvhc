@@ -2,7 +2,9 @@
 # same.sh BASE_BIN NEW_BIN [VIEW]: the view's check (docs/aladdin/native/VIEW.md section 8). Runs the no-input boot
 # (11,000 updates) and every play in native/checks/plays (p*.txt, boss16-2hits.txt; each to its last key + 600) on two
 # headless builds, the new one with ALADDIN_VIEW=VIEW (default 256x224), and compares the developer traces update by
-# update: the player's line, every live actor with its own bytes, the video fields. At 256x224 every run must be the
+# update: the player's line, every live actor with its own bytes, the video fields. SAME_NEW_ENV sets environment variables
+# for the new build alone, SAME_BASE_ENV for the base alone (the runahead check, FRAMERATE.md 9.8: the same build twice,
+# SAME_BASE_ENV="ALADDIN_RUNAHEAD=0 ALADDIN_DEV_STATE_HASH=1" and SAME_NEW_ENV="ALADDIN_RUNAHEAD=1 ALADDIN_DEV_STATE_HASH=1"). At 256x224 every run must be the
 # same; the first differing line of each run that differs is printed. Run from the repository root.
 # Exit 0: all the same and every run exited 0. Exit 1: some differ or failed.
 set -u
@@ -22,10 +24,11 @@ done
 one() {   # name updates input
   for side in base new; do
     if [ $side = base ]; then bin=$base; v=256x224; else bin=$new; v=$view; fi
-    if [ "$3" = - ]; then in=""; else in="--input $3"; fi
+    if [ "$3" = - ]; then in=""; cheat=0; else in="--input $3"; cheat=1; fi   # the plays select their level with the cheat set from the start
     res=$(dirname "$bin")/../Resources   # a macOS build keeps cart.dat in the bundle; the headless host reads PORT_RESDIR
     [ -f "$res/cart.dat" ] || res=$(dirname "$bin")
-    (cd "$(dirname "$bin")" && PORT_RESDIR=$res ALADDIN_VIEW=$v ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 \
+    if [ $side = base ]; then extra=${SAME_BASE_ENV:-}; else extra=${SAME_NEW_ENV:-}; fi   # SAME_BASE_ENV, SAME_NEW_ENV="NAME=VALUE ...": environment for one side only (the runahead check)
+    (cd "$(dirname "$bin")" && env PORT_RESDIR=$res ALADDIN_DEV_CHEAT=$cheat ALADDIN_VIEW=$v ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 $extra \
       "$bin" --headless --updates "$2" $in > "$out/$1.$side.out" 2> "$out/$1.$side.err")
     echo $? > "$out/$1.$side.exit"
   done

@@ -32,7 +32,7 @@ ActorSolid ActorSolidForPlayer(Actor *a, uint8_t at)
     uint16_t ax = pixels(a->x), ay = pixels(a->y), px = pixels(p->x), py = pixels(p->y);
     uint16_t upper = (uint16_t)(b.half_h - 8);
 
-    if (!(a->flags & 0x40) || g.player_on_actor)
+    if (!actor_in_play(a) || g.player_on_actor)
         return ACTOR_SOLID_BESIDE;
     if (inside(ax, pixels(g.frame_start_x), b.half_w, (uint16_t)(b.half_w << 1))
         && !inside(ay, py, upper, (uint16_t)(upper << 1))

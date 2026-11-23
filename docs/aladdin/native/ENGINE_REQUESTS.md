@@ -86,7 +86,16 @@ Not run: Vulkan, Direct3D 12, the windowed path; `feature`, `pixel`, `cost` (the
 **Where the game uses it.** `native/aladdin/src/video/video.c` (`sprites_ease`, `draw_layers`, `draw_mode7`),
 `video/scroll.c`, `video/lines.c`: the eased places' fractions, from the 16.8 and 24.8 places the game keeps.
 
-## 3. A brightness between the 16 levels (Jeff, 2026-11-23): API 6.13, nativeshvc branch `brightness-sub`
+## 3. Runahead (2026-11-23): no request
+
+Runahead (FRAMERATE.md section 9) needs nothing of the engine as built: one ahead step writes the engine's tiles, maps and palette
+only through `video/between.c`, which holds an update's writes until the next update begins; an ahead step's writes are held and
+dropped when the real world is put back, and the engine is never asked to save or restore anything. Two or more ahead steps would
+apply an ahead step's writes to the engine and then need them undone; the engine has no read back of its tiles, maps or palette,
+so that case would need either the game to keep a copy of everything it has written (a shadow; no engine change) or an engine
+snapshot. Not built (FRAMERATE.md 9.6).
+
+## 4. A brightness between the 16 levels (Jeff, 2026-11-23): API 6.13, nativeshvc branch `brightness-sub`
 
 Made as 6.11; renumbered 6.13 when 6.11 (controllers' identity) and 6.12 (saves in the game's folder) reached nativeshvc
 main first (the Aladdin orchestrator's catch, 2026-11-23). Rebased on main 134e2a2, the compiled programs regenerated
@@ -115,7 +124,7 @@ and the 118 scenes the same as Metal's, 236 pictures, 0 differ. Direct3D 12: the
 **Where the game uses it.** `video/video.c` (`video_draw`: the screen's and the lit line's brightness from
 `between_brightness`, `video/between.c`).
 
-## 4. Pictures timed by the display (Jeff, 2026-11-23: "Yes, plan it"): a plan, not made
+## 5. Pictures timed by the display (Jeff, 2026-11-23: "Yes, plan it"): a plan, not made
 
 **Why it was asked.** The windowed run (FRAMERATE.md R5) found 19 of 3,800 pictures drawn 5 to 17 ms off the refresh:
 the game's `between` is the clock when `draw` is called, and the engine's loop calls it when the render thread asks

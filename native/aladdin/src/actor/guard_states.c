@@ -9,10 +9,13 @@
 #include "actor/guard.h"
 #include "actor/kinds_d.h"
 #include "video/video.h"
+#include "system/runahead.h"
 
 /* $1471, $1473: its x and y pixels, kept each frame (nothing else in the
    record reads them) */
 static uint16_t kept_x, kept_y;
+RUNAHEAD_KEEP(kept_x)
+RUNAHEAD_KEEP(kept_y)
 
 /* GuardWait's state 1: held while a move is under way; else to its
    chase's pose (g.screen_signal bit 7), to its walk once Aladdin has no

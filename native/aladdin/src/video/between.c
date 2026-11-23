@@ -29,6 +29,7 @@ typedef struct Kept {
     void *now;                      /* at its newest step */
     void *aside;                    /* the live state, put aside while a picture draws from "was" */
     size_t bytes;
+    int unhashed;                   /* the developer's state hash leaves it to its owner (it holds pointers) */
 } Kept;
 
 static Kept kept[KEPT_MAX];
@@ -82,6 +83,13 @@ static void *regrow(void *p, size_t old, size_t bytes)
     if (bytes > old)
         memset((uint8_t *)q + old, 0, bytes - old);
     return q;
+}
+
+void between_unhashed(const void *live)
+{
+    for (unsigned i = 0; i < kept_count; i++)
+        if (kept[i].live == live)
+            kept[i].unhashed = 1;
 }
 
 void between_rekeep(void *old, void *p, size_t bytes)
@@ -420,6 +428,8 @@ static Held *hold(uint8_t kind, const void *data, size_t bytes)
     return h;
 }
 
+static uint64_t held_sent;          /* writes sent to the engine in all (runahead: those an ahead step sent) */
+
 /* the first n writes held written, in their order; the rest kept */
 static void write_held(size_t n)
 {
@@ -452,6 +462,7 @@ static void write_held(size_t n)
         memmove(hold_data, hold_data + done_bytes, hold_used - done_bytes);
     held_count -= n;
     hold_used -= done_bytes;
+    held_sent += n;
 }
 
 void between_tiles_write(nshvc_tiles t, uint32_t first, const void *data, uint32_t count, nshvc_tile_format f, size_t bytes)
@@ -512,6 +523,185 @@ void between_palette_write(uint32_t first, uint32_t count, const uint16_t *bgr15
     h = hold(HOLD_PALETTE, bgr15, (size_t)count * sizeof *bgr15);
     h->a = first;
     h->b = count;
+}
+
+/* ---- runahead: the real world saved while ahead steps run, and put back (system/runahead.c) ---- */
+
+static GameState g_saved;
+static void *kept_saved[KEPT_MAX];
+static size_t kept_saved_bytes[KEPT_MAX];
+
+/* The steps' own state as the real update left it (FRAMERATE.md R4): an ahead step moves the world's, the brightness's,
+   the windows' and Mode 7's tracks on as a real one does (its picture eases towards it), and the real world's next update
+   must find them as the real update left them. A track the ahead step moved on had its snapshots turned one along: they
+   are turned back, with the one that fell off kept here (the world's "was", the windows' oldest) */
+static struct {
+    uint64_t updates, world_at, last_turn, bright_at, win_at, held_sent;
+    unsigned world_steps, slow, bright_steps, win_steps;
+    int have_was, bright_from, bright_now;
+    uint32_t win_hash;
+    float win_from;
+    size_t held_count, held_to_step;
+    NumTrack m7_matrix, m7_scale;
+} steps_saved;
+static GameState g_was_saved, win_prev_saved;
+static void *kept_was_saved[KEPT_MAX];
+static size_t kept_was_saved_bytes[KEPT_MAX];
+
+static void steps_save(void)
+{
+    steps_saved.updates = updates;
+    steps_saved.world_at = world_at;
+    steps_saved.last_turn = last_turn;
+    steps_saved.bright_at = bright_at;
+    steps_saved.win_at = win_at;
+    steps_saved.held_sent = held_sent;
+    steps_saved.world_steps = world_steps;
+    steps_saved.slow = slow;
+    steps_saved.bright_steps = bright_steps;
+    steps_saved.win_steps = win_steps;
+    steps_saved.have_was = have_was;
+    steps_saved.bright_from = bright_from;
+    steps_saved.bright_now = bright_now;
+    steps_saved.win_hash = win_hash;
+    steps_saved.win_from = win_from;
+    steps_saved.held_count = held_count;
+    steps_saved.held_to_step = held_to_step;
+    steps_saved.m7_matrix = m7_matrix;
+    steps_saved.m7_scale = m7_scale;
+    memcpy(&g_was_saved, &g_was, sizeof g_was);
+    for (unsigned i = 0; i < kept_count; i++) {
+        if (kept_was_saved_bytes[i] != kept[i].bytes) {
+            kept_was_saved[i] = regrow(kept_was_saved[i], kept_was_saved_bytes[i], kept[i].bytes);
+            kept_was_saved_bytes[i] = kept[i].bytes;
+        }
+        memcpy(kept_was_saved[i], kept[i].was, kept[i].bytes);
+    }
+    if (win_prev)
+        memcpy(&win_prev_saved, win_prev, sizeof win_prev_saved);
+}
+
+static void steps_restore(void)
+{
+    uint64_t sent = held_sent - steps_saved.held_sent;     /* writes the ahead step sent: the first `sent` of those held */
+
+    if (world_at != steps_saved.world_at) {     /* the ahead step was a step of the world: its snapshots turned back */
+        memcpy(&g_now, &g_was, sizeof g_now);
+        memcpy(&g_was, &g_was_saved, sizeof g_was);
+        for (unsigned i = 0; i < kept_count; i++) {
+            memcpy(kept[i].now, kept[i].was, kept[i].bytes);
+            memcpy(kept[i].was, kept_was_saved[i], kept[i].bytes);
+        }
+    }
+    if (win_at != steps_saved.win_at && win_prev) {
+        memcpy(win_now, win_was, sizeof *win_now);
+        memcpy(win_was, win_prev, sizeof *win_was);
+        memcpy(win_prev, &win_prev_saved, sizeof *win_prev);
+    }
+    updates = steps_saved.updates;
+    world_at = steps_saved.world_at;
+    last_turn = steps_saved.last_turn;
+    bright_at = steps_saved.bright_at;
+    win_at = steps_saved.win_at;
+    world_steps = steps_saved.world_steps;
+    slow = steps_saved.slow;
+    play_turned = 0;
+    bright_steps = steps_saved.bright_steps;
+    win_steps = steps_saved.win_steps;
+    have_was = steps_saved.have_was;
+    bright_from = steps_saved.bright_from;
+    bright_now = steps_saved.bright_now;
+    win_hash = steps_saved.win_hash;
+    win_from = steps_saved.win_from;
+    m7_matrix = steps_saved.m7_matrix;
+    m7_scale = steps_saved.m7_scale;
+    /* the writes held: the real ones not yet sent (the ahead step's are dropped); those it sent are in the engine already,
+       as the real world's next step would have sent them */
+    held_count = steps_saved.held_count - (size_t)sent;
+    hold_used = held_count ? held[held_count - 1].at + held[held_count - 1].bytes : 0;
+    held_to_step = steps_saved.held_to_step - (size_t)sent;
+}
+
+void between_save(void)
+{
+    steps_save();
+    memcpy(&g_saved, &g, sizeof g);
+    for (unsigned i = 0; i < kept_count; i++) {
+        if (!kept_saved[i] || kept_saved_bytes[i] != kept[i].bytes) {
+            kept_saved[i] = realloc(kept_saved[i], kept[i].bytes);
+            kept_saved_bytes[i] = kept[i].bytes;
+            if (!kept_saved[i]) {
+                fprintf(stderr, "between: no memory for a saved part of %zu bytes\n", kept[i].bytes);
+                exit(2);
+            }
+        }
+        memcpy(kept_saved[i], kept[i].live, kept[i].bytes);
+    }
+}
+
+/* a hash of what between_save kept (g and the kept parts): the developer's check that ahead steps leave the real world alone */
+static void ptr_to_offset(Actor **at, size_t n)
+{
+    for (size_t i = 0; i < n; i++)
+        at[i] = at[i] ? (Actor *)((uintptr_t)at[i] - (uintptr_t)&g) : (Actor *)~(uintptr_t)0;
+}
+
+uint64_t between_saved_hash(uint64_t h, int parts)
+{
+    static GameState flat;      /* g_saved with its pointers into g as offsets into g (the same in every run) */
+    const uint8_t *p = (const uint8_t *)&flat;
+    uint64_t one = 0xcbf29ce484222325ull;
+
+    memcpy(&flat, &g_saved, sizeof flat);
+    ptr_to_offset(&flat.chain_head, 1);
+    ptr_to_offset(&flat.chain_tail, 1);
+    ptr_to_offset(flat.free_pool, sizeof flat.free_pool / sizeof flat.free_pool[0]);
+    ptr_to_offset(flat.free_pool_b, sizeof flat.free_pool_b / sizeof flat.free_pool_b[0]);
+    ptr_to_offset(&flat.draw_list[0][0], sizeof flat.draw_list / sizeof flat.draw_list[0][0]);
+    for (unsigned i = 0; i < ACTOR_RECORDS; i++) {
+        ptr_to_offset(&flat.actors[i].next, 1);
+        if (flat.actors[i].code)
+            flat.actors[i].code = (int (*)(struct Actor *))((uintptr_t)flat.actors[i].code - (uintptr_t)&g);
+    }
+    /* g.line_data (the per-line tables) is left out: some of its bytes differ from run to run of one build with no runahead
+       (level 1-1's play p1-1, from update 9089: bytes 9 to 11, 26 and 27 of it; the cause is not found), so the hash could not
+       tell a leak from that (FRAMERATE.md 9.9) */
+    memset(flat.line_data, 0, sizeof flat.line_data);
+    for (unsigned i = 0; i < VRAM_QUEUE_SIZE; i++)
+        if (flat.vram_queue[i].from)
+            flat.vram_queue[i].from = (const uint8_t *)((uintptr_t)flat.vram_queue[i].from - (uintptr_t)&g);
+    for (size_t i = 0; i < sizeof flat; i++)
+        one = (one ^ p[i]) * 0x100000001b3ull;
+    if (parts)
+        fprintf(stderr, " g=%016llx", (unsigned long long)one);
+    h = (h ^ one) * 0x100000001b3ull;
+    for (unsigned k = 0; k < kept_count; k++) {
+        if (kept[k].unhashed)
+            continue;
+        one = 0xcbf29ce484222325ull;
+        p = kept_saved[k];
+        for (size_t i = 0; i < kept[k].bytes; i++)
+            one = (one ^ p[i]) * 0x100000001b3ull;
+        if (parts)
+            fprintf(stderr, " k%u=%016llx", k, (unsigned long long)one);
+        h = (h ^ one) * 0x100000001b3ull;
+    }
+    return h;
+}
+
+/* g and the kept parts as between_save left them, and the steps' state; the writes the ahead step held for the engine
+   are dropped, and those of the real world it sent are taken off the held (FRAMERATE.md 9.4, R4 with runahead) */
+void between_restore(void)
+{
+    memcpy(&g, &g_saved, sizeof g);
+    for (unsigned i = 0; i < kept_count; i++) {
+        if (kept_saved_bytes[i] != kept[i].bytes) {
+            fprintf(stderr, "between: a kept part changed size while the game ran ahead\n");
+            exit(2);
+        }
+        memcpy(kept[i].live, kept_saved[i], kept[i].bytes);
+    }
+    steps_restore();
 }
 
 /* ---- the update and the picture ---- */

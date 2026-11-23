@@ -14,11 +14,13 @@
 #include "system/system.h"
 #include "system/task.h"
 #include "system/unconverted.h"
+#include "system/runahead.h"
 
 #define TASK_CHAIN_DEPTH 6      /* the entry and five calls below it */
 
 /* the running task's chain: how many routines on it have entered this turn */
 static unsigned chain_depth;
+RUNAHEAD_KEEP(chain_depth)
 
 /* ALADDIN_TASK_TRACE=1: each task created, started again and ended, with
    its update, on stderr (a check's sight of the boot; the game is the same) */
@@ -89,6 +91,7 @@ TaskRun task_exec(Task *t, TaskEntry entry)
 
 /* the entry an actor's TaskExec named, until the chain takes it; 0 none */
 static uint16_t exec_pending;
+RUNAHEAD_KEEP(exec_pending)
 
 void TaskExecRunning(TaskEntry entry)
 {
@@ -177,7 +180,6 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_MODE7_ZOOM_IN:      return Mode7ZoomInTask(t);
     case TASK_ENTRY_WINDOW_EFFECT:      return WindowEffectTask(t);
     case TASK_ENTRY_STORY_TEXT:         return StoryTextTask(t);
-    case TASK_ENTRY_OPTIONS:            return OptionsTask(t);
     case TASK_ENTRY_PASSWORD:           return PasswordScreen(t);
     case TASK_ENTRY_GAME_START:         return GameStartTask(t);
     case TASK_ENTRY_DEMO:               return DemoTask(t);

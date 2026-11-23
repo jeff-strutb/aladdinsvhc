@@ -1,6 +1,6 @@
 # The frame rate: a 60 Hz game, drawn smooth at any display rate
 
-Status: analysis and plan, 2026-11-22. Nothing here is built. Part of stage 7 of [PLAN.md](PLAN.md) (decision 3: "pictures
+Status: analysis and plan, 2026-11-22; what is built is in sections 8 and 9. Part of stage 7 of [PLAN.md](PLAN.md) (decision 3: "pictures
 between updates" is designed and shown to Jeff before it is built). Jeff's direction: "update game tick rate to 60hz as well as
 all animations in game interpolated to a smooth 60hz".
 
@@ -382,7 +382,7 @@ quarter update; in the chain scene the player moves 1/32 of a turn's motion a qu
 As built: `video/between.c` (the tracks; "was" and the newest now kept at the world's steps' ends, the held writes
 written a step late), `game/play_loop.c` (`between_play_turn` at the play loop's turn: no game state), `video/video.c`
 (the brightness and the frame's window edges from the tracks), `video/lines.c` (the window lines eased with their track;
-the developer's samples), engine 6.13 (ENGINE_REQUESTS.md section 3). Found on the way and fixed: R2 eased a layer by its
+the developer's samples), engine 6.13 (ENGINE_REQUESTS.md section 4). Found on the way and fixed: R2 eased a layer by its
 24.8 place alone, so a layer moved by its shift or offset stepped (the chain scene scrolls BG1 2 pixels an update by
 `g.layer_offset_y`, `bg_y` still: 896 places wrong at between 1 on main too); a layer now eases as sent, its pixels with
 the shift or offset added and its place's fraction (`video/scroll.c`).
@@ -435,7 +435,7 @@ largest difference 0.0000 of an update), no picture repeated. 3,709 of 3,798 mov
 17 ms off the refresh (a draw call late, the next early, e.g. 28.5 ms then 4.5 ms), so their moments step 1.3 to 2.0 and
 0.3 to 0.7. That is the engine's loop calling `draw` off the display's refresh, not the easing: a picture timed by the
 time it will be shown (the display's), not the time it is drawn, would need the engine's loop to pass it. A question
-for Jeff: planned in ENGINE_REQUESTS.md section 4, with the presentation times measured (each picture's moment follows
+for Jeff: planned in ENGINE_REQUESTS.md section 5, with the presentation times measured (each picture's moment follows
 its real presentation to about 1 ms; drawn to shown 49 ms; nothing shown while the window is covered, yet two pictures
 an update drawn). Still by Jeff's eye: how it looks.
 
@@ -443,3 +443,210 @@ an update drawn). Still by Jeff's eye: how it looks.
 `subpixel`, `depth`, `palettes`, `mesh` ok, and the 118 scenes at 1x and 4x the same as Metal's, 236 pictures, 0
 differ. Direct3D 12: the game cross-built for Windows (`nshvc-build windows-d3d12`, mingw-w64), no error; not run (no
 Windows here).
+
+**R4 with runahead** (merged with section 9, 2026-11-23). Runahead's ahead step runs `between_update_begin`, the step and
+`between_update_end` as a real update does, so it moves R4's tracks on as one: the world's step (its "was" becomes the real
+update's world, its newest the ahead world), the brightness's, the windows' and Mode 7's, and the held writes a step late
+(the ahead step's end sends the real update's, as the real world's next step would). Its picture so eases from the real
+world towards the ahead world, each stepped effect by its own steps. `between_save` keeps the steps' own state with the
+real world (the counters, the tracks' values, the world's "was" and the windows' oldest snapshot, the held writes'
+count) and `between_restore` puts it back: a track the ahead step moved on has its snapshots turned back, and the writes
+the ahead step sent are taken off the held (in the engine already; the ahead step's own held writes are dropped). So the
+real world's next update finds the steps as the real update left them, and in the slow motion no real update's held write
+is lost. Checked after the merge, against main b91729e: `same.sh` 21 runs, 0 differ;
+runahead's `state.sh` (the real world with and without ahead steps) 21 runs, 0 differ; `behind.sh` with the steps off,
+21 runs the same; runahead's `future.sh` on p0-0 (4,090 to 4,500) at between 0.5 and at 1, 409 of 409 pictures equal at
+each; the step check on all 37 plays (with the plays' cheat), 437,951 pictures, 0 jumps in the world, the brightness, the
+windows and Mode 7, and the easing check 3,784,914 places, 0 wrong.
+
+## 9. Runahead: the picture answers the controls with no added delay (2026-11-23, branch `runahead-7b2cca`)
+
+Jeff's direction: "Implement runahead so that there is zero input lag on controls". Status: built for one ahead step (9.10); the
+checks of 9.9 were run on this Mac; how it feels in a window has not been judged.
+
+**How this meets the direction, in one line:** each tick the real world steps once with the pad as read, exactly as before (the
+logic is the original's, unchanged, and `same.sh` stays 21 runs, 0 differ); then the world is saved, stepped one more update with
+the same pad held, and the picture's "was" and "now" (decision F3 (a), easing between the last two updates, unchanged) are the
+two newest worlds, so the first picture drawn after a press shows the game's response; the next tick puts the saved real world back.
+
+### 9.1 What is measured: updates from a pad change to the response
+
+Headless Metal build, level 0 (`native/checks/plays/p0-0.txt` to its start of play, update 3903), Aladdin standing at (58, 432)
+from update 4039; a key pressed at update T = 4100 against the same run with no key; `native/checks/runahead/latency.sh`, the
+developer trace `ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=1`, a picture every update. The trace line of update u is written after
+update u's step; the picture written at update u is the last one drawn, which is the picture after update u - 1 at between 0
+(`DevShot`, system/dev_bot.c).
+
+| Action (key) | First change of the player's state | The player's place first changes | First picture that differs, no runahead | With 1 ahead step |
+|---|---|---|---|---|
+| run right (Right) | T (picture $62 to $00, the run's start) | x at T + 2 (58 to 60) | T + 2 | T + 1 |
+| run left (Left) | T (the turn, picture $63) | x at T + 5 (58 to 57; the turn lasts 4 updates) | T + 2 | T + 1 |
+| jump (B) | T (picture $18, y 432 to 427 in the same update) | y at T | T + 2 | T + 1 |
+| sword (A) | T (picture $6C) | none | T + 2 | T + 1 |
+| crouch (Down) | T (picture $30) | none (his box is lower from T) | T + 2 | T + 1 |
+| pause menu move (Down in the menu) | the menu's own state, `menu_update` | | not measurable by a picture: the menu's overlays are the window's, not in `nshvc_picture_read` | unchanged: no ahead steps while the menu is open |
+
+So the original's own logic already answers a press in the update that reads it (the pad is read in `TaskScheduler`, the same
+update as the step that moves the player: `d = 0` for the pose and for a jump's rise; a run's x starts 2 updates later, and a left
+turn's 5, by the original's own start-up animation). What adds delay today is the picture, which (F3 (a)) shows the world one
+update behind: the first picture after update T shows world T - 1 at between 0 and eases towards world T; its cels, which are
+not eased (F2 (a)), show world T from the next update's picture on. In the headless numbers above that is the one update (16.7
+ms) between T + 2 and T + 1. With the picture drawn at between 0.5 or 1 the first picture that differs is also T + 1 for the
+jump without runahead (its eased height starts to move at once), and T + 2 for a run's cel; with runahead both are T + 1, and
+the eased height is one update further on: from the trace, 5 pixels higher at between 0.5 (424.5 against 429.5).
+
+### 9.2 N: one ahead step
+
+N = 1. From the table: the response is in the world of the update that reads the press, and the picture shows the world
+N - 1 updates before the newest ahead world (its "was") at between 0 and the newest at between 1, so the picture at between 0
+shows the real world of the update just run, which has the response. N = 1 makes immediate, in that sense: the pose of every
+action measured (run start, turn, jump, sword, crouch), a jump's rise, and everything a menu task of the game answers in the
+update that reads the pad. It does not make immediate: a run's first step in x (T + 2) or a left turn's (T + 5), which the
+original's logic itself delays; N = 3 would show the run's first x step in the first picture, at the price of two more steps that
+can be wrong when the pad changes (9.7); not built, Jeff's to decide (9.11). The pause menu's cursor moves already at once (it is
+drawn at once from its own state) and is not changed.
+
+What N = 1 does not remove: the time between a press and the next update that reads it (up to one update, 16.7 ms, plus the
+display's refresh): the engine reads the pad once per update.
+
+### 9.3 The tick
+
+`update` in `system/main.c` (three calls added):
+1. `runahead_begin()`: if the last tick ran ahead, the saved real world is put back (g, the registered video parts, the
+   registered statics, the level maps' words the ahead step changed) and the writes the ahead step held for the engine are dropped.
+2. As before: `between_update_begin`, the pause menu, the real step, the developer's trace, shots and dumps, `between_update_end`.
+3. `runahead_after(input, step)`: saves the world (g, the parts `between_keep` registered, the statics `RUNAHEAD_KEEP` registered);
+   runs one more `between_update_begin`, `step(input)`, `between_update_end` with the same input; leaves the world as it
+   is. The picture then eases "was" (the real world, as the real update left it) towards "now" (the ahead world).
+
+The ahead step is the same code as the real one (`NmiHandler`, `TaskScheduler`, `NmiPictureWork`) with the pad held: the
+pad's presses (`g.pad_pressed`) are made from the pad held at the last read, so a key pressed in the real step is held, not pressed
+again, in the ahead step.
+
+The engine's art needs nothing for one ahead step. `between.c` already holds an update's tile, map and palette writes and
+writes them as the next update begins. The ahead step's begin writes the real update's, as the next real update's begin would;
+its own are held and dropped with the real world (`between_restore`). So the engine's art at the next real update's begin is
+what it would have been without runahead. No engine change is needed (ENGINE_REQUESTS.md section 3).
+
+### 9.4 What a step reads and writes, and what is done with it
+
+From the code (grep of the sources) and from the compiled object files (`nm` of a build with `-mno-global-merge`: every
+writable static of the game: 441 symbols, 80 of them once-only notes).
+
+| State | Written by a step? | Decision |
+|---|---|---|
+| `g` (`GameState`, 247,472 B: the tasks, the actors, the random number `g.random`, the pad, the sound queue, the palette, the VRAM queues, the line tables...) | yes | saved and restored (`between_save`/`between_restore`) |
+| the video parts `between_keep` registered (the shown sprite lists and owners and anchors, the scroll latches, `view`, the level maps' records, the status line's switch, Mode 7's switches) | yes | saved and restored with `g` |
+| the statics steps change: the placement tables and `placing` (actor/placement.c), the platform course (`course`, `course_end`, `course_live`, `course_steps`, `course_at`), the guards' `pace_once`, `kept_x`, `kept_y`, the camera's `target_x`, `target_y`, Mode 7's sine `table` and its source arrays (`kept_tiles`, `kept_map`), `mode7_cells`, `mode7_pixels` and their changed flags, `level_loading`, the task chain's `chain_depth` and `exec_pending`, the pad's `swallowed` and `source` | yes | saved and restored (`RUNAHEAD_KEEP`) |
+| the level maps' words (`field_words`, `back_words`: a tile change or a patched place writes them) | yes, 4 words a tile change | logged before each write (`runahead_log`) and put back |
+| statics a step rewrites from `g` before it reads them (the sprite lists of `oam.c`, `uploads.c`'s `text_bytes`, `lines.c`'s per-channel scratch, `anim.c`'s `out`) | scratch | nothing |
+| the engine's tiles, maps and palette | through `video/between.c` | held by the ahead step and dropped (9.3) |
+| sound and music: `send_command`, `send_upload` (audio/sound.c), which every command and song goes through, and what they reach, the music thread | the real step sends | an ahead step sends nothing (`runahead_ahead()`); the queue it advances is in `g` |
+| a level's load (`LevelLoad`, `LevelMapsBuild`), the view's change that resizes the sprite lists (`view_changed`), the sound's first load (`SoundSetsLoad`) | rare | not run ahead: each returns at once and ends the ahead (`runahead_guard()`); the real world is put back and the picture holds the real world that tick (9.6) |
+| the pause menu, the options file, the screen mode, the input record, the traces, shots, dumps, the bot | in `update`, outside `step` | real update only; the menu open means no ahead step |
+| the cartridge data, the tables, once-only notes (`told`, `said`: 80 flags) | read only, or notes | notes an ahead step reaches first are lost (stderr of an ahead step goes to /dev/null so a developer's trace is not doubled); `unconverted` (system/unconverted.c) is told by the real step only |
+| `nshvc_quit` on a step's internal error, `exit` on out of memory | errors | would end the game from an ahead step as from a real one; not guarded |
+
+`runahead_init` turns ahead steps off when `ALADDIN_DEV_BOT`, `ALADDIN_DEV_TRIGGERS`, `ALADDIN_TASK_TRACE`, `ALADDIN_DEV_MAPDUMP`
+or `ALADDIN_DEV_CELDUMP` is set: they drive or log the steps by the update number.
+
+### 9.5 Sound
+
+Sound and music come from the real update only, so a jump's sound is sent in the update that reads the press, as it is now. It is
+not earlier than it was; the picture is, by one update, so the sound is no longer one update behind the picture's response.
+Nothing the driver does (voices, the sequencer) is touched.
+
+### 9.6 What is not built, and what ends the ahead
+
+- **Two or more ahead steps.** Each later ahead step's begin would write the one before's art to the engine, which has no
+  read back (ENGINE_REQUESTS.md section 3). It needs a copy of everything the game has written (a shadow of the tiles, maps and
+  palette; the level maps' words alone are up to 2 MB) or an engine snapshot. `ALADDIN_RUNAHEAD=2` and more are taken as 1 with a note.
+- **A tick that reaches a load, a view change or the sound's first load in the ahead step** puts the real world back and the
+  picture holds the real world that tick (its "was" and "now" are both the real update's: the same as a still picture). Counted
+  by `ALADDIN_DEV_RUNAHEAD_REPORT` (9.9).
+- **Windows.** The stderr redirect of an ahead step is not done there (`#ifdef _WIN32`).
+
+### 9.7 What a player sees when the pad changes during ahead steps
+
+The ahead step holds the pad as the real step read it. If the pad changes at the next update, the ahead world was wrong, and the
+picture corrects: the next tick's picture starts from the real world, which has the change. That is inherent to runahead. For one
+ahead step it is one update of the world, never a state: a press shows its pose in the first picture after it (the ahead did not
+expect it, so the picture before it showed the old pose and, between its two ends, the motion going on); a let go shows the
+motion stopping one picture later than the real world stopped, and the picture before it was one update ahead of the real
+world on the old motion. Everything that moves is eased towards a world that may be one update wrong, so a hit, a pick-up or a
+turn is shown in place one update early, or not at all if the real world did not make it (an enemy's blow the ahead step landed
+and the real update did not shows for at most one tick). What the game keeps, and what every real update computes, is the real
+world: the ahead world is dropped (9.9, `state.sh`: the real world's hash after every update is the same with and without it).
+Measured on p0-0, updates 4,090 to 4,500, at between 0.5 and 1: of 409 pictures, the 384 where the pad did not change at that
+update are byte for byte the picture without runahead one update on; of the 25 where the pad changed, 18 are the same and 7
+differ (the correction); at between 0 all 25 are the same, since a picture at between 0 shows only the real world.
+
+### 9.8 Cost
+
+Measured on this Mac (Apple M4 Pro), headless Metal-less build, release, `ALADDIN_DEV_RUNAHEAD_REPORT=1`, the time of everything
+`update` does but the engine's own work (from `runahead_begin` to the end of `runahead_after`): 
+
+| Plays (12,000 updates each, level 0 to level 5-1) | Without runahead | With 1 ahead step |
+|---|---|---|
+| mean of a tick (the whole update's work) | 0.009 to 0.011 ms (the real step alone: the same) | 0.030 to 0.032 ms (the real step 0.014 to 0.016) |
+| median / 99th percentile | 0.006 to 0.007 / 0.027 ms | 0.027 to 0.028 / 0.049 to 0.052 ms |
+| worst | 10.9 to 24.0 ms (a level's load), 0 or 1 tick over 16.7 ms | 9.7 to 23.1 ms (the same loads) |
+
+An ahead step with the save and the put-back costs about 0.02 ms (copies of `g`, 247 KB, in and out, and the step), 0.1% of the 16.7 ms an update has. The
+ticks over 16.7 ms are the same ones without runahead (a level's load, in the real step; the ahead step never runs through
+one: it ends there, 9.6). The same run in a window (900 updates of the boot, 1,600 pictures, exit 0): mean 0.041 ms, 99th
+percentile 0.117, worst 0.299. The drawing of a picture is the engine's and is not in these numbers.
+
+The budget is one update, 16.7 ms.
+
+### 9.9 Checks and their results
+
+All on this Mac, from this branch, with the plays of `native/checks/plays` (the boot of 11,000 updates and 20 plays: 21 runs).
+
+| Check | Result |
+|---|---|
+| Runahead off: `view/same.sh` of the previous game's build (`base-b36b712`) against this build, 256x224 | 21 runs, 0 differ |
+| Runahead off: `between/behind.sh` with `BEHIND_SHIFT=0`, the Metal build of the commit this branch is cut from (c6803c7) against this branch's: every 25th picture's hash | 21 runs the same, 10,010 pairs, 0 differ. (The script's own form compares a build without pictures between updates one update on; no such Metal build was at hand, so this is the same claim another way: this branch's pictures with runahead off are the previous commit's, byte for byte) |
+| Runahead on: `runahead/state.sh`, the real world after every update, with and without ahead steps | 21 runs, 250,581 hashes of the real world (g, 12 video parts, 28 statics, the level maps' words) and 2,038,719 lines of the developer's trace in all (the player, every live actor with its own bytes, the video fields): the two logs are the same, line for line, in every run. In a run of 12,000 updates the ahead step ended early 4 to 10 times (a load or a view change in it) |
+| Planted leak: `g.random` left as the ahead step made it when the real world is put back | caught: p0-0 differs from update 4,251 (the first time the random number is read in an ahead step: a hash line), 349 lines differ by update 4,600; removed, the same run is identical again. (Planted in `between_restore`, not kept) |
+| Runahead on: the ahead picture is the true future when the pad does not change (`runahead/future.sh`, p0-0 updates 4,090 to 4,500, a picture every update at between 0.5, then 1) | 384 of 384 pictures at updates where the input did not change are the picture without runahead one update on, byte for byte, at both; at the 25 where it changed 18 are the same, 7 differ (9.7); at between 0, 409 of 409 |
+| Latency again with runahead on (`runahead/latency.sh`, the five actions of 9.1) | the first picture that differs is T + 1 in all five (T + 2 without); the player's state changes at T as before |
+| A window: the Metal build, 900 updates, runahead on by default | exit 0, 1,600 pictures; one tick ended early |
+| `clean_check.py` | no finding in the files this work touches (43 in others, as before) |
+
+Not checked: how it feels in a window with a pad or keys (Jeff's); Linux, Windows and the other hosts' builds (the code has no
+platform part but the stderr redirect, `#ifdef _WIN32`); a play with the ahead step ended early at every tick; the `told` notes of
+9.4; the pause menu's pictures (outside `nshvc_picture_read`).
+
+**Found on the way, not from this work.** `g.line_data` (the per-line tables) differs from run to run of one build with runahead off:
+p1-1 (level 1-1), from update 9,089, bytes 9 to 11, 26 and 27 of the table. Two identical off runs give different values (for
+example 222, 109 against 149, 107 at bytes 10 and 11); nothing in the traces or pictures shows it. The cause was not found (a
+write watch on the bytes did not trigger; the values are not read from the cartridge by `window_table_entry`). The state
+hash leaves `line_data` out for that reason, so a leak in it would not be seen.
+
+### 9.10 As built
+
+Built on `runahead-7b2cca` (cut from c6803c7), the design above for N = 1, on in a window and off in a headless run (`ALADDIN_RUNAHEAD`,
+CHECK.md). The new code: `system/runahead.c` and `.h` (the tick's two hooks, the registered statics and the undo log, the guard, the
+timing and the developer's state hash), `video/between.c` (`between_save`, `between_restore`, the hash). Edits in the game:
+`system/main.c` (an include and three calls: `runahead_init`, `runahead_begin`, `runahead_after`), `audio/sound.c` (the sends and the sets' load),
+`game/level_load.c`, `video/level_maps.c` (`LevelMapsBuild`, the words' log), `video/video.c` (`view_changed`, the Mode 7 arrays),
+`system/unconverted.c`, and `RUNAHEAD_KEEP` after 28 statics in 10 files. No engine change (ENGINE_REQUESTS.md section 3). The game's
+logic is not changed: with runahead off the game state and the pictures are the previous commit's (9.9). One departure found
+while checking and kept out of the hash, in the note at the end of 9.9.
+
+How it was found out, for the next change: a static that is missed shows as a different hash at the first update that reads
+it (`placing` in actor/placement.c was one: a placed actor came a tick late; the hash showed it at update 4,170 of p0-0). The list in
+9.4 was made from the compiled objects after that, not from a grep, which had missed the struct statics.
+
+### 9.11 Decisions for Jeff
+
+1. **N.** One ahead step makes the first picture after a press show the response (pose, a jump's rise, a crouch, a sword). A run's
+   first step in x comes 2 updates after the press (a left turn's 5) by the original's own start-up animation: showing it in the first
+   picture needs N = 3, with two more steps that can be wrong when the pad changes, and the engine's art for them (9.6: a shadow
+   of what the game has written, or an engine snapshot). Not built; Jeff's to say whether that is wanted.
+2. **Two or more ahead steps** need the same shadow or an engine snapshot (9.6).
+3. **The rest of the latency**: a press waits up to one update (16.7 ms) for the next update that reads it, and then the display's
+   refresh. Reading the pad more often than the update rate is the engine's (it reads once per update); not asked of it here.
+4. **Whether the pause menu's pictures are checked headless**: its overlays are the window's, so a picture file does not show them;
+   it needs an eye or an engine call that reads the whole window.

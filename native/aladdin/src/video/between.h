@@ -37,9 +37,16 @@ void between_draw(float between);
 /* the play loop's turn (game/play_loop.c): the world steps */
 void between_play_turn(void);
 
+/* runahead (system/runahead.c): g and the kept parts saved, and put back (the held engine writes of what ran between are dropped) */
+void between_save(void);
+void between_restore(void);
+uint64_t between_saved_hash(uint64_t h, int parts);   /* FNV-1a of what between_save kept; with `parts`, each part's on stderr */
+
 /* a part of the video state the picture reads that an update changes: kept as "was" with g (register at init) */
 void between_keep(void *p, size_t bytes);
 /* a kept part moved and grown (its contents so far kept): `old` is now `p`, `bytes` long */
+/* the developer's state hash leaves this kept part to its owner (it holds pointers) */
+void between_unhashed(const void *live);
 void between_rekeep(void *old, void *p, size_t bytes);
 
 /* while a picture draws (from "was"): whether it is eased, by how much, the live ("now") state and a kept part's now */

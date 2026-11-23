@@ -21,6 +21,7 @@
 #include "data/actor_a_tables.h"
 #include "data/kinds_d_tables.h"
 #include "map/map.h"
+#include "system/runahead.h"
 
 /* its own bytes */
 #define JUMPED OWN_16           /* counted up when it was moved along the course this frame */
@@ -48,10 +49,15 @@ typedef struct Waypoint {
 } Waypoint;
 
 static Waypoint course[COURSE_WAYPOINTS];
+RUNAHEAD_KEEP(course)
 static unsigned course_end;     /* the maker's: the next waypoint to keep */
+RUNAHEAD_KEEP(course_end)
 static unsigned course_live;    /* the waypoint the course is live around ($0400): the maker's */
+RUNAHEAD_KEEP(course_live)
 static uint8_t course_steps;    /* the maker's: steps left before the next waypoint is kept (+$22) */
+RUNAHEAD_KEEP(course_steps)
 static unsigned course_at[ACTOR_RECORDS]; /* by record: the waypoint it is at (the original's +$37, in bytes: 8 a waypoint) */
+RUNAHEAD_KEEP(course_at)
 
 enum {
     SLOW = ACTOR_RESUME_OWN,    /* each frame out of a turn stretch (PlatformSlowStretch) */
@@ -526,7 +532,7 @@ static void rider_check(Actor *a)
     uint16_t kept;
 
     a->own.bytes[RIDDEN] = 0;
-    if (!(a->flags & 0x40) || g.player_no_actor_landing || (g.player_in_air && ((p->speed_y >> 16) & 0x80)))
+    if (!actor_in_play(a) || g.player_no_actor_landing || (g.player_in_air && ((p->speed_y >> 16) & 0x80)))
         return;
     kept = pixels(p->x);
     own16_set(a, RIDER_X, kept);
