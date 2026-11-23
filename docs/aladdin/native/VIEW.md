@@ -266,6 +266,33 @@ and right margins are seen; the top and bottom ones only where the original itse
 
 Runs and the copy fallback (2026-11-22). The pair and 2 x 2 block bars let a flat column pass (level 6's salmon floor tile repeated down a margin: every pair and block of it occurs in the level). A search that has to let the seam go also had no context to choose by. Three changes: a run bar (a tile may not repeat along a row or column for longer than the level's own longest run of it); candidates for a relaxed seam are sampled from the level's whole context; and a left or right side the search cannot make is laid with the level's own columns (the window with the fewest unseen pairs and runs at the seam), never one with an empty place. What the minimisation prefers is that the margin looks like the level (its own runs and columns), then that the pairs and blocks are the level's; a few unseen pairs of real art are better than a flat strip.
 
+### 5.y Art the original's window never reaches (2026-11-22)
+
+A layout can hold cells the original's 256 x 224 window can never show in that level (level $10's backdrop from x 4608 on: the flames of its last
+screen). A wide view would show them, which the original never did. These cells count as outside the layout: the fill treats them as margin and
+continues the reachable art over them (`level_maps.c` layout_reach_x, called by build_layer).
+
+The reachable columns, by analysis of the code, not by sampling plays:
+- The camera's x is at most the play field's layout width less 256 (`tail` in scroll_update.c keeps it to `scroll_limit_x`; a lock only lowers the
+  limit, an arena raises it by one screen to that width), and at least 0. So the play field's window is the whole layout: nothing of it is cut.
+- The backdrop's scroll x is set from the camera's by the level's handler (`parallax.c`, `g.layer_setup_mode`): half (modes 0, 6, 8), the same
+  (2, 4, $14), or for $10 the same up to $1000 and half as fast past it. Its window therefore ends at the scroll at the greatest camera x, plus 256,
+  rounded up to a metatile. The banded handlers ($0A, $0C, $0E) wrap their layer, and $12 does not scroll: nothing is cut.
+- The window is the same height as the original's, so no row is cut (a row the original's window never reaches is never in the view either).
+
+Where it cuts (layer 1, the backdrop; the width reached of the layout's, in pixels; art cells cut): level $01 1408 of 1536 (256); $04 2176 of 2304
+(384); $08 and $09 2176 of 2304 (128 each); $0A 1792 of 2048 (256); $0C 1664 of 3072 (4,224: no backdrop layout of its own); $0E 2176 of 2304
+(256); $10 4608 of 4864 (256); $12 4224 of 4352 (256); $16 2176 of 2304 (384); $18 2176 of 2304 (128); $19 1792 of 2048 (256); $1C 4224 of 4352
+(256); $1E 2432 of 4608 (2,176); $1F 4224 of 8192 (3,968). Level $0F's backdrop is 1536 and the window reaches 1664: it goes past the layout, as
+the margin's depth already allows for.
+
+Level $10: the room's camera is $11A0 = 4512, so BG2's scroll is (4512 - 4096) / 2 + 4096 = 4304 and its window ends at 4559; the flames begin at
+backdrop x 4608, 48 pixels past the original's right edge, which is 16 pixels inside a 384-wide view (dx 64): view x 368 to 384. At the level's
+end the camera is 4608, BG2's scroll 4352, the window's end 4607: the flames are never in the original's window.
+
+`ALADDIN_DEV_OVER=FILE` also writes, per level and layer, the window's least x and greatest right edge a play reached and the reach (checked: no
+play's window exceeds the reach, native/checks).
+
 ## 6. Screens and effects that are not the level
 
 ### 6.1 Still screens
