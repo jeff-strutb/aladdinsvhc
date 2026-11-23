@@ -6,6 +6,7 @@
  */
 #include "actor/actor.h"
 #include "audio/sound.h"
+#include "game/beaten.h"
 #include "level/level.h"
 #include "map/map.h"
 #include "player/player.h"
@@ -197,6 +198,7 @@ TaskRun Level05EndScene(Task *t)
         g.player_flags |= 0x80;
         g.level_exiting++;
         g.stages_ended++;
+        LevelBeaten();
         break;
     }
     return task_exit(t);

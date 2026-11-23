@@ -4,6 +4,7 @@
 #include "actor/actor_own.h"
 #include "actor/kinds_e.h"
 #include "audio/sound.h"
+#include "game/beaten.h"
 #include "player/player.h"
 #include "system/task.h"
 
@@ -264,6 +265,7 @@ int ChainPieceGone(Actor *a)
     case FC_FADE:
         if (task_busy(BRIGHTNESS_SLOT))
             return 1;
+        LevelBeaten();
         TaskExecRunning(TASK_ENTRY_ENDING_STORY);
         return 1;
     default:                            /* FW_STAY */

@@ -3,6 +3,7 @@
  * task: the Mode 7 title, the demo or the story when left alone, the menu
  * and the level select.
  */
+#include "game/beaten.h"
 #include "game/game.h"
 #include "system/state.h"
 #include "system/system.h"
@@ -38,19 +39,12 @@ static void scroll_whole_clear(void)
     g.layers[0].scroll_y &= 0xFFu;
 }
 
-/* What every new game starts with, set as the menu comes up. */
-static void new_game_counts(void)
+/* What every new game starts with: the progress at the first level, and the counts. */
+void NewGameCounts(void)
 {
-    g.menu_blink_hidden = 0;
-    g.menu_blink_frames = 0;
-    g.menu_choice = MENU_START;
-    g.menu_choice_was = 0;
-    g.menu_cursor_moves = 0;
     g.progress_sequence = 0;
     g.level = 0;
     g.progress_stage = 0;
-    if (g.cheat_start)
-        LevelNumberText();
     g.health_marks = 3;
     g.lives_start = 3;
     g.apples = 0x10;
@@ -67,6 +61,19 @@ static void new_game_counts(void)
     g.level_flags = 0;
     g.opened_flags = 0;
     g.continues = 3;
+}
+
+/* What every new game starts with, set as the menu comes up. */
+static void new_game_counts(void)
+{
+    g.menu_blink_hidden = 0;
+    g.menu_blink_frames = 0;
+    g.menu_choice = MENU_START;
+    g.menu_choice_was = 0;
+    g.menu_cursor_moves = 0;
+    NewGameCounts();
+    if (g.cheat_start)
+        LevelNumberText();
 }
 
 enum {
@@ -324,6 +331,11 @@ TaskRun TitleTask(Task *t)
             return task_wait(t, 1);
         case TITLE_MENU_STEP:
             FrameStep();
+            if (DevLevelPick() >= 0) {      /* a developer's start of a level by the level select's own start (LEVELSELECT.md) */
+                LevelSelectStart(BeatenListOf((unsigned)DevLevelPick()));
+                *at = TITLE_CHOSEN;
+                return task_wait(t, 1);
+            }
             if (!g.cheat_start || !LevelSelect())
                 TitleMenuCursor();
             if (--g.play_countdown == 0) {

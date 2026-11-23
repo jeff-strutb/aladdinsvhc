@@ -13,6 +13,7 @@
  * played by the chain's fight-won scene (level 17's finale).
  */
 #include "player/player_own.h"
+#include "game/beaten.h"
 #include "system/task.h"
 #include "video/video.h"
 
@@ -263,6 +264,7 @@ static int walk_out_fade(Actor *a)
     g.level_restart = 0;
     g.progress_stage = 0;
     g.progress_sequence++;
+    LevelBeaten();
     TaskExecRunning(TASK_ENTRY_LEVEL_END);
     return 1;
 }
@@ -343,6 +345,7 @@ static int land_fade(Actor *a)
     ActorMoveX(a);
     if (task_busy(SCENE_SLOT))
         return 1;
+    LevelBeaten();
     TaskExecRunning(TASK_ENTRY_NEXT_PART);
     return 1;
 }

@@ -12,6 +12,7 @@
  *       story-card read the part; 6 is the last)
  *   ALADDIN_DEV_ITEMS=N   the items counted (the ending's stages need 50 or
  *       more); default 60, 10 for credits
+ *   ALADDIN_DEV_BEATEN=1  print the levels the beaten levels' file gives (game/beaten.c) at the start
  *   ALADDIN_DEV_CHEAT=1   the options' cheat set from the start (the title's
  *       level select: R held with Up for the part and Right for the stage)
  */
@@ -20,6 +21,7 @@
 #include <string.h>
 
 #include "data/data.h"
+#include "game/beaten.h"
 #include "data/level_tables.h"
 #include "data/system_tables.h"
 #include "system/state.h"
@@ -67,6 +69,13 @@ void DevStartApply(void)
 
     if (env_number("ALADDIN_DEV_CHEAT", 0))
         g.cheat_start = 1;
+    if (env_number("ALADDIN_DEV_BEATEN", 0)) {      /* the beaten levels the file gave, to the error output */
+        fprintf(stderr, "beaten:");
+        for (unsigned i = 0; i < BEATEN_LEVELS; i++)
+            if (BeatenIs(BeatenListLevel(i)))
+                fprintf(stderr, " %02X", BeatenListLevel(i));
+        fprintf(stderr, "\n");
+    }
     if (!screen || !*screen)
         return;
     for (i = 0; i < sizeof screens / sizeof screens[0]; i++) {
@@ -96,6 +105,22 @@ TaskEntry DevStartEntry(void)
     g.progress_sequence = (uint8_t)env_number("ALADDIN_DEV_PART", g.progress_sequence);
     g.progress_stage = (uint8_t)env_number("ALADDIN_DEV_STAGE", g.progress_stage);
     return chosen;
+}
+
+/*
+ * DevLevelPick: ALADDIN_DEV_START_LEVEL=N (a level number): the title's menu starts that level as the level select screen
+ * does (game/beaten.c LevelSelectStart), at the menu's first update; -1 when not asked for.
+ */
+int DevLevelPick(void)
+{
+    static int known, level = -1;
+
+    if (!known) {
+        known = 1;
+        if (getenv("ALADDIN_DEV_START_LEVEL") && *getenv("ALADDIN_DEV_START_LEVEL"))
+            level = (int)env_number("ALADDIN_DEV_START_LEVEL", 0);
+    }
+    return level;
 }
 
 /*
