@@ -253,6 +253,8 @@ void video_init(void)
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
+    line_history_init();
+    arena_maps_init();
     /* what the picture reads that an update changes, kept as the update before's world (between.h) */
     between_keep(shown_sprites, lists_cap * sizeof *shown_sprites);
     between_keep(shown_owner, lists_cap * sizeof *shown_owner);
@@ -348,6 +350,8 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
         if (run > n)
             run = n;
         between_map_write_snes(m, (page & 1) * 32 + x, y + (rows == 64 ? (page >> 1) * 32 : 0), run, 1, w);
+        if (m.id == maps[VIDEO_MAP_BACK].id || m.id == maps[VIDEO_MAP_FRONT].id)
+            arena_maps_note(m.id == maps[VIDEO_MAP_FRONT].id ? VIDEO_MAP_FRONT : VIDEO_MAP_BACK, (page & 1) * 32 + x, y, run, 1, w);
         first += run;
         w += run;
         n -= run;
@@ -358,6 +362,7 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
 void video_map_write(VideoMap map, const uint16_t *words)
 {
     between_map_write_snes(maps[map], 0, 0, 64, 32, words);
+    arena_maps_note(map, 0, 0, 64, 32, words);
 }
 
 /* cells [first, first + n) of the text map (row by row, 32 a row) to the map a level draws its text layer from */
@@ -704,6 +709,10 @@ static int video_tile_bpp(int layer)
 
 /* The object a layer's map and tiles are (g.bg_map, g.bg_tiles); one no screen
    of the record uses is reported once and the layer left off. */
+static const int32_t map_rows[VIDEO_MAP_KINDS] = {        /* each video map's rows, as made (video_init) */
+    [VIDEO_MAP_BACK] = 32, [VIDEO_MAP_FRONT] = 32, [VIDEO_MAP_TEXT] = 32, [VIDEO_MAP_BACK_TALL] = 64,
+};
+
 static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
 {
     static int told;
@@ -758,13 +767,26 @@ static void draw_layers(void)
             l.scroll_y = (int16_t)l.scroll_y + my;
         }
         if (i < 2 && video_level_view())
-            l.scroll_x -= view.dx;      /* the original's screen is dx across in the view (video_draw) */
+            l.scroll_x -= view.dx;
+        if (i < 2 && !level_maps_active(i))
+            (void)arena_maps_layer(i, &l);     /* level $11's fight: the floor across a wide view (arena_maps.c) */      /* the original's screen is dx across in the view (video_draw) */
         l.scroll_x_sub = (int16_t)video_layer_x_sub(i);     /* between updates: the eased place's fraction (6.10) */
         l.scroll_y_sub = (int16_t)video_layer_y_sub(i);
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
         if (i == 0 && video_title_view())
             l.wrap = 0;     /* the title's menu rows are BG1's text map (the title's mode-1 lines): drawn once at the original's frame, not repeated every 256 across the whole view (VIEW.md 6.5) */
+        if (i == 1 && video_level_view() && (uint8_t)g.level == 0x11 && video_lines_have_mode(2)) {
+            /* the floor's columns (line_history.c), in the terms of the map BG2 draws: the level's, with its margin, or a
+               video map (in the arena: $4800, 64 x 32) */
+            int32_t mx = 0, my = 0, tall = map_rows[g.bg_map[1]] * 8;
+
+            if (level_maps_active(1)) {
+                level_maps_margin(1, &mx, &my);
+                tall = level_maps_height(1);
+            }
+            line_history_offsets(&l, video_layer_x(1), video_layer_x(2), my, tall);
+        }
         if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT) {
             l.scroll_x_sub = l.scroll_y_sub = 0;    /* the status line stays on the screen's pixels */
             hud_layer_set(&l, l.scroll_x);      /* the text layer in a level: the status line at the view's corners */
@@ -777,6 +799,7 @@ static void draw_layers(void)
    update's other writes (between.h), so a picture's Mode 7 art is the update before's as the rest */
 void video_update_end(void)
 {
+    arena_maps_update_end();
     if (mode7_pixels_changed) {
         between_tiles_write(mode7_tiles, 0, mode7_pixels, 256, NSHVC_TILES_MODE7, sizeof mode7_pixels);
         mode7_pixels_changed = 0;

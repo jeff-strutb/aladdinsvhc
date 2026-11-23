@@ -14,8 +14,9 @@
 #include "map/map.h"
 #include "player/player.h"
 #include "video/level_maps.h"
+#include "video/video.h"
 
-#define SCROLL_TO 0x0200        /* the view's x the scroll ends at */
+#define SCROLL_TO ARENA11_X     /* the view's x the scroll ends at ($0200, video.h) */
 #define K81_X 0x01E0            /* Aladdin's x from which the scene begins */
 #define CHAIN_X 0x02C8          /* the chain is built here */
 #define CHAIN_Y 0x00C0

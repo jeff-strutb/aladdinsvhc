@@ -185,6 +185,8 @@ int16_t BlockAt(uint16_t x, uint16_t y);    /* 81:CB24: the screen map's entry f
 void CameraStopAcross(void);                /* 81:CA84 */
 void CameraStopUpDown(void);                /* 81:CADA */
 void ActorYHistoryPush(const Actor *a);     /* 84:8EBD */
+#define ARENA11_X 0x0200            /* level $11's arena: the view's x kind $81 locks it at (arena_maps.c) */
+void LineHistoryClear(void);                /* level $11's heights list made all 0, as its row (line_history.c) */
 uint16_t RandomFromList(uint8_t list);      /* 81:AE8A: an entry (low byte) and the byte after it */
 void ScrollUpdate(void);                    /* 81:C5A4: the play field's scroll for this frame, by g.scroll_kind */
 

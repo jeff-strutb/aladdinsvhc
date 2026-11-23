@@ -741,6 +741,11 @@ void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y)
             over_seen[layer][g.level & 63].v[i] = v[i];
 }
 
+int32_t level_maps_height(int layer)
+{
+    return layer_map[layer].on ? (int32_t)layer_map[layer].h * 8 : 0;
+}
+
 void level_maps_margin(int layer, int32_t *x, int32_t *y)
 {
     *x = (int32_t)layer_map[layer].mx * 8;

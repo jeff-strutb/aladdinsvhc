@@ -636,3 +636,53 @@ The questions as they were put:
   answers it, after V5 and V6.
 - Level 6's sprite cut at line 181, and what level 7's 512 x 512 backdrop shows past 256 x 224.
 - Whether a backdrop that does not repeat (levels 4, $12) looks right when wrapped.
+
+## Level $11's floor: offset-per-tile (2026-11-23)
+
+**Fault.** In the snake's arena the original draws the lines below the status band in mode 2 (line table $80:B9C3; BG3's y
+$F0 there, $80:B9CA), so each BG2 column takes its vertical scroll from the text map's row 31, where ActorYHistoryPush (84:8EBD)
+keeps the riser's last 32 heights: the floor is a wave across the screen. The native game sent the row but never gave the engine
+an offset-per-tile map, so every column showed the newest height and Aladdin (whose y was the original's) seemed to stand on air
+or sink into the ledge.
+
+**Fix (Jeff's decisions, 2026-11-23).** Engine API 6.14 adds `nshvc_layer.offset_per_tile_own`: the offsets as a table of the
+layer's own (row 0 across, row 1 down, column c - 1 for offset column c), not read through BG3 (in a level BG3 is the status
+line's own map, hud_layer.c). `video/line_history.c` keeps the heights whole in a list longer than the row (kept with the world,
+between.h; in snapshots and saves, so saves made before are refused as any layout change makes them) and builds BG2's table each
+picture, in the terms of the map BG2 draws (in the arena the video map $4800, 512 x 256), on level $11 while a mode effect puts
+lines in mode 2. A wider view continues the wave to its right edge with the older heights; left of the original's first offset
+column the floor is the newest height, as the original's column 0 is (no height exists there). The row 30 entries ($4000) give
+BG2's x in whole characters and are the same picture as none; any other would be reported once on stderr.
+
+**Checked.** p5-3 on the original (lbox, a picture and work RAM a native update, 5150-5410) against the native at 256 x 224: the
+player's x and y the same at all 261 updates; the floor's rows per 8-pixel column (rows 172-199, below the player's feet), native
+update u against the original's u - 1 (the headless picture is the update before's, between.h): 0 rows off in all 32 columns in
+65 of 65 updates sampled (5152-5408, every 4th). Before the fix the same measure gave up to 22 rows off. Native traces (player,
+every actor) the same before and after the fix at 256 and 398 wide; runahead off against on, world hash every update, p5-3 to
+6000: the same. At 398 and 512 the play is a wide view's own (the riser's y differs from the 256 play's from update 5207 in the
+build before the fix too), so the wide pictures were looked at, not measured against the original. Engine: the scenes
+offset-per-tile-own2 and -own4 (Metal) match bsnes, and fail with the flag off.
+
+## Level $11's arena: the fight's floor across a wide view (2026-11-23)
+
+**Fault.** In the fight BG1 draws the video map $4000 and BG2 $4800 (kind $81), 64 x 32 cells each, and the original fills only
+the console's one screen (columns 0-31, the lock at x $0200) with the fight's floor: BG2's rows 22-28 hold the snake's body band
+(tiles $300-$33F, every 4 columns), and upload $0A (update 4930 in p5-3, the only map write of the fight) puts BG1's rows 20-31,
+the flames (every 4 columns, rows 24-25 every 12). The other screen still held the corridor frozen at the lock (update 4431), so a
+wide view showed brick ground and spikes with no flames beside the arena. Measured from the native game's video map writes (they
+are the original's addresses and words).
+
+**Fix (Jeff's decision: a wider map, no seam).** `video/arena_maps.c` keeps the two console maps' words (kept with the world) and,
+at the end of each update on level $11 that wrote them, makes an arena map of 192 columns for each (a multiple of 64 and of 4
+and 12, so it wraps with no seam at any width): the arena's 32 columns as the console has them, every BG2 row and BG1's upload
+$0A rows continued by their own repeat (measured on the arena's columns 8-31; BG2's rows 24-25 have art in columns 3-4 that does
+not repeat, kept where it is), every other row as the console's map repeats. BG1's backdrop rows 0-19 are not continued: rows 5
+and 13-15 (the pillars) have no repeat of 16 columns or less, and continuing the others would cut them. In the fight (BG1 on
+$4000, BG2 on $4800, a level's view) the two layers draw the arena maps. The floor's offsets (above) read the same rows. Also
+found and fixed: at a restart the game clears the text map ($2020), and the floor's columns past the original's went on showing
+the old wave for that moment; they now follow the row's last entry.
+
+**Checked.** 256 x 224, p5-3 5150-5410: the 261 pictures are byte for byte the ones before this change; traces the same. 512 and
+1024, p5-3 to 8800: the body band and the flames across the whole view, no brick, no seam (looked at); the 512 traces the same as
+before. Runahead off against on at 512, world hash every update to 8800: the same. A save in the fight (5280) loaded from the
+title (exact.sh, 512 wide): 60 updates of the same traces, and the 58 pictures after the load the same as the unbroken run's.
