@@ -64,6 +64,7 @@ void DevMapDump(uint64_t u);           /* the level's map as text by the environ
 void DevDump(uint64_t u);              /* the whole state as bytes at an update by the environment (dev_bot.c) */
 void DevSnapshotSave(uint64_t u);       /* ALADDIN_DEV_SNAP_SAVE=FILE@U (dev_snapshot.c) */
 int DevSnapshotLoad(uint64_t u);        /* ALADDIN_DEV_SNAP_LOAD=FILE@L: 1 when this update loaded it and runs no step */
+int DevSaves(uint64_t u);              /* save or load a slot at an update by the environment (dev_saves.c); 1 when a load ended the update */
 void DevShot(uint64_t u);              /* a picture every N updates by the environment (dev_bot.c) */
 void DevBotStep(void (*step)(const nshvc_input *));
 struct LevelStart;

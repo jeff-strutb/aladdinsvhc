@@ -325,6 +325,7 @@ int menu_update(const nshvc_input *in)
             m.quit_asked = 0;
             controls_swallow(held);
             sound(SOUND_MUSIC_GO_ON);
+            return 1;                   /* a load is the last thing its update does (snapshot.h) */
         } else if (r == SAVE_SCREEN_BACK) {
             controls_swallow(held);     /* what shut it must not reach the game or open it again */
             if (m.open)

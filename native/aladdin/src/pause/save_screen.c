@@ -5,6 +5,7 @@
  * before it does it. From the title: a used slot asks once, then loads; an empty one does nothing.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "pause/save_screen.h"
@@ -58,6 +59,8 @@ void save_screen_open(SaveFrom from)
 
     s.requested = 0;
     s.from = from;
+    if (getenv("ALADDIN_DEV_TRACE"))
+        fprintf(stderr, "save screen opened from the %s\n", from == SAVE_FROM_GAME ? "game" : "title");
     s.ask = ASK_NONE;
     saves_scan();
     fill_cells();
@@ -137,6 +140,8 @@ int save_screen_update(const nshvc_input *in)
         } else if (ask == ASK_REALLY_OVERWRITE && r.answer == 0) {
             saved(slot);
         } else if (ask == ASK_REALLY_LOAD && r.answer == 0) {
+            if (getenv("ALADDIN_DEV_TRACE"))
+                fprintf(stderr, "save screen: load slot %d\n", slot);
             if (saves_load(slot)) {
                 slot_grid_close();
                 return SAVE_SCREEN_LOADED;

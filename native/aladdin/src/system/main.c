@@ -192,6 +192,10 @@ static void update(const nshvc_input *input)
     }
     record_input(input);
     screen_mode_update();
+    if (DevSaves(nshvc_updates())) {    /* a developer's load ended the update (dev_saves.c) */
+        between_update_end();
+        return;
+    }
     if (menu_update(input)) {   /* the pause menu is open: no step; the picture holds the world the last step left */
         DevShot(nshvc_updates());   /* the developer's pictures go on, the menu in them */
         between_update_end();
