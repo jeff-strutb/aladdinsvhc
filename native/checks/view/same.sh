@@ -28,7 +28,7 @@ one() {   # name updates input
     res=$(dirname "$bin")/../Resources   # a macOS build keeps cart.dat in the bundle; the headless host reads PORT_RESDIR
     [ -f "$res/cart.dat" ] || res=$(dirname "$bin")
     if [ $side = base ]; then extra=${SAME_BASE_ENV:-}; else extra=${SAME_NEW_ENV:-}; fi   # SAME_BASE_ENV, SAME_NEW_ENV="NAME=VALUE ...": environment for one side only (the runahead check)
-    (cd "$(dirname "$bin")" && env PORT_RESDIR=$res ALADDIN_DEV_CHEAT=$cheat ALADDIN_VIEW=$v ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 $extra \
+    (cd "$(dirname "$bin")" && env PORT_SAVEDIR=$out/save.$1.$side PORT_RESDIR=$res ALADDIN_DEV_CHEAT=$cheat ALADDIN_VIEW=$v ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 $extra \
       "$bin" --headless --updates "$2" $in > "$out/$1.$side.out" 2> "$out/$1.$side.err")
     echo $? > "$out/$1.$side.exit"
   done

@@ -222,6 +222,7 @@ int main(int argc, char **argv)
     runahead_init(argc, argv);
     game.title = "Aladdin";
     game.id = "aladdin";
+    game.save_in_game_folder = 1;   /* saves beside the program, not in the system's folders (PAUSE.md, "Saved") */
     game.update_hz = 60;
     game.init = init;
     game.update = update;
