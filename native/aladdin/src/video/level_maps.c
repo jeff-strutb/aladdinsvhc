@@ -299,7 +299,7 @@ static void build_layer(int layer, unsigned layout)
         for (unsigned cx = reach; cx < lw; cx++)
             cells[(size_t)(oy + cy) * fw + ox + cx] = FILL_BLANK;      /* art the original's window never reaches: margin, made by the fill */
     fill_clock = fill_now();
-    LevelFill(cells, reach, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
+    LevelFill(cells, reach, lh, fw, fh, ox, oy, layer == 0, view.dx > 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
               &fill_report[layer]);
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillms layer %d level %u x %u cells, whole %u x %u: %.1f ms\n", layer, lw, lh, fw, fh, (fill_now() - fill_clock) * 1000.0);

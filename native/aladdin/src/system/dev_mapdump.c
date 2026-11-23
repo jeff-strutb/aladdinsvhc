@@ -282,6 +282,8 @@ static void fill_write(const char *dir, unsigned level)
         fprintf(f, " unseen 2 x 2 blocks (of the blocks in each margin and its seam): left %u of %u, right %u of %u, top %u of %u, bottom %u of %u; made with no such block: %c%c%c%c\n",
                 r->unseen_quads[0], r->quads[0], r->unseen_quads[1], r->quads[1], r->unseen_quads[2], r->quads[2], r->unseen_quads[3], r->quads[3],
                 r->blocks[0] ? r->blocks[0] : '-', r->blocks[1] ? r->blocks[1] : '-', r->blocks[2] ? r->blocks[2] : '-', r->blocks[3] ? r->blocks[3] : '-');
+        fprintf(f, " audit (VIEW.md 5.w): oneoffs=%u copies=%u props=%u cuts_left=%u cuts_right=%u edge_left=%u edge_right=%u solid_left=%u solid_right=%u rows=%u\n",
+                r->oneoff_cells, r->oneoff_copies, r->props, r->cuts[0], r->cuts[1], r->edge_cuts[0], r->edge_cuts[1], r->edge_solid[0], r->edge_solid[1], r->lh);
         fprintf(f, " exact search: left %c, right %c, top %c, bottom %c\n", r->outcome[0] ? r->outcome[0] : '-', r->outcome[1] ? r->outcome[1] : '-', r->outcome[2] ? r->outcome[2] : '-', r->outcome[3] ? r->outcome[3] : '-');
     }
     fclose(f);
