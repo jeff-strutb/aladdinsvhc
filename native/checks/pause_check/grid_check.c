@@ -36,6 +36,7 @@ nshvc_asset nshvc_asset_open(const char *path)
 }
 uint32_t nshvc_asset_read(nshvc_asset a, void *data, uint32_t size) { (void)a; return (uint32_t)fread(data, 1, size, asset_file); }
 void nshvc_asset_close(nshvc_asset a) { (void)a; fclose(asset_file); }
+const char *nshvc_controller_label(uint32_t c, uint32_t ctl) { (void)c; (void)ctl; return ""; }
 nshvc_display nshvc_display_info(void) { nshvc_display d; memset(&d, 0, sizeof d); return d; }
 nshvc_image nshvc_image_create(uint32_t w, uint32_t h, nshvc_image_format f) { nshvc_image i = { 0 }; (void)w; (void)h; (void)f; return i; }
 void nshvc_image_write(nshvc_image i, const void *t) { (void)i; (void)t; }
