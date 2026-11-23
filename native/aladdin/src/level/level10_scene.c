@@ -47,7 +47,7 @@ TaskRun Level10Scene(Task *t)
         if ((uint16_t)(player->x >> 8) < SPOT_X || (uint8_t)(player->y >> 8) < SPOT_Y_LOW)
             return task_wait(t, 1);
         SoundQueueF6(FADE_IN_SPEED);
-        ActorsFreeAll();
+        ActorsClearForScene();
         player->resume = PLAYER_AT_START;
         player->spawn_byte = SCENE_PLAYER_BYTE;
         g.scroll_x_max = LIMIT_SCENE;

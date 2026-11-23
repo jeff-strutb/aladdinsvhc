@@ -526,7 +526,7 @@ static void rider_check(Actor *a)
     uint16_t kept;
 
     a->own.bytes[RIDDEN] = 0;
-    if (!(a->flags & 0x40) || g.player_no_actor_landing || (g.player_in_air && ((p->speed_y >> 16) & 0x80)))
+    if (!actor_in_play(a) || g.player_no_actor_landing || (g.player_in_air && ((p->speed_y >> 16) & 0x80)))
         return;
     kept = pixels(p->x);
     own16_set(a, RIDER_X, kept);

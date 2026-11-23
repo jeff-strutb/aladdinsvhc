@@ -101,7 +101,7 @@ of 224 lines. Around it are two ROM tables of half-sizes:
   the last placing.
 - `g.placed[n]` bit 0 means placed and bit 7 means never again (`:136,149`). Leaving the range clears bit 0, so the actor comes
   back when its band re-enters (`actor_end.c:99-107`).
-- When there is no free record or palette slot, the placement fails silently and is not retried until its band re-enters.
+- When there is no free record or palette slot, the placement fails silently and is not retried until its band re-enters. (A larger view now opens slots as needed and a scene's clear keeps what the original has not placed: section 4.5.)
 
 ### 3.5 The sprite list (`video/oam.c`)
 
@@ -187,6 +187,35 @@ Section 8 lists the checks: at 256 x 224 the game is the original's; wider, the 
 The window is measured from the view's edges (camera less Δx, Δy), 64 pixels before them to 64 past across and 96 past down. The
 initial band count follows the window's length. One band a frame stays as it is (the camera moves 3 pixels a frame across, 6
 down, under a band's 32).
+
+**Palette slots open as needed** (Jeff, decision 1: any number of sprite palettes, not only a larger fixed number; built
+2026-11-23). A larger view starts with 4 slots scaled by its area and opens one more whenever a kind finds none free
+(`video/slot_gfx.c` `slots_grow`; their tiles in sets of 16 slots, `video_slot_tiles`, a run of 2 or 3 never across two sets),
+so no placement fails for want of a slot. At 256 x 224 the original's four stay, with its failures. Found by Jeff's play at
+384 wide: level 3's market-end figure (kind $56) failed for want of a slot, its band never came again under the scene's
+locked camera, and the level never ended.
+
+**A scene's clear** (`ActorsClearForScene`, `actor/pool.c`; the scene tasks of levels 3, 4/$16, 5 and $10 call it where the
+original calls `ActorsFreeAll`; built 2026-11-23, Jeff: fully seamless, game logic changed as needed). The wider window places
+figures before the original does, and the original's clear assumes only what its own window has placed: at 384 wide, level 3's
+clear removed kind $56 before the original would have placed it, and nothing placed it again. In a larger view the clear
+removes what the original removes and nothing the view shows going:
+
+- A figure whose placement the original's own placing has not reached is left as it is. `placement.c` follows the original's
+  placing beside the view's (the same camera steps of 32, the original's 384 window and far band $120 from the original's
+  camera) and marks what it reaches; it creates nothing.
+- A figure the original has, shown in the view (its in-view flag) but off the original's screen, which the original removes
+  unseen, stays outside play (`Actor.outside_play`): drawn and running, not counted with its kind, touching and touched by
+  nothing (`actor_in_play`: hit, shots, solid, landing, riding, the pad), what it makes outside play too, and freed the frame
+  its in-view box leaves the view, which is when it would stop being drawn anyway. If the pool has no free record when an
+  actor is made, one kept outside play is freed first, so a scene's own figures are never short of one.
+- Every other record is freed as the original frees it: those out of sight, and those on the original's own screen, which the
+  original removes in sight too (seen at 256 in levels 4, 5 and 16).
+
+At 256 x 224 the clear is the original's `ActorsFreeAll`. Measured over the 20 plays and Jeff's at 256, 384 and 512
+(`ALADDIN_DEV_CLEAR=1` prints each clear): at 384 and 512 level 3's clear keeps kinds $56 and $57 (not placed yet by the
+original) and keeps a pot (kind $4D, 32 pixels left of the original's screen) outside play until it leaves the view; Jeff's
+play then ends level 3 at both.
 
 ### 4.6 Sprites
 

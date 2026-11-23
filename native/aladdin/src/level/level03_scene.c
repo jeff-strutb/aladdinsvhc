@@ -71,7 +71,7 @@ TaskRun Level03Scene(Task *t)
             || (uint8_t)(player->x >> 8) < START_X_LOW || !g.health)
             return task_wait(t, 1);
         SoundQueueF6(FADE_IN_SPEED);
-        ActorsFreeAll();
+        ActorsClearForScene();
         player->resume = PLAYER_AT_START;
         g.actors[ESCORT].resume = G_RESTART;
         player->spawn_byte = SCENE_PLAYER_BYTE;

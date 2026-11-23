@@ -56,6 +56,8 @@ void ActorsInView(void)
         } else {
             a->flags &= (uint8_t)~0x40;
             a->on_screen = 0;
+            if (a->outside_play == 1)
+                ActorFreePlaced(a);     /* native: kept by a scene's clear while the view showed it; gone once it does not */
         }
     }
 }

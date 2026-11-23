@@ -38,6 +38,18 @@ static struct {
     uint16_t y;             /* $1BF1: its y when it last placed down */
 } placing;
 
+/* native: the original's own placing, followed beside the view's (which is measured from the view's edges): the same camera
+   steps of 32 pixels from the original's camera, its 384-pixel window and its far band ($120). It creates nothing: it marks
+   the placements the original has reached, so a scene's clear in a larger view can tell what the original has placed
+   (ActorsClearForScene). At 256 x 224 it is the view's placing. */
+static struct {
+    uint16_t row_above, row_below, column_right, column_left, x, y;
+} console;
+static uint8_t console_reached[256];
+
+#define CONSOLE_WINDOW 0x0180
+#define CONSOLE_FAR_BAND 0x0120
+
 /* The view's left and top edges ($1773, $1777): the camera is the original's, and the view is a frame round its screen
    (view.dx, view.dy), so the spawn window is measured from the view's own edges. At 256 x 224 they are the camera. */
 static uint16_t camera_x(void) { return (uint16_t)(pixels(g.layers[0].scroll_x) - view.dx); }
@@ -141,6 +153,7 @@ static void ActorPlace(Actor *a, uint8_t number)
     a->state = ACTOR_STATE_NEW;
     g.placed[number] = (uint8_t)(p.byte | 0x01);
     a->placement = number;
+    a->placed_here = 1;
 }
 
 /* The window a placement is created in, from the camera at the last
@@ -204,6 +217,39 @@ static void bring_one(uint8_t number, int across, uint16_t from)
                 (int)g.level, number, p.kind);
 }
 
+/* native: the original's placing reaching placement `number` (its window test on the axis, from its own last place) */
+static void console_reach(uint8_t number, int across)
+{
+    Placement p;
+    uint16_t at;
+
+    if (g.placed[number] & 0x80)
+        return;
+    p = placement_at(g.level, number);
+    at = across ? p.x_word : p.y_word;
+    if ((uint16_t)(at + WINDOW_BEFORE - (across ? console.x : console.y)) < CONSOLE_WINDOW)
+        console_reached[number] = 1;
+}
+
+static void console_across(uint8_t row)
+{
+    uint8_t n = row_count[row], at = row_start[row];
+
+    for (; n; n--, at++)
+        console_reach(row_order[at], 1);
+}
+
+static void console_down(uint8_t column)
+{
+    uint8_t n = column_count[column], number = column_first[column];
+
+    for (; n; n--, number++)
+        console_reach(number, 0);
+}
+
+bool PlacementConsoleReached(uint8_t number) { return console_reached[number] != 0; }
+void PlacementConsoleForget(uint8_t number) { console_reached[number] = 0; }
+
 /*
  * @routine 82:A83E PlacementsAcross
  * WHAT IT DOES: Creates the actors of row band `row` that are near the
@@ -254,6 +300,17 @@ void PlacementsStart(void)
     /* the bands from the left one to the far one, each: 12 at 256 wide */
     for (n = (uint8_t)(placing.column_right - placing.column_left) + 1; n; n--)
         PlacementsDown(band++);
+    /* native: the original's placing, from its own camera */
+    memset(console_reached, 0, sizeof console_reached);
+    console.y = pixels(g.layers[0].scroll_y);
+    console.row_below = (uint16_t)((console.y + CONSOLE_FAR_BAND) >> 5);
+    console.row_above = (uint16_t)((uint16_t)(console.y - 0x0040) >> 5);
+    console.x = pixels(g.layers[0].scroll_x);
+    console.column_right = (uint16_t)((console.x + CONSOLE_FAR_BAND) >> 5);
+    console.column_left = (uint16_t)((uint16_t)(console.x - 0x0040) >> 5);
+    band = (uint8_t)console.column_left;
+    for (n = (uint8_t)(console.column_right - console.column_left) + 1; n; n--)
+        console_down(band++);
 }
 
 /* One axis of PlacementsScroll: the camera at `camera` 32 or more from
@@ -286,6 +343,9 @@ void PlacementsScroll(void)
 {
     scroll_axis(camera_x(), &placing.x, &placing.column_right, &placing.column_left, PlacementsDown);
     scroll_axis(camera_y(), &placing.y, &placing.row_below, &placing.row_above, PlacementsAcross);
+    /* native: the original's placing, by its own camera */
+    scroll_axis(pixels(g.layers[0].scroll_x), &console.x, &console.column_right, &console.column_left, console_down);
+    scroll_axis(pixels(g.layers[0].scroll_y), &console.y, &console.row_below, &console.row_above, console_across);
 }
 
 /* ---- an actor of a kind ---- */
@@ -298,9 +358,16 @@ static int slots_claim(uint8_t kind, Actor *a, int count)
     int first, k;
     int slots = (int)slots_count();
 
-    for (first = 0; first + count <= slots; first++) {
+    for (first = 0;; first++) {
+        if (first + count > slots) {    /* none free: in a larger view more are opened (slots_grow), else none */
+            if (!slots_grow((unsigned)(first + count)))
+                break;
+            slots = (int)slots_count();
+        }
         if (first < SLOTS_STD && first + count > SLOTS_STD)
             continue;                   /* a run is one range of tiles: not across the original's four and the rest */
+        if (first >= SLOTS_STD && (first - SLOTS_STD) / SLOT_SET_SLOTS != (first + count - 1 - SLOTS_STD) / SLOT_SET_SLOTS)
+            continue;                   /* nor across two tile sets */
         for (k = 0; k < count && !g.palette_slot_users[first + k]; k++)
             ;
         if (k < count)
@@ -432,9 +499,15 @@ Actor *ActorCreateIn(Actor *a, uint8_t kind)
 {
     a->kind = kind;
     a->on_screen = 0;
-    if (ActorKindSetup(kind, a))
+    a->placed_here = 0;
+    /* native: what an actor outside play makes is outside play, and not counted with its kind (actor.h, ActorsClearForScene) */
+    a->outside_play = (uint8_t)(actor_running && actor_running->outside_play);
+    if (ActorKindSetup(kind, a)) {
+        a->outside_play = 0;
         return NULL;
-    g.kind_count[kind]++;
+    }
+    if (!a->outside_play)
+        g.kind_count[kind]++;
     return a;
 }
 
@@ -449,8 +522,17 @@ Actor *ActorCreate(uint8_t kind)
 {
     Actor *a;
 
-    if (g.free_pool_top < 0)
-        return NULL;
+    if (g.free_pool_top < 0) {
+        /* native: no record free, and one is kept outside play by a scene's clear: it goes, as the original's clear took it
+           (only in a view larger than the original's), so the scene's own actors are never short of one */
+        for (int i = ACTOR_RECORDS - ACTOR_POOL_SIZE; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state != ACTOR_STATE_FREE && g.actors[i].outside_play) {
+                ActorFreePlaced(&g.actors[i]);
+                break;
+            }
+        if (g.free_pool_top < 0)
+            return NULL;
+    }
     a = ActorCreateIn(g.free_pool[g.free_pool_top], kind);
     if (a)
         g.free_pool_top--;

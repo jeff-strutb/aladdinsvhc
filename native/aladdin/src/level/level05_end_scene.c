@@ -115,7 +115,7 @@ TaskRun Level05EndScene(Task *t)
             return task_wait(t, 1);
         g.camera_window = 0;
         SoundQueueF6(FADE_IN_SPEED);
-        ActorsFreeAll();
+        ActorsClearForScene();
         (void)ActorSpawnAt(0x2E, 2, 0x0E80, 0x0148);
         *at = E_CAMERA_DOWN;
         return task_wait(t, 1);

@@ -21,7 +21,9 @@
 static nshvc_tiles tiles[VIDEO_TILE_KINDS];
 static nshvc_map maps[VIDEO_MAP_KINDS];
 static nshvc_tiles mode7_tiles;
-static nshvc_tiles slot_tiles;     /* the tiles of the slots past the original's four, if the view has any */
+/* the tiles of the slots past the original's four: a tile set for each SLOT_SET_SLOTS of them, made as the slots open */
+static nshvc_tiles slot_sets[(SLOTS_MAX - SLOTS_STD + SLOT_SET_SLOTS - 1) / SLOT_SET_SLOTS];
+static unsigned slot_sets_made;
 static nshvc_map mode7_map;
 
 /* Mode 7's map and pixels as the game's own arrays: 128 x 128 tiles, and
@@ -121,8 +123,7 @@ void video_init(void)
     maps[VIDEO_MAP_FRONT] = nshvc_map_create(64, 32);
     maps[VIDEO_MAP_TEXT] = nshvc_map_create(32, 32);
     maps[VIDEO_MAP_BACK_TALL] = nshvc_map_create(64, 64);
-    if (slots_count() > SLOTS_STD)
-        slot_tiles = nshvc_tiles_create(4, SLOT_TILES * (slots_count() - SLOTS_STD), 1);
+    video_slot_sets_make(slots_count());
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
@@ -139,9 +140,18 @@ void video_init(void)
     level_maps_keep();
 }
 
-nshvc_tiles video_slot_tiles(void)
+/* the tile sets that slots 5 to `count` draw from, made if not yet */
+void video_slot_sets_make(unsigned count)
 {
-    return slot_tiles;
+    unsigned need = count > SLOTS_STD ? (count - SLOTS_STD + SLOT_SET_SLOTS - 1) / SLOT_SET_SLOTS : 0;
+
+    while (slot_sets_made < need)
+        slot_sets[slot_sets_made++] = nshvc_tiles_create(4, SLOT_TILES * SLOT_SET_SLOTS, 1);
+}
+
+nshvc_tiles video_slot_tiles(unsigned slot)
+{
+    return slot_sets[(slot - 5) / SLOT_SET_SLOTS];
 }
 
 nshvc_tiles video_sprite_tiles(void)
@@ -331,12 +341,20 @@ static void slot_words(uint32_t address, const uint16_t *w, uint32_t n)
 {
     uint32_t at = address - VRAM_SLOT_TILES;
     uint32_t tiles_in = SLOT_TILES * (slots_count() - SLOTS_STD) * 16u;
+    uint32_t set_words = SLOT_TILES * SLOT_SET_SLOTS * 16u;
 
     if (slots_count() <= SLOTS_STD || at >= tiles_in)
         return;
     if (at + n > tiles_in)
         n = tiles_in - at;
-    tiles_part(slot_tiles, 0, 16, at, n, w);
+    while (n) {                     /* each set's part: a set holds SLOT_SET_SLOTS slots */
+        uint32_t in_set = at % set_words, part = set_words - in_set < n ? set_words - in_set : n;
+
+        tiles_part(slot_sets[at / set_words], 0, 16, in_set, part, w);
+        at += part;
+        w += part;
+        n -= part;
+    }
 }
 
 void vram_write_stepped(uint32_t address, const void *data, uint32_t count, uint16_t step)
