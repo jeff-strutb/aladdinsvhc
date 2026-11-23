@@ -106,6 +106,10 @@ static struct {
     uint32_t pos_store[FILL_CELLS_MAX];
 } lv;
 
+static uint64_t quad_key(uint16_t a, uint16_t b, uint16_t c, uint16_t d);
+static int quad_has(uint64_t k);
+static void quads_learn(void);
+
 /* where each margin cell of S came from: the level's cell index (y * lw + x), or -1 (the level's own, or made by another method) */
 static int32_t source_of[FILL_CELLS_MAX];
 static uint8_t kind_of[FILL_CELLS_MAX];        /* how each cell was made: FILL_KIND_* (level_fill.h) */
@@ -871,6 +875,39 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
 
 /* the unseen pairs in each side's margin (a pair that touches more than one is the top's or the bottom's if it touches a row above or
    below the level, as the top and bottom margins make the corners; else the left's or the right's), and the pairs there are */
+/* which side's margin a cell is in (0 left, 1 right, 2 top, 3 bottom: the corners are the top's and bottom's, which make them), -1 for a cell of the level */
+static int cell_side(int cx, int cy)
+{
+    if (cx >= lv.ox && cx < lv.ox + lv.lw && cy >= lv.oy && cy < lv.oy + lv.lh)
+        return lv.tag[(size_t)(cy - lv.oy) * lv.lw + cx - lv.ox] - 1;       /* made inside the level: an empty place run to an edge */
+    return cy < lv.oy ? 2 : cy >= lv.oy + lv.lh ? 3 : cx < lv.ox ? 0 : 1;
+}
+
+/* the 2 x 2 blocks in each side's margin and across its seam (a block that touches two sides is the latter's), and those the level never has */
+static void count_quads(FillReport *r)
+{
+    for (int by = 0; by + 1 < lv.fh; by++)
+        for (int bx = 0; bx + 1 < lv.fw; bx++) {
+            uint16_t c[4];
+            int ok = 1, side = -1;
+
+            for (int k = 0; k < 4 && ok; k++) {
+                int cx = bx + (k & 1), cy = by + (k >> 1), sd;
+
+                c[k] = lv.cells[(size_t)cy * lv.fw + cx];
+                ok = c[k] != UNSET && c[k] != FILL_BLANK;
+                sd = cell_side(cx, cy);
+                if (sd > side)
+                    side = sd;
+            }
+            if (!ok || side < 0)
+                continue;
+            r->quads[side]++;
+            if (!quad_has(quad_key(c[0], c[1], c[2], c[3])))
+                r->unseen_quads[side]++;
+        }
+}
+
 static void count_unseen(FillReport *r)
 {
     for (int y = 0; y < lv.fh; y++)
@@ -898,6 +935,85 @@ static void count_unseen(FillReport *r)
                     r->unseen[side]++;
             }
 }
+
+/* ---- 2 x 2 blocks ----
+   A pair bar lets through an edge made of two tiles that each border the other somewhere. A block bar does not: every 2 x 2 block
+   of touching cells in a margin, or across its seam, should be one the level's own layout has (by cell values; a block with a cell
+   not yet made, or an empty place, is not judged). The table holds the level's blocks. */
+#define QUAD_BITS 18
+#define QUAD_EMPTY (~0ull)
+static uint64_t quad_tab[1u << QUAD_BITS];
+
+static uint64_t quad_key(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    return (uint64_t)a | (uint64_t)b << 16 | (uint64_t)c << 32 | (uint64_t)d << 48;
+}
+
+static uint32_t quad_slot(uint64_t k)
+{
+    return (uint32_t)((k * 0x9E3779B97F4A7C15ull) >> (64 - QUAD_BITS));
+}
+
+static void quad_add(uint64_t k)
+{
+    uint32_t h = quad_slot(k);
+
+    while (quad_tab[h] != QUAD_EMPTY) {
+        if (quad_tab[h] == k)
+            return;
+        h = (h + 1) & ((1u << QUAD_BITS) - 1);
+    }
+    quad_tab[h] = k;
+}
+
+static int quad_has(uint64_t k)
+{
+    uint32_t h = quad_slot(k);
+
+    while (quad_tab[h] != QUAD_EMPTY) {
+        if (quad_tab[h] == k)
+            return 1;
+        h = (h + 1) & ((1u << QUAD_BITS) - 1);
+    }
+    return 0;
+}
+
+static void quads_learn(void)
+{
+    memset(quad_tab, 0xFF, sizeof quad_tab);
+    for (int r = 0; r + 1 < lv.lh; r++)
+        for (int c = 0; c + 1 < lv.lw; c++)
+            if (lv.real[(size_t)r * lv.lw + c] && lv.real[(size_t)r * lv.lw + c + 1] && lv.real[(size_t)(r + 1) * lv.lw + c] &&
+                lv.real[(size_t)(r + 1) * lv.lw + c + 1]) {
+                const uint16_t *p = lv.cells + (size_t)(lv.oy + r) * lv.fw + lv.ox + c;
+
+                quad_add(quad_key(p[0], p[1], p[lv.fw], p[lv.fw + 1]));
+            }
+}
+
+/* the blocks of the cell at (x, y) with value v that are judged (all four cells made, none an empty place) and are not the level's */
+static unsigned quads_broken(int x, int y, uint16_t v)
+{
+    unsigned n = 0;
+
+    for (int by = y - 1; by <= y; by++)
+        for (int bx = x - 1; bx <= x; bx++) {
+            uint16_t c[4];
+            int ok = bx >= 0 && by >= 0 && bx + 1 < lv.fw && by + 1 < lv.fh;
+
+            for (int k = 0; k < 4 && ok; k++) {
+                int cx = bx + (k & 1), cy = by + (k >> 1);
+
+                c[k] = cx == x && cy == y ? v : lv.cells[(size_t)cy * lv.fw + cx];
+                ok = c[k] != UNSET && c[k] != FILL_BLANK;
+            }
+            if (ok && !quad_has(quad_key(c[0], c[1], c[2], c[3])))
+                n++;
+        }
+    return n;
+}
+
+static int csp_quad_mode;           /* 0: blocks not judged; 1: a cell that breaks a block is refused; 2: those are tried last */
 
 /* ---- the exact search: constraint satisfaction over a margin's cells ----
    Variables: every cell of the side (depth 1 to s->depth, band 0 to s->along - 1), its domain a set of metatile ids. Constraints:
@@ -1106,10 +1222,16 @@ static void csp_candidates(const Side *s, int d, int t, CspFrame *f)
     }
     for (unsigned w = 0; w < SET_WORDS; w++)
         for (uint32_t bits = csp_dom[v][w]; bits; bits &= bits - 1) {
-            unsigned vid = w * 32 + (unsigned)__builtin_ctz(bits);
+            unsigned vid = w * 32 + (unsigned)__builtin_ctz(bits), broken = 0;
             int sc = best[vid] < 0 ? 0 : best[vid];
 
-            order[count++] = ((uint64_t)(2000 - sc) << 40) | ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFFFu) << 16) | vid;
+            if (csp_quad_mode) {
+                broken = quads_broken(tx, ty, lv.cell_of[vid]);
+                if (broken && csp_quad_mode == 1)
+                    continue;
+            }
+            order[count++] = ((uint64_t)(broken > 7 ? 7 : broken) << 56) | ((uint64_t)(2000 - sc) << 40) |
+                             ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFFFu) << 16) | vid;
         }
     qsort(order, count, sizeof order[0], csp_order_cmp);
     f->off = csp_pool_top;
@@ -1151,7 +1273,7 @@ static uint32_t csp_reach[FILL_MARGIN + 2][SET_WORDS];     /* [j]: the metatiles
 
 static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, int relax)
 {
-    unsigned vars = (unsigned)(s->depth * s->along), sp = 0, nodes = 0, budget = CSP_NODES(vars);
+    unsigned vars = (unsigned)(s->depth * s->along), sp = 0, nodes = 0, budget = csp_quad_mode == 1 ? 2u * vars + 4000u : CSP_NODES(vars);
     uint32_t v, hw = 0;
 
     if (s->depth <= 0 || s->dmin != 1 || vars > CSP_VARS_MAX || lv.lw * lv.lh == 0)
@@ -1250,8 +1372,21 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
 
             if (single >= 0) {              /* decided by what came before: no choice here */
                 if (lv.cells[csp_cell(s, v)] == UNSET) {
-                    lv.cells[csp_cell(s, v)] = lv.cell_of[single];
-                    source_of[csp_cell(s, v)] = -1;
+                    size_t at = csp_cell(s, v);
+
+                    if (csp_quad_mode == 1 && quads_broken((int)(at % (size_t)lv.fw), (int)(at / (size_t)lv.fw), lv.cell_of[single])) {
+                        /* a block the level never has, and no other choice: back up to the choice before */
+                        if (!sp)
+                            break;
+                        csp_clear_from(s, csp_frames[sp - 1].var, hw);
+                        hw = csp_frames[sp - 1].var;
+                        v = csp_frames[sp - 1].var;
+                        if (nodes++ >= budget)
+                            break;
+                        continue;
+                    }
+                    lv.cells[at] = lv.cell_of[single];
+                    source_of[at] = -1;
                     csp_assigned[v] = 1;
                 }
                 if (v + 1 > hw)
@@ -1379,7 +1514,7 @@ static void prepare_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_
 }
 
 static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
-                             DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome)
+                             DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome, uint8_t *blocks)
 {
     uint8_t fixed[FILL_COLS_MAX], banned[FILL_COLS_MAX];
 
@@ -1389,7 +1524,9 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
        the way is made. One that cannot is made as far as it can, and the depths beyond are made by the depth at a time path, so
        that the pairs the level never has are as far from the seam as can be. */
     int best_attempt = -1, best_depth = 0;
+    unsigned exact_kept = 0;
 
+    csp_quad_mode = 0;
     if (!rows) {
         /* the top and bottom margins (the backdrop's, and only where the original's own window goes past the map): the exact bands; what they
            do not make stays empty */
@@ -1407,37 +1544,42 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
         prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
         first.depth = 1;
         csp_tail_forever = 0;
+        csp_quad_mode = 0;
         if (!csp_side(&first, report, 0, 1, 0) && !csp_gave_up)
             *outcome = FILL_OUTCOME_PROVED;
     }
     /* whether the whole depth can be made: first with the exact bands as they are, then without them, then without the corner condition
        (the exact bands and the corner condition only add constraints, so the last is the weakest and the deepest) */
-    for (int attempt = 0; attempt < 3 && *outcome != FILL_OUTCOME_PROVED; attempt++) {
+    for (int pass = 0; pass < 2 && *outcome != FILL_OUTCOME_PROVED; pass++)
+    for (int attempt = 0; attempt < 3; attempt++) {
+        csp_quad_mode = 1 + pass;                       /* first with no block the level never has, then with the pairs alone (blocks last) */
         Side probe = *s;
 
-        if (attempt == 1) {
-            unsigned kept = 0;
-
-            for (unsigned k = 0; k < bands; k++)
-                kept += report[k].method != 0;
-            if (!kept)
-                continue;                               /* no exact band was laid: the same set-up as the first */
-        }
+        if (attempt == 1 && !exact_kept)
+            continue;                                   /* no exact band was laid: the same set-up as the first */
         memset(banned, attempt >= 1, sizeof banned);
         prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+        if (attempt == 0) {
+            exact_kept = 0;
+            for (unsigned k = 0; k < bands; k++)
+                exact_kept += report[k].method != 0;
+        }
         probe.depth = s->depth;
         csp_tail_forever = 0;
         csp_last_nodes = csp_last_v = 0;
         if (csp_side(&probe, report, attempt < 2, 0, 0)) {
             *outcome = FILL_OUTCOME_MADE;
+            *blocks = pass == 0 ? 'Q' : 'q';
             if (getenv("ALADDIN_DEV_FILL"))
                 fprintf(stderr, "fill: side u=(%d,%d) csp made %d of %d depths (attempt %d), nodes %u of %u\n", s->ux, s->uy, s->depth, s->depth, attempt, csp_last_nodes, csp_last_budget);
             return;
         }
     }
     if (*outcome != FILL_OUTCOME_PROVED) {
-        /* not all of it: the most depths that can be made, by halving, in the weakest set-up */
+        /* not all of it: the most depths that can be made, by halving, in the weakest set-up (blocks last) */
         int lo = 1, hi = s->depth - 1;
+
+        csp_quad_mode = 2;
         Side probe = *s;
 
         memset(banned, 1, sizeof banned);
@@ -1464,6 +1606,7 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
         prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
         part.depth = best_depth;
         csp_tail_forever = 0;
+        csp_quad_mode = 2;
         csp_last_nodes = csp_last_v = 0;
         if (csp_side(&part, report, best_attempt < 2, 0, 0)) {
             *outcome = FILL_OUTCOME_PARTIAL;
@@ -1494,6 +1637,7 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
         /* not even the first cells can be made without a pair the level never has (the side is one of those the level's own cells cannot
            fill): the fewest such pairs, all at the seam. The seam pair of the bands that have no way on is let go first, then every
            seam pair, then the pairs along the band at depth 1. The cells beyond are made with none. */
+        csp_quad_mode = 2;
         for (int relax = 1; relax <= 3; relax++)
             for (int attempt = 2; attempt <= 2; attempt++) {
                 memset(banned, 1, sizeof banned);
@@ -1537,12 +1681,12 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
 }
 
 static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
-                        DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome)
+                        DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome, uint8_t *blocks)
 {
     struct timespec t0, t1;
 
     clock_gettime(CLOCK_MONOTONIC, &t0);
-    make_margin_body(s, base, sa, sb, bands, total, rows, metatiles, report, unfilled, outcome);
+    make_margin_body(s, base, sa, sb, bands, total, rows, metatiles, report, unfilled, outcome, blocks);
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillside u=(%d,%d) %d x %d cells: %.1f ms, outcome %c\n", s->ux, s->uy, s->depth, s->along,
@@ -1655,6 +1799,7 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
         for (unsigned x = 0; x < lw; x++)
             lv.real[(size_t)y * lw + x] = !FILL_TRIM_VOIDS || cells[(size_t)(oy + y) * fw + ox + x] != FILL_BLANK;
     learn();
+    quads_learn();
     memset(lv.has_above, 0, sizeof lv.has_above);
     memset(lv.has_below, 0, sizeof lv.has_below);
     for (unsigned i = 0; i < lv.ids; i++)
@@ -1739,19 +1884,19 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
         /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
         if (right) {
             sd = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh, 1 - (int)max_right, n_right };
-            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled, &report->outcome[1]);
+            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled, &report->outcome[1], &report->blocks[1]);
         }
         if (ox) {
             sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1 - (int)max_left, n_left };
-            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0]);
+            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0], &report->blocks[0]);
         }
         if (below) {
             sd = (Side){ 0, -1, 1, 0, 0, (int)(oy + lh - 1), (int)below, (int)fw, 1 - (int)max_bottom, n_bottom };
-            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled, &report->outcome[3]);
+            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled, &report->outcome[3], &report->blocks[3]);
         }
         if (oy) {
             sd = (Side){ 0, 1, 1, 0, 0, (int)oy, (int)oy, (int)fw, 1 - (int)max_top, n_top };
-            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled, &report->outcome[2]);
+            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled, &report->outcome[2], &report->blocks[2]);
         }
     }
     for (unsigned y = 0; y < fh; y++)
@@ -1761,4 +1906,5 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     repair();
     report->unfilled = unfilled;
     count_unseen(report);
+    count_quads(report);
 }

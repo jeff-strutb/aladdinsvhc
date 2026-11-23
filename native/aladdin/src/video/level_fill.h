@@ -41,6 +41,8 @@ typedef struct FillReport {
     unsigned ids, ids_over;         /* the level's different metatiles, and those past the table */
     unsigned pairs[4], unseen[4];   /* by side (left, right, top, bottom): the pairs of touching metatiles in the margin and across its seam, and those the level's own layout never has */
     unsigned unfilled;              /* cells no candidate could give (left blank) */
+    uint8_t blocks[4];              /* by side: 'Q' made with no block the level never has, 'q' with the pairs alone (blocks tried last), 0 otherwise */
+    unsigned quads[4], unseen_quads[4];   /* by side: the 2 x 2 blocks in the margin and across its seam, and those the level never has */
     uint8_t outcome[4];             /* by side (left, right, top, bottom): how the exact search ended, FILL_OUTCOME_* */
 } FillReport;
 
