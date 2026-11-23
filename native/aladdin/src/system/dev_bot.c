@@ -30,7 +30,7 @@
 void DevShot(uint64_t u)
 {
     static const char *dir;
-    static unsigned every = 60, from;
+    static unsigned every = 60, from, phase;
     static int known;
     const uint32_t *px;
     char path[1024];
@@ -46,8 +46,10 @@ void DevShot(uint64_t u)
             every = (unsigned)strtoul(v, NULL, 0);
         if ((v = getenv("ALADDIN_DEV_SHOT_FROM")) && *v)
             from = (unsigned)strtoul(v, NULL, 0);
+        if ((v = getenv("ALADDIN_DEV_SHOT_PHASE")) && *v)    /* pictures at updates phase, phase + every, ... */
+            phase = (unsigned)strtoul(v, NULL, 0);
     }
-    if (!dir || !every || u < from || u % every || !(px = nshvc_picture_read(&w, &h)))
+    if (!dir || !every || u < from || (u - phase) % every || !(px = nshvc_picture_read(&w, &h)))
         return;
     snprintf(path, sizeof path, "%s/u%06llu.ppm", dir, (unsigned long long)u);
     if (!(f = fopen(path, "wb")))

@@ -23,6 +23,7 @@
 #include "system/system.h"
 #include "system/task.h"
 #include "system/unconverted.h"
+#include "video/between.h"
 #include "video/view.h"
 
 static uint64_t pictures;
@@ -173,14 +174,18 @@ static void update(const nshvc_input *input)
 {
     nshvc_input bot;
 
+    between_update_begin();
     if (DevMapDumpHeld()) {
         NmiPictureWork();
+        between_update_end();
         return;
     }
     record_input(input);
     screen_mode_update();
-    if (menu_update(input))
+    if (menu_update(input)) {   /* the pause menu is open: no step; the picture holds the world the last step left */
+        between_update_end();
         return;
+    }
 
     DevBotStep(step);
     step(DevBotInput(nshvc_updates(), &bot) ? &bot : input);
@@ -189,14 +194,15 @@ static void update(const nshvc_input *input)
     DevMapDump(nshvc_updates());
     DevMapDumpLevel(nshvc_updates());
     DevDump(nshvc_updates());
+    between_update_end();
 }
 
+/* a picture: the update before's world, eased towards the newest by `between` (video/between.h) */
 static void draw(float between)
 {
-    (void)between;
     pictures++;
-    video_draw();
-    menu_draw();
+    between_draw(between);
+    menu_draw();                /* the pause menu over the picture, from its own state (outside g), at once */
 }
 
 static void shutdown(void)

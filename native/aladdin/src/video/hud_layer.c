@@ -34,6 +34,7 @@
  * area (nshvc_display_info) and not at the view's own corners.
  */
 #include "nshvc/nshvc.h"
+#include "video/between.h"
 #include "video/video_internal.h"
 #include "video/view.h"
 
@@ -91,7 +92,8 @@ void hud_layer_init(void)
     for (unsigned i = 0; i < MAP_COLUMNS * TEXT_ROWS; i++)
         blank[i] = BLANK;
     hud_map = nshvc_map_create(MAP_COLUMNS, TEXT_ROWS);
-    nshvc_map_write_snes(hud_map, 0, 0, MAP_COLUMNS, TEXT_ROWS, blank);
+    between_map_write_snes(hud_map, 0, 0, MAP_COLUMNS, TEXT_ROWS, blank);
+    between_keep(&level_view, sizeof level_view);       /* the picture's, kept as the update before's (between.h) */
 }
 
 /*
@@ -105,18 +107,18 @@ void hud_layer_write(unsigned x, unsigned y, unsigned n, const uint16_t *words)
 
     for (unsigned i = 0; i < n; i++)
         mid[i] = in_left(x + i, y) || in_right(x + i, y) ? BLANK : words[i];
-    nshvc_map_write_snes(hud_map, MID_COLUMN + x, y, n, 1, mid);
+    between_map_write_snes(hud_map, MID_COLUMN + x, y, n, 1, mid);
     for (unsigned i = 0; i < n; i++) {
         unsigned from = i;
 
         if (in_left(x + i, y)) {
             while (i + 1 < n && in_left(x + i + 1, y))
                 i++;
-            nshvc_map_write_snes(hud_map, x + from, y, i - from + 1, 1, words + from);
+            between_map_write_snes(hud_map, x + from, y, i - from + 1, 1, words + from);
         } else if (in_right(x + i, y)) {
             while (i + 1 < n && in_right(x + i + 1, y))
                 i++;
-            nshvc_map_write_snes(hud_map, RIGHT_COLUMN + x + from, y, i - from + 1, 1, words + from);
+            between_map_write_snes(hud_map, RIGHT_COLUMN + x + from, y, i - from + 1, 1, words + from);
         }
     }
 }
