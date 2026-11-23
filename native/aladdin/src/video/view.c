@@ -25,6 +25,7 @@ View view = { VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0, 0, 0 };
 #define LEVEL_CROP 8
 #define MOST 4096
 
+static long window_w, window_h; /* ALADDIN_DEV_WINDOW_AT: the window's pixels the rule reads, from that update on (0: none given) */
 static int forced;              /* ALADDIN_VIEW gave the view */
 static int32_t forced_w, forced_h;
 
@@ -72,6 +73,10 @@ static void shown_size(int32_t *w, int32_t *h)
         d.width = (int32_t)fw;
         d.height = (int32_t)fh;
     }
+    if (window_w > 0 && window_h > 0) {
+        d.width = (int32_t)window_w;
+        d.height = (int32_t)window_h;
+    }
     *w = *h = 0;
     if (d.width <= 0 || d.height <= 0)
         return;
@@ -99,26 +104,111 @@ static int set(int32_t w, int32_t h, int square)
     return changed;
 }
 
+/* the view the window asks for now, for a level or for a still screen: ALADDIN_VIEW (or a developer's change at an update, view_dev_at) gives it and
+   the window is not read; with no window (headless, or a window with no size) the view as it is, the original's 256 x 224 at the start */
+void view_target(int level, int32_t *w, int32_t *h, int *square)
+{
+    int32_t sw, sh;
+
+    if (forced) {
+        *w = forced_w;
+        *h = forced_h;
+        *square = 1;
+        return;
+    }
+    shown_size(&sw, &sh);
+    *square = sw != 0;
+    if (sw == 0) {
+        /* no window (headless), or one with no size now (minimised): the view stays as it is, the original's 256 x 224 where none was chosen */
+        *w = view.w;
+        *h = view.h;
+        *square = view.square;
+    } else if (level) {
+        *w = sw;
+        *h = sh + LEVEL_CROP;
+    } else {
+        *w = size_of(sw, VIEW_ORIGINAL_W);
+        *h = size_of(sh, VIEW_ORIGINAL_H);
+    }
+}
+
+int view_apply(int32_t w, int32_t h, int square)
+{
+    return set(w, h, square);
+}
+
+int view_forced(void)
+{
+    return forced;
+}
+
 int view_choose(void)
 {
     int32_t w, h;
+    int square;
 
-    if (forced)
-        return set(forced_w, forced_h, 1);
-    shown_size(&w, &h);
-    if (w == 0)
-        return set(VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0);
-    return set(w, h + LEVEL_CROP, 1);
+    view_target(1, &w, &h, &square);
+    return set(w, h, square);
 }
 
 int view_choose_still(void)
 {
     int32_t w, h;
+    int square;
 
-    if (forced)
-        return set(forced_w, forced_h, 1);
-    shown_size(&w, &h);
-    if (w == 0)
-        return set(VIEW_ORIGINAL_W, VIEW_ORIGINAL_H, 0);
-    return set(size_of(w, VIEW_ORIGINAL_W), size_of(h, VIEW_ORIGINAL_H), 1);
+    view_target(0, &w, &h, &square);
+    return set(w, h, square);
+}
+
+/* the developer's lists of changes at updates: ALADDIN_DEV_VIEW_AT=UPDATE:WxH[,UPDATE:WxH...] gives the view (the original's height, at least
+   288 across, as ALADDIN_VIEW is clamped) and it is taken at once; ALADDIN_DEV_WINDOW_AT=UPDATE:WxH[,...] gives the window's pixels the
+   rule reads (as a window resized would, 1920x1080 for 16:9), so the view follows by the rule and waits as a window's does (VIEW.md 4.8).
+   Called at each update's start. */
+#define AT_MAX 512
+
+typedef struct AtList {
+    int known, n, next;
+    struct { uint64_t at; long w, h; } e[AT_MAX];
+} AtList;
+
+static void at_parse(AtList *l, const char *name)
+{
+    const char *e = getenv(name);
+
+    l->known = 1;
+    while (e && *e && l->n < AT_MAX) {
+        unsigned long long u;
+        long w, h;
+        int used = 0;
+
+        if (sscanf(e, "%llu:%ldx%ld%n", &u, &w, &h, &used) != 3 || !used) {
+            fprintf(stderr, "%s: not UPDATE:WxH at \"%s\"\n", name, e);
+            exit(2);
+        }
+        l->e[l->n].at = u;
+        l->e[l->n].w = w;
+        l->e[l->n++].h = h;
+        e += used;
+        while (*e == ',' || *e == ' ')
+            e++;
+    }
+}
+
+void view_dev_at(uint64_t update)
+{
+    static AtList views, windows;
+
+    if (!views.known) {
+        at_parse(&views, "ALADDIN_DEV_VIEW_AT");
+        at_parse(&windows, "ALADDIN_DEV_WINDOW_AT");
+    }
+    while (views.next < views.n && views.e[views.next].at <= update) {
+        forced = 1;
+        forced_h = VIEW_ORIGINAL_H;
+        forced_w = size_of(views.e[views.next++].w, NARROWEST_W);
+    }
+    while (windows.next < windows.n && windows.e[windows.next].at <= update) {
+        window_w = windows.e[windows.next].w;
+        window_h = windows.e[windows.next++].h;
+    }
 }

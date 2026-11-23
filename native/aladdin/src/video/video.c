@@ -6,8 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "nshvc/nshvc.h"
+#include "actor/actor.h"
 #include "data/video_tables.h"
 #include "system/runahead.h"
 #include "system/state.h"
@@ -50,12 +52,17 @@ static nshvc_sprite *moved_sprites;  /* the shown sprites moved by the crop or a
 static uint32_t lists_cap;          /* the picture's two lists' room: the most any view has needed (between.c keeps the
                                        shown list of the update before, which may be a larger view's) */
 
-/* the lists of sprites that are sized for the view: the game's (OamInit) and the picture's two */
-static void sprite_lists_make(void)
+/* the lists of sprites that are sized for the view: the game's (OamInit) and the picture's two. `keep`: the view changed in play, so the lists
+   are made to the new size and what they hold stays (the picture's shown sprites are the update before's world) */
+static void sprite_lists_make(int keep)
 {
     nshvc_sprite *was = shown_sprites;
+    uint32_t was_cap = lists_cap;
 
-    OamInit();
+    if (keep)
+        OamResize();
+    else
+        OamInit();
     if (OamSpriteCapacity() > lists_cap) {
         lists_cap = OamSpriteCapacity();
         uint8_t *was_owner = shown_owner;
@@ -78,7 +85,15 @@ static void sprite_lists_make(void)
             between_rekeep(was_anchor, shown_anchor, lists_cap * sizeof *shown_anchor);
             between_rekeep(was_anchor_fx, shown_anchor_fx, lists_cap * sizeof *shown_anchor_fx);
         }
+        if (keep) {         /* what the lists held stays; the room added is empty */
+            memset(shown_sprites + was_cap, 0, (lists_cap - was_cap) * sizeof *shown_sprites);
+            memset(shown_owner + was_cap, 0, (lists_cap - was_cap) * sizeof *shown_owner);
+            memset(shown_anchor + was_cap, 0, (lists_cap - was_cap) * sizeof *shown_anchor);
+            memset(shown_anchor_fx + was_cap, 0, (lists_cap - was_cap) * sizeof *shown_anchor_fx);
+        }
     }
+    if (keep)
+        return;
     memset(shown_sprites, 0, lists_cap * sizeof *shown_sprites);
     memset(shown_owner, 0, lists_cap * sizeof *shown_owner);
     memset(shown_anchor, 0, lists_cap * sizeof *shown_anchor);
@@ -87,7 +102,8 @@ static void sprite_lists_make(void)
 }
 
 /*
- * The view changes only here, where a level loads and where a still screen starts (view.h). Everything that keeps
+ * The view is chosen here where a level loads and where a still screen starts (view.h), and follows the window at an update's start
+ * (video_view_follow, below; VIEW.md 4.8). Everything that keeps
  * something sized from the view is redone: the sprite lists (the budget follows the view's area). Everything else
  * the game derives from the view reads it where it is used, or is set after this by the level's own set-up (the
  * camera's limits and aim, the range point, the spawn window, the line tables, the window edges); a level's load
@@ -101,7 +117,7 @@ static void view_changed(int changed)
     if (changed && runahead_guard())    /* the sprite lists are sized again: not run ahead */
         return;
     if (changed && shown_sprites)
-        sprite_lists_make();
+        sprite_lists_make(0);
 }
 
 void video_view_level(void)
@@ -116,6 +132,60 @@ void video_view_still(void)
         view_changed(view_choose_still());
 }
 
+/* A target view that needs the level's margins made again (they cost the fill: 70 to 250 ms) is taken once the window has held it this many updates
+   (0.1 s), so a drag makes none and the end of a drag one; a developer's view (ALADDIN_VIEW, ALADDIN_DEV_VIEW_AT) is taken at once. */
+#define VIEW_SETTLE_UPDATES 6
+
+static double follow_now(void)
+{
+    struct timespec t;
+
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec * 1000.0 + (double)t.tv_nsec * 1e-6;
+}
+
+void video_view_follow(void)
+{
+    static int32_t pending_w, pending_h;
+    static unsigned held;
+    int32_t w, h;
+    int level, square;
+    double t0;
+
+    view_dev_at(nshvc_updates());
+    if (level_loading)
+        return;
+    level = video_level_view();
+    view_target(level, &w, &h, &square);
+    if (w == view.w && h == view.h) {
+        held = 0;
+        return;
+    }
+    if (level && !view_forced() && LevelMapsNeedResize((w - VIEW_ORIGINAL_W) / 2)) {
+        if (w != pending_w || h != pending_h) {
+            pending_w = w;
+            pending_h = h;
+            held = 0;
+        }
+        if (++held < VIEW_SETTLE_UPDATES)
+            return;
+    }
+    held = 0;
+    pending_w = pending_h = 0;
+    t0 = follow_now();
+    view_apply(w, h, square);
+    if (shown_sprites)
+        sprite_lists_make(1);
+    if (level) {
+        int maps = LevelMapsResize();
+
+        PlacementsViewChanged();
+        if (getenv("ALADDIN_DEV_VIEW"))
+            fprintf(stderr, "view followed the window at update %llu: %d level maps made again, %.3f ms\n", (unsigned long long)nshvc_updates(), maps,
+                    follow_now() - t0);
+    }
+}
+
 void video_view_level_done(void)
 {
     level_loading = 0;
@@ -123,7 +193,7 @@ void video_view_level_done(void)
 
 void video_init(void)
 {
-    sprite_lists_make();
+    sprite_lists_make(0);
     tiles[VIDEO_TILES_LOW] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_HIGH] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_TEXT] = nshvc_tiles_create(2, 1024, 1);
@@ -849,6 +919,15 @@ int32_t video_cropped_rows(void)
     return g.split_on ? (int32_t)(g.split_line ? g.split_line : 8) : 0;
 }
 
+static int no_sprites(void)
+{
+    static int on = -1;
+
+    if (on < 0)
+        on = getenv("ALADDIN_DEV_NO_SPRITES") != NULL;
+    return on;
+}
+
 void video_draw(void)
 {
     nshvc_screen scr;
@@ -934,7 +1013,9 @@ void video_draw(void)
        a still screen the origin's dx and dy across and down (the sprite list as the game left it is kept) */
     int32_t sprite_dx = view.dx, sprite_dy = scr.origin_y;
 
-    if (sprite_dx || sprite_dy) {
+    if (no_sprites()) {
+        nshvc_sprites_set(shown_sprites, 0, 0);     /* the developer's: the level's layers alone (ALADDIN_DEV_NO_SPRITES, change_report.py) */
+    } else if (sprite_dx || sprite_dy) {
         memcpy(moved_sprites, shown_sprites, shown_count * sizeof moved_sprites[0]);
         for (uint32_t i = 0; i < shown_count; i++) {
             moved_sprites[i].x += sprite_dx;

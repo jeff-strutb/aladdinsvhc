@@ -176,6 +176,7 @@ static void update(const nshvc_input *input)
     nshvc_input bot, select;
 
     runahead_begin();           /* the real world back, if the last tick ran ahead */
+    video_view_follow();        /* the view follows the window, before "was" is taken: nothing eases between two shapes (VIEW.md 4.8) */
     if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
         input = &select;
     between_update_begin();

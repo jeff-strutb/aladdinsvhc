@@ -66,7 +66,7 @@ brightness and the colour maths' fixed colour. Art, maps and palettes are not ea
 On the view branch (`view-frame-int`) the values are kept before the view's own offsets are added, and the offsets are added
 after easing: the layers' scrolls before `level_maps_margin()` and `view.dx`; the per-line BG2 x before the margin and dx
 (`video/lines.c`); the sprite list before `video_draw` moves it by dx; the crop's rows (`video_cropped_rows()`, 8, or 12 in
-level 2) as they are, not eased. `view.w/h/dx/dy` change only at a level's load, so they are the same in "was" and "now".
+level 2) as they are, not eased. `view.w/h/dx/dy` change at a level's load and, since 2026-11-23, where the view follows the window (`video_view_follow`, at an update's start, before `between_update_begin` takes "was": VIEW.md 4.8), so they are the same in "was" and "now" of every picture but the one a level's load itself changes, as before. A change of the view sets "was" and "now" anew: nothing eases between two shapes.
 None of the view sessions touch `main.c`'s `draw`.
 
 Jeff's view decisions this keeps: the view from the window's proportion (216 shown lines, landscape, 4:3 at its narrowest);
@@ -436,7 +436,7 @@ writable static of the game: 441 symbols, 80 of them once-only notes).
 | statics a step rewrites from `g` before it reads them (the sprite lists of `oam.c`, `uploads.c`'s `text_bytes`, `lines.c`'s per-channel scratch, `anim.c`'s `out`) | scratch | nothing |
 | the engine's tiles, maps and palette | through `video/between.c` | held by the ahead step and dropped (9.3) |
 | sound and music: `send_command`, `send_upload` (audio/sound.c), which every command and song goes through, and what they reach, the music thread | the real step sends | an ahead step sends nothing (`runahead_ahead()`); the queue it advances is in `g` |
-| a level's load (`LevelLoad`, `LevelMapsBuild`), the view's change that resizes the sprite lists (`view_changed`), the sound's first load (`SoundSetsLoad`) | rare | not run ahead: each returns at once and ends the ahead (`runahead_guard()`); the real world is put back and the picture holds the real world that tick (9.6) |
+| a level's load (`LevelLoad`, `LevelMapsBuild`), the view's change that resizes the sprite lists at a level's load or a still screen's start (`view_changed`; the view's following the window is made outside the steps, at an update's start, and is not guarded: VIEW.md 4.8), the sound's first load (`SoundSetsLoad`) | rare | not run ahead: each returns at once and ends the ahead (`runahead_guard()`); the real world is put back and the picture holds the real world that tick (9.6) |
 | the pause menu, the options file, the screen mode, the input record, the traces, shots, dumps, the bot | in `update`, outside `step` | real update only; the menu open means no ahead step |
 | the cartridge data, the tables, once-only notes (`told`, `said`: 80 flags) | read only, or notes | notes an ahead step reaches first are lost (stderr of an ahead step goes to /dev/null so a developer's trace is not doubled); `unconverted` (system/unconverted.c) is told by the real step only |
 | `nshvc_quit` on a step's internal error, `exit` on out of memory | errors | would end the game from an ahead step as from a real one; not guarded |

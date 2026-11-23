@@ -103,6 +103,7 @@ void ActorFree(Actor *a);       /* 83:95E5: ActorClear, and back on the second p
 
 void PlacementsStart(void);     /* 82:A72C: the level's placements indexed and those in reach created (level load) */
 void EscortStart(void);         /* 81:85A1: the level's escort (actors[1]) started beside the player */
+void PlacementsViewChanged(void);   /* native: the view changed in play: the spawn window is set again from the camera at the next PlacementsScroll */
 void PlacementsScroll(void);    /* 82:A79C: the placements the camera's move brings into reach created */
 /* Whether the actor is on the original's 256 x 224 screen, as the in-view flag was in the original (the flag is now the view's
    whole: the drawn, hit, solid and standable test). The triggers that waited for the original's screen (a script, a sound, a
