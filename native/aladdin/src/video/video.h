@@ -63,7 +63,7 @@ typedef enum {
 /* count: words for VRAM_WORDS, bytes for the others */
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how);
 /* count words, the address stepping by `step` after each (1, 32 or 128) */
-void vram_write_stepped(uint16_t address, const void *data, uint32_t count, uint16_t step);
+void vram_write_stepped(uint32_t address, const void *data, uint32_t count, uint16_t step);
 /* one word count times from address on */
 void vram_fill(uint16_t address, uint16_t word, uint32_t count);
 
@@ -71,6 +71,9 @@ void vram_fill(uint16_t address, uint16_t word, uint32_t count);
 
 void ScrollStateClear(void);                /* 81:96CB */
 void DisplayDefaults(void);                 /* 81:9865 */
+void video_view_level(void);         /* a level starts loading: the view from the window (view.h), before its limits are set */
+void video_view_still(void);               /* a still screen starts (DisplayDefaults): the view from the window, unless a level is loading */
+void video_view_level_done(void);          /* the level's screen is set up: a later DisplayDefaults is a still screen */
 void video_level_view_set(int on);          /* a level is the screen (LevelScreenSetup: 1) or no longer (DisplayDefaults: 0): the effects and the text layer take the level's view */
 void VramCopy(int entry);               /* 81:F5DC: entry of the first copy table (the record's X / 7) */
 void VramCopy2(int entry);              /* 81:F60D: entry of the second */
@@ -89,7 +92,7 @@ void Mode7ScreenSetup(uint8_t row_flag);    /* the title's call until then: syst
 /* ---- palettes (video/palette.c, palette_cycles.c) ---- */
 
 void PaletteLoad(int set);              /* 81:98C5 */
-void PaletteSave(uint8_t first, uint8_t count);         /* 81:9DAA: palettes first.. kept to fade from */
+void PaletteSave(uint16_t first, uint8_t count);         /* 81:9DAA: palettes first.. kept to fade from */
 void PaletteFadeStep(int8_t step, uint8_t count);       /* 81:9DCD */
 void LevelPalettesLoad(void);               /* 81:86BF */
 void PaletteCycleStart(uint8_t slot, uint8_t cycle);    /* 81:EC8E */

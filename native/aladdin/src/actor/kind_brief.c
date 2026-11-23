@@ -19,7 +19,7 @@ enum { STEP = ACTOR_RESUME_OWN };
 /* The look's high byte (the record's +$2C): the sprites' palette and priority bits. */
 static void look_high(Actor *a, uint8_t high)
 {
-    a->look = (uint16_t)((a->look & 0x00FF) | high << 8);
+    a->look = (a->look & 0xFFFF00FFu) | (uint32_t)high << 8;
 }
 
 /* Each frame after the first: the animation one frame on; when its frames

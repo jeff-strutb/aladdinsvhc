@@ -51,6 +51,7 @@ void ScrollStateClear(void)
  */
 void DisplayDefaults(void)
 {
+    video_view_still();
     g.blend_prevent = 3;                /* the original's $30 */
     g.blend_clip = 0;
     g.blend_use_sub = 0;

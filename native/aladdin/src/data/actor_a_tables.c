@@ -9,12 +9,6 @@
 static uint8_t at8(uint8_t bank, uint16_t addr) { return cart8(cart_offset(bank, addr)); }
 static uint16_t at16(uint8_t bank, uint16_t addr) { return cart16(cart_offset(bank, addr)); }
 
-/* a distance from the player grown with the view, in proportion (decision 2), to whole pixels: n * view / original, rounded */
-static uint16_t scaled(uint16_t n, int32_t view_size, int32_t original)
-{
-    return (uint16_t)(((int32_t)n * view_size + original / 2) / original);
-}
-
 ViewBox range_box(uint8_t at)
 {
     ViewBox b;
@@ -40,17 +34,18 @@ HitBox hit_box(uint8_t kind)
     return b;
 }
 
+/* the player-proximity wakes (a trigger): the original's distances, whatever the view */
 HitBox near_box(uint8_t at)
 {
     HitBox b;
 
-    b.half_w = scaled(at16(0x80, (uint16_t)(0xBC43 + at)), view.w, VIEW_ORIGINAL_W);
-    b.half_h = scaled(at16(0x80, (uint16_t)(0xBC45 + at)), view.h, VIEW_ORIGINAL_H);
+    b.half_w = at16(0x80, (uint16_t)(0xBC43 + at));
+    b.half_h = at16(0x80, (uint16_t)(0xBC45 + at));
     return b;
 }
 
-uint16_t near_span_x(uint8_t at) { return scaled(at16(0x80, (uint16_t)(0xBC7B + at)), view.w, VIEW_ORIGINAL_W); }
-uint16_t near_span_y(uint8_t at) { return scaled(at16(0x80, (uint16_t)(0xBC85 + at)), view.h, VIEW_ORIGINAL_H); }
+uint16_t near_span_x(uint8_t at) { return at16(0x80, (uint16_t)(0xBC7B + at)); }
+uint16_t near_span_y(uint8_t at) { return at16(0x80, (uint16_t)(0xBC85 + at)); }
 
 FrontBox front_box(uint8_t at)
 {

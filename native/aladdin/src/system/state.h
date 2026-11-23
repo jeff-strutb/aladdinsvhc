@@ -23,6 +23,7 @@
 
 #include "nshvc/nshvc.h"
 #include "data/data.h"
+#include "video/slot_gfx.h"
 
 /* ---- records ---- */
 
@@ -213,7 +214,7 @@ typedef struct Actor {
     uint8_t frame_time;         /* +$26: frames the frame has left */
     uint8_t picture;            /* +$27: the frame's picture; at a start, the animation's number */
     uint8_t redraw;             /* +$28: $FF when its picture changed */
-    uint16_t look;              /* +$2B-$2C: sprite tile base and palette (actor_anim.h's ACTOR_2C is its high byte) */
+    uint32_t look;              /* +$2B-$2C: sprite tile base and palette (actor_anim.h's ACTOR_2C is its high byte); bits 16 up the slot, when 5 or more (video/slot_gfx.h) */
     uint8_t anim;               /* +$2D: the animation's offset in its set's table (its number times 2) */
     uint8_t anim_high;          /* +$2E: AnimStart adds it as the high byte of anim's offset; kind $41 keeps its own byte here */
     uint8_t frame;              /* +$2F: the frame in the animation */
@@ -222,11 +223,13 @@ typedef struct Actor {
     uint8_t pool_number;        /* +$33: in the 28-record pool, its number (28 down to 1) */
     uint8_t placement;          /* +$34: the placement it came from (g.placed); $FF a child, which has none */
     struct Actor *next;         /* +$37-$38: the next record in its list; NULL ends it (0 in the original) */
-    uint8_t tile_slot;          /* +$39: the animated-tile slot it holds (1-4), 0 none */
+    uint16_t tile_slot;         /* +$39: the animated-tile slot it holds (1-4, or past them in a larger view), 0 none */
     DataRef stream;             /* +$4A: where its byte stream goes on */
     int (*code)(struct Actor *a); /* native: the code that owns its resume point (actor.h's ActorCode): its kind's entry, or what ActorRunAs gave it */
     uint16_t call_at;           /* native: where a shared routine that waits inside it goes on (actor.h), 0 none;
                                    the original kept its caller's return at +$4E and its own place in +$02-$05 */
+    uint8_t on_screen;          /* native: set by ActorsInView with the in-view flag (bit 6 of flags): the original's own 256 x 224 view box holds the
+                                   range point, as that flag meant at the original's view; see ACTOR_ON_SCREEN */
     DataRef own_pictures;       /* +$29-$2A, for the kinds that send their own pictures: the list ActorPictureSend sends them
                                    from (the original's word in the data bank); those kinds' +$29 is this, the others' own.bytes */
     union {
@@ -244,7 +247,7 @@ typedef struct Actor {
 /* A record of the VRAM queue ($085A, 8 bytes each): one copy to video
    memory the NMI made. 16 fit before the player's record ($08DB). */
 typedef struct VramQueueEntry {
-    uint16_t to;                /* +$00: the VRAM word address, which video/ turns into its object */
+    uint32_t to;                /* +$00: the VRAM word address, which video/ turns into its object (VRAM_SLOT_TILES on: a slot past the original's four) */
     const uint8_t *from;        /* +$02-$04: the source, the game's own array or cartridge data */
     uint16_t bytes;             /* +$05: how many */
     uint8_t step;               /* +$07: how the address steps: bit 7 after the high byte, bits 0-1 by how much */
@@ -381,10 +384,7 @@ typedef struct Sequence {
    NMI restarted every channel at its table each frame. */
 typedef enum {
     LINE_TM, LINE_TS, LINE_PALETTE, LINE_BG1_Y, LINE_BG2_X, LINE_BG3_Y, LINE_WINDOW1, LINE_WINDOW2,
-    LINE_MODE, LINE_M7_A, LINE_FIXED, LINE_WINDOW_USE_BG34,
-    LINE_WINDOW1_WIDE, LINE_WINDOW2_WIDE,   /* a level's windows in the view's columns (VIEW.md 6.3): 4 bytes a line, the left then the
-                                               right edge, each 16 bits, from g.wide_data (not the original's; the cartridge has none) */
-    LINE_TARGETS
+    LINE_MODE, LINE_M7_A, LINE_FIXED, LINE_WINDOW_USE_BG34, LINE_TARGETS
 } LineTarget;
 
 typedef struct LineChannel {
@@ -397,7 +397,6 @@ typedef struct LineChannel {
 } LineChannel;
 
 #define LINE_DATA_SIZE 0x600
-#define WIDE_DATA_SIZE 0x4900       /* g.wide_data: the boxes', the spot's and the narrowing window's tables (0x800), then the circle's, 4 bytes a line (4,096 lines) and a count a run */
 
 /* ---- the state ---- */
 
@@ -442,7 +441,7 @@ typedef struct GameState {
     uint8_t mode;               /* $039D bits 0-2: the picture mode */
     uint8_t bg3_priority;       /* $039D bit 3 */
     uint8_t tile_size_16;       /* $039D bits 4-7: BG1-BG4 with 16 x 16 tiles */
-    uint16_t window_edges[4];   /* $03A6-$03A9: window 1 left, right, window 2 left, right; in a level, the view's columns (a byte in the original) */
+    uint8_t window_edges[4];    /* $03A6-$03A9: window 1 left, right, window 2 left, right */
     uint8_t window_use[6];      /* $03AA, a nibble each: per BG1-4, sprites, colour: bit 0 window 1 inverted, 1 on, 2 window 2 inverted, 3 on */
     uint8_t window_logic[6];    /* $03AD, 2 bits each: per BG1-4, sprites, colour: 0 or, 1 and, 2 xor, 3 xnor */
     uint8_t blend_prevent;      /* $03AF bits 4-5 */
@@ -462,7 +461,6 @@ typedef struct GameState {
     uint8_t text_band_values[32]; /* $1C9E and $1CAE: the two buffers TextBandsCommit hands the line effect's channel */
     uint8_t line_data[LINE_DATA_SIZE]; /* $7E:F400-$7E:F9FF: the per-line effects' tables and data (the window edges at
                                    $F800 among them; from $F800 the parallax keeps its bands' positions) */
-    uint8_t wide_data[WIDE_DATA_SIZE];  /* the tables of the LINE_WINDOW*_WIDE channels (video/window_effects.c, circle_wipe.c): not in the original */
     uint8_t line_channels_kept; /* $03B5 high nibble: channels 4-7 other code keeps, not for the window effects */
     uint32_t bg_x[3];           /* $19EC, every 8 bytes: BG1-3's x, 24.8: the pixels the middle two bytes */
     uint32_t bg_y[3];           /* $19F0, every 8 bytes: BG1-3's y, 24.8, as bg_x */
@@ -502,9 +500,9 @@ typedef struct GameState {
     uint8_t bg1_held;           /* $1A14: nonzero, BG1's position is not taken from the play field */
     uint8_t bg2_follows;        /* $1A15: 0 the backdrop layer; $40 its y only; $80 the play field's x; else neither */
     uint16_t backdrop_offset_y; /* $1A2B: the backdrop's y less the play field's, 8.8 */
-    uint16_t palette[256];      /* $7E:FD00: the colours, 15-bit */
+    uint16_t palette[PALETTE_ENTRIES]; /* $7E:FD00: the colours, 15-bit; past 256 the sprite palettes of the slots past the original's four */
     uint8_t palette_upload;     /* $0844: nonzero, the palette goes to the picture */
-    uint16_t palette_saved[256];/* $0406: colours kept to fade from */
+    uint16_t palette_saved[PALETTE_ENTRIES];/* $0406: colours kept to fade from */
     uint16_t palette_saved_at;  /* $0606: the first colour kept, a byte offset */
     uint16_t text_map[32 * 32]; /* $7E:D800: the text layer's map */
     uint8_t text_map_upload;    /* $0835: nonzero, the text map goes to its object */
@@ -750,12 +748,12 @@ typedef struct GameState {
     uint16_t anim_data[2048];   /* $7E:B000: the level's sets' animation tables and frames (at most 1,219 words): time low, picture high */
     /* by kind, its sprite graphics in the level */
     uint16_t kind_gfx_at[256];  /* $7F:E500: where its graphics were unpacked, in video's unpack buffer */
-    uint16_t kind_look[256];    /* $7F:E700: its sprite attributes (palette in bits 9-11); bit 15 set once loaded */
+    uint32_t kind_look[256];    /* $7F:E700: its sprite attributes (palette in bits 9-11); bit 15 set once loaded; bits 16 up its slot when 5 or more */
     uint8_t kind_extra_slots[256]; /* $7F:E900: the palette slots it needs past its first (0-2) */
     uint8_t kind_palette[256];  /* $7F:EA00: its palette among the actors' palettes, by its placements' variant */
-    uint8_t kind_slot[256];     /* $7F:EB00: the palette slot it holds (1-4) */
-    uint8_t palette_slot_users[4];    /* $15E9: per sprite palette slot (1-4 as 0-3), the actors holding it */
-    uint8_t palette_slot_kind[4];     /* $15ED: per slot, the kind that claimed it */
+    uint16_t kind_slot[256];    /* $7F:EB00: the palette slot it holds (1-4, or more) */
+    uint8_t palette_slot_users[SLOTS_MAX];    /* $15E9: per sprite palette slot (1 as 0), the actors holding it */
+    uint8_t palette_slot_kind[SLOTS_MAX];     /* $15ED: per slot, the kind that claimed it */
 } GameState;
 
 extern GameState g;

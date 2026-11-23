@@ -171,7 +171,7 @@ int Kind30Start(Actor *a)
             }
             break;
         case COUNTED:
-            a->look = (uint16_t)((a->look & 0xF1FF) | 0x0200);
+            a->look = (a->look & 0xFFFFF1FFu) | 0x0200;
             AnimStart(a, 0);
             break;
         case MARK:

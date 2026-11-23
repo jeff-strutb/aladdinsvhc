@@ -96,7 +96,7 @@ static int count(Actor *a, uint8_t n, int at)
    look $44 beside it, then a hop. */
 static int spawn_and_hop(Actor *a)
 {
-    if (a->flags & 0x40)
+    if ACTOR_ON_SCREEN(a)
         SoundQueueAdd(0x1D);
     AnimStart(a, 0x06);
     a->anim_flags |= 0x08;

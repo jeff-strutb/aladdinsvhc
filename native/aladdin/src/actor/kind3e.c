@@ -59,7 +59,7 @@ static int frame(Actor *a)
     Kind3EOwn *o = own(a);
 
     o->left = o->pause;
-    if (a->flags & 0x40) {
+    if ACTOR_ON_SCREEN(a) {
         o->pause = 0x80;
         return 1;
     }

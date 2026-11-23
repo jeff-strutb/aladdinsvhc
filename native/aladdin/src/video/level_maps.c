@@ -29,11 +29,12 @@
  *                                                          the backdrop's border (outside its layout):
  *                                                          the map has none, nothing shows them.
  *   Screen map patches in play (level_events.c: place
- *     $21 of $0A; kind $81's place $23)                   -> NOT followed: the original redrew a patched
- *                                                          place only when the ring next drew it. At
- *                                                          the original's view neither is on screen;
- *                                                          for a wider view they need LevelMapsBuild's
- *                                                          place redone (reported, not changed here).
+ *     $21 of $0A; kind $81's place $23)                   -> $0A's place $21: LevelMapsPlace builds that screen
+ *                                                          again at once (the original redrew a patched place
+ *                                                          only when the ring next drew it). Kind $81's place
+ *                                                          $23 is written after LevelMapsFreeze, when the level
+ *                                                          maps are off and nothing draws the layers again: its
+ *                                                          high byte is the animation sets', not a screen's.
  *   Frozen layers (edges = 0): level 6's and 7's
  *     backdrop (level_backdrop.c), kind $81's arena       -> level 6: a map of the backdrop's first 512
  *                                                          pixels, drawn once as the ring was. Level 7:
@@ -68,21 +69,38 @@
  * Empty screen places (negative) are blank tiles (map word 0) in the map; the
  * ring drew screen 0's there.
  *
+ * Margins (video/level_fill.c). Each map is FILL_MARGIN metatiles (1,024
+ * pixels) larger past each of its four edges (a wrapping band backdrop: its
+ * top and bottom only), and the margin holds scenery made from the level's own
+ * metatiles, so a view that shows more than the level (the frame around the
+ * original's 256 x 224 screen at the level's left and top edges, or past its
+ * right and bottom ones; a held view of kind $81's arena) shows art and not
+ * the map's wrap to its other side. The level's (0, 0) is at (mx, my) of the map
+ * (level_maps_margin gives it in pixels; video.c and lines.c add it to the
+ * scroll of a layer shown from its map). The margin is in the engine map only
+ * (g.level_tiles and the screen map, which collision and tile changes read, are
+ * untouched, and LevelMapsTile refuses a place outside the level's own layout).
+ *
  * Cost: a map is at most 1,024 x 96 tiles (level $12) or 416 x 256 ($0A),
  * written at load (one engine write per layer) and 2 x 2 tiles per tile
  * change. Maps are engine objects that persist, so one is made for each size
  * a layer has and kept for the next level of that size.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
 
 #include "data/data.h"
 #include "data/scroll_tables.h"
 #include "system/state.h"
+#include "video/level_fill.h"
 #include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "video/view.h"
 
-#define MAP_WORDS (416 * 256)       /* the most tiles a layer's map has: level $0A's play field (level $12's is 1,024 x 96) */
+#define MAP_WORDS (FILL_CELLS_MAX * 4)  /* the most tiles a layer's map has: the level and its margins, 2 x 2 tiles a metatile */
 #define POOL_SIZE 96
 #define RING_COLUMNS 64
 #define RING_ROWS 32
@@ -94,13 +112,28 @@
 typedef struct LevelMap {
     uint8_t on;
     uint8_t wraps;                  /* the band levels' backdrop: its tiles repeat every BAND_COLUMNS */
-    uint32_t w, h;                  /* tiles */
+    uint32_t w, h;                  /* tiles, with the margins the fill makes past the level's edges */
+    uint32_t mx, my;                /* the margins left of and above the level's own layout, in tiles: the level's (0, 0) is at (mx, my) */
+    uint32_t level_w, level_h;      /* tiles of the level's own layout (a tile change is never outside it) */
     nshvc_map map;
     uint16_t *words;                /* w x h map words, row by row (kept for LevelMapsFreeze) */
 } LevelMap;
 
 static LevelMap layer_map[2];
 static uint16_t field_words[MAP_WORDS], back_words[MAP_WORDS];
+static uint16_t cells[FILL_CELLS_MAX];      /* a layer's metatiles, level and margins, for the fill */
+static FillReport fill_report[2];
+static double fill_clock;
+
+static double fill_now(void)
+{
+    struct timespec t;
+
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
+}
+static int32_t prov_src[2][FILL_CELLS_MAX];      /* the fill's provenance by cell, per layer (level_fill_source, _kind): for the map dump */
+static uint8_t prov_kind[2][FILL_CELLS_MAX];
 
 /* the engine objects made so far, by layer and size */
 static struct { uint8_t layer; uint32_t w, h; nshvc_map map; } pool[POOL_SIZE];
@@ -156,9 +189,27 @@ static void build_layer(int layer, unsigned layout)
     unsigned base = (unsigned)(layer_setup_entry((unsigned)layer).map_base_high << 8) / 2u;
     int band = layer == 1 && (g.layer_setup_mode == 0x0A || g.layer_setup_mode == 0x0C || g.layer_setup_mode == 0x0E);
     unsigned columns = band && layout_columns > 2 ? 2 : layout_columns;
-    uint32_t w = columns * METATILE_TILES * 2u, h = rows * METATILE_TILES * 2u;
+    unsigned lw = columns * METATILE_TILES, lh = rows * METATILE_TILES;     /* the layout in metatiles */
+    /* The margins are as deep as a view shows (docs VIEW.md 5.x): across, the frame round the original's screen, view.dx pixels (the view
+       changes only where a level loads, before this), and a cell more; the backdrop's also the 128 pixels past its layout that the original's
+       own window reaches in levels $0F and $10 (the plays' counts, level_maps_note). Down and up, none for the play field (its window never
+       leaves the layout: the camera's limits) and 7 cells for the backdrop (the original's window goes 96 pixels above level $10's). A wrapping
+       backdrop has none across. */
+    unsigned dx_cells = (unsigned)((view.dx + 15) / 16) + 1u + (layer == 1 ? 8u : 0u);
+    unsigned ox = band ? 0 : dx_cells, oy = layer == 1 ? 7u : 0u;
+    unsigned fw = lw + 2 * ox, fh = lh + 2 * oy;                            /* the whole, with the margins */
+    uint32_t w, h;
 
     m->on = 0;
+    memset(&fill_report[layer], 0, sizeof fill_report[layer]);
+    if ((size_t)fw * fh > FILL_CELLS_MAX) {
+        fprintf(stderr, "video: a level map of %u x %u metatiles is more than %d; its margins are not made\n", fw, fh, FILL_CELLS_MAX);
+        ox = oy = 0;
+        fw = lw;
+        fh = lh;
+    }
+    w = fw * 2u;
+    h = fh * 2u;
     if (w * h > MAP_WORDS) {
         fprintf(stderr, "video: a level map of %u x %u tiles is more than %d; the layer is left to its video map\n", (unsigned)w,
                 (unsigned)h, MAP_WORDS);
@@ -168,28 +219,44 @@ static void build_layer(int layer, unsigned layout)
         return;
     m->w = w;
     m->h = h;
+    m->mx = ox * 2u;
+    m->my = oy * 2u;
+    m->level_w = lw * 2u;
+    m->level_h = lh * 2u;
     m->words = words;
     m->wraps = (uint8_t)band;
+    for (size_t i = 0; i < (size_t)fw * fh; i++)
+        cells[i] = FILL_BLANK;              /* what the fill does not make is empty, not the last level's */
     for (unsigned cy = 0; cy < rows; cy++)
         for (unsigned cx = 0; cx < columns; cx++) {
             unsigned place = base + (cy + 1) * SCREEN_PLACE_ROW + cx + 1;
             uint16_t screen = place < SCREEN_MAP_PLACES ? g.screen_map.places[place] : (uint16_t)NEGATIVE_PLACE;
 
             for (unsigned my = 0; my < METATILE_TILES; my++)
-                for (unsigned mx = 0; mx < METATILE_TILES; mx++) {
-                    uint16_t *at = &words[((cy * METATILE_TILES + my) * 2u) * w + (cx * METATILE_TILES + mx) * 2u];
-                    uint16_t tile;
+                for (unsigned mx = 0; mx < METATILE_TILES; mx++)
+                    cells[(size_t)(oy + cy * METATILE_TILES + my) * fw + ox + cx * METATILE_TILES + mx] =
+                        screen & NEGATIVE_PLACE ? (uint16_t)FILL_BLANK : (uint16_t)(screen_tile(screen, my * 0x20u + mx * 2u) & 0x7FFFu);
+        }
+    fill_clock = fill_now();
+    LevelFill(cells, lw, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
+              &fill_report[layer]);
+    if (getenv("ALADDIN_DEV_FILL"))
+        fprintf(stderr, "fillms layer %d level %u x %u cells, whole %u x %u: %.1f ms\n", layer, lw, lh, fw, fh, (fill_now() - fill_clock) * 1000.0);
+    memcpy(prov_src[layer], level_fill_source(), (size_t)fw * fh * sizeof(int32_t));
+    memcpy(prov_kind[layer], level_fill_kind(), (size_t)fw * fh);
+    for (unsigned r = 0; r < fh; r++)
+        for (unsigned c = 0; c < fw; c++) {
+            uint16_t *at = &words[(size_t)(r * 2u) * w + c * 2u];
+            uint16_t tile = cells[(size_t)r * fw + c];
 
-                    if (screen & NEGATIVE_PLACE) {
-                        at[0] = at[1] = at[w] = at[w + 1] = 0;
-                        continue;
-                    }
-                    tile = screen_tile(screen, my * 0x20u + mx * 2u);
-                    at[0] = tile_word(metatiles, tile, 0);
-                    at[1] = tile_word(metatiles, tile, 2);
-                    at[w] = tile_word(metatiles, tile, 4);
-                    at[w + 1] = tile_word(metatiles, tile, 6);
-                }
+            if (tile == FILL_BLANK) {
+                at[0] = at[1] = at[w] = at[w + 1] = 0;
+                continue;
+            }
+            at[0] = tile_word(metatiles, tile, 0);
+            at[1] = tile_word(metatiles, tile, 2);
+            at[w] = tile_word(metatiles, tile, 4);
+            at[w + 1] = tile_word(metatiles, tile, 6);
         }
     nshvc_map_write_snes(m->map, 0, 0, w, h, words);
     m->on = 1;
@@ -230,8 +297,10 @@ void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile)
     uint32_t tx = (uint32_t)(x >> 4) * 2u, ty = (uint32_t)(y >> 4) * 2u;
     uint16_t quad[4];
 
-    if (!m->on || tx >= m->w || ty >= m->h)
+    if (!m->on || tx >= m->level_w || ty >= m->level_h)
         return;
+    tx += m->mx;
+    ty += m->my;
     for (unsigned i = 0; i < 4; i++)
         quad[i] = tile_word(metatiles, tile, i * 2u);
     m->words[ty * m->w + tx] = quad[0];
@@ -241,10 +310,12 @@ void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile)
     nshvc_map_write_snes(m->map, tx, ty, 2, 2, quad);
 }
 
-/* the map word of layer `layer` at tile column c, row r (any integers): a wrapping backdrop repeats across, tiles
-   outside the layout are blank */
+/* the map word of layer `layer` at tile column c, row r of the level (any integers; the margins are the negative ones and
+   those past the layout): a wrapping backdrop repeats across, tiles past the margins are blank */
 static uint16_t word_at(const LevelMap *m, int32_t c, int32_t r)
 {
+    c += (int32_t)m->mx;
+    r += (int32_t)m->my;
     if (m->wraps)
         c &= (int32_t)(m->w - 1);
     if (c < 0 || r < 0 || (uint32_t)c >= m->w || (uint32_t)r >= m->h)
@@ -271,4 +342,118 @@ void LevelMapsFreeze(void)
         video_map_write(layer ? VIDEO_MAP_BACK : VIDEO_MAP_FRONT, ring);
     }
     LevelMapsOff();
+}
+
+/* a developer's note (ALADDIN_DEV_OVER=FILE): how far past the level's own layout each layer's window (scroll x, y, 256 x 224) goes, per level, at the
+   end of the run: left, right, top, bottom in pixels (0: never) */
+static struct { int32_t v[4]; } over_seen[2][64];
+static const char *over_file;
+
+static void over_report(void)
+{
+    FILE *f = over_file ? fopen(over_file, "a") : NULL;
+
+    if (!f)
+        return;
+    for (int l = 0; l < 2; l++)
+        for (int n = 0; n < 64; n++)
+            if (over_seen[l][n].v[0] || over_seen[l][n].v[1] || over_seen[l][n].v[2] || over_seen[l][n].v[3])
+                fprintf(f, "level %02X layer %d left %d right %d top %d bottom %d\n", n, l, over_seen[l][n].v[0], over_seen[l][n].v[1],
+                        over_seen[l][n].v[2], over_seen[l][n].v[3]);
+    fclose(f);
+}
+
+void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y)
+{
+    static int known;
+    const LevelMap *m = &layer_map[layer];
+    int32_t v[4];
+
+    if (!known) {
+        known = 1;
+        over_file = getenv("ALADDIN_DEV_OVER");
+        if (over_file)
+            atexit(over_report);
+    }
+    if (!over_file || !m->on || m->wraps)
+        return;
+    v[0] = -scroll_x;
+    v[1] = scroll_x + 256 - (int32_t)m->level_w * 8;
+    v[2] = -scroll_y;
+    v[3] = scroll_y + 224 - (int32_t)m->level_h * 8;
+    for (int i = 0; i < 4; i++)
+        if (v[i] > over_seen[layer][g.level & 63].v[i])
+            over_seen[layer][g.level & 63].v[i] = v[i];
+}
+
+void level_maps_margin(int layer, int32_t *x, int32_t *y)
+{
+    *x = (int32_t)layer_map[layer].mx * 8;
+    *y = (int32_t)layer_map[layer].my * 8;
+}
+
+const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *level_w, uint32_t *level_h, uint32_t *margin_x,
+                                 uint32_t *margin_y)
+{
+    const LevelMap *m = &layer_map[layer];
+
+    *margin_x = m->mx;
+    *margin_y = m->my;
+    *w = m->w;
+    *h = m->h;
+    *level_w = m->level_w;
+    *level_h = m->level_h;
+    return m->on ? m->words : NULL;
+}
+
+void level_maps_provenance(int layer, const int32_t **src, const uint8_t **kind)
+{
+    *src = prov_src[layer];
+    *kind = prov_kind[layer];
+}
+
+const FillReport *level_maps_fill(int layer)
+{
+    return &fill_report[layer];
+}
+
+/*
+ * LevelMapsPlace: a screen map place patched in play (a level's own events: level $0A's place $21 to $FE): the
+ * screen at that place of the play field's layout is built again from the place's word, in the map and the engine
+ * object, as LevelMapsTile does for one tile. A place that is not a screen of the layout is left alone. The original
+ * redrew a patched place only when its ring next drew it; the map shows it at once, which a view wider than the
+ * original's can see.
+ */
+void LevelMapsPlace(unsigned place)
+{
+    LevelMap *m = &layer_map[0];
+    DataRef metatiles = level_metatiles(g.map_level);
+    unsigned base = (unsigned)(layer_setup_entry(0).map_base_high << 8) / 2u;
+    unsigned rel = place - base, cy, cx;
+    uint16_t screen = g.screen_map.places[place % SCREEN_MAP_PLACES];
+
+    if (!m->on || place < base || rel % SCREEN_PLACE_ROW == 0 || rel < SCREEN_PLACE_ROW)
+        return;
+    cy = rel / SCREEN_PLACE_ROW - 1;
+    cx = rel % SCREEN_PLACE_ROW - 1;
+    if ((cx + 1) * METATILE_TILES * 2u > m->level_w || (cy + 1) * METATILE_TILES * 2u > m->level_h)
+        return;
+    for (unsigned my = 0; my < METATILE_TILES; my++)
+        for (unsigned mx = 0; mx < METATILE_TILES; mx++) {
+            uint16_t *at = &m->words[(m->my + (cy * METATILE_TILES + my) * 2u) * m->w + m->mx + (cx * METATILE_TILES + mx) * 2u];
+            uint16_t tile;
+
+            if (screen & NEGATIVE_PLACE) {
+                at[0] = at[1] = at[m->w] = at[m->w + 1] = 0;
+                continue;
+            }
+            tile = screen_tile(screen, my * 0x20u + mx * 2u);
+            at[0] = tile_word(metatiles, tile, 0);
+            at[1] = tile_word(metatiles, tile, 2);
+            at[m->w] = tile_word(metatiles, tile, 4);
+            at[m->w + 1] = tile_word(metatiles, tile, 6);
+        }
+    for (unsigned row = 0; row < METATILE_TILES * 2u; row++)
+        nshvc_map_write_snes(m->map, m->mx + cx * METATILE_TILES * 2u, m->my + cy * METATILE_TILES * 2u + row, METATILE_TILES * 2u, 1,
+                             &m->words[(m->my + cy * METATILE_TILES * 2u + row) * m->w + m->mx + cx * METATILE_TILES * 2u]);
 }

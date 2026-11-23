@@ -13,21 +13,22 @@
 static void palette_put(unsigned to, uint16_t (*colour)(uint8_t, unsigned), uint8_t n)
 {
     for (unsigned i = 0; i < 16; i++)
-        if (to + i < 256)
+        if (to + i < PALETTE_ENTRIES)
             g.palette[to + i] = colour(n, i);
-    if (to + 16 > 256)
+    if (to + 16 > PALETTE_ENTRIES)
         fprintf(stderr, "video: a palette at colour %u runs past the palette\n", to);
     g.palette_upload++;
 }
 
 /*
  * @routine 81:9903 ActorPaletteFromRom
- * WHAT IT DOES: Sets the actor's sprite palette (its look's bits 9-11) to
+ * WHAT IT DOES: Sets the actor's sprite palette (its look's bits 9-11, or its
+ * slot's own past the original's four) to
  * palette `rom` of the actors' palettes, and has the palette sent.
  */
 void ActorPaletteFromRom(const Actor *a, uint8_t rom)
 {
-    palette_put(128u + 16u * (a->look >> 9 & 7u), actor_palette_colour, rom);
+    palette_put(16u * look_palette_number(a->look), actor_palette_colour, rom);
 }
 
 /*

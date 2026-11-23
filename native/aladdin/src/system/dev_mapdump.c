@@ -38,6 +38,7 @@
 #include "map/map.h"
 #include "system/state.h"
 #include "system/system.h"
+#include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 
@@ -185,6 +186,105 @@ static Pic render_layout(unsigned first, unsigned cols, unsigned rows, int zero)
                 }
         }
     return p;
+}
+
+
+/* a layer's map as the game shows it (video/level_maps.c): the level inside the fill past its four edges, a red line
+   along each of the level's own edges just outside it (the level's pixels are not drawn over), none where the map has no
+   margin on that side */
+static Pic render_words(const uint16_t *words, uint32_t w, uint32_t h, uint32_t level_w, uint32_t level_h, uint32_t margin_x,
+                        uint32_t margin_y, int zero)
+{
+    Pic p = pic_new((int)(w * 8), (int)(h * 8));
+    uint32_t right = margin_x + level_w, bottom = margin_y + level_h;       /* the level's right and bottom edges, in tiles */
+
+    for (uint32_t r = 0; r < h; r++)
+        for (uint32_t c = 0; c < w; c++)
+            draw_tile(&p, (int)(c * 8), (int)(r * 8), words[(size_t)r * w + c], zero);
+    for (int y = 0; y < p.h; y++) {
+        if (margin_x > 0)
+            p.px[(size_t)y * p.w + margin_x * 8 - 1] = RGB(255, 0, 0);
+        if (right < w)
+            p.px[(size_t)y * p.w + right * 8] = RGB(255, 0, 0);
+    }
+    for (int x = 0; x < p.w; x++) {
+        if (margin_y > 0)
+            p.px[(size_t)(margin_y * 8 - 1) * p.w + x] = RGB(255, 0, 0);
+        if (bottom < h)
+            p.px[(size_t)bottom * 8 * p.w + x] = RGB(255, 0, 0);
+    }
+    return p;
+}
+
+/* the fill's bands, runs of the same method and period together, in pixels of the level (band `origin` starts at 0: the
+   columns of the whole begin left of the level's) */
+static void fill_runs(FILE *f, const FillBand *b, unsigned from, unsigned to, unsigned origin, const char *what)
+{
+    for (unsigned i = from; i < to;) {
+        unsigned j = i, gap_least = b[i].gap, gap_most = b[i].gap;
+
+        while (j + 1 < to && b[j + 1].method == b[i].method && b[j + 1].period == b[i].period) {
+            j++;
+            gap_least = b[j].gap < gap_least ? b[j].gap : gap_least;
+            gap_most = b[j].gap > gap_most ? b[j].gap : gap_most;
+        }
+        if (b[i].method == FILL_EXACT)
+            fprintf(f, "  %s %u-%u (px %d-%d): B exact, period %u px, repeating stretch ends %u-%u px inside the edge\n", what, i, j,
+                    ((int)i - (int)origin) * 16, ((int)j - (int)origin) * 16 + 15, b[i].period * 16, gap_least * 16, gap_most * 16);
+        else
+            fprintf(f, "  %s %u-%u (px %d-%d): %c %s\n", what, i, j, ((int)i - (int)origin) * 16, ((int)j - (int)origin) * 16 + 15,
+                    b[i].method ? b[i].method : '-',
+                    b[i].method == FILL_EMPTY ? "empty edge, goes on empty" :
+                    b[i].method == FILL_CYCLE ? "the last cells go round, each step a pair the level has" :
+                    b[i].method == FILL_SYNTH ? "synthesised: the level's best context match, cell by cell" :
+                    b[i].method == FILL_BACKDROP ? "backdrop alone (blank)" : "none");
+        i = j + 1;
+    }
+}
+
+/* one side's bands: the runs, then a count of the methods */
+static void fill_side(FILE *f, const char *side, const FillBand *b, unsigned n, unsigned origin, const char *what, int present)
+{
+    unsigned count[5] = { 0, 0, 0, 0, 0 };
+
+    if (!present) {
+        fprintf(f, " past the %s edge: none (%s)\n", side, !strcmp(side, "left") || !strcmp(side, "right") ? "the layer repeats by wrapping at its own width" : "no margin");
+        return;
+    }
+    fprintf(f, " past the %s edge, by 16 px %s%s:\n", side, what, !strcmp(what, "column") ? " of the whole" : " of the level");
+    fill_runs(f, b, 0, n, origin, what);
+    for (unsigned i = 0; i < n; i++)
+        count[b[i].method == FILL_EXACT ? 0 : b[i].method == FILL_SYNTH ? 1 : b[i].method == FILL_EMPTY ? 3 : b[i].method == FILL_CYCLE ? 4 : 2]++;
+    fprintf(f, " %s bands: %u exact, %u synthesised, %u backdrop, %u empty, %u cycle\n", side, count[0], count[1], count[2], count[3], count[4]);
+}
+
+static void fill_write(const char *dir, unsigned level)
+{
+    char path[512];
+    FILE *f;
+
+    snprintf(path, sizeof path, "%s/%02X-fill.txt", dir, level);
+    f = fopen(path, "w");
+    if (!f)
+        return;
+    for (int layer = 0; layer < 2; layer++) {
+        const FillReport *r = level_maps_fill(layer);
+
+        fprintf(f, "level $%02X, %s: level %u x %u px, with the fill %u x %u px (the level's top left at %u, %u px); %u different metatiles (%u past the table)\n",
+                level, layer ? "backdrop" : "play field", r->lw * 16, r->lh * 16, r->fw * 16, r->fh * 16, r->ox * 16, r->oy * 16, r->ids,
+                r->ids_over);
+        fill_side(f, "right", r->right, r->lh, 0, "row", r->fw > r->lw + r->ox);
+        fill_side(f, "left", r->left, r->lh, 0, "row", r->ox > 0);
+        fill_side(f, "bottom", r->down, r->fw, r->ox, "column", r->fh > r->lh + r->oy);
+        fill_side(f, "top", r->up, r->fw, r->ox, "column", r->oy > 0);
+        fprintf(f, " unseen pairs (of the pairs touching in each margin and its seam): left %u of %u, right %u of %u, top %u of %u, bottom %u of %u; %u cells unfilled\n",
+                r->unseen[0], r->pairs[0], r->unseen[1], r->pairs[1], r->unseen[2], r->pairs[2], r->unseen[3], r->pairs[3], r->unfilled);
+        fprintf(f, " unseen 2 x 2 blocks (of the blocks in each margin and its seam): left %u of %u, right %u of %u, top %u of %u, bottom %u of %u; made with no such block: %c%c%c%c\n",
+                r->unseen_quads[0], r->quads[0], r->unseen_quads[1], r->quads[1], r->unseen_quads[2], r->quads[2], r->unseen_quads[3], r->quads[3],
+                r->blocks[0] ? r->blocks[0] : '-', r->blocks[1] ? r->blocks[1] : '-', r->blocks[2] ? r->blocks[2] : '-', r->blocks[3] ? r->blocks[3] : '-');
+        fprintf(f, " exact search: left %c, right %c, top %c, bottom %c\n", r->outcome[0] ? r->outcome[0] : '-', r->outcome[1] ? r->outcome[1] : '-', r->outcome[2] ? r->outcome[2] : '-', r->outcome[3] ? r->outcome[3] : '-');
+    }
+    fclose(f);
 }
 
 /* BG2's video map as the load left it: base and the pages' layout as video.c's map_part */
@@ -440,6 +540,43 @@ static void dump_level(const char *dir, unsigned level)
     backmap = render_backmap();
     snprintf(name, sizeof name, "%02X-backmap.ppm", level);
     pic_write(dir, name, &backmap, 0);
+    for (int layer = 0; layer < 2; layer++) {
+        uint32_t mw, mh, lw, lh, mx, my;
+        const uint16_t *words = level_maps_words(layer, &mw, &mh, &lw, &lh, &mx, &my);
+
+        if (words) {
+            Pic fillp = render_words(words, mw, mh, lw, lh, mx, my, ZERO_MAGENTA);
+            FILE *wf;
+            char wpath[512];
+
+            snprintf(name, sizeof name, "%02X-fill%s.ppm", level, layer ? "back" : "field");
+            pic_write(dir, name, &fillp, 0);
+            pic_free(&fillp);
+            /* the map's words as they are (six u32: width, height, the level's width and height, its left and top, in tiles; then the u16 words) */
+            snprintf(wpath, sizeof wpath, "%s/%02X-words%s.bin", dir, level, layer ? "back" : "field");
+            if ((wf = fopen(wpath, "wb"))) {
+                uint32_t head[6] = { mw, mh, lw, lh, mx, my };
+
+                fwrite(head, sizeof head, 1, wf);
+                fwrite(words, sizeof *words, (size_t)mw * mh, wf);
+                fclose(wf);
+            }
+            /* the fill's provenance (fw x fh cells): u32 fw, fh, level width, height in cells, left, top in cells; then the int32 sources, then the kind bytes */
+            snprintf(wpath, sizeof wpath, "%s/%02X-prov%s.bin", dir, level, layer ? "back" : "field");
+            if ((wf = fopen(wpath, "wb"))) {
+                uint32_t head[6] = { mw / 2, mh / 2, lw / 2, lh / 2, mx / 2, my / 2 };
+                const int32_t *src;
+                const uint8_t *kind;
+
+                level_maps_provenance(layer, &src, &kind);
+                fwrite(head, sizeof head, 1, wf);
+                fwrite(src, sizeof *src, (size_t)head[0] * head[1], wf);
+                fwrite(kind, 1, (size_t)head[0] * head[1], wf);
+                fclose(wf);
+            }
+        }
+    }
+    fill_write(dir, level);
     info_write(dir, level, cols, rows, has_back, bcols, brows, ox, oy, bx0, by0);
     pic_free(&field);
     pic_free(&back);

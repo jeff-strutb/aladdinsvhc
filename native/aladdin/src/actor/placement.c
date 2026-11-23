@@ -17,6 +17,7 @@
 
 #include "actor/actor_own.h"
 #include "data/actor_tables.h"
+#include "video/slot_gfx.h"
 #include "video/view.h"
 
 /* The index ($7E:C100-$7E:C5FF; the original's clear runs on through
@@ -37,8 +38,10 @@ static struct {
     uint16_t y;             /* $1BF1: its y when it last placed down */
 } placing;
 
-static uint16_t camera_x(void) { return pixels(g.layers[0].scroll_x); }    /* $1773 */
-static uint16_t camera_y(void) { return pixels(g.layers[0].scroll_y); }    /* $1777 */
+/* The view's left and top edges ($1773, $1777): the camera is the original's, and the view is a frame round its screen
+   (view.dx, view.dy), so the spawn window is measured from the view's own edges. At 256 x 224 they are the camera. */
+static uint16_t camera_x(void) { return (uint16_t)(pixels(g.layers[0].scroll_x) - view.dx); }
+static uint16_t camera_y(void) { return (uint16_t)(pixels(g.layers[0].scroll_y) - view.dy); }
 
 /*
  * @routine 82:A9BB PlacementsByRow
@@ -293,8 +296,11 @@ void PlacementsScroll(void)
 static int slots_claim(uint8_t kind, Actor *a, int count)
 {
     int first, k;
+    int slots = (int)slots_count();
 
-    for (first = 0; first + count <= 4; first++) {
+    for (first = 0; first + count <= slots; first++) {
+        if (first < SLOTS_STD && first + count > SLOTS_STD)
+            continue;                   /* a run is one range of tiles: not across the original's four and the rest */
         for (k = 0; k < count && !g.palette_slot_users[first + k]; k++)
             ;
         if (k < count)
@@ -302,9 +308,9 @@ static int slots_claim(uint8_t kind, Actor *a, int count)
         for (k = 0; k < count; k++)
             g.palette_slot_users[first + k]++;
         g.palette_slot_kind[first] = kind;
-        a->tile_slot = (uint8_t)(first + 1);
-        g.kind_slot[kind] = (uint8_t)(first + 1);
-        a->look = palette_slot_look((uint8_t)(first + 1));
+        a->tile_slot = (uint16_t)(first + 1);
+        g.kind_slot[kind] = (uint16_t)(first + 1);
+        a->look = slot_look((unsigned)first + 1);
         g.kind_look[kind] = a->look;
         return 0;
     }
@@ -344,7 +350,7 @@ static void ActorKindTilesQueue(uint8_t kind)
             return;
         }
         c = &g.vram_queue[g.vram_queue_count++];
-        c->to = (uint16_t)(((g.kind_look[kind] & 0x01FF) << 4) + 0x6000);
+        c->to = look_vram(g.kind_look[kind], 0);
         c->from = &g.unpacked[g.kind_gfx_at[kind] % sizeof g.unpacked];
         c->bytes = bytes;
         c->step = 0x80;
@@ -425,6 +431,7 @@ static int ActorKindSetup(uint8_t kind, Actor *a)
 Actor *ActorCreateIn(Actor *a, uint8_t kind)
 {
     a->kind = kind;
+    a->on_screen = 0;
     if (ActorKindSetup(kind, a))
         return NULL;
     g.kind_count[kind]++;

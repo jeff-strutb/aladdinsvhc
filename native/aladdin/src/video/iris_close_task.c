@@ -1,8 +1,7 @@
 /*
  * iris_close_task.c: a task that closes the screen down to a circle round
  * a point, by the windows: started by actor kind $24 and by the scene at
- * $80:B04E. The story's iris is a still screen: it keeps the original's 256 x
- * 224 and its 8-bit edges (VIEW.md 6.1, held), as CircleWipeStep does outside a level.
+ * $80:B04E.
  */
 #include "data/video_tables.h"
 #include "system/state.h"

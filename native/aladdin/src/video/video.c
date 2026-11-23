@@ -20,6 +20,7 @@
 static nshvc_tiles tiles[VIDEO_TILE_KINDS];
 static nshvc_map maps[VIDEO_MAP_KINDS];
 static nshvc_tiles mode7_tiles;
+static nshvc_tiles slot_tiles;     /* the tiles of the slots past the original's four, if the view has any */
 static nshvc_map mode7_map;
 
 /* Mode 7's map and pixels as the game's own arrays: 128 x 128 tiles, and
@@ -36,15 +37,56 @@ static nshvc_sprite *shown_sprites;
 static uint32_t shown_count;
 static nshvc_sprite *moved_sprites;  /* the shown sprites moved by the crop or a still screen's origin (video_draw) */
 
-void video_init(void)
+/* the lists of sprites that are sized for the view: the game's (OamInit) and the picture's two */
+static void sprite_lists_make(void)
 {
     OamInit();
+    free(shown_sprites);
+    free(moved_sprites);
     shown_sprites = calloc(OamSpriteCapacity(), sizeof *shown_sprites);
     moved_sprites = calloc(OamSpriteCapacity(), sizeof *moved_sprites);
+    shown_count = 0;
     if (!shown_sprites || !moved_sprites) {
         fprintf(stderr, "video: no memory for the shown sprites\n");
         exit(1);
     }
+}
+
+/*
+ * The view changes only here, where a level loads and where a still screen starts (view.h). Everything that keeps
+ * something sized from the view is redone: the sprite lists (the budget follows the view's area). Everything else
+ * the game derives from the view reads it where it is used, or is set after this by the level's own set-up (the
+ * camera's limits and aim, the range point, the spawn window, the line tables, the window edges); a level's load
+ * runs this first, before LevelScrollLimits.
+ */
+static int level_loading;       /* video_view_level ran and LevelScreenSetup has not yet: a DisplayDefaults in between keeps the level's view */
+
+static void view_changed(int changed)
+{
+    if (changed && shown_sprites)
+        sprite_lists_make();
+}
+
+void video_view_level(void)
+{
+    level_loading = 1;
+    view_changed(view_choose());
+}
+
+void video_view_still(void)
+{
+    if (!level_loading)
+        view_changed(view_choose_still());
+}
+
+void video_view_level_done(void)
+{
+    level_loading = 0;
+}
+
+void video_init(void)
+{
+    sprite_lists_make();
     tiles[VIDEO_TILES_LOW] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_HIGH] = nshvc_tiles_create(4, 1024, 1);
     tiles[VIDEO_TILES_TEXT] = nshvc_tiles_create(2, 1024, 1);
@@ -52,9 +94,16 @@ void video_init(void)
     maps[VIDEO_MAP_FRONT] = nshvc_map_create(64, 32);
     maps[VIDEO_MAP_TEXT] = nshvc_map_create(32, 32);
     maps[VIDEO_MAP_BACK_TALL] = nshvc_map_create(64, 64);
+    if (slots_count() > SLOTS_STD)
+        slot_tiles = nshvc_tiles_create(4, SLOT_TILES * (slots_count() - SLOTS_STD), 1);
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
+}
+
+nshvc_tiles video_slot_tiles(void)
+{
+    return slot_tiles;
 }
 
 nshvc_tiles video_sprite_tiles(void)
@@ -239,10 +288,39 @@ void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite ho
     }
 }
 
-void vram_write_stepped(uint16_t address, const void *data, uint32_t count, uint16_t step)
+/* words of the slot tile set from word address `address` (VRAM_SLOT_TILES on), whole tiles only */
+static void slot_words(uint32_t address, const uint16_t *w, uint32_t n)
+{
+    uint32_t at = address - VRAM_SLOT_TILES;
+    uint32_t tiles_in = SLOT_TILES * (slots_count() - SLOTS_STD) * 16u;
+
+    if (slots_count() <= SLOTS_STD || at >= tiles_in)
+        return;
+    if (at + n > tiles_in)
+        n = tiles_in - at;
+    tiles_part(slot_tiles, 0, 16, at, n, w);
+}
+
+void vram_write_stepped(uint32_t address, const void *data, uint32_t count, uint16_t step)
 {
     const uint8_t *b = (const uint8_t *)data;
 
+    if (address >= VRAM_SLOT_TILES) {
+        /* a slot's tiles: contiguous (the queue's uploads step by 1, or 0x80 after the high byte, which is 1) */
+        for (uint32_t i = 0; i < count;) {
+            uint16_t w[256];
+            uint32_t run = count - i < 256 ? count - i : 256;
+
+            if (step != 1)
+                run = 1;
+            for (uint32_t k = 0; k < run; k++)
+                w[k] = (uint16_t)(b[2 * (i + k)] | b[2 * (i + k) + 1] << 8);
+            slot_words(address, w, run);
+            address += run * step;
+            i += run;
+        }
+        return;
+    }
     if (step == 1) {
         vram_write(address, data, count, VRAM_WORDS);
         return;
@@ -385,6 +463,8 @@ void video_vblank(void)
     if (g.palette_upload) {
         g.palette_upload = 0;
         nshvc_palette_write(0, 256, g.palette);
+        if (slots_count() > SLOTS_STD)
+            nshvc_palette_write(256, 16u * (slots_count() - SLOTS_STD), g.palette + 256);
     }
     g.uploads_held = 0;                 /* the NMI clears it each frame */
     /* the NMI points channels 4-7 that are on at their tables' places */
@@ -465,10 +545,16 @@ static void draw_layers(void)
         if (i < 2 && level_maps_active(i)) {
             /* a level's layer: its whole-level map, at its scroll as a signed 16-bit position (the map wraps at its own
                size, not at 512 or 1,024) */
+            int32_t mx, my;
+
             l.map = level_maps_object(i);
-            l.scroll_x = (int16_t)l.scroll_x;
-            l.scroll_y = (int16_t)l.scroll_y;
+            level_maps_note(i, (int16_t)l.scroll_x, (int16_t)l.scroll_y);
+            level_maps_margin(i, &mx, &my);     /* the level's (0, 0) is inside the map's margins */
+            l.scroll_x = (int16_t)l.scroll_x + mx;
+            l.scroll_y = (int16_t)l.scroll_y + my;
         }
+        if (i < 2 && video_level_view())
+            l.scroll_x -= view.dx;      /* the original's screen is dx across in the view (video_draw) */
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
         if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT)
@@ -537,16 +623,23 @@ void video_draw(void)
         /* the IRQ: the screen is dark above its line L and lit from row L (the interrupt is at the line's dot $98 and
            its writes show before the line is drawn: the original's rows 0-7 are dark for L = 8); the tables the
            handler restarts give their first value from the row after. The dark rows are cropped, not shown
-           (Jeff, 2026-11-22): the picture starts at the original's line L, so its height is the view's less L and
-           its origin is -L; the line tables, the layers' scrolls and the line numbers of every effect keep the
-           original's counting (the engine counts lines from the origin), and the sprites are moved up L below */
+           (Jeff, 2026-11-22): the picture starts at the original's line L, so its height is the view's less L */
         lit = (uint32_t)video_cropped_rows();
         top = lit + 1u;
-        scr.blank = 1;
+        if (!video_level_view())
+            scr.blank = 1;      /* a level shows the frame round its screen above its line L too, so it is not dark there */
         scr.height = view.h - (int32_t)lit;
-        scr.origin_y = -(int32_t)lit;
     }
-    if (!video_level_view()) {
+    if (video_level_view()) {
+        /* a level: the original's 256 x 224 screen, the game as it plays, sits at (dx, dy) in the view, less the cropped
+           rows L (the picture starts at the original's line L). Down, the engine's origin does it: it moves the layers
+           and the line tables. Across it is done here, in the layers' scrolls (draw_layers), in lines.c (the per-line
+           scrolls, the windows) and in the sprites below: the status line's columns (hud_layer.c) are the picture's
+           and a split inside a line cannot be placed left of the origin. What is round the screen is the level's own
+           (its layers) and the actors the game keeps live there (oam.c). VIEW.md 4.4 */
+        scr.origin_x = 0;
+        scr.origin_y = view.dy - (int32_t)lit;
+    } else {
         /* a still screen (no level is the screen): the original's 256 x 224 centred in the view, black around it
            (VIEW.md 6.1, 6.4). The engine's origin moves the layers, Mode 7 and the line tables; the sprites and the
            windows are moved below and in lines.c */
@@ -557,6 +650,8 @@ void video_draw(void)
         scr.show_top = view.dy;
         scr.show_bottom = view.dy + VIEW_ORIGINAL_H;
     }
+    if (view.square)        /* the picture at its own shape: square game pixels, fitted to the window and letterboxed if the window's shape is not its */
+        scr.aspect = (float)scr.width / (float)scr.height;
     nshvc_screen_set(&scr);
 
     nshvc_mode_set(g.mode, g.bg3_priority, 0);
@@ -565,15 +660,11 @@ void video_draw(void)
         draw_mode7();
 
     memset(&win, 0, sizeof win);
-    win.w[0].left = g.window_edges[0];
-    win.w[0].right = g.window_edges[1];
-    win.w[1].left = g.window_edges[2];
-    win.w[1].right = g.window_edges[3];
-    if (!video_level_view())            /* a still screen's windows are the original's columns, moved by the origin */
-        for (int i = 0; i < 2; i++) {
-            win.w[i].left += view.dx;
-            win.w[i].right += view.dx;
-        }
+    /* the original's columns in the picture's (the engine's origin does not move windows; lines.c) */
+    win.w[0].left = video_window_left(g.window_edges[0]);
+    win.w[0].right = video_window_right(g.window_edges[1]);
+    win.w[1].left = video_window_left(g.window_edges[2]);
+    win.w[1].right = video_window_right(g.window_edges[3]);
     for (int i = 0; i < 6; i++)
         win.layer_use[i] = video_window_use(g.window_use[i], g.window_logic[i]);
     for (int i = 0; i < 5; i++) {
@@ -595,7 +686,7 @@ void video_draw(void)
     nshvc_sprites_show((uint8_t)(g.main_layers >> 4 & 1), (uint8_t)(g.sub_layers >> 4 & 1));
     /* the engine's origin does not move sprites: the cropped rows' L lines up in a level with the split, and in
        a still screen the origin's dx and dy across and down (the sprite list as the game left it is kept) */
-    int32_t sprite_dx = video_level_view() ? 0 : view.dx, sprite_dy = video_level_view() ? -(int32_t)lit : view.dy;
+    int32_t sprite_dx = view.dx, sprite_dy = scr.origin_y;
 
     if (sprite_dx || sprite_dy) {
         memcpy(moved_sprites, shown_sprites, shown_count * sizeof moved_sprites[0]);
@@ -608,7 +699,7 @@ void video_draw(void)
         nshvc_sprites_set(shown_sprites, shown_count, 0);
     }
 
-    if (top) {
+    if (top && !video_level_view()) {
         nshvc_line(lit, NSHVC_LINE_BLANK, g.blank);
         nshvc_line(lit, NSHVC_LINE_BRIGHTNESS, g.brightness);
     }

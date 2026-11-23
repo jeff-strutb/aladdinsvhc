@@ -4,7 +4,7 @@ Written 2026-11-22 at `b36b712` from reading `native/aladdin/src`, the engine (`
 `src/engine/picture.c`) and tables read from the ROM. Nothing here was built or run. Stage 7 of [PLAN.md](PLAN.md): this is
 the design shown to Jeff before it is built.
 
-**The direction (Jeff, 2026-11-22):** resolution agnostic (true widescreen, portrait, landscape), done as the view of the
+**The direction (Jeff, 2026-11-22):** resolution agnostic across landscape shapes, down to 4:3 ("Just don't support portrait. Landscape down to 4:3 dimensions only."), done as the view of the
 level expanding, including the distances at which things spawn, wake, animate and trigger, not as a wider field of view.
 
 **How this meets it, in one line:** the game's one hard-wired 256 x 224 view becomes a view of W x H game pixels chosen from the
@@ -27,14 +27,18 @@ it, so what the player can see is live, and a 256 x 224 view gives exactly today
 
 ## 2. The view's size
 
-The view in game pixels, from the window's shape `a` (width / height):
+The view in game pixels, from the window's shape `a` (width / height), taken as at least 4:3 (Jeff, 2026-11-22):
 
-- Landscape (`a` ≥ 8/7): H = 224, W = round(224 · a), to an even number.
-- Portrait or narrow (`a` < 8/7): W = 256, H = round(256 / a).
+- The picture shown is 216 lines (the original's 224 less the 8 a level crops) and round(216 · max(a, 4/3)) across, even, so at
+  least 288. In a level the view is 224 tall (216 and the crop rows): H = 224, Δy = 0.
+- A window narrower than 4:3 shows that 4:3 picture letterboxed; nothing is ever taller than the original's view. Portrait is
+  not supported.
+- `ALADDIN_VIEW=WxH` (a check) is clamped the same way: the height is the original's, the width at least 288, except exactly
+  256 x 224, the identity check.
 
 The original's 256 x 224 is always inside the view, so nothing the original showed is ever cut. A larger window at the same
 shape shows the same view, sharper. Section 5 covers what happens where a level is smaller than the view. The rest of this
-document writes Δx = (W − 256) / 2 and Δy = (H − 224) / 2, both 0 or more.
+document writes Δx = (W − 256) / 2, 0 or more (Δy is 0).
 
 Today `video_draw` sets no size: `nshvc_screen_set` is called with width and height 0 (`video/video.c:491`).
 
@@ -154,38 +158,52 @@ any size, and the largest is 1024 x 96 tiles of 8 px.
 This is a change of mechanism within the direction, not a new direction. It is listed as decision 5 because it replaces
 converted code.
 
-### 4.4 Range point, boxes and kinds' constants
+### 4.4 The original frame (Jeff, 2026-11-22)
 
-- The range point is the view's middle shifted as the original's was: `range = corner + ($80 + Δx, $80 + Δy)`.
-- Every `view_box` and `range_box` half-size grows by Δx across and Δy down. The margins past the screen's edges stay the
-  original's: an actor wakes, is drawn and becomes solid at the same distance past the edge as before, wherever that edge now
-  is. This is the "animation and trigger distance" of the direction. Everything the player can see is drawn, can be hit, can
-  hit back and runs its scripts.
-- Each direct constant in 3.3 gets the same rule: across sizes + Δx, down sizes + Δy, and "screen middle" + Δx.
-  `kind6d.c:47` (spawn just off screen) becomes $90 + Δx.
-- Placements against the camera (`kind27.c:82`, `kind8d.c:55-56`, `kinda7.c:34`, `carrier_pair.c:42`, `kind97.c:70`,
-  `kind79.c:124-128`, `kind6e.c:150-153`) are each read and given their meaning: "from the left edge" stays, "below the
-  screen" becomes `+ H + 32`, and "the middle" becomes `+ W/2`. Three tables they use are not yet read (80:D8FE, kinda7's,
-  kind6e's).
+The game plays at the original's 256 x 224 against the original's camera. The view is a frame round that screen: the original's
+screen sits at (Δx, Δy) in the view, and the engine draws the level's layers beyond its edges. The camera, the scroll limits and
+stops, the player's clamps, the view-edge rules, the collision probe and the range point (the middle of the original's screen)
+all have the original's values. What the view adds is liveness, in three kinds of use:
+
+- **(a) Camera and player: the original's.** `ScrollUpdate` and its limits, `CameraStop*`, `PlayerKeepOnScreen*`, `ViewEdge*`,
+  `ProbeOnViewOff`, `PlayerFallenTest`, the level 5 end scene's windows, the range point.
+- **(b) Liveness over the whole view: scaled.** The spawn window (placement), the despawn tests (`range_box`,
+  `ActorEndFarWithChildren`, `ActorEndIfAhead`, the kinds' own range tests), the in-view flag (bit 6 of the actor's flags: drawn,
+  hit, solid and standable, and where a shot ends), the draw lists and the sprite budget. A box grows by Δx on each side across and
+  Δy up and down round the same range point, so everything the view shows is live: an apple flies its whole arc and can hit
+  whatever it reaches, an enemy in the frame is drawn, hittable and goes on with its untriggered behaviour.
+- **(c) Triggers: the original's screen.** The player-proximity wakes (`near_box`, `near_span_x/y`: the table's values, not
+  scaled), the screen-relative starts and waits (a script, sound or step that waited for the in-view flag; `kind6d` "spawn just off
+  screen", `kind79` and `kind8d` starting below the screen, `course_platform`'s screen middle, the guard's dead zone) measured against the
+  original's 256 x 224. A second flag, `Actor.on_screen`, is set by `ActorsInView` beside the in-view flag from the original's own
+  `view_box`; `ACTOR_ON_SCREEN(a)` is the flag set and `on_screen` set, and the sites of kind (c) ask it. At 256 x 224 the two
+  flags are the same test.
+
+Section 8 lists the checks: at 256 x 224 the game is the original's; wider, the trigger log
+(`ALADDIN_DEV_TRIGGERS=1`) shows no trigger fired past its original distance.
 
 ### 4.5 Spawning
 
-- The window becomes camera −64 to camera + W + 64 across and camera −64 to camera + H + 96 down. These are the original's
-  margins, with each axis kept apart.
-- The initial band count becomes (W + 128) / 32.
-- One band a frame stays as it is: the camera moves at most 3 px a frame across and 6 down, under one band's 32 px.
+The window is measured from the view's edges (camera less Δx, Δy), 64 pixels before them to 64 past across and 96 past down. The
+initial band count follows the window's length. One band a frame stays as it is (the camera moves 3 pixels a frame across, 6
+down, under a band's 32).
 
 ### 4.6 Sprites
 
-- The 9-bit wrap goes. Screen x is a full int32.
-- The y cull becomes −32 to H − 1.
-- The 128-sprite budget and the 32-actor draw lists grow with the view. The engine has no count limit and per-line limits stay
-  off. The budget is sized so that the original view never drops what it does today.
+The 9-bit wrap goes: x is a full int, and a piece is kept from -32 above the view's top to its bottom. The budget (128) and the draw
+lists (32) scale with the view's area. The sprites are the original's coordinates, moved by (Δx, Δy less the cropped rows) when
+sent, as the layers are.
 
-### 4.7 Player clamps and view edges
+### 4.7 The display of the frame
 
-- `PlayerKeepOnScreenX/Y` (80:C9B9) becomes 16 to W − 16 and 24 to H − 8.
-- `ViewEdgePush` and `ViewEdgeHurt` (`level/view_edges.c:19-68`) measure from the view's edges, and the hurt margin stays $30.
+`video_draw` sets the picture to the view and moves the original's screen to (Δx, Δy less the level's crop rows L). Down, the
+engine's origin does it (layers, per-line tables). Across it is done in the layers' scrolls, the per-line BG2 scroll and the
+sprites, since a split inside a line cannot be placed left of the engine's origin and the status line (hud_layer.c) needs one at
+the view's edge. Windows: the original's columns plus Δx; an edge at the screen's own edge (0, 255) goes on to the picture's
+edge, so a window that covered a line to its end covers the frame beside it, and an empty one stays empty (`lines.c`).
+`colour_bands.c`, `parallax.c`, `circle_wipe.c`, `window_effects.c` and the level 6 line tables are the original's: the tables count
+lines from the original's top, a line past the table's end holds its last value, and a row above the original's top takes the
+picture's starting state. The status line stays at the corners of its band across the view's top (section 6.2).
 
 ## 5. Where there is no more level to show
 
@@ -231,8 +249,22 @@ exactly. It is a proposal; nothing of it is built.
 4. The level's backdrop alone, where the play field has nothing to give (level $0A's empty screens): what the original shows
    behind every empty place.
 
-Each level's result is shown to Jeff as pictures before it lands. In portrait, the 256 px tall levels need the same
-treatment above and below (ceilings, sky and floors); their vertical periods are not yet measured.
+Each level's result is shown to Jeff as pictures before it lands. The view is never taller than the original's, so only the left
+and right margins are seen; the top and bottom ones only where the original itself scrolls past the map's edge.
+
+### 5.x Fill on four sides, completed by context (2026-11-22; landscape only)
+
+- Each level map has a margin as deep as the view shows, made where the level loads (the view changes only there): across, ceil(view.dx / 16) + 1 cells each side (2 at 288, 9 at 512, 17 at 768), the backdrop's 8 more (the original's own window goes 128 px past its layout in levels $0F and $10); the play field has none above or below (its window never leaves the layout in the 19 plays: the camera's limits), the backdrop 7 cells (the original's goes 96 px above level $10's). A wrapping band backdrop has none across. The top and bottom margins are made by the exact bands only. The level's (0, 0) is at the map's margin (`level_maps_margin`). The fill is deterministic at a given view.
+- The bar: every pair of metatiles that touch, across or down, in a margin or across its seam with the level, should occur touching the same way in the level's own layout. A prop cut by the edge is complete when no seam pair is unseen. `FillReport.unseen` counts the pairs that are not, by side; the dump prints them (`NN-fill.txt`) and the fill4 output tabulates them (`EVIDENCE.md`). A pair is seen if it occurs anywhere in the level, so the bar does not catch a straight edge made of two tiles that each border the other somewhere; a 2 x 2 block bar would (measured for one region in `WHY.md`, not enforced).
+- Left and right at a 512 view, levels 0 to $11, both layers (72 sides): 55 are at 0 unseen pairs and 48 at 0 unseen 2 x 2 blocks; 209 unseen pairs and 621 unseen blocks (of 22,244) remain. The sides that cannot be 0 are those arc consistency or the exhaustive search shows cannot be (`EVIDENCE2.md` in the fill4 output).
+- The 2 x 2 block bar: every 2 x 2 block of touching cells in a margin and across its seam occurs in the level (a block with an empty place is not judged). The search takes it first as a constraint (a cell that makes a block the level never has is refused, a dead end backing out across depths, a smaller node budget), and where that finds nothing it takes the pairs alone and tries blocks last, so the broken blocks are few and not forced. The cost is under 70 ms a level in the worst case (`LOADTIME2.md`).
+- The methods, in order: B (exact period, the nearest stretch that repeats), kept only where every pair it makes is the level's, then the exact search: constraint satisfaction over the side's cells (depth 1 to 64 by band), domains the metatiles a chain of the remaining cells can follow, constraints the level's across and down pairs (the seam included), arc consistency, then depth-first assignment in depth-major order with the value order by context (the copy the neighbours are part of first, then the best 8 x 7 cell context match, then a seeded hash), each choice propagated and a dead end backed out across depths. A side that cannot be made to the end is made to the deepest depth that can (so the pairs the level never has are the farthest from the seam), and the rest by a second search with the seam pairs let go. So a prop the edge cuts is copied whole from where the level has it whole: level 0's cut window at the left edge gets its left part from level columns 126 to 129.
+- Empty places (negative screen entries) inside a layout stay blank: made like the margin they change the 256 x 224 pictures (the original draws them blank), so a view that shows them (level $0A's shaft beside its empty screens) shows them blank.
+- No collision kind is looked at (the margins are pictures); the level's own map is not touched.
+- At 256 x 224 the pictures are the original's: 19 plays, 4,569 pictures every 50 updates, compared with the ring-based game's, 0 differ.
+- Load time (the game's own clock, play field and backdrop together): before 0.7 to 5.5 s a level, after at most 145 ms at a 512 view (162 at 288, 249 at 768, `LOADTIME2.md`). The saving: no top or bottom margin (70 to 97 percent of the cells), a margin 7 times shallower, the pair relation of the depth at a time path made only where it runs, and its states cut to 24.
+
+Runs and the copy fallback (2026-11-22). The pair and 2 x 2 block bars let a flat column pass (level 6's salmon floor tile repeated down a margin: every pair and block of it occurs in the level). A search that has to let the seam go also had no context to choose by. Three changes: a run bar (a tile may not repeat along a row or column for longer than the level's own longest run of it); candidates for a relaxed seam are sampled from the level's whole context; and a left or right side the search cannot make is laid with the level's own columns (the window with the fewest unseen pairs and runs at the seam), never one with an empty place. What the minimisation prefers is that the margin looks like the level (its own runs and columns), then that the pairs and blocks are the level's; a few unseen pairs of real art are better than a flat strip.
 
 ## 6. Screens and effects that are not the level
 
@@ -242,7 +274,7 @@ The copyright card, logo, title, opening story, story cards, STAGE CLEAR, passwo
 ending story, credits and "The End" are each one 32 x 32-tile picture, or Mode 7 from such a map, with actors at fixed screen
 places. None can show more without new art.
 
-**Proposed (decision 4):** each is drawn as the original's 256 x 224, centred with `origin_x/y` = (Δx, Δy), with
+**Proposed (decision 4):** each is drawn as the original's 256 x 224, centred with `origin_x/y` = (Δx, 0), with
 `show_*` black around it. Per-line tables and windows are offset by the origin. The ending's stages are real levels played
 back, so they take the level view.
 
@@ -265,7 +297,7 @@ circle wipe are gated to < $100 and < $E0; `circle_wipe.c:59-80`, `iris_close_ta
 | Circle wipe, iris (level ends) | Centre in view terms; radius grows to cover the view's far corner; edges 16 bit. "Full" and "none" become 0..W−1 |
 | Effect 8/11 (level 5's end), 10 (level 5's spot) | Same: boxes and spot around the view's centre, 16-bit edges |
 | Level 5's IRQ split (lines 0 to 8, or 12, dark in every level: `video.c:483-490`, `level_screen_setups.c:145,488`) | The dark band stays at the view's top, at its line count |
-| Level 6: colour gradient over the top 96 lines, 11 parallax bands of 182 lines, sprites off from line 181 (80:BA7E, 80:B991, 80:B99E) | Lines are moved by Δy, and the last band and the colour hold to H. The sprite cut at 181 is read before it is changed (it may hide the backdrop's art) |
+| Level 6: colour gradient over the top 96 lines, 11 parallax bands of 182 lines, sprites off from line 181 (80:BA7E, 80:B991, 80:B99E) | Lines are not moved (Δy is 0), and the last band and the colour hold to H. The sprite cut at 181 is read before it is changed (it may hide the backdrop's art) |
 | Parallax band tables (levels 0, 2, 3; `parallax.c:250-262`) | The band split covers H lines instead of 224. The last band already runs to $7FFF |
 
 On still screens, effects keep the original's numbers inside the centred 256 x 224.
@@ -284,8 +316,12 @@ The title, the Genie wheel and the ending spin use Mode 7 on still screens. They
   one slot per kind and a class 4 kind one per actor, and a kind can need 1 to 3. Counted from placement data, the slots
   needed in some window exceed 4 in levels 0, 3, $0C, $0F and $15 at 400 x 224 or 480 x 270. **In those places a wider view
   means enemies that never appear.**
-- The engine's palette is 256 entries, so there are only 8 sprite palettes. The slots take 4 to 7; what holds 0 to 3 was not
-  read for this document. The slots cannot be raised by the game alone.
+- **Built (V10):** the slots are `ceil(4 * w * h / (256 * 224))` (at most 1,028, the slot tiles' 16-bit numbers), 4 at 256 x 224.
+  Slots 1 to 4 are the original's. Slot s of 5 and up has sprite palette s + 3 (entries 256 + 16 (s - 5), engine 6.8) and 64
+  sprite tiles of its own in a tile set of its own (`video_slot_tiles`), not in the 1,024-tile set. `Actor.look` and
+  `g.kind_look` are 32 bits: the low 16 are the original's, bits 16 up the slot when it is 5 or more (`video/slot_gfx.h`).
+  Measured on the plays at 400 x 224 and 480 x 270, failed placements for want of a slot went from 0 to 5 per run (levels 0,
+  1, 3) to 0.
 
 This is decision 1.
 
@@ -295,10 +331,11 @@ This is decision 1.
   original view. Actor state and the player, update by update, must be identical to `b36b712`'s native build
   (`compare.py`, native against native). This proves each rule reduces to today's value. It also covers the parts the
   original never had (the whole-level map, the sprite budget).
-- **At wider and taller views:** the same plays run at 400 x 224, 480 x 270 and 224 x 400. They may differ, because more is
-  live. The check is that every play still reaches its exit, and that the following counters stay at 0: no 9-bit wraps, no
-  failed placements for want of a record or slot, no sprites dropped, no ring overwrite (the ring is gone). Pictures are taken
-  at each level's start, at its widest point and at its locks, for Jeff's look in a window.
+- **At wider views:** the game traces legitimately differ (more is live). `native/checks/view/wide.sh` runs the boot and every
+  play at 288 x 224 (4:3, the narrowest; a window narrower than 4:3 shows it letterboxed), 384 x 224 and 512 x 224 with
+  `ALADDIN_DEV_TRIGGERS=1`: every run must exit 0 with no trap text, and `trigger_check.py` must find every trigger that fired
+  (a near test, or the original-screen flag) inside its original limits. Pictures are taken at each level's start, at its
+  widest point and at its locks, for Jeff's look in a window.
 - **Still screens and effects:** pictures at each view, compared with the 256 x 224 picture cut from their middle. They must
   be identical inside it and black outside.
 
@@ -317,7 +354,7 @@ Each stage is one area, landed with its 256 x 224 check passing.
 | V7 | Player clamps and view edges | V4 |
 | V8 | Levels smaller than the view, and room locks (decision 3) | V4 |
 | V9 | Still screens centred, HUD anchored, effects in view terms, level 6's and level $11's line tables | V1 |
-| V10 | Palette slots (decision 1) | the decision; maybe an engine request |
+| V10 | Palette slots (decision 1): built | the decision; engine 6.8 |
 
 Stages V2, V3, V5 and V9 touch separate files and can run side by side.
 
@@ -326,12 +363,12 @@ Stages V2, V3, V5 and V9 touch separate files and can run side by side.
 Answered 2026-11-22:
 - **1, palette slots:** (a), the engine is asked for sprite palettes. Jeff: any number of sprite palettes, not a larger
   fixed number (engine API 6.8, built on the engine's `sprite-palettes` branch, not merged).
-- **2, wake distances measured from Aladdin:** scaled with the view, as the screen-relative ones are.
+- **2, wake distances measured from Aladdin:** the original's, not scaled (Jeff 2026-11-22: the game is the original's, the view a frame; enemies in the frame stay live but are not triggered past the original's distances).
 - **3:** no black: fill with matching art (section 5, analysis made, nothing built).
 - **4:** still screens centred, with black around (built).
 - **5:** whole-level maps (built).
 - **The levels' dark top rows (8, 12 in level 2) are cropped** from the picture, not shown (built).
-- **6, the view's size:** Jeff asked for it to be explained.
+- **6, the view's size:** the window's proportion (landscape: 216 shown lines and round(216 a) across; narrower: 256 across and round(256 / a) lines; both even, plus the level's crop rows).
 
 Built so far: `src/video/view.h` and `view.c` hold the view, set from `ALADDIN_VIEW=WxH` (a developer's setting) until rule 6 is
 settled, and `video_draw` sets the screen to it. `native/checks/view/same.sh` is section 8's check at 256 x 224.

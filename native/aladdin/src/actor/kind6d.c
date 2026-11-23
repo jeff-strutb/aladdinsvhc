@@ -4,7 +4,6 @@
  * its wait routine.
  */
 #include "actor/actor_own.h"
-#include "video/view.h"
 #include "audio/sound.h"
 #include "data/kinds_b_tables.h"
 #include "map/map.h"
@@ -45,7 +44,7 @@ enum {
 
 #define SPEED_TOP 0x00C0u       /* the speed (its low two bytes) at which ways 0 and 1 stop speeding up */
 #define FALL_CUT 0x0100u        /* way 7: falling this fast or more, its gravity cut */
-#define SPAWN_NEAR (uint16_t)(0x0090 + view.dx)      /* way 5: within this of the range point, no child */
+#define SPAWN_NEAR 0x0090u      /* way 5: within this of the range point, no child */
 
 /* ActorDecelerateX and Y leave a speed that would go below 0 at 0; the
    original's ways 0 and 1 end a leg on the N their subtraction leaves:

@@ -38,18 +38,18 @@ void ActorPictureQueue(Actor *a)
 {
     PicturePart parts[PICTURE_PARTS_MAX];
     unsigned n;
-    uint16_t to;
+    uint32_t to;
 
     if (a->picture == a->redraw)
         return;
     a->redraw = a->picture;
     n = picture_parts(a->own_pictures, a->picture, parts, PICTURE_PARTS_MAX);
-    to = (uint16_t)(((a->look & 0x01FF) << 4) + 0x6000);
+    to = look_vram(a->look, 0);
     for (unsigned i = 0; i < n; i++) {
         const uint8_t *from;
         VramQueueEntry *c;
 
-        to = (uint16_t)(to + parts[i].step);
+        to = vram_add(to, parts[i].step);
         if ((from = part_bytes(&parts[i])) == NULL)
             continue;
         if (g.vram_queue_count >= VRAM_QUEUE_SIZE) {
@@ -80,18 +80,18 @@ void ActorPictureSendFromKind(Actor *a)
 {
     PicturePart parts[PICTURE_PARTS_MAX];
     unsigned n;
-    uint16_t to;
+    uint32_t to;
 
     if (!(a->flags & 0x40) || a->picture == a->redraw)
         return;
     a->redraw = a->picture;
     n = picture_parts(a->own_pictures, a->picture, parts, PICTURE_PARTS_MAX);
-    to = (uint16_t)(((a->look & 0x01FF) << 4) + 0x6000);
+    to = look_vram(a->look, 0);
     for (unsigned i = 0; i < n && g.vram_queue_count < VRAM_QUEUE_SIZE; i++) {
         VramQueueEntry *c = &g.vram_queue[g.vram_queue_count++];
         uint32_t from = (uint32_t)g.kind_gfx_at[a->kind] + parts[i].address;
 
-        to = (uint16_t)(to + parts[i].step);
+        to = vram_add(to, parts[i].step);
         c->to = to;
         c->from = &g.unpacked[from % sizeof g.unpacked];
         c->bytes = parts[i].bytes;

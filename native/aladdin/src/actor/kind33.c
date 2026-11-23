@@ -65,7 +65,7 @@ static void graphics_queue(uint8_t at)
         return;
     }
     c = &g.vram_queue[g.vram_queue_count++];
-    c->to = (uint16_t)((((g.kind_look[0x33] & 0x01FF) + k33_upload_tile(at)) << 4) + 0x6000);
+    c->to = look_vram(g.kind_look[0x33], k33_upload_tile(at));
     c->from = &g.unpacked[(uint16_t)(g.kind_gfx_at[0x33] + k33_upload_from(at)) % sizeof g.unpacked];
     c->bytes = k33_upload_bytes(at);
     c->step = 0x80;

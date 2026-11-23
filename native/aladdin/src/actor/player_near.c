@@ -4,6 +4,7 @@
  */
 #include "actor/actor_a.h"
 #include "data/actor_a_tables.h"
+#include "actor/actor.h"
 
 /* within: the distance plus the half-size below the size (unsigned) */
 static bool within(uint16_t mine, uint16_t theirs, uint16_t half)
@@ -41,7 +42,11 @@ bool ActorNearPlayer(const Actor *a, uint8_t at)
     HitBox b = near_box(at);
     const Actor *p = &g.actors[0];
 
-    return within(pixels(a->x), pixels(p->x), b.half_w) && within(pixels(a->y), pixels(p->y), b.half_h);
+    bool near = within(pixels(a->x), pixels(p->x), b.half_w) && within(pixels(a->y), pixels(p->y), b.half_h);
+
+    DevTrigger(0, "near_box", a, near, (int16_t)(pixels(a->x) - pixels(p->x)), (int16_t)(pixels(a->y) - pixels(p->y)), -(int32_t)b.half_w,
+               (int32_t)b.half_w - 1, -(int32_t)b.half_h, (int32_t)b.half_h - 1);
+    return near;
 }
 
 /*
@@ -51,7 +56,11 @@ bool ActorNearPlayer(const Actor *a, uint8_t at)
  */
 bool ActorNearPlayerX(const Actor *a, uint8_t at)
 {
-    return within(pixels(a->x), pixels(g.actors[0].x), near_span_x(at));
+    uint16_t half = near_span_x(at);
+    bool near = within(pixels(a->x), pixels(g.actors[0].x), half);
+
+    DevTrigger(1, "near_span_x", a, near, (int16_t)(pixels(a->x) - pixels(g.actors[0].x)), 0, -(int32_t)half, (int32_t)half - 1, 0, 0);
+    return near;
 }
 
 /*
@@ -61,7 +70,11 @@ bool ActorNearPlayerX(const Actor *a, uint8_t at)
  */
 bool ActorNearPlayerY(const Actor *a, uint8_t at)
 {
-    return within(pixels(a->y), pixels(g.actors[0].y), near_span_y(at));
+    uint16_t half = near_span_y(at);
+    bool near = within(pixels(a->y), pixels(g.actors[0].y), half);
+
+    DevTrigger(2, "near_span_y", a, near, 0, (int16_t)(pixels(a->y) - pixels(g.actors[0].y)), 0, 0, -(int32_t)half, (int32_t)half - 1);
+    return near;
 }
 
 /*
@@ -73,7 +86,11 @@ bool ActorNearPoint(const Actor *a, uint8_t at, uint16_t x, uint16_t y)
 {
     HitBox b = near_box(at);
 
-    return within(pixels(a->x), x, b.half_w) && within(pixels(a->y), y, b.half_h);
+    bool near = within(pixels(a->x), x, b.half_w) && within(pixels(a->y), y, b.half_h);
+
+    DevTrigger(3, "near_point", a, near, (int16_t)(pixels(a->x) - x), (int16_t)(pixels(a->y) - y), -(int32_t)b.half_w, (int32_t)b.half_w - 1,
+               -(int32_t)b.half_h, (int32_t)b.half_h - 1);
+    return near;
 }
 
 /*

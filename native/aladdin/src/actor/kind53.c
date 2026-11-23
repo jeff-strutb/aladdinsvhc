@@ -38,7 +38,7 @@ static uint16_t own16(const Actor *a, unsigned at)
 static int start_break(Actor *a)
 {
     AnimStart(a, 8);
-    if (a->flags & 0x40)
+    if ACTOR_ON_SCREEN(a)
         SoundQueueAdd(0x24);
     a->own.bytes[BOUNCES] = 0x28;
     a->resume = BREAK;
@@ -62,7 +62,7 @@ static bool fly_frame(Actor *a)
 static int bounce(Actor *a)
 {
     if (--a->own.bytes[BOUNCES]) {
-        if (a->flags & 0x40)
+        if ACTOR_ON_SCREEN(a)
             SoundQueueAdd(0x30);
         ActorSpeedYSet(a, 0x4E);
         a->resume = FLY;

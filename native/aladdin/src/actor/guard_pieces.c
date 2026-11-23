@@ -360,7 +360,7 @@ int GuardPieces(Actor *a)
         a->resume = G_GIVE_UP_BACK;
         return 1;
     case G_GIVE_UP_BACK:
-        if (a->flags & 0x40)
+        if (ACTOR_ON_SCREEN(a))
             return 1;
         a->anim_flags |= 0x08;
         a->flags |= 0x80;

@@ -82,7 +82,7 @@ int SteppedShowActor(Actor *a)
 
     switch (a->resume) {
     case ACTOR_START:
-        a->look &= (uint16_t)~0x0E00;
+        a->look &= ~0x0E00u;
         if (a->spawn_byte & 0x10) {
             a->look |= 0x0E00;
             a->anim_flags |= 0x02;

@@ -5,6 +5,7 @@
 #include "actor/actor_own.h"
 #include "audio/sound.h"
 #include "data/kinds_b_tables.h"
+#include "video/slot_gfx.h"
 #include "video/video.h"
 
 /* its own bytes */
@@ -55,7 +56,7 @@ int Kind76Start(Actor *a)
     case FADE_START:
         SoundQueueAdd(0x46);
         a->flags = 0x20;
-        PaletteSave((uint8_t)((((a->look >> 8) & 0x0E) >> 1) | 0x08), 1);
+        PaletteSave((uint16_t)look_palette_number(a->look), 1);
         k->fade = 0;
         PaletteFadeStep(0, 1);
         /* blending: the sub screen added to BG2 and the sprites (the original's $02 and $12) */

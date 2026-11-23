@@ -93,6 +93,13 @@ void ActorFree(Actor *a);       /* 83:95E5: ActorClear, and back on the second p
 void PlacementsStart(void);     /* 82:A72C: the level's placements indexed and those in reach created (level load) */
 void EscortStart(void);         /* 81:85A1: the level's escort (actors[1]) started beside the player */
 void PlacementsScroll(void);    /* 82:A79C: the placements the camera's move brings into reach created */
+/* Whether the actor is on the original's 256 x 224 screen, as the in-view flag was in the original (the flag is now the view's
+   whole: the drawn, hit, solid and standable test). The triggers that waited for the original's screen (a script, a sound, a
+   step) ask this. The flag set and the original's own box holding the range point, the view's box being larger. */
+#define ACTOR_ON_SCREEN(a) (ActorOnScreen(a))
+bool ActorOnScreen(const Actor *a);
+/* ALADDIN_DEV_TRIGGERS=1: a trigger test that turned true is printed to stderr with its distance and its table's limits (dev_trigger.c) */
+void DevTrigger(int id, const char *what, const Actor *a, bool result, int32_t dx, int32_t dy, int32_t lo_x, int32_t hi_x, int32_t lo_y, int32_t hi_y);
 void ActorsInView(void);        /* 81:9198: which actors can be hit this frame, and the list drawn */
 
 /* ---- animation ---- */

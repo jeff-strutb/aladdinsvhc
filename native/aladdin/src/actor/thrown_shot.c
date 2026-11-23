@@ -47,6 +47,7 @@ static int shot_fly(Actor *a)
         a->x &= ~0xFFu;
         a->y &= ~0xFFu;
         a->flags = 0x50;
+        a->on_screen = 1;
         AnimStart(a, 0x07);
         a->look = (uint16_t)((a->look & 0x00FF) | 0x0400);
         ActorMotionPreset(a, a->spawn_byte);

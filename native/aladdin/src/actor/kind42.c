@@ -81,7 +81,7 @@ static void Kind42PastPlayer(Actor *a)
 static int Kind42Break(Actor *a)
 {
     a->flags &= (uint8_t)~0x80;
-    if (a->flags & 0x40)
+    if ACTOR_ON_SCREEN(a)
         SoundQueueAdd(0x15);
     AnimStart(a, 1);
     k42(a)->left = 0x10;
@@ -154,7 +154,7 @@ int Kind42Start(Actor *a)
         a->speed_x = signed24((uint32_t)(a->speed_x >> 16) << 16 | ROLL_SPEED);
         if ((uint16_t)a->speed_y >= FALL_TOO_FAST)
             return Kind42Break(a);
-        if (a->flags & 0x40)
+        if ACTOR_ON_SCREEN(a)
             SoundQueueAdd(0x14);
         (void)ActorSnapToGround(a, NULL);
         a->resume = ROLL;
