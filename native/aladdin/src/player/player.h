@@ -99,6 +99,7 @@ void PlayerSpotBelowActor(const Actor *a, uint8_t offset); /* 82:BB9C */
 
 /* ---- on screen ---- */
 
+void PlayerViewReach(uint16_t *left, uint16_t *right);   /* how far his walls go past the original screen, left and right */
 void PlayerKeepOnScreenX(Actor *a);             /* 81:E990: x 16 to 240 pixels from the play field's left */
 void PlayerKeepOnScreen(Actor *a);              /* 81:E9AD: and y 24 to 216 from its top */
 
