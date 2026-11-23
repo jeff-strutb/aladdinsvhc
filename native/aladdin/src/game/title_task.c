@@ -3,6 +3,8 @@
  * task: the Mode 7 title, the demo or the story when left alone, the menu
  * and the level select.
  */
+#include "game/beaten.h"
+#include "pause/level_screen.h"
 #include "pause/save_screen.h"
 #include "game/game.h"
 #include "system/state.h"
@@ -20,7 +22,7 @@
 #define ZOOM_ENDED 0x80         /* screen_signal's bit: the zoom task has ended */
 #define FULL_SIZE 0x0100        /* Mode 7's a and d at full size (8.8) */
 
-/* the menu's choices: SAVED GAMES opens the save slots' screen; LEVEL SELECT has none yet (DEPARTURES.md) */
+/* the menu's choices: SAVED GAMES opens the save slots' screen, LEVEL SELECT the level screen (DEPARTURES.md section 7) */
 enum { MENU_START, MENU_SAVED_GAMES, MENU_LEVEL_SELECT };
 
 /* An actor's place in whole pixels, its fraction kept, as the original's
@@ -39,19 +41,12 @@ static void scroll_whole_clear(void)
     g.layers[0].scroll_y &= 0xFFu;
 }
 
-/* What every new game starts with, set as the menu comes up. */
-static void new_game_counts(void)
+/* What every new game starts with: the progress at the first level, and the counts. */
+void NewGameCounts(void)
 {
-    g.menu_blink_hidden = 0;
-    g.menu_blink_frames = 0;
-    g.menu_choice = MENU_START;
-    g.menu_choice_was = 0;
-    g.menu_cursor_moves = 0;
     g.progress_sequence = 0;
     g.level = 0;
     g.progress_stage = 0;
-    if (g.cheat_start)
-        LevelNumberText();
     g.health_marks = 3;
     g.lives_start = 3;
     g.apples = 0x10;
@@ -68,6 +63,19 @@ static void new_game_counts(void)
     g.level_flags = 0;
     g.opened_flags = 0;
     g.continues = 3;
+}
+
+/* What every new game starts with, set as the menu comes up. */
+static void new_game_counts(void)
+{
+    g.menu_blink_hidden = 0;
+    g.menu_blink_frames = 0;
+    g.menu_choice = MENU_START;
+    g.menu_choice_was = 0;
+    g.menu_cursor_moves = 0;
+    NewGameCounts();
+    if (g.cheat_start)
+        LevelNumberText();
 }
 
 enum {
@@ -108,7 +116,7 @@ static TaskRun title_pressed(Task *t, uint16_t *at)
  * @routine 80:9C91 TitleTask
  * WHAT IT DOES: The title screen: puts up the Mode 7 title, waits (playing
  * the demo or the story after long idles), and runs the menu: game start,
- * SAVED GAMES and LEVEL SELECT (which do nothing yet); with the cheat byte
+ * SAVED GAMES (the save slots' screen) and LEVEL SELECT (the beaten levels' screen); with the cheat byte
  * set, the level select.
  * HOW: Game RAM cleared; the screen built (level $40's set-up and map, the
  * layers, graphics, palette, Mode7ScreenSetup) and brightened. The first
@@ -128,6 +136,7 @@ TaskRun TitleTask(Task *t)
 {
     uint16_t *at = task_enter(t);
     Actor *a;
+    int picked;
 
     for (;;) {
         switch (*at) {
@@ -326,6 +335,12 @@ TaskRun TitleTask(Task *t)
             return task_wait(t, 1);
         case TITLE_MENU_STEP:
             FrameStep();
+            picked = level_screen_take();
+            if (DevLevelPick() >= 0) {      /* a developer's start of a level by the level select's own start (LEVELSELECT.md) */
+                LevelSelectStart(BeatenListOf((unsigned)DevLevelPick()));
+                *at = TITLE_CHOSEN;
+                return task_wait(t, 1);
+            }
             if (!g.cheat_start || !LevelSelect())
                 TitleMenuCursor();
             if (--g.play_countdown == 0) {
@@ -341,8 +356,15 @@ TaskRun TitleTask(Task *t)
             }
             if (PadConfirmPressed() && g.menu_choice == MENU_SAVED_GAMES)
                 save_screen_request_title();    /* the slots' screen opens from the next update (pause/save_screen.c) */
+            if (PadConfirmPressed() && g.menu_choice == MENU_LEVEL_SELECT)
+                level_screen_request_title();   /* the level screen opens from the next update (pause/level_screen.c) */
+            if (picked >= 0) {                  /* a level chosen on that screen: started as GAME START starts a game (game/beaten.c) */
+                LevelSelectStart((unsigned)picked);
+                *at = TITLE_CHOSEN;
+                return task_wait(t, 1);
+            }
             if (!PadConfirmPressed() || g.menu_choice != MENU_START)
-                return task_wait(t, 1);     /* a press on LEVEL SELECT does nothing yet */
+                return task_wait(t, 1);
             *at = TITLE_CHOSEN;
             return task_wait(t, 1);
         case TITLE_CHOSEN:

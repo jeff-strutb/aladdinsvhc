@@ -11,6 +11,18 @@ beside the program:
 python3 native/aladdin/tools/extract_assets.py "reference/aladdin/Aladdin (USA).sfc" native/aladdin/assets
 ```
 
+The level select's pictures are made once, after the game is built, from `cart.dat` by the game's own loader, and packaged beside it
+(`level_pictures.dat`, 525,412 B, 19 pictures of 96 x 72, never committed; `assets/*` is ignored). With the headless build and `cart.dat` in
+`native/aladdin/assets` (about 0.7 s):
+
+```bash
+native/aladdin/tools/make_pictures.sh build/aladdin/native/headless/aladdin build/aladdin/native/headless native/aladdin/assets
+```
+
+The first argument is the built game, the second the folder holding `cart.dat` (a macOS app's `Contents/Resources`), the third the assets folder;
+then build again so the file is packaged. Without it the level select screen still opens, its cells without pictures (the log says
+`level_pictures.dat is not valid` for a bad file).
+
 `cart.dat` is the cartridge image, 1,310,720 B, with the bytes that are not code at their place and zeros where the
 code was: 1,047,228 B read as data by the decomp's traces, 173,223 B no trace has touched (kept, as Stunt Race FX keeps
 its unread ranges), 4 B of code the game reads as a table (kind `code-read`), and 90,265 B of code left out (of the

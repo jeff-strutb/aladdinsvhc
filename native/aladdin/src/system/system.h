@@ -69,6 +69,7 @@ void DevShot(uint64_t u);              /* a picture every N updates by the envir
 void DevBotStep(void (*step)(const nshvc_input *));
 struct LevelStart;
 void DevStartAt(struct LevelStart *s);   /* ALADDIN_DEV_AT=x,y: where a level's play starts (dev_start.c) */
+int DevLevelPick(void);                 /* ALADDIN_DEV_START_LEVEL=N: the title starts level N by the level select's start; -1 none (dev_start.c) */
 TaskEntry DevStartEntry(void);          /* the chosen screen's task entry, or TASK_ENTRY_NONE */
 
 #endif

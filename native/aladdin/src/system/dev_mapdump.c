@@ -39,10 +39,11 @@
 #include "system/state.h"
 #include "system/system.h"
 #include "video/level_maps.h"
+#include "video/level_picture.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 
-#define VRAM_WORDS_ALL 0x8000
+#define PIC_VRAM_WORDS 0x8000
 #define SCREEN 256
 #define RGB(r, g, b) ((uint32_t)(r) << 16 | (uint32_t)(g) << 8 | (uint32_t)(b))
 #define TRANSPARENT_MAGENTA RGB(255, 0, 255)
@@ -52,45 +53,7 @@
 #define ZERO_MAGENTA 0
 #define ZERO_BACKDROP 2
 
-uint16_t *DevVramShadow;
 static int held;
-static uint16_t vram[VRAM_WORDS_ALL];
-
-/* a picture: pixels as 0xRRGGBB, and for the field and backdrop which are opaque (colour not 0) */
-typedef struct Pic {
-    int w, h;
-    uint32_t *px;
-    uint8_t *opaque;
-} Pic;
-
-static Pic pic_new(int w, int h)
-{
-    Pic p;
-
-    p.w = w;
-    p.h = h;
-    p.px = calloc((size_t)w * h, sizeof *p.px);
-    p.opaque = calloc((size_t)w * h, 1);
-    if (!p.px || !p.opaque) {
-        fprintf(stderr, "mapdump: no memory for a %d x %d picture\n", w, h);
-        exit(1);
-    }
-    return p;
-}
-
-static void pic_free(Pic *p)
-{
-    free(p->px);
-    free(p->opaque);
-}
-
-static uint32_t rgb_of(uint16_t c)
-{
-    unsigned r = c & 31, gr = c >> 5 & 31, b = c >> 10 & 31;
-
-    /* a 5 bit channel to 8 bits as the engine does: its bits repeated */
-    return (r << 3 | r >> 2) << 16 | (gr << 3 | gr >> 2) << 8 | (b << 3 | b >> 2);
-}
 
 static void pic_write(const char *dir, const char *name, const Pic *p, int grid)
 {
@@ -117,77 +80,11 @@ static void pic_write(const char *dir, const char *name, const Pic *p, int grid)
     fclose(f);
 }
 
-/* the 4bpp pixel (0-15) at column x, row y of tile n of the low tile set (video address n * 16, a row a word for
-   planes 0 and 1, then the same 8 words on for planes 2 and 3) */
-static unsigned tile_pixel(unsigned n, unsigned x, unsigned y)
-{
-    unsigned base = (n * 16u) & (VRAM_WORDS_ALL - 1), bit = 7 - x;
-    uint16_t lo = vram[base + y], hi = vram[(base + 8 + y) & (VRAM_WORDS_ALL - 1)];
-
-    return (lo >> bit & 1u) | (lo >> (8 + bit) & 1u) << 1 | (hi >> bit & 1u) << 2 | (hi >> (8 + bit) & 1u) << 3;
-}
-
-/* a map word's 8 x 8 tile into the picture at x, y; colour 0 as `zero` says */
-static void draw_tile(Pic *p, int x, int y, uint16_t word, int zero)
-{
-    unsigned n = word & 0x3FF, pal = word >> 10 & 7;
-    int hflip = word >> 14 & 1, vflip = word >> 15 & 1;
-
-    for (int ty = 0; ty < 8; ty++)
-        for (int tx = 0; tx < 8; tx++) {
-            unsigned c = tile_pixel(n, (unsigned)(hflip ? 7 - tx : tx), (unsigned)(vflip ? 7 - ty : ty));
-            int px = x + tx, py = y + ty;
-            size_t at;
-
-            if (px < 0 || py < 0 || px >= p->w || py >= p->h)
-                continue;
-            at = (size_t)py * p->w + px;
-            if (c) {
-                p->px[at] = rgb_of(g.palette[pal * 16 + c]);
-                p->opaque[at] = (uint8_t)(1 + (word >> 13 & 1));   /* 1 opaque, 2 opaque in a tile of the high priority */
-            } else if (zero == ZERO_MAGENTA) {
-                p->px[at] = TRANSPARENT_MAGENTA;
-            } else {
-                p->px[at] = rgb_of(g.palette[0]);
-            }
-        }
-}
-
-/* the word of the screen map at place `place`, as the scroll layers read it (video/scroll_layer.c screen_at) */
-static uint16_t place_word(unsigned place)
-{
-    return g.screen_map.places[place % SCREEN_MAP_PLACES];
-}
-
 /* a layout's whole map from screen map place `first`, `cols` x `rows` screens */
 static Pic render_layout(unsigned first, unsigned cols, unsigned rows, int zero)
 {
-    Pic p = pic_new((int)(cols * SCREEN), (int)(rows * SCREEN));
-    DataRef metatiles = level_metatiles(g.map_level);
-
-    for (unsigned r = 0; r < rows; r++)
-        for (unsigned c = 0; c < cols; c++) {
-            uint16_t w = place_word(first + r * 32 + c);
-
-            if (w & 0x8000) {
-                for (int y = 0; y < SCREEN; y++)
-                    for (int x = 0; x < SCREEN; x++)
-                        p.px[(size_t)(r * SCREEN + (unsigned)y) * p.w + c * SCREEN + (unsigned)x] = EMPTY_GREY;
-                continue;
-            }
-            for (unsigned my = 0; my < 16; my++)
-                for (unsigned mx = 0; mx < 16; mx++) {
-                    unsigned at = (unsigned)(w + 2 * (my * 16 + mx)) / 2u;
-                    uint16_t meta = (uint16_t)((at < LEVEL_TILES_WORDS ? g.level_tiles[at] : 0) | 0x8000);
-
-                    for (unsigned half = 0; half < 4; half++)
-                        draw_tile(&p, (int)(c * SCREEN + mx * 16 + (half & 1) * 8), (int)(r * SCREEN + my * 16 + (half >> 1) * 8),
-                                  level_metatile_word(metatiles, meta, half * 2), zero);
-                }
-        }
-    return p;
+    return PicLayout(first, cols, rows, zero, 0, 0, (int)(cols * SCREEN), (int)(rows * SCREEN));
 }
-
 
 /* a layer's map as the game shows it (video/level_maps.c): the level inside the fill past its four edges, a red line
    along each of the level's own edges just outside it (the level's pixels are not drawn over), none where the map has no
@@ -195,12 +92,12 @@ static Pic render_layout(unsigned first, unsigned cols, unsigned rows, int zero)
 static Pic render_words(const uint16_t *words, uint32_t w, uint32_t h, uint32_t level_w, uint32_t level_h, uint32_t margin_x,
                         uint32_t margin_y, int zero)
 {
-    Pic p = pic_new((int)(w * 8), (int)(h * 8));
+    Pic p = PicNew((int)(w * 8), (int)(h * 8));
     uint32_t right = margin_x + level_w, bottom = margin_y + level_h;       /* the level's right and bottom edges, in tiles */
 
     for (uint32_t r = 0; r < h; r++)
         for (uint32_t c = 0; c < w; c++)
-            draw_tile(&p, (int)(c * 8), (int)(r * 8), words[(size_t)r * w + c], zero);
+            PicDrawTile(&p, (int)(c * 8), (int)(r * 8), words[(size_t)r * w + c], zero);
     for (int y = 0; y < p.h; y++) {
         if (margin_x > 0)
             p.px[(size_t)y * p.w + margin_x * 8 - 1] = RGB(255, 0, 0);
@@ -292,44 +189,14 @@ static Pic render_backmap(void)
 {
     int tall = g.bg_map[1] == VIDEO_MAP_BACK_TALL;
     unsigned base = tall ? 0x3800u : 0x4000u, rows = tall ? 64 : 32;
-    Pic p = pic_new(64 * 8, (int)rows * 8);
+    Pic p = PicNew(64 * 8, (int)rows * 8);
 
     for (unsigned y = 0; y < rows; y++)
         for (unsigned x = 0; x < 64; x++) {
             unsigned page = (x >> 5 & 1) | (tall ? (y >> 5) << 1 : 0u);
-            uint16_t w = vram[(base + page * 0x400u + (y & 31) * 32 + (x & 31)) & (VRAM_WORDS_ALL - 1)];
+            uint16_t w = PicVram()[(base + page * 0x400u + (y & 31) * 32 + (x & 31)) & (PIC_VRAM_WORDS - 1)];
 
-            draw_tile(&p, (int)x * 8, (int)y * 8, w, ZERO_MAGENTA);
-        }
-    return p;
-}
-
-static unsigned layer_pixels(uint32_t position)
-{
-    return (position >> 8) & 0xFFFFu;
-}
-
-/* the field over the backdrop; the backdrop's pixel under the field's (x, y) is its own at (x + ox, y + oy). The
-   order is Mode 1's: field high priority, backdrop high priority, field, backdrop. */
-static Pic compose(const Pic *field, const Pic *back, int ox, int oy)
-{
-    Pic p = pic_new(field->w, field->h);
-
-    for (int y = 0; y < field->h; y++)
-        for (int x = 0; x < field->w; x++) {
-            size_t at = (size_t)y * field->w + x;
-            int bx = x + ox, by = y + oy;
-
-            int inside = bx >= 0 && by >= 0 && bx < back->w && by < back->h;
-            size_t bat = inside ? (size_t)by * back->w + bx : 0;
-            unsigned fo = field->opaque[at], bo = inside ? back->opaque[bat] : 0;
-
-            if (fo == 2 || (fo && bo != 2))
-                p.px[at] = field->px[at];
-            else if (inside && bo)
-                p.px[at] = back->px[bat];
-            else
-                p.px[at] = rgb_of(g.palette[0]);
+            PicDrawTile(&p, (int)x * 8, (int)y * 8, w, ZERO_MAGENTA);
         }
     return p;
 }
@@ -422,7 +289,7 @@ static void info_write(const char *dir, unsigned level, unsigned cols, unsigned 
 
         for (unsigned r = 0; r < rows; r++)
             for (unsigned c = 0; c < cols; c++)
-                if (place_word(0x21 + r * 32 + c) & 0x8000) {
+                if (PicPlaceWord(0x21 + r * 32 + c) & 0x8000) {
                     fprintf(f, " (col %u,row %u)", c, r);
                     n++;
                 }
@@ -435,7 +302,7 @@ static void info_write(const char *dir, unsigned level, unsigned cols, unsigned 
         fprintf(f, "\nempty places in layout 1:");
         for (unsigned r = 0; r < brows; r++)
             for (unsigned c = 0; c < bcols; c++)
-                if (place_word(0x221 + r * 32 + c) & 0x8000) {
+                if (PicPlaceWord(0x221 + r * 32 + c) & 0x8000) {
                     fprintf(f, " (col %u,row %u)", c, r);
                     n++;
                 }
@@ -443,9 +310,9 @@ static void info_write(const char *dir, unsigned level, unsigned cols, unsigned 
             fprintf(f, " none");
     }
     fprintf(f, "\nstart: player x %u y %u facing %s; camera x %u y %u (view x %u-%u, y %u-%u)\n", (unsigned)(pl->x >> 8) & 0xFFFF,
-            (unsigned)(pl->y >> 8) & 0xFFFF, pl->facing ? "left" : "right", layer_pixels(g.layers[0].scroll_x),
-            layer_pixels(g.layers[0].scroll_y), layer_pixels(g.layers[0].scroll_x), layer_pixels(g.layers[0].scroll_x) + 255,
-            layer_pixels(g.layers[0].scroll_y), layer_pixels(g.layers[0].scroll_y) + 223);
+            (unsigned)(pl->y >> 8) & 0xFFFF, pl->facing ? "left" : "right", PicLayerPixels(g.layers[0].scroll_x),
+            PicLayerPixels(g.layers[0].scroll_y), PicLayerPixels(g.layers[0].scroll_x), PicLayerPixels(g.layers[0].scroll_x) + 255,
+            PicLayerPixels(g.layers[0].scroll_y), PicLayerPixels(g.layers[0].scroll_y) + 223);
     fprintf(f, "camera limits as the load leaves them: camera x 0..%u (scroll_limit_x), camera y 0..%u (scroll_limit_y); view reaches x %u, y %u\n",
             g.scroll_limit_x, g.scroll_limit_y, g.scroll_limit_x + 255u, g.scroll_limit_y + 223u);
     fprintf(f, "scroll_x_min %u, scroll_x_max %u, scroll_x_held %u, scroll_y_held %u, scroll kind %u, view edge rule %u\n", g.scroll_x_min,
@@ -455,7 +322,7 @@ static void info_write(const char *dir, unsigned level, unsigned cols, unsigned 
     fprintf(f, "backdrop: layer_setup_mode $%02X, bg2_follows $%02X, layer 1 edges $%02X (0: not streamed), BG2 map %s,\n",
             g.layer_setup_mode, g.bg2_follows, g.layers[1].edges, g.bg_map[1] == VIDEO_MAP_BACK_TALL ? "$3800 64 x 64 (level 7's)" : "$4000 64 x 32");
     fprintf(f, "  backdrop scroll at start (after one ParallaxUpdate): x %u y %u; BG2 position x %u y %u; backdrop pixel under field pixel (x, y)\n",
-            back_x0, back_y0, layer_pixels(g.bg_x[1]), layer_pixels(g.bg_y[1]));
+            back_x0, back_y0, PicLayerPixels(g.bg_x[1]), PicLayerPixels(g.bg_y[1]));
     fprintf(f, "  is the backdrop's at (x %+d, y %+d); BG2 scroll lines (per-band x scrolls) %s; %s\n", back_ox, back_oy,
             (g.line_effects_on & 0x10) || (g.line_effects_on & 0x04) ? "ON: the picture of the backdrop is banded, LL-both shows its start scroll only" : "off",
             g.layers[1].edges ? "backdrop streamed from layout 1" : "backdrop NOT streamed (see LL-backmap)");
@@ -475,6 +342,37 @@ static void info_write(const char *dir, unsigned level, unsigned cols, unsigned 
     fclose(f);
 }
 
+/* LevelPicture's crop against the same crop of this dump's LL-start window (the player's place in the window given); it loads
+   the level again, so it comes after everything else */
+static void picture_check(const char *dir, unsigned level, const Pic *start, int px, int py)
+{
+    static uint32_t rgb[LEVEL_PICTURE_W * LEVEL_PICTURE_H];
+    Pic shown = PicNew(LEVEL_PICTURE_W, LEVEL_PICTURE_H);
+    unsigned differ = 0;
+    int cx = px - LEVEL_PICTURE_W / 2, cy = py - LEVEL_PICTURE_H / 2;
+    char name[64];
+
+    cx = cx < 0 ? 0 : cx > SCREEN - LEVEL_PICTURE_W ? SCREEN - LEVEL_PICTURE_W : cx;
+    cy = cy < 0 ? 0 : cy > 224 - LEVEL_PICTURE_H ? 224 - LEVEL_PICTURE_H : cy;
+    if (!LevelPicture(level, rgb)) {
+        printf("picture %02X: none\n", level);
+        PicFree(&shown);
+        return;
+    }
+    for (int y = 0; y < LEVEL_PICTURE_H; y++)
+        for (int x = 0; x < LEVEL_PICTURE_W; x++) {
+            uint32_t want = start->px[(size_t)(cy + y) * start->w + cx + x];
+
+            shown.px[(size_t)y * shown.w + x] = rgb[y * LEVEL_PICTURE_W + x];
+            differ += want != rgb[y * LEVEL_PICTURE_W + x];
+        }
+    snprintf(name, sizeof name, "%02X-picture.ppm", level);
+    pic_write(dir, name, &shown, 0);
+    printf("picture %02X: crop %d,%d %dx%d of the start window, %u of %d pixels differ from the dump's own\n", level, cx, cy, LEVEL_PICTURE_W,
+           LEVEL_PICTURE_H, differ, LEVEL_PICTURE_W * LEVEL_PICTURE_H);
+    PicFree(&shown);
+}
+
 static void dump_level(const char *dir, unsigned level)
 {
     char name[64];
@@ -484,24 +382,13 @@ static void dump_level(const char *dir, unsigned level)
     int ox, oy;
     Pic field, back, backc, both, start, backmap;
 
-    memset(vram, 0, sizeof vram);
-    DevVramShadow = vram;
-    g.level = (uint16_t)level;
-    g.level_restart = 0;
-    LevelRamSetup();
-    DisplayDefaults();
-    LevelMapBuild();
-    LevelScreenSetup();
-    LayersFill();
-    LevelSpotsSet();
-    TileBehaviourLoad();
-    LevelBackdropStart();
-    fx = layer_pixels(g.layers[0].scroll_x);
-    fy = layer_pixels(g.layers[0].scroll_y);
-    ParallaxUpdate();
-    BgFollowLayers();
-    bx0 = layer_pixels(g.layers[1].scroll_x);
-    by0 = layer_pixels(g.layers[1].scroll_y);
+    PicLoaded ld;
+
+    PicLevelLoad(level, &ld);
+    fx = ld.field_x;
+    fy = ld.field_y;
+    bx0 = ld.back_x;
+    by0 = ld.back_y;
 
     cols = level_map_layout_columns(level, 0);
     rows = level_map_layout_rows(level, 0);
@@ -522,15 +409,15 @@ static void dump_level(const char *dir, unsigned level)
         back = render_layout(0x221, bcols, brows, ZERO_MAGENTA);
         backc = render_layout(0x221, bcols, brows, ZERO_BACKDROP);
     } else {
-        back = pic_new(SCREEN, SCREEN);
-        backc = pic_new(SCREEN, SCREEN);
+        back = PicNew(SCREEN, SCREEN);
+        backc = PicNew(SCREEN, SCREEN);
     }
     snprintf(name, sizeof name, "%02X-back.ppm", level);
     pic_write(dir, name, &back, 0);
-    both = compose(&field, &backc, ox, oy);
+    both = PicCompose(&field, &backc, ox, oy);
     snprintf(name, sizeof name, "%02X-both.ppm", level);
     pic_write(dir, name, &both, 0);
-    start = pic_new(SCREEN, 224);
+    start = PicNew(SCREEN, 224);
     for (int y = 0; y < 224; y++)
         for (int x = 0; x < SCREEN; x++)
             if ((unsigned)x + fx < (unsigned)both.w && (unsigned)y + fy + LINE_OFFSET < (unsigned)both.h)
@@ -551,7 +438,7 @@ static void dump_level(const char *dir, unsigned level)
 
             snprintf(name, sizeof name, "%02X-fill%s.ppm", level, layer ? "back" : "field");
             pic_write(dir, name, &fillp, 0);
-            pic_free(&fillp);
+            PicFree(&fillp);
             /* the map's words as they are (six u32: width, height, the level's width and height, its left and top, in tiles; then the u16 words) */
             snprintf(wpath, sizeof wpath, "%s/%02X-words%s.bin", dir, level, layer ? "back" : "field");
             if ((wf = fopen(wpath, "wb"))) {
@@ -578,13 +465,14 @@ static void dump_level(const char *dir, unsigned level)
     }
     fill_write(dir, level);
     info_write(dir, level, cols, rows, has_back, bcols, brows, ox, oy, bx0, by0);
-    pic_free(&field);
-    pic_free(&back);
-    pic_free(&backc);
-    pic_free(&both);
-    pic_free(&start);
-    pic_free(&backmap);
-    DevVramShadow = NULL;
+    PicShadowOff();
+    picture_check(dir, level, &start, (int)(g.actors[0].x >> 8 & 0xFFFF) - (int)fx, (int)(g.actors[0].y >> 8 & 0xFFFF) - (int)fy);
+    PicFree(&field);
+    PicFree(&back);
+    PicFree(&backc);
+    PicFree(&both);
+    PicFree(&start);
+    PicFree(&backmap);
 }
 
 /*

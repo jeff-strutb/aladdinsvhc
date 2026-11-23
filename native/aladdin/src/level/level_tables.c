@@ -5,6 +5,7 @@
 #include "audio/sound.h"
 #include "data/level_tables.h"
 #include "data/system_tables.h"
+#include "game/beaten.h"
 #include "player/player.h"
 #include "video/video.h"
 #include "level/level.h"
@@ -216,6 +217,7 @@ void LevelExitCheck(void)
     player->flip = player->facing = (uint8_t)(to >> 7);
     g.level_exiting++;
     g.stages_ended++;
+    LevelBeaten();
     g.level_restart = 0;
 }
 

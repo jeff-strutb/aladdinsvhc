@@ -418,6 +418,16 @@ Builds: the tree before the change (`HEAD` of main, with the options screen) and
 - Pictures of the menu with the mark on each line, and the press on SAVED GAMES and LEVEL SELECT (A at 3000 and Start at 3040 on LEVEL SELECT; A at 3260 and Start at 3300 on SAVED GAMES): the pictures every 2nd update from 2600 to 3418 and the task trace (`ALADDIN_TASK_TRACE=1`) are the same, byte for byte, as a run of the same keys without the presses (410 pictures; 22 trace lines, the last the menu's window effect at 2622); on the build before the change the same press at 3040 starts the fade (a task at 3040) and the options screen.
 
 
+## The beaten levels' record, the level pictures and the level start (2026-11-23, LEVELSELECT.md)
+
+Stage 1 of the level select (the screen is not built, LEVELSELECT.md section 6). macOS headless builds, `build/aladdin/native/base` (71ea8d0) and `new`; each run under `perl -e 'alarm N'` (this Mac has no `timeout`).
+
+- `native/checks/view/same.sh` base against new, 256x224: 21 runs, 0 differ.
+- Beaten record, each `p*.txt` play to its last key + 600, `ALADDIN_DEV_CHEAT=1`, an empty `PORT_SAVEDIR`: the file holds only the play's level for p0-0 to p5-1 and p6-0 (`ALADDIN_DEV_BEATEN=1` prints it). p5-2 and p5-3 reach no exit by keys (Jeff's decision above); with `boss-flow.sh`'s patches (`8000:98:1:1` on `boss16-2hits.txt`, `5500:73:1:0` on `p5-3.txt`) each marks its own level ($10, $11) and no other. p1-1 then p0-2 on one folder with a run between: `05`, then `02 05`. Which call fired in each: `LevelExitCheck` for $00 $06 $07 $0A $0D $0E $0F $12 (and the others by their plays), `walk_out_fade` $03, `land_fade` $04, level 5's end scene $05, the chain's fade $11 (LEVELSELECT.md section 2).
+- Bad files (`levels` cut to 5 bytes, empty, one byte longer, format 2, size byte 7, a wrong check byte, a bit above the 24, level $13's bit with a right check): `beaten:` with nothing. A right file gives its levels.
+- Start by `LevelSelectStart` (`ALADDIN_DEV_START_LEVEL=N` with Start at 2400 only) against the original's select (`plays/select_input.py PART STAGE`, R held), both `ALADDIN_DEV_CHEAT=1`, traces with `ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1`, 600 updates from the level's first update: levels $00, $04, $07, $0A, $0B, $0C, $0E, $10, $11, $12: 0 differ in each (the original's first update 3933, the new one's 2656). No level is a Mode 7 stage. Without the cheat byte: level $11 starts with `health=3 lives=3`.
+- Level pictures: `ALADDIN_DEV_MAPDUMP` for the 19 levels writes the same `LL-*` files as before the picture code moved to `video/level_picture.c`; `LL-picture.ppm` (`LevelPicture`, 96 x 72) differs in 0 of 6,912 pixels from the same crop of `LL-start.ppm`, for each. Not run: the crop against the engine's own picture (`ALADDIN_DEV_MAPDUMP_HOLD` with `--shots`), which needs a renderer; this run was the null headless build.
+
 ## Save slots (2026-11-23, SAVES.md)
 
 - `native/checks/saves/saves_build.sh OUT` then `OUT DIR`: the slot files with a fake snapshot (system/saves.c): written, read back, loaded; refused whole with a wrong layout mark, a byte too many, cut short, a bit changed in the snapshot or in the crop, a bad magic; a failed write (the temporary's name taken) leaves the old slot. 14 lines, all ok.
@@ -455,3 +465,11 @@ bytes to FILE (with `ALADDIN_DEV_STATE_HASH=2` this finds which part differs).
   environment (the runahead, a view, a planted omission) to A and to B.
 - `native/checks/snapshot/pointers.sh`: the pointer members of every type the game state holds are the ones the snapshot writes as codes.
 - `python3 native/aladdin/tools/gen_code_table.py --check`: `actor/code_table.c` names every function a row of the kinds tables or an `ActorRunAs` names.
+
+## The level select screen (2026-11-23, LEVELSELECT.md section 9)
+
+- Pictures made at build time (`native/aladdin/tools/make_pictures.sh`, 0.7 s, 525,412 B). `native/checks/pause_check/level_build.sh OUT` (with `NSHVC` set to the engine's checkout) builds `level_check`: `level_check BASE.ppm W H PAGE SEL OUT.ppm [PICS_PREFIX]` with `LEVEL_FILE` (a `levels` file) and `DATA_TEST_DIR` (`cart.dat`, `level_pictures.dat`). The screens: `shots/levelselect-none.png`, `-some.png`, `-page2.png`, `-last.png` (every level shown, unbeaten at 25%).
+- 9 levels: each picture the screen reads equals the map dump's `LL-picture.ppm` (0 of 6,912 differ), and on the panel at one pixel (704 x 564 window) 0 of 6,912 differ at its cell.
+- Choosing: all 19 entries, from the title by keys with all 19 beaten, no cheat byte: each reaches its level (health above 0) at update 2839 to 2914.
+- `same.sh` base 71ea8d0 against the merged tree: 21 runs, 0 differ.
+- Unbeaten cells cannot be chosen: empty save folder, Start, Down, Down, B, B, B: no level plays to update 3500; with level $00 beaten the same keys play it from 2839.

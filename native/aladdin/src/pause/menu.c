@@ -21,6 +21,7 @@
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
 #include "pause/menu_art.h"
+#include "pause/level_screen.h"
 #include "pause/save_screen.h"
 #include "pause/slot_grid.h"
 #include "system/screen_mode.h"
@@ -316,6 +317,16 @@ int menu_update(const nshvc_input *in)
     m.last = raw;
     if (save_screen_requested() && !slot_grid_is_open())
         save_screen_open(SAVE_FROM_TITLE);
+    if (level_screen_requested() && !slot_grid_is_open())
+        level_screen_open();
+    if (level_screen_active()) {        /* the level select screen, from the title: the title is held; what shut it must not reach the game */
+        int r = level_screen_update(in);
+
+        if (r != LEVEL_SCREEN_OPEN)
+            controls_swallow(held);
+        SoundCommandSend();
+        return 1;
+    }
     if (slot_grid_is_open()) {          /* the save screen: the game is held; the menu stays as it was under it */
         int r = save_screen_update(in);
 
