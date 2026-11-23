@@ -26,8 +26,12 @@ _Static_assert(sizeof(Kind83Own) <= OWN_BYTES, "a view fits the own bytes");
 
 static Kind83Own *own(Actor *a) { return (Kind83Own *)a->own.bytes; }
 
+/* the original's placement reached this far right of the camera, in 32-pixel columns (placement.c's CONSOLE_FAR_BAND) */
+#define ORIGINAL_FAR_BAND 0x0120
+
 enum {
-    LATE_WAIT = ACTOR_RESUME_OWN,   /* the late one: each frame until Aladdin is past it */
+    HOLD = ACTOR_RESUME_OWN,        /* placed early in a wider view: each frame until the original's view would have placed it */
+    LATE_WAIT,                      /* the late one: each frame until Aladdin is past it */
     SHOW,                           /* after its delay: it shows */
     FLY,                            /* each frame of its flight */
     FALL,                           /* each frame of its fall to its line */
@@ -53,22 +57,12 @@ static int there(Actor *a)
     return 1;
 }
 
-/*
- * @routine 84:9538 Kind83Start
- * WHAT IT DOES: Actor kind $83: by its +$07, hidden for a while, then it
- * flies off by its motion preset, its vertical speed held to its top
- * speed, until its y reaches $C8; it falls instead once the view stops
- * following ($1A10 set); then it leaves a child of kind $5E and ends. With
- * +$07 bit 4 set (late) it waits until Aladdin is past it, flies until y
- * $FF, and leaves no child.
- */
-static int start(Actor *a)
+/* Its start, once the original's view would have placed it: its delay and its flight run from that moment, as the
+   original's, not from the wider view's earlier placing, which would have it that much further on when Aladdin comes */
+static int begin(Actor *a)
 {
     uint8_t delay;
 
-    a->flags |= 0x90;
-    a->probes = k83_probes();
-    AnimStart(a, 0);
     own(a)->no_child = 0;
     if (a->spawn_byte & 0x10) {
         a->spawn_byte &= 0x0F;
@@ -80,6 +74,35 @@ static int start(Actor *a)
     delay = k83_delay(a->spawn_byte);
     a->resume = SHOW;
     return delay ? delay : 256;
+}
+
+/* begin, when the original's view would have placed it by now (the far band's 32-pixel columns); else it holds */
+static int placed_by_original(Actor *a)
+{
+    if ((uint16_t)((pixels(g.layers[0].scroll_x) + ORIGINAL_FAR_BAND) >> 5) < (uint16_t)(pixels(a->x) >> 5)) {
+        if (!(a->spawn_byte & 0x10))
+            a->anim_flags &= (uint8_t)~0x08;    /* hidden while it holds, as while it waits its delay */
+        a->resume = HOLD;
+        return 1;
+    }
+    return begin(a);
+}
+
+/*
+ * @routine 84:9538 Kind83Start
+ * WHAT IT DOES: Actor kind $83: by its +$07, hidden for a while, then it
+ * flies off by its motion preset, its vertical speed held to its top
+ * speed, until its y reaches $C8; it falls instead once the view stops
+ * following ($1A10 set); then it leaves a child of kind $5E and ends. With
+ * +$07 bit 4 set (late) it waits until Aladdin is past it, flies until y
+ * $FF, and leaves no child.
+ */
+static int start(Actor *a)
+{
+    a->flags |= 0x90;
+    a->probes = k83_probes();
+    AnimStart(a, 0);
+    return placed_by_original(a);
 }
 
 static int flying(Actor *a)
@@ -106,6 +129,8 @@ int Kind83Code(Actor *a)
     switch (a->resume) {
     case ACTOR_START:
         return start(a);
+    case HOLD:
+        return placed_by_original(a);
     case LATE_WAIT:
         if (pixels(a->x) >= pixels(g.actors[0].x))
             return 1;
