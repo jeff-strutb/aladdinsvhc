@@ -179,8 +179,8 @@ static void draw_actor(const Actor *a)
         s->y = y;
         s->width = s->height = (uint16_t)(p->tile & 0x1000 ? 2 : 1);
         if (slot) {
-            s->tiles = video_slot_tiles();
-            s->tile = (uint16_t)(SLOT_TILES * (slot - 5) + (p->tile & 0x1FF));
+            s->tiles = video_slot_tiles(slot);
+            s->tile = (uint16_t)(SLOT_TILES * ((slot - 5) % SLOT_SET_SLOTS) + (p->tile & 0x1FF));
             s->palette = (word & SLOT_PALETTE_BITS) == SLOT_PALETTE_BITS ? slot + 3 : (uint32_t)(word >> 9 & 7);
         } else {
             s->tiles = video_sprite_tiles();

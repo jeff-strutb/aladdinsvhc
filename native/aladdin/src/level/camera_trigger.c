@@ -54,7 +54,7 @@ TaskRun CameraTriggerTask(Task *t)
     case TRIGGER_FIRST:
         if (screen_across() != TRIGGER_FIRST_X || screen_down() != TRIGGER_FIRST_Y)
             return task_wait(t, 1);
-        ActorsFreeAll();
+        ActorsClearForScene();
         *at = TRIGGER_SECOND;
         return task_wait(t, 1);
     case TRIGGER_SECOND:
@@ -64,7 +64,7 @@ TaskRun CameraTriggerTask(Task *t)
         g.actors[ESCORT].resume = G_RESTART;
         g.actors[ESCORT].spawn_byte = SCENE_ESCORT_BYTE;
         g.scroll_x_held = (uint16_t)((g.scroll_x_held & 0xFF00) | (uint8_t)(g.scroll_x_held + 1));
-        ActorsFreeAll();
+        ActorsClearForScene();
         g.actors[0].spawn_byte = SCENE_PLAYER_BYTE;
         g.actors[0].resume = PLAYER_AT_START;
         (void)ActorSpawnAt(NEW_KIND, 1, NEW_KIND_X, NEW_KIND_Y);

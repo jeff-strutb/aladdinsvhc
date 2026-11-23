@@ -63,7 +63,7 @@ fail=0
 while read -r name ps at last from every; do
   case $ps in
     *.txt) cp "$ps" "$tmp/$name.in" ;;      # a play by keys (the chain arena needs the walk to it)
-    *) python3 native/checks/plays/level_select_input.py "${ps%-*}" "${ps#*-}" "$tmp/$name.in" ;;
+    *) python3 native/checks/plays/select_input.py "${ps%-*}" "${ps#*-}" "$tmp/$name.in" ;;
   esac
   (
     d="$tmp/$name.d"; mkdir -p "$d"
@@ -73,7 +73,7 @@ while read -r name ps at last from every; do
     for place in $(echo "$at" | tr ';' ' '); do
       ci=$((ci + 1)); dd="$d/$ci"; mkdir -p "$dd"
       [ "$place" = - ] && unset ALADDIN_DEV_AT || export ALADDIN_DEV_AT=$place
-      PORT_RESDIR=$res ALADDIN_VIEW=$view ALADDIN_DEV_SHOTS=$dd ALADDIN_DEV_SHOT_EVERY=$every ALADDIN_DEV_SHOT_FROM=$from \
+      PORT_RESDIR=$res ALADDIN_DEV_CHEAT=1 ALADDIN_VIEW=$view ALADDIN_DEV_SHOTS=$dd ALADDIN_DEV_SHOT_EVERY=$every ALADDIN_DEV_SHOT_FROM=$from \
         ALADDIN_DEV_CAMERA=1 ALADDIN_DEV_ACTORS=1 ALADDIN_DEV_TRACE=20 \
         "$app" --headless --updates "$last" --input "$tmp/$name.in" > "$dd/out.txt" 2> "$dd/log.txt"
       if msg=$(python3 native/checks/view/camera_check.py "$dd/log.txt" "$from" "$last" 20 $kind); then

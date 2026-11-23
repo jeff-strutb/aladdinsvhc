@@ -120,13 +120,6 @@ typedef struct Task {
             uint8_t swing_left;     /* +$0C */
             uint8_t left;           /* +$0D: frames in all left */
         } wobble;
-        struct {                /* OptionsTask (game/options.c): the original's $1B14-$1B1A */
-            uint8_t item;           /* the cursor's item, times 2 (0 setting, 2 sound test, 4 output, 6 exit) */
-            uint8_t sound_test;     /* the sound test's number, less one (0-34) */
-            uint8_t setting;        /* the setting shown (0-3) */
-            uint8_t code_wait;      /* frames since the cheat code's last press */
-            uint8_t code_at;        /* presses of the cheat code made (0: none yet) */
-        } options;
         struct {                /* PasswordScreen (game/password_screen.c): the original's $A5-$AD */
             uint8_t slot;           /* $A5: the slot being changed (0-3) */
             uint8_t picture[4];     /* $A6-$A9: each slot's picture (0-5) */
@@ -228,6 +221,10 @@ typedef struct Actor {
     int (*code)(struct Actor *a); /* native: the code that owns its resume point (actor.h's ActorCode): its kind's entry, or what ActorRunAs gave it */
     uint16_t call_at;           /* native: where a shared routine that waits inside it goes on (actor.h), 0 none;
                                    the original kept its caller's return at +$4E and its own place in +$02-$05 */
+    uint8_t placed_here;        /* native: made by its placement (ActorPlace), not by another actor or a task (which leave +$34 0 or $FF) */
+    uint8_t outside_play;       /* native: kept by a scene's clear in a view larger than the original's, as the clear would have removed it
+                                   (ActorsClearForScene): drawn and running, not counted with its kind, touching and touched by nothing, freed
+                                   once out of the view; what it makes is outside play too (1: not counted with its kind; 2, a second-pool record: counted) */
     uint8_t on_screen;          /* native: set by ActorsInView with the in-view flag (bit 6 of flags): the original's own 256 x 224 view box holds the
                                    range point, as that flag meant at the original's view; see ACTOR_ON_SCREEN */
     DataRef own_pictures;       /* +$29-$2A, for the kinds that send their own pictures: the list ActorPictureSend sends them

@@ -12,4 +12,4 @@ if [ -n "$shots" ]; then
 else
   cd "$root/build/aladdin/native/headless"
 fi
-ALADDIN_DEV_TRACE=${TRACE:-200} "${ALADDIN_CPU_RUN:?set ALADDIN_CPU_RUN to the CPU queue command}" -j 2 -m 3G -- ./aladdin --headless --updates "$last" --input "$file" 2>&1 | grep -v "^WARNING\|^Dropped"
+ALADDIN_DEV_CHEAT=1 ALADDIN_DEV_TRACE=${TRACE:-200} "${ALADDIN_CPU_RUN:?set ALADDIN_CPU_RUN to the CPU queue command}" -j 2 -m 3G -- ./aladdin --headless --updates "$last" --input "$file" 2>&1 | grep -v "^WARNING\|^Dropped"

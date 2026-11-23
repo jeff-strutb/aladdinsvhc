@@ -13,7 +13,7 @@ static bool overlaps(const Actor *a, TestBoxTouch *t)
     HitBox b = hit_box(a->kind);
     uint16_t half_w = (uint16_t)(b.half_w + g.test_box_half_w);
 
-    if (!(a->flags & 0x40))
+    if (!actor_in_play(a))
         return false;
     if ((uint16_t)(pixels(a->x) - g.test_box_x + half_w) >= (uint16_t)(half_w << 1))
         return false;

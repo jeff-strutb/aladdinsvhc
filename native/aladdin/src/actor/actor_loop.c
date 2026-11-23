@@ -17,6 +17,8 @@
 /* A record's turn of its code: the start entry its state picks ($0C-$7F,
    $80-$BF, $C0 up), or where it stopped. Returns ACTOR_ENDED, or the wait
    it set. */
+Actor *actor_running;
+
 static int run_record(Actor *a)
 {
     uint8_t was = a->state;
@@ -51,7 +53,9 @@ static int run_record(Actor *a)
         uint16_t resume_was = a->resume;
         ActorCode code_was = a->code;
 
+        actor_running = a;
         r = code(a);
+        actor_running = NULL;
         if (task_exec_pending()) {
             /* 81:BCF6 TaskExec from its code: the original never comes back
                (it empties the task's stack), so no yield saved a new place:
@@ -82,8 +86,11 @@ static void wait_work(Actor *a)
     if (!(a->flags & 0x80))
         return;
     w = actor_kind_wait(a->kind);
-    if (w)
-        (void)w(a);                     /* a wait routine that ends its actor leaves it free: nothing follows either way */
+    if (w) {
+        actor_running = a;
+        (void)w(a);
+        actor_running = NULL;
+    }                     /* a wait routine that ends its actor leaves it free: nothing follows either way */
 }
 
 /* One record's turn, as both loops take it. Returns 0 when a TaskExec from
