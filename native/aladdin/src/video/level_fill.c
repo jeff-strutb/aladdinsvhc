@@ -1107,6 +1107,10 @@ static int csp_quad_mode;           /* 0: blocks not judged; 1: a cell that brea
    context score (ties by a seeded hash), each choice propagated, and a dead end backs up to the choice before it, across
    depths. What is made has no pair the level never has. A budget of nodes ends the search (1 returned for a fill, 0 for none). */
 #define CSP_VARS_MAX (FILL_MARGIN * FILL_COLS_MAX)
+/* the deepest side searched: a side's depth is its margin, which is not held to FILL_MARGIN (the level select's pictures
+   have a right margin of 97 on one level) but is within the whole's width or height; LevelFill refuses a whole wider than
+   FILL_COLS_MAX. The tables by depth (csp_reach, csp_acc_cache, csp_acc_known) are sized by it. */
+#define CSP_DEPTH_MAX FILL_COLS_MAX
 #define CSP_TRAIL_MAX 40000
 #define CSP_CANDS 24                /* the values tried for a cell, the best by context score */
 #define CSP_NODES(vars) (8u * (vars) + 20000u)
@@ -1123,8 +1127,8 @@ static int csp_relax;               /* 0: every pair must be the level's; 1: the
 
 static int csp_tail_forever;        /* 1: the last depth's cells must be ones a chain can go on from for ever (the margin goes on past it) */
 static uint8_t csp_virgin[CSP_VARS_MAX];               /* the cell's domain is still the one it began with (the metatiles a chain of the rest can follow) */
-static uint32_t csp_acc_cache[4][FILL_MARGIN + 2][SET_WORDS];   /* what the revision of a neighbour by a virgin cell gives, by relation and depth */
-static uint8_t csp_acc_known[4][FILL_MARGIN + 2];
+static uint32_t csp_acc_cache[4][CSP_DEPTH_MAX + 2][SET_WORDS];   /* what the revision of a neighbour by a virgin cell gives, by relation and depth */
+static uint8_t csp_acc_known[4][CSP_DEPTH_MAX + 2];
 static int csp_gave_up;             /* the last search ended on its work or trail limit, not on a proof */
 static uint64_t csp_ops, csp_ops_limit;      /* the work done (revisions' word operations) and the most a search may do: past it the search is given up */
 
@@ -1370,7 +1374,7 @@ static void csp_clear_from(const Side *s, uint32_t from, uint32_t to)
 }
 
 /* 1 if the side is made whole (its cells set), else 0 with its cells as they were */
-static uint32_t csp_reach[FILL_MARGIN + 2][SET_WORDS];     /* [j]: the metatiles a chain of j more cells can go outward from */
+static uint32_t csp_reach[CSP_DEPTH_MAX + 2][SET_WORDS];     /* [j]: the metatiles a chain of j more cells can go outward from */
 
 
 static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, int relax)
@@ -1378,7 +1382,7 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
     unsigned vars = (unsigned)(s->depth * s->along), sp = 0, nodes = 0, budget = csp_quad_mode == 1 ? 2u * vars + 4000u : CSP_NODES(vars);
     uint32_t v, hw = 0;
 
-    if (s->depth <= 0 || s->dmin != 1 || vars > CSP_VARS_MAX || lv.lw * lv.lh == 0)
+    if (s->depth <= 0 || s->depth > CSP_DEPTH_MAX || s->dmin != 1 || vars > CSP_VARS_MAX || lv.lw * lv.lh == 0)
         return 0;
     /* a cell at depth d must be a metatile that j = depth - d more can follow: reach[0] is all, reach[j + 1] those with an outward
        neighbour in reach[j] */
