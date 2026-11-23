@@ -373,6 +373,8 @@ player (x, y, health) or the actor list (kind, x, y) differs. The two games do n
 
 `ALADDIN_DEV_RECORD=FILE` (system/main.c): whatever keys and controller buttons are played, in the window or by `--input`, are written as an `--input` file (a line at each update where they change); play a level by hand with it set, then `native/checks/plays/run.sh FILE UPDATES` replays it. Checked: replaying `p0-2.txt` with it set writes the same keys at the same updates.
 
+`ALADDIN_DEV_LEVEL=PART-STAGE` (system/dev_level.c; level 3 is `0-3`): the game's own level select is played by keys from power-on, the keys `level_select_input.py PART STAGE` writes, then the person's keys take over (after update 3903; the level plays from about 4000). Set with `ALADDIN_DEV_RECORD`, the recording replays from power-on with `--input` alone. Checked: `0-3` headless, the `level_select_input.py 0 3` file and the recording replayed give the same trace line and actor list at every update to 4600.
+
 ## The two last fights: the flow after the last hit, by patched health (2026-11-21)
 
 Jeff's decision: the bosses of level 16 (Jafar's first form, kind $98) and level 17 (the snake, kind $73) are NOT beaten in full by keys (three sessions

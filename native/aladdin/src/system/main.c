@@ -172,8 +172,10 @@ static void record_input(const nshvc_input *input)
 
 static void update(const nshvc_input *input)
 {
-    nshvc_input bot;
+    nshvc_input bot, select;
 
+    if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
+        input = &select;
     between_update_begin();
     if (DevMapDumpHeld()) {
         NmiPictureWork();
