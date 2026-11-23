@@ -14,6 +14,7 @@
 #include "input/controls.h"
 #include "pause/menu_art.h"
 #include "pause/pause_art.h"
+#include "system/system.h"
 
 #define FONT_BYTES 4096                 /* the text tiles: 256 of 16 bytes, 2 bits a pixel */
 #define FONT_SET 1                      /* the unpack set the options screen puts at $5000 */
@@ -43,7 +44,7 @@ static const struct { float x, y, r; } spots[MENU_TAGS] = {
 #define PAD_K 0.2f                      /* game pixels a drawing pixel: the controller is 200 x 120 */
 #define PAD_CX 176.0f
 #define PAD_CY 117.0f
-#define TAG_W 64
+#define TAG_W 76
 #define TAG_H 26
 #define TAG_X(right) ((right) ? MENU_W - 6 - TAG_W : 6)
 #define TAG_Y(row) (34 + 28 * (row))
@@ -176,11 +177,12 @@ static void frame(Art *a, int x, int y, int w, int h, uint32_t outer, uint32_t m
 void menu_art_static(uint32_t *px, int d)
 {
     Art a = { px, d };
-    uint32_t dark = colour[PAL_GOLD][3], mid = colour[PAL_GOLD][2], light = colour[PAL_GOLD][1];
+    uint32_t dark, mid, light;
     static const char title[] = "PAUSED";
     int i;
 
     menu_art_start();
+    dark = colour[PAL_GOLD][3], mid = colour[PAL_GOLD][2], light = colour[PAL_GOLD][1];
     rect(&a, 0, 0, MENU_W, MENU_H, 0xF2080402u);
     frame(&a, 0, 0, MENU_W, MENU_H, dark, mid, light);
     for (i = 0; i < 4; i++) {           /* a stud in each corner, as the screens' flourishes close the corners */
@@ -196,6 +198,22 @@ void menu_art_static(uint32_t *px, int d)
     rect(&a, 20, 203, MENU_W - 40, 1, dark);
     rect(&a, 20, 204, MENU_W - 40, 1, mid);
     pad_draw(px, MENU_W * d, MENU_H * d, (float)d, PAD_K, PAD_CX, PAD_CY);
+    for (i = 0; i < MENU_TAGS; i++) {   /* a line from each tag to its button: to its edge for a face button, to a dot on the rest */
+        float sx, sy, sr, ex = menu_tags[i].right ? (float)TAG_X(1) : (float)(TAG_X(0) + TAG_W);
+        float ey = (float)(TAG_Y(menu_tags[i].row) + TAG_H / 2), dx, dy, l, end;
+        int face = (controls_buttons[menu_tags[i].button] & (PAD_A | PAD_B | PAD_X | PAD_Y)) != 0, n, k;
+
+        spot_place(i, &sx, &sy, &sr);
+        dx = sx - ex;
+        dy = sy - ey;
+        l = hypotf(dx, dy);
+        end = face ? sr : 0;
+        n = (int)(l - end);
+        for (k = 0; k <= n; k++)
+            dot(&a, (int)(ex + dx / l * (float)k), (int)(ey + dy / l * (float)k), mid);
+        if (!face)
+            rect(&a, (int)sx - 1, (int)sy - 1, 3, 3, mid);
+    }
 }
 
 /* ---- the dynamic picture ---- */
@@ -242,12 +260,13 @@ static void item_place(int item, int *col, int *row)
 void menu_art_dynamic(uint32_t *px, int d, const MenuView *v)
 {
     Art a = { px, d };
-    uint32_t dark = colour[PAL_GOLD][3], mid = colour[PAL_GOLD][2], light = colour[PAL_GOLD][1];
+    uint32_t dark, mid, light;
     static const char hint[] = "B OR A CHOOSE   START OR ESC RESUME";
     char buf[24];
     int i;
 
     menu_art_start();
+    dark = colour[PAL_GOLD][3], mid = colour[PAL_GOLD][2], light = colour[PAL_GOLD][1];
     for (i = 0; i < MENU_TAGS; i++) {
         int x = TAG_X(menu_tags[i].right), y = TAG_Y(menu_tags[i].row), on = v->chosen == i;
         const char *lab = v->asking == i ? "PRESS" : v->label[i];
@@ -255,7 +274,7 @@ void menu_art_dynamic(uint32_t *px, int d, const MenuView *v)
         rect(&a, x, y, TAG_W, TAG_H, on ? 0xFF3A2010u : 0xB0000000u);
         frame(&a, x, y, TAG_W, TAG_H, dark, on ? light : mid, on ? light : dark);
         rect(&a, x + 3, y + 3, TAG_W - 6, TAG_H - 6, on ? 0xFF3A2010u : 0xFF100804u);
-        text(&a, menu_tags[i].name, PAL_GOLD, x + (TAG_W - text_w(menu_tags[i].name)) / 2, y + 5, 1);
+        text(&a, v->action[i], PAL_GOLD, x + (TAG_W - text_w(v->action[i])) / 2, y + 5, 1);
         text(&a, lab, PAL_CREAM, x + (TAG_W - text_w(lab)) / 2, y + 14, 1);
     }
     if (v->chosen < MENU_TAGS) {

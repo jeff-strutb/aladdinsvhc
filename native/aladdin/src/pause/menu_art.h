@@ -29,6 +29,7 @@ typedef struct {
     int asking;                         /* the tag waiting for its key or button; -1 none */
     int quit_asked;                     /* QUIT chosen once: it reads REALLY QUIT */
     int full_offered, full_on;          /* FULL SCREEN shown, and whether on */
+    char action[MENU_TAGS][12];         /* what each tag says the button does in the game */
     char label[MENU_TAGS][12];          /* what each tag shows (the key or button bound), upper case */
 } MenuView;
 

@@ -99,6 +99,10 @@ static void over(uint32_t *pic, int w, int h, const uint32_t *img, int iw, int i
 static const char *const k_default_names[MENU_TAGS] = { "Q", "UP", "LEFT", "RIGHT", "DOWN", "SHIFT",
                                                          "W", "S", "A", "X", "Z", "RETURN" };
 
+/* what the options screen's first control type gives each button */
+static const char *const k_default_actions[MENU_TAGS] = { "UNUSED", "LOOK UP", "GO LEFT", "GO RIGHT", "CROUCH", "UNUSED",
+                                                          "HOVER", "UNUSED", "DASH", "THROW", "JUMP", "MENU" };
+
 int main(int argc, char **argv)
 {
     double t0;
@@ -143,7 +147,10 @@ int main(int argc, char **argv)
         v.full_offered = 1;
         v.full_on = 1;
         for (i = 0; i < MENU_TAGS; i++)
+        {
             strcpy(v.label[i], k_default_names[i]);
+            strcpy(v.action[i], k_default_actions[i]);
+        }
         st = calloc((size_t)MENU_W * d * (size_t)MENU_H * d, 4);
         dy = calloc((size_t)MENU_W * d * (size_t)MENU_H * d, 4);
         t0 = now();

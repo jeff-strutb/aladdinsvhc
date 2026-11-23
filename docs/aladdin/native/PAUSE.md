@@ -14,8 +14,9 @@ original's pause.
   on: the menu queues the original's pause sound ($0E, not on level $12) and the music pause ($F3), and sends the queue itself
   each held update (`SoundCommandSend`); it queues $F4 and sets the original's cooldown ($10) when it shuts. Buttons held as it
   shuts reach the game only once let go (`controls_swallow`). With no menu opened the game is exactly as before.
-- **Items.** The twelve pad buttons, each with the key bound to it (the controller button when a controller was the last
-  device used); RESUME; DEFAULTS (the game's own keys and buttons back); FULL SCREEN ON or OFF (not offered where the window
+- **Items.** The twelve pad buttons, each tag naming what the button does in the game (JUMP, DASH, THROW, HOVER as the options
+  screen gives them, LOOK UP, CROUCH, GO LEFT, GO RIGHT, MENU for Start, UNUSED) over the key bound to it (the controller button when a controller was the last
+  device used), a line from each tag to its button on the controller; RESUME; DEFAULTS (the game's own keys and buttons back); FULL SCREEN ON or OFF (not offered where the window
   cannot switch); QUIT.
 - **Remapping.** Pad 1 only: the game reads one pad and pad 2's buttons do nothing in it. A button chosen (B or A, or a click)
   asks for the next key, or the next controller button on the first controller; Escape or a click elsewhere cancels. A key or

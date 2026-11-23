@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "audio/sound.h"
+#include "data/level_tables.h"
 #include "input/controls.h"
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
@@ -51,6 +52,25 @@ static void sound(unsigned char c) { SoundQueueAdd(c); }
 
 /* ---- the picture ---- */
 
+/* what the button does in the game: the four actions through the buttons the options screen gives them, and the rest */
+static const char *action_name(uint16_t button)
+{
+    static const char *const actions[4] = { "JUMP", "DASH", "THROW", "HOVER" };
+    unsigned k;
+
+    for (k = 0; k < 4; k++)
+        if (control_option_mask(g.kept_options[0], k) & button)
+            return actions[k];
+    switch (button) {
+    case PAD_UP: return "LOOK UP";
+    case PAD_DOWN: return "CROUCH";
+    case PAD_LEFT: return "GO LEFT";
+    case PAD_RIGHT: return "GO RIGHT";
+    case PAD_START: return "MENU";
+    default: return "UNUSED";
+    }
+}
+
 static void labels(MenuView *v)
 {
     int b, i, controller = controls_source() == CONTROLS_CONTROLLER;
@@ -60,6 +80,7 @@ static void labels(MenuView *v)
         size_t n;
 
         b = menu_tags[i].button;
+        strncpy(v->action[i], action_name(controls_buttons[b]), sizeof v->action[i] - 1);
         s = controller ? nshvc_controller_label(0, controls_ctl(b)) : nshvc_key_name((nshvc_key)controls_key(b));
         if (!s || !*s)
             s = "-";
