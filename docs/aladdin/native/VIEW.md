@@ -250,6 +250,8 @@ and right margins are seen; the top and bottom ones only where the original itse
 - At 256 x 224 the pictures are the original's: 19 plays, 4,569 pictures every 50 updates, compared with the ring-based game's, 0 differ.
 - Load time (the game's own clock, play field and backdrop together): before 0.7 to 5.5 s a level, after at most 145 ms at a 512 view (162 at 288, 249 at 768, `LOADTIME2.md`). The saving: no top or bottom margin (70 to 97 percent of the cells), a margin 7 times shallower, the pair relation of the depth at a time path made only where it runs, and its states cut to 24.
 
+Runs and the copy fallback (2026-11-22). The pair and 2 x 2 block bars let a flat column pass (level 6's salmon floor tile repeated down a margin: every pair and block of it occurs in the level). A search that has to let the seam go also had no context to choose by. Three changes: a run bar (a tile may not repeat along a row or column for longer than the level's own longest run of it); candidates for a relaxed seam are sampled from the level's whole context; and a left or right side the search cannot make is laid with the level's own columns (the window with the fewest unseen pairs and runs at the seam), never one with an empty place. What the minimisation prefers is that the margin looks like the level (its own runs and columns), then that the pairs and blocks are the level's; a few unseen pairs of real art are better than a flat strip.
+
 ## 6. Screens and effects that are not the level
 
 ### 6.1 Still screens

@@ -76,6 +76,7 @@
    (`below`: b is under a) */
 static struct {
     uint16_t id_of[65536];
+    uint16_t run_h[IDS_MAX], run_v[IDS_MAX];        /* the longest run of each metatile in the level, across and down */
     uint16_t cell_of[IDS_MAX];                      /* the metatile of each id */
     uint32_t across[IDS_MAX][IDS_MAX / 32];
     uint32_t below[IDS_MAX][IDS_MAX / 32];
@@ -981,6 +982,36 @@ static int quad_has(uint64_t k)
 static void quads_learn(void)
 {
     memset(quad_tab, 0xFF, sizeof quad_tab);
+    memset(lv.run_h, 0, sizeof lv.run_h);
+    memset(lv.run_v, 0, sizeof lv.run_v);
+    for (int r = 0; r < lv.lh; r++)
+        for (int c = 0; c < lv.lw; c++) {
+            const uint16_t *p = lv.cells + (size_t)(lv.oy + r) * lv.fw + lv.ox + c;
+            unsigned id = lv.id_of[*p], n = 1;
+
+            if (id == NO_ID || !lv.real[(size_t)r * lv.lw + c])
+                continue;
+            if (c > 0 && p[-1] == *p)
+                continue;                               /* not the first of its run across */
+            while (c + (int)n < lv.lw && p[n] == *p)
+                n++;
+            if (n > lv.run_h[id])
+                lv.run_h[id] = (uint16_t)n;
+        }
+    for (int c = 0; c < lv.lw; c++)
+        for (int r = 0; r < lv.lh; r++) {
+            const uint16_t *p = lv.cells + (size_t)(lv.oy + r) * lv.fw + lv.ox + c;
+            unsigned id = lv.id_of[*p], n = 1;
+
+            if (id == NO_ID || !lv.real[(size_t)r * lv.lw + c])
+                continue;
+            if (r > 0 && p[-lv.fw] == *p)
+                continue;
+            while (r + (int)n < lv.lh && p[(size_t)n * lv.fw] == *p)
+                n++;
+            if (n > lv.run_v[id])
+                lv.run_v[id] = (uint16_t)n;
+        }
     for (int r = 0; r + 1 < lv.lh; r++)
         for (int c = 0; c + 1 < lv.lw; c++)
             if (lv.real[(size_t)r * lv.lw + c] && lv.real[(size_t)r * lv.lw + c + 1] && lv.real[(size_t)(r + 1) * lv.lw + c] &&
@@ -1010,6 +1041,28 @@ static unsigned quads_broken(int x, int y, uint16_t v)
             if (ok && !quad_has(quad_key(c[0], c[1], c[2], c[3])))
                 n++;
         }
+    return n;
+}
+
+/* 1 for each direction in which a run of the metatile v through (x, y), the cells made or the level's, is longer than any run of it the level has:
+   a margin that goes on with one tile for longer than the level ever does is a flat strip, not the level's art */
+static unsigned runs_broken(int x, int y, uint16_t v)
+{
+    unsigned id = lv.id_of[v], n = 0, a;
+
+    if (id == NO_ID)
+        return 0;
+    for (int dir = 0; dir < 2; dir++) {
+        int dx = dir == 0, dy = dir == 1;
+
+        a = 1;
+        for (int k = 1; x - k * dx >= 0 && y - k * dy >= 0 && lv.cells[(size_t)(y - k * dy) * lv.fw + x - k * dx] == v; k++)
+            a++;
+        for (int k = 1; x + k * dx < lv.fw && y + k * dy < lv.fh && lv.cells[(size_t)(y + k * dy) * lv.fw + x + k * dx] == v; k++)
+            a++;
+        if (a > (dir == 0 ? lv.run_h[id] : lv.run_v[id]))
+            n++;
+    }
     return n;
 }
 
@@ -1201,6 +1254,25 @@ static void csp_candidates(const Side *s, int d, int t, CspFrame *f)
                 best_pos[vid] = (int32_t)at;
             }
         }
+        if (csp_relax && d == 1) {
+            /* the seam pair is let go here, so no bucket holds what goes beside this edge cell: the cells of the level that best
+               match the edge's surroundings are found over the whole level (a value chosen with no context at all is a flat strip) */
+            uint32_t total = (uint32_t)(lv.lw * lv.lh), step = total / (4 * CAND_MAX) + 1;
+
+            for (uint32_t at = next_random() % step; at < total; at += step) {
+                int px = (int)(at % (unsigned)lv.lw), py = (int)(at / (unsigned)lv.lw);
+                unsigned vid = lv.id_of[level_cell(px, py)];
+                int sc;
+
+                if (vid == NO_ID || !in_level(px, py) || !(csp_dom[v][vid >> 5] >> (vid & 31) & 1u))
+                    continue;
+                sc = (int)context_score(s, tx, ty, px, py);
+                if (sc > best[vid]) {
+                    best[vid] = (int16_t)sc;
+                    best_pos[vid] = (int32_t)at;
+                }
+            }
+        }
         /* the continuations of the copies the neighbours are part of: first */
         for (int p = 0; p < 2; p++) {
             int32_t src = p ? lsrc : psrc;
@@ -1226,12 +1298,13 @@ static void csp_candidates(const Side *s, int d, int t, CspFrame *f)
             int sc = best[vid] < 0 ? 0 : best[vid];
 
             if (csp_quad_mode) {
-                broken = quads_broken(tx, ty, lv.cell_of[vid]);
+                broken = quads_broken(tx, ty, lv.cell_of[vid]) + runs_broken(tx, ty, lv.cell_of[vid]);
                 if (broken && csp_quad_mode == 1)
                     continue;
             }
-            order[count++] = ((uint64_t)(broken > 7 ? 7 : broken) << 56) | ((uint64_t)(2000 - sc) << 40) |
-                             ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFFFu) << 16) | vid;
+            /* the best match to the level's art first; of equals, the fewest blocks and runs the level never has (a flat strip is no art) */
+            order[count++] = ((uint64_t)(2000 - sc) << 40) | ((uint64_t)(broken > 7 ? 7 : broken) << 32) |
+                             ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFu) << 16) | vid;
         }
     qsort(order, count, sizeof order[0], csp_order_cmp);
     f->off = csp_pool_top;
@@ -1374,7 +1447,8 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
                 if (lv.cells[csp_cell(s, v)] == UNSET) {
                     size_t at = csp_cell(s, v);
 
-                    if (csp_quad_mode == 1 && quads_broken((int)(at % (size_t)lv.fw), (int)(at / (size_t)lv.fw), lv.cell_of[single])) {
+                    if (csp_quad_mode == 1 && (quads_broken((int)(at % (size_t)lv.fw), (int)(at / (size_t)lv.fw), lv.cell_of[single]) ||
+                                               runs_broken((int)(at % (size_t)lv.fw), (int)(at / (size_t)lv.fw), lv.cell_of[single]))) {
                         /* a block the level never has, and no other choice: back up to the choice before */
                         if (!sp)
                             break;
@@ -1680,6 +1754,71 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
     }
 }
 
+/* ---- the copy: what a side that cannot be made from the level's pairs falls back to ----
+   A side the exact search could not make (its cells beyond the seam made with pairs the level never has) can come out as flat strips:
+   a margin that goes on with one tile for longer than the level ever does, which a few unseen pairs of real art are better than.
+   The copy lays the level's own columns beyond the edge: the margin's depth d is the level's column cs + d (right) or cs - d
+   (left), the same rows, cs chosen so that the one seam (the edge column and the first copied column) has the fewest unseen pairs.
+   Inside the copy every pair and block is the level's. It is used where the exact search's result has a run longer than the level's or
+   more unseen pairs than the copy's seam. */
+static unsigned side_unseen_and_runs(const Side *s, unsigned *runs)
+{
+    unsigned unseen = 0;
+
+    *runs = 0;
+    for (int d = 1; d <= s->depth; d++)
+        for (int t = 0; t < s->along; t++) {
+            int tx = s->bx + t * s->lx - d * s->ux, ty = s->by + t * s->ly - d * s->uy;
+            uint16_t v = lv.cells[(size_t)ty * lv.fw + tx], inward = lv.cells[(size_t)(ty + s->uy) * lv.fw + tx + s->ux];
+
+            unseen += !(s->ux == 1 ? seen_across(v, inward) : seen_across(inward, v));
+            if (t > 0)
+                unseen += !pair_along(s, lv.cells[(size_t)(ty - s->ly) * lv.fw + tx - s->lx], v);
+            *runs += runs_broken(tx, ty, v) != 0;
+        }
+    return unseen;
+}
+
+static int copy_side(const Side *s, FillBand *report)
+{
+    int dir = s->ux == 1 ? -1 : 1;              /* the copy's columns go outward of the level this way: left: toward x = 0 from cs */
+    int best_cs = -1;
+    unsigned best_unseen = ~0u, runs_now, unseen_now;
+
+    if (s->lx != 0 || s->depth + 2 > lv.lw)
+        return 0;
+    unseen_now = side_unseen_and_runs(s, &runs_now);
+    for (int cs = (dir == 1 ? 0 : s->depth); dir == 1 ? cs + s->depth < lv.lw - 0 && cs + s->depth <= lv.lw - 1 : cs < lv.lw; cs++) {
+        unsigned bad = 0;
+        int ok = 1;
+
+        for (int t = 0; t < s->along && ok; t++) {
+            uint16_t edge = level_cell(s->ux == 1 ? 0 : lv.lw - 1, t), first = level_cell(cs + dir * 1, t);
+
+            for (int d = 1; d <= s->depth && ok; d++)
+                ok = in_level(cs + dir * d, t) && level_cell(cs + dir * d, t) != FILL_BLANK;     /* not an empty place */
+            bad += !(s->ux == 1 ? seen_across(first, edge) : seen_across(edge, first));
+        }
+        if (ok && bad < best_unseen) {
+            best_unseen = bad;
+            best_cs = cs;
+        }
+    }
+    if (best_cs < 0 || (runs_now == 0 && best_unseen >= unseen_now))
+        return 0;
+    for (int d = 1; d <= s->depth; d++)
+        for (int t = 0; t < s->along; t++) {
+            size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+
+            lv.cells[ti] = level_cell(best_cs + dir * d, t);
+            source_of[ti] = (best_cs + dir * d) + t * lv.lw;
+            kind_of[ti] = FILL_KIND_SYNTH;
+        }
+    for (int t = 0; t < s->along; t++)
+        report[t].method = FILL_SYNTH;
+    return 1;
+}
+
 static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
                         DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome, uint8_t *blocks)
 {
@@ -1687,6 +1826,8 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
 
     clock_gettime(CLOCK_MONOTONIC, &t0);
     make_margin_body(s, base, sa, sb, bands, total, rows, metatiles, report, unfilled, outcome, blocks);
+    if (rows && *outcome != FILL_OUTCOME_MADE && copy_side(s, report))
+        *blocks = 'c';
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillside u=(%d,%d) %d x %d cells: %.1f ms, outcome %c\n", s->ux, s->uy, s->depth, s->along,
