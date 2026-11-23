@@ -1819,6 +1819,228 @@ static int copy_side(const Side *s, FillBand *report)
     return 1;
 }
 
+
+/* ---- Q, strip quilting of a left or right margin (docs VIEW.md 5.z) ----
+   The margin is built outward from the level's edge by whole full-height strips of the level's own columns, so a prop is whole down the strip.
+   Each strip is chosen by how well its first Q_O columns match the Q_O columns already placed (the level's own edge, or the strip before),
+   and is joined to them along the cheapest seam through those columns, row by row (a dynamic programme over the row's switch point, its cost the
+   level's unseen pairs and 2 x 2 blocks the cut would make), so the cut goes round props rather than through them. No strip's source overlaps
+   another's, none is the same distance from its copy as another (no fixed period), none is next to its own copy. */
+#define Q_W 12                      /* a strip's columns */
+#define Q_O 6                       /* the columns it overlaps the placed ones */
+#define Q_PAIR 100                  /* the cost of a pair the level never has */
+#define Q_QUAD 30                   /* ... of a 2 x 2 block the level never has */
+#define Q_MISMATCH 3                /* ... of a cell of the overlap that differs from the placed one (the context) */
+#define Q_PICK 5                    /* the lowest-cost strips one is picked from, by chance, among those within Q_SLACK of the best */
+#define Q_SLACK 6
+#define Q_GIVE_UP 4000              /* a strip costing more than this is not used: the margin is left as it was */
+
+static uint16_t q_col[FILL_COLS_MAX][FILL_ROWS_MAX];       /* [u][t]: the level's columns, then the margin's, in the margin's outward order */
+static int32_t q_src[FILL_COLS_MAX][FILL_ROWS_MAX];        /* where each came from: the level cell index, or -1 */
+
+static int q_across_ok(const Side *s, uint16_t a, uint16_t b)       /* a, b the cells at u, u + 1 */
+{
+    return s->ux == -1 ? seen_across(a, b) : seen_across(b, a);
+}
+
+/* the cost and seam of strip `s0` placed after column `e`: `seam[t]` the row's switch point (columns before it of the overlap kept), `*cost` the sum; -1 if it cannot be placed */
+static int quilt_try(const Side *s, int e, int s0, int kmin, unsigned limit, unsigned *cost, uint8_t *seam)
+{
+    int rows = s->along;
+    static int dp[FILL_ROWS_MAX][Q_O + 1];
+    static uint8_t back[FILL_ROWS_MAX][Q_O + 1];
+    unsigned mism = 0;
+
+    for (int t = 0; t < rows; t++)
+        for (int j = 0; j < Q_O; j++)
+            mism += q_col[e - Q_O + 1 + j][t] != q_col[s0 + j][t];
+    if (Q_MISMATCH * mism > limit) {                /* the context alone costs more than the strips kept: not worth the seam */
+        *cost = ~0u;
+        return -1;
+    }
+    for (int t = 0; t < rows; t++) {
+        for (int k = kmin; k <= Q_O; k++) {
+            int c = 0;
+            uint16_t prev = q_col[e - Q_O][t];
+
+            for (int j = 0; j <= Q_O; j++) {
+                uint16_t cur = j == Q_O ? q_col[s0 + Q_O][t] : (j < k ? q_col[e - Q_O + 1 + j][t] : q_col[s0 + j][t]);
+
+                c += !q_across_ok(s, prev, cur) * Q_PAIR;
+                prev = cur;
+            }
+            if (t == 0) {
+                dp[0][k] = c;
+                continue;
+            }
+            dp[t][k] = 1 << 30;
+            for (int k0 = k - 1 > kmin ? k - 1 : kmin; k0 <= (k + 1 < Q_O ? k + 1 : Q_O); k0++) {     /* the cut moves at most a column a row */
+                int tc = dp[t - 1][k0] + c + (k0 > k ? k0 - k : k - k0);
+
+                for (int j = 0; j <= Q_O; j++) {
+                    uint16_t up = j == Q_O ? q_col[s0 + Q_O][t - 1] : (j < k0 ? q_col[e - Q_O + 1 + j][t - 1] : q_col[s0 + j][t - 1]);
+                    uint16_t dn = j == Q_O ? q_col[s0 + Q_O][t] : (j < k ? q_col[e - Q_O + 1 + j][t] : q_col[s0 + j][t]);
+                    uint16_t pu = j == 0 ? q_col[e - Q_O][t - 1] : (j - 1 < k0 ? q_col[e - Q_O + j][t - 1] : q_col[s0 + j - 1][t - 1]);
+                    uint16_t pd = j == 0 ? q_col[e - Q_O][t] : (j - 1 < k ? q_col[e - Q_O + j][t] : q_col[s0 + j - 1][t]);
+
+                    if (j < Q_O)
+                        tc += !seen_down(up, dn) * Q_PAIR;
+                    if (s->ux == -1)
+                        tc += !quad_has(quad_key(pu, up, pd, dn)) * Q_QUAD;
+                    else
+                        tc += !quad_has(quad_key(up, pu, dn, pd)) * Q_QUAD;
+                }
+                if (tc < dp[t][k]) {
+                    dp[t][k] = tc;
+                    back[t][k] = (uint8_t)k0;
+                }
+            }
+        }
+    }
+    {
+        int best = 1 << 30, bk = kmin;
+
+        for (int k = kmin; k <= Q_O; k++)
+            if (dp[rows - 1][k] < best) {
+                best = dp[rows - 1][k];
+                bk = k;
+            }
+        for (int t = rows - 1; t >= 0; t--) {
+            seam[t] = (uint8_t)bk;
+            if (t > 0)
+                bk = back[t][bk];
+        }
+        *cost = (unsigned)best + Q_MISMATCH * mism;
+    }
+    return 0;
+}
+
+static int quilt_side(const Side *s, FillBand *report)
+{
+    int lw = lv.lw, rows = s->along, need = lw - 1 + s->depth, e = lw - 1;
+    static int32_t used_s0[64], used_shift[64];
+    int used = 0;
+    unsigned old_runs, old_unseen, new_runs, new_unseen;
+    static uint8_t col_ok[FILL_COLS_MAX];
+
+    if (s->lx != 0 || lw < Q_W + Q_O + 2 || need >= FILL_COLS_MAX || rows > FILL_ROWS_MAX)
+        return 0;
+    for (int t = 0; t < rows; t++)
+        if (s->n_of[t] != (unsigned)lw)
+            return 0;                               /* an empty place runs in from the edge: left to the exact search */
+    old_unseen = side_unseen_and_runs(s, &old_runs);
+    for (int u = 0; u < lw; u++) {
+        int x = s->ux == -1 ? u : lw - 1 - u, ok = 1;
+
+        for (int t = 0; t < rows; t++) {
+            q_col[u][t] = level_cell(x, t);
+            q_src[u][t] = x + t * lw;
+            ok &= q_col[u][t] != FILL_BLANK && in_level(x, t);
+        }
+        col_ok[u] = (uint8_t)ok;
+    }
+    while (e < need) {
+        int kmin = e - Q_O + 1 >= lw ? 0 : Q_O;     /* overlap columns that are the level's own cannot be replaced */
+        int cand_s0[Q_PICK];
+        unsigned cand_cost[Q_PICK], cand_n = 0, best = ~0u;
+        static uint8_t seam_best[Q_PICK][FILL_ROWS_MAX];
+        static uint8_t seam[FILL_ROWS_MAX];
+
+        for (int s0 = 0; s0 + Q_W <= lw; s0++) {
+            int shift = e + 1 - (s0 + Q_O), ok = shift >= Q_W;
+            unsigned cost;
+
+            for (int j = 0; j < Q_W && ok; j++)
+                ok = col_ok[s0 + j];
+            for (int i = 0; i < used && ok; i++)
+                ok = abs(s0 - used_s0[i]) >= Q_W && abs(shift - used_shift[i]) >= Q_W;
+            if (!ok)
+                continue;
+            if (quilt_try(s, e, s0, kmin, cand_n == Q_PICK ? cand_cost[Q_PICK - 1] : ~0u, &cost, seam) < 0)
+                continue;
+            if (cost < best)
+                best = cost;
+            /* keep the Q_PICK lowest */
+            if (cand_n < Q_PICK || cost < cand_cost[cand_n - 1]) {
+                int at = (int)(cand_n < Q_PICK ? cand_n++ : Q_PICK - 1);
+
+                while (at > 0 && cand_cost[at - 1] > cost) {
+                    cand_cost[at] = cand_cost[at - 1];
+                    cand_s0[at] = cand_s0[at - 1];
+                    memcpy(seam_best[at], seam_best[at - 1], (size_t)rows);
+                    at--;
+                }
+                cand_cost[at] = cost;
+                cand_s0[at] = s0;
+                memcpy(seam_best[at], seam, (size_t)rows);
+            }
+        }
+        if (!cand_n || best > Q_GIVE_UP)
+            return 0;
+        {
+            unsigned within = 0, pick;
+
+            while (within < cand_n && cand_cost[within] <= best + Q_SLACK)
+                within++;
+            pick = next_random() % within;
+            {
+                int s0 = cand_s0[pick], shift = e + 1 - (s0 + Q_O);
+                const uint8_t *sm = seam_best[pick];
+
+                used_s0[used] = s0;
+                used_shift[used++] = shift;
+                for (int t = 0; t < rows; t++) {
+                    for (int j = 0; j < Q_O; j++)
+                        if (j >= sm[t]) {
+                            q_col[e - Q_O + 1 + j][t] = q_col[s0 + j][t];
+                            q_src[e - Q_O + 1 + j][t] = q_src[s0 + j][t];
+                        }
+                    for (int j = Q_O; j < Q_W && e + 1 + j - Q_O < FILL_COLS_MAX; j++) {
+                        q_col[e + 1 + j - Q_O][t] = q_col[s0 + j][t];
+                        q_src[e + 1 + j - Q_O][t] = q_src[s0 + j][t];
+                    }
+                }
+                e += Q_W - Q_O;
+            }
+        }
+    }
+    /* put the margin in, keeping the one it replaces if this one has more unseen pairs than that and a few */
+    {
+        static uint16_t keep[FILL_COLS_MAX * FILL_ROWS_MAX];
+        static int32_t keep_src[FILL_COLS_MAX * FILL_ROWS_MAX];
+        static uint8_t keep_kind[FILL_COLS_MAX * FILL_ROWS_MAX];
+        size_t n = 0;
+
+        for (int d = 1; d <= s->depth; d++)
+            for (int t = 0; t < rows; t++, n++) {
+                size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+
+                keep[n] = lv.cells[ti];
+                keep_src[n] = source_of[ti];
+                keep_kind[n] = kind_of[ti];
+                lv.cells[ti] = q_col[lw - 1 + d][t];
+                source_of[ti] = q_src[lw - 1 + d][t];
+                kind_of[ti] = FILL_KIND_QUILT;
+            }
+        new_unseen = side_unseen_and_runs(s, &new_runs);
+        if (new_unseen > old_unseen + 8 || new_runs > old_runs + 8) {
+            n = 0;
+            for (int d = 1; d <= s->depth; d++)
+                for (int t = 0; t < rows; t++, n++) {
+                    size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+
+                    lv.cells[ti] = keep[n];
+                    source_of[ti] = keep_src[n];
+                    kind_of[ti] = keep_kind[n];
+                }
+            return 0;
+        }
+    }
+    for (int t = 0; t < rows; t++)
+        report[t].method = FILL_QUILT;
+    return 1;
+}
+
 static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
                         DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome, uint8_t *blocks)
 {
@@ -1828,6 +2050,14 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
     make_margin_body(s, base, sa, sb, bands, total, rows, metatiles, report, unfilled, outcome, blocks);
     if (rows && *outcome != FILL_OUTCOME_MADE && copy_side(s, report))
         *blocks = 'c';
+    if (rows) {
+        int synth = 0;
+
+        for (int t = 0; t < s->along; t++)
+            synth |= report[t].method != FILL_EXACT && report[t].method != FILL_EMPTY && report[t].method != 0;
+        if (synth && quilt_side(s, report))
+            *blocks = 'Z';
+    }
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillside u=(%d,%d) %d x %d cells: %.1f ms, outcome %c\n", s->ux, s->uy, s->depth, s->along,
@@ -1876,6 +2106,8 @@ static void repair(void)
                     continue;                           /* the top and bottom margins are not mended: the exact bands made them */
                 if (x >= lv.ox && x < lv.ox + lv.lw && !lv.tag[(size_t)(y - lv.oy) * lv.lw + x - lv.ox])
                     continue;                           /* the level's own cell, or an empty place inside it */
+                if (kind_of[(size_t)y * lv.fw + x] == FILL_KIND_QUILT)
+                    continue;                           /* a quilted margin's cells are the level's strips, whole: not mended cell by cell */
                 cur = lv.cells[(size_t)y * lv.fw + x];
                 have = cell_conflicts(x, y, cur);
                 if (!have)

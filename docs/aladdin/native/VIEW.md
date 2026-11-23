@@ -293,6 +293,22 @@ end the camera is 4608, BG2's scroll 4352, the window's end 4607: the flames are
 `ALADDIN_DEV_OVER=FILE` also writes, per level and layer, the window's least x and greatest right edge a play reached and the reach (checked: no
 play's window exceeds the reach, native/checks).
 
+### 5.z Strip quilting of the left and right margins (2026-11-22)
+
+Cell-by-cell synthesis passes the pair and 2 x 2 block bars and still cuts props (a barrel loses its top: each cell is right with its neighbours and
+the whole is not the level's). The left and right margins of a side whose rows are not all exact (B) or empty (E) are therefore made by quilting on the
+metatile grid (`level_fill.c`, quilt_side):
+- The margin is built outward from the level's edge by whole full-height strips of the level's own columns (12 wide), so a prop is whole down a strip.
+- Each strip is chosen by how well its first 6 columns match the 6 already placed (the level's edge, or the strip before): the cost is the cells that
+  differ, and the seam's.
+- The strip is joined along the cheapest seam through those 6 columns, row by row (a dynamic programme over each row's switch point; the cost the
+  level's unseen pairs, 100 each, and unseen 2 x 2 blocks, 30 each, the cut would make), so the cut goes round props.
+- No strip's source overlaps another's, none is the same distance from its copy as another (no fixed period) and none is next to its own copy; among
+  the strips costing within a few of the best one is picked by chance, so no two margins repeat.
+- The exact-period continuation (B) stays where the level itself repeats exactly; a side with an empty place running in from its edge stays with the
+  exact search; a quilt costing more than a few unseen pairs more than the margin it replaces is not used.
+- Margin cells made this way are not mended cell by cell (repair), which would cut props again.
+
 ## 6. Screens and effects that are not the level
 
 ### 6.1 Still screens

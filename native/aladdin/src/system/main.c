@@ -73,6 +73,11 @@ static void trace_line(void)
     if (every && getenv("ALADDIN_DEV_ACTORS") && nshvc_updates() % every == 0) {
         unsigned i;
 
+        if (getenv("ALADDIN_DEV_CAMERA"))
+            fprintf(stderr, "  camera x=%u y=%u limit=%u,%u min=%u max=%u held=%u,%u\n", (unsigned)(g.layers[0].scroll_x >> 8 & 0xFFFF),
+                (unsigned)(g.layers[0].scroll_y >> 8 & 0xFFFF), (unsigned)g.scroll_limit_x, (unsigned)g.scroll_limit_y, (unsigned)g.scroll_x_min,
+                (unsigned)g.scroll_x_max, (unsigned)g.scroll_x_held, (unsigned)g.scroll_y_held);
+
         for (i = 0; i < ACTOR_RECORDS; i++)
             if (g.actors[i].state)
             {
