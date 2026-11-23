@@ -348,7 +348,62 @@ fractions it compares true places in 256ths); `behind.sh` with whole pixels on t
 at 4 window pixels a screen pixel, a guide line at one window column: the scene moves a step at each quarter (about
 190,000 window pixels change from one to the next). `ALADDIN_DEV_BETWEEN_AT=F` draws every picture at between F.
 
-**Not done.** R4: the stepped effects (the fade's brightness has 16 steps the engine
-takes whole; the wipes step every 2 updates, so easing between consecutive updates halves their steps but does not
-remove them) and the chain scene's slow motion (8 updates a step: easing it needs the picture 8 updates behind in that
-scene, or the logic split). R5: a run in a window at 60 and 120 Hz, by Jeff's eye.
+**R4, the stepped effects and the slow motion** (Jeff, 2026-11-23: "Item 1", each eased from its step before to its
+newest, running behind by up to a step; the chain scene's jump eased too). Measured first (developer's step log,
+`ALADDIN_DEV_STEPS`, on the boot, p0-0, p2-0, p3-0, p4-0, p5-2, p6-0, the end-* plays and boss-flow 17 to 15,000):
+- the brightness moves only a level at a time (2,183 steps, none of 2 or more); within a fade every 2 updates, but one
+  fade each way in level 36 every update;
+- the window edges move every update in most effects (already eased by R2), every 3 in level 13's exit (4022-4120),
+  once a 7 in level 5's;
+- the chain scene's slow motion: the play loop turns every 8 updates (its task's wait at the update's end is 8 on the
+  turn, 7 to 1 between), and between turns nothing drawn changes (the places' hash, the brightness and the windows);
+  `g.play_wait` stays 8 after the scene (into the ending's story, level 57), where no play loop turns. The scene fades
+  out during the slow motion (7383-7411) and level 57 fades in from 7479, 10 updates after the last turn (7469).
+
+The rule, for three "tracks" (`video/between.c`): a track steps when its value changes; a picture shows it eased from its
+step before to its newest over G updates, G the updates between those two steps, at most the track's limit, so it is
+exact at each step and runs behind by up to G - 1 updates more than the rest.
+- The world (everything R1-R3 eases). It steps every update but in the slow motion: `PlayLoop` tells between.c when it
+  turns (`between_play_turn`, no game state); while the last turn was under `g.play_wait` (more than 1) updates ago,
+  an update is no step. "Was" and the newest are kept at the world's steps (at the update's end now, not its start),
+  and the held engine writes are written a step late, so the art is always the world "was" names. Limit: the play
+  loop's wait. Outside the slow motion the world is exactly R3's.
+- The brightness: a step of one level eased over up to 2 updates (any other change shown at once). The engine takes a
+  brightness between its 16 levels (6.11: `nshvc_screen.brightness_sub` and `NSHVC_LINE_BRIGHTNESS_SUB`, 256ths of the
+  way to the next level, the console's own result at 0).
+- The windows: the window edges each line shows, and the frame's own, eased line by line over up to 3 updates.
+
+Expected, before building: the game unchanged (`same.sh` 21 runs, 0 differ); with the steps off
+(`ALADDIN_DEV_NO_STEPS=1`, every track eased over one update), the pictures R3's; the easing check 0 wrong; a new check
+(`ALADDIN_DEV_STEP_CHECK=FILE`): each track's eased value at between 1 is the next update's at between 0 (no jump between
+pictures) everywhere but where a step comes sooner than the one before, and a fade's brightness moves 1/8 of a level a
+quarter update; in the chain scene the player moves 1/32 of a turn's motion a quarter update after the first turn.
+
+As built: `video/between.c` (the tracks; "was" and the newest now kept at the world's steps' ends, the held writes
+written a step late), `game/play_loop.c` (`between_play_turn` at the play loop's turn: no game state), `video/video.c`
+(the brightness and the frame's window edges from the tracks), `video/lines.c` (the window lines eased with their track;
+the developer's samples), engine 6.11 (ENGINE_REQUESTS.md section 3). Found on the way and fixed: R2 eased a layer by its
+24.8 place alone, so a layer moved by its shift or offset stepped (the chain scene scrolls BG1 2 pixels an update by
+`g.layer_offset_y`, `bg_y` still: 896 places wrong at between 1 on main too); a layer now eases as sent, its pixels with
+the shift or offset added and its place's fraction (`video/scroll.c`).
+
+Checked, on all 37 plays (the boot, every p*, boss16-2hits, every end-* and boss-flow 17 to 30,000):
+- the easing check: 3,760,506 places, 0 wrong (at between 1 and 0.5);
+- the step check, 437,951 pictures: the world 0 jumps; the brightness 0 jumps, and 21 where a fade's steps came every
+  update (its first step eased over 2, the next an update later); the windows 0 jumps, and 6 after a step sooner than the
+  one before. Not counted as jumps, as R2 has them: a window line whose step is more than 64 pixels (a line of window
+  appearing, shown at its step's end) and a channel starting or stopping (the effect's start and end);
+- the speeds: in fades stepping every 2 updates every quarter update moves the brightness 32/256 of a level (55,050
+  samples, no other size), every update 64/256; in the chain scene's slow motion (112 updates eased over 8) the player
+  moves 8/256 of a pixel each quarter update, a turn's 1 pixel over its 8 updates;
+- `same.sh` against main c6803c7: 21 runs, 0 differ (the game unchanged);
+- `behind.sh` with the steps off (`ALADDIN_DEV_NO_STEPS=1`, `BEHIND_SHIFT=0`) against main's own pictures on engine 6.10:
+  21 runs, 10,010 pairs, 0 differ (R3's pictures, the layer fix aside, which is the same at between 0). Its first run
+  found a fault in the windows' track, fixed: a window line whose step was too far to ease stayed at its old value after
+  its step ended, until the windows stepped again (p1-1 and p4-2, 21 pictures); at a step's end the newest is now shown
+  exactly.
+
+Not checked by a count: how it looks in a window (R5).
+
+**Not done.** Colour bands and text bands (every 4), Mode 7's zoom in the ending (every 16 and 24) and the Genie
+wheel's slowing step as before. R5: a run in a window at 60 and 120 Hz, by Jeff's eye.

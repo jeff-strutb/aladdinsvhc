@@ -150,6 +150,66 @@ static uint32_t line_ease(uint8_t target, uint32_t was, uint32_t now)
 /* the fraction of a layer's per-line scroll eased between updates (engine 6.10): 256ths; 0 where not eased */
 static int32_t line_sub[LINES];
 
+static uint8_t *window_far;         /* the developer's (video_lines_windows_sample): the lines whose step is too far to ease */
+
+/* A window channel's edges eased with the windows' own steps (between.h): from their step before the newest to the
+   newest, on the lines the channel sets in the picture's world and in both, when it is the same effect in both. 0
+   (nothing changed) when the windows' states do not both have it */
+static int window_track_values(const LineChannel *c, uint32_t top, uint32_t value[LINES], const uint8_t set[LINES])
+{
+    static uint32_t from[LINES], to[LINES];
+    uint8_t set_from[LINES], set_to[LINES];
+    const GameState *w, *n;
+    float at, keep;
+    int ch = (int)(c - g.line_channel);
+    const LineChannel *cw, *cn;
+
+    if (!between_windows(&w, &n, &at))
+        return 0;
+    cw = &w->line_channel[ch];
+    cn = &n->line_channel[ch];
+    if (!(w->line_effects_on >> ch & 1) || !(n->line_effects_on >> ch & 1) || cw->target != c->target ||
+        cn->target != c->target || cw->direct != cn->direct || !cw->cart.at != !cn->cart.at)
+        return 0;
+    memset(set_from, 0, sizeof set_from);
+    memset(set_to, 0, sizeof set_to);
+    src = w;
+    channel_values(cw, top, from, set_from);
+    src = n;
+    channel_values(cn, top, to, set_to);
+    src = &g;
+    keep = between_amount_set(at);
+    for (int i = 0; i < LINES; i++)
+        if (set[i] && set_from[i] && set_to[i]) {
+            /* at its step's end the newest exactly, a step too far to ease too */
+            value[i] = at >= 1.0f ? to[i] : line_ease(c->target, from[i], to[i]);
+            if (window_far && at < 1.0f) {
+                int dl = (int)(to[i] & 0xFF) - (int)(from[i] & 0xFF), dr = (int)(to[i] >> 8 & 0xFF) - (int)(from[i] >> 8 & 0xFF);
+
+                window_far[i] = (uint8_t)(dl > 64 || dl < -64 || dr > 64 || dr < -64);
+            }
+        }
+    between_amount_set(keep);
+    return 1;
+}
+
+/* the frame's own window edges (g.window_edges) as a picture shows them: eased with the windows' steps */
+void video_window_edges(uint8_t e[4])
+{
+    const GameState *w, *n;
+    float at, keep;
+
+    if (!between_windows(&w, &n, &at)) {
+        memcpy(e, g.window_edges, 4);
+        return;
+    }
+    keep = between_amount_set(at);
+    for (int k = 0; k < 4; k++)     /* at the step's end, the newest exactly */
+        e[k] = at >= 1.0f ? n->window_edges[k]
+                          : (uint8_t)(w->window_edges[k] + between_ease(w->window_edges[k], n->window_edges[k], 0, 8, 64));
+    between_amount_set(keep);
+}
+
 static void send_channel(const LineChannel *c, uint32_t top)
 {
     static uint32_t value[LINES], value_now[LINES];
@@ -160,7 +220,9 @@ static void send_channel(const LineChannel *c, uint32_t top)
     memset(set, 0, sizeof set);
     memset(line_sub, 0, sizeof line_sub);
     channel_values(c, top, value, set);
-    if (between_easing()) {
+    if (between_easing() && (c->target == LINE_WINDOW1 || c->target == LINE_WINDOW2) && window_track_values(c, top, value, set)) {
+        /* the windows: eased with their own steps */
+    } else if (between_easing()) {
         /* the same channel at the newest update, read from its state, when it is the same effect there */
         const GameState *n = between_now();
         const LineChannel *cn = &n->line_channel[c - g.line_channel];
@@ -314,4 +376,68 @@ int video_lines_tile_mode(void)
                 return (int)(value[i] & 7);
     }
     return 1;
+}
+
+/* the developer's (between.c, ALADDIN_DEV_STEPS): a hash of the window edges each line shows, from the channels that
+   set them, and of the frame's own window edges */
+uint32_t video_lines_windows_hash(void)
+{
+    static uint32_t value[LINES];
+    uint8_t set[LINES];
+    uint32_t h = 2166136261u;
+
+    for (int k = 0; k < 4; k++)
+        h = (h ^ g.window_edges[k]) * 16777619u;
+    for (int ch = 1; ch < 8; ch++) {
+        const LineChannel *c = &g.line_channel[ch];
+
+        if (!(g.line_effects_on >> ch & 1) || (c->target != LINE_WINDOW1 && c->target != LINE_WINDOW2))
+            continue;
+        memset(set, 0, sizeof set);
+        channel_values(c, 0, value, set);
+        for (int i = 0; i < LINES; i++)
+            h = (h ^ (set[i] ? value[i] : 0xFFFFFFFFu)) * 16777619u;
+    }
+    return h;
+}
+
+/* the developer's (between.c, ALADDIN_DEV_STEP_CHECK): the window edges a picture shows, eased: the frame's four in
+   value[0..3], then each window channel's lines (up to two channels, LINES each; 0xFFFFFFFF on a line it does not
+   set), and in far[] the lines whose step was too far to ease (a line of window appearing or going) */
+void video_lines_windows_sample(uint32_t value[4 + 2 * LINES], uint8_t far[4 + 2 * LINES])
+{
+    static uint32_t v[LINES];
+    uint8_t set[LINES], e[4];
+    int k = 0;
+    const GameState *w, *n;
+    float at;
+
+    memset(far, 0, 4 + 2 * LINES);
+    video_window_edges(e);
+    for (int j = 0; j < 4; j++)
+        value[j] = e[j];
+    if (between_windows(&w, &n, &at) && at < 1.0f)
+        for (int j = 0; j < 4; j++)
+        {
+            int d = (uint8_t)(n->window_edges[j] - w->window_edges[j]);  /* the shorter way round, as between_ease */
+
+            d = d >= 128 ? d - 256 : d;
+            far[j] = (uint8_t)(d > 64 || d < -64);
+        }
+    for (int j = 4; j < 4 + 2 * LINES; j++)
+        value[j] = 0xFFFFFFFFu;
+    for (int ch = 1; ch < 8 && k < 2; ch++) {
+        const LineChannel *c = &g.line_channel[ch];
+
+        if (!(g.line_effects_on >> ch & 1) || (c->target != LINE_WINDOW1 && c->target != LINE_WINDOW2))
+            continue;
+        memset(set, 0, sizeof set);
+        channel_values(c, 0, v, set);
+        window_far = far + 4 + k * LINES;
+        window_track_values(c, 0, v, set);
+        window_far = NULL;
+        for (int i = 0; i < LINES; i++)
+            value[4 + k * LINES + i] = set[i] ? v[i] : 0xFFFFFFFFu;
+        k++;
+    }
 }

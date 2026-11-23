@@ -22,6 +22,11 @@ void video_map_write(VideoMap map, const uint16_t *words);
 /* lines.c: a window's left or right edge of the original's columns, in the picture's (the frame beside the screen) */
 int32_t video_window_left(int32_t left);
 int32_t video_window_right(int32_t right);
+/* lines.c: the frame's window edges as a picture shows them, eased with the windows' steps (between.h) */
+void video_window_edges(uint8_t e[4]);
+/* lines.c, the developer's (between.c): the window edges' hash; the eased edges and which were too far to ease */
+uint32_t video_lines_windows_hash(void);
+void video_lines_windows_sample(uint32_t value[4 + 2 * 224], uint8_t far[4 + 2 * 224]);
 
 /* video.c: a window use nibble of the original's and its logic, as the engine's bits */
 uint8_t video_window_use(uint8_t nibble, uint8_t logic);

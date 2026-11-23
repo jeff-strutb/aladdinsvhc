@@ -837,7 +837,12 @@ void video_draw(void)
     memset(&scr, 0, sizeof scr);
     scr.width = view.w;
     scr.height = view.h;
-    scr.brightness = g.brightness;
+    {
+        uint32_t b = between_brightness();     /* a fade's steps eased (between.h) */
+
+        scr.brightness = (uint8_t)(b >> 8);
+        scr.brightness_sub = (uint8_t)(b & 0xFF);
+    }
     scr.blank = g.blank;
     if (g.split_on) {
         /* the IRQ: the screen is dark above its line L and lit from row L (the interrupt is at the line's dot $98 and
@@ -881,10 +886,15 @@ void video_draw(void)
 
     memset(&win, 0, sizeof win);
     /* the original's columns in the picture's (the engine's origin does not move windows; lines.c) */
-    win.w[0].left = video_window_left(g.window_edges[0]);
-    win.w[0].right = video_window_right(g.window_edges[1]);
-    win.w[1].left = video_window_left(g.window_edges[2]);
-    win.w[1].right = video_window_right(g.window_edges[3]);
+    {
+        uint8_t e[4];
+
+        video_window_edges(e);  /* eased with the windows' steps (lines.c) */
+        win.w[0].left = video_window_left(e[0]);
+        win.w[0].right = video_window_right(e[1]);
+        win.w[1].left = video_window_left(e[2]);
+        win.w[1].right = video_window_right(e[3]);
+    }
     for (int i = 0; i < 6; i++)
         win.layer_use[i] = video_window_use(g.window_use[i], g.window_logic[i]);
     for (int i = 0; i < 5; i++) {
@@ -921,7 +931,8 @@ void video_draw(void)
 
     if (top && !video_level_view()) {
         nshvc_line(lit, NSHVC_LINE_BLANK, g.blank);
-        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS, g.brightness);
+        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS, (int32_t)(between_brightness() >> 8));
+        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS_SUB, (int32_t)(between_brightness() & 0xFF));
     }
     video_lines_send(top);
 }

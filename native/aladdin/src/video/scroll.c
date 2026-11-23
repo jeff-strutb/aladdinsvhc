@@ -49,23 +49,29 @@ void video_scroll_keep(void)
     between_keep(layer_y, sizeof layer_y);
 }
 
-/* while a picture draws between updates (between.h): the positions sent eased towards the newest, by the game's
-   24.8 places; BG2's x not while it is held; a layer that jumped further than 64 is shown where it was */
+/* while a picture draws between updates (between.h): the positions sent eased towards the newest, each as it is sent
+   (its pixels, with the shift or offset added) with its 24.8 place's fraction, so a shift or an offset that moves the
+   layer eases as the camera does; BG2's x not while it is held; a layer that jumped further than 64 is shown where it
+   was */
+static uint16_t ease_layer(uint16_t was, uint32_t was_place, uint16_t now, uint32_t now_place, int16_t *sub)
+{
+    int64_t w = (int64_t)was << 8 | (was_place & 0xFF), n = (int64_t)now << 8 | (now_place & 0xFF);
+    int64_t at = between_ease_fx(w, n, 24, 64 << 8);
+
+    *sub = between_fractions() ? (int16_t)(at & 0xFF) : 0;
+    return (uint16_t)(was + between_ease(w, n, 8, 24, 64));
+}
+
 void video_scroll_ease(void)
 {
     const GameState *n = between_now();
-    int fractions = between_fractions();
+    const uint16_t *nx = between_now_of(layer_x), *ny = between_now_of(layer_y);
 
     for (int i = 0; i < 3; i++) {
         sub_x[i] = sub_y[i] = 0;
-        if (i != 1 || (!g.bg2_x_held && !n->bg2_x_held)) {
-            layer_x[i] = (uint16_t)(layer_x[i] + between_ease(g.bg_x[i], n->bg_x[i], 8, 24, 64));
-            if (fractions)
-                sub_x[i] = (int16_t)(between_ease_fx(g.bg_x[i], n->bg_x[i], 24, 64 << 8) & 0xFF);
-        }
-        layer_y[i] = (uint16_t)(layer_y[i] + between_ease(g.bg_y[i], n->bg_y[i], 8, 24, 64));
-        if (fractions)
-            sub_y[i] = (int16_t)(between_ease_fx(g.bg_y[i], n->bg_y[i], 24, 64 << 8) & 0xFF);
+        if (i != 1 || (!g.bg2_x_held && !n->bg2_x_held))
+            layer_x[i] = ease_layer(layer_x[i], g.bg_x[i], nx[i], n->bg_x[i], &sub_x[i]);
+        layer_y[i] = ease_layer(layer_y[i], g.bg_y[i], ny[i], n->bg_y[i], &sub_y[i]);
     }
 }
 
