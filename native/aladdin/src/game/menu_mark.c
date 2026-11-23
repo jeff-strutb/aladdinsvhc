@@ -17,7 +17,7 @@
 #define LAYOUT_BLANKED 0x80         /* a layout number with this bit blanks its text */
 
 #define LINE_ATTR 0x2400            /* the menu words' tile attributes: palette 1 (the tile is the letter's character code) */
-#define SAVED_GAMES_AT (20 * 32 + 10)   /* the text map word of the second line's first letter: row 20, column 10 */
+#define SAVED_GAMES_AT (20 * 32 + 10)   /* the text map word of the second line's first letter: row 20, column 10; its words two tiles apart so that its twelve tiles centre on the screen's middle like the first and third lines */
 #define LEVEL_SELECT_AT (22 * 32 + 10)  /* the third line's: row 22, column 10 */
 
 /* the mark's seven cells, in words from the choice's place: one in row 0,
@@ -55,7 +55,7 @@ void TitleMenuLineShow(unsigned choice, int blanked)
     if (choice == 0)
         TextLayoutShow(menu_line_layout(0) | (blanked ? LAYOUT_BLANKED : 0));
     else if (choice == 1)
-        line_words(SAVED_GAMES_AT, "SAVED GAMES", blanked);
+        line_words(SAVED_GAMES_AT, "SAVED  GAMES", blanked);
     else
         line_words(LEVEL_SELECT_AT, "LEVEL SELECT", blanked);
 }

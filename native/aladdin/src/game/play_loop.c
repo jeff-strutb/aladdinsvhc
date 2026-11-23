@@ -7,6 +7,7 @@
 #include "system/state.h"
 #include "system/system.h"
 #include "system/task.h"
+#include "video/between.h"
 #include "video/video.h"
 #include "video/video_tasks.h"
 
@@ -63,6 +64,7 @@ TaskRun PlayLoop(Task *t)
     for (;;) {
         switch (*at) {
         case LOOP_STEP:
+            between_play_turn();        /* native: the picture's world steps (video/between.h); no game state */
             if (FrameStep())
                 return task_exec_take(t);
             RestartPointCheck();
