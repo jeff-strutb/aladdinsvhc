@@ -79,7 +79,7 @@ labels; wrap on page turns.
 - **The title.** The title's task asks (`save_screen_request_title`), the menu's update opens the screen from the next update, the game is held while it is open (the title's tasks do not run), and a load replaces the state from outside the tasks. "The title's tasks ended cleanly" is therefore not needed as a step: the snapshot holds the task state whole.
 - **Checks run** (CHECK.md), headless build, runahead off:
   - the slot files (14 lines ok); the screens' pictures (`shots/saves-*.png`; the crop equals the picture's pixels, 0 of 6,912 differ);
-  - `hold.sh` passes; `same.sh` at 256x224 with no menu opened: see CHECK.md for the last run (21 runs, 0 differ);
+  - `hold.sh` passes; `same.sh` at 256x224 with no menu opened, merged tree against main b91729e: 21 runs, 0 differ;
   - **exact** (`native/checks/saves/exact.sh`; saved at the start of update U, loaded at the start of update V, then the same keys; the trace
     of the player, every live actor with its own bytes and the video fields compared line for line from the load on, 600 updates each):
     | A (saved) | B (loaded into) | result |
