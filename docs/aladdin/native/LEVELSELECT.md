@@ -2,8 +2,8 @@
 
 **How it meets Jeff's direction** ("a level select screen accessible from the main menu, which goes to a screen in a similar
 aesthetic to the new save menu screen, where a player can go right to any level they've beaten before (grid of 4, pageable)
-with 1x1 screenshots of that level (cropped close so graphic matches)"): the title's LEVEL SELECT opens a screen of the levels the
-player has beaten, 4 to a page (2 rows of 2) on the save screen's own grid part, each cell a crop of that level at one game pixel to
+with 1x1 screenshots of that level (cropped close so graphic matches)"): the title's LEVEL SELECT opens a screen of every level,
+the ones beaten chosen and the rest faded, 4 to a page (2 rows of 2) on the save screen's own grid part, each cell a crop of that level at one game pixel to
 one menu pixel and the level's number; choosing one starts it with a new game's counts. His answers (2026-11-23): a level started
 from here starts with a new game's lives and counts; beating levels from here still unlocks the next ones; the beaten levels are kept in
 one progress file, apart from the save slots.
@@ -76,12 +76,11 @@ Each call marks `g.level` (the level being left) and reads nothing else; it chan
 It is in the game's logic, so it marks the level however it was reached: from the title's GAME START, a continue, a level select, a
 loaded save (the save screen's slots start the game at their progress and the same exits run), and the demo cannot reach an exit.
 
-**Before anything is beaten** the screen shows no cells and one line, in the game's text tiles: `NO STAGES CLEARED YET`, with the
-save screen's back control. A level that is not in the list is never marked.
+**Before anything is beaten** every cell is there, faded (section 6); nothing can be chosen. A level that is not in the list is never marked.
 
 **Unlocking.** A level started from the screen plays on as the game does (`g.progress_*` carry on to the next stage and part), so the
 levels after it are beaten in turn and each is marked when its own exit is passed; the screen lists only levels that are marked, as
-Jeff said ("any level they've beaten before").
+Jeff said ("any level they've beaten before"). (Jeff, 2026-11-23, later: all the levels are shown; one not yet beaten is shown at 25% and cannot be chosen.)
 
 ## 3. The progress file
 
@@ -147,13 +146,13 @@ up (boot, and the continue screen's "no" clears it).
 ## 6. The screen
 
 `pause/level_screen.[ch]` on the save screen's grid (`pause/slot_grid.[ch]`, merged from the save branch): an overlay on the held title, 2 columns x 2
-rows of 96 x 72 pictures, pages of four (`pages` = beaten levels / 4, at least 1), the title line "LEVEL SELECT", each cell the level's picture and
-`STAGE n-m` (the game's part + 1 and stage + 1). The pad, keys and pointer are the grid's (directions among cells, Left at the first column and
-Right at the last turn the page, L and R turn it, B or A chooses, Start or Escape go back). With nothing beaten the grid shows four EMPTY frames and
-the line `NO STAGES CLEARED YET` with OK, which goes back. The title's LEVEL SELECT line asks for it (`level_screen_request_title`), `pause/menu.c`
-opens it from the next update beside the save screen and holds the game; choosing a cell shuts it and the title, at its next update, takes the
-list entry (`level_screen_take`), calls `LevelSelectStart`, and goes on as GAME START does (sound $4F, the fade, `TASK_ENTRY_GAME_START`). Back
-returns to the title menu as it stood.
+rows of 96 x 72 pictures, **all 19 levels** in the game's order, 5 pages of four, the title line "LEVEL SELECT", each cell the level's picture and
+`STAGE n-m` (the game's part + 1 and stage + 1). A level not yet beaten is drawn at **25% of its brightness** (each colour channel x 0.25,
+`UNBEATEN_PERCENT`) and choosing it does nothing; the cursor can rest on it. The pad, keys and pointer are the grid's (directions among cells, Left at
+the first column and Right at the last turn the page, L and R turn it, B or A chooses, Start or Escape go back). The title's LEVEL SELECT line asks for
+it (`level_screen_request_title`), `pause/menu.c` opens it from the next update beside the save screen and holds the game; choosing a beaten cell
+shuts it and the title, at its next update, takes the list entry (`level_screen_take`), calls `LevelSelectStart`, and goes on as GAME START does
+(sound $4F, the fade, `TASK_ENTRY_GAME_START`). Back returns to the title menu as it stood.
 
 ## 7. Choices for Jeff to change
 
@@ -163,7 +162,7 @@ returns to the title menu as it stood.
 3. **The picture:** composed scenery of the level's start (no Aladdin, no enemies, no status line), not a true screenshot; and the
    level where it is black ($0C).
 4. **The crop:** 96 x 72 pixels, centred on where Aladdin starts, never scaled (set against the grid's cell in stage 2).
-5. **What shows first:** "NO STAGES CLEARED YET" until a level is beaten.
+5. **Unbeaten levels:** shown at 25% brightness and not chosen (Jeff's direction; "25% faded" read as 25% of the brightness, one number in `level_screen.c`).
 6. **Order:** the game's own play order (part 6, the single stage $12, before part 5).
 7. **Beaten:** the level's exit passed; the two boss levels are marked at their exits (level $11's at the fade into the ending).
 8. A level beaten from a loaded save or a continue counts, as from the screen.
@@ -204,15 +203,15 @@ Checks (macOS headless build, builds in `build/aladdin/native/base` = 71ea8d0 an
 Merged the save-menu branch (the grid, `menu.c`, the title's SAVED GAMES line); the conflicts were the includes of `title_task.c` and `dev_start.c`
 and `CHECK.md`, kept both sides. New: `pause/level_screen.[ch]`, `video/level_pictures.c` (the reader; `level_picture.c` keeps the composer and the
 writer), `tools/make_pictures.sh`, `native/checks/pause_check/level_check.c` and `level_build.sh`; `pause/menu.c` and `game/title_task.c` call the
-screen. Checks (macOS headless, the pause check's own stubbed build for the pictures):
+screen. Checks (macOS headless, the pause check's own stubbed build for the pictures). Later the same day: every level shown and the unbeaten faded and
+  not chosen: with an empty save folder B on the first cell starts nothing (no level 0 play to update 3500); with level $00 beaten the same keys start it (2839).
 
-- **Pictures** under `docs/aladdin/native/shots/`: `levelselect-none.png` (nothing beaten), `levelselect-some.png` (9 levels beaten, page 1 of 3,
-  the first cell chosen), `levelselect-page2.png` (page 2, second cell chosen), `levelselect-page3.png` (the last page, one level), `levelselect-last.png`
-  (all 19, page 5, the last cell). Over the title's picture, 1280 x 720, made by `level_check` from the game's own `level_screen.c`, `beaten.c`,
-  `level_pictures.c`, `slot_grid.c` and `menu_art.c`.
+- **Pictures** under `docs/aladdin/native/shots/`: `levelselect-none.png` (nothing beaten: all faded), `levelselect-some.png` (9 levels beaten, page 1
+  of 5, the first cell chosen, stage 1-4 unbeaten and faded), `levelselect-page2.png` (page 2), `levelselect-last.png` (page 5, the last level). Over the
+  title's picture, 1280 x 720, made by `level_check` from the game's own `level_screen.c`, `beaten.c`, `level_pictures.c`, `slot_grid.c` and `menu_art.c`.
 - **Each level picture against its source, pixel for pixel.** The 9 levels of `levels_some`: the picture the screen reads from the file is the same
   as `LevelPicture`'s crop written by the map dump (0 of 6,912 differ, each), and found on the panel, drawn by the grid at one pixel (a 704 x 564 window), 0 of
-  6,912 differ at its cell, on the page and cell the list's order gives (levels $00 $01 $02 $04 | $05 $07 $0B $12 | $10). The dump's crop is the
+  6,912 differ at its cell (before the faded cells were added: pages then held only the beaten ones). The dump's crop is the
   same as the dump's start window at the same place (stage 1). **Not run:** against the engine's own rendered picture of the loaded level
   (`ALADDIN_DEV_MAPDUMP_HOLD` with `--shots`), which needs a renderer; the null headless build writes none.
 - **Choosing each listed level reaches its first update**: in the real game (headless, no cheat byte), a save folder with all 19 beaten, the keys

@@ -455,7 +455,8 @@ ticks (mean, the real step alone, median, 99th percentile, worst, how many over 
 
 ## The level select screen (2026-11-23, LEVELSELECT.md section 9)
 
-- Pictures made at build time (`native/aladdin/tools/make_pictures.sh`, 0.7 s, 525,412 B). `native/checks/pause_check/level_build.sh OUT` (with `NSHVC` set to the engine's checkout) builds `level_check`: `level_check BASE.ppm W H PAGE SEL OUT.ppm [PICS_PREFIX]` with `LEVEL_FILE` (a `levels` file) and `DATA_TEST_DIR` (`cart.dat`, `level_pictures.dat`). The screens: `shots/levelselect-none.png`, `-some.png`, `-page2.png`, `-page3.png`, `-last.png`.
+- Pictures made at build time (`native/aladdin/tools/make_pictures.sh`, 0.7 s, 525,412 B). `native/checks/pause_check/level_build.sh OUT` (with `NSHVC` set to the engine's checkout) builds `level_check`: `level_check BASE.ppm W H PAGE SEL OUT.ppm [PICS_PREFIX]` with `LEVEL_FILE` (a `levels` file) and `DATA_TEST_DIR` (`cart.dat`, `level_pictures.dat`). The screens: `shots/levelselect-none.png`, `-some.png`, `-page2.png`, `-last.png` (every level shown, unbeaten at 25%).
 - 9 levels: each picture the screen reads equals the map dump's `LL-picture.ppm` (0 of 6,912 differ), and on the panel at one pixel (704 x 564 window) 0 of 6,912 differ at its cell.
 - Choosing: all 19 entries, from the title by keys with all 19 beaten, no cheat byte: each reaches its level (health above 0) at update 2839 to 2914.
 - `same.sh` base 71ea8d0 against the merged tree: 21 runs, 0 differ.
+- Unbeaten cells cannot be chosen: empty save folder, Start, Down, Down, B, B, B: no level plays to update 3500; with level $00 beaten the same keys play it from 2839.
