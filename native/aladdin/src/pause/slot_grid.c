@@ -159,7 +159,7 @@ static void draw_dynamic(uint32_t *px, int d)
             menu_art_text(px, d, m.v.choices[i], sel ? MENU_PAL_CREAM : MENU_PAL_GOLD, left + xs[i], CHOICE_Y, 1);
         }
     } else {
-        caption(px, d, 0, HINT_Y, MENU_W, "B CHOOSE   START BACK", MENU_PAL_GOLD);
+        caption(px, d, 0, HINT_Y, MENU_W, m.spec.start_chooses ? "B OR START CHOOSE   SELECT OR ESC BACK" : "B OR A CHOOSE   START OR ESC BACK", MENU_PAL_GOLD);
         if (m.spec.pages > 1) {
             sprintf(buf, "L  PAGE %d OF %d  R", page() + 1, m.spec.pages);
             caption(px, d, 0, PAGE_Y, MENU_W, buf, MENU_PAL_CREAM);
@@ -271,6 +271,8 @@ SlotResult slot_grid_update(const nshvc_input *in)
     uint16_t raw = controls_pad_raw(in), press = (uint16_t)((raw & ~m.last) | controls_pressed_keys(in));
     int esc = NSHVC_KEY_PRESSED(in, KEY_ESCAPE) != 0, click = 0, cx = -1, cy = -1;
     uint16_t dir = (uint16_t)(press & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT));
+    uint16_t choose = (uint16_t)(m.spec.start_chooses ? PAD_B | PAD_A | PAD_START : PAD_B | PAD_A);
+    uint16_t back = m.spec.start_chooses ? PAD_SELECT : PAD_START;
 
     m.last = raw;
     if (!m.open)
@@ -287,7 +289,7 @@ SlotResult slot_grid_update(const nshvc_input *in)
     }
 
     if (m.v.asking) {
-        if (esc || (press & PAD_START)) {
+        if (esc || (press & back)) {
             m.v.asking = 0;
             return ev(SLOT_NONE, -1, 0);
         }
@@ -306,7 +308,7 @@ SlotResult slot_grid_update(const nshvc_input *in)
         }
         if (dir & PAD_LEFT && m.v.answer > 0) { m.v.answer--; sound(); }
         else if (dir & PAD_RIGHT && m.v.answer < m.n_choices - 1) { m.v.answer++; sound(); }
-        else if (press & (PAD_B | PAD_A)) {
+        else if (press & choose) {
             int a = m.v.answer;
 
             m.v.asking = 0;
@@ -315,7 +317,7 @@ SlotResult slot_grid_update(const nshvc_input *in)
         }
         return ev(SLOT_NONE, -1, 0);
     }
-    if (esc || (press & PAD_START))
+    if (esc || (press & back))
         return ev(SLOT_BACK, -1, 0);
     if (click) {
         int c = cell_at((float)cx, (float)cy);
@@ -352,7 +354,7 @@ SlotResult slot_grid_update(const nshvc_input *in)
             m.v.sel += m.spec.cols;
         }
         sound();
-    } else if (press & (PAD_B | PAD_A)) {
+    } else if (press & choose) {
         sound();
         return ev(SLOT_CHOSEN, m.v.sel, 0);
     }

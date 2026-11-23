@@ -77,6 +77,7 @@ void save_screen_open(SaveFrom from)
     spec.pic_w = SAVE_PIC_W;
     spec.pic_h = SAVE_PIC_H;
     spec.cell = cell_of;
+    spec.start_chooses = from == SAVE_FROM_TITLE;   /* the title's SAVED GAMES, opened by Start: Start chooses there; in the pause menu Start goes back */
     slot_grid_open(&spec);
 }
 

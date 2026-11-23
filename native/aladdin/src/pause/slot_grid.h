@@ -8,8 +8,9 @@
  * the owner sends the sound queue.
  *
  * Pad: the directions move among the cells, Left at the first column and Right at the last turn the page, L and R turn it,
- * B or A chooses, Start or Escape go back (or, with a prompt up, put the prompt away). The pointer chooses the cell it is on,
- * turns the page on the "<" and ">" of the page line, and chooses a prompt's answer.
+ * B or A chooses, Start or Escape go back (or, with a prompt up, put the prompt away). With start_chooses (the title's screens,
+ * opened by Start as the title's menu confirms with it) Start chooses as B and A do, and Select or Escape go back. The pointer
+ * chooses the cell it is on, turns the page on the "<" and ">" of the page line, and chooses a prompt's answer.
  */
 #ifndef ALADDIN_SLOT_GRID_H
 #define ALADDIN_SLOT_GRID_H
@@ -32,6 +33,7 @@ typedef struct {
                                            rows * (pic_h + 30) in 210 */
     const SlotCell *(*cell)(void *ctx, int index);   /* cell number `index` (page * cols * rows + place); never NULL */
     void *ctx;
+    int start_chooses;                  /* 1: Start chooses (and answers a prompt), Select goes back; 0: Start goes back */
 } SlotGridSpec;
 
 typedef enum { SLOT_NONE, SLOT_CHOSEN, SLOT_ANSWER, SLOT_BACK } SlotEvent;
