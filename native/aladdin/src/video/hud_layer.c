@@ -92,6 +92,7 @@ void hud_layer_init(void)
     for (unsigned i = 0; i < MAP_COLUMNS * TEXT_ROWS; i++)
         blank[i] = BLANK;
     hud_map = nshvc_map_create(MAP_COLUMNS, TEXT_ROWS);
+    between_map_made(hud_map, "map.hud", MAP_COLUMNS, TEXT_ROWS);
     between_map_write_snes(hud_map, 0, 0, MAP_COLUMNS, TEXT_ROWS, blank);
     between_keep(&level_view, sizeof level_view);       /* the picture's, kept as the update before's (between.h) */
 }

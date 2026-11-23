@@ -28,7 +28,12 @@ int runahead_ahead(void);
    inside one, and the ahead then ends with the step before; the caller returns at once */
 int runahead_guard(void);
 /* a static the steps change (registered once, before the first update; use RUNAHEAD_KEEP) */
-void runahead_keep(void *p, size_t bytes);
+void runahead_keep(void *p, size_t bytes, const char *name);
+/* the registered statics in order (the snapshot's, the same list) */
+unsigned runahead_keep_count(void);
+void runahead_keep_at(unsigned i, const char **name, void **p, size_t *bytes);
+/* whether the process runs with no window and no audio thread (--headless): the sound is read and put in on this thread */
+int runahead_headless(void);
 /* before a write of `bytes` at `p` that an ahead step may make: the bytes put back when the real world is */
 void runahead_log(void *p, size_t bytes);
 
@@ -36,6 +41,6 @@ void runahead_log(void *p, size_t bytes);
 #define RUNAHEAD_JOIN(a, b) RUNAHEAD_JOIN2(a, b)
 /* at file scope after the declaration of a static (or global) the steps change: saved and put back with the world */
 #define RUNAHEAD_KEEP(var) \
-    static void __attribute__((constructor)) RUNAHEAD_JOIN(runahead_keep_, __LINE__)(void) { runahead_keep(&(var), sizeof(var)); }
+    static void __attribute__((constructor)) RUNAHEAD_JOIN(runahead_keep_, __LINE__)(void) { runahead_keep(&(var), sizeof(var), #var); }
 
 #endif
