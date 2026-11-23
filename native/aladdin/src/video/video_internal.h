@@ -43,6 +43,7 @@ int32_t video_layer_y_sub(int layer);
 void video_scroll_check(float b, unsigned *checked, unsigned *wrong);   /* scroll.c: the developer's easing check */
 void video_sprites_check(float b, unsigned *checked, unsigned *wrong);  /* video.c: the same for the sprites */              /* scroll.c: the picture's layer positions kept with the update before's world (between.h) */
 void level_maps_keep(void);                /* level_maps.c: the same for the layers' maps */
+int video_title_view(void);                 /* 1 while the title is the screen */
 int video_level_view(void);                 /* 1 while a level is the screen: its view is the whole view, not the original's 256 x 224 */
 
 /* scroll.c: the layers' positions as the NMI sent them */

@@ -635,6 +635,8 @@ static void draw_layers(void)
         l.scroll_y_sub = (int16_t)video_layer_y_sub(i);
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
+        if (i == 0 && video_title_view())
+            l.wrap = 0;     /* the title's menu rows are BG1's text map (the title's mode-1 lines): drawn once at the original's frame, not repeated every 256 across the whole view (VIEW.md 6.5) */
         if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT) {
             l.scroll_x_sub = l.scroll_y_sub = 0;    /* the status line stays on the screen's pixels */
             hud_layer_set(&l, l.scroll_x);      /* the text layer in a level: the status line at the view's corners */
@@ -904,10 +906,12 @@ void video_draw(void)
            windows are moved below and in lines.c */
         scr.origin_x = view.dx;
         scr.origin_y = view.dy;
-        scr.show_left = view.dx;
-        scr.show_right = view.dx + VIEW_ORIGINAL_W;
-        scr.show_top = view.dy;
-        scr.show_bottom = view.dy + VIEW_ORIGINAL_H;
+        if (!video_title_view()) {      /* the title is not cut to the frame: what the engine draws round it shows (VIEW.md 6.5) */
+            scr.show_left = view.dx;
+            scr.show_right = view.dx + VIEW_ORIGINAL_W;
+            scr.show_top = view.dy;
+            scr.show_bottom = view.dy + VIEW_ORIGINAL_H;
+        }
     }
     if (view.square)        /* the picture at its own shape: square game pixels, fitted to the window and letterboxed if the window's shape is not its */
         scr.aspect = (float)scr.width / (float)scr.height;
