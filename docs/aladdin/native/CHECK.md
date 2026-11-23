@@ -465,6 +465,7 @@ bytes to FILE (with `ALADDIN_DEV_STATE_HASH=2` this finds which part differs).
   environment (the runahead, a view, a planted omission) to A and to B.
 - `native/checks/snapshot/pointers.sh`: the pointer members of every type the game state holds are the ones the snapshot writes as codes.
 - `python3 native/aladdin/tools/gen_code_table.py --check`: `actor/code_table.c` names every function a row of the kinds tables or an `ActorRunAs` names.
+- `native/checks/saves/exact.sh` with `EXACT_RUNAHEAD=1`: the six cases and the planted fault as with runahead off (SAVES.md, "With runahead on"). `native/checks/saves/crop_check.sh MACBIN [U]` (Metal build, headless): the crop a pause-menu save keeps against the picture of the saved state, runahead off and on: 0 of 6,912 pixels differ in both.
 
 ## The level select screen (2026-11-23, LEVELSELECT.md section 9)
 

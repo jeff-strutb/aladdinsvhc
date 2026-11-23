@@ -93,6 +93,27 @@ labels; wrap on page turns.
     | p1-1 at 5000, planted fault (the player's x left as it was before the load) | p3-0 mid-play | traces differ from the first update: caught |
   - a snapshot file is 612,086 bytes (the Genie screen) to 755,952 bytes (a level); the runahead session measured a save at 0.3 to 0.4 ms and a load at about 0.4 ms (2.9 ms in a window, where the save waits for the audio thread).
 - **Held buttons.** Loading through the screens swallows the buttons held at that moment until they are let go (as shutting the pause menu does), so a load made with Z held and a game state that holds Z differ for one press; the exactness runs choose an update where this is not so.
-- **Not run:** the picture read in a window (the screenshot's resample at a window scale that is not whole; with runahead on, the last picture drawn when the menu opens is the ahead world, one update past the saved state, so the crop may show the player one update later than the snapshot: not measured); the sound after a load, by ear; the exactness checks with runahead on in a window.
+- **Not run:** the picture read in a window (the screenshot's resample at a window scale that is not whole); the sound after a load, by ear; the exactness checks in a window (runahead on, headless, is below).
 - **Engine limits found.** `nshvc_save_write` reports no failure and removes the old file before renaming the new one; a crash between the two loses the slot, and a write that fails after the temporary opened is not seen (the file is then refused whole on the next read). An atomic rename and a result code in the engine would close it.
 - **Left unreached:** `game/password_screen.c` and its task entry stay in the tree, not deleted, so the task tables are not touched.
+
+## With runahead on (2026-11-23)
+
+**Analysis from the code, before any run.** `update` begins with `runahead_begin`, which puts the real world back when the last tick ran ahead
+(`live`: `between_restore` restores `g` and the kept parts, `restore_statics` the registered statics and the undo log). Everything that saves or
+loads comes after it in the same update (`DevSaves`, the pause menu's `menu_update`, the save screen), and a held update (the menu open) returns before
+`runahead_after`, so no ahead step runs while the menu is open and `live` is 0. So a save, by the menu or by `ALADDIN_DEV_SAVE_AT`, always sees the
+**real world** (the state after the last real step), not the ahead one. A load puts a snapshot in at such a point and ends its update without
+`runahead_after`: `live` is 0, so the next `runahead_begin` restores nothing over it (the pending `g_saved`, the undo log and the kept copies are
+rewritten by the next `between_save`/`save_statics`, after the next real step); the picture's tracks start at rest on the loaded world
+(FRAMERATE.md 10.9). Expected: the real world's trace after a load is the same as with runahead off.
+
+**Result.** `exact.sh` with `EXACT_RUNAHEAD=1` (A, the menu-save run and B all run ahead by 1; each A run reports 1,100 to 5,600 ticks ahead): the six cases are the same
+(600 updates each) and the planted fault is caught, as with it off.
+
+**The crop.** The picture read when the menu opens is not the saved state's: `between` shows the last ahead world eased with the real one, and the
+first held update leaves it showing "was" = the ahead world, "now" = the real one. Measured with `crop_check.sh` (Metal build, headless): taken at the open
+update, the crop of the saved state's picture differs by 902 of 6,912 pixels with runahead off (it was one update early: the world before the saved one)
+and 0 with it on. Now the picture is taken in the second update after the menu opened, when both of `between`'s worlds are the real one, and the menu's
+overlays are held back until then (two pictures, 33 ms), so the read has no menu over it: 0 of 6,912 pixels differ with runahead off and on (both
+taken at update 4722 for a menu opened at 4720). `ALADDIN_DEV_SAVE_AT`'s picture (a developer's tool) is read at once and is not exact.
