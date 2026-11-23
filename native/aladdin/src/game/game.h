@@ -95,6 +95,7 @@ int LevelSelect(void);                  /* 80:A05C: 1 when L or R was held with 
 #define MENU_MARK_CELLS 7
 extern const uint16_t menu_mark_cells[MENU_MARK_CELLS];  /* the mark's cells, words from its place */
 void MenuMarkErase(uint16_t place);     /* 81:EF15: place = the text map's word index */
+void TitleMenuLineShow(unsigned choice, int blanked);   /* the title menu's line of a choice drawn, or blanked */
 void TitleMenuBlink(void);              /* 81:EE55 */
 void TitleMenuCursor(void);             /* 81:EDA6, 81:EDA2 TitleMenuCursorLong */
 

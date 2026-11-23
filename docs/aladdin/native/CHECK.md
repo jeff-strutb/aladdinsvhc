@@ -255,7 +255,7 @@ Some screens are far into a play (the Genie, the continue screen, the level end,
 | `ALADDIN_DEV_SCREEN` | `genie`, `continue`, `level-end`, `story-card`, `ending-story`, `ending` (stages 4-$0B, 60 items), `credits` (the single stage with the credits' text, 10 items) |
 | `ALADDIN_DEV_PART`, `ALADDIN_DEV_STAGE` | the progress (`level-end` and `story-card` read the part; 6 is the last, which goes on to the ending's story) |
 | `ALADDIN_DEV_ITEMS` | the items counted (the ending's stages need 50 or more) |
-| `ALADDIN_DEV_CHEAT=1` | the options' cheat set from the start, for the title's level select |
+| `ALADDIN_DEV_CHEAT=1` | the cheat set from the start, for the title's level select (the options screen's cheat code is gone with the screen: DEPARTURES.md section 7). Every play by keys is run with it set |
 
 ```bash
 cd build/aladdin/native/linux && ALADDIN_DEV_SCREEN=genie ./aladdin --headless --updates 2500 --shots ../shots-genie
@@ -263,7 +263,7 @@ cd build/aladdin/native/linux && ALADDIN_DEV_SCREEN=genie ./aladdin --headless -
 
 Each screen waits for a button where the game does (the Genie for one to stop the wheel, the level end for a button after its pauses, the continue screen for the rope). Without the variables nothing changes.
 
-The level select by keys (the real way): enter the cheat on pad 2 at the options screen (`controller=1,BUTTONS` lines in the `--input` file: L, R, Start, Select, X, Y, A, B, one press each within 32 frames), leave the options, then at the title hold R and press Up (part) and Right (stage), then Game Start. `ALADDIN_DEV_CHEAT=1` skips the code.
+The level select by keys: with `ALADDIN_DEV_CHEAT=1` set, at the title hold R and press Up (part) and Right (stage), then Game Start (`native/checks/plays/select_input.py PART STAGE` writes the keys). Before 2026-11-23 the cheat was entered on pad 2 at the options screen (L, R, Start, Select, X, Y, A, B, one press each within 32 frames); the screen is gone, and `native/checks/plays/level_select_input.py` writes that old prefix, kept for `convert_prefix.py` and for the original ROM.
 
 ## The scripts that replay by input
 
@@ -346,7 +346,7 @@ Aim: for each registered kind (`native/aladdin/src/actor/kinds_*.c`), a recordin
 ## Plays by keys, start to a level's exit (the developer's player)
 
 `native/checks/plays/pPART-STAGE.txt` are `--input` files: the level select by keys, then the keys the developer's player (`system/dev_bot.c`)
-found. Replay: `native/checks/plays/run.sh FILE UPDATES [PICTURES_DIR [EVERY [FROM]]]`. Make one: `native/checks/plays/make.sh PART STAGE LAST`
+found. **The prefix (2026-11-23):** every play is run with `ALADDIN_DEV_CHEAT=1` and begins with `select_input.py`'s keys: Start at 2400, Down at 2700 and Up at 2715 (the moves keep the title's idle countdown from handing over to the demo, as the old prefix's visit to the options screen did), R held with Up and Right from 3700, Start at 3900; the level plays from update 3934 as it did, and the player's keys (from 4100) are unchanged. The plays were converted by `convert_prefix.py OLD_DIR NEW_DIR` (it refuses a file whose old prefix is not exactly `level_select_input.py`'s for the part and stage it selects), and proved by `prove_convert.sh` on the build before the menu changed: each original and its converted play, run to its last key + 600 with the developer traces (the player's line, every live actor with its own bytes, the video fields), have the same trace from update 3900 on. `same.sh`, `behind.sh`, `make.sh`, `run.sh` and `fill_shots.sh` set `ALADDIN_DEV_CHEAT=1` for runs with an input. Replay: `native/checks/plays/run.sh FILE UPDATES [PICTURES_DIR [EVERY [FROM]]]`. Make one: `native/checks/plays/make.sh PART STAGE LAST`
 with `ALADDIN_DEV_BOT_GE=10` (the archive search: it keeps for each place the shortest keys that got there and tries random keys from the
 places, until the level changes), `ALADDIN_DEV_BOT_SEG=6`, `_GE_ROUNDS`, `_GE_LEN`, `_GE_HURT`, `_GE_HEALTH`, `_GE_CELL`, `_GE_SHORT`, `_GE_STALL`
 (the depth-first helper), `_GOAL=boss`, or waypoints (`_WAY`, `native/checks/plays/ways.txt`). `ALADDIN_DEV_MAP`/`_PLACED` list a level's map and
@@ -362,7 +362,7 @@ player (x, y, health) or the actor list (kind, x, y) differs. The two games do n
 - `plays/lbox.sh DIR` builds `DIR/lbox`: the decomp's snesbox plus two script commands (`lbox.patch`; `tools/aladdin/snesbox` is not changed). `lstart BYTES` runs the original until
   the level's first logic frame is done (tick 1), however long the load took. `lhold KEYS BYTES` holds the keys until the tick has stepped once, one LOGIC frame, dumping the first
   BYTES of work RAM after every video frame (`dNNNNNN`, NNNNNN = the video frame).
-- `LH_FROM=3936 LH_DUMP=8192 python3 plays/to_box.py PLAY.txt OUT.box LAST 1 3900` makes that script (the options pokes and the level select as before, then `lstart`, then one `lhold` per
+- `LH_FROM=3936 LH_DUMP=8192 python3 plays/to_box.py PLAY.txt OUT.box LAST 1 3900` makes that script (the cheat poked at update 3180 and the level select as before; the converted plays' Down and Up at 2700 and 2715 are keys to the original's title menu, which has the same three lines, then `lstart`, then one `lhold` per
   native update from LH_FROM on). Without LH_FROM it makes the older one-video-frame-an-update script (then START_EARLIER must be calibrated by hand, and a lag frame shifts every
   later key by a frame: a difference that is the harness's, not the game's).
 - Native: `ALADDIN_DEV_ACTORS=1 ALADDIN_DEV_TRACE=1 ./aladdin --headless --updates N --input PLAY.txt > nat.txt` (through the CPU queue). Then
@@ -407,3 +407,13 @@ and ends the run (`native/aladdin/src/system/dev_mapdump.c`). The pictures are t
 palette as the load leaves them, one pixel a game pixel, colour 0 flat magenta; `sips -s format png` converts them. With
 `ALADDIN_DEV_MAPDUMP_HOLD=1` the run goes on with the loaded level held on the screen, so the engine's own picture of it can be
 written (`--shots`) and compared with `LL-start`. It changes nothing while the variable is unset.
+
+## The title menu without the options screen (2026-11-23, DEPARTURES.md section 7)
+
+Builds: the tree before the change (`HEAD` of main, with the options screen) and the tree after, each headless and as a Metal build (pictures). The plays are the converted ones (above), run with `ALADDIN_DEV_CHEAT=1` on both sides.
+
+- Conversion proof (`prove_convert.sh`, headless build before the change): all 35 plays (19 `p*`, `boss16-2hits`, 15 `end-*` with their `ALADDIN_DEV_AT`) have the same trace, from update 3900 on, as the original, update by update (the player's line, every live actor with its own bytes, the video fields): none desynced.
+- `native/checks/view/same.sh` old against new, 256x224: 21 runs, 0 differ. The trace holds no text-layer pictures, so the menu's new words do not show in it.
+- `native/checks/between/behind.sh` old against new (both on engine 6.10, so `BEHIND_SHIFT=0` and `ALADDIN_DEV_WHOLE_PIXELS=1` for both): every run differs in pictures that show the title menu, and in no other: the 20 plays at updates 2625 to 3925 (53 pictures of every 25th, the menu from its first frame to Start's fade; p5-2 three more, 25400 to 25450, the title after its ending shows the menu again), the boot run at 9125 to 9650 (22 pictures, the menu's one stay). 0 differ outside the menu.
+- Pictures of the menu with the mark on each line, and the press on SAVED GAMES and LEVEL SELECT (A at 3000 and Start at 3040 on LEVEL SELECT; A at 3260 and Start at 3300 on SAVED GAMES): the pictures every 2nd update from 2600 to 3418 and the task trace (`ALADDIN_TASK_TRACE=1`) are the same, byte for byte, as a run of the same keys without the presses (410 pictures; 22 trace lines, the last the menu's window effect at 2622); on the build before the change the same press at 3040 starts the fade (a task at 3040) and the options screen.
+

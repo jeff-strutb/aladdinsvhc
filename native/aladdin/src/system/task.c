@@ -177,7 +177,6 @@ static TaskRun task_entry_run(Task *t)
     case TASK_ENTRY_MODE7_ZOOM_IN:      return Mode7ZoomInTask(t);
     case TASK_ENTRY_WINDOW_EFFECT:      return WindowEffectTask(t);
     case TASK_ENTRY_STORY_TEXT:         return StoryTextTask(t);
-    case TASK_ENTRY_OPTIONS:            return OptionsTask(t);
     case TASK_ENTRY_PASSWORD:           return PasswordScreen(t);
     case TASK_ENTRY_GAME_START:         return GameStartTask(t);
     case TASK_ENTRY_DEMO:               return DemoTask(t);

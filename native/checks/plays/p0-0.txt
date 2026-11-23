@@ -2,34 +2,8 @@
 2402
 2700 key=28
 2703
-2715 key=28
+2715 key=26
 2718
-2730 key=0D
-2733
-3100 controller=1,10
-3103 controller=1,0
-3110 controller=1,20
-3113 controller=1,0
-3120 controller=1,80
-3123 controller=1,0
-3130 controller=1,40
-3133 controller=1,0
-3140 controller=1,8
-3143 controller=1,0
-3150 controller=1,4
-3153 controller=1,0
-3160 controller=1,2
-3163 controller=1,0
-3170 controller=1,1
-3173 controller=1,0
-3300 key=28
-3303
-3310 key=28
-3313
-3320 key=28
-3323
-3340 key=58
-3343
 3700 key=57
 3725
 3900 key=0D

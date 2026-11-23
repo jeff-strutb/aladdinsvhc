@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""level_select_input.py PART STAGE [OUT]: an --input file for the native game: Start at 2400 (skips the story), the title's
+"""The OLD prefix (the build before 2026-11-23; the options screen is gone: use select_input.py), kept for convert_prefix.py.
+level_select_input.py PART STAGE [OUT]: an --input file for the native game: Start at 2400 (skips the story), the title's
 Options (Down Down Start), the cheat code on pad 2 (controller=1: L R Start Select X Y A B, one press each within 32 frames),
 Exit (Down x3, A), then at the title R held with Up PART times and Right STAGE times (the level select, shown as PART+1-STAGE+1),
 then Start (Game Start) at update 3900. The level plays from about update 4000. Verified 2026-11-20: part 2 stage 1 = "3-2"."""

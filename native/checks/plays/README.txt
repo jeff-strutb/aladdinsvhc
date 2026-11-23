@@ -1,4 +1,6 @@
 Plays by keys (the developer's tools, system/dev_bot.c; docs/aladdin/native/CHECK.md).
+(2026-11-23: every play is run with ALADDIN_DEV_CHEAT=1; its prefix is select_input.py's, as CHECK.md says; level_select_input.py is the old one through the options screen,
+kept for convert_prefix.py; prove_convert.sh is the proof of the conversion.)
 pPART-STAGE.txt   --input files: the level select by keys, then keys found by the developer's player from the level's start.
 end-PART-STAGE.txt  the same, run WITH ALADDIN_DEV_AT=X,Y (the level's play starts there: its exit spot's x less 140, the spot's y;
                   see the list below), so the level's exit and the screens after it can be seen without playing all of it.
