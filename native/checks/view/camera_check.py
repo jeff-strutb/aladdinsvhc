@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """camera_check.py LOG FIRST LAST EVERY KIND: a picture's camera must be one the original can have (ALADDIN_DEV_CAMERA, ALADDIN_DEV_ACTORS and
 ALADDIN_DEV_TRACE=EVERY on the run, LOG its stderr). For every sample from update FIRST to LAST: the camera inside the scroll limits the game
-set (x <= limit x, y <= limit y, and between the lock's min and max when the lock is held), the player inside the layout and in the camera's window (x < limit x + 256,
+set (x <= limit x, y <= limit y, and between the lock's min and max when the lock is held), the player clear of solid collision (the level's collision map under his body box, printed as solid=), inside the layout and in the camera's window (x < limit x + 256,
 y < limit y + 224 + 32), and, unless KIND is room or arena, standing (his y the same at every sample: not falling). Prints the camera and player at
 the last sample and exits 0, or says what is impossible and exits 1."""
 import re, sys
@@ -16,7 +16,7 @@ for line in open(log, errors='replace'):
         continue
     if not first <= u <= last:
         continue
-    m = re.match(r'camera x=(\d+) y=(\d+) limit=(\d+),(\d+) min=(\d+) max=(\d+) held=(\d+),(\d+)', line)
+    m = re.match(r'camera x=(\d+) y=(\d+) limit=(\d+),(\d+) min=(\d+) max=(\d+) held=(\d+),(\d+) solid=(-?\d+)', line)
     if m:
         cams.append(tuple(map(int, m.groups())))
     m = re.match(r'actor 0 kind=\w+ state=\w+ x=(-?\d+) y=(-?\d+)', line)
@@ -26,7 +26,9 @@ if not cams or not players or len(cams) != len(players):
     print('no camera or player samples (%d, %d)' % (len(cams), len(players))); sys.exit(1)
 bad = []
 for i, (c, p) in enumerate(zip(cams, players)):
-    cx, cy, lx, ly, mn, mx, hx, hy = c
+    cx, cy, lx, ly, mn, mx, hx, hy, solid = c
+    if solid:
+        bad.append('sample %d: the player %d,%d overlaps solid collision (%d of 9 probe points in the ground)' % (i, p[0], p[1], solid))
     if cx > lx or cy > ly:
         bad.append('sample %d: camera %d,%d past the limits %d,%d' % (i, cx, cy, lx, ly))
     if hx and not (mn <= cx <= mx):
@@ -39,4 +41,4 @@ if kind not in ('room', 'arena') and len({p[1] for p in players}) > 1:
     bad.append('the player is not standing: y %s' % sorted({p[1] for p in players}))
 if bad:
     print('IMPOSSIBLE camera or place:', '; '.join(bad[:3])); sys.exit(1)
-print('camera %d,%d (limits %d,%d, lock %d..%d held %d,%d), player %d,%d' % (cams[-1][0], cams[-1][1], cams[-1][2], cams[-1][3], cams[-1][4], cams[-1][5], cams[-1][6], cams[-1][7], players[-1][0], players[-1][1]))
+print('camera %d,%d (limits %d,%d, lock %d..%d held %d,%d), player %d,%d, clear of solid collision' % (cams[-1][0], cams[-1][1], cams[-1][2], cams[-1][3], cams[-1][4], cams[-1][5], cams[-1][6], cams[-1][7], players[-1][0], players[-1][1]))

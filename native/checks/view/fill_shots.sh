@@ -1,7 +1,8 @@
 #!/bin/sh
 # fill_shots.sh APP OUTDIR VIEW [JOBS [PATTERN]]: pictures of every level at its start, at its right end, and at the rooms the
 # camera locks (levels 3, $0D, $10, $11's arena), at the view VIEW (WxH), for looking at the fill past a level's edges
-# Every picture's camera is checked (camera_check.py) to be one the original can have: inside the scroll limits and the lock, the player inside the layout and
+# The places of levels 1, 5, $0B and $0E's ends are from recorded plays (native/checks/view/play_places.py: where the play's player stood on firm ground,
+# at the furthest right); every place is also checked, as follows. Every picture's camera is checked (camera_check.py) to be one the original can have: inside the scroll limits and the lock, the player inside the layout and
 # standing; a place that fails is tried with the next of its list (x,y;x,y;...), and an entry with none that passes fails the run (exit 1), giving no picture.
 # (video/level_fill.c; only the map dump draws the level's four edges red, the game's pictures do not). APP is a window build's executable (macOS: aladdin.app/Contents/MacOS/aladdin); a window build
 # draws in real time, so JOBS runs go at once (default 8), each about 70 seconds. Run from the repository root.
@@ -18,7 +19,7 @@ cat > "$tmp/list.txt" <<'LIST'
 L00-start 0-0 - 4075 4060 20
 L00-end 0-0 3178,430 4075 4060 20
 L01-start 0-1 - 4075 4060 20
-L01-end 0-1 2496,680 4075 4060 20
+L01-end 0-1 2540,200 4075 4060 20
 L02-start 0-2 - 4075 4060 20
 L02-end 0-2 4264,392;4264,100 4075 4060 20
 L03-start 0-3 - 4075 4060 20
@@ -27,7 +28,7 @@ L03-room 0-3 1264,432,1024,256 4260 4120 40
 L04-start 1-0 - 4075 4060 20
 L04-end 1-0 3969,936 4075 4060 20
 L05-start 1-1 - 4075 4060 20
-L05-end 1-1 3776,376 4075 4060 20
+L05-end 1-1 3696,328 4075 4060 20
 L06-start 2-0 - 4075 4060 20
 L06-end 2-0 4544,128 4075 4060 20
 L07-start 2-1 - 4075 4060 20
@@ -39,14 +40,14 @@ L09-end 3-1 3946,136 4075 4060 20
 L0A-start 3-2 - 4075 4060 20
 L0A-end 3-2 3100,140 4075 4060 20
 L0B-start 4-0 - 4075 4060 20
-L0B-end 4-0 2496,424 4075 4060 20
+L0B-end 4-0 2537,392 4075 4060 20
 L0C-start 4-1 - 4075 4060 20
 L0C-end 4-1 2984,100;3008,136 4075 4060 20
 L0D-start 4-2 - 4075 4060 20
 L0D-end 4-2 2922,168 4075 4060 20
 L0D-room 4-2 2544,120 4260 4120 40
 L0E-start 5-0 - 4075 4060 20
-L0E-end 5-0 4032,360 4075 4060 20
+L0E-end 5-0 4074,232 4075 4060 20
 L0F-start 5-1 - 4075 4060 20
 L0F-end 5-1 2900,680;2900,100 4075 4060 20
 L10-start 5-2 - 4075 4060 20
