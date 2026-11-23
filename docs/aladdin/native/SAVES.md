@@ -16,7 +16,8 @@ PLAN.md decision 4 ("progress is passwords") is amended by this direction, which
 - Cell pitch 112 x 112: columns at x = 16, 128, 240 (gaps of 16); rows at y = 36 and 148 (picture 72 + caption 24 + 16 gap);
   a hint line at y = 262 ("B BACK   L R PAGE" or the prompt). Total height 270, inside 282.
 - Pad: directions move among cells; Left at column 0 or Right at column 2 turns the page (wrapping); L and R turn it too;
-  B or A chooses; Start, Escape or the Back item go back to where it was opened from. Keys as the pause menu's bindings;
+  B or A chooses; Start, Escape or the Back item go back to where it was opened from. On the title's SAVED GAMES (opened by Start,
+  as the title's menu confirms with it) Start chooses and answers a prompt as B and A do, and Select or Escape go back (Jeff, 2026-11-23). Keys as the pause menu's bindings;
   the pointer chooses what it is on and presses it; a click on the page line's arrows turns the page.
 - The prompts take the cell's place of the hint line and read as QUIT's: first press on a used slot shows `OVERWRITE?` / `LOAD?`
   choices; the choice chosen asks once more (`REALLY OVERWRITE`, `REALLY LOAD`), moving off or Back undoes the ask.
