@@ -516,6 +516,15 @@ static int16_t mode7_scaled(int16_t element, uint8_t scale)
     return (int16_t)(uint16_t)((uint32_t)product >> 8);
 }
 
+/* mode7_scaled with the scale in 256ths of its own (an eased scale, between.h): the same at a whole scale (scale_fx
+   256 times it), each negated first the same way */
+static int16_t mode7_scaled_fx(int16_t element, int32_t scale_fx)
+{
+    int64_t product = (int64_t)(int16_t)(uint16_t)(0u - (uint16_t)element) * (int16_t)(uint16_t)(0u - (uint32_t)scale_fx);
+
+    return (int16_t)(uint16_t)((uint64_t)product >> 16);
+}
+
 /* ---- the NMI's uploads ---- */
 
 /* how far the address steps after each word, from a queue record's step
@@ -672,6 +681,8 @@ static void draw_layers(void)
         l.scroll_y_sub = (int16_t)video_layer_y_sub(i);
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
+        if (i == 0 && video_title_view())
+            l.wrap = 0;     /* the title's menu rows are BG1's text map (the title's mode-1 lines): drawn once at the original's frame, not repeated every 256 across the whole view (VIEW.md 6.5) */
         if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT) {
             l.scroll_x_sub = l.scroll_y_sub = 0;    /* the status line stays on the screen's pixels */
             hud_layer_set(&l, l.scroll_x);      /* the text layer in a level: the status line at the view's corners */
@@ -837,12 +848,6 @@ void video_sprites_check(float b, unsigned *checked, unsigned *wrong)
     memcpy(shown_sprites, was, count * sizeof was[0]);
 }
 
-/* Mode 7's matrix eased as numbers (its turns are small steps an update) */
-static int16_t matrix_ease(int16_t was, int16_t now)
-{
-    return (int16_t)(was + between_ease((uint16_t)was, (uint16_t)now, 0, 16, 0x2000));
-}
-
 static void draw_mode7(void)
 {
     nshvc_mode7 m;
@@ -860,24 +865,29 @@ static void draw_mode7(void)
         m.c = g.m7_matrix[2];
         m.d = g.m7_matrix[3];
     }
-    if (between_easing() && g.mode7_how == n->mode7_how) {
-        if (g.mode7_how == 1) {
-            m.a = matrix_ease(m.a, mode7_scaled(n->m7_matrix[0], n->mode7_scale[0]));
-            m.b = matrix_ease(m.b, mode7_scaled(n->m7_matrix[1], n->mode7_scale[1]));
-            m.c = matrix_ease(m.c, mode7_scaled(n->m7_matrix[2], n->mode7_scale[2]));
-            m.d = matrix_ease(m.d, mode7_scaled(n->m7_matrix[3], n->mode7_scale[3]));
-        } else {
-            m.a = matrix_ease(m.a, n->m7_matrix[0]);
-            m.b = matrix_ease(m.b, n->m7_matrix[1]);
-            m.c = matrix_ease(m.c, n->m7_matrix[2]);
-            m.d = matrix_ease(m.d, n->m7_matrix[3]);
-        }
-    }
     m.centre_x = (int16_t)g.m7_centre_x;
     m.centre_y = (int16_t)g.m7_centre_y;
-    if (between_easing()) {
-        m.centre_x = matrix_ease(m.centre_x, (int16_t)n->m7_centre_x);
-        m.centre_y = matrix_ease(m.centre_y, (int16_t)n->m7_centre_y);
+    if (between_easing() && g.mode7_how == n->mode7_how) {
+        /* the matrix, centre and scales eased with their own steps (between.h): the Genie wheel's slowing turns,
+           the ending's spin-zoom's zoom */
+        int16_t e[4], centre[2];
+        int32_t scale[4];
+
+        if (between_mode7(e, centre, scale)) {
+            if (g.mode7_how == 1) {
+                m.a = mode7_scaled_fx(e[0], scale[0]);
+                m.b = mode7_scaled_fx(e[1], scale[1]);
+                m.c = mode7_scaled_fx(e[2], scale[2]);
+                m.d = mode7_scaled_fx(e[3], scale[3]);
+            } else {
+                m.a = e[0];
+                m.b = e[1];
+                m.c = e[2];
+                m.d = e[3];
+            }
+            m.centre_x = centre[0];
+            m.centre_y = centre[1];
+        }
     }
     m.scroll_x = (int16_t)video_layer_x(0);
     m.scroll_y = (int16_t)video_layer_y(0);
@@ -909,7 +919,12 @@ void video_draw(void)
     memset(&scr, 0, sizeof scr);
     scr.width = view.w;
     scr.height = view.h;
-    scr.brightness = g.brightness;
+    {
+        uint32_t b = between_brightness();     /* a fade's steps eased (between.h) */
+
+        scr.brightness = (uint8_t)(b >> 8);
+        scr.brightness_sub = (uint8_t)(b & 0xFF);
+    }
     scr.blank = g.blank;
     if (g.split_on) {
         /* the IRQ: the screen is dark above its line L and lit from row L (the interrupt is at the line's dot $98 and
@@ -937,10 +952,12 @@ void video_draw(void)
            windows are moved below and in lines.c */
         scr.origin_x = view.dx;
         scr.origin_y = view.dy;
-        scr.show_left = view.dx;
-        scr.show_right = view.dx + VIEW_ORIGINAL_W;
-        scr.show_top = view.dy;
-        scr.show_bottom = view.dy + VIEW_ORIGINAL_H;
+        if (!video_title_view()) {      /* the title is not cut to the frame: what the engine draws round it shows (VIEW.md 6.5) */
+            scr.show_left = view.dx;
+            scr.show_right = view.dx + VIEW_ORIGINAL_W;
+            scr.show_top = view.dy;
+            scr.show_bottom = view.dy + VIEW_ORIGINAL_H;
+        }
     }
     if (view.square)        /* the picture at its own shape: square game pixels, fitted to the window and letterboxed if the window's shape is not its */
         scr.aspect = (float)scr.width / (float)scr.height;
@@ -953,10 +970,15 @@ void video_draw(void)
 
     memset(&win, 0, sizeof win);
     /* the original's columns in the picture's (the engine's origin does not move windows; lines.c) */
-    win.w[0].left = video_window_left(g.window_edges[0]);
-    win.w[0].right = video_window_right(g.window_edges[1]);
-    win.w[1].left = video_window_left(g.window_edges[2]);
-    win.w[1].right = video_window_right(g.window_edges[3]);
+    {
+        uint8_t e[4];
+
+        video_window_edges(e);  /* eased with the windows' steps (lines.c) */
+        win.w[0].left = video_window_left(e[0]);
+        win.w[0].right = video_window_right(e[1]);
+        win.w[1].left = video_window_left(e[2]);
+        win.w[1].right = video_window_right(e[3]);
+    }
     for (int i = 0; i < 6; i++)
         win.layer_use[i] = video_window_use(g.window_use[i], g.window_logic[i]);
     for (int i = 0; i < 5; i++) {
@@ -993,7 +1015,8 @@ void video_draw(void)
 
     if (top && !video_level_view()) {
         nshvc_line(lit, NSHVC_LINE_BLANK, g.blank);
-        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS, g.brightness);
+        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS, (int32_t)(between_brightness() >> 8));
+        nshvc_line(lit, NSHVC_LINE_BRIGHTNESS_SUB, (int32_t)(between_brightness() & 0xFF));
     }
     video_lines_send(top);
 }

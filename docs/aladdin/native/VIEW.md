@@ -379,6 +379,39 @@ On still screens, effects keep the original's numbers inside the centred 256 x 2
 The title, the Genie wheel and the ending spin use Mode 7 on still screens. They are centred like the other still screens
 (6.1). The plane outside is transparent and shows black.
 
+### 6.5 The title's load-in uses the whole view (Jeff, 2026-11-23; written before it is built)
+
+**The direction.** Jeff: "fix main menu animation load in (aladdin logo and sfx) to properly be resolution agnostic. Right now they get cropped by their original 8x7 instead of using the screen space available to them." This departs from decision 4 (still screens centred at 256 x 224 with black round them) for the title alone; Jeff replaced decision 4 for the title screen only (2026-11-23), asked whether his title direction should replace it: "Yes, replace it"; and on the form, "extend, art edges black" (the conflict was put to him with the pictures `shots/title-loadin-before-*.png`). Decision 4 stands for every other still screen; none shares the title's code path (the flag below is set by `TitleTask` alone, so the opening story, the Genie wheel and the rest are drawn as before). Everything the cartridge's data holds shows; where it holds nothing the picture is black. No art is made or repeated. The Genie wheel, the ending spin and the other still screens stay as decision 4 has them.
+
+**How it meets that, in one line:** the title keeps the original's 256 x 224 as the frame its art and actors are placed in (centred, `origin` = (dx, dy)), and stops cutting the picture to that frame, so what the engine draws beyond it (the backdrop and its fixed colour, the brightness, Mode 7 outside the frame, the windows' ends) is shown.
+
+**What the pictures show (updates 2556 to 2699 of the boot run, Start at 2400, at 256, 288 and 512 wide, before).** At 288 and 512 the title is the 256 x 224 frame with black bars: the white flash, the fades and the zoom end at the frame's columns (dx to dx + 255); at 256 the zoomed logo is cut by the frame itself.
+
+**The cause, from the code.** `video_draw` (`video/video.c`, the branch for a screen that is not a level) sets `show_left = dx`, `show_right = dx + 256`, `show_top = dy`, `show_bottom = dy + 224`. The engine paints black outside that rectangle after everything else (`compose.c show_rects`, `picture.c:1223-1226`), so nothing outside the frame can show: not the fixed colour's white (colour maths reaches the backdrop, `g.blend_layers` $31/$21), not the fade's brightness, not the zoomed Mode 7 plane's parts beyond 256 columns. It is the only mechanism found that keeps the title to the frame:
+- The Mode 7 layer's extent is the 1,024-pixel plane (128 x 128 cells, `video.c` `mode7_cells`), `outside` transparent (`mode7_outside`, set by `Mode7ScreenSetup`): its extent is not the frame.
+- The title's menu and CAPCOM rows are not in the Mode 7 plane: the title's per-line effect (`window_effects.c`, target `LINE_MODE`, `lines.c video_lines_tile_mode`) puts the menu's lines in mode 1, where they are BG1's text map, a 32 x 32-tile map that wraps (`draw_layers`, `l.wrap = 1`): drawn across a view wider than 256 it repeats every 256 columns. (Found from the first build's picture, which showed the menu twice more at +-256; the analysis above had it in the plane, which was wrong.) It needs no cut at the frame; it needs `wrap` off, so the map is drawn once at the origin, where the frame is.
+- The window edges are the frame's columns plus dx and an edge at the frame's own edge goes to the picture's edge (`lines.c` `video_window_left/right`), as in a level.
+- Sprites (kinds $82 and $4A) are at the frame's coordinates plus dx (`video_draw`) and are not culled at 256 (`sprite_wrap` is not set).
+
+**The change.** A flag `title_view` (`hud_layer.c`, beside `level_view`), set by `TitleTask` after `LevelRamSetup` (which calls `DisplayDefaults` again: set before it, the flag was cleared before any picture was drawn, shown by a probe, removed) and cleared by `DisplayDefaults`, kept for the picture as the update before's (`between_keep`) and with the world (`RUNAHEAD_KEEP`). While it is set `video_draw` keeps the origin at (dx, dy) and sets no `show_*`, and `draw_layers` draws BG1 once (`wrap` 0). Nothing else changes. At 256 x 224, dx = dy = 0 and `show_*` covered the whole picture, so the pictures are the original's.
+
+**Expected pictures, in numbers** (view 512 x 224, dx = 128; 384: dx = 64; 288: dx = 16):
+- The flash (updates about 2556 to 2575, the fixed colour at white): every column 0 to W - 1 and line 0 to 223 are the flash's colour, where before only columns dx to dx + 255 were.
+- The fade in (brightness) and out (GAME START): the same, whole view.
+- The zoom ($D0 to $100): columns dx to dx + 255 equal the 256 x 224 picture at the same update (the central 256 x 224 of each picture is compared); beyond them the plane's parts the zoom brings in, and black where the plane has none (left of plane x 0: outside, transparent; right of x 255: tile 0 of the plane, black if that tile is empty, and checked).
+- Settled: the menu, CAPCOM and the logo at columns dx to dx + 255, centred, and columns 0 to dx - 1 and dx + 256 to W - 1 black.
+- The central 256 x 224 of every picture at every shape: identical to the 256 x 224 run's picture at the same update, but where the zoomed plane's own pixels reach into it from outside the frame (none: the frame's pixels are the same plane's).
+
+
+
+**As built (2026-11-23).** Exactly the change above, in `video/video.c` (`video_draw`'s still-screen branch: the four `show_*` set only while the title is not the screen; `draw_layers`: BG1's `wrap` 0 for the title), `video/hud_layer.c` (the flag), `video/screen_setup.c` (cleared), `game/title_task.c` (set after `LevelRamSetup`). Nothing changes for any other screen. Measured on the boot run with Start at 2400, a picture of every update (headless `--shots`):
+- 256 x 224: all 2,700 pictures of updates 0 to 2699 byte for byte as before the change.
+- Columns lit, updates 2540 to 2699, before then after: 288 wide 16 to 271, then 0 to 287; 384 wide 64 to 319, then 0 to 383; 512 wide 128 to 383, then 0 to 511; lines 0 to 223 each. 51 updates are lit at both edges of the view after, none before (the flash, the fades and the zoom).
+- The central 256 x 224 against the 256 x 224 run's picture at the same update, updates 2540 to 2699: 0 of 160 differ at 288 and at 384; at 512, 3 updates (2576, 2592, 2605) differ by 1 pixel each, the same 3 updates before the change (not explained; not from this change).
+- Later states at 512 (`shots/title-wide-*.png`; an 11,000-update run compared with 256's): the settled menu (updates 2600 to 3168: central picture equal, nothing lit outside the frame); the return to the title after the demo (4493 to 4912: the lamp, Abu, the smoke, the logo and the menu; central picture equal; Abu runs out to the view's edge); the return after the story (about 20,500 on, no 256 run to compare); the fade to black and the level's fade-in at GAME START (whole view). The demo and the levels are the level's view, as before.
+- Checks (the build against b91729e's, run under the lock): `same.sh` at 256 x 224, 21 runs, 0 differ; `behind.sh` (BEHIND_SHIFT=0, whole pixels), 21 pairs, all same; `wide.sh` at 384 x 224, 21 runs, 0 failed, 0 triggers past their limit.
+- Not checked: the Direct3D 12 and Vulkan builds; a window, and motion.
+
 ## 7. Capacity: the binding limit
 
 - **Records:** 28 in the main pool, shared by placed actors, children and shots (`state.h:239-241`). On static placements
@@ -437,7 +470,7 @@ Answered 2026-11-22:
   fixed number (engine API 6.8, built on the engine's `sprite-palettes` branch, not merged).
 - **2, wake distances measured from Aladdin:** the original's, not scaled (Jeff 2026-11-22: the game is the original's, the view a frame; enemies in the frame stay live but are not triggered past the original's distances).
 - **3:** no black: fill with matching art (section 5, analysis made, nothing built).
-- **4:** still screens centred, with black around (built).
+- **4:** still screens centred, with black around (built). **Replaced for the title screen only, 2026-11-23** (Jeff: "Yes, replace it"; section 6.5): the title's picture uses the whole view.
 - **5:** whole-level maps (built).
 - **The levels' dark top rows (8, 12 in level 2) are cropped** from the picture, not shown (built).
 - **6, the view's size:** the window's proportion (landscape: 216 shown lines and round(216 a) across; narrower: 256 across and round(256 / a) lines; both even, plus the level's crop rows).
