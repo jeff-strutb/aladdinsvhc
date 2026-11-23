@@ -159,7 +159,7 @@ static void draw_dynamic(uint32_t *px, int d)
             menu_art_text(px, d, m.v.choices[i], sel ? MENU_PAL_CREAM : MENU_PAL_GOLD, left + xs[i], CHOICE_Y, 1);
         }
     } else {
-        caption(px, d, 0, HINT_Y, MENU_W, m.spec.start_chooses ? "B CHOOSE   SELECT BACK" : "B CHOOSE   START BACK", MENU_PAL_GOLD);
+        caption(px, d, 0, HINT_Y, MENU_W, m.spec.start_chooses ? "B OR START CHOOSE   SELECT OR ESC BACK" : "B OR A CHOOSE   START OR ESC BACK", MENU_PAL_GOLD);
         if (m.spec.pages > 1) {
             sprintf(buf, "L  PAGE %d OF %d  R", page() + 1, m.spec.pages);
             caption(px, d, 0, PAGE_Y, MENU_W, buf, MENU_PAL_CREAM);
