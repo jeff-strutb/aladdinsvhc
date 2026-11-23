@@ -42,6 +42,7 @@ enum { O_TINT, O_PANEL, O_TAGS };       /* the engine's overlay numbers the menu
 static struct {
     int drawn;                          /* the overlays are set (menu_draw) */
     int open, requested, chosen, asking, quit_asked;
+    int capture_wait;                   /* updates until the save screen's picture is taken (see open_menu) */
     uint16_t last;                      /* pad 1's buttons at the last update */
     int pointer_down;
     float ox, oy, scale;                /* where the panel lies in the window, and its window pixels a game pixel */
@@ -119,7 +120,7 @@ void menu_draw(void)
         }
         return;
     }
-    if (!m.open) {
+    if (!m.open || m.capture_wait) {
         if (m.drawn) {
             overlays_off();
             m.drawn = 0;
@@ -230,7 +231,11 @@ static int move(int i, uint16_t dir)
 
 static void open_menu(void)
 {
-    save_screen_capture();              /* the picture the saves show: the game as it stands, before the menu is over it */
+    /* The saves' picture is the game as the real world stands. The picture on show when the menu opens is the runahead's ahead
+       world (one update on) eased with the real one; only after two held updates does `between` hold the real world in both
+       of its worlds, so the picture is taken in the second update after this one, and the menu's overlays are held back until
+       then (menu_draw), so the picture read has no menu over it. */
+    m.capture_wait = 2;
     m.open = 1;
     m.requested = 0;
     m.chosen = MENU_RESUME;
@@ -285,6 +290,10 @@ static int activate(int item, uint16_t held)
         settings_save();
         break;
     case MENU_SAVE:
+        if (m.capture_wait) {           /* chosen before the picture was taken (a click): taken now */
+            m.capture_wait = 0;
+            save_screen_capture();
+        }
         save_screen_open(SAVE_FROM_GAME);
         break;
     case MENU_FULL:
@@ -314,6 +323,8 @@ int menu_update(const nshvc_input *in)
     int esc = NSHVC_KEY_PRESSED(in, KEY_ESCAPE) != 0, click = 0, item = -1;
 
     m.last = raw;
+    if (m.open && m.capture_wait && --m.capture_wait == 0)
+        save_screen_capture();
     if (save_screen_requested() && !slot_grid_is_open())
         save_screen_open(SAVE_FROM_TITLE);
     if (slot_grid_is_open()) {          /* the save screen: the game is held; the menu stays as it was under it */

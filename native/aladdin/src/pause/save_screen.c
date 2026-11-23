@@ -49,7 +49,12 @@ static void fill_cells(void)
     }
 }
 
-void save_screen_capture(void) { saves_capture(&s.cap); }
+void save_screen_capture(void)
+{
+    if (getenv("ALADDIN_DEV_TRACE"))
+        fprintf(stderr, "save screen: picture taken at update %llu\n", (unsigned long long)nshvc_updates());
+    saves_capture(&s.cap);
+}
 void save_screen_request_title(void) { s.requested = 1; }
 int save_screen_requested(void) { return s.requested; }
 

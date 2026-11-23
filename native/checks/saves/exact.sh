@@ -8,6 +8,7 @@
 #   compared line for line apart from the update number. With "fault" the load leaves the player's x as it was: they must differ.
 #   EXACT_UI=1: B is a play of keys that opens SAVED GAMES on the title and loads slot 1 through the screen (its file's last line, at V, is the
 #   press that loads); no ALADDIN_DEV_LOAD_AT.
+#   EXACT_RUNAHEAD=N: runahead ahead steps for A, M and B (default 0).
 #   EXACT_MENU_SAVE=1: after A, the slot is saved again through the pause menu (Escape, Down, Z, Z: SAVE MENU, slot 1 empty or used) by keys
 #   (m.txt: A's keys before U, then those) and B loads that file.
 # Run from the repository root with BIN a build (headless or macOS) whose resources hold cart.dat. Exit 0: as asked.
@@ -53,7 +54,7 @@ norm() {   # file base: the trace lines of updates from base on, update numbers 
 run() {   # name input updates env...
   name=$1; input=$2; ups=$3; shift 3
   inarg=""; [ "$input" != "-" ] && inarg="--input $input"
-  (cd "$(dirname "$bin")" && env PORT_RESDIR="$res" PORT_SAVEDIR="$out/save" ALADDIN_DEV_CHEAT=1 ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 ALADDIN_RUNAHEAD=0 "$@" \
+  (cd "$(dirname "$bin")" && env PORT_RESDIR="$res" PORT_SAVEDIR="$out/save" ALADDIN_DEV_CHEAT=1 ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 ALADDIN_RUNAHEAD=${EXACT_RUNAHEAD:-0} ALADDIN_DEV_RUNAHEAD_REPORT=1 "$@" \
      "$bin" --headless --updates "$ups" $inarg > "$out/$name.out" 2> "$out/$name.err") &
   pid=$!; t=0
   while kill -0 $pid 2>/dev/null; do sleep 2; t=$((t + 2)); [ $t -gt 900 ] && { kill $pid; echo "$name: timed out"; return 1; }; done
