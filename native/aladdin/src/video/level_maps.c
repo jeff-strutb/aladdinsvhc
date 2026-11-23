@@ -94,6 +94,7 @@
 #include "data/data.h"
 #include "data/scroll_tables.h"
 #include "system/state.h"
+#include "video/between.h"
 #include "video/level_fill.h"
 #include "video/level_maps.h"
 #include "video/video.h"
@@ -317,7 +318,7 @@ static void build_layer(int layer, unsigned layout)
             at[w] = tile_word(metatiles, tile, 4);
             at[w + 1] = tile_word(metatiles, tile, 6);
         }
-    nshvc_map_write_snes(m->map, 0, 0, w, h, words);
+    between_map_write_snes(m->map, 0, 0, w, h, words);
     m->on = 1;
 }
 
@@ -337,6 +338,13 @@ void LevelMapsOff(void)
 void LevelMapsBackdropOff(void)
 {
     layer_map[1].on = 0;
+}
+
+/* the layers' maps as the picture reads them (which map, its margins, on), kept as the update before's world
+   (between.h); a map's words are not: the picture reads the engine's map, whose writes are held */
+void level_maps_keep(void)
+{
+    between_keep(layer_map, sizeof layer_map);
 }
 
 int level_maps_active(int layer)
@@ -366,7 +374,7 @@ void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile)
     m->words[ty * m->w + tx + 1] = quad[1];
     m->words[(ty + 1) * m->w + tx] = quad[2];
     m->words[(ty + 1) * m->w + tx + 1] = quad[3];
-    nshvc_map_write_snes(m->map, tx, ty, 2, 2, quad);
+    between_map_write_snes(m->map, tx, ty, 2, 2, quad);
 }
 
 /* the map word of layer `layer` at tile column c, row r of the level (any integers; the margins are the negative ones and
@@ -528,6 +536,6 @@ void LevelMapsPlace(unsigned place)
             at[m->w + 1] = tile_word(metatiles, tile, 6);
         }
     for (unsigned row = 0; row < METATILE_TILES * 2u; row++)
-        nshvc_map_write_snes(m->map, m->mx + cx * METATILE_TILES * 2u, m->my + cy * METATILE_TILES * 2u + row, METATILE_TILES * 2u, 1,
+        between_map_write_snes(m->map, m->mx + cx * METATILE_TILES * 2u, m->my + cy * METATILE_TILES * 2u + row, METATILE_TILES * 2u, 1,
                              &m->words[(m->my + cy * METATILE_TILES * 2u + row) * m->w + m->mx + cx * METATILE_TILES * 2u]);
 }

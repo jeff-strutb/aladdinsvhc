@@ -31,6 +31,13 @@ void hud_layer_init(void);                  /* from video_init */
 void hud_layer_write(unsigned x, unsigned y, unsigned n, const uint16_t *words);   /* n cells of the text map's row y from column x on */
 void hud_layer_set(nshvc_layer *l, int32_t scroll_x);   /* BG3 `l` drawn in a level's view, its corners' lines cut */
 int32_t video_cropped_rows(void);          /* the split's dark rows cropped from the picture's top; 0 without the split */
+void video_scroll_ease(void);              /* scroll.c: the positions eased while a picture draws between updates */
+void video_scroll_keep(void);
+int32_t video_layer_x_sub(int layer);     /* scroll.c: the eased places' fractions (256ths) while a picture draws */
+int32_t video_layer_y_sub(int layer);
+void video_scroll_check(float b, unsigned *checked, unsigned *wrong);   /* scroll.c: the developer's easing check */
+void video_sprites_check(float b, unsigned *checked, unsigned *wrong);  /* video.c: the same for the sprites */              /* scroll.c: the picture's layer positions kept with the update before's world (between.h) */
+void level_maps_keep(void);                /* level_maps.c: the same for the layers' maps */
 int video_level_view(void);                 /* 1 while a level is the screen: its view is the whole view, not the original's 256 x 224 */
 
 /* scroll.c: the layers' positions as the NMI sent them */

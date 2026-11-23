@@ -50,6 +50,7 @@
 
 void video_init(void);
 void video_vblank(void);
+void video_update_end(void);           /* at each update's end: Mode 7's changed art, held with the update's writes (between.h) */
 void video_draw(void);
 
 /* ---- writes by video address (the one numeric part) ---- */
@@ -109,7 +110,10 @@ void TileBlockQueue(uint16_t to, uint16_t t);       /* 81:A287 */
 /* ---- sprites (video/oam.c) ---- */
 
 void OamInit(void);                        /* at init, after view_init: the sprite list, sized for the view */
-const nshvc_sprite *OamSprites(void);      /* the frame's sprites, as far as g.sprite_count */
+const nshvc_sprite *OamSprites(void);
+const uint8_t *OamSpriteOwners(void);
+const int16_t (*OamSpriteAnchors(void))[2];
+const int32_t (*OamSpriteAnchorsFx(void))[2];   /* the same in 256ths of a pixel */  /* each sprite's actor's screen place as drawn (the picture's easing) */     /* each sprite's actor record, as far as g.sprite_count (the picture's easing) */      /* the frame's sprites, as far as g.sprite_count */
 uint32_t OamSpriteCapacity(void);          /* how many the list holds */
 void OamBufferClear(void);                  /* 81:95D5 */
 void OamBuildBegin(void);                   /* 81:9230 */

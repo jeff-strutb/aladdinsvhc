@@ -21,6 +21,9 @@ static uint32_t sprites_free;
 
 /* the frame's sprites, as the engine's, sized at init for the view */
 static nshvc_sprite *list;
+static uint8_t *owner;                  /* each sprite's actor record (its place in g.actors), for the picture's easing */
+static int16_t (*anchor)[2];            /* each sprite's actor's place on the screen as it was drawn (draw_actor's at_x, at_y) */
+static int32_t (*anchor_fx)[2];         /* the same in 256ths: the actor's 16.8 place less the origin's (the camera's 24.8 and the shift) */
 static uint32_t budget;
 
 /*
@@ -39,8 +42,14 @@ void OamInit(void)
 {
     budget = sprite_budget();
     free(list);                         /* the view changed at a level's load or a still screen: the list is sized again */
+    free(owner);
+    free(anchor);
+    free(anchor_fx);
     list = calloc(budget, sizeof *list);
-    if (!list) {
+    owner = calloc(budget, sizeof *owner);
+    anchor = calloc(budget, sizeof *anchor);
+    anchor_fx = calloc(budget, sizeof *anchor_fx);
+    if (!list || !owner || !anchor || !anchor_fx) {
         fprintf(stderr, "oam: no memory for %u sprites\n", (unsigned)budget);
         exit(1);
     }
@@ -49,6 +58,21 @@ void OamInit(void)
 const nshvc_sprite *OamSprites(void)
 {
     return list;
+}
+
+const uint8_t *OamSpriteOwners(void)
+{
+    return owner;
+}
+
+const int16_t (*OamSpriteAnchors(void))[2]
+{
+    return (const int16_t (*)[2])anchor;
+}
+
+const int32_t (*OamSpriteAnchorsFx(void))[2]
+{
+    return (const int32_t (*)[2])anchor_fx;
 }
 
 uint32_t OamSpriteCapacity(void)
@@ -82,6 +106,15 @@ void OamBuildBegin(void)
 
 /* the point of the level at the screen's top left, for sprites */
 static int16_t origin_x, origin_y;
+static uint32_t origin_fx, origin_fy;   /* the same in 256ths (24 bits), for the picture's places between pixels */
+
+/* a 24-bit difference of two 16.8 places, signed */
+static int32_t fx_diff(uint32_t a, uint32_t b)
+{
+    uint32_t d = (a - b) & 0xFFFFFFu;
+
+    return d & 0x800000u ? (int32_t)d - 0x1000000 : (int32_t)d;
+}
 
 /*
  * @routine 81:9309 OamDrawActor
@@ -135,6 +168,11 @@ static void draw_actor(const Actor *a)
         if (mirrored)
             word ^= 0x4000;
         word |= palette;
+        owner[g.sprite_count] = (uint8_t)(a - g.actors);
+        anchor[g.sprite_count][0] = at_x;
+        anchor[g.sprite_count][1] = at_y;
+        anchor_fx[g.sprite_count][0] = fx_diff(a->x, origin_fx);
+        anchor_fx[g.sprite_count][1] = fx_diff(a->y, origin_fy);
         s = &list[g.sprite_count++];
         memset(s, 0, sizeof *s);
         s->x = x;
@@ -181,6 +219,8 @@ void OamDrawActors(void)
                          (g.sprites_take_bg2_shift ? g.bg2_x_shift : g.bg1_x_shift));
     origin_y = (int16_t)((uint16_t)(g.layers[0].scroll_y >> 8) +
                          (g.sprites_take_bg2_shift ? g.bg2_y_shift : g.layer_offset_y));
+    origin_fx = (g.layers[0].scroll_x + ((uint32_t)(g.sprites_take_bg2_shift ? g.bg2_x_shift : g.bg1_x_shift) << 8)) & 0xFFFFFFu;
+    origin_fy = (g.layers[0].scroll_y + ((uint32_t)(g.sprites_take_bg2_shift ? g.bg2_y_shift : g.layer_offset_y) << 8)) & 0xFFFFFFu;
     draw_list(0);
     draw_list(1);
     if (player->state && (player->anim_flags & 0x08))

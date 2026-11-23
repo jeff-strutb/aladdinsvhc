@@ -11,6 +11,7 @@
 #include "nshvc/nshvc.h"
 #include "data/video_tables.h"
 #include "system/state.h"
+#include "video/between.h"
 #include "video/level_maps.h"
 #include "video/video_internal.h"
 #include "video/view.h"
@@ -40,9 +41,12 @@ static const uint8_t line_bytes[LINE_TARGETS] = {
     [LINE_WINDOW_USE_BG34] = 1,
 };
 
+/* the state the tables are read from: g, or the newest update's while a picture eases towards it (between.h) */
+static const GameState *src = &g;
+
 static uint8_t data_at(uint32_t at)
 {
-    return at < LINE_DATA_SIZE ? g.line_data[at] : 0;
+    return at < LINE_DATA_SIZE ? src->line_data[at] : 0;
 }
 
 #define LINE_DATA_AT 0xF400u        /* where g.line_data starts in the original's bank $7E */
@@ -60,7 +64,7 @@ static uint8_t pointed_byte(uint32_t address)
     if (address >= LINE_DATA_AT)
         return data_at(address - LINE_DATA_AT);
     if (address >= TEXT_BAND_VALUES_AT && address < TEXT_BAND_VALUES_AT + sizeof g.text_band_values)
-        return g.text_band_values[address - TEXT_BAND_VALUES_AT];
+        return src->text_band_values[address - TEXT_BAND_VALUES_AT];
     return 0;
 }
 
@@ -119,14 +123,68 @@ static void send(nshvc_line_field field, const int32_t *values, const uint8_t se
         nshvc_lines(first, LINES - first, field, values + first);
 }
 
+/* A line's value eased towards the newest update's (between.h): the lanes of a target that are places (a layer's
+   scroll, 16 bits; a window's edges, a byte each; Mode 7's A, 16 bits), each the shorter way round and only within
+   `far` (a jump is shown where it was). Other targets are not eased: they are switches, modes and colours. */
+static uint32_t line_ease(uint8_t target, uint32_t was, uint32_t now)
+{
+    switch (target) {
+    case LINE_BG1_Y:
+    case LINE_BG2_X:
+    case LINE_BG3_Y:
+        return (uint16_t)(was + (uint32_t)between_ease(was & 0xFFFF, now & 0xFFFF, 0, 16, 64));
+    case LINE_M7_A:
+        return (uint16_t)(was + (uint32_t)between_ease(was & 0xFFFF, now & 0xFFFF, 0, 16, 0x2000));
+    case LINE_WINDOW1:
+    case LINE_WINDOW2: {
+        uint32_t l = (uint8_t)(was + (uint32_t)between_ease(was & 0xFF, now & 0xFF, 0, 8, 64));
+        uint32_t r = (uint8_t)((was >> 8) + (uint32_t)between_ease(was >> 8 & 0xFF, now >> 8 & 0xFF, 0, 8, 64));
+
+        return l | r << 8;
+    }
+    default:
+        return was;
+    }
+}
+
+/* the fraction of a layer's per-line scroll eased between updates (engine 6.10): 256ths; 0 where not eased */
+static int32_t line_sub[LINES];
+
 static void send_channel(const LineChannel *c, uint32_t top)
 {
-    static uint32_t value[LINES];
+    static uint32_t value[LINES], value_now[LINES];
     static int32_t field[LINES];
-    uint8_t set[LINES];
+    uint8_t set[LINES], set_now[LINES];
+    int scroll = c->target == LINE_BG1_Y || c->target == LINE_BG2_X || c->target == LINE_BG3_Y;
 
     memset(set, 0, sizeof set);
+    memset(line_sub, 0, sizeof line_sub);
     channel_values(c, top, value, set);
+    if (between_easing()) {
+        /* the same channel at the newest update, read from its state, when it is the same effect there */
+        const GameState *n = between_now();
+        const LineChannel *cn = &n->line_channel[c - g.line_channel];
+
+        if ((n->line_effects_on >> (c - g.line_channel) & 1) && cn->target == c->target && cn->direct == c->direct &&
+            !cn->cart.at == !c->cart.at) {
+            memset(set_now, 0, sizeof set_now);
+            src = n;
+            channel_values(cn, top, value_now, set_now);
+            src = &g;
+            for (int i = 0; i < LINES; i++)
+                if (set[i] && set_now[i]) {
+                    if (scroll && between_fractions()) {
+                        /* a whole scroll at each update, eased in 256ths: its whole pixels and its fraction */
+                        int64_t fx = between_ease_fx((int64_t)(value[i] & 0xFFFF) << 8, (int64_t)(value_now[i] & 0xFFFF) << 8, 24, 64 << 8);
+
+                        line_sub[i] = (int32_t)(fx & 0xFF);
+                        value[i] = (uint32_t)(fx >> 8) & 0xFFFF;
+                    } else {
+                        value[i] = line_ease(c->target, value[i], value_now[i]);
+                    }
+                }
+        }
+    }
     switch (c->target) {
     case LINE_TM:
     case LINE_TS:
@@ -182,6 +240,10 @@ static void send_channel(const LineChannel *c, uint32_t top)
         send(c->target == LINE_BG1_Y ? NSHVC_LINE_SCROLL_Y + 0 : c->target == LINE_BG2_X ? NSHVC_LINE_SCROLL_X + 1
                                                                                          : NSHVC_LINE_SCROLL_Y + 2,
              field, set);
+        if (between_fractions())        /* the eased lines' fractions, and 0 on the lines not eased (engine 6.10) */
+            send(c->target == LINE_BG1_Y ? NSHVC_LINE_SCROLL_Y_SUB + 0 : c->target == LINE_BG2_X ? NSHVC_LINE_SCROLL_X_SUB + 1
+                                                                                             : NSHVC_LINE_SCROLL_Y_SUB + 2,
+                 line_sub, set);
         break;
     case LINE_FIXED: {
         /* each write sets the channels its bits 5-7 name (red, green, blue)

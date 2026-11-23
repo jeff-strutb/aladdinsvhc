@@ -1,10 +1,15 @@
 /*
  * scroll.c: the layers' positions as the NMI sends them to the picture.
  */
+#include <stdio.h>
+#include <string.h>
+
 #include "system/state.h"
+#include "video/between.h"
 #include "video/video_internal.h"
 
 static uint16_t layer_x[3], layer_y[3];
+static int16_t sub_x[3], sub_y[3];      /* while a picture draws between updates: the eased places' fractions, in 256ths */
 
 /* a position's pixels: the middle two bytes of its 24.8 */
 static uint16_t pixels(uint32_t position)
@@ -35,6 +40,78 @@ void video_scroll_latch(void)
     layer_y[1] = (uint16_t)(pixels(g.bg_y[1]) + g.bg2_y_shift);
     layer_x[2] = pixels(g.bg_x[2]);
     layer_y[2] = pixels(g.bg_y[2]);
+}
+
+/* the positions sent are the picture's: kept as the update before's world with the rest (between.h) */
+void video_scroll_keep(void)
+{
+    between_keep(layer_x, sizeof layer_x);
+    between_keep(layer_y, sizeof layer_y);
+}
+
+/* while a picture draws between updates (between.h): the positions sent eased towards the newest, by the game's
+   24.8 places; BG2's x not while it is held; a layer that jumped further than 64 is shown where it was */
+void video_scroll_ease(void)
+{
+    const GameState *n = between_now();
+    int fractions = between_fractions();
+
+    for (int i = 0; i < 3; i++) {
+        sub_x[i] = sub_y[i] = 0;
+        if (i != 1 || (!g.bg2_x_held && !n->bg2_x_held)) {
+            layer_x[i] = (uint16_t)(layer_x[i] + between_ease(g.bg_x[i], n->bg_x[i], 8, 24, 64));
+            if (fractions)
+                sub_x[i] = (int16_t)(between_ease_fx(g.bg_x[i], n->bg_x[i], 24, 64 << 8) & 0xFF);
+        }
+        layer_y[i] = (uint16_t)(layer_y[i] + between_ease(g.bg_y[i], n->bg_y[i], 8, 24, 64));
+        if (fractions)
+            sub_y[i] = (int16_t)(between_ease_fx(g.bg_y[i], n->bg_y[i], 24, 64 << 8) & 0xFF);
+    }
+}
+
+/* the eased place's fraction of layer `layer`, in 256ths (0 but while a picture draws between updates) */
+int32_t video_layer_x_sub(int layer)
+{
+    return between_easing() ? sub_x[layer] : 0;
+}
+
+int32_t video_layer_y_sub(int layer)
+{
+    return between_easing() ? sub_y[layer] : 0;
+}
+
+/* the developer's check (between.c): how many of the eased positions differ from the newest update's (at between 1
+   they must not, but for a layer that jumped) or lie outside the update before's and the newest's (at any between) */
+void video_scroll_check(float b, unsigned *checked, unsigned *wrong)
+{
+    const uint16_t *nx = between_now_of(layer_x), *ny = between_now_of(layer_y);
+    uint16_t wx[3], wy[3];
+
+    memcpy(wx, layer_x, sizeof wx);
+    memcpy(wy, layer_y, sizeof wy);
+    video_scroll_ease();
+    for (int i = 0; i < 3; i++) {
+        const uint16_t was[2] = { wx[i], wy[i] }, now[2] = { nx[i], ny[i] }, got[2] = { layer_x[i], layer_y[i] };
+
+        for (int k = 0; k < 2; k++) {
+            int32_t d = (int16_t)(uint16_t)(now[k] - was[k]), e = (int16_t)(uint16_t)(got[k] - was[k]);
+
+            if (d > 64 || d < -64 || (k == 0 && i == 1 && (g.bg2_x_held || between_now()->bg2_x_held)))
+                continue;               /* a jump, or BG2 held: not eased */
+            (*checked)++;
+            if (b >= 1.0f ? e != d : (d >= 0 ? e < 0 || e > d : e > 0 || e < d)) {
+                static int shown;
+
+                (*wrong)++;
+                if (shown++ < 12)
+                    fprintf(stderr, "between check: layer %d %c at %.1f: was %u now %u eased %u (bg %06X -> %06X)\n", i, "xy"[k],
+                            (double)b, was[k], now[k], got[k], (unsigned)(k ? g.bg_y[i] : g.bg_x[i]),
+                            (unsigned)(k ? between_now()->bg_y[i] : between_now()->bg_x[i]));
+            }
+        }
+    }
+    memcpy(layer_x, wx, sizeof wx);
+    memcpy(layer_y, wy, sizeof wy);
 }
 
 int32_t video_layer_x(int layer)

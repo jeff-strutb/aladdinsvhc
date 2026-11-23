@@ -11,6 +11,7 @@
 #include "data/video_tables.h"
 #include "system/state.h"
 #include "system/system.h"
+#include "video/between.h"
 #include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
@@ -34,22 +35,48 @@ static uint8_t mode7_outside;       /* outside the plane transparent (Mode7Scree
 /* the sprites the picture shows: the game's list as the last frame that
    sent it left it (the original's sprite table keeps its last upload) */
 static nshvc_sprite *shown_sprites;
+static uint8_t *shown_owner;        /* each shown sprite's actor record (oam.c), for the easing between updates */
+static int16_t (*shown_anchor)[2];  /* and its actor's screen place as drawn */
+static int32_t (*shown_anchor_fx)[2];   /* the same in 256ths, from the actor's 16.8 place (places between pixels) */
 static uint32_t shown_count;
 static nshvc_sprite *moved_sprites;  /* the shown sprites moved by the crop or a still screen's origin (video_draw) */
+static uint32_t lists_cap;          /* the picture's two lists' room: the most any view has needed (between.c keeps the
+                                       shown list of the update before, which may be a larger view's) */
 
 /* the lists of sprites that are sized for the view: the game's (OamInit) and the picture's two */
 static void sprite_lists_make(void)
 {
+    nshvc_sprite *was = shown_sprites;
+
     OamInit();
-    free(shown_sprites);
-    free(moved_sprites);
-    shown_sprites = calloc(OamSpriteCapacity(), sizeof *shown_sprites);
-    moved_sprites = calloc(OamSpriteCapacity(), sizeof *moved_sprites);
-    shown_count = 0;
-    if (!shown_sprites || !moved_sprites) {
-        fprintf(stderr, "video: no memory for the shown sprites\n");
-        exit(1);
+    if (OamSpriteCapacity() > lists_cap) {
+        lists_cap = OamSpriteCapacity();
+        uint8_t *was_owner = shown_owner;
+        int16_t (*was_anchor)[2] = shown_anchor;
+        int32_t (*was_anchor_fx)[2] = shown_anchor_fx;
+
+        free(moved_sprites);
+        shown_sprites = realloc(shown_sprites, lists_cap * sizeof *shown_sprites);
+        shown_owner = realloc(shown_owner, lists_cap * sizeof *shown_owner);
+        shown_anchor = realloc(shown_anchor, lists_cap * sizeof *shown_anchor);
+        shown_anchor_fx = realloc(shown_anchor_fx, lists_cap * sizeof *shown_anchor_fx);
+        moved_sprites = calloc(lists_cap, sizeof *moved_sprites);
+        if (!shown_sprites || !shown_owner || !shown_anchor || !shown_anchor_fx || !moved_sprites) {
+            fprintf(stderr, "video: no memory for the shown sprites\n");
+            exit(1);
+        }
+        if (was) {
+            between_rekeep(was, shown_sprites, lists_cap * sizeof *shown_sprites);
+            between_rekeep(was_owner, shown_owner, lists_cap * sizeof *shown_owner);
+            between_rekeep(was_anchor, shown_anchor, lists_cap * sizeof *shown_anchor);
+            between_rekeep(was_anchor_fx, shown_anchor_fx, lists_cap * sizeof *shown_anchor_fx);
+        }
     }
+    memset(shown_sprites, 0, lists_cap * sizeof *shown_sprites);
+    memset(shown_owner, 0, lists_cap * sizeof *shown_owner);
+    memset(shown_anchor, 0, lists_cap * sizeof *shown_anchor);
+    memset(shown_anchor_fx, 0, lists_cap * sizeof *shown_anchor_fx);
+    shown_count = 0;
 }
 
 /*
@@ -99,6 +126,17 @@ void video_init(void)
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
+    /* what the picture reads that an update changes, kept as the update before's world (between.h) */
+    between_keep(shown_sprites, lists_cap * sizeof *shown_sprites);
+    between_keep(shown_owner, lists_cap * sizeof *shown_owner);
+    between_keep(shown_anchor, lists_cap * sizeof *shown_anchor);
+    between_keep(shown_anchor_fx, lists_cap * sizeof *shown_anchor_fx);
+    between_keep(&shown_count, sizeof shown_count);
+    between_keep(&mode7_up, sizeof mode7_up);
+    between_keep(&mode7_outside, sizeof mode7_outside);
+    between_keep(&view, sizeof view);
+    video_scroll_keep();
+    level_maps_keep();
 }
 
 nshvc_tiles video_slot_tiles(void)
@@ -146,7 +184,7 @@ static void tiles_part(nshvc_tiles t, int32_t base, uint32_t size, uint32_t firs
             bytes[2 * i] = (uint8_t)w[i];
             bytes[2 * i + 1] = (uint8_t)(w[i] >> 8);
         }
-        nshvc_tiles_write(t, at / size, bytes, run / size, NSHVC_TILES_PLANAR);
+        between_tiles_write(t, at / size, bytes, run / size, NSHVC_TILES_PLANAR, 2u * run);
         at += run;
         w += run;
         n -= run;
@@ -163,7 +201,7 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
 
         if (run > n)
             run = n;
-        nshvc_map_write_snes(m, (page & 1) * 32 + x, y + (rows == 64 ? (page >> 1) * 32 : 0), run, 1, w);
+        between_map_write_snes(m, (page & 1) * 32 + x, y + (rows == 64 ? (page >> 1) * 32 : 0), run, 1, w);
         first += run;
         w += run;
         n -= run;
@@ -173,7 +211,7 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
 /* a play field or backdrop's video map (64 x 32) written whole, from its 64 x 32 words row by row (LevelMapsFreeze) */
 void video_map_write(VideoMap map, const uint16_t *words)
 {
-    nshvc_map_write_snes(maps[map], 0, 0, 64, 32, words);
+    between_map_write_snes(maps[map], 0, 0, 64, 32, words);
 }
 
 /* cells [first, first + n) of the text map (row by row, 32 a row) to the map a level draws its text layer from */
@@ -430,6 +468,9 @@ void video_vblank(void)
     video_scroll_latch();
     if (g.frame_ready) {
         memcpy(shown_sprites, OamSprites(), g.sprite_count * sizeof shown_sprites[0]);
+        memcpy(shown_owner, OamSpriteOwners(), g.sprite_count * sizeof shown_owner[0]);
+        memcpy(shown_anchor, OamSpriteAnchors(), g.sprite_count * sizeof shown_anchor[0]);
+        memcpy(shown_anchor_fx, OamSpriteAnchorsFx(), g.sprite_count * sizeof shown_anchor_fx[0]);
         shown_count = g.sprite_count;
         if (g.vram_queue_pending) {
             for (int i = 0; i < g.vram_queue_count; i++) {
@@ -462,9 +503,9 @@ void video_vblank(void)
     VramUploadByNumber();
     if (g.palette_upload) {
         g.palette_upload = 0;
-        nshvc_palette_write(0, 256, g.palette);
+        between_palette_write(0, 256, g.palette);
         if (slots_count() > SLOTS_STD)
-            nshvc_palette_write(256, 16u * (slots_count() - SLOTS_STD), g.palette + 256);
+            between_palette_write(256, 16u * (slots_count() - SLOTS_STD), g.palette + 256);
     }
     g.uploads_held = 0;                 /* the NMI clears it each frame */
     /* the NMI points channels 4-7 that are on at their tables' places */
@@ -555,20 +596,24 @@ static void draw_layers(void)
         }
         if (i < 2 && video_level_view())
             l.scroll_x -= view.dx;      /* the original's screen is dx across in the view (video_draw) */
+        l.scroll_x_sub = (int16_t)video_layer_x_sub(i);     /* between updates: the eased place's fraction (6.10) */
+        l.scroll_y_sub = (int16_t)video_layer_y_sub(i);
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
         l.wrap = 1;
-        if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT)
+        if (i == 2 && video_level_view() && g.bg_map[2] == VIDEO_MAP_TEXT) {
+            l.scroll_x_sub = l.scroll_y_sub = 0;    /* the status line stays on the screen's pixels */
             hud_layer_set(&l, l.scroll_x);      /* the text layer in a level: the status line at the view's corners */
+        }
         nshvc_layer_set((uint8_t)i, &l);
     }
 }
 
-static void draw_mode7(void)
+/* Mode 7's arrays to its objects when an update changed them, at the update's end: held to the next update with the
+   update's other writes (between.h), so a picture's Mode 7 art is the update before's as the rest */
+void video_update_end(void)
 {
-    nshvc_mode7 m;
-
     if (mode7_pixels_changed) {
-        nshvc_tiles_write(mode7_tiles, 0, mode7_pixels, 256, NSHVC_TILES_MODE7);
+        between_tiles_write(mode7_tiles, 0, mode7_pixels, 256, NSHVC_TILES_MODE7, sizeof mode7_pixels);
         mode7_pixels_changed = 0;
     }
     if (mode7_cells_changed) {
@@ -576,9 +621,161 @@ static void draw_mode7(void)
 
         for (int i = 0; i < 128 * 128; i++)
             cells[i].tile = mode7_cells[i];
-        nshvc_map_write(mode7_map, 0, 0, 128, 128, cells);
+        between_map_write(mode7_map, 0, 0, 128, 128, cells);
         mode7_cells_changed = 0;
     }
+}
+
+/* ---- easing between updates (between.h; FRAMERATE.md 4.3, 4.4) ---- */
+
+#define PLACE_FAR 32        /* an actor that moved further between two updates is placed anew (SRFX's SPRITE_FAR) */
+#define SCROLL_FAR 64       /* a layer that moved further is set anew (a cut, a room change, a still screen's start) */
+
+/* The shown sprites (the update before's) eased towards the newest. Each sprite moves as its actor's drawn place on the
+   screen moved (oam.c's anchor: the actor's place less the sprites' origin, as the update drew it), from the update
+   before's to the newest's: so it is exact at both ends, never wobbles against the screen, and follows whatever the
+   origin took in (a layer's shift as well as the camera). An actor not drawn at the newest update (ended, off the
+   view, or flickered out) is shown where the update before left it. One whose drawn place moved more than PLACE_FAR,
+   or whose record is not the same actor at the newest update, is shown where it was too (placed anew). */
+static void sprites_ease(void)
+{
+    const GameState *n = between_now();
+    const uint8_t *no = between_now_of(shown_owner);
+    const int16_t (*na)[2] = between_now_of(shown_anchor);
+    const int32_t (*nf)[2] = between_now_of(shown_anchor_fx);
+    uint32_t nc = *(const uint32_t *)between_now_of(&shown_count);
+    int32_t to[ACTOR_RECORDS][2], to_fx[ACTOR_RECORDS][2];
+    uint8_t drawn[ACTOR_RECORDS];
+    int fractions = between_fractions();
+
+    memset(drawn, 0, sizeof drawn);
+    for (uint32_t j = 0; j < nc; j++)
+        if (!drawn[no[j]]) {
+            drawn[no[j]] = 1;
+            to[no[j]][0] = na[j][0];
+            to[no[j]][1] = na[j][1];
+            to_fx[no[j]][0] = nf[j][0];
+            to_fx[no[j]][1] = nf[j][1];
+        }
+    for (uint32_t i = 0; i < shown_count; i++) {
+        uint8_t o = shown_owner[i];
+        int moving = drawn[o] && g.actors[o].kind == n->actors[o].kind;
+        int32_t dx = moving ? to[o][0] - shown_anchor[i][0] : 0, dy = moving ? to[o][1] - shown_anchor[i][1] : 0;
+
+        if (dx > PLACE_FAR + SCROLL_FAR || dx < -(PLACE_FAR + SCROLL_FAR) || dy > PLACE_FAR + SCROLL_FAR || dy < -(PLACE_FAR + SCROLL_FAR))
+            moving = 0;
+        if (fractions) {
+            /* the actor's true place on the screen, in 256ths, eased (or the update before's): the sprite at its
+               piece's offset from it, the whole pixels in x, y and the fraction in x_sub, y_sub (engine 6.10) */
+            int64_t fx = shown_anchor_fx[i][0], fy = shown_anchor_fx[i][1];
+
+            if (moving) {
+                fx = between_ease_fx(fx, to_fx[o][0], 32, (int64_t)1 << 30);
+                fy = between_ease_fx(fy, to_fx[o][1], 32, (int64_t)1 << 30);
+            }
+            shown_sprites[i].x += (int32_t)(fx >> 8) - shown_anchor[i][0];
+            shown_sprites[i].y += (int32_t)(fy >> 8) - shown_anchor[i][1];
+            shown_sprites[i].x_sub = (int16_t)(fx & 0xFF);
+            shown_sprites[i].y_sub = (int16_t)(fy & 0xFF);
+        } else if (moving) {
+            shown_sprites[i].x += between_ease(0, dx, 0, 32, 1 << 20);
+            shown_sprites[i].y += between_ease(0, dy, 0, 32, 1 << 20);
+        }
+    }
+}
+
+/* the developer's check (between.c): for each actor drawn by the same pieces at both updates (the same tiles, sizes
+   and flips, in the same order), its eased sprites against the newest update's: equal at between 1, between the two
+   at any between (sprites of an actor that jumped, or a camera that did, are not counted) */
+static const int16_t *nanc_of(uint32_t j)
+{
+    return ((const int16_t (*)[2])between_now_of(shown_anchor))[j];
+}
+
+void video_sprites_check(float b, unsigned *checked, unsigned *wrong)
+{
+    const GameState *n = between_now();
+    const nshvc_sprite *ns = between_now_of(shown_sprites);
+    const uint8_t *no = between_now_of(shown_owner);
+    const uint32_t nc = *(const uint32_t *)between_now_of(&shown_count);
+    static nshvc_sprite was[4096];
+    uint32_t count = shown_count < 4096 ? shown_count : 4096;
+
+    memcpy(was, shown_sprites, count * sizeof was[0]);
+    sprites_ease();
+    for (uint32_t i = 0; i < count;) {
+        uint8_t o = shown_owner[i];
+        uint32_t len = 1, j, k;
+
+        while (i + len < count && shown_owner[i + len] == o)
+            len++;
+        for (j = 0; j < nc && no[j] != o; j++)
+            ;
+        for (k = 0; k < len && j + k < nc && no[j + k] == o; k++) {
+            const nshvc_sprite *p = &was[i + k], *q = &ns[j + k];
+
+            const int16_t (*nanc)[2] = between_now_of(shown_anchor);
+
+            if (p->tile != q->tile || p->width != q->width || p->hflip != q->hflip || p->vflip != q->vflip ||
+                p->x - shown_anchor[i + k][0] != q->x - nanc[j + k][0] || p->y - shown_anchor[i + k][1] != q->y - nanc[j + k][1])
+                break;          /* a piece placed otherwise in the actor: the art changed, which is not eased */
+        }
+        if (k == len && (j + k >= nc || no[j + k] != o) && g.actors[o].kind == n->actors[o].kind) {
+            /* places in 256ths: with fractions, the actor's true place (its anchor's 256ths) plus the piece's offset;
+               the eased sprite's whole pixels and fraction */
+            const int32_t (*nfx)[2] = between_now_of(shown_anchor_fx);
+            int fr = between_fractions();
+            int64_t wx = fr ? (int64_t)(was[i].x - shown_anchor[i][0]) * 256 + shown_anchor_fx[i][0] : (int64_t)was[i].x * 256;
+            int64_t wy = fr ? (int64_t)(was[i].y - shown_anchor[i][1]) * 256 + shown_anchor_fx[i][1] : (int64_t)was[i].y * 256;
+            int64_t nx = fr ? (int64_t)(ns[j].x - nanc_of(j)[0]) * 256 + nfx[j][0] : (int64_t)ns[j].x * 256;
+            int64_t ny = fr ? (int64_t)(ns[j].y - nanc_of(j)[1]) * 256 + nfx[j][1] : (int64_t)ns[j].y * 256;
+            int64_t gx = (int64_t)shown_sprites[i].x * 256 + shown_sprites[i].x_sub, gy = (int64_t)shown_sprites[i].y * 256 + shown_sprites[i].y_sub;
+            int64_t dx = (nx - wx) / 256, dy = (ny - wy) / 256;
+            int64_t ex, ey;
+
+            if (!fr) {
+                dx = ns[j].x - was[i].x;
+                dy = ns[j].y - was[i].y;
+            }
+            ex = gx - wx;
+            ey = gy - wy;
+            dx = nx - wx;
+            dy = ny - wy;
+
+            if (dx <= (PLACE_FAR + SCROLL_FAR - 1) * 256 && dx >= -(PLACE_FAR + SCROLL_FAR - 1) * 256 &&
+                dy <= (PLACE_FAR + SCROLL_FAR - 1) * 256 && dy >= -(PLACE_FAR + SCROLL_FAR - 1) * 256) {      /* not placed anew */
+                (*checked)++;
+                if (b >= 1.0f ? (ex != dx || ey != dy)
+                              : ((dx >= 0 ? ex < 0 || ex > dx : ex > 0 || ex < dx) || (dy >= 0 ? ey < 0 || ey > dy : ey > 0 || ey < dy))) {
+                    static int shown;
+
+                    (*wrong)++;
+                    if (shown++ < 12)
+                        fprintf(stderr, "between check: anchors was %d,%d now %d,%d; pieces %u; ", shown_anchor[i][0], shown_anchor[i][1],
+                                ((const int16_t (*)[2])between_now_of(shown_anchor))[j][0], ((const int16_t (*)[2])between_now_of(shown_anchor))[j][1], len),
+                        fprintf(stderr, "sprite of actor %u kind %02X at %.1f: was %d,%d now %d,%d eased %d,%d actor %06X,%06X -> %06X,%06X cam %06X,%06X -> %06X,%06X\n",
+                                o, g.actors[o].kind, (double)b, (int)was[i].x, (int)was[i].y, (int)ns[j].x, (int)ns[j].y, (int)shown_sprites[i].x, (int)shown_sprites[i].y,
+                                (unsigned)g.actors[o].x, (unsigned)g.actors[o].y, (unsigned)n->actors[o].x, (unsigned)n->actors[o].y,
+                                (unsigned)g.layers[0].scroll_x, (unsigned)g.layers[0].scroll_y, (unsigned)n->layers[0].scroll_x, (unsigned)n->layers[0].scroll_y);
+                }
+            }
+        }
+        i += len;
+    }
+    memcpy(shown_sprites, was, count * sizeof was[0]);
+}
+
+/* Mode 7's matrix eased as numbers (its turns are small steps an update) */
+static int16_t matrix_ease(int16_t was, int16_t now)
+{
+    return (int16_t)(was + between_ease((uint16_t)was, (uint16_t)now, 0, 16, 0x2000));
+}
+
+static void draw_mode7(void)
+{
+    nshvc_mode7 m;
+    const GameState *n = between_now();
+
     memset(&m, 0, sizeof m);
     if (g.mode7_how == 1) {
         m.a = mode7_scaled(g.m7_matrix[0], g.mode7_scale[0]);
@@ -591,10 +788,29 @@ static void draw_mode7(void)
         m.c = g.m7_matrix[2];
         m.d = g.m7_matrix[3];
     }
+    if (between_easing() && g.mode7_how == n->mode7_how) {
+        if (g.mode7_how == 1) {
+            m.a = matrix_ease(m.a, mode7_scaled(n->m7_matrix[0], n->mode7_scale[0]));
+            m.b = matrix_ease(m.b, mode7_scaled(n->m7_matrix[1], n->mode7_scale[1]));
+            m.c = matrix_ease(m.c, mode7_scaled(n->m7_matrix[2], n->mode7_scale[2]));
+            m.d = matrix_ease(m.d, mode7_scaled(n->m7_matrix[3], n->mode7_scale[3]));
+        } else {
+            m.a = matrix_ease(m.a, n->m7_matrix[0]);
+            m.b = matrix_ease(m.b, n->m7_matrix[1]);
+            m.c = matrix_ease(m.c, n->m7_matrix[2]);
+            m.d = matrix_ease(m.d, n->m7_matrix[3]);
+        }
+    }
     m.centre_x = (int16_t)g.m7_centre_x;
     m.centre_y = (int16_t)g.m7_centre_y;
+    if (between_easing()) {
+        m.centre_x = matrix_ease(m.centre_x, (int16_t)n->m7_centre_x);
+        m.centre_y = matrix_ease(m.centre_y, (int16_t)n->m7_centre_y);
+    }
     m.scroll_x = (int16_t)video_layer_x(0);
     m.scroll_y = (int16_t)video_layer_y(0);
+    m.scroll_x_sub = (int16_t)video_layer_x_sub(0);
+    m.scroll_y_sub = (int16_t)video_layer_y_sub(0);
     m.outside = mode7_outside;
     m.tiles = mode7_tiles;
     m.map = mode7_map;
@@ -614,6 +830,10 @@ void video_draw(void)
     nshvc_blend blend;
     uint32_t top = 0, lit = 0;
 
+    if (between_easing()) {     /* a picture between updates: the moving parts eased towards the newest */
+        video_scroll_ease();
+        sprites_ease();
+    }
     memset(&scr, 0, sizeof scr);
     scr.width = view.w;
     scr.height = view.h;
