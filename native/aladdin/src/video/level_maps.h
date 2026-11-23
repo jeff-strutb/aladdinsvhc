@@ -30,6 +30,8 @@ nshvc_map level_maps_object(int layer);
 /* the margin of a layer's level map left of and above the level, in pixels (0, 0 when the layer has none): the level's
    (0, 0) is at this position in the map, so a layer shown from it adds it to the scroll */
 void level_maps_margin(int layer, int32_t *x, int32_t *y);
+/* the developer's note of how far the layer's window goes past the level (ALADDIN_DEV_OVER) */
+void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y);
 
 /* the developer's map dump: a layer's whole map words (NULL when not built), its size, the level's own and its top
    left in the map, in tiles, and how each band past the level's edges was filled */

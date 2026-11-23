@@ -44,6 +44,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <string.h>
 
 #include "data/game_tables.h"
@@ -67,6 +68,7 @@
    original's (with them made, 9 to 132 pictures of 7 of the 19 plays differed). So they are the level's cells, as a blank cell, and a view
    that shows them (level $0A's shaft beside its empty screens) shows them blank. */
 #define FILL_TRIM_VOIDS 0
+#define EXT_ROUNDS 2                /* the rounds of the pair relation the depth at a time path reads: it is the fall-back of the sides that cannot be made, its costs need not be exact */
 #define NO_ID 0xFFFFu
 #define UNSET 0xFFFDu               /* a margin cell not yet made */
 
@@ -74,6 +76,7 @@
    (`below`: b is under a) */
 static struct {
     uint16_t id_of[65536];
+    uint16_t run_h[IDS_MAX], run_v[IDS_MAX];        /* the longest run of each metatile in the level, across and down */
     uint16_t cell_of[IDS_MAX];                      /* the metatile of each id */
     uint32_t across[IDS_MAX][IDS_MAX / 32];
     uint32_t below[IDS_MAX][IDS_MAX / 32];
@@ -103,6 +106,10 @@ static struct {
     uint8_t lat_ok[IDS_MAX];        /* ... and one beyond them along the band (they have a neighbour that way in the level) */
     uint32_t pos_store[FILL_CELLS_MAX];
 } lv;
+
+static uint64_t quad_key(uint16_t a, uint16_t b, uint16_t c, uint16_t d);
+static int quad_has(uint64_t k);
+static void quads_learn(void);
 
 /* where each margin cell of S came from: the level's cell index (y * lw + x), or -1 (the level's own, or made by another method) */
 static int32_t source_of[FILL_CELLS_MAX];
@@ -368,6 +375,9 @@ static int in_level(int x, int y)
 }
 
 /* the level positions whose inward neighbour (by `side`) is a metatile with an id, kept by that id */
+static int ext_ready;
+static void build_ext(const Side *s);
+
 static void index_side(const Side *s)
 {
     unsigned count[IDS_MAX + 1];
@@ -428,12 +438,18 @@ static void index_side(const Side *s)
         for (int x = 0; x < lv.lw; x++)
             if (in_level(x + s->ux, y + s->uy) && lv.id_of[level_cell(x + s->ux, y + s->uy)] != NO_ID)
                 lv.bucket_pos[fill[lv.id_of[level_cell(x + s->ux, y + s->uy)]]++] = (uint32_t)(y * lv.lw + x);
+    ext_ready = 0;
+}
+
+/* the pair relation the depth at a time path reads (made only where it runs: the exact search reads the pairs themselves) */
+static void build_ext(const Side *s)
+{
     /* ext: the pairs (u, v) along the band that the level has and that can go on outward for ever: the metatiles that can
        go outward of u and of v again have such a pair, and so on (the largest such set of pairs, by repeated narrowing from
        the seen pairs). A depth's cells are chosen among these, so the next depths' cells can still be beside each other. */
     for (unsigned u = 0; u < IDS_MAX; u++)
         memcpy(lv.ext[u], s->lx ? lv.across[u] : lv.below[u], sizeof lv.ext[u]);
-    for (int round = 0; round < 16; round++) {
+    for (int round = 0; round < EXT_ROUNDS; round++) {
         int changed = 0;
 
         for (unsigned u = 0; u < lv.ids; u++) {
@@ -468,6 +484,7 @@ static void index_side(const Side *s)
         for (unsigned w = 0; w < IDS_MAX / 32; w++)
             for (uint32_t bits = lv.ext[u][w]; bits; bits &= bits - 1)
                 pair_set(lv.ext_t, w * 32 + (unsigned)__builtin_ctz(bits), u);
+    ext_ready = 1;
 }
 
 static int known_at(int x, int y)
@@ -502,8 +519,8 @@ static unsigned context_score(const Side *s, int tx, int ty, int px, int py)
    candidates of a cell are the best scorers among the level positions whose inward neighbour is the cell's, the
    continuation of the copy its inward neighbour is from (the cell beyond that neighbour's source), and the cell beyond the
    previous cell's source along the band. A cell already set (by an exact band) has that cell alone. */
-#define KEEP 32                     /* the best-scoring candidates kept for a cell */
-#define STATES_MAX 96               /* the most metatiles a cell's states hold of those the band allows */
+#define KEEP 8                      /* the best-scoring candidates kept for a cell */
+#define STATES_MAX 24               /* the most metatiles a cell's states hold of those the band allows */
 #define CAND_MAX_PER (STATES_MAX + 2 * KEEP + 8)
 #define COST_UNSEEN 10000
 #define COST_BREAK 3                /* a candidate that does not continue its inward or its lateral neighbour's copy */
@@ -598,6 +615,8 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
 
     if (s->depth <= 0 || lv.lw * lv.lh == 0)
         return;
+    if (!ext_ready)
+        build_ext(s);
     for (int d = s->dmin; d <= s->depth; d++) {
         int any = 0;
 
@@ -857,6 +876,39 @@ static void synth_side(const Side *s, FillBand *report, unsigned *unfilled)
 
 /* the unseen pairs in each side's margin (a pair that touches more than one is the top's or the bottom's if it touches a row above or
    below the level, as the top and bottom margins make the corners; else the left's or the right's), and the pairs there are */
+/* which side's margin a cell is in (0 left, 1 right, 2 top, 3 bottom: the corners are the top's and bottom's, which make them), -1 for a cell of the level */
+static int cell_side(int cx, int cy)
+{
+    if (cx >= lv.ox && cx < lv.ox + lv.lw && cy >= lv.oy && cy < lv.oy + lv.lh)
+        return lv.tag[(size_t)(cy - lv.oy) * lv.lw + cx - lv.ox] - 1;       /* made inside the level: an empty place run to an edge */
+    return cy < lv.oy ? 2 : cy >= lv.oy + lv.lh ? 3 : cx < lv.ox ? 0 : 1;
+}
+
+/* the 2 x 2 blocks in each side's margin and across its seam (a block that touches two sides is the latter's), and those the level never has */
+static void count_quads(FillReport *r)
+{
+    for (int by = 0; by + 1 < lv.fh; by++)
+        for (int bx = 0; bx + 1 < lv.fw; bx++) {
+            uint16_t c[4];
+            int ok = 1, side = -1;
+
+            for (int k = 0; k < 4 && ok; k++) {
+                int cx = bx + (k & 1), cy = by + (k >> 1), sd;
+
+                c[k] = lv.cells[(size_t)cy * lv.fw + cx];
+                ok = c[k] != UNSET && c[k] != FILL_BLANK;
+                sd = cell_side(cx, cy);
+                if (sd > side)
+                    side = sd;
+            }
+            if (!ok || side < 0)
+                continue;
+            r->quads[side]++;
+            if (!quad_has(quad_key(c[0], c[1], c[2], c[3])))
+                r->unseen_quads[side]++;
+        }
+}
+
 static void count_unseen(FillReport *r)
 {
     for (int y = 0; y < lv.fh; y++)
@@ -885,6 +937,137 @@ static void count_unseen(FillReport *r)
             }
 }
 
+/* ---- 2 x 2 blocks ----
+   A pair bar lets through an edge made of two tiles that each border the other somewhere. A block bar does not: every 2 x 2 block
+   of touching cells in a margin, or across its seam, should be one the level's own layout has (by cell values; a block with a cell
+   not yet made, or an empty place, is not judged). The table holds the level's blocks. */
+#define QUAD_BITS 18
+#define QUAD_EMPTY (~0ull)
+static uint64_t quad_tab[1u << QUAD_BITS];
+
+static uint64_t quad_key(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    return (uint64_t)a | (uint64_t)b << 16 | (uint64_t)c << 32 | (uint64_t)d << 48;
+}
+
+static uint32_t quad_slot(uint64_t k)
+{
+    return (uint32_t)((k * 0x9E3779B97F4A7C15ull) >> (64 - QUAD_BITS));
+}
+
+static void quad_add(uint64_t k)
+{
+    uint32_t h = quad_slot(k);
+
+    while (quad_tab[h] != QUAD_EMPTY) {
+        if (quad_tab[h] == k)
+            return;
+        h = (h + 1) & ((1u << QUAD_BITS) - 1);
+    }
+    quad_tab[h] = k;
+}
+
+static int quad_has(uint64_t k)
+{
+    uint32_t h = quad_slot(k);
+
+    while (quad_tab[h] != QUAD_EMPTY) {
+        if (quad_tab[h] == k)
+            return 1;
+        h = (h + 1) & ((1u << QUAD_BITS) - 1);
+    }
+    return 0;
+}
+
+static void quads_learn(void)
+{
+    memset(quad_tab, 0xFF, sizeof quad_tab);
+    memset(lv.run_h, 0, sizeof lv.run_h);
+    memset(lv.run_v, 0, sizeof lv.run_v);
+    for (int r = 0; r < lv.lh; r++)
+        for (int c = 0; c < lv.lw; c++) {
+            const uint16_t *p = lv.cells + (size_t)(lv.oy + r) * lv.fw + lv.ox + c;
+            unsigned id = lv.id_of[*p], n = 1;
+
+            if (id == NO_ID || !lv.real[(size_t)r * lv.lw + c])
+                continue;
+            if (c > 0 && p[-1] == *p)
+                continue;                               /* not the first of its run across */
+            while (c + (int)n < lv.lw && p[n] == *p)
+                n++;
+            if (n > lv.run_h[id])
+                lv.run_h[id] = (uint16_t)n;
+        }
+    for (int c = 0; c < lv.lw; c++)
+        for (int r = 0; r < lv.lh; r++) {
+            const uint16_t *p = lv.cells + (size_t)(lv.oy + r) * lv.fw + lv.ox + c;
+            unsigned id = lv.id_of[*p], n = 1;
+
+            if (id == NO_ID || !lv.real[(size_t)r * lv.lw + c])
+                continue;
+            if (r > 0 && p[-lv.fw] == *p)
+                continue;
+            while (r + (int)n < lv.lh && p[(size_t)n * lv.fw] == *p)
+                n++;
+            if (n > lv.run_v[id])
+                lv.run_v[id] = (uint16_t)n;
+        }
+    for (int r = 0; r + 1 < lv.lh; r++)
+        for (int c = 0; c + 1 < lv.lw; c++)
+            if (lv.real[(size_t)r * lv.lw + c] && lv.real[(size_t)r * lv.lw + c + 1] && lv.real[(size_t)(r + 1) * lv.lw + c] &&
+                lv.real[(size_t)(r + 1) * lv.lw + c + 1]) {
+                const uint16_t *p = lv.cells + (size_t)(lv.oy + r) * lv.fw + lv.ox + c;
+
+                quad_add(quad_key(p[0], p[1], p[lv.fw], p[lv.fw + 1]));
+            }
+}
+
+/* the blocks of the cell at (x, y) with value v that are judged (all four cells made, none an empty place) and are not the level's */
+static unsigned quads_broken(int x, int y, uint16_t v)
+{
+    unsigned n = 0;
+
+    for (int by = y - 1; by <= y; by++)
+        for (int bx = x - 1; bx <= x; bx++) {
+            uint16_t c[4];
+            int ok = bx >= 0 && by >= 0 && bx + 1 < lv.fw && by + 1 < lv.fh;
+
+            for (int k = 0; k < 4 && ok; k++) {
+                int cx = bx + (k & 1), cy = by + (k >> 1);
+
+                c[k] = cx == x && cy == y ? v : lv.cells[(size_t)cy * lv.fw + cx];
+                ok = c[k] != UNSET && c[k] != FILL_BLANK;
+            }
+            if (ok && !quad_has(quad_key(c[0], c[1], c[2], c[3])))
+                n++;
+        }
+    return n;
+}
+
+/* 1 for each direction in which a run of the metatile v through (x, y), the cells made or the level's, is longer than any run of it the level has:
+   a margin that goes on with one tile for longer than the level ever does is a flat strip, not the level's art */
+static unsigned runs_broken(int x, int y, uint16_t v)
+{
+    unsigned id = lv.id_of[v], n = 0, a;
+
+    if (id == NO_ID)
+        return 0;
+    for (int dir = 0; dir < 2; dir++) {
+        int dx = dir == 0, dy = dir == 1;
+
+        a = 1;
+        for (int k = 1; x - k * dx >= 0 && y - k * dy >= 0 && lv.cells[(size_t)(y - k * dy) * lv.fw + x - k * dx] == v; k++)
+            a++;
+        for (int k = 1; x + k * dx < lv.fw && y + k * dy < lv.fh && lv.cells[(size_t)(y + k * dy) * lv.fw + x + k * dx] == v; k++)
+            a++;
+        if (a > (dir == 0 ? lv.run_h[id] : lv.run_v[id]))
+            n++;
+    }
+    return n;
+}
+
+static int csp_quad_mode;           /* 0: blocks not judged; 1: a cell that breaks a block is refused; 2: those are tried last */
+
 /* ---- the exact search: constraint satisfaction over a margin's cells ----
    Variables: every cell of the side (depth 1 to s->depth, band 0 to s->along - 1), its domain a set of metatile ids. Constraints:
    the pair with the cell inward (a metatile the level has outward of it: vset; at depth 1 the level's edge cell), and the
@@ -910,6 +1093,9 @@ static const Side *csp_side_cur;
 static int csp_relax;               /* 0: every pair must be the level's; 1: the seam pair of the bands that have no chain to the end of the margin is let go; 2: every seam pair; 3: and the pairs along the band at depth 1 */
 
 static int csp_tail_forever;        /* 1: the last depth's cells must be ones a chain can go on from for ever (the margin goes on past it) */
+static uint8_t csp_virgin[CSP_VARS_MAX];               /* the cell's domain is still the one it began with (the metatiles a chain of the rest can follow) */
+static uint32_t csp_acc_cache[4][FILL_MARGIN + 2][SET_WORDS];   /* what the revision of a neighbour by a virgin cell gives, by relation and depth */
+static uint8_t csp_acc_known[4][FILL_MARGIN + 2];
 static int csp_gave_up;             /* the last search ended on its work or trail limit, not on a proof */
 static uint64_t csp_ops, csp_ops_limit;      /* the work done (revisions' word operations) and the most a search may do: past it the search is given up */
 
@@ -923,21 +1109,28 @@ static int csp_enqueue(uint32_t v)
 }
 
 /* n's domain narrowed to what goes with some value of c's: rel(v) for each value v of c. 0 if n's domain is empty or the trail is full. */
-static int csp_revise(uint32_t n, uint32_t c, const uint32_t (*rel)[SET_WORDS])
+static int csp_revise(uint32_t n, uint32_t c, const uint32_t (*rel)[SET_WORDS], int relid)
 {
     uint32_t acc[SET_WORDS], now[SET_WORDS];
-    int changed = 0;
+    int changed = 0, depth_of_c = (int)(c / (unsigned)csp_along) + 1;
 
-    memset(acc, 0, sizeof acc);
-    for (unsigned w = 0; w < SET_WORDS; w++)
-        for (uint32_t bits = csp_dom[c][w]; bits; bits &= bits - 1) {
-            const uint32_t *r = rel[w * 32 + (unsigned)__builtin_ctz(bits)];
+    if (csp_virgin[c] && csp_acc_known[relid][depth_of_c]) {
+        memcpy(acc, csp_acc_cache[relid][depth_of_c], sizeof acc);
+    } else {
+        memset(acc, 0, sizeof acc);
+        for (unsigned w = 0; w < SET_WORDS; w++)
+            for (uint32_t bits = csp_dom[c][w]; bits; bits &= bits - 1) {
+                const uint32_t *r = rel[w * 32 + (unsigned)__builtin_ctz(bits)];
 
-            csp_ops += SET_WORDS;
-
-            for (unsigned i = 0; i < SET_WORDS; i++)
-                acc[i] |= r[i];
+                csp_ops += SET_WORDS;
+                for (unsigned i = 0; i < SET_WORDS; i++)
+                    acc[i] |= r[i];
+            }
+        if (csp_virgin[c]) {
+            memcpy(csp_acc_cache[relid][depth_of_c], acc, sizeof acc);
+            csp_acc_known[relid][depth_of_c] = 1;
         }
+    }
     for (unsigned i = 0; i < SET_WORDS; i++) {
         now[i] = csp_dom[n][i] & acc[i];
         changed |= now[i] != csp_dom[n][i];
@@ -952,6 +1145,7 @@ static int csp_revise(uint32_t n, uint32_t c, const uint32_t (*rel)[SET_WORDS])
     memcpy(csp_trail[csp_trail_n].old, csp_dom[n], sizeof csp_dom[n]);
     csp_trail_n++;
     memcpy(csp_dom[n], now, sizeof now);
+    csp_virgin[n] = 0;
     if (set_empty(now))
         return 0;
     csp_enqueue(n);
@@ -982,10 +1176,10 @@ static int csp_propagate(void)
 
         csp_qlen--;
         csp_queued[c] = 0;
-        if ((d < csp_depth && !csp_revise(c + (uint32_t)csp_along, c, lv.vset)) ||
-            (d > 1 && !csp_revise(c - (uint32_t)csp_along, c, lv.vset_t)) ||
-            (!(csp_relax >= 3 && d == 1) && t + 1 < csp_along && !csp_revise(c + 1, c, after)) ||
-            (!(csp_relax >= 3 && d == 1) && t > 0 && !csp_revise(c - 1, c, before))) {
+        if ((d < csp_depth && !csp_revise(c + (uint32_t)csp_along, c, lv.vset, 0)) ||
+            (d > 1 && !csp_revise(c - (uint32_t)csp_along, c, lv.vset_t, 1)) ||
+            (!(csp_relax >= 3 && d == 1) && t + 1 < csp_along && !csp_revise(c + 1, c, after, 2)) ||
+            (!(csp_relax >= 3 && d == 1) && t > 0 && !csp_revise(c - 1, c, before, 3))) {
             for (; csp_qlen; csp_qlen--)
                 csp_queued[csp_queue[csp_qhead++ % CSP_VARS_MAX]] = 0;
             csp_qhead = 0;
@@ -1060,6 +1254,25 @@ static void csp_candidates(const Side *s, int d, int t, CspFrame *f)
                 best_pos[vid] = (int32_t)at;
             }
         }
+        if (csp_relax && d == 1) {
+            /* the seam pair is let go here, so no bucket holds what goes beside this edge cell: the cells of the level that best
+               match the edge's surroundings are found over the whole level (a value chosen with no context at all is a flat strip) */
+            uint32_t total = (uint32_t)(lv.lw * lv.lh), step = total / (4 * CAND_MAX) + 1;
+
+            for (uint32_t at = next_random() % step; at < total; at += step) {
+                int px = (int)(at % (unsigned)lv.lw), py = (int)(at / (unsigned)lv.lw);
+                unsigned vid = lv.id_of[level_cell(px, py)];
+                int sc;
+
+                if (vid == NO_ID || !in_level(px, py) || !(csp_dom[v][vid >> 5] >> (vid & 31) & 1u))
+                    continue;
+                sc = (int)context_score(s, tx, ty, px, py);
+                if (sc > best[vid]) {
+                    best[vid] = (int16_t)sc;
+                    best_pos[vid] = (int32_t)at;
+                }
+            }
+        }
         /* the continuations of the copies the neighbours are part of: first */
         for (int p = 0; p < 2; p++) {
             int32_t src = p ? lsrc : psrc;
@@ -1081,10 +1294,17 @@ static void csp_candidates(const Side *s, int d, int t, CspFrame *f)
     }
     for (unsigned w = 0; w < SET_WORDS; w++)
         for (uint32_t bits = csp_dom[v][w]; bits; bits &= bits - 1) {
-            unsigned vid = w * 32 + (unsigned)__builtin_ctz(bits);
+            unsigned vid = w * 32 + (unsigned)__builtin_ctz(bits), broken = 0;
             int sc = best[vid] < 0 ? 0 : best[vid];
 
-            order[count++] = ((uint64_t)(2000 - sc) << 40) | ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFFFu) << 16) | vid;
+            if (csp_quad_mode) {
+                broken = quads_broken(tx, ty, lv.cell_of[vid]) + runs_broken(tx, ty, lv.cell_of[vid]);
+                if (broken && csp_quad_mode == 1)
+                    continue;
+            }
+            /* the best match to the level's art first; of equals, the fewest blocks and runs the level never has (a flat strip is no art) */
+            order[count++] = ((uint64_t)(2000 - sc) << 40) | ((uint64_t)(broken > 7 ? 7 : broken) << 32) |
+                             ((uint64_t)((vid * 2654435761u ^ (uint32_t)lv.rng) & 0xFFFFu) << 16) | vid;
         }
     qsort(order, count, sizeof order[0], csp_order_cmp);
     f->off = csp_pool_top;
@@ -1126,7 +1346,7 @@ static uint32_t csp_reach[FILL_MARGIN + 2][SET_WORDS];     /* [j]: the metatiles
 
 static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, int relax)
 {
-    unsigned vars = (unsigned)(s->depth * s->along), sp = 0, nodes = 0, budget = CSP_NODES(vars);
+    unsigned vars = (unsigned)(s->depth * s->along), sp = 0, nodes = 0, budget = csp_quad_mode == 1 ? 2u * vars + 4000u : CSP_NODES(vars);
     uint32_t v, hw = 0;
 
     if (s->depth <= 0 || s->dmin != 1 || vars > CSP_VARS_MAX || lv.lw * lv.lh == 0)
@@ -1151,7 +1371,7 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
     csp_relax = relax;
     csp_ops = 0;
     csp_gave_up = 0;
-    csp_ops_limit = 150000000ull;
+    csp_ops_limit = 60000000ull;
     csp_side_cur = s;
     csp_depth = s->depth;
     csp_along = s->along;
@@ -1198,7 +1418,9 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
             }
             if (set_empty(dom))
                 return 0;
+            csp_virgin[var] = lv.cells[ti] == UNSET && memcmp(dom, csp_reach[s->depth - d], sizeof csp_dom[0]) == 0;
         }
+    memset(csp_acc_known, 0, sizeof csp_acc_known);
     for (v = 0; v < vars; v++)
         csp_enqueue(v);
     if (!csp_propagate()) {
@@ -1223,8 +1445,22 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
 
             if (single >= 0) {              /* decided by what came before: no choice here */
                 if (lv.cells[csp_cell(s, v)] == UNSET) {
-                    lv.cells[csp_cell(s, v)] = lv.cell_of[single];
-                    source_of[csp_cell(s, v)] = -1;
+                    size_t at = csp_cell(s, v);
+
+                    if (csp_quad_mode == 1 && (quads_broken((int)(at % (size_t)lv.fw), (int)(at / (size_t)lv.fw), lv.cell_of[single]) ||
+                                               runs_broken((int)(at % (size_t)lv.fw), (int)(at / (size_t)lv.fw), lv.cell_of[single]))) {
+                        /* a block the level never has, and no other choice: back up to the choice before */
+                        if (!sp)
+                            break;
+                        csp_clear_from(s, csp_frames[sp - 1].var, hw);
+                        hw = csp_frames[sp - 1].var;
+                        v = csp_frames[sp - 1].var;
+                        if (nodes++ >= budget)
+                            break;
+                        continue;
+                    }
+                    lv.cells[at] = lv.cell_of[single];
+                    source_of[at] = -1;
                     csp_assigned[v] = 1;
                 }
                 if (v + 1 > hw)
@@ -1253,6 +1489,7 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
             csp_trail_n++;
             memset(csp_dom[v], 0, sizeof csp_dom[0]);
             csp_dom[v][vid >> 5] |= 1u << (vid & 31);
+            csp_virgin[v] = 0;
             csp_enqueue(v);
             if (csp_propagate()) {
                 lv.cells[csp_cell(s, v)] = lv.cell_of[vid];
@@ -1350,70 +1587,100 @@ static void prepare_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_
     fill_exact(base, sa, sb, bands, s->n_of, total, rows, metatiles, report, fixed, banned);
 }
 
-static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
-                        DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome)
+static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
+                             DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome, uint8_t *blocks)
 {
     uint8_t fixed[FILL_COLS_MAX], banned[FILL_COLS_MAX];
 
-    index_side(s);
     /* The exact search. Three set-ups: with the exact bands as they are and the corner bands' cells ones the top and bottom margins
        can go on from; without the exact bands; and without the corner condition. For each, arc consistency says how many depths
        can be made with no pair the level never has (the most, by halving: fewer depths is never harder). A side that can be made all
        the way is made. One that cannot is made as far as it can, and the depths beyond are made by the depth at a time path, so
        that the pairs the level never has are as far from the seam as can be. */
     int best_attempt = -1, best_depth = 0;
+    unsigned exact_kept = 0;
 
+    csp_quad_mode = 0;
     if (!rows) {
-        /* the top and bottom margins: no view shows them (see the head of this file); the exact bands, then the depth at a time path */
+        /* the top and bottom margins (the backdrop's, and only where the original's own window goes past the map): the exact bands; what they
+           do not make stays empty */
         memset(banned, 0, sizeof banned);
-        goto depth_at_a_time;
+        prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+        return;
     }
-    for (int attempt = 0; attempt < 3 && best_depth < s->depth; attempt++) {
-        int lo = 0, hi = s->depth, found_full = 0;
+    index_side(s);
+    {
+        /* the weakest set-up (no exact bands, no corner condition) at depth 1: if arc consistency ends it, nothing can be made, and no
+           set-up is worth trying */
+        Side first = *s;
+
+        memset(banned, 1, sizeof banned);
+        prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+        first.depth = 1;
+        csp_tail_forever = 0;
+        csp_quad_mode = 0;
+        if (!csp_side(&first, report, 0, 1, 0) && !csp_gave_up)
+            *outcome = FILL_OUTCOME_PROVED;
+    }
+    /* whether the whole depth can be made: first with the exact bands as they are, then without them, then without the corner condition
+       (the exact bands and the corner condition only add constraints, so the last is the weakest and the deepest) */
+    for (int pass = 0; pass < 2 && *outcome != FILL_OUTCOME_PROVED; pass++)
+    for (int attempt = 0; attempt < 3; attempt++) {
+        csp_quad_mode = 1 + pass;                       /* first with no block the level never has, then with the pairs alone (blocks last) */
         Side probe = *s;
 
+        if (attempt == 1 && !exact_kept)
+            continue;                                   /* no exact band was laid: the same set-up as the first */
         memset(banned, attempt >= 1, sizeof banned);
-        /* the whole depth first (a side that can be made is made, and left made); if not, one depth, then the most by halving */
-#define PROBE(depth_) (prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned), probe.depth = (depth_), \
-                       csp_tail_forever = 0, csp_last_nodes = csp_last_v = 0, csp_side(&probe, report, attempt < 2, 0, 0))
-        if (PROBE(s->depth)) {
-            found_full = 1;
-            lo = hi;
-        } else if (!PROBE(1)) {
-            if (attempt == 2 && !csp_gave_up)
-                *outcome = FILL_OUTCOME_PROVED;         /* the search ends: no cell can be made with the level's own pairs */
-            hi = 0;
-        } else {
-            lo = 1;
-            hi = s->depth - 1;
-            while (lo < hi) {
-                int mid = (lo + hi + 1) / 2;
-
-                if (PROBE(mid))
-                    lo = mid;
-                else
-                    hi = mid - 1;
-            }
+        prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+        if (attempt == 0) {
+            exact_kept = 0;
+            for (unsigned k = 0; k < bands; k++)
+                exact_kept += report[k].method != 0;
         }
-#undef PROBE
-        if (found_full) {
+        probe.depth = s->depth;
+        csp_tail_forever = 0;
+        csp_last_nodes = csp_last_v = 0;
+        if (csp_side(&probe, report, attempt < 2, 0, 0)) {
             *outcome = FILL_OUTCOME_MADE;
+            *blocks = pass == 0 ? 'Q' : 'q';
             if (getenv("ALADDIN_DEV_FILL"))
                 fprintf(stderr, "fill: side u=(%d,%d) csp made %d of %d depths (attempt %d), nodes %u of %u\n", s->ux, s->uy, s->depth, s->depth, attempt, csp_last_nodes, csp_last_budget);
             return;
         }
-        if (lo > best_depth || best_attempt < 0) {
-            best_depth = lo;
-            best_attempt = attempt;
-        }
     }
-    if (best_depth > 0) {
+    if (*outcome != FILL_OUTCOME_PROVED) {
+        /* not all of it: the most depths that can be made, by halving, in the weakest set-up (blocks last) */
+        int lo = 1, hi = s->depth - 1;
+
+        csp_quad_mode = 2;
+        Side probe = *s;
+
+        memset(banned, 1, sizeof banned);
+        while (lo <= hi) {
+            int mid = (lo + hi + 1) / 2;
+
+            prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
+            probe.depth = mid;
+            csp_tail_forever = 0;
+            csp_last_nodes = csp_last_v = 0;
+            if (csp_side(&probe, report, 0, 0, 0)) {
+                best_depth = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        best_attempt = 2;
+    }
+    if (best_depth > 0 && *outcome != FILL_OUTCOME_PROVED) {
         Side part = *s;
 
         memset(banned, best_attempt >= 1, sizeof banned);
         prepare_margin(s, base, sa, sb, bands, total, rows, metatiles, report, fixed, banned);
         part.depth = best_depth;
         csp_tail_forever = 0;
+        csp_quad_mode = 2;
         csp_last_nodes = csp_last_v = 0;
         if (csp_side(&part, report, best_attempt < 2, 0, 0)) {
             *outcome = FILL_OUTCOME_PARTIAL;
@@ -1444,6 +1711,7 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
         /* not even the first cells can be made without a pair the level never has (the side is one of those the level's own cells cannot
            fill): the fewest such pairs, all at the seam. The seam pair of the bands that have no way on is let go first, then every
            seam pair, then the pairs along the band at depth 1. The cells beyond are made with none. */
+        csp_quad_mode = 2;
         for (int relax = 1; relax <= 3; relax++)
             for (int attempt = 2; attempt <= 2; attempt++) {
                 memset(banned, 1, sizeof banned);
@@ -1464,7 +1732,6 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
         if (getenv("ALADDIN_DEV_FILL"))
             fprintf(stderr, "fill: side u=(%d,%d) no depth can be made without a pair the level never has\n", s->ux, s->uy);
     }
-depth_at_a_time:
     /* no consistent fill found (none, or the budget ran out): the depth at a time path, which keeps the fewest broken pairs */
     memset(banned, 0, sizeof banned);
     for (int round = 0; round < ROUNDS; round++) {
@@ -1485,6 +1752,86 @@ depth_at_a_time:
             break;
         *unfilled = before;
     }
+}
+
+/* ---- the copy: what a side that cannot be made from the level's pairs falls back to ----
+   A side the exact search could not make (its cells beyond the seam made with pairs the level never has) can come out as flat strips:
+   a margin that goes on with one tile for longer than the level ever does, which a few unseen pairs of real art are better than.
+   The copy lays the level's own columns beyond the edge: the margin's depth d is the level's column cs + d (right) or cs - d
+   (left), the same rows, cs chosen so that the one seam (the edge column and the first copied column) has the fewest unseen pairs.
+   Inside the copy every pair and block is the level's. It is used where the exact search's result has a run longer than the level's or
+   more unseen pairs than the copy's seam. */
+static unsigned side_unseen_and_runs(const Side *s, unsigned *runs)
+{
+    unsigned unseen = 0;
+
+    *runs = 0;
+    for (int d = 1; d <= s->depth; d++)
+        for (int t = 0; t < s->along; t++) {
+            int tx = s->bx + t * s->lx - d * s->ux, ty = s->by + t * s->ly - d * s->uy;
+            uint16_t v = lv.cells[(size_t)ty * lv.fw + tx], inward = lv.cells[(size_t)(ty + s->uy) * lv.fw + tx + s->ux];
+
+            unseen += !(s->ux == 1 ? seen_across(v, inward) : seen_across(inward, v));
+            if (t > 0)
+                unseen += !pair_along(s, lv.cells[(size_t)(ty - s->ly) * lv.fw + tx - s->lx], v);
+            *runs += runs_broken(tx, ty, v) != 0;
+        }
+    return unseen;
+}
+
+static int copy_side(const Side *s, FillBand *report)
+{
+    int dir = s->ux == 1 ? -1 : 1;              /* the copy's columns go outward of the level this way: left: toward x = 0 from cs */
+    int best_cs = -1;
+    unsigned best_unseen = ~0u, runs_now, unseen_now;
+
+    if (s->lx != 0 || s->depth + 2 > lv.lw)
+        return 0;
+    unseen_now = side_unseen_and_runs(s, &runs_now);
+    for (int cs = (dir == 1 ? 0 : s->depth); dir == 1 ? cs + s->depth < lv.lw - 0 && cs + s->depth <= lv.lw - 1 : cs < lv.lw; cs++) {
+        unsigned bad = 0;
+        int ok = 1;
+
+        for (int t = 0; t < s->along && ok; t++) {
+            uint16_t edge = level_cell(s->ux == 1 ? 0 : lv.lw - 1, t), first = level_cell(cs + dir * 1, t);
+
+            for (int d = 1; d <= s->depth && ok; d++)
+                ok = in_level(cs + dir * d, t) && level_cell(cs + dir * d, t) != FILL_BLANK;     /* not an empty place */
+            bad += !(s->ux == 1 ? seen_across(first, edge) : seen_across(edge, first));
+        }
+        if (ok && bad < best_unseen) {
+            best_unseen = bad;
+            best_cs = cs;
+        }
+    }
+    if (best_cs < 0 || (runs_now == 0 && best_unseen >= unseen_now))
+        return 0;
+    for (int d = 1; d <= s->depth; d++)
+        for (int t = 0; t < s->along; t++) {
+            size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+
+            lv.cells[ti] = level_cell(best_cs + dir * d, t);
+            source_of[ti] = (best_cs + dir * d) + t * lv.lw;
+            kind_of[ti] = FILL_KIND_SYNTH;
+        }
+    for (int t = 0; t < s->along; t++)
+        report[t].method = FILL_SYNTH;
+    return 1;
+}
+
+static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
+                        DataRef metatiles, FillBand *report, unsigned *unfilled, uint8_t *outcome, uint8_t *blocks)
+{
+    struct timespec t0, t1;
+
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    make_margin_body(s, base, sa, sb, bands, total, rows, metatiles, report, unfilled, outcome, blocks);
+    if (rows && *outcome != FILL_OUTCOME_MADE && copy_side(s, report))
+        *blocks = 'c';
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    if (getenv("ALADDIN_DEV_FILL"))
+        fprintf(stderr, "fillside u=(%d,%d) %d x %d cells: %.1f ms, outcome %c\n", s->ux, s->uy, s->depth, s->along,
+                (double)(t1.tv_sec - t0.tv_sec) * 1e3 + (double)(t1.tv_nsec - t0.tv_nsec) * 1e-6, *outcome ? *outcome : '-');
 }
 
 /* the unseen pairs a margin cell is in (with its four neighbours, the level's included) */
@@ -1525,7 +1872,9 @@ static void repair(void)
                 unsigned have, best, ties = 0;
                 uint16_t pick = 0;
 
-                if (x >= lv.ox && x < lv.ox + lv.lw && y >= lv.oy && y < lv.oy + lv.lh && !lv.tag[(size_t)(y - lv.oy) * lv.lw + x - lv.ox])
+                if (y < lv.oy || y >= lv.oy + lv.lh)
+                    continue;                           /* the top and bottom margins are not mended: the exact bands made them */
+                if (x >= lv.ox && x < lv.ox + lv.lw && !lv.tag[(size_t)(y - lv.oy) * lv.lw + x - lv.ox])
                     continue;                           /* the level's own cell, or an empty place inside it */
                 cur = lv.cells[(size_t)y * lv.fw + x];
                 have = cell_conflicts(x, y, cur);
@@ -1591,6 +1940,7 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
         for (unsigned x = 0; x < lw; x++)
             lv.real[(size_t)y * lw + x] = !FILL_TRIM_VOIDS || cells[(size_t)(oy + y) * fw + ox + x] != FILL_BLANK;
     learn();
+    quads_learn();
     memset(lv.has_above, 0, sizeof lv.has_above);
     memset(lv.has_below, 0, sizeof lv.has_below);
     for (unsigned i = 0; i < lv.ids; i++)
@@ -1675,19 +2025,19 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
         /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
         if (right) {
             sd = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh, 1 - (int)max_right, n_right };
-            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled, &report->outcome[1]);
+            make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled, &report->outcome[1], &report->blocks[1]);
         }
         if (ox) {
             sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1 - (int)max_left, n_left };
-            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0]);
+            make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0], &report->blocks[0]);
         }
         if (below) {
             sd = (Side){ 0, -1, 1, 0, 0, (int)(oy + lh - 1), (int)below, (int)fw, 1 - (int)max_bottom, n_bottom };
-            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled, &report->outcome[3]);
+            make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled, &report->outcome[3], &report->blocks[3]);
         }
         if (oy) {
             sd = (Side){ 0, 1, 1, 0, 0, (int)oy, (int)oy, (int)fw, 1 - (int)max_top, n_top };
-            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled, &report->outcome[2]);
+            make_margin(&sd, (ptrdiff_t)(oy + lh - 1) * w, -w, 1, fw, lh + oy, 0, metatiles, report->up, &unfilled, &report->outcome[2], &report->blocks[2]);
         }
     }
     for (unsigned y = 0; y < fh; y++)
@@ -1697,4 +2047,5 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     repair();
     report->unfilled = unfilled;
     count_unseen(report);
+    count_quads(report);
 }
