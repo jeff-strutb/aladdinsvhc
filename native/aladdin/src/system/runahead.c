@@ -12,6 +12,7 @@
 #endif
 
 #include "system/runahead.h"
+#include "audio/music.h"
 #include "video/between.h"
 #include "video/level_maps.h"
 
@@ -20,6 +21,7 @@
 typedef struct Keep {
     void *p;
     size_t bytes;
+    const char *name;
     void *saved;
 } Keep;
 
@@ -42,7 +44,7 @@ static int live;                    /* the world the picture holds is an ahead w
 static uint64_t ticks_ahead, ticks_aborted;
 static int quiet_fd = -1, saved_err = -1;
 
-void runahead_keep(void *p, size_t bytes)
+void runahead_keep(void *p, size_t bytes, const char *name)
 {
     if (keep_count == KEEP_MAX) {
         fprintf(stderr, "runahead: more than %d kept statics\n", KEEP_MAX);
@@ -50,11 +52,23 @@ void runahead_keep(void *p, size_t bytes)
     }
     keeps[keep_count].p = p;
     keeps[keep_count].bytes = bytes;
+    keeps[keep_count].name = name;
     keeps[keep_count].saved = NULL;
     keep_count++;
 }
 
 unsigned runahead_n(void) { return ahead_steps; }
+unsigned runahead_keep_count(void) { return keep_count; }
+
+void runahead_keep_at(unsigned i, const char **name, void **p, size_t *bytes)
+{
+    *name = keeps[i].name;
+    *p = keeps[i].p;
+    *bytes = keeps[i].bytes;
+}
+
+static int headless_run;
+int runahead_headless(void) { return headless_run; }
 int runahead_ahead(void) { return ahead; }
 
 int runahead_guard(void)
@@ -137,7 +151,7 @@ void runahead_init(int argc, char **argv)
 
     for (int i = 1; i < argc; i++)
         if (!strcmp(argv[i], "--headless"))
-            headless = 1;
+            headless = headless_run = 1;
     if (v && *v)
         ahead_steps = (unsigned)strtoul(v, NULL, 0);
     else
@@ -216,6 +230,7 @@ static void put_back(void)
 
 void runahead_begin(void)
 {
+    music_snapshot_commit();    /* a snapshot's sound state loaded in the update before goes to the driver now (music.h) */
     if (timing)
         tick_t0 = now_ms();
     if (live)
@@ -231,6 +246,28 @@ static void dev_hash(void)
 
     if (parts < 0)
         parts = atoi(getenv("ALADDIN_DEV_STATE_HASH")) == 2;
+    {   /* ALADDIN_DEV_KEPT_DUMP=U:FILE: at update U the kept video parts' used bytes, one after the other, to FILE (to find what differs) */
+        const char *v = getenv("ALADDIN_DEV_KEPT_DUMP");
+
+        if (v && strtoull(v, NULL, 0) == nshvc_updates() && strchr(v, ':')) {
+            FILE *f = fopen(strchr(v, ':') + 1, "wb");
+
+            for (unsigned i = 0; f && i < between_kept_count(); i++) {
+                const char *name;
+                void *live;
+                size_t used, total;
+                int owned;
+
+                between_kept_at(i, &name, &live, &used, &total, &owned);
+                if (!owned) {
+                    fprintf(f ? stderr : stderr, "kept %u %s %zu\n", i, name, used);
+                    fwrite(live, 1, used, f);
+                }
+            }
+            if (f)
+                fclose(f);
+        }
+    }
     fprintf(stderr, "hash u=%" PRIu64, nshvc_updates());
     h = between_saved_hash(h, parts);
     for (unsigned i = 0; i < keep_count; i++) {
@@ -243,7 +280,14 @@ static void dev_hash(void)
             fprintf(stderr, " s%u=%016" PRIx64, i, one);
         h = (h ^ one) * 0x100000001b3ull;
     }
-    h = level_maps_hash(h);
+    {
+        uint64_t lm = level_maps_hash(0xcbf29ce484222325ull), mu = headless_run ? music_state_hash(0xcbf29ce484222325ull) : 0;
+
+        if (parts)
+            fprintf(stderr, " maps=%016" PRIx64 " sound=%016" PRIx64, lm, mu);
+        h = (h ^ lm) * 0x100000001b3ull;
+        h = (h ^ mu) * 0x100000001b3ull;
+    }
     fprintf(stderr, " %016" PRIx64 "\n", h);
 }
 

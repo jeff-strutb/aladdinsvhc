@@ -34,6 +34,19 @@ unsigned slots_count(void)
     return slots_open;
 }
 
+unsigned slots_open_now(void)
+{
+    return slots_open;
+}
+
+/* a snapshot's slots: as many open as it had (the view it brings has been put in) */
+void slots_adopt(unsigned open)
+{
+    slots_open = open;
+    if (open > SLOTS_STD)
+        video_slot_sets_make(open);
+}
+
 /* More slots open in a larger view, so a kind never fails for want of one; the original's 4 stay at 256 x 224. A slot
    once open stays open: its palette and tiles are only read by the actors that claim it. */
 int slots_grow(unsigned count)
