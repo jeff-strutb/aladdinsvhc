@@ -3,45 +3,19 @@
  * the SNES pads), or in the demo from its script; then the game's four
  * actions through the buttons the options give them.
  *
- * The keys and controller buttons below stand for the pads' buttons until
- * stage 6 gives the game its own controls (plan stage 6).
+ * The keys and controller buttons that stand for the pads' buttons are
+ * input/controls.c's, which the menu lets the player change.
  */
 #include "data/input_tables.h"
+#include "input/controls.h"
 #include "system/state.h"
 #include "system/system.h"
 
 enum { PLAY_PADS = 0, PLAY_RECORDER = 1, PLAY_DEMO = 2 };
 
-/* keys (nshvc_key: Windows virtual key codes) for pad 1 */
-static const struct { nshvc_key key; uint16_t button; } pad_keys[] = {
-    { 0x26, PAD_UP }, { 0x28, PAD_DOWN }, { 0x25, PAD_LEFT }, { 0x27, PAD_RIGHT },
-    { 'X', PAD_A }, { 'Z', PAD_B }, { 'S', PAD_X }, { 'A', PAD_Y },
-    { 'Q', PAD_L }, { 'W', PAD_R }, { 0x0D, PAD_START }, { 0xA1, PAD_SELECT }, { 0x10, PAD_SELECT },
-};
-
-/* controller buttons, by their place, for each pad */
-static const struct { uint16_t ctl; uint16_t button; } pad_buttons[] = {
-    { NSHVC_CTL_UP, PAD_UP }, { NSHVC_CTL_DOWN, PAD_DOWN }, { NSHVC_CTL_LEFT, PAD_LEFT }, { NSHVC_CTL_RIGHT, PAD_RIGHT },
-    { NSHVC_CTL_EAST, PAD_A }, { NSHVC_CTL_SOUTH, PAD_B }, { NSHVC_CTL_NORTH, PAD_X }, { NSHVC_CTL_WEST, PAD_Y },
-    { NSHVC_CTL_LB, PAD_L }, { NSHVC_CTL_RB, PAD_R }, { NSHVC_CTL_MENU, PAD_START }, { NSHVC_CTL_BACK, PAD_SELECT },
-};
-
 static uint16_t pad_now(const nshvc_input *input, unsigned pad)
 {
-    uint16_t now = 0;
-    unsigned i;
-
-    if (!input)
-        return 0;
-    if (pad == 0)
-        for (i = 0; i < sizeof pad_keys / sizeof pad_keys[0]; i++)
-            if (NSHVC_KEY_HELD(input, pad_keys[i].key))
-                now |= pad_keys[i].button;
-    if (input->controller[pad].on)
-        for (i = 0; i < sizeof pad_buttons / sizeof pad_buttons[0]; i++)
-            if (input->controller[pad].buttons & pad_buttons[i].ctl)
-                now |= pad_buttons[i].button;
-    return now;
+    return controls_pad(input, pad);
 }
 
 /*
