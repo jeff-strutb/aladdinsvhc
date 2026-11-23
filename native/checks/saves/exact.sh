@@ -40,7 +40,7 @@ python3 -I - "$a_play" "$u" "$out/m.txt" <<'PY'
 import sys
 a, u, outp = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 o = []
-for l in open(a):
+for l in ([] if a == "-" else open(a)):
     t = l.split()
     if t and t[0].isdigit() and int(t[0]) < u: o.append(l.rstrip('\n'))
 # the pause menu by keys at U: Escape opens it, Down to SAVE MENU, Z opens the slots, Z on slot 1 saves
