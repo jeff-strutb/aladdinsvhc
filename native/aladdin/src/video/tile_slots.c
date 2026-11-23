@@ -31,12 +31,21 @@ void TileSlotFill(uint8_t kind)
  * WHAT IT DOES: Claims a free palette slot for `kind` and actor `a`, tried
  * from 4 down to 1, then (in a view with more than four slots) from 5 up:
  * the slot marked used by the kind, its number to the actor and the kind,
- * its look to the actor's and the kind's. 0 claimed, -1 when all are taken.
+ * its look to the actor's and the kind's. 0 claimed, -1 when all are taken
+ * (in a view larger than 256 x 224 one more is opened then: slots_grow).
  */
 int TileSlotClaim(uint8_t kind, Actor *a)
 {
     unsigned count = slots_count();
 
+    if (count > SLOTS_STD) {        /* a larger view: when all are taken, one more */
+        unsigned used = 0;
+
+        for (unsigned n = 0; n < count; n++)
+            used += g.palette_slot_users[n] != 0;
+        if (used == count && slots_grow(count + 1))
+            count++;
+    }
     for (unsigned n = 0; n < count; n++) {
         unsigned x = n < SLOTS_STD ? SLOTS_STD - 1 - n : n;
         uint32_t look;

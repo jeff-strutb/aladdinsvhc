@@ -6,6 +6,7 @@
 
 #include "input/controls.h"
 #include "system/system.h"
+#include "system/runahead.h"
 
 const uint16_t controls_buttons[CONTROLS_BUTTONS] = {
     PAD_B, PAD_Y, PAD_SELECT, PAD_START, PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT, PAD_A, PAD_X, PAD_L, PAD_R
@@ -21,7 +22,9 @@ static uint8_t key_of[CONTROLS_BUTTONS];
 static uint16_t ctl_of[CONTROLS_BUTTONS];
 static int ready;
 static int source;
+RUNAHEAD_KEEP(source)
 static uint16_t swallowed;
+RUNAHEAD_KEEP(swallowed)
 
 static void start(void)
 {

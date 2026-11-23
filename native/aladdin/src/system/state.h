@@ -221,6 +221,10 @@ typedef struct Actor {
     int (*code)(struct Actor *a); /* native: the code that owns its resume point (actor.h's ActorCode): its kind's entry, or what ActorRunAs gave it */
     uint16_t call_at;           /* native: where a shared routine that waits inside it goes on (actor.h), 0 none;
                                    the original kept its caller's return at +$4E and its own place in +$02-$05 */
+    uint8_t placed_here;        /* native: made by its placement (ActorPlace), not by another actor or a task (which leave +$34 0 or $FF) */
+    uint8_t outside_play;       /* native: kept by a scene's clear in a view larger than the original's, as the clear would have removed it
+                                   (ActorsClearForScene): drawn and running, not counted with its kind, touching and touched by nothing, freed
+                                   once out of the view; what it makes is outside play too (1: not counted with its kind; 2, a second-pool record: counted) */
     uint8_t on_screen;          /* native: set by ActorsInView with the in-view flag (bit 6 of flags): the original's own 256 x 224 view box holds the
                                    range point, as that flag meant at the original's view; see ACTOR_ON_SCREEN */
     DataRef own_pictures;       /* +$29-$2A, for the kinds that send their own pictures: the list ActorPictureSend sends them

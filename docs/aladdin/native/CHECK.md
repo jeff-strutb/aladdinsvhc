@@ -373,6 +373,8 @@ player (x, y, health) or the actor list (kind, x, y) differs. The two games do n
 
 `ALADDIN_DEV_RECORD=FILE` (system/main.c): whatever keys and controller buttons are played, in the window or by `--input`, are written as an `--input` file (a line at each update where they change); play a level by hand with it set, then `native/checks/plays/run.sh FILE UPDATES` replays it. Checked: replaying `p0-2.txt` with it set writes the same keys at the same updates.
 
+`ALADDIN_DEV_LEVEL=PART-STAGE` (system/dev_level.c; level 3 is `0-3`): the game's own level select is played by keys from power-on, the keys `select_input.py PART STAGE` writes, with the level select's cheat set at boot as `ALADDIN_DEV_CHEAT=1` sets it (the title menu has no options screen to type the code in), then the person's keys take over (after update 3903; the level plays from about 3934). Set with `ALADDIN_DEV_RECORD`, the recording replays from power-on with `--input` and `ALADDIN_DEV_CHEAT=1`. Checked 2026-11-23, after the options screen's removal: `0-3` headless and the `select_input.py 0 3` file with `ALADDIN_DEV_CHEAT=1` give the same trace line and actor list at every update to 4600 (9,413 lines, level 3 from update 4000); the recording's replay was not rerun.
+
 ## The two last fights: the flow after the last hit, by patched health (2026-11-21)
 
 Jeff's decision: the bosses of level 16 (Jafar's first form, kind $98) and level 17 (the snake, kind $73) are NOT beaten in full by keys (three sessions
@@ -422,3 +424,21 @@ Builds: the tree before the change (`HEAD` of main, with the options screen) and
 - `native/checks/pause_check/grid_build.sh OUT` then `OUT BASE.ppm W H game|title PAGE SEL ASK USED OUT.ppm [CROP.ppm]`: the slots' screen over a game picture (pictures in `docs/aladdin/native/shots/saves-*.png`); the crop equals the picture's own pixels (0 of 6,912 differ).
 - A developer's picture (`ALADDIN_DEV_SHOTS`) is also taken while the pause menu is open; the headless renderer draws no overlays, so the screens are composed by these tools as `pause_check menu` composes the pause menu.
 - Save and load exact in a play, a planted fault caught, the title load: **not run** (they need the snapshot, system/snapshot.h).
+## Runahead (developer variables and checks; FRAMERATE.md section 9)
+
+`ALADDIN_RUNAHEAD=N`: the ahead steps a tick takes after the real one. Default 1 in a window, 0 (off) in a headless run; 0 turns it
+off anywhere. Only 0 and 1 are built: a larger N is taken as 1, with a note on stderr. It is also off, whatever N says, when one of the
+developer's tools that drive or log the steps themselves is set (`ALADDIN_DEV_BOT`, `ALADDIN_DEV_TRIGGERS`, `ALADDIN_TASK_TRACE`,
+`ALADDIN_DEV_MAPDUMP`, `ALADDIN_DEV_CELDUMP`). While the pause menu is open there are no ahead steps.
+`ALADDIN_DEV_STATE_HASH=1`: a line `hash u=N H` on stderr after each real update, H the hash of the real world (g, the video parts
+`between_keep` registered, the statics `RUNAHEAD_KEEP` registered, the level maps' words); `=2` adds each part's own hash, to find which
+part differs. `ALADDIN_DEV_RUNAHEAD_REPORT=1`: at the end, how many ticks ran ahead, how many ended early, and the time of the
+ticks (mean, the real step alone, median, 99th percentile, worst, how many over 16.7 ms).
+
+- `native/checks/runahead/state.sh HEADLESS_BIN`: the real world is the same with and without ahead steps. The boot and every play of
+  `native/checks/plays` run on one build with `ALADDIN_RUNAHEAD=0` and with `=1`, both with the state hash and the developer's trace
+  (`view/same.sh` with `SAME_BASE_ENV`, `SAME_NEW_ENV`); the two logs must be the same line for line.
+- `native/checks/runahead/future.sh MACOS_BIN INPUT FROM TO BETWEEN`: the ahead picture is the true future when the pad does not change
+  (Metal build, a picture every update, drawn at between BETWEEN).
+- `native/checks/runahead/latency.sh MACOS_BIN "4100 key=27\n4200" [BETWEEN]`: the updates from a key press to the first change in the
+  player's state and in the picture, with and without runahead, on level 0's start.

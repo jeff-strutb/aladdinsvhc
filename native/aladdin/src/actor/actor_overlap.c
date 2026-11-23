@@ -28,14 +28,14 @@ Actor *ActorTouchesSecondPool(const Actor *a)
     HitBox mine = hit_box(a->kind);
     int i;
 
-    if ((a->anim_flags & 0x80) || !(a->flags & 0x40))
+    if ((a->anim_flags & 0x80) || !actor_in_play(a))
         return NULL;
     for (i = 3; i < 3 + ACTOR_POOL_B_SIZE; i++) {
         Actor *s = &g.actors[i];
         HitBox b;
         uint16_t w, h;
 
-        if (!s->state || (s->anim_flags & 0x80) || !(s->flags & 0x40))
+        if (!s->state || (s->anim_flags & 0x80) || !actor_in_play(s))
             continue;
         b = second_pool_box(s->kind & 0x0F);
         w = (uint16_t)(b.half_w + mine.half_w);

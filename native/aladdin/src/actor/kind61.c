@@ -42,7 +42,7 @@ static int pad_frame(Actor *a)
     if (g.player_no_landing & 0x80)
         return 1;
     if ((uint8_t)g.level == LEVEL_TAKEN_TEST
-        && ((uint8_t)g.player_no_actor_landing || !(a->flags & 0x40)))
+        && ((uint8_t)g.player_no_actor_landing || !actor_in_play(a)))
         return 1;
     if (own(a)->wait) {
         own(a)->wait--;

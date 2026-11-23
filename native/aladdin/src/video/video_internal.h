@@ -10,7 +10,7 @@
 #include "system/state.h"
 
 /* video.c */
-nshvc_tiles video_slot_tiles(void);         /* the tiles of the slots past the original's four (slot_gfx.h), 64 a slot */
+nshvc_tiles video_slot_tiles(unsigned slot); /* the tile set slot 5 or more draws from (slot_gfx.h): SLOT_SET_SLOTS slots of 64 tiles a set */
 nshvc_tiles video_sprite_tiles(void);       /* the sprites' tile set (their names are its tiles 256 on) */
 uint16_t vram_step(uint8_t step_byte);      /* the address step a queue record's step byte gives */
 void video_mode7_off(void);                 /* DisplayDefaults: Mode 7's outside back to repeat, writes no longer reach it */
