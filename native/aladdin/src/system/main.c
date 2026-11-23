@@ -16,6 +16,9 @@
 #include "data/data.h"
 #include "data/level_tables.h"
 #include "nshvc/nshvc.h"
+#include "pause/menu.h"
+#include "system/screen_mode.h"
+#include "system/settings.h"
 #include "system/system.h"
 #include "system/task.h"
 #include "system/unconverted.h"
@@ -26,6 +29,8 @@ static uint64_t pictures;
 static void init(void)
 {
     data_load();
+    settings_load();
+    screen_mode_start();
     view_init();
     PowerOn();
     video_init();
@@ -153,6 +158,9 @@ static void update(const nshvc_input *input)
         return;
     }
     record_input(input);
+    screen_mode_update();
+    if (menu_update(input))
+        return;
 
     DevBotStep(step);
     step(DevBotInput(nshvc_updates(), &bot) ? &bot : input);
