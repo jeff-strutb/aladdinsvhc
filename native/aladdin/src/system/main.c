@@ -176,6 +176,7 @@ static void draw(float between)
     (void)between;
     pictures++;
     video_draw();
+    menu_draw();
 }
 
 static void shutdown(void)

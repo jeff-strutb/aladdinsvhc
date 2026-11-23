@@ -1,13 +1,13 @@
 # The pause menu, controller mapping, full screen and quit
 
-Jeff, 2026-11-22: the pause menu and controller mapping of Stunt Race FX in Aladdin, in Aladdin's own look, with the same
+Jeff, 2026-11-22 and 2026-11-23 ("it should open from start. The original pause should be deprecated."): the pause menu and controller mapping of Stunt Race FX in Aladdin, in Aladdin's own look, with the same
 controller picture; full screen by default with a window available; a way to quit. Start and Escape open it, in place of the
 original's pause.
 
 ## What it does
 
 - **Opening.** Start during play, where the original paused (`game/pause.c`, `PauseCheck`: full brightness, no demo, nothing
-  blocking, the cooldown run out), and Escape on any screen. Start or Escape shuts it. `PauseCheck` keeps the original's tests
+  blocking, the cooldown run out), and Escape on any screen. Start or Escape shuts it. The original's pause is retired: `PauseCheck` no longer freezes tasks or shows PAUSED (the `PAUSED` text layout, the frozen task states and the pause mode are not used). `PauseCheck` keeps the original's tests
   and asks the menu to open (`menu_request`) in place of freezing the tasks and showing PAUSED.
 - **Holding the game.** While the menu is open `update` does not step the game (`system/main.c`: `menu_update` returns 1), so
   the tasks, the frame counts and the picture stand where they were, as the original's frozen tasks left them. The sound goes
@@ -33,7 +33,7 @@ original's pause.
   from the middle of a level loses the level.
 - **Saved.** One file, `options` in the engine's save folder (`system/settings.c`): full screen and the keys and controller
   buttons. A file of another size, or with bindings that are not valid, is ignored whole. This is the first file the game
-  saves (plan decision 4 kept progress to passwords; Jeff allowed this file, 2026-11-22).
+  saves (plan decision 4 kept progress to passwords; Jeff allowed this file, 2026-11-23). The save folder is the engine's: `~/Library/Application Support/aladdin` on macOS, the app's Application Support folder on iOS, `%APPDATA%\aladdin` on Windows, `$XDG_DATA_HOME/aladdin` or `~/.local/share/aladdin` on Linux; `PORT_SAVEDIR` overrides it.
 
 ## Look
 

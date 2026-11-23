@@ -38,6 +38,7 @@ enum { O_TINT, O_PANEL, O_TAGS };       /* the engine's overlay numbers the menu
 #define COOLDOWN 0x10                   /* the original's, before Start can pause again */
 
 static struct {
+    int drawn;                          /* the overlays are set (menu_draw) */
     int open, requested, chosen, asking, quit_asked;
     uint16_t last;                      /* pad 1's buttons at the last update */
     int pointer_down;
@@ -99,7 +100,9 @@ static void overlays_off(void)
         nshvc_overlay_set(i, none, NULL, 0);
 }
 
-static void show(void)
+/* In draw (not in update: the picture a draw shows may be an update behind the game's state, and the menu's images and
+   overlays are its own, set here, outside the game's registered state): the menu laid over the window as it now is. */
+void menu_draw(void)
 {
     nshvc_display disp = nshvc_display_info();
     float l = disp.safe_left, t = disp.safe_top, w = (float)disp.width - disp.safe_left - disp.safe_right;
@@ -107,10 +110,19 @@ static void show(void)
     int d;
     MenuView v;
 
-    if (w <= 0 || h <= 0) {
-        overlays_off();
+    if (!m.open) {
+        if (m.drawn) {
+            overlays_off();
+            m.drawn = 0;
+        }
         return;
     }
+    if (w <= 0 || h <= 0) {
+        overlays_off();
+        m.drawn = 0;
+        return;
+    }
+    m.drawn = 1;
     menu_art_layout(l, t, w, h, &s, &d, &m.ox, &m.oy);
     m.scale = s;
 
@@ -218,7 +230,6 @@ static void shut(uint16_t held)
     m.quit_asked = 0;
     controls_swallow(held);
     g.pause_cooldown = COOLDOWN;
-    overlays_off();
     sound(SOUND_MUSIC_GO_ON);
 }
 
@@ -287,7 +298,6 @@ int menu_update(const nshvc_input *in)
         if (!esc && !m.requested)
             return 0;
         open_menu();
-        show();
         SoundCommandSend();
         return 1;
     }
@@ -315,7 +325,6 @@ int menu_update(const nshvc_input *in)
             m.asking = -1;
         }
         if (!click || item < 0) {
-            show();
             SoundCommandSend();
             return 1;
         }
@@ -350,7 +359,6 @@ int menu_update(const nshvc_input *in)
             return 1;
         }
     }
-    show();
     SoundCommandSend();
     return 1;
 }
