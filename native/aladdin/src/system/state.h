@@ -136,12 +136,6 @@ typedef struct Task {
             uint16_t count;         /* $52: frames left (a byte, or a word while typing) */
             uint8_t attr;           /* $54: the line's attribute byte */
         } story_card;
-        struct {                /* LevelEndTask (game/level_end.c); the walker's x it watches is g.scene_walker_x, the pieces it counts g.scene_count, its pause g.screen_cue */
-            uint8_t next_at;        /* $A7: the walker's x at which the picture's next block is drawn */
-            uint8_t block;          /* $A8: the next block of the picture */
-            uint8_t step[4];        /* $A9-$AC: each column's step */
-            uint8_t count;          /* $AF: frames left of the pause being counted */
-        } level_end;
         struct {                /* WindowEffectTask's waves (video/window_effects.c) */
             uint16_t phase;         /* +$06 of the slot (word): the sine's start */
             uint8_t step;           /* +$08: lines a step of the sine lasts */

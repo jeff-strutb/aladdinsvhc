@@ -16,15 +16,11 @@
  * count, then 4 bytes a spot: x, y); each level's progress sequence and
  * stage at $B933 (2 bytes a level; the record says $81, the routine runs
  * with DB = $80); level 6's bands' speeds at $C5D6, steps at $C5C0 and
- * most at $C5EC (11 words each); the level-end screen's tables from $FDC5
- * (the record says bank $81, the task runs with DB = $80): step addresses
- * $FDC5 (words), column limits $FDCD, palettes $FDD1 (4 a part), pictures
- * $FDD5 (4 a part from 1), picture tiles $FDF1, column attributes $FDF7,
- * blocks $FDFA (a byte a part), blank blocks $FE02 (16 words). The
- * password screen reads the same bytes: the start pictures at $FDD1, the
- * passwords at $FDD5 (4 pictures each, eight of them: the level end's
- * pictures of its parts), the parts at $FE36, the health at $FE3C, the
- * pictures' map bits at $FE22 and the slots' addresses at $FE2E (words).
+ * most at $C5EC (11 words each); the password screen's tables from $FDD1:
+ * the start pictures at $FDD1, the passwords at $FDD5 (4 pictures each,
+ * eight of them), the parts at $FE36, the health at $FE3C, the pictures'
+ * map bits at $FE22 and the slots' addresses at $FE2E (words). (The
+ * level-end screen's tables, from $FDC5, went with that screen.)
  */
 #include "data/data_internal.h"
 #include "data/level_tables.h"
@@ -122,24 +118,6 @@ uint8_t level_progress_stage(uint8_t level) { return at8((uint16_t)(LEVEL_PROGRE
 uint16_t band_start_speed(unsigned band) { return at16((uint16_t)(BAND_STARTS + 2 * band)); }
 uint16_t band_speed_step(unsigned band) { return at16((uint16_t)(BAND_STEPS + 2 * band)); }
 uint16_t band_most_speed(unsigned band) { return at16((uint16_t)(BAND_MOST + 2 * band)); }
-
-#define END_STEP_VRAM 0xFDC5
-#define END_COLUMN_LIMITS 0xFDCD
-#define END_PALETTES 0xFDD1
-#define END_PICTURES 0xFDD5
-#define END_PICTURE_TILES 0xFDF1
-#define END_COLUMN_ATTRS 0xFDF7
-#define END_BLOCKS 0xFDFA
-#define END_BLANKS 0xFE02
-
-uint16_t level_end_step_vram(unsigned step) { return at16((uint16_t)(END_STEP_VRAM + 2 * step)); }
-uint8_t level_end_column_limit(unsigned column) { return at8((uint16_t)(END_COLUMN_LIMITS + column)); }
-uint8_t level_end_palette(uint8_t part, unsigned i) { return at8((uint16_t)(END_PALETTES + (uint8_t)(part << 2) + i)); }
-uint8_t level_end_picture(uint8_t part, unsigned column) { return at8((uint16_t)(END_PICTURES + (uint8_t)((part - 1) << 2) + column)); }
-uint8_t level_end_picture_tile(uint8_t picture) { return at8((uint16_t)(END_PICTURE_TILES + picture)); }
-uint8_t level_end_column_attr(unsigned column) { return at8((uint16_t)(END_COLUMN_ATTRS + column)); }
-uint8_t level_end_block(uint8_t part) { return at8((uint16_t)(END_BLOCKS + part)); }
-uint16_t level_end_blank_block(unsigned i) { return at16((uint16_t)(END_BLANKS + 2 * i)); }
 
 #define PASSWORD_START 0xFDD1
 #define PASSWORD_LIST 0xFDD5
