@@ -19,7 +19,8 @@
 #define ZOOM_ENDED 0x80         /* screen_signal's bit: the zoom task has ended */
 #define FULL_SIZE 0x0100        /* Mode 7's a and d at full size (8.8) */
 
-enum { MENU_START, MENU_PASSWORD, MENU_OPTIONS };
+/* the menu's choices: the second and third have no screen yet (DEPARTURES.md: SAVED GAMES and LEVEL SELECT) */
+enum { MENU_START, MENU_SAVED_GAMES, MENU_LEVEL_SELECT };
 
 /* An actor's place in whole pixels, its fraction kept, as the original's
    16-bit stores of the whole part. */
@@ -106,7 +107,8 @@ static TaskRun title_pressed(Task *t, uint16_t *at)
  * @routine 80:9C91 TitleTask
  * WHAT IT DOES: The title screen: puts up the Mode 7 title, waits (playing
  * the demo or the story after long idles), and runs the menu: game start,
- * password, options; with the cheat byte set, the level select.
+ * SAVED GAMES and LEVEL SELECT (which do nothing yet); with the cheat byte
+ * set, the level select.
  * HOW: Game RAM cleared; the screen built (level $40's set-up and map, the
  * layers, graphics, palette, Mode7ScreenSetup) and brightened. The first
  * time (no demo just played): kind $82's actor, song $14, the fixed colour
@@ -114,10 +116,12 @@ static TaskRun title_pressed(Task *t, uint16_t *at)
  * palette cycle $22. After a demo: song $12, and the menu waits for a
  * press or the zoom task's end (a press fades down and up again with the
  * window effect). Then the menu: kind $4A's actor, the window effect in
- * slot 4, the menu's text, a new game's counts; each frame the frame's
+ * slot 4, the menu's three lines, a new game's counts; each frame the frame's
  * update, the level select (cheat) or the cursor, the countdown (at 0 the
- * demo, or the story after a demo), a press: sound $4F, the fade down, and
- * the task starts again at its choice.
+ * demo, or the story after a demo), a press on GAME START: sound $4F, the fade down,
+ * and the game's start (a press on the other two does nothing). The original's
+ * second and third choices, the password screen and the options screen, are
+ * not reached from here (DEPARTURES.md).
  */
 TaskRun TitleTask(Task *t)
 {
@@ -312,9 +316,9 @@ TaskRun TitleTask(Task *t)
             TaskCreate(MENU_EFFECT_SLOT, 8, TASK_ENTRY_WINDOW_EFFECT);
             MenuMarkMove();
             TextLayoutShow(0xA6);
-            TextLayoutShow(0x0E);
-            TextLayoutShow(0x10);
-            TextLayoutShow(0x12);
+            TitleMenuLineShow(MENU_START, 0);
+            TitleMenuLineShow(MENU_SAVED_GAMES, 0);
+            TitleMenuLineShow(MENU_LEVEL_SELECT, 0);
             new_game_counts();
             *at = TITLE_MENU_STEP;
             return task_wait(t, 1);
@@ -333,8 +337,8 @@ TaskRun TitleTask(Task *t)
                 }
                 break;
             }
-            if (!PadConfirmPressed())
-                return task_wait(t, 1);
+            if (!PadConfirmPressed() || g.menu_choice != MENU_START)
+                return task_wait(t, 1);     /* a press on SAVED GAMES or LEVEL SELECT does nothing */
             *at = TITLE_CHOSEN;
             return task_wait(t, 1);
         case TITLE_CHOSEN:
@@ -351,10 +355,6 @@ TaskRun TitleTask(Task *t)
                 return task_wait(t, 1);
             g.line_effects_on = 0;
             TaskSlotsFree1To6();
-            if (g.menu_choice == MENU_OPTIONS)
-                return task_exec(t, TASK_ENTRY_OPTIONS);
-            if (g.menu_choice == MENU_PASSWORD)
-                return task_exec(t, TASK_ENTRY_PASSWORD);
             return task_exec(t, TASK_ENTRY_GAME_START);
         case TITLE_STORY:
             return OpeningStory(t);

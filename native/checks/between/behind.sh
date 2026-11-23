@@ -19,8 +19,8 @@ fail=0
 run() {   # side bin from name updates input
   d=$out/$4.$1
   mkdir -p "$d"
-  if [ "$6" = - ]; then in=""; else in="--input $6"; fi
-  (cd "$(dirname "$2")" && PORT_RESDIR=$(dirname "$2")/../Resources ALADDIN_DEV_SHOTS=$d ALADDIN_DEV_SHOT_EVERY=$every \
+  if [ "$6" = - ]; then in=""; cheat=0; else in="--input $6"; cheat=1; fi   # the plays select their level with the cheat set from the start
+  (cd "$(dirname "$2")" && PORT_RESDIR=$(dirname "$2")/../Resources ALADDIN_DEV_CHEAT=$cheat ALADDIN_DEV_SHOTS=$d ALADDIN_DEV_SHOT_EVERY=$every \
     ALADDIN_DEV_SHOT_PHASE=$3 "$2" --headless --updates "$5" $in > "$d.out" 2>&1)
   echo $? > "$d.exit"
   (cd "$d" && for f in u*.ppm; do [ -f "$f" ] && echo "$(md5 -q "$f") $f"; done) > "$d.md5"

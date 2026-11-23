@@ -2,7 +2,9 @@
  * options.c: the option settings, and the sum the original kept beside them
  * to tell a reset (the settings kept) from a power-on. The native game has
  * no reset of its own and no saves yet (plan decision 4), so the settings
- * live as long as the run; the sum is kept as the options screen keeps it.
+ * live as long as the run, at their defaults: the options screen that set
+ * them is gone from the title menu (DEPARTURES.md); the sum is kept as the
+ * original keeps it (the level end and the password screen seal it too).
  */
 #include "system/state.h"
 #include "system/system.h"

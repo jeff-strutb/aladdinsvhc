@@ -27,7 +27,6 @@
 /* ---- game/, map/, level/, input/: this session's, not yet converted ---- */
 
 /* ---- past the title (stage 5) ---- */
-TaskRun OptionsTask(Task *t);               /* 83:8979 */
 TaskRun PasswordScreen(Task *t);            /* 84:AD50 */
 
 /* A placeholder's report: `name` printed once to stderr. */

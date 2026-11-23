@@ -37,11 +37,13 @@ original's pause.
 
 ## Look
 
-The text is the game's 8 x 8 text tiles (unpack set 1, the tiles the options screen puts at $5000), the hand is the options
-screen's cursor (tiles $7E, $02-$04, $12-$14), and the colours are the palettes that screen loads (set $08: the gold of its
-items, the cream, the pink of its title, the glove's blue), all read from the cartridge through the data layer
+The text is the game's 8 x 8 text tiles (unpack set 1, the tiles the original's options screen put at $5000), the hand is that
+screen's cursor (tiles $7E, $02-$04, $12-$14, the title menu's mark too), and the colours are the palettes that screen loaded (set $08: the gold of its
+items, the cream, the pink of its title, the glove's blue), all read from the cartridge through the data layer (the options screen itself is gone from the title menu: DEPARTURES.md section 7)
 (`pause/menu_art.c`). The frame is drawn from the gold's colours. The controller is Stunt Race FX's drawing, the same
 `SNES_controller.svg` and `pad_art.c`; its label letters are `pad_glyphs.c`'s capitals, part of that picture.
+
+The title menu's second and third choices are SAVED GAMES and LEVEL SELECT, which do nothing yet (DEPARTURES.md section 7); the pause menu is the game's only menu of settings.
 
 Not done: the password screen's flourishes (a graphic of the screen, not text) are not in the frame, and Stunt Race FX's
 blurred picture behind its panel is not used: the picture stands under a darkening.

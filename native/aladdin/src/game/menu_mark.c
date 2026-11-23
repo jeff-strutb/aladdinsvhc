@@ -16,6 +16,10 @@
 #define BLANK_TILE 0x0020           /* the text layer's blank tile word */
 #define LAYOUT_BLANKED 0x80         /* a layout number with this bit blanks its text */
 
+#define LINE_ATTR 0x2400            /* the menu words' tile attributes: palette 1 (the tile is the letter's character code) */
+#define SAVED_GAMES_AT (20 * 32 + 10)   /* the text map word of the second line's first letter: row 20, column 10 */
+#define LEVEL_SELECT_AT (22 * 32 + 10)  /* the third line's: row 22, column 10 */
+
 /* the mark's seven cells, in words from the choice's place: one in row 0,
    three in rows 1 and 2 */
 const uint16_t menu_mark_cells[MENU_MARK_CELLS] = { 1, 32, 33, 34, 64, 65, 66 };
@@ -33,6 +37,29 @@ void MenuMarkErase(uint16_t place)
         g.text_map[place + menu_mark_cells[i]] = BLANK_TILE;
 }
 
+/* The two lines the native game puts in place of the original's PASS WORD and OPTIONS (docs/aladdin/native/DEPARTURES.md),
+   drawn as the original's lines are, in the same tiles (the letters' character codes), or blanked as a layout with bit 7 is. */
+static void line_words(unsigned at, const char *text, int blanked)
+{
+    for (unsigned i = 0; text[i]; i++)
+        g.text_map[at + i] = blanked ? BLANK_TILE : (uint16_t)(LINE_ATTR | (uint8_t)text[i]);
+    g.text_map_upload++;
+}
+
+/*
+ * TitleMenuLineShow: draws title menu choice `choice`'s line, or blanks it (`blanked`): GAME START by its text layout, as the
+ * original's; the second and third lines, SAVED GAMES and LEVEL SELECT, by their words.
+ */
+void TitleMenuLineShow(unsigned choice, int blanked)
+{
+    if (choice == 0)
+        TextLayoutShow(menu_line_layout(0) | (blanked ? LAYOUT_BLANKED : 0));
+    else if (choice == 1)
+        line_words(SAVED_GAMES_AT, "SAVED GAMES", blanked);
+    else
+        line_words(LEVEL_SELECT_AT, "LEVEL SELECT", blanked);
+}
+
 /*
  * @routine 81:EE55 TitleMenuBlink
  * WHAT IT DOES: Blinks the title menu's chosen line: shown for
@@ -48,13 +75,13 @@ void TitleMenuBlink(void)
         if (--g.menu_blink_frames != 0)
             return;
         g.menu_blink_hidden = 0;
-        TextLayoutShow(menu_line_layout(g.menu_choice_was));
+        TitleMenuLineShow(g.menu_choice_was, 0);
         return;
     }
     if (++g.menu_blink_frames != MENU_BLINK_SHOWN)
         return;
     g.menu_blink_hidden = 1;
-    TextLayoutShow(menu_line_layout(g.menu_choice) | LAYOUT_BLANKED);
+    TitleMenuLineShow(g.menu_choice, 1);
 }
 
 /*
@@ -81,7 +108,7 @@ void TitleMenuCursor(void)
     }
     MenuMarkMove();
     TitleMenuBlink();
-    TextLayoutShow(menu_line_layout(g.menu_choice_was));
+    TitleMenuLineShow(g.menu_choice_was, 0);
     g.menu_blink_hidden = 0;
     g.menu_blink_frames = 0;
     g.menu_choice_was = g.menu_choice;

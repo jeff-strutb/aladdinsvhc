@@ -22,10 +22,10 @@ done
 one() {   # name updates input
   for side in base new; do
     if [ $side = base ]; then bin=$base; v=256x224; else bin=$new; v=$view; fi
-    if [ "$3" = - ]; then in=""; else in="--input $3"; fi
+    if [ "$3" = - ]; then in=""; cheat=0; else in="--input $3"; cheat=1; fi   # the plays select their level with the cheat set from the start
     res=$(dirname "$bin")/../Resources   # a macOS build keeps cart.dat in the bundle; the headless host reads PORT_RESDIR
     [ -f "$res/cart.dat" ] || res=$(dirname "$bin")
-    (cd "$(dirname "$bin")" && PORT_RESDIR=$res ALADDIN_VIEW=$v ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 \
+    (cd "$(dirname "$bin")" && PORT_RESDIR=$res ALADDIN_DEV_CHEAT=$cheat ALADDIN_VIEW=$v ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 \
       "$bin" --headless --updates "$2" $in > "$out/$1.$side.out" 2> "$out/$1.$side.err")
     echo $? > "$out/$1.$side.exit"
   done
