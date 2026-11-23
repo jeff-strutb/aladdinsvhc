@@ -6,12 +6,14 @@
 #
 #   16  Jafar's first form (kind $98, level 16 = part 5 stage 2), native/checks/plays/boss16-2hits.txt. Its first stomp lands at
 #       update ~8379 (hits 6 -> 5 in the play). At update 8000 every live kind $98 record gets own byte 1 (its hits left) = 1,
-#       so that stomp takes the last hit. Default 10500 updates: defeat 8379-8436, the exit 8540, the stage-clear screen 8700,
-#       level 17 loads at 9660 (the play's jump key ends the stage-clear screen).
+#       so that stomp takes the last hit. Default 10500 updates: defeat 8379-8436, the exit 8540, and level 17 loads at 8689
+#       (it loaded at 9656 while the game showed the stage-clear screen of 967 updates between the two; the screen is not shown any
+#       more, DEPARTURES.md section 8; the play's keys after the exit were moved back by it, old-flow/ has the old ones).
 #   17  the snake (kind $73, level 17 = part 5 stage 3), native/checks/plays/p5-3.txt. Its stomp lands at update 5577 (health
 #       7 -> 6 in the play). At update 5500 every live kind $73 record gets own byte 1 (its health) = 0, so that stomp takes
 #       it below 0, which is beaten. Default 40000 updates: the chain falls 5578-5720, the finale to 8740, then the ending's
-#       story (level $39) from 8740, the credits (level $1C) from 26560 and "The End" held to the end of the run.
+#       story (level $39) from 8740, the credits (level $1C) from 26560 and "The End" held to the end of the run (no level-end
+#       screen lies between the finale and the ending's story: these numbers did not change when the screen was removed).
 set -e
 case "$1" in
   16) file=boss16-2hits.txt; patch=8000:98:1:1; last=10500 ;;

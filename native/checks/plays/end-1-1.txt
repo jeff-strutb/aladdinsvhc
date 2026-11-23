@@ -49,105 +49,66 @@
 4704 key=27
 4720 key=27
 4736 key=27
-4876
-4892
-4908
-4924
-4940 key=27
-4956 key=27
-4972 key=41
-4988 key=27
-5004 key=5A
-5020 key=27
-5036 key=5A
-5052
-5068 key=27 key=5A
-5084 key=27
-5100 key=27 key=5A
-5116 key=27 key=5A
-5132 key=5A
-5148 key=27 key=41
-5164 key=27
-5180 key=27
-5196 key=27
-5212 key=27
-5228 key=41
-5244 key=27
-5260 key=5A
-5276 key=27
-5292 key=5A
-5308
-5324 key=27 key=5A
-5340 key=27
-5356 key=27 key=5A
-5372 key=27 key=5A
-5388 key=5A
-5404 key=27 key=41
-5420 key=27
-5436 key=27
-5452 key=27
-5468 key=27
-5484 key=41
-5500 key=27
-5516 key=5A
-5532 key=27
-5548 key=5A
-5564
-5580 key=27 key=5A
-5596 key=27
-5612 key=27 key=5A
-5628 key=27 key=5A
-5644 key=5A
-5660 key=27 key=41
-5676 key=27
-5692 key=27
-5708 key=27
-5724 key=27
-5740 key=41
-5756 key=27
-5772 key=5A
-5788 key=27
-5804 key=5A
-5820
-5836 key=27 key=5A
-5852 key=27
-5868 key=27 key=5A
-5884 key=27 key=5A
-5900 key=5A
-5916 key=27 key=41
-5932 key=27
-5948 key=27
-5964 key=27
-5980 key=27
-5996 key=41
-6012 key=27
-6028 key=5A
-6044 key=27
-6060 key=5A
-6076
-6092 key=27 key=5A
-6108 key=27
-6124 key=27 key=5A
-6140 key=27 key=5A
-6156 key=5A
-6172 key=27 key=41
-6188 key=27
-6204 key=27
-6220 key=27
-6236 key=27
-6252 key=41
-6268 key=27
-6284 key=5A
-6300 key=27
-6316 key=5A
-6332
-6348 key=27 key=5A
-6364 key=27
-6380 key=27 key=5A
-6396 key=27 key=5A
-6412 key=5A
-6428 key=27 key=41
-6444 key=27
-6460 key=27
-6476 key=27
-6492 key=27
+4876 key=27
+4891 key=5A
+4907 key=27
+4923 key=5A
+4939
+4955 key=27 key=5A
+4971 key=27
+4987 key=27 key=5A
+5003 key=27 key=5A
+5019 key=5A
+5035 key=27 key=41
+5051 key=27
+5067 key=27
+5083 key=27
+5099 key=27
+5115 key=41
+5131 key=27
+5147 key=5A
+5163 key=27
+5179 key=5A
+5195
+5211 key=27 key=5A
+5227 key=27
+5243 key=27 key=5A
+5259 key=27 key=5A
+5275 key=5A
+5291 key=27 key=41
+5307 key=27
+5323 key=27
+5339 key=27
+5355 key=27
+5371 key=41
+5387 key=27
+5403 key=5A
+5419 key=27
+5435 key=5A
+5451
+5467 key=27 key=5A
+5483 key=27
+5499 key=27 key=5A
+5515 key=27 key=5A
+5531 key=5A
+5547 key=27 key=41
+5563 key=27
+5579 key=27
+5595 key=27
+5611 key=27
+5627 key=41
+5643 key=27
+5659 key=5A
+5675 key=27
+5691 key=5A
+5707
+5723 key=27 key=5A
+5739 key=27
+5755 key=27 key=5A
+5771 key=27 key=5A
+5787 key=5A
+5803 key=27 key=41
+5819 key=27
+5835 key=27
+5851 key=27
+5867 key=27
