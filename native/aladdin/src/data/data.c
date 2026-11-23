@@ -42,6 +42,22 @@ const uint8_t *cart_at(uint32_t offset)
     return &cart[offset % CART_SIZE];
 }
 
+/* whether `p` points into the cartridge image, and where (the snapshot writes such a pointer as its offset) */
+int data_cart_offset(const void *p, uint32_t *offset)
+{
+    const uint8_t *b = (const uint8_t *)p;
+
+    if (b < cart || b >= cart + CART_SIZE)
+        return 0;
+    *offset = (uint32_t)(b - cart);
+    return 1;
+}
+
+const uint8_t *data_cart_ptr(uint32_t offset)
+{
+    return offset < CART_SIZE ? &cart[offset] : NULL;
+}
+
 uint8_t cart8(uint32_t offset)
 {
     return cart[offset % CART_SIZE];

@@ -156,7 +156,8 @@ TaskRun TitleTask(Task *t)
             DisplayDefaults();
             TextLayerClear();
             g.level = TITLE_LEVEL;
-            LevelRamSetup();
+            LevelRamSetup();               /* (it calls DisplayDefaults again) */
+            video_title_view_set(1);        /* the load-in and the menu use the whole view (VIEW.md 6.5) */
             g.camera_window = -1;
             scroll_whole_clear();
             LevelMapBuild();

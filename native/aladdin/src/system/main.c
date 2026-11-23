@@ -178,9 +178,14 @@ static void update(const nshvc_input *input)
     nshvc_input bot, select;
 
     runahead_begin();           /* the real world back, if the last tick ran ahead */
+    DevSnapshotSave(nshvc_updates());
     if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
         input = &select;
     between_update_begin();
+    if (DevSnapshotLoad(nshvc_updates())) {     /* a snapshot's load: no step in this update */
+        between_update_end();
+        return;
+    }
     if (DevMapDumpHeld()) {
         NmiPictureWork();
         between_update_end();
@@ -188,6 +193,10 @@ static void update(const nshvc_input *input)
     }
     record_input(input);
     screen_mode_update();
+    if (DevSaves(nshvc_updates())) {    /* a developer's load ended the update (dev_saves.c) */
+        between_update_end();
+        return;
+    }
     if (menu_update(input)) {   /* the pause menu is open: no step; the picture holds the world the last step left */
         DevShot(nshvc_updates());   /* the developer's pictures go on, the menu in them */
         between_update_end();
@@ -227,6 +236,7 @@ int main(int argc, char **argv)
     runahead_init(argc, argv);
     game.title = "Aladdin";
     game.id = "aladdin";
+    game.save_in_game_folder = 1;   /* saves beside the program, not in the system's folders (PAUSE.md, "Saved") */
     game.update_hz = 60;
     game.init = init;
     game.update = update;

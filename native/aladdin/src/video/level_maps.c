@@ -349,7 +349,109 @@ void LevelMapsBackdropOff(void)
 void level_maps_keep(void)
 {
     between_keep(layer_map, sizeof layer_map);
-    between_unhashed(layer_map);
+    between_owned(layer_map);
+}
+
+/* ---- the snapshot (system/snapshot.c): each layer's record as numbers, then its words ---- */
+
+#define SNAP_HEAD 10u                   /* 32-bit numbers a layer: on, wraps, w, h, mx, my, level_w, level_h, which words array, 0 */
+
+size_t level_maps_snapshot_max(void)
+{
+    return 2 * (SNAP_HEAD * 4 + (size_t)MAP_WORDS * 2);
+}
+
+static uint32_t put32(uint8_t *o, uint32_t v)
+{
+    o[0] = (uint8_t)v; o[1] = (uint8_t)(v >> 8); o[2] = (uint8_t)(v >> 16); o[3] = (uint8_t)(v >> 24);
+    return 4;
+}
+
+static uint32_t get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+size_t level_maps_snapshot_save(uint8_t *out)
+{
+    size_t at = 0;
+
+    for (int layer = 0; layer < 2; layer++) {
+        const LevelMap *m = &layer_map[layer];
+        uint32_t head[SNAP_HEAD] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->words == back_words, 0 };
+
+        for (unsigned i = 0; i < SNAP_HEAD; i++)
+            at += put32(out + at, head[i]);
+        if (m->on) {
+            for (size_t i = 0; i < (size_t)m->w * m->h; i++) {
+                out[at++] = (uint8_t)m->words[i];
+                out[at++] = (uint8_t)(m->words[i] >> 8);
+            }
+        }
+    }
+    return at;
+}
+
+/* whether `in` is two layers' records that fit (sizes within what a layer holds, the words all there) */
+int level_maps_snapshot_check(const uint8_t *in, size_t len)
+{
+    size_t at = 0;
+
+    for (int layer = 0; layer < 2; layer++) {
+        uint32_t on, w, h;
+
+        if (at + SNAP_HEAD * 4 > len)
+            return 0;
+        on = get32(in + at);
+        w = get32(in + at + 8);
+        h = get32(in + at + 12);
+        at += SNAP_HEAD * 4;
+        if (on > 1 || get32(in + at - 8) > 1)
+            return 0;
+        if (on) {
+            if (!w || !h || (uint64_t)w * h > MAP_WORDS || at + (size_t)w * h * 2 > len)
+                return 0;
+            at += (size_t)w * h * 2;
+        }
+    }
+    return at == len;
+}
+
+/* put in: the engine map of that layer and size from the pool as a level's load takes it (made if the process has none), the
+   words in the game's array and written to the engine map; a layer that was off is off */
+int level_maps_snapshot_load(const uint8_t *in, size_t len)
+{
+    size_t at = 0;
+
+    (void)len;
+    for (int layer = 0; layer < 2; layer++) {
+        LevelMap *m = &layer_map[layer];
+        uint32_t head[SNAP_HEAD];
+        nshvc_map map = m->map;
+
+        for (unsigned i = 0; i < SNAP_HEAD; i++)
+            head[i] = get32(in + at + 4 * i);
+        at += SNAP_HEAD * 4;
+        if (head[0] && !map_of(layer, head[2], head[3], &map))
+            return 0;
+        m->on = (uint8_t)head[0];
+        m->wraps = (uint8_t)head[1];
+        m->w = head[2];
+        m->h = head[3];
+        m->mx = head[4];
+        m->my = head[5];
+        m->level_w = head[6];
+        m->level_h = head[7];
+        m->words = head[8] ? back_words : field_words;
+        m->map = map;
+        if (m->on) {
+            for (size_t i = 0; i < (size_t)m->w * m->h; i++)
+                m->words[i] = (uint16_t)(in[at + 2 * i] | in[at + 2 * i + 1] << 8);
+            nshvc_map_write_snes(m->map, 0, 0, m->w, m->h, m->words);
+            at += (size_t)m->w * m->h * 2;
+        }
+    }
+    return 1;
 }
 
 /* the developer's state hash (ALADDIN_DEV_STATE_HASH): the layers' maps and their words as they are now */
@@ -357,7 +459,7 @@ uint64_t level_maps_hash(uint64_t h)
 {
     for (int layer = 0; layer < 2; layer++) {
         const LevelMap *m = &layer_map[layer];
-        uint32_t head[9] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->map.id };
+        uint32_t head[9] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->words == back_words };   /* not the engine's handle: it is the process's */
         const uint8_t *p = (const uint8_t *)head;
         size_t n = sizeof head;
 

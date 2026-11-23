@@ -49,6 +49,9 @@
 #include "system/state.h"
 
 void video_init(void);
+struct View;
+void video_view_adopt(const struct View *saved, unsigned slots_open);   /* a snapshot's view put in (system/snapshot.c) */
+void video_mode7_rewrite(void);             /* Mode 7's engine objects written from the game's arrays */
 void video_vblank(void);
 void video_update_end(void);           /* at each update's end: Mode 7's changed art, held with the update's writes (between.h) */
 void video_draw(void);
@@ -75,6 +78,7 @@ void DisplayDefaults(void);                 /* 81:9865 */
 void video_view_level(void);         /* a level starts loading: the view from the window (view.h), before its limits are set */
 void video_view_still(void);               /* a still screen starts (DisplayDefaults): the view from the window, unless a level is loading */
 void video_view_level_done(void);          /* the level's screen is set up: a later DisplayDefaults is a still screen */
+void video_title_view_set(int on);          /* the title is the screen (TitleTask: 1) or no longer (DisplayDefaults: 0): its picture is not cut to the original's frame (VIEW.md 6.5) */
 void video_level_view_set(int on);          /* a level is the screen (LevelScreenSetup: 1) or no longer (DisplayDefaults: 0): the effects and the text layer take the level's view */
 void VramCopy(int entry);               /* 81:F5DC: entry of the first copy table (the record's X / 7) */
 void VramCopy2(int entry);              /* 81:F60D: entry of the second */
@@ -114,6 +118,10 @@ const nshvc_sprite *OamSprites(void);
 const uint8_t *OamSpriteOwners(void);
 const int16_t (*OamSpriteAnchors(void))[2];
 const int32_t (*OamSpriteAnchorsFx(void))[2];   /* the same in 256ths of a pixel */  /* each sprite's actor's screen place as drawn (the picture's easing) */     /* each sprite's actor record, as far as g.sprite_count (the picture's easing) */      /* the frame's sprites, as far as g.sprite_count */
+size_t oam_snapshot_size(void);             /* the frame's sprites kept by the snapshot (oam.c) */
+size_t oam_snapshot_save(uint8_t *out);
+int oam_snapshot_check(const uint8_t *in, size_t len);
+void oam_snapshot_load(const uint8_t *in);
 uint32_t OamSpriteCapacity(void);          /* how many the list holds */
 void OamBufferClear(void);                  /* 81:95D5 */
 void OamBuildBegin(void);                   /* 81:9230 */

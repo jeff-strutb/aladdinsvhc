@@ -18,6 +18,7 @@
 #define FORMAT 1u
 #define HEAD 36u                        /* 4 + 4*4 + 2 + 6 + 8 */
 #define PIC_BYTES (SAVE_PIC_W * SAVE_PIC_H * 4u)
+#define READ_CAP (6u << 20)             /* more than a snapshot's most (about 2.7 MB; it changes with the level): a longer file is refused by its size */
 
 static SaveInfo infos[SAVE_SLOTS];
 static int scanned;
@@ -189,7 +190,7 @@ static int check(const uint8_t *f, size_t n, size_t *snap_at, size_t *snap_len)
 static uint8_t *read_file(int slot, size_t *n)
 {
     char name[32];
-    size_t cap = HEAD + PIC_BYTES + snapshot_max() + 8 + 1;    /* one more than a file can be: a longer one is seen */
+    size_t cap = READ_CAP;
     uint8_t *f = malloc(cap);
     int got;
 
