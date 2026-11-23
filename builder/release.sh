@@ -2,7 +2,7 @@
 # builder/release.sh: build Aladdin Builder for macOS, Windows and Linux
 # and publish them on the repository's GitHub Releases page as vVERSION.
 #
-# VERSION: 0.1 unless set. The release is tagged at HEAD as it is when this
+# VERSION: 0.95 unless set. The release is tagged at HEAD as it is when this
 # starts, which must already be on GitHub. Running it again at the same
 # version replaces the files of that release.
 #
@@ -19,7 +19,7 @@ for a in "$@"; do
     [ "$a" = --no-build ] && BUILD=0
 done
 
-VERSION=${VERSION:-0.1}
+VERSION=${VERSION:-0.95}
 TAG=v$VERSION
 DIST=build/builder/dist
 MAC=$DIST/AladdinBuilder-$VERSION-macOS.zip
@@ -50,6 +50,10 @@ cat > $NOTES <<EOF
 Aladdin Builder makes a native build of **Aladdin** (Super Nintendo, 1993) from your own copy of the cartridge: the game as C, decompiled from the cartridge and compiled for your machine, running on nativeshvc, with everything drawn by the GPU. On a Mac it builds the game for the Mac; on Windows, for Windows; on Linux, for Linux.
 
 The game's data is copyrighted, so the builder does not include it: you provide your ROM, the builder checks it by MD5, takes the data the game reads from it (the ROM's code is not used: the C stands for it), has the game make its level select's pictures from that data, and produces a game that runs on its own. The ROM is not needed once the build is done.
+
+### New in 0.95
+- **Level Select and Saved Games from the title**: Start chooses, as B and A do, and Select or Escape go back.
+- **The slot grid's hints** read as the pause menu's: "B OR START CHOOSE   SELECT OR ESC BACK" on the title's screens, "B OR A CHOOSE   START OR ESC BACK" in the pause menu.
 
 ### Features
 - **Native**: the game's own C for your machine, no emulator; drawn by the GPU (Metal on the Mac, Direct3D 12 on Windows, Vulkan on Linux).
