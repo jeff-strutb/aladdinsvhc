@@ -99,163 +99,68 @@ exists and the raw intake for everything else (`tools/aladdin/image.py`).
 
 ## The native game: Aladdin Remastered
 
-`native/aladdin` is the game on [nativeshvc](https://github.com/jeff-strutb/nativeshvc),
-a native engine, built and run on Linux and macOS. Each `update` is one 60 Hz
-frame of the original's work; `draw` describes the picture from the game's
-state. The game's C reaches the engine only through its calls (`nshvc_*`): no
-register-shaped state, no translation layer and no imitated PPU, DMA, sound
-chip or bus. The engine runs no processor instructions. The plan, its
-decisions and its progress are in
-[docs/aladdin/native/PLAN.md](docs/aladdin/native/PLAN.md); building it is in
-[docs/aladdin/native/BUILD.md](docs/aladdin/native/BUILD.md).
+`native/aladdin` is the whole game running natively on
+[nativeshvc](https://github.com/jeff-strutb/nativeshvc), a native engine that provides what the Super NES provided
+with zero emulation: no processor instructions run, and there is no imitated PPU, DMA, sound chip or bus. The game is
+ordinary typed C written from the certified decomp, routine by routine, and reaches the engine only through its calls
+(`nshvc_*`). Its logic is the original's; everything below is added round it.
 
-The decomp's C (`src/aladdin`) is the certified record of what each routine
-does. The native game is written from it, routine by routine, as ordinary
-typed C: named state in place of memory addresses, explicit states in place
-of routines that pause, and typed readers in place of cartridge addresses.
-The game's logic is the original's, so a wrong value or a misplaced actor is
-a bug; recordings of the original are kept to find such bugs.
+| ![Stage 1-1 at 16:9](docs/aladdin/native/shots/remaster-market.png)<br>Stage 1-1 at 16:9: more of the level, not a wider lens | ![Stage 3-1 at 16:9](docs/aladdin/native/shots/remaster-lava.png)<br>Stage 3-1 at 16:9 |
+|---|---|
+| ![Stage 5-1 at 16:9](docs/aladdin/native/shots/remaster-pyramid.png)<br>Stage 5-1 at 16:9 | ![The title](docs/aladdin/native/shots/remaster-title.png)<br>The title, with saved games and level select |
+| ![Save games](docs/aladdin/native/shots/saves-game-used.png)<br>Save games: the exact moment, with its picture | ![Level select](docs/aladdin/native/shots/levelselect-some.png)<br>Level select: levels not yet beaten are dimmed |
+
+### What the remaster adds
+
+- **Widescreen at any shape, 4:3 to ultrawide.** A wider window shows more of the level, filled past the level's edges
+  from its own art. Play stays in the original 256 x 224 frame: every trigger keeps its original distance. The view
+  follows the window at once on a resize or a switch to full screen. ([VIEW.md](docs/aladdin/native/VIEW.md))
+- **Smooth motion at any refresh rate.** The logic is the original's 60 Hz; every picture is eased between updates with
+  places between pixels, and the fades, wipes and Mode 7 are eased between their steps.
+  ([FRAMERATE.md](docs/aladdin/native/FRAMERATE.md))
+- **Runahead.** The picture shows a press one update sooner, at about 0.03 ms a tick; the real game state is untouched.
+- **Save games.** 24 slots, each the exact moment with a 1:1 picture of it; save from the pause menu, load from there or
+  the title. ([SAVES.md](docs/aladdin/native/SAVES.md))
+- **Level select.** All 19 levels with their pictures; the ones you have beaten can be started.
+  ([LEVELSELECT.md](docs/aladdin/native/LEVELSELECT.md))
+- **A pause menu** in the game's own lettering: controller and key remapping, full screen, quit.
+  ([PAUSE.md](docs/aladdin/native/PAUSE.md))
+- **Portable.** Options, saves and progress live in a folder beside the game.
+- **macOS (Metal), Windows (Direct3D 12) and Linux (Vulkan)** from one source.
+  ([BUILD.md](docs/aladdin/native/BUILD.md))
+
+In their place, the original's password screens and options screen are gone
+([DEPARTURES.md](docs/aladdin/native/DEPARTURES.md) lists every departure from the original).
+
+### What nativeshvc does for it
+
+- **Draws the SNES's picture natively:** sprites, tile layers, Mode 7, per-line effects, windows and colour maths, as
+  calls a game makes, on Metal, Direct3D 12 and Vulkan.
+- **Goes past the console where the game asks:** a view of any size, places between pixels, a brightness between the 16
+  levels, any number of sprite palettes, whole-level maps.
+- **Runs the game's clock and the display's apart:** 60 Hz updates, pictures at the display's rate, shown a refresh
+  sooner.
+- **Mixes the sound, takes keys and controllers, and keeps the save folder.**
+
+### Checked
+
+- **Against the original:** 18 plays replayed on the original, one logic frame per native update, identical in the
+  player and the actor list ([FINAL.md](docs/aladdin/native/FINAL.md)).
+- **Nothing added changes the game:** at 256 x 224, the boot and 20 plays are compared update by update with the game
+  before the remaster's work. 15 runs are identical; 6 differ only from where the removed password screen began.
+- **Runahead and saves:** the real game state is identical with runahead on and off (21 runs); a save loaded in another
+  run gives identical traces (6 cases), with runahead off and on.
+- **Wide views:** at 288, 384 and 512 wide every play runs to its end and no trigger fires past its original distance.
+
+How each check is run: [CHECK.md](docs/aladdin/native/CHECK.md).
 
 ### Not done
 
-What was proven and what was not, number by number, is in [docs/aladdin/native/FINAL.md](docs/aladdin/native/FINAL.md).
-
-- **Played by keys.** Levels are numbered from 0 here (level 0 is part 0 stage 0; 19 levels in all). A developer's player
-  (`native/checks/plays/`, replayed from power-on with the level select) took 16 levels from start to their real exit (0, 1,
-  2, 4 to 15 and 18) and level 3 from start to its scene, STAGE 1 CLEAR and story card. Level 9 ends at the Genie's Break
-  Time by a real level end. All seven passwords were accepted by keys (parts 1 to 7). The continue screen was reached by
-  play. The two boss levels, 16 (Jafar's first form) and 17 (the snake), are **not won in full**: by Jeff's decision each was
-  proven by patched boss health and one real stomp by keys, then the defeat, the level end, the next screens, the ending's
-  story, the credits and "The End" ran.
-- **Proven against the original.** 18 plays (every level but 18) were replayed on the original, one logic frame per native
-  update, and are identical (the player's x, y and health, the actor list's kind, x and y) to the update FINAL.md gives for
-  each, from 5,877 to 10,893; level 17 with the patched health is identical from 3936 to 7301 and through the finale. The
-  ending was compared by cues and frames in two runs of the original: cues equal, scenes 10 to 52 frames shorter native.
-  The every-kind table covers 133 kinds against 244 coverage scripts and the stage plays; 8 kinds are never met by a
-  recording, the others are exact where a recording follows them, and kind $9E (20 fields) is the open row the later work
-  left. Screen effects: the title ribbon, circle wipe, iris, text bands and effects 8, 10, 11 and 12 compared; effects 3, 4 and
-  kind $69's circle looked at only; effect 9 is never on screen. Sound: the driver only (41 runs, 330,680 ticks, 0 differ).
-- **Not done.** Windows is cross-built and never run; nothing is packaged. The sound has not been judged by
-  ear and the engine's mix is not sample-exact. Neither boss was won in full, and levels 16 and 17 have no play to their
-  exit by keys. The compare tool cannot cross a restart or a continue screen. Level 18's play has no comparison listed.
-  Kinds that no recording can follow ($44, $84's start, $5F's start, $5C's path, $22's and $87's second entries, $64, $9B
-  after frame 5,283, $A4's ways, $69) are listed with what each would take in `NATIVE-ACTOR-CHECK.txt`.
-- **The decomp's own gap: closed.** The bars above are the gate runner's and are not edited by hand. They read 100.0%
-  (92,250 / 92,250 B, ledger `bdf23ac7`). The earlier "100%" bars had left out real code (1,533 B of reachable code in
-  49 runs, `DECOMP-GAP.txt`); it has since been filed and certified, the census repaired, and 139 B of exempt ranges
-  listed with their proofs.
-- **Departures from the original** ([docs/aladdin/native/DEPARTURES.md](docs/aladdin/native/DEPARTURES.md)), each an
-  accident the native game leaves out because it does not hurt play. Game logic: a ledge that faces the wrong way no longer
-  clears the fraction of Aladdin's speed (no play reaches it); the platform course maker's 85-frame stall at level $05's start;
-  a carrier-pair sender keeps its own kind. Console speed, not game logic: starting a song costs the starting task a video
-  frame in the original; unpacking a screen's graphics takes the original's task about a hundred video frames; the ending's
-  scenes run 10 to 52 frames shorter native.
-- **The story card** copies code as graphics only with an act past 7, in one poked run (black on every frame);
-  whether real play reaches it is open in the plan.
-- **Platforms:** Linux (Vulkan and headless) and macOS (Metal, arm64) are built and run. Windows is cross-built and not run
-  ([docs/aladdin/native/BUILD.md](docs/aladdin/native/BUILD.md)).
-- **The view at any shape** is built and chosen from the window: see below. Higher frame rates are not designed.
-
-### The view at any shape
-
-Jeff's direction: landscape screens of any shape from 4:3 to ultrawide, done by showing more of the level, not by a wider
-field of view; portrait is not supported. The design, the measurements behind it and his decisions are
-[docs/aladdin/native/VIEW.md](docs/aladdin/native/VIEW.md).
-
-- **The view from the window.** The view is set by the window's proportion, not its resolution: 216 shown game lines and
-  as many columns as the window's shape gives, at least 4:3 (288 x 224 with the crop). A 1080p and a 4K screen of the same
-  shape show the same game view. A window narrower than 4:3 shows the 4:3 picture with bars. The view changes only when a
-  level loads.
-- **Gameplay in the original frame.** The game runs against the original's 256 x 224 camera, and the wider picture is a
-  frame round that screen. Enemies and shots are live across the whole view: placed, drawn, hittable and solid there,
-  and despawned only past it. Every trigger keeps the original's distance: what an enemy does because Aladdin came close,
-  and what starts when something comes on screen, happen where they did on the console.
-- **The level past its edges.** Each level's play field and backdrop are whole-level engine maps, carried on past the
-  level's left and right edges with the level's own art: exact repeats where the art repeats, else an exact search that
-  only lets 16 x 16 cells touch, across and down, as they touch somewhere in the level (and every 2 x 2 group of them
-  occur there), so a prop the edge cuts, such as a window in level 0's wall, is completed from where the level has it
-  whole. Where no such fill exists the level's own columns are copied. Levels load in under 0.2 s.
-- **The rest of the picture.** The levels' dark top rows (8, 12 in level 2) are cropped. The status line keeps to the
-  corners of a centred band at most 16:9 wide. Sprite palettes and graphics slots grow with the view (engine API 6.8).
-  The title, story, menus and other still screens are the original's 256 x 224, centred, with black around.
-- **Checked.** At 256 x 224 the game is the original's: `native/checks/view/same.sh` runs the boot and all 20 plays
-  against the build before the work and compares the player, every live actor and the video fields update by update (21
-  runs, 0 differ), and the pictures of 19 plays (4,569) are identical to the original's. At 288 x 224, 384 x 224 and 512 x
-  224 (`native/checks/view/wide.sh`) every play runs to its end without a fault, and the trigger log finds no trigger past
-  its original distance.
-- **Not done.** The recorded plays were made for the original's view, so at a wider view (more enemies live) they leave
-  their path: no level has yet been won by a play made at a wide view. At 384 and 512 wide, one placement does not appear in
-  these plays, for want of an actor record in level 13. (A wide view now opens sprite palette slots as needed, and a scene's
-  clear keeps what the original has not placed yet, so level 3's market-end figure appears and the level ends: VIEW.md 4.5.) Where a level's edge cannot be filled seamlessly from its own art, some seams remain.
-
-| ![384 x 224](docs/aladdin/native/shots/view-384x224-L00.png)<br>Level 0 at 384 x 224 (16:9): the wall's cut window completed past the level's edge | ![384 x 224](docs/aladdin/native/shots/view-384x224-L09.png)<br>Level 9 at 384 x 224 |
-|---|---|
-
-### Faults found by playing and by the check, and fixed
-
-Each was found by a play by keys or by the field-by-field check against the original, then fixed; the evidence is in
-`NATIVE-FAULTS.txt` and `NATIVE-ACTOR-CHECK.txt`, and FINAL.md lists each with its commit.
-
-- The text map's upload (1,024 words) overran a 512-byte buffer in the tile writer on every platform; Linux overwrote its
-  stack unseen and macOS's stack check stopped the game at start (`b36b712`: the tile writer sends runs of 256 words).
-- Jafar's first form (level 16) stopped at its first random pick: `RandomFromList` took the list's X where the native game wants
-  X / 2 (`56e4efad`; the same slip in kind $A1/$A6's bounce list and the chain's two picks).
-- Level 3's scene (Jasmine's escape) never ran: `PlayerSceneJumpIn` and `PlayerSceneWalkOut` had been left unconverted
-  on the record's word that no level plays them (`c5a384cb`).
-- Kind $68's timing: a wait, a speed, a frame after each pause, and an overlapped byte (`22cc5db9`, `c4b4e918`).
-- Kind $4E's spring left +$41 at 6 where the original leaves 5 (`b4edf6c2`, exact on `cov_kind4e_bounce`).
-- Aladdin's top speed cap (`486c4ed7`; the demo's frames 10031 to 10158 then match in every field) and the original's
-  16-bit ledge quirk (`25d29f04`, later left out as departure 1).
-- The ending's stage 8 killed the player: the work-RAM clear at a game start kept stage 7's scroll kind, the original
-  clears its whole range (82 fields it missed; `e0d1199a`).
-- Found by replaying plays on the original update by update: a kind $63 hit by an apple, the apple's course, the landing
-  boxes' bank (`2d1875a4`); `g.sprite_flicker` never counted (`a4c5b33d`); the escort's restart carry (`3c4ec70e`); the
-  snake's scrambled head (`e8f2c300`); kind $92's escort scenes (`58ad9519`, `cdfbcc6e`); the ending story's fifth scene
-  that never ended (`689d74b7`); the ending's shared bytes (`818bb9be`); the chain's extra path step (`68e971c1`),
-  `PlayerSceneCued` and the chain's slide step (`b9ed8649`, `fe93c0dc`); level 5's IRQ screen one row early (`32eeff06`).
-- An "ACTION" text drawn on the play field of two levels was not a fault: it is the original's own blinking text task.
-
-### Progress (2026-11-21)
-
-The conversion began on 2026-11-19. Four accounts (written 2026-11-20) list every routine of the record's actors, game and level code,
-player and video as converted, merged into other native code, replaced by the engine, dead (with the proof) or open
-(`build/aladdin/writers/NATIVE-ACCOUNT-*.txt`, `native/aladdin/src/audio/ROUTINES.md` for the sound):
-
-| Account | Routines | Converted | Merged | Replaced | Dead | Open |
-|---|---:|---:|---:|---:|---:|---:|
-| Actors | 950 | 662 | 210 | 0 | 76 | 2 |
-| Game, level, map, system, input | 302 | 242 | 23 | 2 | 35 | 0 |
-| Player | 129 | 108 | 4 | 0 | 17 | 0 |
-| Video | 226 | 148 | 51 | 1 | 26 | 0 |
-| **The four** | **1,607** | **1,160** | **288** | **3** | **154** | **2** |
-
-Sound's 44 routines and math's 4 (one converted, three dead) are accounted for in their own notes: 1,655 in all. The
-2 open routines were kind $92's second state and kind $8C's wait, which the record had no code for when the account was
-written; both were filed and converted afterwards (`845591b1`), and the record has gained actor routines from the gap
-work, so it now holds 1,721 by the count below.
-
-By the count of the record's `@routine` addresses that have a native `@routine` in `native/aladdin/src` (merged and dead
-routines are not in it, so it reads lower than the accounts): 1,180 of 1,721, 69%. The native tree is 55,020 lines of C
-and headers in 352 files. The engine's hardware finder and the project's clean check
-(`native/aladdin/tools/clean_check.py`) report nothing in the 350 files of `src`; the data check passes; headless and
-Linux runs of 11,000 updates from power-on exit 0.
-
-What runs, on Linux, from power-on with no input: the copyright card, the logo, the opening story with its scenes and
-text, the title with its menu and music, and the attract demo, which loads level 1 and plays it: Aladdin runs and jumps
-through the market with Abu, past the stall keepers and the guards. By the original pad's keys from the title: Game Start
-into level 1, played, the Pass Word screen (all seven passwords) and the Options screen; from the level select, the plays to the exits and the ending listed above. By a developer's start at a screen
-(`ALADDIN_DEV_SCREEN`, [docs/aladdin/native/CHECK.md](docs/aladdin/native/CHECK.md), not the game's way in): the Genie's
-Break Time and the ending's credits (the continue screen is also reached by play).
-
-| | |
-|---|---|
-| ![The opening story: the Cave of Wonders](docs/aladdin/native/shots/story.png)<br>The opening story: the Cave of Wonders | ![The title and its menu](docs/aladdin/native/shots/title.png)<br>The title and its menu |
-| ![The Pass Word screen](docs/aladdin/native/shots/password.png)<br>Pass Word, from the title by Down and Start | ![The Options screen](docs/aladdin/native/shots/options.png)<br>Options, from the title by two Downs and Start |
-| ![Game Start into level 1](docs/aladdin/native/shots/level1-play.png)<br>Game Start into level 1, played by keys: Aladdin running, two apples thrown (the attract demo plays the same level with no input) | ![The continue screen](docs/aladdin/native/shots/continue.png)<br>The continue screen, reached by the developer's start (`continue`), not by play |
-| ![The Genie's Break Time](docs/aladdin/native/shots/genie.png)<br>The Genie's Break Time, reached by the developer's start (`genie`), not by play | ![The ending's credits](docs/aladdin/native/shots/credits.png)<br>The ending's credits, reached by the developer's start (`credits`), not by play |
-
-The pictures are the engine's own, taken from a headless run of this repository's Linux build (`--shots`, keys replayed
-with `--input`) at the console's size and doubled.
+- The two boss levels (16 and 17) are proven by patched boss health and one real stomp each, not won in full by keys.
+- The animations' pictures keep the original's timing: no in-between art has been made.
+- The sound has not been judged by ear, and the engine's mix is not sample-exact.
+- A few seams remain where a level's edge cannot be filled from its own art.
+- Nothing is packaged for release; how the remaster plays in a window is still being judged.
 
 ## The Decompilation Standard
 
