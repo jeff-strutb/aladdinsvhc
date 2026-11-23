@@ -154,32 +154,41 @@ What was proven and what was not, number by number, is in [docs/aladdin/native/F
   whether real play reaches it is open in the plan.
 - **Platforms:** Linux (Vulkan and headless) and macOS (Metal, arm64) are built and run. Windows is cross-built and not run
   ([docs/aladdin/native/BUILD.md](docs/aladdin/native/BUILD.md)).
-- **The view at any shape** is built but not yet chosen from the window: see below. Higher frame rates are not designed.
+- **The view at any shape** is built and chosen from the window: see below. Higher frame rates are not designed.
 
 ### The view at any shape
 
-Jeff's direction: widescreen, portrait and any shape, done by showing more of the level, not by a wider field of view. The
-design, the measurements behind it and his decisions are [docs/aladdin/native/VIEW.md](docs/aladdin/native/VIEW.md).
+Jeff's direction: landscape screens of any shape from 4:3 to ultrawide, done by showing more of the level, not by a wider
+field of view; portrait is not supported. The design, the measurements behind it and his decisions are
+[docs/aladdin/native/VIEW.md](docs/aladdin/native/VIEW.md).
 
-- **What is built.** The view is W x H game pixels (`src/video/view.h`). The camera, its limits, the spawn window, the
-  range point and every "near the screen" box the actors test, the sprite list and the player's ground test are all written
-  from it, so whatever the screen shows is live: drawn, solid, hittable and running its scripts. The wake-up distances
-  measured from Aladdin grow with the view too (Jeff's decision). Each level's play field and backdrop are whole-level
-  engine maps, replacing the console's streamed strip, which bounded the view at about 464 by 224. The levels' dark top
-  rows (8, 12 in level 2) are cropped from the picture. The status line keeps to the corners of a centred band at most
-  16:9 wide. The title, story, menus and other still screens are the original's 256 x 224, centred, with black around.
-- **Checked.** At 256 x 224 every rule gives the original's value: `native/checks/view/same.sh` runs the boot and all 20
-  plays and compares the player, every live actor with its own bytes and the video fields update by update against the
-  build before the work (21 runs, 0 differ), and level and still-screen pictures are byte-identical (the level pictures less
-  the cropped rows). At 400 x 224, 480 x 270 and 256 x 400 every play runs to its end without a fault.
-- **Not done.** The view is set by a developer's setting (`ALADDIN_VIEW=WxH`); choosing it from the window is next (Jeff:
-  a fixed pixel size, so a bigger screen shows more of the level). The recorded plays are key sequences made for the
-  original's game, so at a wider view (more enemies awake) most leave their path: no play has yet been made that wins a
-  level at a wide view. Kinds that need a palette past the console's 8 are not yet given one (the engine has them from
-  API 6.8), so at wide views a few placements in levels 0, 1 and 3 do not appear. Filling the space past a small level or
-  a locked room with the level's own art is analysed (VIEW.md section 5) and not built.
+- **The view from the window.** The view is set by the window's proportion, not its resolution: 216 shown game lines and
+  as many columns as the window's shape gives, at least 4:3 (288 x 224 with the crop). A 1080p and a 4K screen of the same
+  shape show the same game view. A window narrower than 4:3 shows the 4:3 picture with bars. The view changes only when a
+  level loads.
+- **Gameplay in the original frame.** The game runs against the original's 256 x 224 camera, and the wider picture is a
+  frame round that screen. Enemies and shots are live across the whole view: placed, drawn, hittable and solid there,
+  and despawned only past it. Every trigger keeps the original's distance: what an enemy does because Aladdin came close,
+  and what starts when something comes on screen, happen where they did on the console.
+- **The level past its edges.** Each level's play field and backdrop are whole-level engine maps, carried on past the
+  level's left and right edges with the level's own art: exact repeats where the art repeats, else an exact search that
+  only lets 16 x 16 cells touch, across and down, as they touch somewhere in the level (and every 2 x 2 group of them
+  occur there), so a prop the edge cuts, such as a window in level 0's wall, is completed from where the level has it
+  whole. Where no such fill exists the level's own columns are copied. Levels load in under 0.2 s.
+- **The rest of the picture.** The levels' dark top rows (8, 12 in level 2) are cropped. The status line keeps to the
+  corners of a centred band at most 16:9 wide. Sprite palettes and graphics slots grow with the view (engine API 6.8).
+  The title, story, menus and other still screens are the original's 256 x 224, centred, with black around.
+- **Checked.** At 256 x 224 the game is the original's: `native/checks/view/same.sh` runs the boot and all 20 plays
+  against the build before the work and compares the player, every live actor and the video fields update by update (21
+  runs, 0 differ), and the pictures of 19 plays (4,569) are identical to the original's. At 288 x 224, 384 x 224 and 512 x
+  224 (`native/checks/view/wide.sh`) every play runs to its end without a fault, and the trigger log finds no trigger past
+  its original distance.
+- **Not done.** The recorded plays were made for the original's view, so at a wider view (more enemies live) they leave
+  their path: no level has yet been won by a play made at a wide view. At 384 and 512 wide, two placements do not appear in
+  these plays (one for want of a palette slot in level 3, as the original also has; one for want of an actor record in
+  level 13). Where a level's edge cannot be filled seamlessly from its own art, some seams remain.
 
-| ![400 x 224](docs/aladdin/native/shots/view-400x224.png)<br>Level 0 at 400 x 224 | ![640 x 224](docs/aladdin/native/shots/view-640x224.png)<br>The same moment at 640 x 224: the status line kept to a 16:9 band |
+| ![384 x 224](docs/aladdin/native/shots/view-384x224-L00.png)<br>Level 0 at 384 x 224 (16:9): the wall's cut window completed past the level's edge | ![384 x 224](docs/aladdin/native/shots/view-384x224-L09.png)<br>Level 9 at 384 x 224 |
 |---|---|
 
 ### Faults found by playing and by the check, and fixed
