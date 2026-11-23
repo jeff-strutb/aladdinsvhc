@@ -662,3 +662,27 @@ every actor) the same before and after the fix at 256 and 398 wide; runahead off
 6000: the same. At 398 and 512 the play is a wide view's own (the riser's y differs from the 256 play's from update 5207 in the
 build before the fix too), so the wide pictures were looked at, not measured against the original. Engine: the scenes
 offset-per-tile-own2 and -own4 (Metal) match bsnes, and fail with the flag off.
+
+## Level $11's arena: the fight's floor across a wide view (2026-11-23)
+
+**Fault.** In the fight BG1 draws the video map $4000 and BG2 $4800 (kind $81), 64 x 32 cells each, and the original fills only
+the console's one screen (columns 0-31, the lock at x $0200) with the fight's floor: BG2's rows 22-28 hold the snake's body band
+(tiles $300-$33F, every 4 columns), and upload $0A (update 4930 in p5-3, the only map write of the fight) puts BG1's rows 20-31,
+the flames (every 4 columns, rows 24-25 every 12). The other screen still held the corridor frozen at the lock (update 4431), so a
+wide view showed brick ground and spikes with no flames beside the arena. Measured from the native game's video map writes (they
+are the original's addresses and words).
+
+**Fix (Jeff's decision: a wider map, no seam).** `video/arena_maps.c` keeps the two console maps' words (kept with the world) and,
+at the end of each update on level $11 that wrote them, makes an arena map of 192 columns for each (a multiple of 64 and of 4
+and 12, so it wraps with no seam at any width): the arena's 32 columns as the console has them, every BG2 row and BG1's upload
+$0A rows continued by their own repeat (measured on the arena's columns 8-31; BG2's rows 24-25 have art in columns 3-4 that does
+not repeat, kept where it is), every other row as the console's map repeats. BG1's backdrop rows 0-19 are not continued: rows 5
+and 13-15 (the pillars) have no repeat of 16 columns or less, and continuing the others would cut them. In the fight (BG1 on
+$4000, BG2 on $4800, a level's view) the two layers draw the arena maps. The floor's offsets (above) read the same rows. Also
+found and fixed: at a restart the game clears the text map ($2020), and the floor's columns past the original's went on showing
+the old wave for that moment; they now follow the row's last entry.
+
+**Checked.** 256 x 224, p5-3 5150-5410: the 261 pictures are byte for byte the ones before this change; traces the same. 512 and
+1024, p5-3 to 8800: the body band and the flames across the whole view, no brick, no seam (looked at); the 512 traces the same as
+before. Runahead off against on at 512, world hash every update to 8800: the same. A save in the fight (5280) loaded from the
+title (exact.sh, 512 wide): 60 updates of the same traces, and the 58 pictures after the load the same as the unbroken run's.

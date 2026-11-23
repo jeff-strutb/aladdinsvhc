@@ -84,7 +84,7 @@ static int32_t floordiv8(int32_t v) { return v >= 0 ? v / 8 : -((-v + 7) / 8); }
  * the level's top at `margin_y` and is `tall` pixels high. Offset column c of the
  * engine (view pixels 8c - f to 8c - f + 7, f the scroll's fine part; the view's origin is 0 in a level) reads table
  * column c - 1, which holds the original's column o for the same pixels (o = (x - dx + its fine part) / 8): o 1-32 the
- * row's entries, whole; o past 32 the older heights; o 0 and less none (the layer's own scroll, the newest height).
+ * row's entries, whole; o past 32 the older heights (while the row's last entry is on); o 0 and less none (the layer's own scroll, the newest height).
  */
 void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t margin_y, int32_t tall)
 {
@@ -99,7 +99,7 @@ void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t
         return;
     }
     for (int i = 0; i < HISTORY_WORDS && !told_list; i++)
-        if ((uint16_t)(floor_heights[i] & 0x1FF) != (g.text_map[HISTORY_AT + i] & 0x1FF)) {
+        if ((g.text_map[HISTORY_AT + i] & BG2_OFFSETS) && (uint16_t)(floor_heights[i] & 0x1FF) != (g.text_map[HISTORY_AT + i] & 0x1FF)) {
             told_list = 1;
             fprintf(stderr, "video: level $11's heights list and the text map's row differ at word %d\n", i);
         }
@@ -109,7 +109,9 @@ void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t
 
         if (o >= 1) {
             int32_t age = o - 1 + shift;
-            int on = 1;
+            /* past the row the older heights, while the row's last entry is on (a restart clears the text map, $2020: the
+               row's columns are then the newest height, and so are these) */
+            int on = (g.text_map[HISTORY_AT + HISTORY_WORDS - 1] & BG2_OFFSETS) != 0;
 
             if (o <= HISTORY_WORDS) {
                 uint16_t h = g.text_map[ACROSS_AT + (age & 31)];

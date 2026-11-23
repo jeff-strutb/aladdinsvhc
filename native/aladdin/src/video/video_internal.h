@@ -23,6 +23,12 @@ void video_map_write(VideoMap map, const uint16_t *words);
 void line_history_init(void);
 void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t margin_y, int32_t tall);
 
+/* arena_maps.c: level $11's fight drawn from maps wider than the console's */
+void arena_maps_init(void);
+void arena_maps_note(VideoMap map, uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *words);
+void arena_maps_update_end(void);
+int arena_maps_layer(int i, nshvc_layer *l);
+
 /* lines.c: whether a mode effect that is on puts any line in mode `mode` */
 int video_lines_have_mode(int mode);
 

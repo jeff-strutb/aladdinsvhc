@@ -254,6 +254,7 @@ void video_init(void)
     mode7_map = nshvc_map_create(128, 128);
     hud_layer_init();
     line_history_init();
+    arena_maps_init();
     /* what the picture reads that an update changes, kept as the update before's world (between.h) */
     between_keep(shown_sprites, lists_cap * sizeof *shown_sprites);
     between_keep(shown_owner, lists_cap * sizeof *shown_owner);
@@ -349,6 +350,8 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
         if (run > n)
             run = n;
         between_map_write_snes(m, (page & 1) * 32 + x, y + (rows == 64 ? (page >> 1) * 32 : 0), run, 1, w);
+        if (m.id == maps[VIDEO_MAP_BACK].id || m.id == maps[VIDEO_MAP_FRONT].id)
+            arena_maps_note(m.id == maps[VIDEO_MAP_FRONT].id ? VIDEO_MAP_FRONT : VIDEO_MAP_BACK, (page & 1) * 32 + x, y, run, 1, w);
         first += run;
         w += run;
         n -= run;
@@ -359,6 +362,7 @@ static void map_part(nshvc_map m, uint16_t base, uint32_t first, uint32_t n, con
 void video_map_write(VideoMap map, const uint16_t *words)
 {
     between_map_write_snes(maps[map], 0, 0, 64, 32, words);
+    arena_maps_note(map, 0, 0, 64, 32, words);
 }
 
 /* cells [first, first + n) of the text map (row by row, 32 a row) to the map a level draws its text layer from */
@@ -763,7 +767,9 @@ static void draw_layers(void)
             l.scroll_y = (int16_t)l.scroll_y + my;
         }
         if (i < 2 && video_level_view())
-            l.scroll_x -= view.dx;      /* the original's screen is dx across in the view (video_draw) */
+            l.scroll_x -= view.dx;
+        if (i < 2 && !level_maps_active(i))
+            (void)arena_maps_layer(i, &l);     /* level $11's fight: the floor across a wide view (arena_maps.c) */      /* the original's screen is dx across in the view (video_draw) */
         l.scroll_x_sub = (int16_t)video_layer_x_sub(i);     /* between updates: the eased place's fraction (6.10) */
         l.scroll_y_sub = (int16_t)video_layer_y_sub(i);
         l.mosaic = (uint8_t)(g.mosaic_layers >> i & 1 ? g.mosaic_size + 1 : 1);
@@ -793,6 +799,7 @@ static void draw_layers(void)
    update's other writes (between.h), so a picture's Mode 7 art is the update before's as the rest */
 void video_update_end(void)
 {
+    arena_maps_update_end();
     if (mode7_pixels_changed) {
         between_tiles_write(mode7_tiles, 0, mode7_pixels, 256, NSHVC_TILES_MODE7, sizeof mode7_pixels);
         mode7_pixels_changed = 0;
