@@ -544,3 +544,79 @@ it (`placing` in actor/placement.c was one: a placed actor came a tick late; the
    refresh. Reading the pad more often than the update rate is the engine's (it reads once per update); not asked of it here.
 4. **Whether the pause menu's pictures are checked headless**: its overlays are the window's, so a picture file does not show them;
    it needs an eye or an engine call that reads the whole window.
+
+## 10. The snapshot: the whole game at one moment in a flat buffer (2026-11-23)
+
+Jeff's requirement, through the save-game session (docs/aladdin/native/SAVES.md on the save session's branch): a save is the exact
+moment; loading resumes at the very update and place, from the title or from the middle of another level, with sound and music
+going on correctly; a file from a build with another state layout is refused. The interface the slots call is
+`system/snapshot.h` (`snapshot_available`, `snapshot_max`, `snapshot_save`, `snapshot_load`, `snapshot_layout_mark`); this section
+is the design behind it. **How this meets the direction in one line:** the snapshot is the runahead's save and restore (9.3, 9.4)
+written to a buffer through the same two registered lists (the video parts of `between_keep` and the statics of `RUNAHEAD_KEEP`),
+with what could not go to a file turned into what can; the logic, F3 (a) easing and runahead are not changed.
+
+### 10.1 What a snapshot is, and when it is taken
+
+The real world after a complete update (a tick's real step, no ahead world: `runahead_begin` has put the real world back, which the
+pause menu's and the title's update already is). A load puts that world in, and the next update is the one after it. It is not
+taken or put back inside a step.
+
+### 10.2 What each piece is, and the decision for it
+
+| Piece | In a file as it is? | Decision |
+|---|---|---|
+| `g` (247,472 B) | no: pointers | copied, then each pointer field replaced by a code and back on load: `Actor *` fields as an offset in `g` (`chain_head`, `chain_tail`, `free_pool` 28, `free_pool_b` 5, `draw_list` 4 x 192, each actor's `next`); NULL its own code. The list is the pointer fields of every type `GameState` holds, which the compiler's own record layouts give (`-fdump-record-layouts`: pointers in `GameState`, `Actor`, `VramQueueEntry`, and nothing else; checked by `native/checks/snapshot/pointers.sh`, which fails if a new pointer member appears) |
+| each actor's `code` (a function pointer) | no | an id: the hash (FNV-1a, 32 bits) of the function's name, from one table of every function an actor can run in (`actor/code_table.c`: every start, second and third entry of every row of `kinds_*` and every function `ActorRunAs` is given, 20 now). Complete by a check, not by hand: a script reads the sources for each name in a `KindCode` row and each second argument of `ActorRunAs` and fails if one is not in the table; and a save fails, naming the address, if a live actor's `code` is not in the table (the check scans every update of the 21 plays). Ids are of names, so they hold across rebuilds; two names with one hash end the run at start |
+| each VRAM queue entry's `from` | no | a code: `g.unpacked` or another array of `g` as an offset in `g`; the cartridge as an offset in the cartridge image; anything else fails the save, naming it (the plays' scan shows whether anything else occurs). The queue is empty after each update's picture work unless the NMI is off, so most saves hold none |
+| the video parts of `between_keep` (sprite lists, anchors, scroll latches, `view`, Mode 7 switches...) | plain data, but sized by the view | their live bytes, in registration order, each with its size; `layer_map` is not among them (below) |
+| the statics of `RUNAHEAD_KEEP` (28) | plain | their bytes, by name and size, from the same registry runahead uses (`runahead_keep_at`); not a second list |
+| the level maps (`layer_map[2]`: handle and pointer; `field_words`, `back_words`) | handle and pointer: no | saved as numbers (on, wraps, size, margins, which words array) and the words (`w x h` 16-bit each, whole: a tile change or a patched place has changed them, so they are not the level's). On load the engine map of that layer and size is taken from the map pool as a level load takes it (made if the process has none: `map_of`) and the words are written to it. The engine's level map is nothing but those words (every writer is `between_map_write_snes` of the words), so rebuilt-from-words is equal to what the engine held |
+| the engine's tiles, maps and palette | engine state, no read back | **a shadow kept by the game**: every write the game makes to an engine object it also makes to a copy in `video/between.c` (at the moment the write is held, so a held write is in it), by a stable name (`tiles.low`, `tiles.high`, `tiles.text`, `slot_tiles.N`, `map.back`, ..., `palette`). The snapshot holds the copies; a load writes each whole object. Not shadowed: the level maps (words above), Mode 7's tiles and map (written from `mode7_pixels` and `mode7_cells`, which are saved: a load sets their changed flags), everything the picture sets each time it draws. No engine change |
+| the view (`view`, `slots_open`, sprite list sizes) | process and window state, not in `g` | saved; a load adopts the saved view and remakes what is sized from it as a level load does (`sprite_lists_make`, `video_slot_sets_make`), so a state saved in one window proportion loads in a window of another and keeps its own view until the next load of a level or still screen (as a window resized in a level does, VIEW.md). VIEW.md says the view changes only where a level loads and where a still screen starts: a load of a snapshot is taken as such a place; Jeff's to overrule (10.7) |
+| the sound driver (`d`: the song and instrument data with the songs loaded, the 16 channels, tempo, fade, echo, voices' registers) and `music.c`'s tick phase | on the audio thread | saved from there: in a window by a request the audio code answers at its next sample (it first takes every message the game sent before, so the driver is as the game last left it); headless by reading it (one thread). The samples' engine handles are the process's, not saved. A load posts the state the same way; the audio code takes the messages sent before it, replaces `d` (keeping this process's handles), keys every voice off, and sends every voice's sample, envelope, pitch and volume, the echo, the main volume and the flags to the engine again (the driver sends only what changed, so without this the engine's voices would stay as the title or the other level left them) |
+| what the engine's voices were doing (a note's phase, envelope level, the echo's buffer) | engine state, no read back | **not restored**: a load resumes the song at its place in the music (every channel's position, time, tempo, fade) but a note that was sounding is silent until the next note; no tail, no echo of what came before. Jeff's choice (10.7) |
+| the pause menu's open sound and the music pause | in `g.sound_queue` and `d` | in the state the snapshot is taken in (the save session's matter: SAVES.md) |
+| anything a level's load sets once that a load from the title lacks | | the statics and `g`; the engine's art by the shadows; the level maps; the sound data in `d`; the view; nothing else is set at a load (the nm list of 441 statics, 9.4, read for it: the rest are scratch, dev tools, notes and once-only caches) |
+
+### 10.3 The layout mark
+
+A 32-bit FNV-1a over what the layout is made of: `sizeof` of `GameState`, `Actor`, `Task`, `VramQueueEntry`, `View`, `Driver`,
+`Channel`, `nshvc_sprite`, `LevelMap`; the offsets of every pointer field; each `between_keep` part's name and (for the fixed ones)
+size, in order; each `RUNAHEAD_KEEP` static's name and size, in order; each shadowed object's name and geometry; the number of
+sections and the format number. Nothing is kept by hand: adding a registered static or a field of `g` changes it. A change that
+keeps every size (two fields of one type swapped) is not seen; said so.
+
+### 10.4 What a load does
+
+1. Checks the format, the mark, every section's length, the codes (an unknown code id, a pointer code out of range): on any fault
+   nothing is changed and it returns 0.
+2. Puts in `g` (pointers rebuilt), the video parts, the statics, the view and what is sized from it, the level maps, the engine's art
+   from the shadows (whole objects), Mode 7's changed flags, the sound.
+3. Rebases the picture: "was" is the loaded world, nothing is held, so the first picture after a load is the loaded world, not a mix
+   of it and the one before.
+
+### 10.5 Checks (to run; results go in 10.8)
+
+1. Runahead's own: `state.sh` 21 runs and `same.sh` 21 runs, 0 differ, with the snapshot code in.
+2. One process: save at update u, run on, restore, run on again: the trace and the state hash from u on equal the first run's.
+3. Across processes: a file written at update u of a play; a fresh process started at the title, or another level's play, restores it
+   and is given the same keys: the trace from u on update for update, every 25th picture, and the sound driver's state hash;
+   on at least four plays including a Mode 7 stage and a boss.
+4. A planted omission (a registered static, then a shadowed object, then a pointer code) caught by 3.
+5. Not covered: what it sounds like (10.2), a different window's view loading (not run on a second view), and what the save
+   screen does.
+
+### 10.6 Decisions made from the code (not asked)
+
+Shadow of the engine's art instead of an engine read-back; the audio state through a request the audio code answers (the engine has
+no way back from the audio thread: api.md section 1, "the engine never hands the game anything from the render or audio threads", so the
+game's own code answers a flag; no engine change); function pointers as name hashes; the view adopted from the file.
+
+### 10.7 For Jeff
+
+1. **Sound after a load:** the song resumes at its place but a note that was sounding is silent until the next one (the engine has no
+   read back of a voice's phase; keying them on again would restart a note and would play a finished drum hit once more). The other
+   choice is to key on the voices the driver thinks are on: no silence, but re-attacked notes and possibly a repeated hit.
+2. **The view a load brings:** the saved view stays until the next level or still screen (a window of another shape then shows it
+   fitted, as a resized window does in a level). The other choice is to refuse a file saved in another view.
+
