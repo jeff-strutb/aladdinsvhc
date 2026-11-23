@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "system/state.h"
 #include "video/between.h"
@@ -14,6 +15,8 @@
 #define KEPT_MAX 32
 #define BRIGHTNESS_STEPS_MAX 2      /* a fade's steps are eased over up to this many updates (FRAMERATE.md, R4) */
 #define WINDOW_STEPS_MAX 3          /* the windows' */
+#define MODE7_STEPS_MAX 8           /* Mode 7's matrix and centre (the Genie wheel's slowing turns) */
+#define MODE7_SCALE_STEPS_MAX 24    /* Mode 7's scales (the ending's spin-zoom grows its zoom every 24 updates) */
 
 static uint64_t updates;            /* updates ended */
 static int no_steps;                /* ALADDIN_DEV_NO_STEPS: every track eased over one update (R3's pictures) */
@@ -120,11 +123,14 @@ void between_play_turn(void)
 
 /* ---- the brightness and the windows: tracks of their own ---- */
 
-static int bright_was, bright_now;  /* the brightness before its newest step, and after */
+/* A step that comes before the track's easing to its newest has ended starts from where the pictures had got to (the
+   brightness in 256ths, the windows by their step before the last with how far they had gone), so no picture jumps */
+static int bright_from, bright_now;  /* where the brightness eases from, in 256ths of a level; its newest level */
 static uint64_t bright_at;
 static unsigned bright_steps;       /* 0: its newest change was not a fade's step (the world's own is shown) */
 
-static GameState *win_was, *win_now;    /* the state at the windows' step before the newest, and at the newest */
+static GameState *win_prev, *win_was, *win_now;    /* the state at the windows' last three steps */
+static float win_from;              /* how far the easing from win_prev to win_was had gone when win_now came */
 static uint32_t win_hash;
 static uint64_t win_at;
 static unsigned win_steps = 1;
@@ -141,6 +147,93 @@ static float track_amount(uint64_t at, unsigned steps, float b)
     return t > 1.0f ? 1.0f : t < 0.0f ? 0.0f : t;
 }
 
+/* A track of numbers (Mode 7's): its values at its last three steps, eased as the windows' are */
+typedef struct NumTrack {
+    unsigned n, cap;
+    int32_t prev[6], was[6], now[6];
+    float from;
+    uint64_t at;
+    unsigned steps;
+} NumTrack;
+
+static NumTrack m7_matrix = { .n = 6, .cap = MODE7_STEPS_MAX }, m7_scale = { .n = 4, .cap = MODE7_SCALE_STEPS_MAX };
+
+static void num_values(const NumTrack *k, int32_t v[6])
+{
+    if (k == &m7_matrix) {
+        for (int i = 0; i < 4; i++)
+            v[i] = g.m7_matrix[i];
+        v[4] = (int16_t)g.m7_centre_x;
+        v[5] = (int16_t)g.m7_centre_y;
+    } else {
+        for (int i = 0; i < 4; i++)
+            v[i] = g.mode7_scale[i];
+    }
+}
+
+static void num_start(NumTrack *k)
+{
+    num_values(k, k->now);
+    memcpy(k->was, k->now, sizeof k->now);
+    memcpy(k->prev, k->now, sizeof k->now);
+    k->from = 1.0f;
+    k->steps = 1;
+}
+
+static void num_step(NumTrack *k)
+{
+    int32_t v[6] = { 0 };
+    uint64_t gap = updates - k->at;
+
+    num_values(k, v);
+    if (!memcmp(v, k->now, sizeof v))
+        return;
+    k->from = track_amount(k->at, k->steps, 0.0f);
+    k->steps = no_steps ? 1 : gap < k->cap ? (unsigned)gap : k->cap;
+    memcpy(k->prev, k->was, sizeof v);
+    memcpy(k->was, k->now, sizeof v);
+    memcpy(k->now, v, sizeof v);
+    k->at = updates;
+}
+
+/* a number from a to c, t of the way, the shorter way round in 16 bits; a when they are more than `far` apart */
+static double num_ease(double a, double c, double t, int32_t far)
+{
+    double d = fmod(c - a, 65536.0);
+
+    if (d < 0)
+        d += 65536.0;
+    if (d >= 32768.0)
+        d -= 65536.0;
+    return d > far || d < -far ? a : a + d * t;
+}
+
+/* value i of a track as a picture shows it: from where the pictures had got to at its newest step, to its newest;
+   the newest exactly at the step's end */
+static double num_value(const NumTrack *k, unsigned i, int32_t far)
+{
+    float t = track_amount(k->at, k->steps, between_drawn);
+    double from;
+
+    if (t >= 1.0f)
+        return k->now[i];
+    from = k->from >= 1.0f ? k->was[i] : num_ease(k->prev[i], k->was[i], k->from, far);
+    return num_ease(from, k->now[i], t, far);
+}
+
+int between_mode7(int16_t matrix[4], int16_t centre[2], int32_t scale_fx[4])
+{
+    if (!drawing)
+        return 0;
+    for (int i = 0; i < 4; i++)
+        matrix[i] = (int16_t)(int32_t)floor(num_value(&m7_matrix, (unsigned)i, 0x2000));
+    centre[0] = (int16_t)(int32_t)floor(num_value(&m7_matrix, 4, 0x2000));
+    centre[1] = (int16_t)(int32_t)floor(num_value(&m7_matrix, 5, 0x2000));
+    for (int i = 0; i < 4; i++)
+        scale_fx[i] = (int32_t)floor(num_value(&m7_scale, (unsigned)i, 64) * 256.0);
+    return 1;
+}
+
 static void tracks_step(void)
 {
     int b = g.brightness & 15;
@@ -148,17 +241,25 @@ static void tracks_step(void)
 
     if (b != bright_now) {
         uint64_t gap = updates - bright_at;
+        /* where the pictures had got to: this update's picture at between 0 by the easing so far */
+        int shown = bright_steps ? bright_from + (int)floorf((float)(bright_now * 256 - bright_from) *
+                                                             track_amount(bright_at, bright_steps, 0.0f))
+                                 : bright_now * 256;
 
         bright_steps = no_steps || (b != bright_now + 1 && b != bright_now - 1) ? 0
                        : gap < BRIGHTNESS_STEPS_MAX ? (unsigned)gap : BRIGHTNESS_STEPS_MAX;
-        bright_was = bright_now;
+        bright_from = bright_steps ? shown : b * 256;
         bright_now = b;
         bright_at = updates;
     }
+    num_step(&m7_matrix);
+    num_step(&m7_scale);
     if (h != win_hash) {
         uint64_t gap = updates - win_at;
 
+        win_from = track_amount(win_at, win_steps, 0.0f);
         win_steps = no_steps ? 1 : gap < WINDOW_STEPS_MAX ? (unsigned)gap : WINDOW_STEPS_MAX;
+        memcpy(win_prev, win_was, sizeof *win_was);
         memcpy(win_was, win_now, sizeof *win_now);
         memcpy(win_now, &g, sizeof g);
         win_hash = h;
@@ -168,12 +269,18 @@ static void tracks_step(void)
 
 static void tracks_start(void)
 {
+    win_prev = zalloc(sizeof *win_prev);
     win_was = zalloc(sizeof *win_was);
     win_now = zalloc(sizeof *win_now);
+    memcpy(win_prev, &g, sizeof g);
     memcpy(win_was, &g, sizeof g);
     memcpy(win_now, &g, sizeof g);
+    win_from = 1.0f;
     win_hash = video_lines_windows_hash();
-    bright_was = bright_now = g.brightness & 15;
+    num_start(&m7_matrix);
+    num_start(&m7_scale);
+    bright_now = g.brightness & 15;
+    bright_from = bright_now * 256;
 }
 
 uint32_t between_brightness(void)
@@ -182,15 +289,16 @@ uint32_t between_brightness(void)
 
     if (!drawing || !bright_steps)
         return (uint32_t)(g.brightness & 15) << 8;
-    v = bright_was * 256 +
-        (int)floorf((float)((bright_now - bright_was) * 256) * track_amount(bright_at, bright_steps, between_drawn));
+    v = bright_from + (int)floorf((float)(bright_now * 256 - bright_from) * track_amount(bright_at, bright_steps, between_drawn));
     return (uint32_t)v;
 }
 
-int between_windows(const GameState **was, const GameState **now, float *at)
+int between_windows(const GameState **prev, float *from, const GameState **was, const GameState **now, float *at)
 {
     if (!drawing)
         return 0;
+    *prev = win_prev;
+    *from = win_from;
     *was = win_was;
     *now = win_now;
     *at = track_amount(win_at, win_steps, between_drawn);
@@ -449,8 +557,18 @@ static void steps_log(int step)
         h = (h ^ g.bg_x[i]) * 16777619u;
         h = (h ^ g.bg_y[i]) * 16777619u;
     }
-    fprintf(f, "%llu %u %u %u %08x %08x %d %zu\n", (unsigned long long)nshvc_updates(), (unsigned)g.level,
-            (unsigned)g.brightness, (unsigned)g.play_wait, video_lines_windows_hash(), h, step, held_count);
+    {
+        uint32_t m = 2166136261u;
+        uint32_t video_lines_target_hash(uint8_t target);
+
+        for (int i = 0; i < 4; i++)
+            m = (m ^ (uint16_t)g.m7_matrix[i]) * 16777619u;
+        m = (m ^ g.m7_centre_x) * 16777619u;
+        m = (m ^ g.m7_centre_y) * 16777619u;
+        fprintf(f, "%llu %u %u %u %08x %08x %d %zu %u %08x %08x\n", (unsigned long long)nshvc_updates(), (unsigned)g.level,
+                (unsigned)g.brightness, (unsigned)g.play_wait, video_lines_windows_hash(), h, step, held_count,
+                (unsigned)g.mode, m, video_lines_target_hash(LINE_FIXED));
+    }
 }
 
 void between_update_end(void)
@@ -530,25 +648,29 @@ static void check(void)
  * sooner than the updates its track was eased over (counted apart). The samples: the world's (the player's place and
  * BG1's, eased in 256ths), the brightness (in 256ths of a level), the windows (lines.c's hash of the eased edges). Each
  * update's samples at between 0, 0.25, 0.5 and 0.75 are written to FILE, a line an update: the update, the world's
- * steps, the brightness's, the windows', then the player's x, the brightness and the windows' hash at each. The counts
- * go to stderr at the end.
+ * steps, the brightness's, the windows', then the player's x, the brightness, the windows' hash and Mode 7's first
+ * scale in 256ths (-1 outside Mode 7) at each. Mode 7's matrix, centre and scales are compared too, where the world
+ * shows Mode 7 at both. The counts go to stderr at the end.
  */
 #define WIN_SAMPLE (4 + 2 * 224)
 
 typedef struct Sample {
     int64_t px, py, bx, by;
     uint32_t bright, win;               /* win: a hash of the window edges, for the file */
+    int mode7;                          /* the world shows Mode 7 */
+    int16_t m7[6];                      /* Mode 7's matrix and centre */
+    int32_t m7_scale[4];
     uint32_t edges[WIN_SAMPLE];
     uint8_t far[WIN_SAMPLE];
 } Sample;
 
-static uint64_t step_counts[3][3];  /* world, brightness, windows: checked, jumps, jumps after an early step */
+static uint64_t step_counts[4][3];  /* world, brightness, windows, Mode 7: checked, jumps, jumps after an early step */
 
 static void step_report(void)
 {
-    static const char *name[3] = { "world", "brightness", "windows" };
+    static const char *name[4] = { "world", "brightness", "windows", "mode 7" };
 
-    for (int k = 0; k < 3; k++)
+    for (int k = 0; k < 4; k++)
         fprintf(stderr, "step check: %s, %llu pictures, %llu jump, %llu jump after an early step\n", name[k],
                 (unsigned long long)step_counts[k][0], (unsigned long long)step_counts[k][1],
                 (unsigned long long)step_counts[k][2]);
@@ -568,6 +690,8 @@ static Sample sample_at(float b)
     s.by = between_ease_fx(g_was.bg_y[0], g_now.bg_y[0], 32, (int64_t)1 << 30);
     enter_was();
     s.bright = between_brightness();
+    s.mode7 = g.mode == 7;
+    between_mode7(s.m7, s.m7 + 4, s.m7_scale);
     video_lines_windows_sample(s.edges, s.far);
     s.win = 2166136261u;
     for (int i = 0; i < WIN_SAMPLE; i++)
@@ -584,8 +708,8 @@ static void step_check(void)
     static FILE *f;
     static int known, have_last;
     static Sample last;
-    static uint64_t last_u, prev_at[3];
-    static unsigned prev_steps[3];
+    static uint64_t last_u, prev_at[4];
+    static unsigned prev_steps[4];
     static Sample q[4];
 
     if (!known) {
@@ -602,9 +726,11 @@ static void step_check(void)
     for (int k = 0; k < 4; k++)
         q[k] = sample_at(0.25f * (float)k);
     if (have_last && updates == last_u + 1) {
-        uint64_t at[3] = { world_at, bright_at, win_at };
-        int jump[3] = { q[0].px != last.px || q[0].py != last.py || q[0].bx != last.bx || q[0].by != last.by,
-                        q[0].bright != last.bright, 0 };
+        uint64_t at[4] = { world_at, bright_at, win_at, m7_matrix.at > m7_scale.at ? m7_matrix.at : m7_scale.at };
+        int jump[4] = { q[0].px != last.px || q[0].py != last.py || q[0].bx != last.bx || q[0].by != last.by,
+                        q[0].bright != last.bright, 0,
+                        q[0].mode7 && last.mode7 && (memcmp(q[0].m7, last.m7, sizeof last.m7) ||
+                                                     memcmp(q[0].m7_scale, last.m7_scale, sizeof last.m7_scale)) };
 
         /* the windows: a line that differs, but not one whose step was too far to ease (it shows when its step ends) nor
            one the channel starts or stops setting (a switch: the window effect starting or ending) */
@@ -612,7 +738,7 @@ static void step_check(void)
             if (q[0].edges[i] != last.edges[i] && !last.far[i] && q[0].edges[i] != 0xFFFFFFFFu && last.edges[i] != 0xFFFFFFFFu)
                 jump[2] = 1;
 
-        for (int k = 0; k < 3; k++) {
+        for (int k = 0; k < 4; k++) {
             /* a track whose newest step is this update, sooner than the updates it was eased over, may jump */
             int early = at[k] == updates && prev_steps[k] && updates - prev_at[k] < prev_steps[k];
 
@@ -625,24 +751,49 @@ static void step_check(void)
 
                 if (shown++ < 20)
                     fprintf(stderr, "step check: %s jumps at update %llu\n",
-                            k == 0 ? "world" : k == 1 ? "brightness" : "windows", (unsigned long long)updates);
+                            k == 0 ? "world" : k == 1 ? "brightness" : k == 2 ? "windows" : "mode 7",
+                            (unsigned long long)updates);
             }
         }
     }
     prev_at[0] = world_at, prev_steps[0] = world_steps;
     prev_at[1] = bright_at, prev_steps[1] = bright_steps;
     prev_at[2] = win_at, prev_steps[2] = win_steps;
+    prev_at[3] = 0, prev_steps[3] = 0;     /* Mode 7's steps start where the pictures had got to: none is early */
     fprintf(f, "%llu %u %u %u", (unsigned long long)updates, world_steps, bright_steps, win_steps);
     for (int k = 0; k < 4; k++)
-        fprintf(f, " %lld %u %08x", (long long)q[k].px, q[k].bright, q[k].win);
+        fprintf(f, " %lld %u %08x %d", (long long)q[k].px, q[k].bright, q[k].win, q[k].mode7 ? q[k].m7_scale[0] : -1);
     fprintf(f, "\n");
     last = sample_at(1.0f);
     have_last = 1;
     last_u = updates;
 }
 
+/* ALADDIN_DEV_DRAW_LOG=FILE: a line a picture: the updates ended, its between and the clock in microseconds (for the
+   windowed run's check: no picture repeated or skipped against between) */
+static void draw_log(float between)
+{
+    static FILE *f;
+    static int known;
+    struct timespec ts;
+
+    if (!known) {
+        const char *v = getenv("ALADDIN_DEV_DRAW_LOG");
+
+        known = 1;
+        if (v && *v)
+            f = fopen(v, "w");
+    }
+    if (!f)
+        return;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    fprintf(f, "%llu %.4f %lld\n", (unsigned long long)updates, (double)between,
+            (long long)ts.tv_sec * 1000000 + ts.tv_nsec / 1000);
+}
+
 void between_draw(float between)
 {
+    draw_log(between);
     if (!have_was) {            /* before the first update: init's world, written at once */
         video_draw();
         return;

@@ -405,5 +405,39 @@ Checked, on all 37 plays (the boot, every p*, boss16-2hits, every end-* and boss
 
 Not checked by a count: how it looks in a window (R5).
 
-**Not done.** Colour bands and text bands (every 4), Mode 7's zoom in the ending (every 16 and 24) and the Genie
-wheel's slowing step as before. R5: a run in a window at 60 and 120 Hz, by Jeff's eye.
+**R4, second round** (Jeff, 2026-11-23: "fix the bugs and finish the 'not done'").
+- A step that came before its track had finished easing to the one before jumped (21 brightness, 6 windows on the 37
+  plays: fades whose steps came every update, whose first step had been eased over 2). Such a step now starts from where
+  the pictures had got to: the brightness from its eased value in 256ths; the windows from the state two steps back
+  eased as far as they had gone (`video/between.c`, `video/lines.c`).
+- Measured, then decided on the evidence (the developer's step log with Mode 7's matrix and the colour bands' line
+  values added):
+  - the colour bands (level 6, `video/colour_bands.c`) do not change on screen: the task dims the pairs from the 18th
+    on, and the cartridge's table has 17 (printed: 17 pairs, the same at steps 0, 1, 2). Nothing to ease;
+  - the text bands (`video/text_bands.c`) show or mask a whole band each step: a switch, as a cel, not a place. Left
+    stepped, as the window rule leaves a line that appears;
+  - the Genie wheel (level 47) turns Mode 7 by the high byte of an 8.8 angle, so as it slows its matrix steps every
+    256 / speed updates (measured gaps 3 and 5); the ending's spin-zoom (level 57, `SceneSpinZoomTask`) turns every
+    update but grows its zoom every 24.
+- Mode 7 now has tracks of its own: its matrix and centre eased over up to 8 updates, its four scales over up to 24, each
+  from where the pictures had got to and the newest exactly at a step's end; a scaled matrix (`mode7_how` 1) is the
+  eased element times the eased scale (`mode7_scaled_fx`, the original's product at a whole scale). Measured: the
+  spin-zoom's scale grows 2 to 3 256ths of a level a quarter update over its 24-update steps (1/96 of a level).
+
+Checked after the second round, on all 37 plays: the step check, 437,951 pictures, the world, the brightness, the
+windows and Mode 7 each 0 jumps, none after an early step either; the easing check 3,760,506 places, 0 wrong;
+`behind.sh` with the steps off against main's pictures, 21 runs, 10,010 pairs, 0 differ; `same.sh` 21 runs, 0 differ.
+
+**R5, the windowed run** (macOS, Metal, the Mac's display at 60 Hz; 120 Hz not possible here: no ProMotion display).
+p0-0 to update 4,200 in a window, every picture logged (`ALADDIN_DEV_DRAW_LOG`: the update, its between, the clock):
+4,220 pictures; the moment each shows (the update before plus between) moves on by exactly the clock's step (mean and
+largest difference 0.0000 of an update), no picture repeated. 3,709 of 3,798 moved on by 1.0 update; 19 were drawn 5 to
+17 ms off the refresh (a draw call late, the next early, e.g. 28.5 ms then 4.5 ms), so their moments step 1.3 to 2.0 and
+0.3 to 0.7. That is the engine's loop calling `draw` off the display's refresh, not the easing: a picture timed by the
+time it will be shown (the display's), not the time it is drawn, would need the engine's loop to pass it. A question
+for Jeff, not made. Still by Jeff's eye: how it looks.
+
+**Other renderers.** Vulkan, on this Mac through MoltenVK (the null host's loader): the engine's tests `brightness_sub`,
+`subpixel`, `depth`, `palettes`, `mesh` ok, and the 118 scenes at 1x and 4x the same as Metal's, 236 pictures, 0
+differ. Direct3D 12: the game cross-built for Windows (`nshvc-build windows-d3d12`, mingw-w64), no error; not run (no
+Windows here).

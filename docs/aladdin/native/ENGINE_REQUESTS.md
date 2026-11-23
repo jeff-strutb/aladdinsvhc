@@ -103,7 +103,8 @@ from the screen and the line field (`picture.c`). The compiled programs regenera
 engine and 6.11's: 236 pictures, 0 differ; `subpixel` ok; `brightness_sub` (new): a 15-bit colour at levels 0, 3, 4, 7,
 11, 14, 15 with fractions 0 to 255, on the screen and from a line, each pixel against the value worked out from the
 console's dimming: ok, and a planted fault (the rounding dropped from the expected values) fails it (3 scenarios).
-Not run: Vulkan, Direct3D 12.
+On Vulkan, through MoltenVK on this Mac (the null host): `brightness_sub`, `subpixel`, `depth`, `palettes`, `mesh` ok,
+and the 118 scenes the same as Metal's, 236 pictures, 0 differ. Direct3D 12: the game cross-built for Windows, not run.
 
 **Where the game uses it.** `video/video.c` (`video_draw`: the screen's and the lit line's brightness from
 `between_brightness`, `video/between.c`).

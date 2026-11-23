@@ -63,8 +63,13 @@ int64_t between_ease_fx(int64_t was, int64_t now, unsigned bits, int64_t far);
    brightness_sub); outside one, g's */
 uint32_t between_brightness(void);
 /* while a picture draws: the states of the windows' step before the newest and of the newest, and how far between
-   them it is (0 to 1); 0 when not drawing */
-int between_windows(const struct GameState **was, const struct GameState **now, float *at);
+   them it is (0 to 1); and where the easing starts: `from` of the way from the state of the step before those (`prev`)
+   to `was` (1 but where the newest step came before the easing to `was` had ended); 0 when not drawing */
+int between_windows(const struct GameState **prev, float *from, const struct GameState **was, const struct GameState **now,
+                    float *at);
+/* while a picture draws: Mode 7's matrix (a, b, c, d), centre and scales (in 256ths of the game's 256ths), each eased
+   with its own steps (the matrix and centre over up to 8 updates, the scales up to 24); 0 when not drawing */
+int between_mode7(int16_t matrix[4], int16_t centre[2], int32_t scale_fx[4]);
 /* the easing in hand's amount set (a track's, for its easing); the amount before returned */
 float between_amount_set(float at);
 
