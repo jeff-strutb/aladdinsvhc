@@ -97,6 +97,7 @@
 #include "video/between.h"
 #include "video/level_fill.h"
 #include "video/level_maps.h"
+#include "system/runahead.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 #include "video/view.h"
@@ -326,6 +327,9 @@ void LevelMapsBuild(void)
 {
     unsigned back = level_map_layout_count(g.level) > 1 ? 1u : 0u;
 
+    if (runahead_guard())
+        return;
+
     build_layer(0, 0);
     build_layer(1, back);
 }
@@ -345,6 +349,30 @@ void LevelMapsBackdropOff(void)
 void level_maps_keep(void)
 {
     between_keep(layer_map, sizeof layer_map);
+    between_unhashed(layer_map);
+}
+
+/* the developer's state hash (ALADDIN_DEV_STATE_HASH): the layers' maps and their words as they are now */
+uint64_t level_maps_hash(uint64_t h)
+{
+    for (int layer = 0; layer < 2; layer++) {
+        const LevelMap *m = &layer_map[layer];
+        uint32_t head[9] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->map.id };
+        const uint8_t *p = (const uint8_t *)head;
+        size_t n = sizeof head;
+
+        for (int pass = 0; pass < 2; pass++) {
+            for (size_t i = 0; i < n; i++)
+                h = (h ^ p[i]) * 0x100000001b3ull;
+            if (pass == 0) {
+                if (!m->on || !m->words)
+                    break;
+                p = (const uint8_t *)m->words;
+                n = (size_t)m->w * m->h * sizeof *m->words;
+            }
+        }
+    }
+    return h;
 }
 
 int level_maps_active(int layer)
@@ -368,6 +396,8 @@ void LevelMapsTile(uint16_t x, uint16_t y, uint16_t tile)
         return;
     tx += m->mx;
     ty += m->my;
+    runahead_log(&m->words[ty * m->w + tx], 2 * sizeof *m->words);          /* put back with the real world (runahead.h) */
+    runahead_log(&m->words[(ty + 1) * m->w + tx], 2 * sizeof *m->words);
     for (unsigned i = 0; i < 4; i++)
         quad[i] = tile_word(metatiles, tile, i * 2u);
     m->words[ty * m->w + tx] = quad[0];
@@ -520,6 +550,9 @@ void LevelMapsPlace(unsigned place)
     cx = rel % SCREEN_PLACE_ROW - 1;
     if ((cx + 1) * METATILE_TILES * 2u > m->level_w || (cy + 1) * METATILE_TILES * 2u > m->level_h)
         return;
+    for (unsigned row = 0; row < METATILE_TILES * 2u; row++)    /* the screen's rows, put back with the real world (runahead.h) */
+        runahead_log(&m->words[(m->my + cy * METATILE_TILES * 2u + row) * m->w + m->mx + cx * METATILE_TILES * 2u],
+                     METATILE_TILES * 2u * sizeof *m->words);
     for (unsigned my = 0; my < METATILE_TILES; my++)
         for (unsigned mx = 0; mx < METATILE_TILES; mx++) {
             uint16_t *at = &m->words[(m->my + (cy * METATILE_TILES + my) * 2u) * m->w + m->mx + (cx * METATILE_TILES + mx) * 2u];

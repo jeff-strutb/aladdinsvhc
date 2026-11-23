@@ -14,6 +14,7 @@
 #include "game/game.h"
 #include "level/level.h"
 #include "map/map.h"
+#include "system/runahead.h"
 #include "system/unconverted.h"
 
 #define PLACEHOLDER __attribute__((weak))
@@ -25,6 +26,8 @@ void unconverted(const char *name)
     static unsigned count;
     unsigned i;
 
+    if (runahead_ahead())       /* told once, by the real step */
+        return;
     for (i = 0; i < count; i++)
         if (!strcmp(said[i], name))
             return;

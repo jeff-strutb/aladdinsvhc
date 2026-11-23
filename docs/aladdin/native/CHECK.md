@@ -417,3 +417,22 @@ Builds: the tree before the change (`HEAD` of main, with the options screen) and
 - `native/checks/between/behind.sh` old against new (both on engine 6.10, so `BEHIND_SHIFT=0` and `ALADDIN_DEV_WHOLE_PIXELS=1` for both): every run differs in pictures that show the title menu, and in no other: the 20 plays at updates 2625 to 3925 (53 pictures of every 25th, the menu from its first frame to Start's fade; p5-2 three more, 25400 to 25450, the title after its ending shows the menu again), the boot run at 9125 to 9650 (22 pictures, the menu's one stay). 0 differ outside the menu.
 - Pictures of the menu with the mark on each line, and the press on SAVED GAMES and LEVEL SELECT (A at 3000 and Start at 3040 on LEVEL SELECT; A at 3260 and Start at 3300 on SAVED GAMES): the pictures every 2nd update from 2600 to 3418 and the task trace (`ALADDIN_TASK_TRACE=1`) are the same, byte for byte, as a run of the same keys without the presses (410 pictures; 22 trace lines, the last the menu's window effect at 2622); on the build before the change the same press at 3040 starts the fade (a task at 3040) and the options screen.
 
+
+## Runahead (developer variables and checks; FRAMERATE.md section 9)
+
+`ALADDIN_RUNAHEAD=N`: the ahead steps a tick takes after the real one. Default 1 in a window, 0 (off) in a headless run; 0 turns it
+off anywhere. Only 0 and 1 are built: a larger N is taken as 1, with a note on stderr. It is also off, whatever N says, when one of the
+developer's tools that drive or log the steps themselves is set (`ALADDIN_DEV_BOT`, `ALADDIN_DEV_TRIGGERS`, `ALADDIN_TASK_TRACE`,
+`ALADDIN_DEV_MAPDUMP`, `ALADDIN_DEV_CELDUMP`). While the pause menu is open there are no ahead steps.
+`ALADDIN_DEV_STATE_HASH=1`: a line `hash u=N H` on stderr after each real update, H the hash of the real world (g, the video parts
+`between_keep` registered, the statics `RUNAHEAD_KEEP` registered, the level maps' words); `=2` adds each part's own hash, to find which
+part differs. `ALADDIN_DEV_RUNAHEAD_REPORT=1`: at the end, how many ticks ran ahead, how many ended early, and the time of the
+ticks (mean, the real step alone, median, 99th percentile, worst, how many over 16.7 ms).
+
+- `native/checks/runahead/state.sh HEADLESS_BIN`: the real world is the same with and without ahead steps. The boot and every play of
+  `native/checks/plays` run on one build with `ALADDIN_RUNAHEAD=0` and with `=1`, both with the state hash and the developer's trace
+  (`view/same.sh` with `SAME_BASE_ENV`, `SAME_NEW_ENV`); the two logs must be the same line for line.
+- `native/checks/runahead/future.sh MACOS_BIN INPUT FROM TO BETWEEN`: the ahead picture is the true future when the pad does not change
+  (Metal build, a picture every update, drawn at between BETWEEN).
+- `native/checks/runahead/latency.sh MACOS_BIN "4100 key=27\n4200" [BETWEEN]`: the updates from a key press to the first change in the
+  player's state and in the picture, with and without runahead, on level 0's start.

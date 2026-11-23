@@ -19,14 +19,20 @@
 #include "data/actor_tables.h"
 #include "video/slot_gfx.h"
 #include "video/view.h"
+#include "system/runahead.h"
 
 /* The index ($7E:C100-$7E:C5FF; the original's clear runs on through
    $7E:C7FF, which also clears g.placed and a page no code names). */
 static uint8_t column_count[256];   /* $7E:C100: per column, its placements; while indexing by row, each placement's row */
+RUNAHEAD_KEEP(column_count)
 static uint8_t column_first[256];   /* $7E:C200: per column, its first placement's number */
+RUNAHEAD_KEEP(column_first)
 static uint8_t row_count[256];      /* $7E:C300: per row, its placements */
+RUNAHEAD_KEEP(row_count)
 static uint8_t row_start[256];      /* $7E:C400: per row, where its run starts in row_order */
+RUNAHEAD_KEEP(row_start)
 static uint8_t row_order[256];      /* $7E:C500: placement numbers, row by row */
+RUNAHEAD_KEEP(row_order)
 
 /* Where the camera last placed from ($1BE7-$1BF4), in bands of 32 pixels. */
 static struct {
@@ -37,6 +43,7 @@ static struct {
     uint16_t x;             /* $1BEF: the camera's x when it last placed across */
     uint16_t y;             /* $1BF1: its y when it last placed down */
 } placing;
+RUNAHEAD_KEEP(placing)
 
 /* native: the original's own placing, followed beside the view's (which is measured from the view's edges): the same camera
    steps of 32 pixels from the original's camera, its 384-pixel window and its far band ($120). It creates nothing: it marks

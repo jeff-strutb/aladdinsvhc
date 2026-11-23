@@ -84,6 +84,15 @@ Not run: Vulkan, Direct3D 12, the windowed path; `feature`, `pixel`, `cost` (the
 **Where the game uses it.** `native/aladdin/src/video/video.c` (`sprites_ease`, `draw_layers`, `draw_mode7`),
 `video/scroll.c`, `video/lines.c`: the eased places' fractions, from the 16.8 and 24.8 places the game keeps.
 
+## 3. Runahead (2026-11-23): no request
+
+Runahead (FRAMERATE.md section 9) needs nothing of the engine as built: one ahead step writes the engine's tiles, maps and palette
+only through `video/between.c`, which holds an update's writes until the next update begins; an ahead step's writes are held and
+dropped when the real world is put back, and the engine is never asked to save or restore anything. Two or more ahead steps would
+apply an ahead step's writes to the engine and then need them undone; the engine has no read back of its tiles, maps or palette,
+so that case would need either the game to keep a copy of everything it has written (a shadow; no engine change) or an engine
+snapshot. Not built (FRAMERATE.md 9.6).
+
 ## Considered, no request
 
 - **The echo buffer's address (ESA).** The driver sets it (`sound_driver.c:1623`), and the engine has no call for

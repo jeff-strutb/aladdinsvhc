@@ -9,6 +9,7 @@
 
 #include "nshvc/nshvc.h"
 #include "data/video_tables.h"
+#include "system/runahead.h"
 #include "system/state.h"
 #include "system/system.h"
 #include "video/between.h"
@@ -31,6 +32,10 @@ static nshvc_map mode7_map;
 static uint8_t mode7_cells[128 * 128];
 static uint8_t mode7_pixels[256 * 64];
 static uint8_t mode7_cells_changed, mode7_pixels_changed;
+RUNAHEAD_KEEP(mode7_cells)
+RUNAHEAD_KEEP(mode7_pixels)
+RUNAHEAD_KEEP(mode7_cells_changed)
+RUNAHEAD_KEEP(mode7_pixels_changed)
 static uint8_t mode7_up;            /* Mode7ScreenSetup ran since DisplayDefaults: writes reach Mode 7 */
 static uint8_t mode7_outside;       /* outside the plane transparent (Mode7ScreenSetup); else it repeats */
 
@@ -89,9 +94,12 @@ static void sprite_lists_make(void)
  * runs this first, before LevelScrollLimits.
  */
 static int level_loading;       /* video_view_level ran and LevelScreenSetup has not yet: a DisplayDefaults in between keeps the level's view */
+RUNAHEAD_KEEP(level_loading)
 
 static void view_changed(int changed)
 {
+    if (changed && runahead_guard())    /* the sprite lists are sized again: not run ahead */
+        return;
     if (changed && shown_sprites)
         sprite_lists_make();
 }
