@@ -1,10 +1,11 @@
 /*
  * dev_level.c: ALADDIN_DEV_LEVEL=PART-STAGE (a developer's setting, e.g. 0-3 for level 3): the game's own level select is
- * played by keys from power-on, the same keys at the same updates as native/checks/plays/level_select_input.py PART STAGE
- * (Start at 2400, Options, the cheat code on pad 2, Exit, R held with Up PART times and Right STAGE times, Start at 3900),
+ * played by keys from power-on, the same keys at the same updates as native/checks/plays/select_input.py PART STAGE
+ * (Start at 2400, Down and Up, R held with Up PART times and Right STAGE times, Start at 3900), with the level select's
+ * cheat set at boot as ALADDIN_DEV_CHEAT=1 sets it (dev_start.c: the title menu has no options screen to type the code in),
  * and the person's keys and controllers take over after the last of them (update 3903); the level plays from about update
- * 4000. Until then the person's input is not used. The keys go through ALADDIN_DEV_RECORD like any other, so a recording
- * made with this set replays from power-on with --input alone.
+ * 3934. Until then the person's input is not used. The keys go through ALADDIN_DEV_RECORD like any other, so a recording
+ * made with this set replays from power-on with --input and ALADDIN_DEV_CHEAT=1.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,26 +44,16 @@ static void press(uint32_t at, uint8_t key)
     add(at + 3, 0, 0, 0, 0);
 }
 
-/* the lines level_select_input.py writes, in its order */
+/* the lines select_input.py writes, in its order */
 static void build(unsigned part, unsigned stage)
 {
-    static const uint8_t code[8] = { 0x10, 0x20, 0x80, 0x40, 0x08, 0x04, 0x02, 0x01 };
     uint32_t t;
     unsigned i;
 
     add(2400, 0x0D, 0, 0, 0);
     add(2402, 0, 0, 0, 0);
     press(2700, 0x28);
-    press(2715, 0x28);
-    press(2730, 0x0D);
-    for (t = 3100, i = 0; i < 8; i++, t += 10) {
-        add(t, 0, 0, code[i], 1);
-        add(t + 3, 0, 0, 0, 1);
-    }
-    press(3300, 0x28);
-    press(3310, 0x28);
-    press(3320, 0x28);
-    press(3340, 0x58);
+    press(2715, 0x26);
     add(3700, 0x57, 0, 0, 0);
     for (t = 3720, i = 0; i < part + stage; i++, t += 10) {
         add(t, 0x57, i < part ? 0x26 : 0x27, 0, 0);

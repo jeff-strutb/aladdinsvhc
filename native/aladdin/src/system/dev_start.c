@@ -65,8 +65,8 @@ void DevStartApply(void)
     const char *screen = getenv("ALADDIN_DEV_SCREEN");
     unsigned i;
 
-    if (env_number("ALADDIN_DEV_CHEAT", 0))
-        g.cheat_start = 1;
+    if (env_number("ALADDIN_DEV_CHEAT", 0) || (getenv("ALADDIN_DEV_LEVEL") && *getenv("ALADDIN_DEV_LEVEL")))
+        g.cheat_start = 1;      /* ALADDIN_DEV_LEVEL plays the level select, which waits for the cheat (dev_level.c) */
     if (!screen || !*screen)
         return;
     for (i = 0; i < sizeof screens / sizeof screens[0]; i++) {
