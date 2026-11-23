@@ -25,7 +25,12 @@ static uint16_t x_of(const Actor *a) { return (uint16_t)(a->x >> 8); }
 /* the view's x plus a limit at or right of the player (the original's C) */
 static bool limit_at_or_past(unsigned limit, const Actor *player)
 {
-    return (uint16_t)(view_x() + view_edge_limit(limit)) >= x_of(player);
+    uint16_t left, right;
+    int32_t at = (int32_t)view_x() + view_edge_limit(limit);
+
+    PlayerViewReach(&left, &right);
+    at += limit == LIMIT_MOST ? right : -(int32_t)left;     /* the wide view's margin, as the clamps */
+    return at >= x_of(player);
 }
 
 /*
@@ -57,11 +62,13 @@ static void ViewEdgePush(Actor *player)
  */
 static void ViewEdgeHurt(Actor *player)
 {
-    uint16_t left = (uint16_t)(view_x() - HURT_MARGIN);
+    uint16_t reach_left, reach_right, left;
 
+    PlayerViewReach(&reach_left, &reach_right);
+    left = (uint16_t)(view_x() - reach_left - HURT_MARGIN);
     if (left & 0x8000)
         return;
-    if (left < x_of(player) && (uint16_t)(view_x() + VIEW_WIDTH + HURT_MARGIN) >= x_of(player))
+    if (left < x_of(player) && (uint16_t)(view_x() + VIEW_WIDTH + HURT_MARGIN + reach_right) >= x_of(player))
         return;
     g.view_edge_rule = EDGE_NONE;
     PlayerEnter8CFrom1();

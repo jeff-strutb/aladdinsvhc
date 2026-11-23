@@ -8,6 +8,7 @@
 
 #include "data/video_tables.h"
 #include "system/state.h"
+#include "player/player.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 #include "system/runahead.h"
@@ -163,7 +164,10 @@ void ScrollUpdate(void)
     case 2:
         l->scroll_x = add24(l->scroll_x, 0x00A0);
         if ((g.player_no_actor_landing & 0x000F) == 0) {
-            uint16_t most = (uint16_t)(pixels(l->scroll_x) + 0x00F0);
+            uint16_t left, right, most;
+
+            PlayerViewReach(&left, &right);
+            most = (uint16_t)(pixels(l->scroll_x) + 0x00F0 + right);
 
             if (most < pixels(p->x))
                 p->x = with_pixels(p->x, most);

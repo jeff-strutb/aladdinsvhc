@@ -7,6 +7,7 @@
 #include "player/player_own.h"
 #include "level/level.h"
 #include "video/video.h"
+#include "video/view.h"
 
 #define NO_FALL_LEVEL_1 0x07    /* levels where falling out of the bottom does not hurt */
 #define NO_FALL_LEVEL_2 0x12
@@ -92,15 +93,44 @@ void PlayerHurtCountdown(Actor *a)
 }
 
 /*
+ * PlayerViewReach (no original: the wide view's walls, VIEW.md 4.4)
+ * WHAT IT DOES: Says how many pixels his walls go past the original's
+ * screen on each side: the view's margin (view.dx), but not past where the
+ * camera can go (0, the level's layout, a lock's least and most), so the
+ * fill past a level's end or a locked room is never walked on. At 256 wide
+ * both are 0.
+ */
+void PlayerViewReach(uint16_t *left, uint16_t *right)
+{
+    uint16_t scroll = pixels(g.layers[0].scroll_x), most = g.scroll_limit_x, room;
+
+    *left = *right = 0;
+    if (g.scroll_x_max < most)
+        most = g.scroll_x_max;
+    if (scroll > g.scroll_x_min) {
+        room = (uint16_t)(scroll - g.scroll_x_min);
+        *left = room < view.dx ? room : (uint16_t)view.dx;
+    }
+    if (most > scroll) {
+        room = (uint16_t)(most - scroll);
+        *right = room < view.dx ? room : (uint16_t)view.dx;
+    }
+}
+
+/*
  * @routine 81:E990 PlayerKeepOnScreenX
  * WHAT IT DOES: Keeps the actor's x on screen: 16 to 240 pixels from the
- * play field's left edge (at or left of the least, it goes to the least).
+ * play field's left edge (at or left of the least, it goes to the least),
+ * the view's margin more on each side (PlayerViewReach).
  */
 void PlayerKeepOnScreenX(Actor *a)
 {
-    uint16_t scroll = pixels(g.layers[0].scroll_x), x = x_pixels(a);
-    uint16_t low = (uint16_t)(scroll + screen_limit_low(0)), high = (uint16_t)(scroll + screen_limit_high(0));
+    uint16_t scroll = pixels(g.layers[0].scroll_x), x = x_pixels(a), left, right;
+    uint16_t low, high;
 
+    PlayerViewReach(&left, &right);
+    low = (uint16_t)(scroll + screen_limit_low(0) - left);
+    high = (uint16_t)(scroll + screen_limit_high(0) + right);
     if (low >= x)
         set_x_pixels(a, low);
     else if (high < x)
