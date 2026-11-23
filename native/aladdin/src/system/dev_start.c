@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "data/data.h"
 #include "data/level_tables.h"
 #include "data/system_tables.h"
 #include "system/state.h"
@@ -120,4 +121,19 @@ void DevStartAt(LevelStart *s)
     s->y = (uint16_t)v[1];
     s->camera_x = have >= 3 ? (uint16_t)v[2] : (uint16_t)(v[0] > 128 ? v[0] - 128 : 0);
     s->camera_y = have >= 4 ? (uint16_t)v[3] : (uint16_t)(v[1] > 112 ? v[1] - 112 : 0);
+    {
+        /* the player is kept inside the layout, and a camera that was not given is kept inside the scroll limits the game sets (the layout less
+           a screen: video/scroll_layer.c); a place or camera the original cannot have is told, not used */
+        unsigned width = level_map_layout_columns(g.level, 0) * 256u, height = level_map_layout_rows(g.level, 0) * 256u;
+
+        if (s->x >= width || s->y >= height) {
+            fprintf(stderr, "ALADDIN_DEV_AT: %u,%u is outside level %02X's layout (%u x %u)\n", (unsigned)s->x, (unsigned)s->y, (unsigned)g.level, width, height);
+            s->x = (uint16_t)(s->x >= width ? width - 16 : s->x);
+            s->y = (uint16_t)(s->y >= height ? height - 16 : s->y);
+        }
+        if (have < 3 && s->camera_x + 256u > width)
+            s->camera_x = (uint16_t)(width - 256u);
+        if (have < 4 && s->camera_y + 256u > height)
+            s->camera_y = (uint16_t)(height > 256u ? height - 256u : 0);
+    }
 }

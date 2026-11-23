@@ -178,8 +178,52 @@ static uint16_t screen_tile(uint16_t place_word, unsigned metatile_offset)
     return at < LEVEL_TILES_WORDS ? g.level_tiles[at] : 0;
 }
 
+/* a developer's note (ALADDIN_DEV_OVER): per level and layer, the layout's width and the width the window can reach (layout_reach_x), and the window's
+   own least x and greatest right edge a play went to (level_maps_note); written at the end of the run with the overshoots below */
+static struct { int32_t width, reach, least, most, art; } window_seen[2][64];
+static const char *over_file;
+static void over_init(void);
+
+static void level_maps_reach_note(int layer, int32_t width, int32_t reach, int32_t art)
+{
+    over_init();
+    window_seen[layer][g.level & 63].width = width;
+    window_seen[layer][g.level & 63].reach = reach;
+    window_seen[layer][g.level & 63].art = art;
+    window_seen[layer][g.level & 63].least = 1 << 30;
+    window_seen[layer][g.level & 63].most = -(1 << 30);
+}
+
+/* The columns of a layer's layout the original's 256 x 224 window can ever reach (docs VIEW.md 5.y), in pixels from the layout's left: the layout's
+   width, or less. The camera's x is at most the play field's layout width less 256 (scroll_limit_x as the load leaves it; a scene's lock only lowers
+   it, an arena raises it by one screen to that width). The play field's window is the camera's. The backdrop's scroll x is by the level's handler
+   (parallax.c, g.layer_setup_mode) from the camera's: half (modes 0, 6, 8), the same (2, 4, $14, and $10 until the scroll passes $1000, then half
+   as fast), so its window ends at the scroll at the camera's greatest x, plus 256. The banded handlers ($0A, $0C, $0E) wrap their layer round,
+   and $12 does not scroll; those, and a layout the handler's scroll does not account for, are all reachable (the whole layout). The scroll is at
+   least 0 (the camera's x is), so nothing on the left is unreachable. A column cut at a multiple of 16 pixels (a metatile). `field_px` is the
+   play field's layout width. */
+static int32_t layout_reach_x(int layer, int32_t layout_px, int32_t field_px)
+{
+    int32_t cam = field_px - 256, scroll;
+
+    if (layer == 0 || cam <= 0)
+        return layout_px;
+    if (g.bg2_follows == 0x80)
+        return layout_px;
+    switch (g.layer_setup_mode) {
+    case 0x00: case 0x06: case 0x08: scroll = cam / 2; break;
+    case 0x02: case 0x04: case 0x14: scroll = cam; break;
+    case 0x10: scroll = cam >= 0x1000 ? (cam - 0x1000) / 2 + 0x1000 : cam; break;
+    default: return layout_px;
+    }
+    scroll = (scroll + 256 + 15) / 16 * 16;
+    return scroll < layout_px ? scroll : layout_px;
+}
+
 /* layer `layer`'s map from its layout: `columns` x `rows` screens of the screen map from place `first`, `columns` of
    them (all of the layout's, or the band levels' first 512 pixels) written, the layout's `layout_columns` wide */
+static int32_t field_px;                     /* the play field layout's width in pixels (the last built) */
+
 static void build_layer(int layer, unsigned layout)
 {
     LevelMap *m = &layer_map[layer];
@@ -199,6 +243,7 @@ static void build_layer(int layer, unsigned layout)
     unsigned ox = band ? 0 : dx_cells, oy = layer == 1 ? 7u : 0u;
     unsigned fw = lw + 2 * ox, fh = lh + 2 * oy;                            /* the whole, with the margins */
     uint32_t w, h;
+    unsigned reach;
 
     m->on = 0;
     memset(&fill_report[layer], 0, sizeof fill_report[layer]);
@@ -237,8 +282,22 @@ static void build_layer(int layer, unsigned layout)
                     cells[(size_t)(oy + cy * METATILE_TILES + my) * fw + ox + cx * METATILE_TILES + mx] =
                         screen & NEGATIVE_PLACE ? (uint16_t)FILL_BLANK : (uint16_t)(screen_tile(screen, my * 0x20u + mx * 2u) & 0x7FFFu);
         }
+    if (layer == 0)
+        field_px = (int32_t)lw * 16;
+    reach = (unsigned)(layout_reach_x(layer, (int32_t)lw * 16, field_px) / 16);
+    if (getenv("ALADDIN_DEV_OVER")) {
+        int32_t art = 0;
+
+        for (unsigned cy = 0; cy < lh; cy++)
+            for (unsigned cx = reach; cx < lw; cx++)
+                art += cells[(size_t)(oy + cy) * fw + ox + cx] != FILL_BLANK;
+        level_maps_reach_note(layer, (int32_t)lw * 16, (int32_t)reach * 16, art);
+    }
+    for (unsigned cy = 0; cy < lh; cy++)
+        for (unsigned cx = reach; cx < lw; cx++)
+            cells[(size_t)(oy + cy) * fw + ox + cx] = FILL_BLANK;      /* art the original's window never reaches: margin, made by the fill */
     fill_clock = fill_now();
-    LevelFill(cells, lw, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
+    LevelFill(cells, reach, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
               &fill_report[layer]);
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillms layer %d level %u x %u cells, whole %u x %u: %.1f ms\n", layer, lw, lh, fw, fh, (fill_now() - fill_clock) * 1000.0);
@@ -347,7 +406,6 @@ void LevelMapsFreeze(void)
 /* a developer's note (ALADDIN_DEV_OVER=FILE): how far past the level's own layout each layer's window (scroll x, y, 256 x 224) goes, per level, at the
    end of the run: left, right, top, bottom in pixels (0: never) */
 static struct { int32_t v[4]; } over_seen[2][64];
-static const char *over_file;
 
 static void over_report(void)
 {
@@ -357,17 +415,21 @@ static void over_report(void)
         return;
     for (int l = 0; l < 2; l++)
         for (int n = 0; n < 64; n++)
+            if (window_seen[l][n].width)
+                fprintf(f, "window level %02X layer %d x %d..%d reach %d of %d art_cells_cut %d\n", n, l,
+                        window_seen[l][n].most > -(1 << 30) ? window_seen[l][n].least : -1, window_seen[l][n].most > -(1 << 30) ? window_seen[l][n].most : -1,
+                        window_seen[l][n].reach, window_seen[l][n].width, window_seen[l][n].art);
+    for (int l = 0; l < 2; l++)
+        for (int n = 0; n < 64; n++)
             if (over_seen[l][n].v[0] || over_seen[l][n].v[1] || over_seen[l][n].v[2] || over_seen[l][n].v[3])
                 fprintf(f, "level %02X layer %d left %d right %d top %d bottom %d\n", n, l, over_seen[l][n].v[0], over_seen[l][n].v[1],
                         over_seen[l][n].v[2], over_seen[l][n].v[3]);
     fclose(f);
 }
 
-void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y)
+static void over_init(void)
 {
     static int known;
-    const LevelMap *m = &layer_map[layer];
-    int32_t v[4];
 
     if (!known) {
         known = 1;
@@ -375,8 +437,20 @@ void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y)
         if (over_file)
             atexit(over_report);
     }
+}
+
+void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y)
+{
+    const LevelMap *m = &layer_map[layer];
+    int32_t v[4];
+
+    over_init();
     if (!over_file || !m->on || m->wraps)
         return;
+    if (scroll_x < window_seen[layer][g.level & 63].least)
+        window_seen[layer][g.level & 63].least = scroll_x;
+    if (scroll_x + 256 > window_seen[layer][g.level & 63].most)
+        window_seen[layer][g.level & 63].most = scroll_x + 256;
     v[0] = -scroll_x;
     v[1] = scroll_x + 256 - (int32_t)m->level_w * 8;
     v[2] = -scroll_y;

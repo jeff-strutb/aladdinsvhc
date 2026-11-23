@@ -16,14 +16,14 @@
 #define FILL_COLS_MAX 1024
 
 /* how a band (a row of metatiles past the right or left edge, a column past the bottom or top edge) was filled */
-enum { FILL_NONE = 0, FILL_EXACT = 'B', FILL_EMPTY = 'E', FILL_CYCLE = 'R', FILL_SYNTH = 'S', FILL_BACKDROP = 'D' };
+enum { FILL_NONE = 0, FILL_EXACT = 'B', FILL_EMPTY = 'E', FILL_CYCLE = 'R', FILL_SYNTH = 'S', FILL_BACKDROP = 'D', FILL_QUILT = 'Q' };
 
 /* how the exact search of a side ended: 0 not run (no margin), made whole, made with seam pairs let go, made to some depth (the rest by the depth at a time path), proved
    (arc consistency leaves no cell that has only the level's own pairs: the side cannot be 0), given up (its work limit) */
 enum { FILL_OUTCOME_NONE = 0, FILL_OUTCOME_MADE = 'M', FILL_OUTCOME_RELAXED = 'R', FILL_OUTCOME_PARTIAL = 'P', FILL_OUTCOME_PROVED = 'X', FILL_OUTCOME_GAVE_UP = 'G' };
 
 /* how a cell of the whole was made (level_fill_kind) */
-enum { FILL_KIND_LEVEL = 0, FILL_KIND_EXACT, FILL_KIND_EMPTY, FILL_KIND_CYCLE, FILL_KIND_SYNTH, FILL_KIND_FALLBACK, FILL_KIND_REPAIR };
+enum { FILL_KIND_LEVEL = 0, FILL_KIND_EXACT, FILL_KIND_EMPTY, FILL_KIND_CYCLE, FILL_KIND_SYNTH, FILL_KIND_FALLBACK, FILL_KIND_REPAIR, FILL_KIND_QUILT };
 
 typedef struct FillBand {
     uint8_t method;

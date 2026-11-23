@@ -15,6 +15,7 @@
 #include "audio/music.h"
 #include "data/data.h"
 #include "data/level_tables.h"
+#include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "system/system.h"
 #include "system/task.h"
@@ -72,6 +73,25 @@ static void trace_line(void)
                 (unsigned)g.mosaic_layers, (unsigned)g.fixed_red, (unsigned)g.fixed_green, (unsigned)g.fixed_blue);
     if (every && getenv("ALADDIN_DEV_ACTORS") && nshvc_updates() % every == 0) {
         unsigned i;
+
+        if (getenv("ALADDIN_DEV_CAMERA")) {
+            /* the player's body box (half-sizes 8 x 18, the test box's) against the level's collision map: the probe points inside it, above his feet,
+               that are in the ground (a solid tile, or under a surface); 0 for a player standing or falling clear of the walls */
+            const Actor *pl = &g.actors[0];
+            int px = (int)(pl->x >> 8 & 0xFFFF), py = (int)(pl->y >> 8 & 0xFFFF), solid = 0;
+
+            for (int dx = -7; dx <= 7; dx += 7)
+                for (int dy = 1; dy <= 17; dy += 8) {
+                    MapPoint mp;
+
+                    mp.x = (uint16_t)(px + dx);
+                    mp.y = (uint16_t)(py - dy);
+                    solid += PointInGround(pl, &mp);
+                }
+            fprintf(stderr, "  camera x=%u y=%u limit=%u,%u min=%u max=%u held=%u,%u solid=%d\n", (unsigned)(g.layers[0].scroll_x >> 8 & 0xFFFF),
+                    (unsigned)(g.layers[0].scroll_y >> 8 & 0xFFFF), (unsigned)g.scroll_limit_x, (unsigned)g.scroll_limit_y, (unsigned)g.scroll_x_min,
+                    (unsigned)g.scroll_x_max, (unsigned)g.scroll_x_held, (unsigned)g.scroll_y_held, solid);
+        }
 
         for (i = 0; i < ACTOR_RECORDS; i++)
             if (g.actors[i].state)
