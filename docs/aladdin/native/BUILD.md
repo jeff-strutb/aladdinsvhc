@@ -11,6 +11,18 @@ beside the program:
 python3 native/aladdin/tools/extract_assets.py "reference/aladdin/Aladdin (USA).sfc" native/aladdin/assets
 ```
 
+The level select's pictures are made once, after the game is built, from `cart.dat` by the game's own loader, and packaged beside it
+(`level_pictures.dat`, 525,412 B, 19 pictures of 96 x 72, never committed; `assets/*` is ignored). With the headless build and `cart.dat` in
+`native/aladdin/assets` (about 0.7 s):
+
+```bash
+native/aladdin/tools/make_pictures.sh build/aladdin/native/headless/aladdin build/aladdin/native/headless native/aladdin/assets
+```
+
+The first argument is the built game, the second the folder holding `cart.dat` (a macOS app's `Contents/Resources`), the third the assets folder;
+then build again so the file is packaged. Without it the level select screen still opens, its cells without pictures (the log says
+`level_pictures.dat is not valid` for a bad file).
+
 `cart.dat` is the cartridge image, 1,310,720 B, with the bytes that are not code at their place and zeros where the
 code was: 1,047,228 B read as data by the decomp's traces, 173,223 B no trace has touched (kept, as Stunt Race FX keeps
 its unread ranges), 4 B of code the game reads as a table (kind `code-read`), and 90,265 B of code left out (of the
@@ -27,7 +39,7 @@ ranges are `native/aladdin/tools/assets.csv` (2,024 ranges), made by
 ## Platforms (2026-11-21)
 
 The engine's own `tools/nshvc-build PLATFORM GAME_DIR` configures each platform (`headless`, `macos`, `ios`, `android`,
-`windows`, `windows-d3d12`, `linux`); Stunt Race FX's `builder/build.sh` does the same with plain cmake lines. Neither
+`windows` (Direct3D 12), `windows-vulkan`, `linux`); Stunt Race FX's `builder/build.sh` does the same with plain cmake lines. Neither
 project has CI, so Aladdin has none: each platform is built the way those two build it. The game has no platform code
 (`native/aladdin/CMakeLists.txt` is the same five lines as Stunt Race FX's, less its shaders); the hosts, renderers and
 toolchain choices are the engine's. `cart.dat` is made from the ROM, never committed (`native/aladdin/.gitignore`) and
@@ -37,19 +49,29 @@ own is written from their ROM, as Stunt Race FX's builder does.
 | Platform | Built how | Commit | What was run |
 |---|---|---|---|
 | Linux (x86_64, Vulkan) | cmake + Ninja, `NSHVC_HOST=linux NSHVC_RENDER=vulkan`, fresh build folder | `a92d22da` (engine `8b5461e`) | Built clean. Headless boot (`--headless --updates 3200 --input keys.txt`, Start at 2400): exit 0, `updates 3200 pictures 3200`, on Vulkan through Mesa dzn. Not run in a window on this commit. |
-| Windows (x86_64, Vulkan) | Cross-built on Linux with mingw-w64 (`apt install mingw-w64`), the lines below | `a92d22da` (engine `8b5461e`) | Built clean (`aladdin.exe`, PE32+ GUI, 2.1 MB, linked static). **Not run**: no Windows machine here and no Wine. |
+| Windows (x86_64, Direct3D 12) | Cross-built on Jeff's Mac with mingw-w64 (Homebrew), `tools/nshvc-build windows native/aladdin` | `c6803c7` (engine `e64b9e8`) | Built clean (`aladdin.exe`, PE32+ GUI, 2.1 MB, linked static). Run headless on Jeff's Windows 11 machine (AMD RX 6950 XT), 4,000 updates with Start at 2400, at 256 x 224 and 384 x 224: exit 0 and every picture compared with the Mac's (Metal). At each size 3,124 of 4,000 are the same byte for byte; the other 876 are the same updates at both sizes: the title's fade to white (updates 2561 to 2607), where some pixels differ by one step of 255, and the first level from its fade-in on (3169 on), where a few hundred pixels around the sprites differ by up to about 30 steps (update 3500: 421 pixels, rows 84 to 123). The Vulkan build on the same machine gives those same pictures byte for byte, so they come from that GPU's arithmetic and not from either renderer: the Mac's GPU and the AMD one round differently. Which of the two is right was not worked out. Vulkan there also differs in updates 621 to 2430, by 8 and 16 steps in rows 119 to 142; Direct3D 12 does not. **Not run in a window**: nobody was signed in on that machine's desktop. |
 | macOS (Metal, arm64) | cmake + Ninja on Jeff's Mac (Xcode 27.2, Metal toolchain), the lines below with `-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0` | `b36b712` (engine `2d4726f`); the view work on engine 6.8 (`21a6c32`) | Built clean (0 warnings). Headless 11,000 updates, exit 0; pictures written; the app opened in a window. The first build stopped at start on the stack check: the tile writer's overrun, fixed in `b36b712`. A headless run of the app's program reads `cart.dat` from `PORT_RESDIR` (set it to the bundle's `Contents/Resources`). |
 
-Windows, from a Linux machine (the Vulkan headers are `/usr/include/vulkan` and `vk_video`; they are put in a folder of
-their own so the Linux system headers are not pulled in after mingw's):
+Windows is Direct3D 12 (Jeff, 2026-11-23: "the windows build should use d3d not vulkan"). From a Mac or Linux machine
+with mingw-w64:
+
+```bash
+../nativeshvc/tools/nshvc-build windows native/aladdin
+```
+
+The program is `native/aladdin/build/windows/aladdin.exe`, with `cart.dat` beside it. The engine's D3D12 shaders are
+compiled ahead and kept in its source, so the build needs no `dxc`.
+
+The Vulkan build instead, from a Linux machine (the Vulkan headers are `/usr/include/vulkan` and `vk_video`; they are put
+in a folder of their own so the Linux system headers are not pulled in after mingw's):
 
 ```bash
 mkdir -p build/aladdin/native/vkinc && ln -sfn /usr/include/vulkan build/aladdin/native/vkinc/vulkan && ln -sfn /usr/include/vk_video build/aladdin/native/vkinc/vk_video
 cmake -S native/aladdin -B build/aladdin/native/windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DNSHVC_ROOT=/home/strutb/projects/strutb/nativeshvc -DNSHVC_HOST=windows -DNSHVC_RENDER=vulkan -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres -DNSHVC_VULKAN_INCLUDE=$PWD/build/aladdin/native/vkinc && cmake --build build/aladdin/native/windows -j 4
 ```
 
-Copy `aladdin.exe` and `cart.dat` to a Windows machine with a Vulkan driver and run it (`aladdin.exe --headless --updates 3200 --input keys.txt`
-is the boot check; `keys.txt` holds `2400 key=0D` and `2410`). Direct3D 12 instead of Vulkan needs `-DNSHVC_RENDER=d3d12` and `dxc`.
+Copy `aladdin.exe` and `cart.dat` to a Windows machine and run it (`aladdin.exe --headless --updates 3200 --input keys.txt`
+is the boot check; `keys.txt` holds `2400 key=0D` and `2410`; a headless run reads `cart.dat` from `PORT_RESDIR`).
 
 macOS, on a Mac with Xcode, cmake, ninja, `glslangValidator` and `spirv-cross` (the same lines Stunt Race FX uses; add
 `-DCMAKE_OSX_ARCHITECTURES=arm64` or `x86_64`, and `-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0`, as its builder does for a Mac app):

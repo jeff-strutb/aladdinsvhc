@@ -67,8 +67,8 @@ void DevStartApply(void)
     const char *screen = getenv("ALADDIN_DEV_SCREEN");
     unsigned i;
 
-    if (env_number("ALADDIN_DEV_CHEAT", 0))
-        g.cheat_start = 1;
+    if (env_number("ALADDIN_DEV_CHEAT", 0) || (getenv("ALADDIN_DEV_LEVEL") && *getenv("ALADDIN_DEV_LEVEL")))
+        g.cheat_start = 1;      /* ALADDIN_DEV_LEVEL plays the level select, which waits for the cheat (dev_level.c) */
     if (env_number("ALADDIN_DEV_BEATEN", 0)) {      /* the beaten levels the file gave, to the error output */
         fprintf(stderr, "beaten:");
         for (unsigned i = 0; i < BEATEN_LEVELS; i++)

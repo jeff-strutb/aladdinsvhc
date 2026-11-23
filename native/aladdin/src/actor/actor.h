@@ -73,6 +73,17 @@ int ActorRunAs(Actor *a, ActorCode code, uint16_t resume);
 
 void ActorRecordsInit(void);    /* 81:AADD: every record empty, the free lists full (a level's start) */
 void ActorsFreeAll(void);       /* 81:9D82: the pool's 28 records back on the free list */
+/* A scene's clear (the levels' scene tasks call it where the original called ActorsFreeAll). At 256 x 224 it is ActorsFreeAll.
+   In a larger view it removes what the original removes and nothing the larger view shows going: an actor the original has not
+   placed yet stays as it is; one it has, shown in the larger view but off the original's screen, stays outside play (Actor's
+   outside_play); every other record is freed as ActorsFreeAll frees it (pool.c). */
+void ActorsClearForScene(void);
+extern Actor *actor_running;    /* the actor whose code or wait routine is running, NULL none (actor_loop.c) */
+/* whether the actor takes part in play this frame: the in-view flag (bit 6 of flags), and not kept outside play by a scene's clear */
+static inline bool actor_in_play(const Actor *a) { return (a->flags & 0x40) && !a->outside_play; }
+/* whether the original's own placing (its 256 x 224 window, by the same camera steps) has reached placement `number` (placement.c) */
+bool PlacementConsoleReached(uint8_t number);
+void PlacementConsoleForget(uint8_t number);
 Actor *ActorAlloc(void);        /* 81:AB3F: a free record of the pool, or NULL */
 Actor *ActorAllocB(void);       /* 81:EA41: a free record of the second pool (actors[3..7]), or NULL */
 

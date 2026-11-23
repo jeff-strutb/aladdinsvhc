@@ -8,8 +8,7 @@ one menu pixel and the level's number; choosing one starts it with a new game's 
 from here starts with a new game's lives and counts; beating levels from here still unlocks the next ones; the beaten levels are kept in
 one progress file, apart from the save slots.
 
-Status: stage 1 (the parts that stand alone: the record, its file, the pictures, the start) is built and checked, section 8. Stage 2
-(the screen on the save screen's grid part) is **not built**: section 6 says why and what it needs decided.
+Status: built and checked (sections 8 and 9). Jeff, 2026-11-23: the pictures are made when the game is built, once, not at the screen.
 
 ## 1. The levels, and their order
 
@@ -112,10 +111,13 @@ Choice analysed:
   stored: the pictures are the cartridge's own data drawn on the machine that has the cartridge (never committed, never in a save
   file), exact at any window size (the menu draws it at its own pixels, 1:1), and the same for a level reached any way.
 
-**Chosen: B.** Costs: the load runs the level's set-up, so the screen must set itself up again afterwards and free the tasks and
-actors the level's set-up started (section 6); the picture is the level's **scenery** at its start (both scroll layers), without
-Aladdin, the enemies or the status line (sprites and text are not in it). It is a choice for Jeff (section 7): A would give a true
-screenshot with sprites but only at the window's size.
+**Chosen: B, made once when the game is built (Jeff, 2026-11-23: "generate them on Build, they're one time and we don't need to dynamically
+update them all the time").** `tools/make_pictures.sh` runs the built game headless with `ALADDIN_MAKE_PICTURES=FILE`: at update 1 it composes the
+19 levels (`LevelPicture`, 0.7 s in all) and writes `level_pictures.dat` into the assets folder, next to `cart.dat`, which the build packages. The
+game only reads that file (`video/level_pictures.c`); it never loads a level at the screen, so the title is never disturbed. The file: "LPIC",
+version 1, count 19, 96, 72, then per level its number and 96 x 72 pixels (0xAARRGGBB), then FNV-1a 32 of all before; 525,412 bytes; read whole or
+refused. Costs: the picture is the level's **scenery** at its start (both scroll layers), without Aladdin, the enemies or the status line; the
+file is made from the player's own cartridge, never committed. A true screenshot (option A) is a choice for Jeff (section 7).
 
 **The crop.** The source is the 256 x 224 window of the start picture: the play field and the backdrop at the level's start scroll
 (the backdrop after one `ParallaxUpdate`), from row (scroll y + 1), the picture's own one-line offset. The crop is
@@ -142,28 +144,16 @@ health marks, the hover and 99 apples as it does for the original's select; with
 screen's start has no cheat). The original's select reached GAME START with `g.game_begun` 0 as well: it is 0 whenever the title is
 up (boot, and the continue screen's "no" clears it).
 
-## 6. Stage 2 is not built: the picture's load cannot be done at the screen without a way to put the game back
+## 6. The screen
 
-The save screen's grid (`pause/slot_grid.[ch]`, on the save branch, 96 x 72 pictures as 0xAARRGGBB, two caption lines) is an **overlay** drawn
-over the game, which is held while it is open: the title's tasks do not run, so the title's graphics stay as they are
-(`pause/save_screen.c`). `LevelPicture` cannot run while the title is held: it loads a level, which overwrites `g` (the tasks,
-the actors, the palette, the progress), the video memory and the engine's tiles and maps (`write_words`) and the level fill's maps
-(`video/level_maps.c`'s pool). Back at the title nothing would put those back: the title's picture is built once, in the opening
-story's last scene (`game/opening_story.c`), and the game has no snapshot to restore (`system/snapshot` on the save branch has
-nothing behind it). The ways found:
-
-1. **Compose once at start-up**, in `init()` after `video_init`, then `PowerOn()` again for `g` and the tasks. The engine's tiles, maps and
-   fill pool keep the last level's contents, not what a power-on has; only `same.sh`'s traces (video fields, not pixels) could be run
-   here, and this Mac's headless build writes no pictures (the null renderer), so a leftover on a boot screen could not be seen.
-2. **Compose when the save branch's snapshot exists**: snapshot, compose, restore. It needs the runahead session's mechanism.
-3. **Keep the video memory (a 64 KB copy) while a level is played and compose from the live state** at the level's first update (no load at the
-   screen, `g` and the engine untouched), storing the crop in the progress file. Needs `DevVramShadow` on during every level load, and
-   the pictures of levels first entered by a loaded game would be missing.
-
-No one of these is settled by analysis; this is for Jeff's direction (section 7, item 9). What the screen does once the pictures exist:
-the cells are `SlotCell`s (`line1` "STAGE 1-2", `line2` empty, `used` 1, the picture), four to a page on the grid's 2 x 2, pages as the
-grid has them; choosing a cell is `SLOT_CHOSEN`, whose index maps through `BeatenFind` to a list entry for `LevelSelectStart`, followed by the
-title's chosen sequence (the sound, the fade, `TASK_ENTRY_GAME_START`).
+`pause/level_screen.[ch]` on the save screen's grid (`pause/slot_grid.[ch]`, merged from the save branch): an overlay on the held title, 2 columns x 2
+rows of 96 x 72 pictures, pages of four (`pages` = beaten levels / 4, at least 1), the title line "LEVEL SELECT", each cell the level's picture and
+`STAGE n-m` (the game's part + 1 and stage + 1). The pad, keys and pointer are the grid's (directions among cells, Left at the first column and
+Right at the last turn the page, L and R turn it, B or A chooses, Start or Escape go back). With nothing beaten the grid shows four EMPTY frames and
+the line `NO STAGES CLEARED YET` with OK, which goes back. The title's LEVEL SELECT line asks for it (`level_screen_request_title`), `pause/menu.c`
+opens it from the next update beside the save screen and holds the game; choosing a cell shuts it and the title, at its next update, takes the
+list entry (`level_screen_take`), calls `LevelSelectStart`, and goes on as GAME START does (sound $4F, the fade, `TASK_ENTRY_GAME_START`). Back
+returns to the title menu as it stood.
 
 ## 7. Choices for Jeff to change
 
@@ -177,8 +167,7 @@ title's chosen sequence (the sound, the fade, `TASK_ENTRY_GAME_START`).
 6. **Order:** the game's own play order (part 6, the single stage $12, before part 5).
 7. **Beaten:** the level's exit passed; the two boss levels are marked at their exits (level $11's at the fade into the ending).
 8. A level beaten from a loaded save or a continue counts, as from the screen.
-9. **How the pictures are made without disturbing the title** (section 6): at start-up and reset, from the snapshot when it exists, or taken
-   from the live game: which one, or another.
+9. **Where the cells' pictures come from:** made at build time (Jeff's direction), not at the screen.
 
 ## 8. As built, stage 1 (2026-11-23)
 
@@ -209,3 +198,24 @@ Checks (macOS headless build, builds in `build/aladdin/native/base` = 71ea8d0 an
 - **The picture is the dump's.** `ALADDIN_DEV_MAPDUMP` for all 19 levels writes the same files as before the move (every one of the
   `LL-*` files byte for byte), and its `LL-picture.ppm` (`LevelPicture`) differs in 0 of 6,912 pixels from the same crop of the dump's
   own `LL-start.ppm`, for each of the 19.
+
+## 9. As built, stage 2 (2026-11-23)
+
+Merged the save-menu branch (the grid, `menu.c`, the title's SAVED GAMES line); the conflicts were the includes of `title_task.c` and `dev_start.c`
+and `CHECK.md`, kept both sides. New: `pause/level_screen.[ch]`, `video/level_pictures.c` (the reader; `level_picture.c` keeps the composer and the
+writer), `tools/make_pictures.sh`, `native/checks/pause_check/level_check.c` and `level_build.sh`; `pause/menu.c` and `game/title_task.c` call the
+screen. Checks (macOS headless, the pause check's own stubbed build for the pictures):
+
+- **Pictures** under `docs/aladdin/native/shots/`: `levelselect-none.png` (nothing beaten), `levelselect-some.png` (9 levels beaten, page 1 of 3,
+  the first cell chosen), `levelselect-page2.png` (page 2, second cell chosen), `levelselect-page3.png` (the last page, one level), `levelselect-last.png`
+  (all 19, page 5, the last cell). Over the title's picture, 1280 x 720, made by `level_check` from the game's own `level_screen.c`, `beaten.c`,
+  `level_pictures.c`, `slot_grid.c` and `menu_art.c`.
+- **Each level picture against its source, pixel for pixel.** The 9 levels of `levels_some`: the picture the screen reads from the file is the same
+  as `LevelPicture`'s crop written by the map dump (0 of 6,912 differ, each), and found on the panel, drawn by the grid at one pixel (a 704 x 564 window), 0 of
+  6,912 differ at its cell, on the page and cell the list's order gives (levels $00 $01 $02 $04 | $05 $07 $0B $12 | $10). The dump's crop is the
+  same as the dump's start window at the same place (stage 1). **Not run:** against the engine's own rendered picture of the loaded level
+  (`ALADDIN_DEV_MAPDUMP_HOLD` with `--shots`), which needs a renderer; the null headless build writes none.
+- **Choosing each listed level reaches its first update**: in the real game (headless, no cheat byte), a save folder with all 19 beaten, the keys
+  Start at 2400, Down, Down, B (the title's LEVEL SELECT), the right number of R presses and cell moves, B: for all 19 entries the trace shows that entry's level with health
+  above 0 (the first update 2839 to 2914).
+- **`same.sh`** base 71ea8d0 against this tree, 256x224: 21 runs, 0 differ (the R-held level select with `ALADDIN_DEV_CHEAT=1` is what the plays use).

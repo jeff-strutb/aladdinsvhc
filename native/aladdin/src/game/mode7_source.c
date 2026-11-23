@@ -11,13 +11,16 @@
 #include "game/game.h"
 #include "system/state.h"
 #include "video/video.h"
+#include "system/runahead.h"
 
 #define TILE_WORDS 0x1000           /* video words $0000-$0FFF: the 256 tiles */
 #define MAP_AT 0x4000               /* the picture's map, 32 x 32 words */
 #define MAP_WORDS 0x400
 
 static uint8_t kept_tiles[2 * TILE_WORDS];
+RUNAHEAD_KEEP(kept_tiles)
 static uint8_t kept_map[2 * MAP_WORDS];
+RUNAHEAD_KEEP(kept_map)
 
 /* what part of entry e lies inside [lo, lo + n) words, into `into` */
 static void keep(const VramCopyEntry *e, unsigned lo, unsigned n, uint8_t *into)

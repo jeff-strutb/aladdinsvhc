@@ -84,6 +84,30 @@ Not run: Vulkan, Direct3D 12, the windowed path; `feature`, `pixel`, `cost` (the
 **Where the game uses it.** `native/aladdin/src/video/video.c` (`sprites_ease`, `draw_layers`, `draw_mode7`),
 `video/scroll.c`, `video/lines.c`: the eased places' fractions, from the 16.8 and 24.8 places the game keeps.
 
+## Save files: an atomic replace and a result (2026-11-23, for the save slots, SAVES.md)
+
+**Request.** `nshvc_save_write` replaces a file by writing `NAME.new`, then `remove(NAME)`, then `rename(NAME.new, NAME)` on the
+writer thread (`src/engine/files.c`, `write_job`), and returns 0 as soon as the job is queued, so the game never learns
+whether the write happened. Asked: (1) replace atomically (`rename` over the old file, which POSIX does atomically; on Windows
+`MoveFileEx` with `MOVEFILE_REPLACE_EXISTING`), with no `remove` first, and a `fsync` of the temporary before it; (2) a way to
+learn the result of a write: for instance `int nshvc_save_status(const char *name)` giving the last write's result (pending, done,
+failed), or a result callback.
+
+**Why.** A crash, a full disk or a power cut between the `remove` and the `rename` loses the slot's old game, and a write that fails
+after its temporary opened (a full disk) is not seen at all. The game refuses a damaged file whole when it reads it (size, layout
+mark, hash), so it never loads a half file, but it cannot keep the old save or tell the player that a save failed.
+
+**Where the game uses it.** `native/aladdin/src/system/saves.c` (`saves_write`): it would show "SAVE FAILED" and keep the
+old slot. Nothing else changes in the game until it exists; the game does not work around it.
+## 3. Runahead (2026-11-23): no request
+
+Runahead (FRAMERATE.md section 9) needs nothing of the engine as built: one ahead step writes the engine's tiles, maps and palette
+only through `video/between.c`, which holds an update's writes until the next update begins; an ahead step's writes are held and
+dropped when the real world is put back, and the engine is never asked to save or restore anything. Two or more ahead steps would
+apply an ahead step's writes to the engine and then need them undone; the engine has no read back of its tiles, maps or palette,
+so that case would need either the game to keep a copy of everything it has written (a shadow; no engine change) or an engine
+snapshot. Not built (FRAMERATE.md 9.6).
+
 ## Considered, no request
 
 - **The echo buffer's address (ESA).** The driver sets it (`sound_driver.c:1623`), and the engine has no call for

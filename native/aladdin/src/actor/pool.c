@@ -4,9 +4,12 @@
  * kept on a stack of the free ones.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "actor/actor_own.h"
+#include "video/view.h"
+#include "nshvc/nshvc.h"
 
 #define POOL_FIRST (ACTOR_RECORDS - ACTOR_POOL_SIZE)      /* actors[8] */
 #define POOL_B_FIRST 3                                     /* actors[3] */
@@ -52,9 +55,59 @@ Actor *ActorAlloc(void)
  */
 Actor *ActorAllocB(void)
 {
+    Actor *a;
+
     if (g.free_pool_b_top < 0)
         return NULL;
-    return g.free_pool_b[g.free_pool_b_top--];
+    a = g.free_pool_b[g.free_pool_b_top--];
+    /* native: a shot or mark an actor outside play makes is outside play too (2: counted with its kind as usual) */
+    a->outside_play = (uint8_t)(actor_running && actor_running->outside_play ? 2 : 0);
+    return a;
+}
+
+/*
+ * ActorsClearForScene (native; actor.h): a scene's clear. At 256 x 224 the
+ * original's ActorsFreeAll. In a larger view each record of the pool in use
+ * is looked at: one whose placement the original's own placing has not
+ * reached (PlacementConsoleReached) is left as it is, since the original has
+ * no such actor yet and places it later; one the original has, in the
+ * larger view (its in-view flag) but off the original's screen, which the
+ * original takes away unseen, is kept outside play, no longer counted with
+ * its kind; the others, and every record not in use, are freed as
+ * ActorsFreeAll frees them, from actors[35] down.
+ */
+void ActorsClearForScene(void)
+{
+    int i;
+
+    if (view.w == VIEW_ORIGINAL_W && view.h == VIEW_ORIGINAL_H) {
+        ActorsFreeAll();
+        return;
+    }
+    if (getenv("ALADDIN_DEV_CLEAR"))
+        fprintf(stderr, "CLEAR scene u=%llu level=%u\n", (unsigned long long)nshvc_updates(), (unsigned)g.level);
+    g.free_pool_top = -1;
+    for (i = ACTOR_RECORDS - 1; i >= POOL_FIRST; i--) {
+        Actor *a = &g.actors[i];
+
+        if (a->state != ACTOR_STATE_FREE) {
+            if (a->placed_here && !PlacementConsoleReached(a->placement)) {
+                if (getenv("ALADDIN_DEV_CLEAR"))
+                    fprintf(stderr, "CLEAR  kept actor %d kind=%02X (the original has not placed it)\n", i, a->kind);
+                continue;
+            }
+            if (a->outside_play || ((a->flags & 0x40) && !a->on_screen)) {
+                if (!a->outside_play) {
+                    a->outside_play = 1;
+                    g.kind_count[a->kind]--;
+                }
+                if (getenv("ALADDIN_DEV_CLEAR"))
+                    fprintf(stderr, "CLEAR  outside play actor %d kind=%02X\n", i, a->kind);
+                continue;
+            }
+        }
+        ActorFreePlaced(a);
+    }
 }
 
 /*
@@ -68,6 +121,16 @@ void ActorsFreeAll(void)
 {
     int i;
 
+    if (getenv("ALADDIN_DEV_CLEAR")) {      /* developer's note: what the clear removes, against the camera */
+        int cx = (int)(g.layers[0].scroll_x >> 8 & 0xFFFF), cy = (int)(g.layers[0].scroll_y >> 8 & 0xFFFF);
+
+        fprintf(stderr, "CLEAR u=%llu level=%u camera=%d,%d\n", (unsigned long long)nshvc_updates(), (unsigned)g.level, cx, cy);
+        for (i = POOL_FIRST; i < ACTOR_RECORDS; i++)
+            if (g.actors[i].state)
+                fprintf(stderr, "CLEAR  actor %d kind=%02X x=%d y=%d rx=%d ry=%d placement=%u placed=%02X\n", i, g.actors[i].kind,
+                        (int)(g.actors[i].x >> 8 & 0xFFFF), (int)(g.actors[i].y >> 8 & 0xFFFF), (int)(g.actors[i].x >> 8 & 0xFFFF) - cx,
+                        (int)(g.actors[i].y >> 8 & 0xFFFF) - cy, (unsigned)g.actors[i].placement, (unsigned)g.placed[g.actors[i].placement]);
+    }
     g.free_pool_top = -1;
     for (i = ACTOR_RECORDS - 1; i >= POOL_FIRST; i--)
         ActorFreePlaced(&g.actors[i]);

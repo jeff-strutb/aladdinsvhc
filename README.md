@@ -184,9 +184,9 @@ field of view; portrait is not supported. The design, the measurements behind it
   224 (`native/checks/view/wide.sh`) every play runs to its end without a fault, and the trigger log finds no trigger past
   its original distance.
 - **Not done.** The recorded plays were made for the original's view, so at a wider view (more enemies live) they leave
-  their path: no level has yet been won by a play made at a wide view. At 384 and 512 wide, two placements do not appear in
-  these plays (one for want of a palette slot in level 3, as the original also has; one for want of an actor record in
-  level 13). Where a level's edge cannot be filled seamlessly from its own art, some seams remain.
+  their path: no level has yet been won by a play made at a wide view. At 384 and 512 wide, one placement does not appear in
+  these plays, for want of an actor record in level 13. (A wide view now opens sprite palette slots as needed, and a scene's
+  clear keeps what the original has not placed yet, so level 3's market-end figure appears and the level ends: VIEW.md 4.5.) Where a level's edge cannot be filled seamlessly from its own art, some seams remain.
 
 | ![384 x 224](docs/aladdin/native/shots/view-384x224-L00.png)<br>Level 0 at 384 x 224 (16:9): the wall's cut window completed past the level's edge | ![384 x 224](docs/aladdin/native/shots/view-384x224-L09.png)<br>Level 9 at 384 x 224 |
 |---|---|

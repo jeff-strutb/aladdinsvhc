@@ -6,17 +6,45 @@
 #include "video/view.h"
 
 /*
- * The slots a view has: the original's 4 at 256 x 224, and for a larger view
- * 4 scaled by its area, rounded up (as the sprite budget and the draw lists
- * are), at most SLOTS_MAX.
+ * The slots a view starts with: the original's 4 at 256 x 224, and for a
+ * larger view 4 scaled by its area, rounded up (as the sprite budget and the
+ * draw lists are), at most SLOTS_MAX.
  */
-unsigned slots_count(void)
+static unsigned slots_at_start(void)
 {
     uint64_t area = (uint64_t)view.w * (uint64_t)view.h;
     uint64_t whole = (uint64_t)VIEW_ORIGINAL_W * VIEW_ORIGINAL_H;
     uint64_t n = (SLOTS_STD * area + whole - 1) / whole;
 
     return n > SLOTS_MAX ? SLOTS_MAX : (unsigned)n;
+}
+
+static unsigned slots_open;     /* the slots open in a larger view: its start, and those opened since */
+
+unsigned slots_count(void)
+{
+    unsigned start = slots_at_start();
+
+    if (start <= SLOTS_STD)
+        return start;               /* the original's four (the view can change as a level loads) */
+    if (slots_open < start) {
+        slots_open = start;
+        video_slot_sets_make(start);
+    }
+    return slots_open;
+}
+
+/* More slots open in a larger view, so a kind never fails for want of one; the original's 4 stay at 256 x 224. A slot
+   once open stays open: its palette and tiles are only read by the actors that claim it. */
+int slots_grow(unsigned count)
+{
+    if (slots_at_start() <= SLOTS_STD || count > SLOTS_MAX)
+        return 0;
+    if (count > slots_count()) {
+        slots_open = count;
+        video_slot_sets_make(count);
+    }
+    return 1;
 }
 
 uint32_t slot_look(unsigned slot)

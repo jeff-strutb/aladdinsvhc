@@ -10,6 +10,7 @@
 #include "system/state.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "system/runahead.h"
 
 enum { WINDOW_X_BIAS = 0, WINDOW_X_WIDTH = 2, WINDOW_Y_BIAS = 4, WINDOW_Y_HEIGHT = 6, WINDOW_POINT_Y = 8 };
 
@@ -27,6 +28,8 @@ static uint32_t add24(uint32_t position, uint32_t by)
 
 /* the camera's point: x and y (the original's scratch) */
 static uint16_t target_x, target_y;
+RUNAHEAD_KEEP(target_x)
+RUNAHEAD_KEEP(target_y)
 
 /* From 81:C6E9: up and down, the player's y against the window: past it
    the scroll y moves by how far, at most 6 down and 6 up. */
