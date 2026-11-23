@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 
+enum { MENU_PAL_GLOVE, MENU_PAL_CREAM, MENU_PAL_GOLD, MENU_PAL_PINK };   /* the text palettes (the options screen's set) */
+
 #define MENU_W 352
 #define MENU_H 282
 
@@ -46,5 +48,14 @@ void menu_art_dynamic(uint32_t *px, int d, const MenuView *v);   /* the tags, th
 
 /* the item at game pixel (x, y) in the panel, -1 none */
 int menu_art_item_at(float x, float y, int full_offered);
+
+/* the drawing kit other screens use (the save slots, the level select), in game pixels at d image pixels each, over a
+   MENU_W x MENU_H image */
+void menu_art_panel(uint32_t *px, int d, const char *title);       /* the panel, its frame, its title and the rule under it */
+void menu_art_text(uint32_t *px, int d, const char *s, int pal, int x, int y, int scale);
+int menu_art_text_w(const char *s);                                  /* in game pixels, at scale 1 */
+void menu_art_hand(uint32_t *px, int d, int x, int y);               /* the 24 x 24 hand */
+void menu_art_box(uint32_t *px, int d, int x, int y, int w, int h, int bright);   /* a frame in gold, or cream when bright */
+void menu_art_blit(uint32_t *px, int d, int x, int y, const uint32_t *src, int w, int h);   /* 1 game pixel to a source pixel */
 
 #endif

@@ -174,11 +174,10 @@ static void frame(Art *a, int x, int y, int w, int h, uint32_t outer, uint32_t m
     rect(a, x + 3, y + 3, 1, h - 6, outer); rect(a, x + w - 4, y + 3, 1, h - 6, outer);
 }
 
-void menu_art_static(uint32_t *px, int d)
+void menu_art_panel(uint32_t *px, int d, const char *title)
 {
     Art a = { px, d };
     uint32_t dark, mid, light;
-    static const char title[] = "PAUSED";
     int i;
 
     menu_art_start();
@@ -195,6 +194,50 @@ void menu_art_static(uint32_t *px, int d)
     text(&a, title, PAL_PINK, (MENU_W - text_w(title) * 2) / 2, 10, 2);
     rect(&a, 20, 30, MENU_W - 40, 1, dark);
     rect(&a, 20, 31, MENU_W - 40, 1, mid);
+}
+
+void menu_art_text(uint32_t *px, int d, const char *s, int pal, int x, int y, int scale)
+{
+    Art a = { px, d };
+
+    text(&a, s, pal, x, y, scale);
+}
+
+int menu_art_text_w(const char *s) { return text_w(s); }
+
+void menu_art_hand(uint32_t *px, int d, int x, int y)
+{
+    Art a = { px, d };
+
+    hand(&a, x, y);
+}
+
+void menu_art_box(uint32_t *px, int d, int x, int y, int w, int h, int bright)
+{
+    Art a = { px, d };
+
+    menu_art_start();
+    frame(&a, x, y, w, h, colour[PAL_GOLD][3], bright ? colour[PAL_CREAM][2] : colour[PAL_GOLD][2], bright ? colour[PAL_CREAM][1] : colour[PAL_GOLD][1]);
+}
+
+void menu_art_blit(uint32_t *px, int d, int x, int y, const uint32_t *src, int w, int h)
+{
+    Art a = { px, d };
+    int i, j;
+
+    for (j = 0; j < h; j++)
+        for (i = 0; i < w; i++)
+            rect(&a, x + i, y + j, 1, 1, src[j * w + i]);
+}
+
+void menu_art_static(uint32_t *px, int d)
+{
+    Art a = { px, d };
+    uint32_t dark, mid;
+    int i;
+
+    menu_art_panel(px, d, "PAUSED");
+    dark = colour[PAL_GOLD][3], mid = colour[PAL_GOLD][2];
     rect(&a, 20, 203, MENU_W - 40, 1, dark);
     rect(&a, 20, 204, MENU_W - 40, 1, mid);
     pad_draw(px, MENU_W * d, MENU_H * d, (float)d, PAD_K, PAD_CX, PAD_CY);
