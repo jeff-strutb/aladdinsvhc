@@ -862,12 +862,9 @@ static void sprites_ease(void)
                 fy = between_ease_fx(fy, to_fx[o][1], 32, (int64_t)1 << 30);
             }
             shown_sprites[i].x += (int32_t)(fx >> 8) - shown_anchor[i][0];
-            /* y to the nearest whole row, with no fraction: a piece drawn a fraction of a row down shows a dark line
-               across it (the fireballs of level $06, an actor of several pieces at y places that are not whole),
-               which no whole-row place does; x keeps its fraction, which shows no seam */
-            shown_sprites[i].y += (int32_t)((fy + 128) >> 8) - shown_anchor[i][1];
+            shown_sprites[i].y += (int32_t)(fy >> 8) - shown_anchor[i][1];
             shown_sprites[i].x_sub = (int16_t)(fx & 0xFF);
-            shown_sprites[i].y_sub = 0;
+            shown_sprites[i].y_sub = (int16_t)(fy & 0xFF);
         } else if (moving) {
             shown_sprites[i].x += between_ease(0, dx, 0, 32, 1 << 20);
             shown_sprites[i].y += between_ease(0, dy, 0, 32, 1 << 20);
