@@ -30,12 +30,13 @@ static Kind83Own *own(Actor *a) { return (Kind83Own *)a->own.bytes; }
 #define ORIGINAL_FAR_BAND 0x0120
 
 enum {
-    HOLD = ACTOR_RESUME_OWN,        /* placed early in a wider view: each frame until the original's view would have placed it */
-    LATE_WAIT,                      /* the late one: each frame until Aladdin is past it */
+    LATE_WAIT = ACTOR_RESUME_OWN,   /* the late one: each frame until Aladdin is past it */
     SHOW,                           /* after its delay: it shows */
     FLY,                            /* each frame of its flight */
     FALL,                           /* each frame of its fall to its line */
     CHILD,                          /* each frame until its child is made */
+    HOLD,                           /* placed early in a wider view: each frame until the original's view would have placed it
+                                       (last, so the original's states keep their numbers in the trace) */
 };
 
 /* Facing right, its top speed and its motion preset by +$07; flying. */
