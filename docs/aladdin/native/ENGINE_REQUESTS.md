@@ -86,7 +86,13 @@ Not run: Vulkan, Direct3D 12, the windowed path; `feature`, `pixel`, `cost` (the
 **Where the game uses it.** `native/aladdin/src/video/video.c` (`sprites_ease`, `draw_layers`, `draw_mode7`),
 `video/scroll.c`, `video/lines.c`: the eased places' fractions, from the 16.8 and 24.8 places the game keeps.
 
-## 3. A brightness between the 16 levels (Jeff, 2026-11-23): API 6.11, nativeshvc branch `brightness-sub`
+## 3. A brightness between the 16 levels (Jeff, 2026-11-23): API 6.13, nativeshvc branch `brightness-sub`
+
+Made as 6.11; renumbered 6.13 when 6.11 (controllers' identity) and 6.12 (saves in the game's folder) reached nativeshvc
+main first (the Aladdin orchestrator's catch, 2026-11-23). Rebased on main 134e2a2, the compiled programs regenerated
+(main's own regenerate byte for byte, so the difference is this change's), and checked again there: the 118 scenes at
+1x and 4x the same as main's engine (236 pictures), `brightness_sub`, `subpixel`, `depth`, `palettes`, `mesh` ok; the
+game cross-built for Windows on Direct3D 12 and Vulkan.
 
 **What the game needs.** Jeff's answer on the stepped effects (FRAMERATE.md, R4: "Item 1") is that each is eased from
 its step before to its newest. A fade steps the brightness a level every 2 updates; eased, a picture's brightness lies
@@ -100,7 +106,7 @@ from the screen and the line field (`picture.c`). The compiled programs regenera
 (with this Mac's dxc). `docs/api.md`, `tests/scenes/brightness_sub.c`.
 
 **How it was checked**, on Metal, headless: the engine's 118 scenes at the console's size and at 4 times drawn by 6.10's
-engine and 6.11's: 236 pictures, 0 differ; `subpixel` ok; `brightness_sub` (new): a 15-bit colour at levels 0, 3, 4, 7,
+engine and the new one's: 236 pictures, 0 differ; `subpixel` ok; `brightness_sub` (new): a 15-bit colour at levels 0, 3, 4, 7,
 11, 14, 15 with fractions 0 to 255, on the screen and from a line, each pixel against the value worked out from the
 console's dimming: ok, and a planted fault (the rounding dropped from the expected values) fails it (3 scenarios).
 On Vulkan, through MoltenVK on this Mac (the null host): `brightness_sub`, `subpixel`, `depth`, `palettes`, `mesh` ok,

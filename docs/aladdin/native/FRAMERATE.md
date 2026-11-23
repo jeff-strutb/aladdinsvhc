@@ -369,7 +369,7 @@ exact at each step and runs behind by up to G - 1 updates more than the rest.
   and the held engine writes are written a step late, so the art is always the world "was" names. Limit: the play
   loop's wait. Outside the slow motion the world is exactly R3's.
 - The brightness: a step of one level eased over up to 2 updates (any other change shown at once). The engine takes a
-  brightness between its 16 levels (6.11: `nshvc_screen.brightness_sub` and `NSHVC_LINE_BRIGHTNESS_SUB`, 256ths of the
+  brightness between its 16 levels (6.13: `nshvc_screen.brightness_sub` and `NSHVC_LINE_BRIGHTNESS_SUB`, 256ths of the
   way to the next level, the console's own result at 0).
 - The windows: the window edges each line shows, and the frame's own, eased line by line over up to 3 updates.
 
@@ -382,7 +382,7 @@ quarter update; in the chain scene the player moves 1/32 of a turn's motion a qu
 As built: `video/between.c` (the tracks; "was" and the newest now kept at the world's steps' ends, the held writes
 written a step late), `game/play_loop.c` (`between_play_turn` at the play loop's turn: no game state), `video/video.c`
 (the brightness and the frame's window edges from the tracks), `video/lines.c` (the window lines eased with their track;
-the developer's samples), engine 6.11 (ENGINE_REQUESTS.md section 3). Found on the way and fixed: R2 eased a layer by its
+the developer's samples), engine 6.13 (ENGINE_REQUESTS.md section 3). Found on the way and fixed: R2 eased a layer by its
 24.8 place alone, so a layer moved by its shift or offset stepped (the chain scene scrolls BG1 2 pixels an update by
 `g.layer_offset_y`, `bg_y` still: 896 places wrong at between 1 on main too); a layer now eases as sent, its pixels with
 the shift or offset added and its place's fraction (`video/scroll.c`).
