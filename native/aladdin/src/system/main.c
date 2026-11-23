@@ -176,9 +176,14 @@ static void update(const nshvc_input *input)
     nshvc_input bot, select;
 
     runahead_begin();           /* the real world back, if the last tick ran ahead */
+    DevSnapshotSave(nshvc_updates());
     if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
         input = &select;
     between_update_begin();
+    if (DevSnapshotLoad(nshvc_updates())) {     /* a snapshot's load: no step in this update */
+        between_update_end();
+        return;
+    }
     if (DevMapDumpHeld()) {
         NmiPictureWork();
         between_update_end();

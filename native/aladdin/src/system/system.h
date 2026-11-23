@@ -62,6 +62,8 @@ int DevMapDumpHeld(void);               /* the dump holds the loaded level on th
 extern uint16_t *DevVramShadow;         /* non-null while the dump is on: video.c copies each video memory write here */
 void DevMapDump(uint64_t u);           /* the level's map as text by the environment (dev_bot.c) */
 void DevDump(uint64_t u);              /* the whole state as bytes at an update by the environment (dev_bot.c) */
+void DevSnapshotSave(uint64_t u);       /* ALADDIN_DEV_SNAP_SAVE=FILE@U (dev_snapshot.c) */
+int DevSnapshotLoad(uint64_t u);        /* ALADDIN_DEV_SNAP_LOAD=FILE@L: 1 when this update loaded it and runs no step */
 void DevShot(uint64_t u);              /* a picture every N updates by the environment (dev_bot.c) */
 void DevBotStep(void (*step)(const nshvc_input *));
 struct LevelStart;

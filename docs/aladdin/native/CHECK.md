@@ -436,3 +436,16 @@ ticks (mean, the real step alone, median, 99th percentile, worst, how many over 
   (Metal build, a picture every update, drawn at between BETWEEN).
 - `native/checks/runahead/latency.sh MACOS_BIN "4100 key=27\n4200" [BETWEEN]`: the updates from a key press to the first change in the
   player's state and in the picture, with and without runahead, on level 0's start.
+
+## The snapshot (developer variables and checks; FRAMERATE.md section 10)
+
+`ALADDIN_DEV_SNAP_SAVE=FILE@U`: at the start of update U the snapshot (the world after update U - 1) is written to FILE and its size and time
+printed. `ALADDIN_DEV_SNAP_LOAD=FILE@L`: update L loads FILE and runs no step. `ALADDIN_DEV_KEPT_DUMP=U:FILE`: at update U the kept video parts' used
+bytes to FILE (with `ALADDIN_DEV_STATE_HASH=2` this finds which part differs).
+
+- `native/checks/snapshot/cross.sh MACOS_BIN PLAY S K [BASE_PLAY L]`: the snapshot across two processes, or with `SNAP_SAME=1` in one. Process A plays
+  PLAY and saves at S; a fresh process B plays BASE_PLAY (or the boot and the title) to update L, loads there and is given PLAY's keys from S on. K
+  updates of the trace and the state hash, and the picture of each update from the third, must be the same. `SNAP_SAVE_ENV` and `SNAP_LOAD_ENV` add
+  environment (the runahead, a view, a planted omission) to A and to B.
+- `native/checks/snapshot/pointers.sh`: the pointer members of every type the game state holds are the ones the snapshot writes as codes.
+- `python3 native/aladdin/tools/gen_code_table.py --check`: `actor/code_table.c` names every function a row of the kinds tables or an `ActorRunAs` names.
