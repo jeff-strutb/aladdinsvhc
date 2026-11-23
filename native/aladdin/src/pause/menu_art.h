@@ -15,10 +15,10 @@ enum { MENU_PAL_GLOVE, MENU_PAL_CREAM, MENU_PAL_GOLD, MENU_PAL_PINK };   /* the 
 #define MENU_H 282
 
 /* the items, in the order the menu moves among them: the twelve buttons (left column top to bottom, then the right), then
-   RESUME and DEFAULTS in a row, FULL SCREEN and QUIT under them */
+   RESUME and DEFAULTS in a row, SAVE MENU and FULL SCREEN under them, QUIT under those */
 enum {
     MENU_TAGS = 12,
-    MENU_RESUME = MENU_TAGS, MENU_DEFAULTS, MENU_FULL, MENU_QUIT, MENU_ITEMS
+    MENU_RESUME = MENU_TAGS, MENU_DEFAULTS, MENU_SAVE, MENU_FULL, MENU_QUIT, MENU_ITEMS
 };
 
 /* a button's place: its tag's column (0 left, 1 right) and row, and the pad bit's index in input/controls.h's order */

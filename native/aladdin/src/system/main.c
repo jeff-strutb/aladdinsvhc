@@ -18,6 +18,7 @@
 #include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
+#include "pause/slot_grid.h"
 #include "system/screen_mode.h"
 #include "system/settings.h"
 #include "system/system.h"
@@ -183,6 +184,7 @@ static void update(const nshvc_input *input)
     record_input(input);
     screen_mode_update();
     if (menu_update(input)) {   /* the pause menu is open: no step; the picture holds the world the last step left */
+        DevShot(nshvc_updates());   /* the developer's pictures go on, the menu in them */
         between_update_end();
         return;
     }
@@ -203,6 +205,7 @@ static void draw(float between)
     pictures++;
     between_draw(between);
     menu_draw();                /* the pause menu over the picture, from its own state (outside g), at once */
+    slot_grid_draw();           /* the save slots' screen, likewise */
 }
 
 static void shutdown(void)

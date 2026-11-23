@@ -49,11 +49,11 @@ static const struct { float x, y, r; } spots[MENU_TAGS] = {
 #define TAG_X(right) ((right) ? MENU_W - 6 - TAG_W : 6)
 #define TAG_Y(row) (34 + 28 * (row))
 #define HINT_Y 208
-#define ITEM_Y(row) (230 + 22 * (row))
+#define ITEM_Y(row) (226 + 17 * (row))
 #define ITEM_HAND_X(col) ((col) ? 190 : 34)
 #define ITEM_TEXT_X(col) ((col) ? 220 : 64)
 #define ITEM_W 138
-#define ITEM_H 22
+#define ITEM_H 16
 
 static uint32_t rgb(uint16_t c)
 {
@@ -288,6 +288,7 @@ static void item_text(int item, const MenuView *v, char *out, size_t n)
     switch (item) {
     case MENU_RESUME: strncpy(out, "RESUME", n); break;
     case MENU_DEFAULTS: strncpy(out, "DEFAULTS", n); break;
+    case MENU_SAVE: strncpy(out, "SAVE MENU", n); break;
     case MENU_FULL: strncpy(out, v->full_on ? "FULL SCREEN ON" : "FULL SCREEN OFF", n); break;
     default: strncpy(out, v->quit_asked ? "REALLY QUIT" : "QUIT", n); break;
     }
@@ -296,8 +297,9 @@ static void item_text(int item, const MenuView *v, char *out, size_t n)
 
 static void item_place(int item, int *col, int *row)
 {
-    *col = (item == MENU_DEFAULTS || item == MENU_QUIT);
-    *row = item >= MENU_FULL;
+    /* RESUME and DEFAULTS; SAVE MENU and FULL SCREEN; QUIT */
+    *col = (item == MENU_DEFAULTS || item == MENU_FULL);
+    *row = item >= MENU_QUIT ? 2 : item >= MENU_SAVE;
 }
 
 void menu_art_dynamic(uint32_t *px, int d, const MenuView *v)
