@@ -317,7 +317,7 @@ static int layer_make(int layer, int resize)
             cells[(size_t)(oy + cy) * fw + ox + cx] = level_cells[layer][(size_t)cy * lw + cx];
     memset(&fill_report[layer], 0, sizeof fill_report[layer]);
     fill_clock = fill_now();
-    LevelFill(cells, reach, lh, fw, fh, ox, oy, layer == 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
+    LevelFill(cells, reach, lh, fw, fh, ox, oy, layer == 0, view.dx > 0, metatiles, (uint32_t)(g.level + 1u) * 0x9E3779B1u ^ (uint32_t)layer * 0x85EBCA6Bu,
               &fill_report[layer]);
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillms layer %d level %u x %u cells, whole %u x %u: %.1f ms%s\n", layer, lw, lh, fw, fh, (fill_now() - fill_clock) * 1000.0,

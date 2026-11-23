@@ -78,6 +78,7 @@ static struct {
     uint16_t id_of[65536];
     uint16_t run_h[IDS_MAX], run_v[IDS_MAX];        /* the longest run of each metatile in the level, across and down */
     uint16_t cell_of[IDS_MAX];                      /* the metatile of each id */
+    uint32_t count[IDS_MAX];                        /* how many cells of the level hold each metatile: one is a one-off (VIEW.md 5.w) */
     uint32_t across[IDS_MAX][IDS_MAX / 32];
     uint32_t below[IDS_MAX][IDS_MAX / 32];
     uint32_t across_t[IDS_MAX][IDS_MAX / 32];       /* the same pairs by their second metatile: the ones that go before it */
@@ -106,6 +107,10 @@ static struct {
     uint8_t lat_ok[IDS_MAX];        /* ... and one beyond them along the band (they have a neighbour that way in the level) */
     uint32_t pos_store[FILL_CELLS_MAX];
 } lv;
+
+/* a side the play field's level ends in a wall (every row of its edge column solid): the playable area ends there and the margin beyond is not made, so
+   the backdrop alone shows (VIEW.md 5.w). 0 left, 1 right. */
+static int fill_wall[2];
 
 static uint64_t quad_key(uint16_t a, uint16_t b, uint16_t c, uint16_t d);
 static int quad_has(uint64_t k);
@@ -218,6 +223,21 @@ static int seen_at(ptrdiff_t i, ptrdiff_t delta)
     return seen_down(b, a);
 }
 
+/* a one-off: a metatile the level holds in one cell only (a sign, a door, the one piece of a scene). A margin never holds a copy of one (VIEW.md 5.w) */
+static int fill_base(void)             /* ALADDIN_DEV_FILL_BASE=1: the fill as it was before VIEW.md 5.w (the check's "before") */
+{
+    static int base = -1;
+
+    if (base < 0)
+        base = getenv("ALADDIN_DEV_FILL_BASE") != NULL;
+    return base;
+}
+
+static int oneoff_cell(uint16_t c)
+{
+    return !fill_base() && c != FILL_BLANK && c != UNSET && lv.id_of[c] != NO_ID && lv.count[lv.id_of[c]] == 1;
+}
+
 /* the level's metatiles into the table: ids and the pairs side by side */
 static void learn(void)
 {
@@ -241,8 +261,11 @@ static void learn(void)
                     continue;
                 }
                 lv.cell_of[lv.ids] = cell;
+                lv.count[lv.ids] = 0;
                 lv.id_of[cell] = (uint16_t)lv.ids++;
             }
+            if (lv.id_of[cell] != NO_ID)
+                lv.count[lv.id_of[cell]]++;
         }
     for (int r = 0; r < lv.lh; r++)
         for (int c = 0; c < lv.lw; c++) {
@@ -884,6 +907,11 @@ static int cell_side(int cx, int cy)
     return cy < lv.oy ? 2 : cy >= lv.oy + lv.lh ? 3 : cx < lv.ox ? 0 : 1;
 }
 
+static int walled(int cx, int cy)       /* a cell of a margin that is not made: past a wall */
+{
+    return cy >= lv.oy && cy < lv.oy + lv.lh && ((cx < lv.ox && fill_wall[0]) || (cx >= lv.ox + lv.lw && fill_wall[1]));
+}
+
 /* the 2 x 2 blocks in each side's margin and across its seam (a block that touches two sides is the latter's), and those the level never has */
 static void count_quads(FillReport *r)
 {
@@ -896,7 +924,7 @@ static void count_quads(FillReport *r)
                 int cx = bx + (k & 1), cy = by + (k >> 1), sd;
 
                 c[k] = lv.cells[(size_t)cy * lv.fw + cx];
-                ok = c[k] != UNSET && c[k] != FILL_BLANK;
+                ok = c[k] != UNSET && c[k] != FILL_BLANK && !walled(cx, cy);
                 sd = cell_side(cx, cy);
                 if (sd > side)
                     side = sd;
@@ -917,7 +945,7 @@ static void count_unseen(FillReport *r)
                 int x2 = x + (dir == 0), y2 = y + (dir == 1), side = -1;
                 ptrdiff_t i = (ptrdiff_t)y * lv.fw + x;
 
-                if (x2 >= lv.fw || y2 >= lv.fh)
+                if (x2 >= lv.fw || y2 >= lv.fh || walled(x, y) || walled(x2, y2))
                     continue;
                 for (int pt = 0; pt < 2; pt++) {
                     int cx = pt ? x2 : x, cy = pt ? y2 : y, sd;
@@ -936,6 +964,7 @@ static void count_unseen(FillReport *r)
                     r->unseen[side]++;
             }
 }
+
 
 /* ---- 2 x 2 blocks ----
    A pair bar lets through an edge made of two tiles that each border the other somewhere. A block bar does not: every 2 x 2 block
@@ -1036,7 +1065,7 @@ static unsigned quads_broken(int x, int y, uint16_t v)
                 int cx = bx + (k & 1), cy = by + (k >> 1);
 
                 c[k] = cx == x && cy == y ? v : lv.cells[(size_t)cy * lv.fw + cx];
-                ok = c[k] != UNSET && c[k] != FILL_BLANK;
+                ok = c[k] != UNSET && c[k] != FILL_BLANK && !walled(cx, cy);
             }
             if (ok && !quad_has(quad_key(c[0], c[1], c[2], c[3])))
                 n++;
@@ -1838,6 +1867,7 @@ static uint8_t fill_behaviour[4096];            /* its metatiles' behaviour byte
 #define Q_PICK 5                    /* the lowest-cost strips one is picked from, by chance, among those within Q_SLACK of the best */
 #define Q_SLACK 6
 #define Q_SURF 300                  /* ... of a column pair whose walkable surfaces (the rows where solid ground begins under empty) the level never has side by side */
+#define Q_CUT 300                   /* ... of a seam that cuts a prop: the cell before it goes on into the next one of a prop of the level, or the one after it comes from the one before (VIEW.md 5.w) */
 #define Q_GIVE_UP 20000             /* a strip costing more than this is not used: the margin is left as it was */
 
 static uint16_t q_col[FILL_COLS_MAX][FILL_ROWS_MAX];       /* [u][t]: the level's columns, then the margin's, in the margin's outward order */
@@ -1907,9 +1937,78 @@ static int q_pair_has(uint64_t k)
     return 0;
 }
 
+static DataRef fill_metatiles;                  /* the level's metatile table (for what a metatile draws) */
+static uint16_t prop_of[FILL_CELLS_MAX];       /* by level cell: the prop's number (from 1), 0 for none */
+
+static int scenery_cell(int x, int y)
+{
+    uint16_t c;
+
+    if (!in_level(x, y))
+        return 0;
+    c = level_cell(x, y);
+    return c != FILL_BLANK && c != UNSET && !edge_empty(c, fill_metatiles) && !(fill_field && q_solid(c));
+}
+
+static void find_props(FillReport *r)
+{
+    static int stack[FILL_CELLS_MAX];
+    unsigned n = 0;
+
+    memset(prop_of, 0, sizeof prop_of);
+    for (int y0 = 0; y0 < lv.lh; y0++)
+        for (int x0 = 0; x0 < lv.lw; x0++) {
+            int sp = 0, minx = x0, maxx = x0;
+
+            if (prop_of[(size_t)y0 * lv.lw + x0] || !scenery_cell(x0, y0))
+                continue;
+            n++;
+            stack[sp++] = y0 * lv.lw + x0;
+            prop_of[(size_t)y0 * lv.lw + x0] = (uint16_t)(n > 65535 ? 65535 : n);
+            while (sp) {
+                int i = stack[--sp], x = i % lv.lw, y = i / lv.lw;
+                static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
+
+                minx = x < minx ? x : minx;
+                maxx = x > maxx ? x : maxx;
+                for (int k = 0; k < 4; k++) {
+                    int nx = x + dx[k], ny = y + dy[k];
+
+                    if (nx >= 0 && ny >= 0 && nx < lv.lw && ny < lv.lh && !prop_of[(size_t)ny * lv.lw + nx] && scenery_cell(nx, ny)) {
+                        prop_of[(size_t)ny * lv.lw + nx] = prop_of[(size_t)y0 * lv.lw + x0];
+                        stack[sp++] = ny * lv.lw + nx;
+                    }
+                }
+            }
+            if (maxx - minx + 1 > Q_W - Q_O) {
+                /* too wide to be a prop: take its cells back */
+                for (int y = 0; y < lv.lh; y++)
+                    for (int x = 0; x < lv.lw; x++)
+                        if (prop_of[(size_t)y * lv.lw + x] == (uint16_t)(n > 65535 ? 65535 : n))
+                            prop_of[(size_t)y * lv.lw + x] = 0;
+            } else {
+                if (r)
+                    r->props++;
+            }
+        }
+}
+
+
 static int q_across_ok(const Side *s, uint16_t a, uint16_t b)       /* a, b the cells at u, u + 1 */
 {
     return s->ux == -1 ? seen_across(a, b) : seen_across(b, a);
+}
+
+/* whether joining the margin's column `prev` to the strip's column `cur` at row t cuts a prop of the level (prop_of, by level cell) */
+static int q_cut(const Side *s, int32_t sprev, int32_t scur)
+{
+    int32_t l = s->ux == -1 ? sprev : scur, r = s->ux == -1 ? scur : sprev;
+
+    if (l < 0 || r < 0 || r == l + 1)
+        return 0;
+    if (l % lv.lw + 1 < lv.lw && prop_of[l] && prop_of[l + 1] == prop_of[l])
+        return 1;
+    return r % lv.lw > 0 && prop_of[r] && prop_of[r - 1] == prop_of[r];
 }
 
 /* the cost and seam of strip `s0` placed after column `e`: `seam[t]` the row's switch point (columns before it of the overlap kept), `*cost` the sum; -1 if it cannot be placed */
@@ -1936,6 +2035,8 @@ static int quilt_try(const Side *s, int e, int s0, int kmin, unsigned limit, uns
                 uint16_t cur = j == Q_O ? q_col[s0 + Q_O][t] : (j < k ? q_col[e - Q_O + 1 + j][t] : q_col[s0 + j][t]);
 
                 c += !q_across_ok(s, prev, cur) * Q_PAIR;
+                if (j == k && j < Q_O + 1 && !fill_base())
+                    c += q_cut(s, q_src[j == 0 ? e - Q_O : e - Q_O + j][t], q_src[s0 + j][t]) * Q_CUT;
                 prev = cur;
             }
             if (t == 0) {
@@ -2165,6 +2266,33 @@ static int quilt_side(const Side *s, FillBand *report)
                 source_of[ti] = q_src[lw - 1 + d][t];
                 kind_of[ti] = FILL_KIND_QUILT;
             }
+        /* a one-off in the strip (a sign on a ledge: the strip took the ledge) is left out: its cell is read as the nearest cell of the same row
+           that is not a one-off, in the margin or the level's edge cell, so the ledge goes on and the sign is not there twice (VIEW.md 5.w) */
+        if (!fill_base())
+            for (int t = 0; t < rows; t++) {
+                uint16_t rowv[FILL_COLS_MAX];
+
+                for (int d = 0; d <= s->depth; d++)
+                    rowv[d] = lv.cells[(size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux];
+                for (int d = 1; d <= s->depth; d++) {
+                    int pick = -1;
+
+                    if (!oneoff_cell(rowv[d]))
+                        continue;
+                    for (int k = 1; k <= s->depth && pick < 0; k++) {
+                        if (d - k >= 0 && !oneoff_cell(rowv[d - k]))
+                            pick = d - k;
+                        else if (d + k <= s->depth && !oneoff_cell(rowv[d + k]))
+                            pick = d + k;
+                    }
+                    if (pick >= 0) {
+                        size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
+
+                        lv.cells[ti] = rowv[pick];
+                        source_of[ti] = -1;
+                    }
+                }
+            }
         new_unseen = side_unseen_and_runs(s, &new_runs);
         if (new_unseen > old_unseen + 8 || new_runs > old_runs + 8 || side_surface_breaks(s) > old_breaks) {
             n = 0;
@@ -2258,22 +2386,30 @@ static void repair(void)
             for (int x = 0; x < lv.fw; x++) {
                 uint16_t cur;
                 unsigned have, best, ties = 0;
+                int dup;
                 uint16_t pick = 0;
 
+                if (walled(x, y))
+                    continue;
                 if (y < lv.oy || y >= lv.oy + lv.lh)
                     continue;                           /* the top and bottom margins are not mended: the exact bands made them */
                 if (x >= lv.ox && x < lv.ox + lv.lw && !lv.tag[(size_t)(y - lv.oy) * lv.lw + x - lv.ox])
                     continue;                           /* the level's own cell, or an empty place inside it */
-                if (kind_of[(size_t)y * lv.fw + x] == FILL_KIND_QUILT)
-                    continue;                           /* a quilted margin's cells are the level's strips, whole: not mended cell by cell */
                 cur = lv.cells[(size_t)y * lv.fw + x];
-                have = cell_conflicts(x, y, cur);
+                dup = !(x >= lv.ox && x < lv.ox + lv.lw) && oneoff_cell(cur);   /* a margin cell holding a one-off: always replaced */
+                if (kind_of[(size_t)y * lv.fw + x] == FILL_KIND_QUILT && !dup)
+                    continue;                           /* a quilted margin's cells are the level's strips, whole: not mended cell by cell */
+                have = cell_conflicts(x, y, cur) + (dup ? 1000u : 0u);
                 if (!have)
                     continue;
                 bad++;
                 best = have;
                 for (unsigned id = 0; id < lv.ids; id++) {
-                    unsigned n = cell_conflicts(x, y, lv.cell_of[id]);
+                    unsigned n;
+
+                    if (lv.count[id] == 1 && !fill_base())
+                        continue;                       /* a margin never takes a one-off */
+                    n = cell_conflicts(x, y, lv.cell_of[id]);
 
                     if (n < best) {
                         best = n;
@@ -2298,7 +2434,134 @@ static void repair(void)
     }
 }
 
-void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, unsigned ox, unsigned oy, int field, DataRef metatiles,
+/* ---- the audit (VIEW.md 5.w): what the margins do to the level's one-off cells and props ----
+   A one-off is a metatile the level holds in one cell only. A prop is a connected run (4 neighbours) of the level's scenery cells (not blank, and for the
+   play field not solid) at most Q_W - Q_O columns wide. A margin's strip boundary is a pair of side by side margin or edge cells whose sources are not
+   side by side in the level; it is inside a prop where the cell before it in the level continues into the next one of the same prop, or the cell after
+   it continues from the one before. An edge cut is a prop at the level's edge column whose neighbour in the margin is not its own continuation. */
+/* the level cell index a cell of the whole came from: its own, its source, or -1 */
+static int32_t audit_source(int x, int y)
+{
+    if (x >= lv.ox && x < lv.ox + lv.lw && y >= lv.oy && y < lv.oy + lv.lh)
+        return (y - lv.oy) * lv.lw + x - lv.ox;
+    return source_of[(size_t)y * lv.fw + x];
+}
+
+static void fill_audit(FillReport *r)
+{
+    r->oneoff_cells = r->oneoff_copies = r->props = 0;
+    memset(r->cuts, 0, sizeof r->cuts);
+    memset(r->edge_cuts, 0, sizeof r->edge_cuts);
+    for (unsigned i = 0; i < lv.ids; i++)
+        r->oneoff_cells += lv.count[i] == 1;
+    for (int y = 0; y < lv.fh; y++)
+        for (int x = 0; x < lv.fw; x++) {
+            uint16_t c = lv.cells[(size_t)y * lv.fw + x];
+
+            if (x >= lv.ox && x < lv.ox + lv.lw && y >= lv.oy && y < lv.oy + lv.lh)
+                continue;
+            if (c != FILL_BLANK && lv.id_of[c] != NO_ID && lv.count[lv.id_of[c]] == 1)
+                r->oneoff_copies++;
+        }
+    find_props(r);
+    for (int y = lv.oy; y < lv.oy + lv.lh; y++)
+        for (int x = 0; x + 1 < lv.fw; x++) {
+            int32_t a = audit_source(x, y), b = audit_source(x + 1, y);
+            int side = x + 1 <= lv.ox ? 0 : x >= lv.ox + lv.lw - 1 ? 1 : -1;
+            uint16_t pa, pb;
+
+            if (side < 0 || a < 0 || b < 0)
+                continue;
+            /* a left margin pair has its second cell inward; the pair is contiguous when b is a's next cell */
+            if (b == a + 1 && a / lv.lw == b / lv.lw)
+                continue;
+            pa = a % lv.lw + 1 < lv.lw ? prop_of[a] : 0;
+            pb = b % lv.lw > 0 ? prop_of[b] : 0;
+            if ((pa && prop_of[a + 1] == pa) || (pb && prop_of[b - 1] == pb))
+                r->cuts[side]++;
+            if (getenv("ALADDIN_DEV_AUDIT") && ((pa && prop_of[a + 1] == pa) || (pb && prop_of[b - 1] == pb)))
+                fprintf(stderr, "audit cut: margin row %d between whole columns %d and %d: sources (%d,%d) and (%d,%d)\n", y - lv.oy, x, x + 1, a % lv.lw, a / lv.lw, b % lv.lw, b / lv.lw);
+        }
+    memset(r->edge_solid, 0, sizeof r->edge_solid);
+    for (int y = 0; y < lv.lh; y++) {
+        r->edge_solid[0] += fill_field && in_level(0, y) && q_solid(level_cell(0, y));
+        r->edge_solid[1] += fill_field && in_level(lv.lw - 1, y) && q_solid(level_cell(lv.lw - 1, y));
+        if (scenery_cell(0, y) && lv.ox && !fill_wall[0] && !seen_across(lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox - 1], level_cell(0, y)))
+            r->edge_cuts[0]++;
+        if (scenery_cell(lv.lw - 1, y) && lv.fw > lv.ox + lv.lw && !fill_wall[1] && !seen_across(level_cell(lv.lw - 1, y), lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox + lv.lw]))
+            r->edge_cuts[1]++;
+    }
+}
+
+/* ---- the layout's empty places, tiled (VIEW.md 5.w) ----
+   A backdrop's empty places (places of the layout the original's camera does not show, or shows as the plain colour) are, in a wide view, filled by repeating
+   the row's nearest non-empty place across them: each cell is the cell one place (PLACE_CELLS) before it, or after it where the run begins at the left
+   edge. A row is tiled only where the cell pair the repeat makes at its seam is one the level has side by side (seen_across), so the art meets itself where
+   it already does; the other rows stay empty. */
+#define PLACE_CELLS 16
+
+static void tile_voids(void)
+{
+    for (int y = 0; y < lv.lh; y++) {
+        uint16_t *row = lv.cells + (size_t)(lv.oy + y) * lv.fw + lv.ox;
+
+        for (int a = 0; a < lv.lw;) {
+            int b;
+
+            if (row[a] != FILL_BLANK) {
+                a++;
+                continue;
+            }
+            for (b = a; b + 1 < lv.lw && row[b + 1] == FILL_BLANK; b++)
+                ;
+            if (a > 0 && a - PLACE_CELLS >= 0 && row[a - PLACE_CELLS] != FILL_BLANK && seen_across(row[a - 1], row[a - PLACE_CELLS])) {
+                for (int x = a; x <= b; x++)
+                    row[x] = row[x - PLACE_CELLS];
+            } else if (a == 0 && b + 1 < lv.lw && b + PLACE_CELLS < lv.lw && row[b + PLACE_CELLS] != FILL_BLANK && seen_across(row[b + PLACE_CELLS], row[b + 1])) {
+                for (int x = b; x >= a; x--)
+                    row[x] = row[x + PLACE_CELLS];
+            }
+            a = b + 1;
+        }
+    }
+}
+
+/* ---- the level's edge columns, with the props the edge cuts taken out (VIEW.md 5.w; Jeff 2026-11-23: "just get rid of half barrels anywhere") ----
+   In a wide view a prop the map cuts at its own edge (the map begins or ends in the middle of a barrel) is shown half: its other half is not in the level.
+   A cell of the left edge column is cut when it is scenery and no metatile of the level sits left of it anywhere (nothing precedes it in the level: its
+   only neighbour is the one to its right); of the right edge column, when nothing follows it anywhere. Each such cell is replaced by the level's commonest
+   metatile that draws nothing. The play field's scenery only (no solid cell is touched). */
+static int has_pairs(const uint32_t *set)
+{
+    for (unsigned w = 0; w < IDS_MAX / 32; w++)
+        if (set[w])
+            return 1;
+    return 0;
+}
+
+static void trim_edges(void)
+{
+    unsigned count = 0;
+    uint16_t empty = FILL_BLANK;
+
+    for (unsigned i = 0; i < lv.ids; i++)
+        if (lv.cell_of[i] != FILL_BLANK && edge_empty(lv.cell_of[i], fill_metatiles) && lv.count[i] > count) {
+            count = lv.count[i];
+            empty = lv.cell_of[i];
+        }
+    if (empty == FILL_BLANK)
+        return;
+    for (int y = 0; y < lv.lh; y++) {
+        uint16_t l = level_cell(0, y), r = level_cell(lv.lw - 1, y);
+
+        if (scenery_cell(0, y) && !has_pairs(lv.across_t[lv.id_of[l]]))
+            lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox] = empty;
+        if (scenery_cell(lv.lw - 1, y) && !has_pairs(lv.across[lv.id_of[r]]))
+            lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox + lv.lw - 1] = empty;
+    }
+}
+
+void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, unsigned ox, unsigned oy, int field, int wide, DataRef metatiles,
                uint32_t seed, FillReport *report)
 {
     unsigned right = fw - lw - ox, below = fh - lh - oy;    /* the margins' sizes */
@@ -2307,6 +2570,7 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     Side sd;
 
     fill_field = field;
+    fill_metatiles = metatiles;
     if (field)
         for (unsigned i = 0; i < sizeof fill_behaviour; i++)
             fill_behaviour[i] = tile_behaviour_byte(metatiles, i);
@@ -2333,7 +2597,28 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
         for (unsigned x = 0; x < lw; x++)
             lv.real[(size_t)y * lw + x] = !FILL_TRIM_VOIDS || cells[(size_t)(oy + y) * fw + ox + x] != FILL_BLANK;
     learn();
+    if (wide && !fill_base()) {
+        if (!field)
+            tile_voids();
+        trim_edges();
+        for (unsigned y = 0; y < lh; y++)
+            for (unsigned x = 0; x < lw; x++)
+                lv.real[(size_t)y * lw + x] = !FILL_TRIM_VOIDS || cells[(size_t)(oy + y) * fw + ox + x] != FILL_BLANK;
+        learn();
+    }
     quads_learn();
+    find_props(NULL);
+    fill_wall[0] = fill_wall[1] = 0;
+    if (field && !fill_base()) {
+        int l = lh > 0, r = lh > 0;
+
+        for (unsigned y = 0; y < lh; y++) {
+            l &= in_level(0, (int)y) && q_solid(level_cell(0, (int)y));
+            r &= in_level((int)lw - 1, (int)y) && q_solid(level_cell((int)lw - 1, (int)y));
+        }
+        fill_wall[0] = l;
+        fill_wall[1] = r;
+    }
     memset(lv.has_above, 0, sizeof lv.has_above);
     memset(lv.has_below, 0, sizeof lv.has_below);
     for (unsigned i = 0; i < lv.ids; i++)
@@ -2416,11 +2701,11 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
             max_top = lv.trim_top[x] > max_top ? lv.trim_top[x] : max_top;
         }
         /* the sides first (each row of the level), then the bottom and top over every column of the whole, the corners included */
-        if (right) {
+        if (right && !fill_wall[1]) {
             sd = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh, 1 - (int)max_right, n_right };
             make_margin(&sd, top, 1, w, lh, lw + right, 1, metatiles, report->right, &unfilled, &report->outcome[1], &report->blocks[1]);
         }
-        if (ox) {
+        if (ox && !fill_wall[0]) {
             sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1 - (int)max_left, n_left };
             make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0], &report->blocks[0]);
         }
@@ -2441,4 +2726,5 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     report->unfilled = unfilled;
     count_unseen(report);
     count_quads(report);
+    fill_audit(report);
 }

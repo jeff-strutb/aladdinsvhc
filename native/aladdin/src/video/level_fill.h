@@ -44,12 +44,15 @@ typedef struct FillReport {
     uint8_t blocks[4];              /* by side: 'Q' made with no block the level never has, 'q' with the pairs alone (blocks tried last), 0 otherwise */
     unsigned quads[4], unseen_quads[4];   /* by side: the 2 x 2 blocks in the margin and across its seam, and those the level never has */
     uint8_t outcome[4];             /* by side (left, right, top, bottom): how the exact search ended, FILL_OUTCOME_* */
+    /* the audit (VIEW.md 5.w): one-offs (metatiles the level has in one cell), props (the level's connected scenery, at most Q_W - Q_O columns wide),
+       and by side (left, right) the strip boundaries inside a prop, and the props the level's own edge cuts */
+    unsigned oneoff_cells, oneoff_copies, props, cuts[2], edge_cuts[2], edge_solid[2];   /* edge_solid: rows of the left and right edge columns whose cell is solid */
 } FillReport;
 
 /* `cells` holds fw x fh metatiles row by row, the level's lw x lh with its top left cell at column ox, row oy (the margins
    left and above; those right and below are what remains); the rest is made. `field` is 1 for
-   the play field (only metatiles with no collision are made new), 0 for the backdrop. `seed` fixes the arrangement. */
-void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, unsigned ox, unsigned oy, int field, DataRef metatiles, uint32_t seed,
+   the play field (only metatiles with no collision are made new), 0 for the backdrop. `wide` is 1 in a wide view: the backdrop's empty places are tiled and the props the level's edges cut are taken out (VIEW.md 5.w). `seed` fixes the arrangement. */
+void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned fh, unsigned ox, unsigned oy, int field, int wide, DataRef metatiles, uint32_t seed,
                FillReport *report);
 
 /* the last LevelFill's provenance by cell of the whole (fw x fh): the level cell index (y * lw + x) a synthesised cell was copied from, else -1;
