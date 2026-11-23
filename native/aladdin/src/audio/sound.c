@@ -13,6 +13,7 @@
 #include "audio/music.h"
 #include "audio/sound.h"
 #include "data/data.h"
+#include "system/runahead.h"
 #include "system/state.h"
 
 #define QUEUE 32
@@ -59,6 +60,8 @@ static void send_command(uint8_t command, uint16_t fade_speed)
 {
     MusicCommand c;
 
+    if (runahead_ahead())       /* sound and music come from the real update only */
+        return;
     memset(&c, 0, sizeof c);
     c.kind = MUSIC_COMMAND;
     c.command = command;
@@ -139,6 +142,9 @@ static void send_upload(const SoundBlock *b, int n)
     uint32_t size = 1;
     int i;
 
+    if (runahead_ahead())
+        return;
+
     m[0] = MUSIC_UPLOAD;
     for (i = 0; i < n; i++) {
         if (size + 4 + b[i].length > sizeof m)
@@ -159,7 +165,7 @@ void SoundSetsLoad(void)
 {
     MusicStart s;
 
-    if (sets_loaded)
+    if (sets_loaded || runahead_guard())
         return;
     sets_loaded = 1;
     memset(&data, 0, sizeof data);

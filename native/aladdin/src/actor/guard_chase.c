@@ -9,10 +9,12 @@
 #include "actor/kinds_d.h"
 #include "data/kinds_d_tables.h"
 #include "video/video.h"
+#include "system/runahead.h"
 
 /* $146E: nonzero, one close step keeps pace instead of slowing (only the
    chase reads it, and nothing in the record sets it) */
 static uint8_t pace_once;
+RUNAHEAD_KEEP(pace_once)
 
 static uint16_t speed16(const Actor *a) { return (uint16_t)(a->speed_x & 0xFFFF); }
 

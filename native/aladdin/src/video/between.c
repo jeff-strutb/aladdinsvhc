@@ -19,6 +19,7 @@ typedef struct Kept {
     void *live;
     void *was;
     size_t bytes;
+    int unhashed;               /* the developer's state hash leaves it to its owner (it holds pointers) */
 } Kept;
 
 static Kept kept[KEPT_MAX];
@@ -45,6 +46,13 @@ void between_keep(void *p, size_t bytes)
         exit(2);
     }
     kept_count++;
+}
+
+void between_unhashed(const void *live)
+{
+    for (unsigned i = 0; i < kept_count; i++)
+        if (kept[i].live == live)
+            kept[i].unhashed = 1;
 }
 
 void between_rekeep(void *old, void *p, size_t bytes)
@@ -278,6 +286,94 @@ void between_palette_write(uint32_t first, uint32_t count, const uint16_t *bgr15
     h = hold(HOLD_PALETTE, bgr15, (size_t)count * sizeof *bgr15);
     h->a = first;
     h->b = count;
+}
+
+/* ---- runahead: the real world saved while ahead steps run, and put back (system/runahead.c) ---- */
+
+static GameState g_saved;
+static void *kept_saved[KEPT_MAX];
+static size_t kept_saved_bytes[KEPT_MAX];
+
+void between_save(void)
+{
+    memcpy(&g_saved, &g, sizeof g);
+    for (unsigned i = 0; i < kept_count; i++) {
+        if (!kept_saved[i] || kept_saved_bytes[i] != kept[i].bytes) {
+            kept_saved[i] = realloc(kept_saved[i], kept[i].bytes);
+            kept_saved_bytes[i] = kept[i].bytes;
+            if (!kept_saved[i]) {
+                fprintf(stderr, "between: no memory for a saved part of %zu bytes\n", kept[i].bytes);
+                exit(2);
+            }
+        }
+        memcpy(kept_saved[i], kept[i].live, kept[i].bytes);
+    }
+}
+
+/* a hash of what between_save kept (g and the kept parts): the developer's check that ahead steps leave the real world alone */
+static void ptr_to_offset(Actor **at, size_t n)
+{
+    for (size_t i = 0; i < n; i++)
+        at[i] = at[i] ? (Actor *)((uintptr_t)at[i] - (uintptr_t)&g) : (Actor *)~(uintptr_t)0;
+}
+
+uint64_t between_saved_hash(uint64_t h, int parts)
+{
+    static GameState flat;      /* g_saved with its pointers into g as offsets into g (the same in every run) */
+    const uint8_t *p = (const uint8_t *)&flat;
+    uint64_t one = 0xcbf29ce484222325ull;
+
+    memcpy(&flat, &g_saved, sizeof flat);
+    ptr_to_offset(&flat.chain_head, 1);
+    ptr_to_offset(&flat.chain_tail, 1);
+    ptr_to_offset(flat.free_pool, sizeof flat.free_pool / sizeof flat.free_pool[0]);
+    ptr_to_offset(flat.free_pool_b, sizeof flat.free_pool_b / sizeof flat.free_pool_b[0]);
+    ptr_to_offset(&flat.draw_list[0][0], sizeof flat.draw_list / sizeof flat.draw_list[0][0]);
+    for (unsigned i = 0; i < ACTOR_RECORDS; i++) {
+        ptr_to_offset(&flat.actors[i].next, 1);
+        if (flat.actors[i].code)
+            flat.actors[i].code = (int (*)(struct Actor *))((uintptr_t)flat.actors[i].code - (uintptr_t)&g);
+    }
+    /* g.line_data (the per-line tables) is left out: some of its bytes differ from run to run of one build with no runahead
+       (level 1-1's play p1-1, from update 9089: bytes 9 to 11, 26 and 27 of it; the cause is not found), so the hash could not
+       tell a leak from that (FRAMERATE.md 9.9) */
+    memset(flat.line_data, 0, sizeof flat.line_data);
+    for (unsigned i = 0; i < VRAM_QUEUE_SIZE; i++)
+        if (flat.vram_queue[i].from)
+            flat.vram_queue[i].from = (const uint8_t *)((uintptr_t)flat.vram_queue[i].from - (uintptr_t)&g);
+    for (size_t i = 0; i < sizeof flat; i++)
+        one = (one ^ p[i]) * 0x100000001b3ull;
+    if (parts)
+        fprintf(stderr, " g=%016llx", (unsigned long long)one);
+    h = (h ^ one) * 0x100000001b3ull;
+    for (unsigned k = 0; k < kept_count; k++) {
+        if (kept[k].unhashed)
+            continue;
+        one = 0xcbf29ce484222325ull;
+        p = kept_saved[k];
+        for (size_t i = 0; i < kept[k].bytes; i++)
+            one = (one ^ p[i]) * 0x100000001b3ull;
+        if (parts)
+            fprintf(stderr, " k%u=%016llx", k, (unsigned long long)one);
+        h = (h ^ one) * 0x100000001b3ull;
+    }
+    return h;
+}
+
+/* g and the kept parts as between_save left them; the writes the ahead steps held for the engine are dropped (the
+   engine's art is what the last ahead step's begin wrote: the real update's, see FRAMERATE.md 9.4) */
+void between_restore(void)
+{
+    memcpy(&g, &g_saved, sizeof g);
+    for (unsigned i = 0; i < kept_count; i++) {
+        if (kept_saved_bytes[i] != kept[i].bytes) {
+            fprintf(stderr, "between: a kept part changed size while the game ran ahead\n");
+            exit(2);
+        }
+        memcpy(kept[i].live, kept_saved[i], kept[i].bytes);
+    }
+    held_count = 0;
+    hold_used = 0;
 }
 
 /* ---- the update and the picture ---- */

@@ -405,3 +405,22 @@ and ends the run (`native/aladdin/src/system/dev_mapdump.c`). The pictures are t
 palette as the load leaves them, one pixel a game pixel, colour 0 flat magenta; `sips -s format png` converts them. With
 `ALADDIN_DEV_MAPDUMP_HOLD=1` the run goes on with the loaded level held on the screen, so the engine's own picture of it can be
 written (`--shots`) and compared with `LL-start`. It changes nothing while the variable is unset.
+
+## Runahead (developer variables and checks; FRAMERATE.md section 9)
+
+`ALADDIN_RUNAHEAD=N`: the ahead steps a tick takes after the real one. Default 1 in a window, 0 (off) in a headless run; 0 turns it
+off anywhere. Only 0 and 1 are built: a larger N is taken as 1, with a note on stderr. It is also off, whatever N says, when one of the
+developer's tools that drive or log the steps themselves is set (`ALADDIN_DEV_BOT`, `ALADDIN_DEV_TRIGGERS`, `ALADDIN_TASK_TRACE`,
+`ALADDIN_DEV_MAPDUMP`, `ALADDIN_DEV_CELDUMP`). While the pause menu is open there are no ahead steps.
+`ALADDIN_DEV_STATE_HASH=1`: a line `hash u=N H` on stderr after each real update, H the hash of the real world (g, the video parts
+`between_keep` registered, the statics `RUNAHEAD_KEEP` registered, the level maps' words); `=2` adds each part's own hash, to find which
+part differs. `ALADDIN_DEV_RUNAHEAD_REPORT=1`: at the end, how many ticks ran ahead, how many ended early, and the time of the
+ticks (mean, the real step alone, median, 99th percentile, worst, how many over 16.7 ms).
+
+- `native/checks/runahead/state.sh HEADLESS_BIN`: the real world is the same with and without ahead steps. The boot and every play of
+  `native/checks/plays` run on one build with `ALADDIN_RUNAHEAD=0` and with `=1`, both with the state hash and the developer's trace
+  (`view/same.sh` with `SAME_BASE_ENV`, `SAME_NEW_ENV`); the two logs must be the same line for line.
+- `native/checks/runahead/future.sh MACOS_BIN INPUT FROM TO BETWEEN`: the ahead picture is the true future when the pad does not change
+  (Metal build, a picture every update, drawn at between BETWEEN).
+- `native/checks/runahead/latency.sh MACOS_BIN "4100 key=27\n4200" [BETWEEN]`: the updates from a key press to the first change in the
+  player's state and in the picture, with and without runahead, on level 0's start.

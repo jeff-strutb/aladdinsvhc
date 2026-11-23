@@ -5,12 +5,14 @@
 #include "system/state.h"
 #include "video/video.h"
 #include "video/video_internal.h"
+#include "system/runahead.h"
 
 /* 64 steps a turn, $100 = 1: the sine, then the cosine (the original's
    $7F:4F00 and $7F:4F80, one after the other). The build writes one value
    past each: the sine's 65th is the cosine's first, written again later;
    the cosine's 65th lands past the table and is read by nothing. */
 static int16_t table[129];
+RUNAHEAD_KEEP(table)
 
 /*
  * @routine 81:B120 SineTableBuild

@@ -17,6 +17,7 @@
 #include "game/game.h"
 #include "level/level.h"
 #include "map/map.h"
+#include "system/runahead.h"
 #include "system/state.h"
 #include "system/system.h"
 #include "system/task.h"
@@ -122,10 +123,13 @@ enum { LOAD_START, LOAD_BUILD, LOAD_SONG };
 TaskRun LevelLoad(Task *t)
 {
     static const uint16_t demo_masks[4] = PLAY_DEMO_MASKS;
-    uint16_t *at = task_enter(t);
+    uint16_t *at;
     Actor *player = &g.actors[0];
     unsigned i;
 
+    if (runahead_guard())       /* a level's load (the fill, the maps, the art) is not run ahead */
+        return task_wait(t, 1);
+    at = task_enter(t);
     switch (*at) {
     case LOAD_START:
         for (i = 0; i < 4; i++)
