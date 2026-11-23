@@ -99,6 +99,8 @@ exists and the raw intake for everything else (`tools/aladdin/image.py`).
 
 ## The native game: Aladdin Remastered
 
+https://github.com/user-attachments/assets/eb1e6543-513f-42e6-91c3-16ec92df7d7e
+
 `native/aladdin` is the whole game running natively on
 [nativeshvc](https://github.com/jeff-strutb/nativeshvc), a native engine that provides what the Super NES provided
 with zero emulation: no processor instructions run, and there is no imitated PPU, DMA, sound chip or bus. The game is
