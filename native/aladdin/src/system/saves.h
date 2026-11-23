@@ -13,6 +13,7 @@
 #define SAVE_SLOTS 24                   /* 4 pages of 6 */
 #define SAVE_PIC_W 96
 #define SAVE_PIC_H 72
+#define SAVE_CROP_LIFT 24               /* the crop's centre is this far above the player's feet (his place in the picture) */
 
 enum { SAVE_EMPTY, SAVE_USED, SAVE_UNREADABLE };
 

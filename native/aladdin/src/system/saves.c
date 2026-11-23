@@ -18,7 +18,6 @@
 #define FORMAT 1u
 #define HEAD 36u                        /* 4 + 4*4 + 2 + 6 + 8 */
 #define PIC_BYTES (SAVE_PIC_W * SAVE_PIC_H * 4u)
-#define CROP_LIFT 24                    /* the crop's centre this far above the player's feet */
 
 static SaveInfo infos[SAVE_SLOTS];
 static int scanned;
@@ -38,22 +37,6 @@ static uint64_t hash(const uint8_t *p, size_t n)
 static void name_of(int slot, char *out, size_t n) { snprintf(out, n, "save_%02d", slot); }
 
 /* ---- the capture ---- */
-
-void saves_crop(const uint32_t *picture, int w, int h, int cx, int cy, uint32_t *out)
-{
-    int x0 = cx - SAVE_PIC_W / 2, y0 = cy - SAVE_PIC_H / 2, i, j;
-
-    if (x0 > w - SAVE_PIC_W) x0 = w - SAVE_PIC_W;
-    if (y0 > h - SAVE_PIC_H) y0 = h - SAVE_PIC_H;
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    for (j = 0; j < SAVE_PIC_H; j++)
-        for (i = 0; i < SAVE_PIC_W; i++) {
-            int x = x0 + i, y = y0 + j;
-
-            out[j * SAVE_PIC_W + i] = x < w && y < h ? picture[y * w + x] : 0xFF000000u;
-        }
-}
 
 /* The engine's picture is the window's, the game's picture in it scaled by the engine: for each game pixel the window pixel
    at its middle (nearest), found through nshvc_window_to_picture. Exact where the scale is a whole number and with no window. */
@@ -156,7 +139,7 @@ void saves_capture(SaveCapture *c)
         return;
     }
     px = (int)(uint16_t)(g.actors[0].x >> 8) - (int)(uint16_t)(g.layers[0].scroll_x >> 8);
-    py = (int)(uint16_t)(g.actors[0].y >> 8) - (int)(uint16_t)(g.layers[0].scroll_y >> 8) - CROP_LIFT;
+    py = (int)(uint16_t)(g.actors[0].y >> 8) - (int)(uint16_t)(g.layers[0].scroll_y >> 8) - SAVE_CROP_LIFT;
     if (px < 0 || px >= w || py < 0 || py >= h)
         px = w / 2, py = h / 2;
     saves_crop(pic, w, h, px, py, c->pic);
@@ -206,7 +189,7 @@ static int check(const uint8_t *f, size_t n, size_t *snap_at, size_t *snap_len)
 static uint8_t *read_file(int slot, size_t *n)
 {
     char name[32];
-    size_t cap = HEAD + PIC_BYTES + snapshot_max() + 8;
+    size_t cap = HEAD + PIC_BYTES + snapshot_max() + 8 + 1;    /* one more than a file can be: a longer one is seen */
     uint8_t *f = malloc(cap);
     int got;
 

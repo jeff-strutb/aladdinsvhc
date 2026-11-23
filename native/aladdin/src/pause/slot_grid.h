@@ -29,7 +29,7 @@ typedef struct {
     int cols, rows;                     /* cells in a page: 3 x 2 for the save slots */
     int pages;
     int pic_w, pic_h;                   /* the picture's size in game pixels; cols * (pic_w + 8) + gaps must fit in 336 and
-                                           rows * (pic_h + 26) in 208 */
+                                           rows * (pic_h + 30) in 210 */
     const SlotCell *(*cell)(void *ctx, int index);   /* cell number `index` (page * cols * rows + place); never NULL */
     void *ctx;
 } SlotGridSpec;

@@ -19,13 +19,13 @@
 #define SOUND_MOVE 0x0C
 enum { O_TINT = 3, O_PANEL, O_DYN };    /* overlay numbers (the pause menu uses 0 to 2) */
 
-#define TOP 36                          /* the cells' area: y 36 to 244 */
-#define AREA_H 208
+#define TOP 34                          /* the cells' area: y 34 to 244 */
+#define AREA_H 210
 #define SIDE 8
-#define HINT_Y 242
-#define CHOICE_Y 254
-#define PAGE_Y 260
-#define CAPTION_H 18                    /* the gap under a picture and its two caption lines */
+#define HINT_Y 246
+#define CHOICE_Y 258
+#define PAGE_Y 262
+#define CAPTION_H 22                    /* the gap under a picture and its two caption lines */
 #define BORDER 4
 
 typedef struct {
@@ -120,7 +120,7 @@ static void choices_x(int *xs, int *total)
 
     for (i = 0; i < m.n_choices; i++) {
         xs[i] = x;
-        x += menu_art_text_w(m.v.choices[i]) + 24 + 16;
+        x += menu_art_text_w(m.v.choices[i]) + 20 + 16;
     }
     *total = x - 16;
 }
@@ -140,8 +140,8 @@ static void draw_dynamic(uint32_t *px, int d)
             menu_art_blit(px, d, x + BORDER, y + BORDER, c->picture, m.spec.pic_w, m.spec.pic_h);
         else
             caption(px, d, x, y + h / 2 - 4, w, c->used ? "NO PICTURE" : "EMPTY", sel ? MENU_PAL_CREAM : MENU_PAL_GOLD);
-        caption(px, d, x - 8, y + h + 2, w + 16, c->line1, sel ? MENU_PAL_CREAM : MENU_PAL_GOLD);
-        caption(px, d, x - 8, y + h + 10, w + 16, c->line2, sel ? MENU_PAL_CREAM : MENU_PAL_GOLD);
+        caption(px, d, x - 8, y + h + 3, w + 16, c->line1, sel ? MENU_PAL_CREAM : MENU_PAL_GOLD);
+        caption(px, d, x - 8, y + h + 12, w + 16, c->line2, sel ? MENU_PAL_CREAM : MENU_PAL_GOLD);
     }
     if (m.v.asking) {
         int xs[3], total, left;
@@ -152,14 +152,16 @@ static void draw_dynamic(uint32_t *px, int d)
         for (i = 0; i < m.n_choices; i++) {
             int sel = i == m.v.answer;
 
-            if (sel)
-                menu_art_text(px, d, ">", MENU_PAL_CREAM, left + xs[i] - 10, CHOICE_Y, 1);
+            if (sel) {                  /* the chosen answer is in brackets (and cream) */
+                menu_art_text(px, d, "(", MENU_PAL_CREAM, left + xs[i] - 10, CHOICE_Y, 1);
+                menu_art_text(px, d, ")", MENU_PAL_CREAM, left + xs[i] + menu_art_text_w(m.v.choices[i]) + 2, CHOICE_Y, 1);
+            }
             menu_art_text(px, d, m.v.choices[i], sel ? MENU_PAL_CREAM : MENU_PAL_GOLD, left + xs[i], CHOICE_Y, 1);
         }
     } else {
         caption(px, d, 0, HINT_Y, MENU_W, "B CHOOSE   START BACK", MENU_PAL_GOLD);
         if (m.spec.pages > 1) {
-            sprintf(buf, "<  PAGE %d / %d  >", page() + 1, m.spec.pages);
+            sprintf(buf, "L  PAGE %d OF %d  R", page() + 1, m.spec.pages);
             caption(px, d, 0, PAGE_Y, MENU_W, buf, MENU_PAL_CREAM);
         }
     }
@@ -356,3 +358,6 @@ SlotResult slot_grid_update(const nshvc_input *in)
     }
     return ev(SLOT_NONE, -1, 0);
 }
+
+/* for the checks: the cell chosen without a key */
+void slot_grid_select_for_check(int index) { m.v.sel = index; }

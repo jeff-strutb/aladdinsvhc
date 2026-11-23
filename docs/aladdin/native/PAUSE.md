@@ -16,8 +16,8 @@ original's pause.
   shuts reach the game only once let go (`controls_swallow`). With no menu opened the game is exactly as before.
 - **Items.** The twelve pad buttons, each tag naming what the button does in the game (JUMP, DASH, THROW, HOVER as the options
   screen gives them, LOOK UP, CROUCH, GO LEFT, GO RIGHT, MENU for Start, UNUSED) over the key bound to it (the controller button when a controller was the last
-  device used), a line from each tag to its button on the controller; RESUME; DEFAULTS (the game's own keys and buttons back); FULL SCREEN ON or OFF (not offered where the window
-  cannot switch); QUIT.
+  device used), a line from each tag to its button on the controller; RESUME; DEFAULTS (the game's own keys and buttons back); SAVE MENU (the save slots' screen, SAVES.md); FULL SCREEN ON or OFF (not offered where the window
+  cannot switch); QUIT. The items lie RESUME DEFAULTS / SAVE MENU FULL SCREEN / QUIT.
 - **Remapping.** Pad 1 only: the game reads one pad and pad 2's buttons do nothing in it. A button chosen (B or A, or a click)
   asks for the next key, or the next controller button on the first controller; Escape or a click elsewhere cancels. A key or
   button another had goes to the button whose own was taken, so each keeps one of each. Escape, Tab, F11 and F12 cannot be
@@ -43,7 +43,9 @@ items, the cream, the pink of its title, the glove's blue), all read from the ca
 (`pause/menu_art.c`). The frame is drawn from the gold's colours. The controller is Stunt Race FX's drawing, the same
 `SNES_controller.svg` and `pad_art.c`; its label letters are `pad_glyphs.c`'s capitals, part of that picture.
 
-The title menu's second and third choices are SAVED GAMES and LEVEL SELECT, which do nothing yet (DEPARTURES.md section 7); the pause menu is the game's only menu of settings.
+The title menu's second and third choices are SAVED GAMES (the save slots' screen) and LEVEL SELECT, which does nothing yet (DEPARTURES.md section 7); the pause menu is the game's only menu of settings.
+
+The save slots' screen is built from this menu's drawing kit (`menu_art.h`: panel, text, hand, box, blit) and its panel (352 x 282), in `slot_grid.[ch]` (a reusable grid) and `save_screen.[ch]` (the slots). The text tiles are the original's, whose punctuation is not at ASCII's places; `menu_art.c` maps the marks it needs (: . , - ? ! ' ( ) = ), so a `-` (a key with no name) no longer shows the multiply sign.
 
 Not done: the password screen's flourishes (a graphic of the screen, not text) are not in the frame, and Stunt Race FX's
 blurred picture behind its panel is not used: the picture stands under a darkening.

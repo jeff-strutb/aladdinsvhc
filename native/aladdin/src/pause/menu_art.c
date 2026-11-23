@@ -127,6 +127,25 @@ static void tile(Art *a, int t, int pal, int x, int y, int s)
     }
 }
 
+/* the text tiles are the original's: its punctuation is not at ASCII's places (tiles $21-$2F: $ L ' ! ? ; : , . " ( ) X - =) */
+static int font_tile(int ch)
+{
+    switch (ch) {
+    case '\'': return 0x23;
+    case '!': return 0x24;
+    case '?': return 0x25;
+    case ':': return 0x27;
+    case ',': return 0x28;
+    case '.': return 0x29;
+    case '"': return 0x2A;
+    case '(': return 0x2B;
+    case ')': return 0x2C;
+    case '-': return 0x2E;
+    case '=': return 0x2F;
+    default: return ch;
+    }
+}
+
 static void text(Art *a, const char *s, int pal, int x, int y, int scale)
 {
     for (; *s; s++, x += 8 * scale) {
@@ -134,6 +153,7 @@ static void text(Art *a, const char *s, int pal, int x, int y, int scale)
 
         if (ch >= 'a' && ch <= 'z')
             ch -= 32;
+        ch = font_tile(ch);
         if (ch != ' ')
             tile(a, ch, pal, x, y, scale);
     }
@@ -200,6 +220,7 @@ void menu_art_text(uint32_t *px, int d, const char *s, int pal, int x, int y, in
 {
     Art a = { px, d };
 
+    menu_art_start();
     text(&a, s, pal, x, y, scale);
 }
 
@@ -209,6 +230,7 @@ void menu_art_hand(uint32_t *px, int d, int x, int y)
 {
     Art a = { px, d };
 
+    menu_art_start();
     hand(&a, x, y);
 }
 
