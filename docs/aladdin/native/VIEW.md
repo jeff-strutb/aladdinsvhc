@@ -296,6 +296,31 @@ picture's starting state. The status line stays at the corners of its band acros
 
 **Found, not part of this change:** the same figure in a different palette slot is drawn in different shades (level 3's kind $56 in slot 5 and in slot 6, 364 of 1,400 pixels at update 7201); not looked into. A fresh load at a different width puts the figure in another slot (view 288: slot 1 of 5, 336 and 384: slot 5 of 7, 512: slot 6 of 8).
 
+### 4.9 Runahead, saves and the title with the view following the window (2026-11-23, after merging the snapshot, the saves and the level select)
+
+**State the change added or made changeable mid-level, and how each is covered:**
+
+| State | Runahead | Snapshot (save slots) |
+|---|---|---|
+| `view` (`View`) | `between_keep(&view)`: saved with the real world, put back; changed only outside ahead steps (at an update's start, after the put-back) | a kept part, and `TAG_VIEW` with the slots open: `video_view_adopt` puts the saved view in first, which sizes the lists again |
+| `layer_map[2]`, with `made`, `lcols`, `lrows`, `reach`, `pad`, `fill_ox` | kept (`between_keep`, a struct copy) | `level_maps_snapshot_*`: the record's numbers and the words; the six fields are made again at the load: the layout's cells from the loaded game state (`layer_layout`), `pad = mx / 2`, `fill_ox` from the adopted view (the view and the margins change only together, so it is that view's depth), `made = on` |
+| `level_cells[2][]`, `field_px` (the layout as the level loaded it) | written only by a level's load, which is not run ahead | made again by the load from the game state it brings (a screen map place patched in play is then in them as it is: the margin beside such a place may differ from one a fresh level load made, a picture only) |
+| the level maps' words | the log of `LevelMapsTile`/`LevelMapsPlace` (as before); a change of the view is made outside ahead steps | as before |
+| engine map objects | one per level and layer (the padding): a change makes none | made by `map_of` for the saved size as before |
+| `rebase_due` (placing) | `RUNAHEAD_KEEP`: saved and put back | the statics section (all `RUNAHEAD_KEEP`s) |
+| sprite lists (`oam.c` budget and arrays, `video.c` shown lists) | the shown lists are kept parts; a change resizes them outside ahead steps and `between_save` takes the sizes it finds | `oam_snapshot_*` and the kept parts; `video_view_adopt` sizes them for the saved view |
+| palette slots open | only ever grow | `slots_adopt` |
+| `video_view_follow`'s wait (`follow_held`, the pending target) and `follow_at_once` | not game state: written only in `update`, after the put-back | not saved; a load sets the wait to none |
+| the developer's lists (`ALADDIN_DEV_VIEW_AT`, `_WINDOW_AT`) | process state | not saved |
+
+**A save at one shape loaded at another** (the window was resized between, or the save came from another machine). Today, as built: the load puts the saved view and everything made for it in (the maps with their margins and padding, the lists, the spawn window in the statics), so the world is whole at the saved shape; at the next update's start `video_view_follow` finds the window asking for another view and changes to it, **at once** (a load is a cut: no wait for the margins) by the rule of 4.8: the margins made again, the spawn window set again. The rule is *the loaded state is rebuilt for the current window*; no snapshot is refused for its shape. A save from a wide window loaded in a narrow one gives the narrow game: what the narrower view no longer holds ends by its range tests; one from a narrow window in a wide one places the figures the wider window holds (4.8). Headless, with no window and no `ALADDIN_VIEW`, there is no window to follow and the saved view stays (the exact checks of SAVES.md run so). A window never gives the original's 256 x 224, so a view of 288 or more is not taken down to it (a developer's `ALADDIN_VIEW=256x224` loading a save of a wider view keeps the saved one). **For Jeff:** the alternative is to keep the saved shape until the window changes again, which leaves a loaded game cropped to the shape it was saved in, as the game was before 4.8. Not proposed: it is the behaviour Jeff asked to end.
+
+**Checks on the merged tree (main `f1aa676` into this branch, 2026-11-23; headless and Metal builds of it):** `same.sh` against main at 256x224: 21 runs, 0 differ; `wide.sh` at 288, 384 and 512: 21 runs each, 0 failed, 0 triggers past their limit; `runahead/state.sh`: 21 runs, 0 differ. `change.sh`, the 12 cases of 4.8 with and without sprites: every run exits 0, every picture from a change's update on has the new width (first picture included: the merge's stepped "was" made the first one the old width until `between_reset_part`), the layer pictures identical to the run started at the new shape in p0-0 24 of 24, p3-0 12 of 12, p0-3 512 to 384 12 of 12 and 288 to 384 9 of 12, and in the others every difference where the games' states differ (0 unexplained, with sprites too). `saves/exact.sh` (7 runs): 6 the same, the planted fault caught. `snapshot/cross.sh`: p0-0 at 4,300 in the title and in p2-1, boss16-2hits at 8,350, p3-1 at 8,850 (Mode 7), p2-1 at 6,000 in p0-1, and the one-process round trip: 0 of 200 (100) updates and 0 of 198 (98) pictures differ in each. `snapshot/pointers.sh` passes. **Saved at one shape, loaded at another** (`shape_load.sh`, 600 updates after the load): the same shape, p1-1 saved at 5000 and loaded in p3-0: player, video and actors 0 differ; saved at 288 and loaded in a 512 window: the player's line is the same for 414 updates and then differs (186 of 600; a figure of the wider window), video 0 differ; saved at 512 and loaded in a 288 window: player and video 0 differ (the actors differ from the load, as narrowing ends them); boss16-2hits at 8,300 loaded in p0-1: 288 to 512 and 512 to 288 both 0 differ in player and video; loaded at the title: 288 to 512 as p1-1 above, 512 to 288 0 differ.
+
+**Save files made before this change** are refused whole at their load: the snapshot's layout mark folds in the registered statics' names and the kept parts' sizes, and `rebase_due` and the grown `layer_map` change it (SAVES.md: a file of another layout is refused, the game goes on).
+
+**The title, the level select and the save screens after a resize while shown.** The title's whole-view branch of `video_draw` reads `view` at each picture and has no map or list of its own, so the view alone changes: the title at 2650 and the level select open at 2900 (by keys, `native/checks/view/level_select_open.txt`), 288 to 512 and 512 to 288: the 8 pictures from the change's update on are identical to the run started at the new shape (the first has the new width: 8 of 8 each). The level select and save screens (the pause menu's `menu_draw`, `level_screen.c`) are drawn over the picture from the window's size and their own state, not the view's, so a resize moves them with the window and does not touch their state; their pictures are not in the headless renderer (it draws no overlays), so they were not compared.
+
 ## 5. Where there is no more level to show
 
 The level data sets the bounds.
@@ -441,6 +466,39 @@ On still screens, effects keep the original's numbers inside the centred 256 x 2
 The title, the Genie wheel and the ending spin use Mode 7 on still screens. They are centred like the other still screens
 (6.1). The plane outside is transparent and shows black.
 
+### 6.5 The title's load-in uses the whole view (Jeff, 2026-11-23; written before it is built)
+
+**The direction.** Jeff: "fix main menu animation load in (aladdin logo and sfx) to properly be resolution agnostic. Right now they get cropped by their original 8x7 instead of using the screen space available to them." This departs from decision 4 (still screens centred at 256 x 224 with black round them) for the title alone; Jeff replaced decision 4 for the title screen only (2026-11-23), asked whether his title direction should replace it: "Yes, replace it"; and on the form, "extend, art edges black" (the conflict was put to him with the pictures `shots/title-loadin-before-*.png`). Decision 4 stands for every other still screen; none shares the title's code path (the flag below is set by `TitleTask` alone, so the opening story, the Genie wheel and the rest are drawn as before). Everything the cartridge's data holds shows; where it holds nothing the picture is black. No art is made or repeated. The Genie wheel, the ending spin and the other still screens stay as decision 4 has them.
+
+**How it meets that, in one line:** the title keeps the original's 256 x 224 as the frame its art and actors are placed in (centred, `origin` = (dx, dy)), and stops cutting the picture to that frame, so what the engine draws beyond it (the backdrop and its fixed colour, the brightness, Mode 7 outside the frame, the windows' ends) is shown.
+
+**What the pictures show (updates 2556 to 2699 of the boot run, Start at 2400, at 256, 288 and 512 wide, before).** At 288 and 512 the title is the 256 x 224 frame with black bars: the white flash, the fades and the zoom end at the frame's columns (dx to dx + 255); at 256 the zoomed logo is cut by the frame itself.
+
+**The cause, from the code.** `video_draw` (`video/video.c`, the branch for a screen that is not a level) sets `show_left = dx`, `show_right = dx + 256`, `show_top = dy`, `show_bottom = dy + 224`. The engine paints black outside that rectangle after everything else (`compose.c show_rects`, `picture.c:1223-1226`), so nothing outside the frame can show: not the fixed colour's white (colour maths reaches the backdrop, `g.blend_layers` $31/$21), not the fade's brightness, not the zoomed Mode 7 plane's parts beyond 256 columns. It is the only mechanism found that keeps the title to the frame:
+- The Mode 7 layer's extent is the 1,024-pixel plane (128 x 128 cells, `video.c` `mode7_cells`), `outside` transparent (`mode7_outside`, set by `Mode7ScreenSetup`): its extent is not the frame.
+- The title's menu and CAPCOM rows are not in the Mode 7 plane: the title's per-line effect (`window_effects.c`, target `LINE_MODE`, `lines.c video_lines_tile_mode`) puts the menu's lines in mode 1, where they are BG1's text map, a 32 x 32-tile map that wraps (`draw_layers`, `l.wrap = 1`): drawn across a view wider than 256 it repeats every 256 columns. (Found from the first build's picture, which showed the menu twice more at +-256; the analysis above had it in the plane, which was wrong.) It needs no cut at the frame; it needs `wrap` off, so the map is drawn once at the origin, where the frame is.
+- The window edges are the frame's columns plus dx and an edge at the frame's own edge goes to the picture's edge (`lines.c` `video_window_left/right`), as in a level.
+- Sprites (kinds $82 and $4A) are at the frame's coordinates plus dx (`video_draw`) and are not culled at 256 (`sprite_wrap` is not set).
+
+**The change.** A flag `title_view` (`hud_layer.c`, beside `level_view`), set by `TitleTask` after `LevelRamSetup` (which calls `DisplayDefaults` again: set before it, the flag was cleared before any picture was drawn, shown by a probe, removed) and cleared by `DisplayDefaults`, kept for the picture as the update before's (`between_keep`) and with the world (`RUNAHEAD_KEEP`). While it is set `video_draw` keeps the origin at (dx, dy) and sets no `show_*`, and `draw_layers` draws BG1 once (`wrap` 0). Nothing else changes. At 256 x 224, dx = dy = 0 and `show_*` covered the whole picture, so the pictures are the original's.
+
+**Expected pictures, in numbers** (view 512 x 224, dx = 128; 384: dx = 64; 288: dx = 16):
+- The flash (updates about 2556 to 2575, the fixed colour at white): every column 0 to W - 1 and line 0 to 223 are the flash's colour, where before only columns dx to dx + 255 were.
+- The fade in (brightness) and out (GAME START): the same, whole view.
+- The zoom ($D0 to $100): columns dx to dx + 255 equal the 256 x 224 picture at the same update (the central 256 x 224 of each picture is compared); beyond them the plane's parts the zoom brings in, and black where the plane has none (left of plane x 0: outside, transparent; right of x 255: tile 0 of the plane, black if that tile is empty, and checked).
+- Settled: the menu, CAPCOM and the logo at columns dx to dx + 255, centred, and columns 0 to dx - 1 and dx + 256 to W - 1 black.
+- The central 256 x 224 of every picture at every shape: identical to the 256 x 224 run's picture at the same update, but where the zoomed plane's own pixels reach into it from outside the frame (none: the frame's pixels are the same plane's).
+
+
+
+**As built (2026-11-23).** Exactly the change above, in `video/video.c` (`video_draw`'s still-screen branch: the four `show_*` set only while the title is not the screen; `draw_layers`: BG1's `wrap` 0 for the title), `video/hud_layer.c` (the flag), `video/screen_setup.c` (cleared), `game/title_task.c` (set after `LevelRamSetup`). Nothing changes for any other screen. Measured on the boot run with Start at 2400, a picture of every update (headless `--shots`):
+- 256 x 224: all 2,700 pictures of updates 0 to 2699 byte for byte as before the change.
+- Columns lit, updates 2540 to 2699, before then after: 288 wide 16 to 271, then 0 to 287; 384 wide 64 to 319, then 0 to 383; 512 wide 128 to 383, then 0 to 511; lines 0 to 223 each. 51 updates are lit at both edges of the view after, none before (the flash, the fades and the zoom).
+- The central 256 x 224 against the 256 x 224 run's picture at the same update, updates 2540 to 2699: 0 of 160 differ at 288 and at 384; at 512, 3 updates (2576, 2592, 2605) differ by 1 pixel each, the same 3 updates before the change (not explained; not from this change).
+- Later states at 512 (`shots/title-wide-*.png`; an 11,000-update run compared with 256's): the settled menu (updates 2600 to 3168: central picture equal, nothing lit outside the frame); the return to the title after the demo (4493 to 4912: the lamp, Abu, the smoke, the logo and the menu; central picture equal; Abu runs out to the view's edge); the return after the story (about 20,500 on, no 256 run to compare); the fade to black and the level's fade-in at GAME START (whole view). The demo and the levels are the level's view, as before.
+- Checks (the build against b91729e's, run under the lock): `same.sh` at 256 x 224, 21 runs, 0 differ; `behind.sh` (BEHIND_SHIFT=0, whole pixels), 21 pairs, all same; `wide.sh` at 384 x 224, 21 runs, 0 failed, 0 triggers past their limit.
+- Not checked: the Direct3D 12 and Vulkan builds; a window, and motion.
+
 ## 7. Capacity: the binding limit
 
 - **Records:** 28 in the main pool, shared by placed actors, children and shots (`state.h:239-241`). On static placements
@@ -499,7 +557,7 @@ Answered 2026-11-22:
   fixed number (engine API 6.8, built on the engine's `sprite-palettes` branch, not merged).
 - **2, wake distances measured from Aladdin:** the original's, not scaled (Jeff 2026-11-22: the game is the original's, the view a frame; enemies in the frame stay live but are not triggered past the original's distances).
 - **3:** no black: fill with matching art (section 5, analysis made, nothing built).
-- **4:** still screens centred, with black around (built).
+- **4:** still screens centred, with black around (built). **Replaced for the title screen only, 2026-11-23** (Jeff: "Yes, replace it"; section 6.5): the title's picture uses the whole view.
 - **5:** whole-level maps (built).
 - **The levels' dark top rows (8, 12 in level 2) are cropped** from the picture, not shown (built).
 - **6, the view's size:** the window's proportion (landscape: 216 shown lines and round(216 a) across; narrower: 256 across and round(256 / a) lines; both even, plus the level's crop rows).

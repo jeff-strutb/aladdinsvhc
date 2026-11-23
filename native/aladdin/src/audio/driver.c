@@ -1047,6 +1047,33 @@ void driver_start(const SoundData *data)
     d.ready = 1;
 }
 
+/*
+ * driver_reapply: after a snapshot put the driver's state in (music.c): the engine's voices, echo and mix given everything
+ * the driver last gave them, since the driver sends only what changes and the engine holds what some other state left.
+ * Every voice is keyed off: a note that was sounding is silent until the next (FRAMERATE.md 10.2).
+ */
+void driver_reapply(void)
+{
+    int v;
+
+    for (v = 0; v < DRIVER_VOICES; v++) {
+        const VoiceOut *o = &d.out[v];
+
+        nshvc_voice_key_off((uint32_t)v);
+        nshvc_voice_options((uint32_t)v, 0, (d.echo_voices >> v) & 1, 0);
+        if (o->source < DRIVER_SOURCES)
+            nshvc_voice_sample((uint32_t)v, d.source[o->source]);
+        envelope_send(v);
+        nshvc_voice_pitch((uint32_t)v, o->pitch);
+        nshvc_voice_volume((uint32_t)v, o->left, o->right);
+    }
+    nshvc_sound_volume(d.main_left, d.main_right);
+    out_echo();
+    nshvc_echo_writes(!(d.flg & 0x20));
+    nshvc_sound_mute((d.flg & 0x40) != 0);
+    nshvc_sound_noise_rate(d.flg & 0x1F);
+}
+
 /* The ticks that bring the voices up to date: the echo (or its settling),
    each changed voice's envelope, the key-ons. */
 static void voices_update(void)

@@ -361,7 +361,10 @@ static int layer_make(int layer, int resize)
    them (all of the layout's, or the band levels' first 512 pixels) written, the layout's `layout_columns` wide */
 static int32_t field_px;                     /* the play field layout's width in pixels (the last built) */
 
-static void build_layer(int layer, unsigned layout)
+/* layer `layer`'s layout from the screen map and the level's tiles as they are now: its cells, size, wrapping and the columns the original's window
+   reaches, kept in the layer for the margins to be made again (a level's load, and a snapshot's load, which rebuilds them from the game state it brings:
+   a screen map place patched in play (level $0A's) is then in them as it is). Returns 0 where the layer is left to its video map. */
+static int layer_layout(int layer, unsigned layout, int note)
 {
     LevelMap *m = &layer_map[layer];
     unsigned layout_columns = level_map_layout_columns(g.level, layout), rows = level_map_layout_rows(g.level, layout);
@@ -371,11 +374,9 @@ static void build_layer(int layer, unsigned layout)
     unsigned lw = columns * METATILE_TILES, lh = rows * METATILE_TILES;     /* the layout in metatiles */
     unsigned reach;
 
-    m->on = 0;
-    m->made = 0;
     if ((size_t)lw * lh > FILL_CELLS_MAX) {
         fprintf(stderr, "video: a level map of %u x %u metatiles is more than %d; the layer is left to its video map\n", lw, lh, FILL_CELLS_MAX);
-        return;
+        return 0;
     }
     for (unsigned cy = 0; cy < rows; cy++)
         for (unsigned cx = 0; cx < columns; cx++) {
@@ -390,7 +391,7 @@ static void build_layer(int layer, unsigned layout)
     if (layer == 0)
         field_px = (int32_t)lw * 16;
     reach = (unsigned)(layout_reach_x(layer, (int32_t)lw * 16, field_px) / 16);
-    if (getenv("ALADDIN_DEV_OVER")) {
+    if (note && getenv("ALADDIN_DEV_OVER")) {
         int32_t art = 0;
 
         for (unsigned cy = 0; cy < lh; cy++)
@@ -402,6 +403,17 @@ static void build_layer(int layer, unsigned layout)
     m->lrows = lh;
     m->reach = reach;
     m->wraps = (uint8_t)band;
+    return 1;
+}
+
+static void build_layer(int layer, unsigned layout)
+{
+    LevelMap *m = &layer_map[layer];
+
+    m->on = 0;
+    m->made = 0;
+    if (!layer_layout(layer, layout, 1))
+        return;
     layer_make(layer, 0);
     m->made = m->on;
 }
@@ -445,6 +457,12 @@ int LevelMapsResize(void)
     return n;
 }
 
+/* the layers' records set anew in "was" and "now" (the view followed the window: the picture of that update draws the new margins) */
+void LevelMapsReset(void)
+{
+    between_reset_part(layer_map);
+}
+
 void LevelMapsOff(void)
 {
     layer_map[0].on = layer_map[1].on = 0;
@@ -460,7 +478,121 @@ void LevelMapsBackdropOff(void)
 void level_maps_keep(void)
 {
     between_keep(layer_map, sizeof layer_map);
-    between_unhashed(layer_map);
+    between_owned(layer_map);
+}
+
+/* ---- the snapshot (system/snapshot.c): each layer's record as numbers, then its words ---- */
+
+#define SNAP_HEAD 10u                   /* 32-bit numbers a layer: on, wraps, w, h, mx, my, level_w, level_h, which words array, 0 */
+
+size_t level_maps_snapshot_max(void)
+{
+    return 2 * (SNAP_HEAD * 4 + (size_t)MAP_WORDS * 2);
+}
+
+static uint32_t put32(uint8_t *o, uint32_t v)
+{
+    o[0] = (uint8_t)v; o[1] = (uint8_t)(v >> 8); o[2] = (uint8_t)(v >> 16); o[3] = (uint8_t)(v >> 24);
+    return 4;
+}
+
+static uint32_t get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+size_t level_maps_snapshot_save(uint8_t *out)
+{
+    size_t at = 0;
+
+    for (int layer = 0; layer < 2; layer++) {
+        const LevelMap *m = &layer_map[layer];
+        uint32_t head[SNAP_HEAD] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->words == back_words, 0 };
+
+        for (unsigned i = 0; i < SNAP_HEAD; i++)
+            at += put32(out + at, head[i]);
+        if (m->on) {
+            for (size_t i = 0; i < (size_t)m->w * m->h; i++) {
+                out[at++] = (uint8_t)m->words[i];
+                out[at++] = (uint8_t)(m->words[i] >> 8);
+            }
+        }
+    }
+    return at;
+}
+
+/* whether `in` is two layers' records that fit (sizes within what a layer holds, the words all there) */
+int level_maps_snapshot_check(const uint8_t *in, size_t len)
+{
+    size_t at = 0;
+
+    for (int layer = 0; layer < 2; layer++) {
+        uint32_t on, w, h;
+
+        if (at + SNAP_HEAD * 4 > len)
+            return 0;
+        on = get32(in + at);
+        w = get32(in + at + 8);
+        h = get32(in + at + 12);
+        at += SNAP_HEAD * 4;
+        if (on > 1 || get32(in + at - 8) > 1)
+            return 0;
+        if (on) {
+            if (!w || !h || (uint64_t)w * h > MAP_WORDS || at + (size_t)w * h * 2 > len)
+                return 0;
+            at += (size_t)w * h * 2;
+        }
+    }
+    return at == len;
+}
+
+/* put in: the engine map of that layer and size from the pool as a level's load takes it (made if the process has none), the
+   words in the game's array and written to the engine map; a layer that was off is off */
+int level_maps_snapshot_load(const uint8_t *in, size_t len)
+{
+    size_t at = 0;
+
+    (void)len;
+    for (int layer = 0; layer < 2; layer++) {
+        LevelMap *m = &layer_map[layer];
+        uint32_t head[SNAP_HEAD];
+        nshvc_map map = m->map;
+
+        for (unsigned i = 0; i < SNAP_HEAD; i++)
+            head[i] = get32(in + at + 4 * i);
+        at += SNAP_HEAD * 4;
+        if (head[0] && !map_of(layer, head[2], head[3], &map))
+            return 0;
+        m->on = (uint8_t)head[0];
+        m->wraps = (uint8_t)head[1];
+        m->w = head[2];
+        m->h = head[3];
+        m->mx = head[4];
+        m->my = head[5];
+        m->level_w = head[6];
+        m->level_h = head[7];
+        m->words = head[8] ? back_words : field_words;
+        m->map = map;
+        if (m->on) {
+            for (size_t i = 0; i < (size_t)m->w * m->h; i++)
+                m->words[i] = (uint16_t)(in[at + 2 * i] | in[at + 2 * i + 1] << 8);
+            nshvc_map_write_snes(m->map, 0, 0, m->w, m->h, m->words);
+            at += (size_t)m->w * m->h * 2;
+        }
+        /* what the margins are made again from (VIEW.md 4.8): the layout's cells from the game state just put in; the margin's depth is the
+           adopted view's (the view and the margins are only ever changed together), the map's padding what the record says */
+        m->made = 0;
+        if (m->on && layer_layout(layer, layer ? (level_map_layout_count(g.level) > 1 ? 1u : 0u) : 0u, 0)) {
+            unsigned ox, oy;
+            int fell;
+
+            margins_for(layer, m->wraps, m->lcols, m->lrows, view.dx, &ox, &oy, &fell);
+            m->pad = m->mx / 2u;
+            m->fill_ox = ox;
+            m->made = 1;
+        }
+    }
+    return 1;
 }
 
 /* the developer's state hash (ALADDIN_DEV_STATE_HASH): the layers' maps and their words as they are now */
@@ -468,7 +600,7 @@ uint64_t level_maps_hash(uint64_t h)
 {
     for (int layer = 0; layer < 2; layer++) {
         const LevelMap *m = &layer_map[layer];
-        uint32_t head[9] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->map.id };
+        uint32_t head[9] = { m->on, m->wraps, m->w, m->h, m->mx, m->my, m->level_w, m->level_h, m->words == back_words };   /* not the engine's handle: it is the process's */
         const uint8_t *p = (const uint8_t *)head;
         size_t n = sizeof head;
 

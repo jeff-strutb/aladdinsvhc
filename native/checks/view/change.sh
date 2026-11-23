@@ -11,7 +11,7 @@ root=$(pwd)
 d=$out/$(basename "$play" .txt)-$from-$to-$u; rm -rf "$d"; mkdir -p "$d/chg" "$d/same" "$d/fresh"
 res=$(cd "$(dirname "$app")" && pwd)/$(basename "$app")/Contents/Resources
 bin=$(cd "$(dirname "$app")" && pwd)/$(basename "$app")/Contents/MacOS/aladdin
-if [ "$play" = - ]; then in=""; cheat=0; else in="--input $root/native/checks/plays/$play"; cheat=1; fi
+if [ "$play" = - ]; then in=""; cheat=0; else case $play in /*) in="--input $play" ;; *) in="--input $root/native/checks/plays/$play" ;; esac; cheat=1; fi
 run() {   # name view [extra env]
   n=$1; v=$2; shift 2
   (cd "$(dirname "$bin")" && env PORT_RESDIR=$res ALADDIN_DEV_CHEAT=$cheat ALADDIN_VIEW=${v}x224 ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 \

@@ -66,7 +66,7 @@ brightness and the colour maths' fixed colour. Art, maps and palettes are not ea
 On the view branch (`view-frame-int`) the values are kept before the view's own offsets are added, and the offsets are added
 after easing: the layers' scrolls before `level_maps_margin()` and `view.dx`; the per-line BG2 x before the margin and dx
 (`video/lines.c`); the sprite list before `video_draw` moves it by dx; the crop's rows (`video_cropped_rows()`, 8, or 12 in
-level 2) as they are, not eased. `view.w/h/dx/dy` change at a level's load and, since 2026-11-23, where the view follows the window (`video_view_follow`, at an update's start, before `between_update_begin` takes "was": VIEW.md 4.8), so they are the same in "was" and "now" of every picture but the one a level's load itself changes, as before. A change of the view sets "was" and "now" anew: nothing eases between two shapes.
+level 2) as they are, not eased. `view.w/h/dx/dy` change at a level's load and, since 2026-11-23, where the view follows the window (`video_view_follow`, at an update's start, before `between_update_begin` takes "was": VIEW.md 4.8), so they are the same in "was" and "now" of every picture but the one a level's load itself changes, as before. A change of the view sets "was" and "now" anew (`between_reset_part` for `view` and the level maps' records, since "was" is now copied at the end of each step, not at an update's start): nothing eases between two shapes, and the picture of the update it changes in has the new one.
 None of the view sessions touch `main.c`'s `draw`.
 
 Jeff's view decisions this keeps: the view from the window's proportion (216 shown lines, landscape, 4:3 at its narrowest);
@@ -348,10 +348,116 @@ fractions it compares true places in 256ths); `behind.sh` with whole pixels on t
 at 4 window pixels a screen pixel, a guide line at one window column: the scene moves a step at each quarter (about
 190,000 window pixels change from one to the next). `ALADDIN_DEV_BETWEEN_AT=F` draws every picture at between F.
 
-**Not done.** R4: the stepped effects (the fade's brightness has 16 steps the engine
-takes whole; the wipes step every 2 updates, so easing between consecutive updates halves their steps but does not
-remove them) and the chain scene's slow motion (8 updates a step: easing it needs the picture 8 updates behind in that
-scene, or the logic split). R5: a run in a window at 60 and 120 Hz, by Jeff's eye.
+**R4, the stepped effects and the slow motion** (Jeff, 2026-11-23: "Item 1", each eased from its step before to its
+newest, running behind by up to a step; the chain scene's jump eased too). Measured first (developer's step log,
+`ALADDIN_DEV_STEPS`, on the boot, p0-0, p2-0, p3-0, p4-0, p5-2, p6-0, the end-* plays and boss-flow 17 to 15,000):
+- the brightness moves only a level at a time (2,183 steps, none of 2 or more); within a fade every 2 updates, but one
+  fade each way in level 36 every update;
+- the window edges move every update in most effects (already eased by R2), every 3 in level 13's exit (4022-4120),
+  once a 7 in level 5's;
+- the chain scene's slow motion: the play loop turns every 8 updates (its task's wait at the update's end is 8 on the
+  turn, 7 to 1 between), and between turns nothing drawn changes (the places' hash, the brightness and the windows);
+  `g.play_wait` stays 8 after the scene (into the ending's story, level 57), where no play loop turns. The scene fades
+  out during the slow motion (7383-7411) and level 57 fades in from 7479, 10 updates after the last turn (7469).
+
+The rule, for three "tracks" (`video/between.c`): a track steps when its value changes; a picture shows it eased from its
+step before to its newest over G updates, G the updates between those two steps, at most the track's limit, so it is
+exact at each step and runs behind by up to G - 1 updates more than the rest.
+- The world (everything R1-R3 eases). It steps every update but in the slow motion: `PlayLoop` tells between.c when it
+  turns (`between_play_turn`, no game state); while the last turn was under `g.play_wait` (more than 1) updates ago,
+  an update is no step. "Was" and the newest are kept at the world's steps (at the update's end now, not its start),
+  and the held engine writes are written a step late, so the art is always the world "was" names. Limit: the play
+  loop's wait. Outside the slow motion the world is exactly R3's.
+- The brightness: a step of one level eased over up to 2 updates (any other change shown at once). The engine takes a
+  brightness between its 16 levels (6.13: `nshvc_screen.brightness_sub` and `NSHVC_LINE_BRIGHTNESS_SUB`, 256ths of the
+  way to the next level, the console's own result at 0).
+- The windows: the window edges each line shows, and the frame's own, eased line by line over up to 3 updates.
+
+Expected, before building: the game unchanged (`same.sh` 21 runs, 0 differ); with the steps off
+(`ALADDIN_DEV_NO_STEPS=1`, every track eased over one update), the pictures R3's; the easing check 0 wrong; a new check
+(`ALADDIN_DEV_STEP_CHECK=FILE`): each track's eased value at between 1 is the next update's at between 0 (no jump between
+pictures) everywhere but where a step comes sooner than the one before, and a fade's brightness moves 1/8 of a level a
+quarter update; in the chain scene the player moves 1/32 of a turn's motion a quarter update after the first turn.
+
+As built: `video/between.c` (the tracks; "was" and the newest now kept at the world's steps' ends, the held writes
+written a step late), `game/play_loop.c` (`between_play_turn` at the play loop's turn: no game state), `video/video.c`
+(the brightness and the frame's window edges from the tracks), `video/lines.c` (the window lines eased with their track;
+the developer's samples), engine 6.13 (ENGINE_REQUESTS.md section 4). Found on the way and fixed: R2 eased a layer by its
+24.8 place alone, so a layer moved by its shift or offset stepped (the chain scene scrolls BG1 2 pixels an update by
+`g.layer_offset_y`, `bg_y` still: 896 places wrong at between 1 on main too); a layer now eases as sent, its pixels with
+the shift or offset added and its place's fraction (`video/scroll.c`).
+
+Checked, on all 37 plays (the boot, every p*, boss16-2hits, every end-* and boss-flow 17 to 30,000):
+- the easing check: 3,760,506 places, 0 wrong (at between 1 and 0.5);
+- the step check, 437,951 pictures: the world 0 jumps; the brightness 0 jumps, and 21 where a fade's steps came every
+  update (its first step eased over 2, the next an update later); the windows 0 jumps, and 6 after a step sooner than the
+  one before. Not counted as jumps, as R2 has them: a window line whose step is more than 64 pixels (a line of window
+  appearing, shown at its step's end) and a channel starting or stopping (the effect's start and end);
+- the speeds: in fades stepping every 2 updates every quarter update moves the brightness 32/256 of a level (55,050
+  samples, no other size), every update 64/256; in the chain scene's slow motion (112 updates eased over 8) the player
+  moves 8/256 of a pixel each quarter update, a turn's 1 pixel over its 8 updates;
+- `same.sh` against main c6803c7: 21 runs, 0 differ (the game unchanged);
+- `behind.sh` with the steps off (`ALADDIN_DEV_NO_STEPS=1`, `BEHIND_SHIFT=0`) against main's own pictures on engine 6.10:
+  21 runs, 10,010 pairs, 0 differ (R3's pictures, the layer fix aside, which is the same at between 0). Its first run
+  found a fault in the windows' track, fixed: a window line whose step was too far to ease stayed at its old value after
+  its step ended, until the windows stepped again (p1-1 and p4-2, 21 pictures); at a step's end the newest is now shown
+  exactly.
+
+Not checked by a count: how it looks in a window (R5).
+
+**R4, second round** (Jeff, 2026-11-23: "fix the bugs and finish the 'not done'").
+- A step that came before its track had finished easing to the one before jumped (21 brightness, 6 windows on the 37
+  plays: fades whose steps came every update, whose first step had been eased over 2). Such a step now starts from where
+  the pictures had got to: the brightness from its eased value in 256ths; the windows from the state two steps back
+  eased as far as they had gone (`video/between.c`, `video/lines.c`).
+- Measured, then decided on the evidence (the developer's step log with Mode 7's matrix and the colour bands' line
+  values added):
+  - the colour bands (level 6, `video/colour_bands.c`) do not change on screen: the task dims the pairs from the 18th
+    on, and the cartridge's table has 17 (printed: 17 pairs, the same at steps 0, 1, 2). Nothing to ease;
+  - the text bands (`video/text_bands.c`) show or mask a whole band each step: a switch, as a cel, not a place. Left
+    stepped, as the window rule leaves a line that appears;
+  - the Genie wheel (level 47) turns Mode 7 by the high byte of an 8.8 angle, so as it slows its matrix steps every
+    256 / speed updates (measured gaps 3 and 5); the ending's spin-zoom (level 57, `SceneSpinZoomTask`) turns every
+    update but grows its zoom every 24.
+- Mode 7 now has tracks of its own: its matrix and centre eased over up to 8 updates, its four scales over up to 24, each
+  from where the pictures had got to and the newest exactly at a step's end; a scaled matrix (`mode7_how` 1) is the
+  eased element times the eased scale (`mode7_scaled_fx`, the original's product at a whole scale). Measured: the
+  spin-zoom's scale grows 2 to 3 256ths of a level a quarter update over its 24-update steps (1/96 of a level).
+
+Checked after the second round, on all 37 plays: the step check, 437,951 pictures, the world, the brightness, the
+windows and Mode 7 each 0 jumps, none after an early step either; the easing check 3,760,506 places, 0 wrong;
+`behind.sh` with the steps off against main's pictures, 21 runs, 10,010 pairs, 0 differ; `same.sh` 21 runs, 0 differ.
+
+**R5, the windowed run** (macOS, Metal, the Mac's display at 60 Hz; 120 Hz not possible here: no ProMotion display).
+p0-0 to update 4,200 in a window, every picture logged (`ALADDIN_DEV_DRAW_LOG`: the update, its between, the clock):
+4,220 pictures; the moment each shows (the update before plus between) moves on by exactly the clock's step (mean and
+largest difference 0.0000 of an update), no picture repeated. 3,709 of 3,798 moved on by 1.0 update; 19 were drawn 5 to
+17 ms off the refresh (a draw call late, the next early, e.g. 28.5 ms then 4.5 ms), so their moments step 1.3 to 2.0 and
+0.3 to 0.7. That is the engine's loop calling `draw` off the display's refresh, not the easing: a picture timed by the
+time it will be shown (the display's), not the time it is drawn, would need the engine's loop to pass it. A question
+for Jeff: planned in ENGINE_REQUESTS.md section 5, with the presentation times measured (each picture's moment follows
+its real presentation to about 1 ms; drawn to shown 49 ms; nothing shown while the window is covered, yet two pictures
+an update drawn). Still by Jeff's eye: how it looks.
+
+**Other renderers.** Vulkan, on this Mac through MoltenVK (the null host's loader): the engine's tests `brightness_sub`,
+`subpixel`, `depth`, `palettes`, `mesh` ok, and the 118 scenes at 1x and 4x the same as Metal's, 236 pictures, 0
+differ. Direct3D 12: the game cross-built for Windows (`nshvc-build windows-d3d12`, mingw-w64), no error; not run (no
+Windows here).
+
+**R4 with runahead** (merged with section 9, 2026-11-23). Runahead's ahead step runs `between_update_begin`, the step and
+`between_update_end` as a real update does, so it moves R4's tracks on as one: the world's step (its "was" becomes the real
+update's world, its newest the ahead world), the brightness's, the windows' and Mode 7's, and the held writes a step late
+(the ahead step's end sends the real update's, as the real world's next step would). Its picture so eases from the real
+world towards the ahead world, each stepped effect by its own steps. `between_save` keeps the steps' own state with the
+real world (the counters, the tracks' values, the world's "was" and the windows' oldest snapshot, the held writes'
+count) and `between_restore` puts it back: a track the ahead step moved on has its snapshots turned back, and the writes
+the ahead step sent are taken off the held (in the engine already; the ahead step's own held writes are dropped). So the
+real world's next update finds the steps as the real update left them, and in the slow motion no real update's held write
+is lost. Checked after the merge, against main b91729e: `same.sh` 21 runs, 0 differ;
+runahead's `state.sh` (the real world with and without ahead steps) 21 runs, 0 differ; `behind.sh` with the steps off,
+21 runs the same; runahead's `future.sh` on p0-0 (4,090 to 4,500) at between 0.5 and at 1, 409 of 409 pictures equal at
+each; the step check on all 37 plays (with the plays' cheat), 437,951 pictures, 0 jumps in the world, the brightness, the
+windows and Mode 7, and the easing check 3,784,914 places, 0 wrong.
 
 ## 9. Runahead: the picture answers the controls with no added delay (2026-11-23, branch `runahead-7b2cca`)
 
@@ -544,3 +650,150 @@ it (`placing` in actor/placement.c was one: a placed actor came a tick late; the
    refresh. Reading the pad more often than the update rate is the engine's (it reads once per update); not asked of it here.
 4. **Whether the pause menu's pictures are checked headless**: its overlays are the window's, so a picture file does not show them;
    it needs an eye or an engine call that reads the whole window.
+
+## 10. The snapshot: the whole game at one moment in a flat buffer (2026-11-23)
+
+Jeff's requirement, through the save-game session (docs/aladdin/native/SAVES.md on the save session's branch): a save is the exact
+moment; loading resumes at the very update and place, from the title or from the middle of another level, with sound and music
+going on correctly; a file from a build with another state layout is refused. The interface the slots call is
+`system/snapshot.h` (`snapshot_available`, `snapshot_max`, `snapshot_save`, `snapshot_load`, `snapshot_layout_mark`); this section
+is the design behind it. **How this meets the direction in one line:** the snapshot is the runahead's save and restore (9.3, 9.4)
+written to a buffer through the same two registered lists (the video parts of `between_keep` and the statics of `RUNAHEAD_KEEP`),
+with what could not go to a file turned into what can; the logic, F3 (a) easing and runahead are not changed.
+
+### 10.1 What a snapshot is, and when it is taken
+
+The real world after a complete update (a tick's real step, no ahead world: `runahead_begin` has put the real world back, which the
+pause menu's and the title's update already is). A load puts that world in, and the next update is the one after it. It is not
+taken or put back inside a step.
+
+### 10.2 What each piece is, and the decision for it
+
+| Piece | In a file as it is? | Decision |
+|---|---|---|
+| `g` (247,472 B) | no: pointers | copied, then each pointer field replaced by a code and back on load: `Actor *` fields as an offset in `g` (`chain_head`, `chain_tail`, `free_pool` 28, `free_pool_b` 5, `draw_list` 4 x 192, each actor's `next`); NULL its own code. The list is the pointer fields of every type `GameState` holds, which the compiler's own record layouts give (`-fdump-record-layouts`: pointers in `GameState`, `Actor`, `VramQueueEntry`, and nothing else; checked by `native/checks/snapshot/pointers.sh`, which fails if a new pointer member appears) |
+| each actor's `code` (a function pointer) | no | an id: the hash (FNV-1a, 32 bits) of the function's name, from one table of every function an actor can run in (`actor/code_table.c`, made by `tools/gen_code_table.py`: every start, second and third entry of every row of `kinds_*` and every function `ActorRunAs` is given: 146 functions). Complete by a check, not by hand: `gen_code_table.py --check` reads the sources for each name in a `KindCode` row and each second argument of `ActorRunAs` and fails if the file is not what they give; and a save fails, naming the address, if a live actor's `code` is not in the table (the check scans every update of the 21 plays). Ids are of names, so they hold across rebuilds; two names with one hash end the run at start |
+| each VRAM queue entry's `from` | no | a code: `g.unpacked` or another array of `g` as an offset in `g`; the cartridge as an offset in the cartridge image; anything else fails the save, naming it (the plays' scan shows whether anything else occurs). The queue is empty after each update's picture work unless the NMI is off, so most saves hold none |
+| the video parts of `between_keep` (sprite lists, anchors, scroll latches, `view`, Mode 7 switches...) | plain data, but sized by the view | their live bytes, in registration order, each with its size; `layer_map` is not among them (below) |
+| the frame's sprites the game built (`oam.c`'s lists, as far as `g.sprite_count`) | state, found by the check | saved (section OAM). They are not scratch: `video_vblank` copies them to the shown lists whenever `g.frame_ready` is set, and in a scene whose update builds none it stays set, so they outlive their update. The first cross-process run of a Mode 7 scene (p5-2) showed it: the shown lists differed for 34 updates with every picture the same |
+| the statics of `RUNAHEAD_KEEP` (28) | plain | their bytes, by name and size, from the same registry runahead uses (`runahead_keep_at`); not a second list |
+| the level maps (`layer_map[2]`: handle and pointer; `field_words`, `back_words`) | handle and pointer: no | saved as numbers (on, wraps, size, margins, which words array) and the words (`w x h` 16-bit each, whole: a tile change or a patched place has changed them, so they are not the level's). On load the engine map of that layer and size is taken from the map pool as a level load takes it (made if the process has none: `map_of`) and the words are written to it. The engine's level map is nothing but those words (every writer is `between_map_write_snes` of the words), so rebuilt-from-words is equal to what the engine held |
+| the engine's tiles, maps and palette | engine state, no read back | **a shadow kept by the game**: every write the game makes to an engine object it also makes to a copy in `video/between.c` (at the moment the write is held, so a held write is in it), by a stable name (`tiles.low`, `tiles.high`, `tiles.text`, `slot_tiles.N`, `map.back`, ..., `palette`). The snapshot holds the copies; a load writes each whole object. The slot sets are as many as the view needs: a file's set this process lacks is made by the view the load adopts, one the file lacks is zeroed. Not shadowed: the level maps (words above), Mode 7's tiles and map (written from `mode7_pixels` and `mode7_cells`, which are saved: a load sets their changed flags), everything the picture sets each time it draws. No engine change |
+| the view (`view`, `slots_open`, sprite list sizes) | process and window state, not in `g` | saved; a load adopts the saved view and remakes what is sized from it as a level load does (`sprite_lists_make`, `video_slot_sets_make`), so a state saved in one window proportion loads in a window of another and keeps its own view until the next load of a level or still screen (as a window resized in a level does, VIEW.md). VIEW.md says the view changes only where a level loads and where a still screen starts: a load of a snapshot is taken as such a place; Jeff's to overrule (10.7) |
+| the sound driver (`d`: the song and instrument data with the songs loaded, the 16 channels, tempo, fade, echo, voices' registers) and `music.c`'s tick phase | on the audio thread | saved from there: in a window by a request the audio code answers at its next sample (it first takes every message the game sent before, so the driver is as the game last left it); headless by reading it (one thread). The samples' engine handles are the process's, not saved. A load keeps the state and, at the start of the next update, sends it as messages in the music queue (in order with the commands: 9 parts of 8,000 bytes; the queue is 262,144 bytes), so the driver is put in between the messages of the updates before and those of the update after, exactly where the save was taken (a load that posted at once would let the driver run one update of sound before the first step); the audio code replaces `d` (keeping this process's sample handles), keys every voice off, and sends every voice's sample, envelope, pitch and volume, the echo, the main volume and the flags to the engine again (the driver sends only what changed, so without this the engine's voices would stay as the title or the other level left them) |
+| what the engine's voices were doing (a note's phase, envelope level, the echo's buffer) | engine state, no read back | **not restored**: a load resumes the song at its place in the music (every channel's position, time, tempo, fade) but a note that was sounding is silent until the next note; no tail, no echo of what came before. Jeff's choice (10.7) |
+| the pause menu's open sound and the music pause | in `g.sound_queue` and `d` | in the state the snapshot is taken in (the save session's matter: SAVES.md) |
+| anything a level's load sets once that a load from the title lacks | | the statics and `g`; the engine's art by the shadows; the level maps; the sound data in `d`; the view; nothing else is set at a load (the nm list of 441 statics, 9.4, read for it: the rest are scratch, dev tools, notes and once-only caches) |
+
+### 10.3 The layout mark
+
+A 32-bit FNV-1a over what the layout is made of: `sizeof` of `GameState`, `Actor`, `Task`, `VramQueueEntry`, `View`, `Driver`,
+`Channel`, `nshvc_sprite`, `LevelMap`; the offsets of every pointer field; each `between_keep` part's name and (for the fixed ones)
+size, in order; each `RUNAHEAD_KEEP` static's name and size, in order; each shadowed object's name and geometry (not the slot sets, which follow the view); the number of
+sections and the format number. Nothing is kept by hand: adding a registered static or a field of `g` changes it. A change that
+keeps every size (two fields of one type swapped) is not seen; said so.
+
+### 10.4 What a load does
+
+1. Checks the format, the mark, every section's length, the codes (an unknown code id, a pointer code out of range): on any fault
+   nothing is changed and it returns 0.
+2. Puts in `g` (pointers rebuilt), the video parts, the statics, the view and what is sized from it, the level maps, the engine's art
+   from the shadows (whole objects), Mode 7's changed flags, the sound.
+3. Rebases the picture: "was" is the loaded world, nothing is held, so the first picture after a load is the loaded world, not a mix
+   of it and the one before.
+
+### 10.5 Checks (to run; results go in 10.8)
+
+1. Runahead's own: `state.sh` 21 runs and `same.sh` 21 runs, 0 differ, with the snapshot code in.
+2. One process: save at update u, run on, restore, run on again: the trace and the state hash from u on equal the first run's.
+3. Across processes: a file written at update u of a play; a fresh process started at the title, or another level's play, restores it
+   and is given the same keys: the trace from u on update for update, every 25th picture, and the sound driver's state hash;
+   on at least four plays including a Mode 7 stage and a boss.
+4. A planted omission (a registered static, then a shadowed object, then a pointer code) caught by 3.
+5. Not covered: what it sounds like (10.2), a different window's view loading (not run on a second view), and what the save
+   screen does.
+
+### 10.6 Decisions made from the code (not asked)
+
+Shadow of the engine's art instead of an engine read-back; the audio state through a request the audio code answers (the engine has
+no way back from the audio thread: api.md section 1, "the engine never hands the game anything from the render or audio threads", so the
+game's own code answers a flag; no engine change); function pointers as name hashes; the view adopted from the file.
+
+### 10.7 For Jeff
+
+1. **Sound after a load:** the song resumes at its place but a note that was sounding is silent until the next one (the engine has no
+   read back of a voice's phase; keying them on again would restart a note and would play a finished drum hit once more). The other
+   choice is to key on the voices the driver thinks are on: no silence, but re-attacked notes and possibly a repeated hit.
+2. **The view a load brings:** the saved view stays until the next level or still screen (a window of another shape then shows it
+   fitted, as a resized window does in a level). The other choice is to refuse a file saved in another view.
+
+### 10.8 As built and results (2026-11-23)
+
+Built on `runahead-7b2cca`: `system/snapshot.[ch]` (the interface; the buffer: sections G, KEPT, STAT, LMAP, VIEW, ART, OAM, SOUND), `video/between.c`
+(the shadows, `between_art_*`, `between_rebase`, `between_layout`, names for the kept parts), `video/level_maps.c`, `video/oam.c`, `video/video.c`,
+`video/slot_gfx.c` (the view's put-in), `audio/music.c` and `driver.c` (the state, the restore through the queue, the registers again),
+`actor/code_table.c` made by `tools/gen_code_table.py`, `actor/code_id.c`, `data/data.c` (a pointer into the cartridge as its offset),
+`system/dev_snapshot.c` (`ALADDIN_DEV_SNAP_SAVE=FILE@U`, `ALADDIN_DEV_SNAP_LOAD=FILE@L`), the checks in `native/checks/snapshot`. No engine change.
+The buffer holds one snapshot of 585,012 to 701,460 bytes in the plays below (`snapshot_max` 2.7 MB: the level maps can hold 2 MB of words);
+the save takes 0.30 to 0.43 ms and the load 0.38 to 0.43 ms in the headless Metal build (the engine's own upload in a window is not in it);
+a save in a window waits for the audio thread's next sample: 2.9 ms in the one run measured (a load 0.56 ms).
+
+| Check | Result |
+|---|---|
+| Runahead's own, with the snapshot code in: `runahead/state.sh` | 21 runs, 0 differ |
+| `view/same.sh`, this build against main (b91729e), runahead off | 21 runs, 0 differ |
+| `snapshot/pointers.sh` and `gen_code_table.py --check` | the pointer members of every type `GameState` holds are the 8 the snapshot walks; 146 functions, the rows and `ActorRunAs` name no other |
+| One process: `cross.sh` with `SNAP_SAME=1`, p0-0, save at 4,300, load at 4,600 | 200 updates: the trace, the state hash and 198 pictures the same as the run that never loaded |
+| Two processes, `snapshot/cross.sh` (A plays and saves; B is a fresh process that loads at update 300 at the title, or at update 4,000 to 6,000 in another play, and is then given A's keys): trace and state hash of K updates, a picture every update | p0-0 at 4,300 (title and in p2-1 at 5,000): 200 and 200, 0 differ, 0 of 198 pictures; boss16-2hits at 8,350 (Jafar's first form; title and in p3-0 at 5,000): 200 and 200, 0 differ; p3-1 at 8,850 (a Mode 7 stretch, 8,754 to 8,995; title and in p0-0 at 6,000): 100 and 100, 0 differ; p5-2 at 25,300 (a Mode 7 scene, 25,239 to 25,457): 150, 0 differ; p2-1 at 6,000 (in p0-1 at 4,000): 200, 0 differ |
+| Runahead on in both processes (p0-0 at 4,300, title) | 200, 0 differ, 0 of 198 pictures |
+| A view that differs: saved with `ALADDIN_VIEW=384x224` and loaded in a 256x224 process, and the reverse | 200 and 200, 0 differ, 0 of 198 pictures: the loading process keeps the saved view |
+| A planted omission (each caught): `placing` (a registered static) left out of the list; `tiles.high` (a shadowed object) not put back; `chain_head` and `free_pool` (pointer fields) not put back | 190 of 200 updates differ from update 4,310; the trace is the same but 54 of 198 pictures differ; the loading process crashes at once (a segmentation fault) |
+| The window's path (Metal build, not headless): save at 600, load at 700 of the boot, one process | exit 0; the save goes through the audio thread's flag |
+
+**What the sound check is.** In the headless runs the driver's whole state (the Driver and the tick's phase, handles left out) is part of the state hash:
+it is the same, update for update, from the first update after the load (the loading process's first update has it a sample window late,
+which `cross.sh` allows for and says). That shows the song resumes at its place. It does not show what it sounds like: the audio samples were
+not compared, and by 10.2 a note that was sounding is silent after a load until the next one.
+
+**Not covered:** what a save and load sounds like in a window; the save and load calls from the save screens (that session's);
+a load into a process with another window shape run in a window (the view is adopted in the headless runs above); a snapshot of another
+build's layout (the mark refuses it, shown only by its code, not by a file from another build); the level maps' pool running out (96 sizes: the
+load then reports it and goes on); `snapshot_load` after a failure part-way (the checks come first; the level maps' pool is the one step after
+them that can fail). A same-size reorder of two fields in `g` is not seen by the mark (10.3).
+
+**The interface for the save session:** `system/snapshot.h`: `snapshot_available()` (1), `snapshot_max()` (allocate this many bytes), `snapshot_save(buf, cap)` (bytes written,
+0 on failure), `snapshot_load(buf, len)` (1 on success; 0 changes nothing), `snapshot_layout_mark()`. Call them from an update's start, as the
+pause menu's and the title's updates are, after `runahead_begin` (the real world is back). After a load the update that called it runs no step.
+
+### 10.9 With the stepped effects (main c9a5241 merged in, 2026-11-23)
+
+Main's stepped effects (the fades, the windows, Mode 7 and the chain scene's slow motion eased from each step's value before to its newest, sections 8 and 9
+above) changed `video/between.c`: "was" and the newest are now kept at the world's steps at an update's end, and the engine's art is written a step late.
+What they added, from main's diff (`b91729e..c9a5241`), and what is done with each (a "step" writes it when `between_update_end` runs it, which every real and
+every ahead update does):
+
+| State the effects added | A step writes it | Runahead (ahead step) | Snapshot |
+|---|---|---|---|
+| the world's own: `g_was`, `g_now`, each kept part's `was` and `now`, `world_at`, `world_steps`, `last_turn`, `slow`, `play_turned`, `updates` | yes | saved and put back by main's `steps_save` and `steps_restore` (the snapshots turned back one step, the oldest kept aside) | not saved: picture state, not game state; a load puts the world in as its newest and its step before (`between_rebase`) |
+| the brightness track: `bright_from`, `bright_now`, `bright_at`, `bright_steps` | yes | the same | not saved: at rest on the loaded brightness |
+| the windows track: `win_prev`, `win_was`, `win_now` (three copies of `g`), `win_from`, `win_hash`, `win_at`, `win_steps` | yes | the same | not saved: at rest, all three the loaded `g` |
+| Mode 7's tracks `m7_matrix`, `m7_scale` | yes | the same | not saved: at rest on the loaded values |
+| the writes held for the engine: `held_count`, `held_to_step`, `held_sent` | yes | the same (the real ones kept, the ahead step's dropped; the ones it sent counted) | none held after a load (the load wrote the engine's art itself); my shadow copy takes every write when it is held, so it is the art of the world's newest step |
+| `title_view` (hud_layer.c; main registered it with `RUNAHEAD_KEEP` and `between_keep`) | yes | saved | saved (as a static and as a kept part) |
+| scratch in the effect files (`lines.c`'s per-channel `from`, `to`, `before`, `value`, `v`) | rebuilt in each picture or hash from `g` | nothing | nothing |
+
+The decision for the snapshot, from the code: these tracks are what the picture shows between steps, and the picture never changes game state (F3), so
+they are not part of the game's moment. A load puts the world in at rest and the tracks start from it: the loaded world shows at once, and an effect that was
+in the middle of a step (a fade, a window, Mode 7's slowing, the slow motion's wait: at most 24 updates) shows its newest value from the first picture. The layout
+mark does not take them (they are not in the buffer). The merge itself: `between.c` kept main's tracks and my shadows, names, `between_rebase` (now also
+resetting every track and the held count), `between_layout` and the used-size accessors; `between_keep` is main's `was`/`now`/`aside` with my `name`.
+
+Results on the merged tree (this Mac, headless unless said): `view/same.sh` against main c9a5241, runahead off: 21 runs, 0 differ. `runahead/state.sh`: 21 runs, with and
+without the ahead step identical. The snapshot's cross-process runs on the same eight pairs as 10.8 (p0-0 at 4,300 into the title and into p2-1; boss16-2hits at 8,350 into the title and into
+p3-0; p3-1 at 8,850, a Mode 7 stretch, into the title and into p0-0; p5-2 at 25,300; p2-1 at 6,000 into p0-1): 0 differ in trace, state hash or the 98 to 198 pictures of each.
+A planted omission (a registered static left out): caught, 190 of 200 updates differ. The tick-rate work's own checks (`ALADDIN_DEV_BETWEEN_CHECK`, `ALADDIN_DEV_STEP_CHECK`, no script, run
+over p0-0, p3-1, boss16-2hits and p5-2 to their last key + 600): runahead off, 0 wrong places in 176,277 + 73,395 + 94,823 + 287,725 and 0 jumps in the world, brightness, windows and
+Mode 7 over 20,584, 8,995, 10,499 and 30,595 pictures; with one ahead step the places are 0 wrong too, and the world's track has 148, 35, 41 and 247 jumps in those runs, every one
+checked (p3-1: all twenty first listed) exactly two updates after a change of the pad in the play's keys: the correction of 9.7, not an easing fault; the brightness, windows and Mode 7 have 0.
+Not run on the merged tree: `between/behind.sh` (21 runs of pictures against main's), and the snapshot's window run.
+

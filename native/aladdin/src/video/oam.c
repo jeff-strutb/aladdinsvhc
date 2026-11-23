@@ -102,6 +102,59 @@ uint32_t OamSpriteCapacity(void)
     return budget;
 }
 
+/* The frame's sprites, as far as g.sprite_count, are state: video_vblank copies them to the shown lists while g.frame_ready stays
+   set, as in a scene whose update builds none, so they outlive the update that built them (the snapshot found this). */
+size_t oam_snapshot_size(void)
+{
+    return 4 + (size_t)g.sprite_count * (sizeof *list + sizeof *owner + sizeof *anchor + sizeof *anchor_fx);
+}
+
+size_t oam_snapshot_save(uint8_t *out)
+{
+    uint32_t n = g.sprite_count < budget ? g.sprite_count : budget;
+    uint8_t *o = out;
+
+    o[0] = (uint8_t)n; o[1] = (uint8_t)(n >> 8); o[2] = (uint8_t)(n >> 16); o[3] = (uint8_t)(n >> 24);
+    o += 4;
+    memcpy(o, list, n * sizeof *list);
+    o += n * sizeof *list;
+    memcpy(o, owner, n * sizeof *owner);
+    o += n * sizeof *owner;
+    memcpy(o, anchor, n * sizeof *anchor);
+    o += n * sizeof *anchor;
+    memcpy(o, anchor_fx, n * sizeof *anchor_fx);
+    o += n * sizeof *anchor_fx;
+    return (size_t)(o - out);
+}
+
+/* the section as oam_snapshot_save wrote it fits `len` */
+int oam_snapshot_check(const uint8_t *in, size_t len)
+{
+    uint32_t n;
+
+    if (len < 4)
+        return 0;
+    n = (uint32_t)in[0] | (uint32_t)in[1] << 8 | (uint32_t)in[2] << 16 | (uint32_t)in[3] << 24;
+    return len == 4 + (size_t)n * (sizeof *list + sizeof *owner + sizeof *anchor + sizeof *anchor_fx);
+}
+
+/* put in (the view's lists are sized): as many as the lists hold */
+void oam_snapshot_load(const uint8_t *in)
+{
+    uint32_t n = (uint32_t)in[0] | (uint32_t)in[1] << 8 | (uint32_t)in[2] << 16 | (uint32_t)in[3] << 24, all = n;
+    const uint8_t *p = in + 4;
+
+    if (n > budget)
+        n = budget;
+    memcpy(list, p, n * sizeof *list);
+    p += all * sizeof *list;
+    memcpy(owner, p, n * sizeof *owner);
+    p += all * sizeof *owner;
+    memcpy(anchor, p, n * sizeof *anchor);
+    p += all * sizeof *anchor;
+    memcpy(anchor_fx, p, n * sizeof *anchor_fx);
+}
+
 /*
  * @routine 81:95D5 OamBufferClear
  * WHAT IT DOES: Takes every sprite off the screen.

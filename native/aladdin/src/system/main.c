@@ -18,6 +18,7 @@
 #include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
+#include "pause/slot_grid.h"
 #include "system/runahead.h"
 #include "system/screen_mode.h"
 #include "system/settings.h"
@@ -25,6 +26,7 @@
 #include "system/task.h"
 #include "system/unconverted.h"
 #include "video/between.h"
+#include "video/level_picture.h"
 #include "video/view.h"
 
 static uint64_t pictures;
@@ -177,9 +179,14 @@ static void update(const nshvc_input *input)
 
     runahead_begin();           /* the real world back, if the last tick ran ahead */
     video_view_follow();        /* the view follows the window, before "was" is taken: nothing eases between two shapes (VIEW.md 4.8) */
+    DevSnapshotSave(nshvc_updates());
     if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
         input = &select;
     between_update_begin();
+    if (DevSnapshotLoad(nshvc_updates())) {     /* a snapshot's load: no step in this update */
+        between_update_end();
+        return;
+    }
     if (DevMapDumpHeld()) {
         NmiPictureWork();
         between_update_end();
@@ -187,7 +194,12 @@ static void update(const nshvc_input *input)
     }
     record_input(input);
     screen_mode_update();
+    if (DevSaves(nshvc_updates())) {    /* a developer's load ended the update (dev_saves.c) */
+        between_update_end();
+        return;
+    }
     if (menu_update(input)) {   /* the pause menu is open: no step; the picture holds the world the last step left */
+        DevShot(nshvc_updates());   /* the developer's pictures go on, the menu in them */
         between_update_end();
         return;
     }
@@ -198,6 +210,7 @@ static void update(const nshvc_input *input)
     DevShot(nshvc_updates());
     DevMapDump(nshvc_updates());
     DevMapDumpLevel(nshvc_updates());
+    LevelPicturesMake(nshvc_updates());
     DevDump(nshvc_updates());
     between_update_end();
     runahead_after(input, step);    /* the picture's world: the real one stepped on with the pad held (runahead.h) */
@@ -209,6 +222,7 @@ static void draw(float between)
     pictures++;
     between_draw(between);
     menu_draw();                /* the pause menu over the picture, from its own state (outside g), at once */
+    slot_grid_draw();           /* the save slots' screen, likewise */
 }
 
 static void shutdown(void)
@@ -223,6 +237,7 @@ int main(int argc, char **argv)
     runahead_init(argc, argv);
     game.title = "Aladdin";
     game.id = "aladdin";
+    game.save_in_game_folder = 1;   /* saves beside the program, not in the system's folders (PAUSE.md, "Saved") */
     game.update_hz = 60;
     game.init = init;
     game.update = update;

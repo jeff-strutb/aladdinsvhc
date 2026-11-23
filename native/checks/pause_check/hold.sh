@@ -23,10 +23,10 @@ awk -v at="$at" -v hold="$hold" -v sh="$shift_by" '
 cp "$play" "$out/plain.txt"
 last=$((at + 300))
 run() {   # name input updates
-  (cd "$(dirname "$bin")" && PORT_RESDIR=$res ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 \
+  (cd "$(dirname "$bin")" && PORT_SAVEDIR=$out/save.$1 PORT_RESDIR=$res ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 \
     "$bin" --headless --updates "$3" --input "$2" > "$out/$1.out" 2> "$out/$1.err")
 }
-case $play in /*) ;; *) here=$(pwd); out=$here/$out; run() { (cd "$(dirname "$bin")" && PORT_RESDIR=$res ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 "$bin" --headless --updates "$3" --input "$out/$2" > "$out/$1.out" 2> "$out/$1.err"); }; ;; esac
+case $play in /*) ;; *) here=$(pwd); out=$here/$out; run() { (cd "$(dirname "$bin")" && PORT_SAVEDIR=$out/save.$1 PORT_RESDIR=$res ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1 "$bin" --headless --updates "$3" --input "$out/$2" > "$out/$1.out" 2> "$out/$1.err"); }; ;; esac
 run plain plain.txt "$last"
 run held held.txt $((last + shift_by))
 python3 -I - "$out/plain.err" "$out/held.err" "$at" "$hold" "$last" <<'PY'

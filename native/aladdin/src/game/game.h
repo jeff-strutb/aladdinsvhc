@@ -19,6 +19,7 @@ TaskRun LevelPlayStartTask(Task *t);    /* 81:80A3: play at the level the progre
 TaskRun DemoPlayStart(Task *t);         /* 81:80D3 */
 void PlayStartCounts(void);             /* 81:80E0 (81:80DC Long): the random seed, full health */
 void NewGameState(void);                /* 81:8118 (81:8114 Long): a new game's counts and first level */
+void NewGameCounts(void);               /* title_task.c: what every new game starts with (the progress first, the counts) */
 void LevelFromProgress(void);           /* 81:8157: g.level from the progress sequence and stage */
 TaskRun NextPartTask(Task *t);          /* 81:8181: task entry (the story card's TaskExec) */
 

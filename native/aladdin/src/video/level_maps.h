@@ -27,8 +27,14 @@ void LevelMapsPlace(unsigned place);
    pixels in from each side, and the margins made again (the layout's words as they are now are kept); LevelMapsResize returns the layers made */
 int LevelMapsNeedResize(int32_t dx);
 int LevelMapsResize(void);
+void LevelMapsReset(void);
 /* the developer's state hash (ALADDIN_DEV_STATE_HASH): the layers' maps and their words, folded into h */
 uint64_t level_maps_hash(uint64_t h);
+/* the snapshot (system/snapshot.c): the layers' records and words as bytes, and back; max, save, check (fits), load (1 on success) */
+size_t level_maps_snapshot_max(void);
+size_t level_maps_snapshot_save(uint8_t *out);
+int level_maps_snapshot_check(const uint8_t *in, size_t len);
+int level_maps_snapshot_load(const uint8_t *in, size_t len);
 /* whether layer 0 (the play field) or 1 (the backdrop) is shown from its level map now, and that map */
 int level_maps_active(int layer);
 nshvc_map level_maps_object(int layer);

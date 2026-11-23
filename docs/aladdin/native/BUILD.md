@@ -2,7 +2,7 @@
 
 ## Building the native game
 
-The game is `native/aladdin` (its icon `native/aladdin/icon/icon.png`, the box art, which the build turns into each platform's icon), built against nativeshvc's checkout (API 6.7, tested at `8b5461e`; the sound driver needs 6.6 or later) beside this one. Run
+The game is `native/aladdin` (its icon `native/aladdin/icon/icon.png`, the box art, which the build turns into each platform's icon), built against nativeshvc's checkout (API 6.12 or later, for the game's own save folder; tested at `8b5461e` on 6.7 before that; the sound driver needs 6.6 or later) beside this one. Run
 from the repository root. The cartridge's data is never committed; `extract_assets.py` checks the ROM's SHA-1
 (`bd5fea18ce7456cc0231a39473927d8ea9c6589b`) and writes `native/aladdin/assets/cart.dat`, which the build copies
 beside the program:
@@ -10,6 +10,18 @@ beside the program:
 ```bash
 python3 native/aladdin/tools/extract_assets.py "reference/aladdin/Aladdin (USA).sfc" native/aladdin/assets
 ```
+
+The level select's pictures are made once, after the game is built, from `cart.dat` by the game's own loader, and packaged beside it
+(`level_pictures.dat`, 525,412 B, 19 pictures of 96 x 72, never committed; `assets/*` is ignored). With the headless build and `cart.dat` in
+`native/aladdin/assets` (about 0.7 s):
+
+```bash
+native/aladdin/tools/make_pictures.sh build/aladdin/native/headless/aladdin build/aladdin/native/headless native/aladdin/assets
+```
+
+The first argument is the built game, the second the folder holding `cart.dat` (a macOS app's `Contents/Resources`), the third the assets folder;
+then build again so the file is packaged. Without it the level select screen still opens, its cells without pictures (the log says
+`level_pictures.dat is not valid` for a bad file).
 
 `cart.dat` is the cartridge image, 1,310,720 B, with the bytes that are not code at their place and zeros where the
 code was: 1,047,228 B read as data by the decomp's traces, 173,223 B no trace has touched (kept, as Stunt Race FX keeps
@@ -23,6 +35,12 @@ ranges are `native/aladdin/tools/assets.csv` (2,024 ranges), made by
 `native/aladdin/tools/make_assets_csv.py` from the decomp's code map (`tools/aladdin/codemap.py`) and census
 (`tools/aladdin/census.py`) with the same tests as `tools/aladdin/progress.py`; remake it after new traces with
 `python3 native/aladdin/tools/make_assets_csv.py .` (it needs `build/aladdin` traced).
+
+## Packaging and saves (2026-11-23)
+
+The game's saves are in its own folder beside the program (`PAUSE.md`, "Where the game saves"): `aladdin-save` beside `aladdin.app`,
+`save` beside `aladdin.exe` or the Linux program. Whoever packages a build ships it without that folder, never with a
+developer's, and keeps the player's when an update replaces the build. On iOS they are in the app's container.
 
 ## Platforms (2026-11-21)
 

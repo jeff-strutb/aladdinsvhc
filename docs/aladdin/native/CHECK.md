@@ -432,7 +432,26 @@ The view follows the window at an update's start, in a level, on a still screen 
 
 `native/checks/view/change.sh APP OUTDIR PLAY LAST FROM TO UPDATE [K]` (APP a macOS build, the pictures need Metal; PLAY a file of `native/checks/plays` or `-` for the boot; `CHANGE_ENV="NAME=VALUE ..."` adds environment to the three runs, e.g. `ALADDIN_DEV_SCREEN=genie` or `ALADDIN_DEV_NO_SPRITES=1`): the play is run to LAST three times with the trace and a picture every update from UPDATE on: *chg* starts at FROM wide and changes to TO at UPDATE, *same* stays at FROM, *fresh* starts at TO. `change_report.py` then prints the traces of chg against same and against fresh (the player's line, the video line, the actors), and for K pictures from UPDATE + 1 the width, how many are identical to fresh's, for each that differs the pixels and the box they are in and whether the two games differ in state at that update (a difference with no state difference is listed UNEXPLAINED), and the added columns that are all black (levels only: a still screen's are black by design). A picture `uN` is the one drawn after update N - 1.
 
-Results, 2026-11-23: VIEW.md 4.8 "As built".
+`native/checks/view/shape_load.sh BIN A_PLAY U LEN B_PLAY V A_VIEW B_VIEW` (a save made at one shape and loaded at another: `saves/exact.sh` with `EXACT_A_ENV`/`EXACT_B_ENV` `ALADDIN_VIEW=...`, then the player's, video and actor lines of the two compared; the same shape must be the same). `native/checks/view/level_select_open.txt` is an `--input` file that opens the title's LEVEL SELECT (Start at 2400, Down twice, Z at 2760), for `change.sh` on a screen that is not a level (pass its absolute path as PLAY).
+
+Results, 2026-11-23: VIEW.md 4.8 "As built" and 4.9.
+
+## The beaten levels' record, the level pictures and the level start (2026-11-23, LEVELSELECT.md)
+
+Stage 1 of the level select (the screen is not built, LEVELSELECT.md section 6). macOS headless builds, `build/aladdin/native/base` (71ea8d0) and `new`; each run under `perl -e 'alarm N'` (this Mac has no `timeout`).
+
+- `native/checks/view/same.sh` base against new, 256x224: 21 runs, 0 differ.
+- Beaten record, each `p*.txt` play to its last key + 600, `ALADDIN_DEV_CHEAT=1`, an empty `PORT_SAVEDIR`: the file holds only the play's level for p0-0 to p5-1 and p6-0 (`ALADDIN_DEV_BEATEN=1` prints it). p5-2 and p5-3 reach no exit by keys (Jeff's decision above); with `boss-flow.sh`'s patches (`8000:98:1:1` on `boss16-2hits.txt`, `5500:73:1:0` on `p5-3.txt`) each marks its own level ($10, $11) and no other. p1-1 then p0-2 on one folder with a run between: `05`, then `02 05`. Which call fired in each: `LevelExitCheck` for $00 $06 $07 $0A $0D $0E $0F $12 (and the others by their plays), `walk_out_fade` $03, `land_fade` $04, level 5's end scene $05, the chain's fade $11 (LEVELSELECT.md section 2).
+- Bad files (`levels` cut to 5 bytes, empty, one byte longer, format 2, size byte 7, a wrong check byte, a bit above the 24, level $13's bit with a right check): `beaten:` with nothing. A right file gives its levels.
+- Start by `LevelSelectStart` (`ALADDIN_DEV_START_LEVEL=N` with Start at 2400 only) against the original's select (`plays/select_input.py PART STAGE`, R held), both `ALADDIN_DEV_CHEAT=1`, traces with `ALADDIN_DEV_TRACE=1 ALADDIN_DEV_ACTORS=2 ALADDIN_DEV_VIDEO=1`, 600 updates from the level's first update: levels $00, $04, $07, $0A, $0B, $0C, $0E, $10, $11, $12: 0 differ in each (the original's first update 3933, the new one's 2656). No level is a Mode 7 stage. Without the cheat byte: level $11 starts with `health=3 lives=3`.
+- Level pictures: `ALADDIN_DEV_MAPDUMP` for the 19 levels writes the same `LL-*` files as before the picture code moved to `video/level_picture.c`; `LL-picture.ppm` (`LevelPicture`, 96 x 72) differs in 0 of 6,912 pixels from the same crop of `LL-start.ppm`, for each. Not run: the crop against the engine's own picture (`ALADDIN_DEV_MAPDUMP_HOLD` with `--shots`), which needs a renderer; this run was the null headless build.
+
+## Save slots (2026-11-23, SAVES.md)
+
+- `native/checks/saves/saves_build.sh OUT` then `OUT DIR`: the slot files with a fake snapshot (system/saves.c): written, read back, loaded; refused whole with a wrong layout mark, a byte too many, cut short, a bit changed in the snapshot or in the crop, a bad magic; a failed write (the temporary's name taken) leaves the old slot. 14 lines, all ok.
+- `native/checks/pause_check/grid_build.sh OUT` then `OUT BASE.ppm W H game|title PAGE SEL ASK USED OUT.ppm [CROP.ppm]`: the slots' screen over a game picture (pictures in `docs/aladdin/native/shots/saves-*.png`); the crop equals the picture's own pixels (0 of 6,912 differ).
+- A developer's picture (`ALADDIN_DEV_SHOTS`) is also taken while the pause menu is open; the headless renderer draws no overlays, so the screens are composed by these tools as `pause_check menu` composes the pause menu.
+- `native/checks/saves/exact.sh BIN A_PLAY U LEN B_PLAY V [fault]` (header of the script; `EXACT_A_ENV`, `EXACT_UI`, `EXACT_MENU_SAVE`): a save at update U of one run loaded at update V of another (or from the title through SAVED GAMES by keys, `title_load_keys.txt`); the traces from the load on are the same, update for update; results in SAVES.md (7 runs: 6 same, the planted fault caught).
 
 ## Runahead (developer variables and checks; FRAMERATE.md section 9)
 
@@ -452,3 +471,24 @@ ticks (mean, the real step alone, median, 99th percentile, worst, how many over 
   (Metal build, a picture every update, drawn at between BETWEEN).
 - `native/checks/runahead/latency.sh MACOS_BIN "4100 key=27\n4200" [BETWEEN]`: the updates from a key press to the first change in the
   player's state and in the picture, with and without runahead, on level 0's start.
+
+## The snapshot (developer variables and checks; FRAMERATE.md section 10)
+
+`ALADDIN_DEV_SNAP_SAVE=FILE@U`: at the start of update U the snapshot (the world after update U - 1) is written to FILE and its size and time
+printed. `ALADDIN_DEV_SNAP_LOAD=FILE@L`: update L loads FILE and runs no step. `ALADDIN_DEV_KEPT_DUMP=U:FILE`: at update U the kept video parts' used
+bytes to FILE (with `ALADDIN_DEV_STATE_HASH=2` this finds which part differs).
+
+- `native/checks/snapshot/cross.sh MACOS_BIN PLAY S K [BASE_PLAY L]`: the snapshot across two processes, or with `SNAP_SAME=1` in one. Process A plays
+  PLAY and saves at S; a fresh process B plays BASE_PLAY (or the boot and the title) to update L, loads there and is given PLAY's keys from S on. K
+  updates of the trace and the state hash, and the picture of each update from the third, must be the same. `SNAP_SAVE_ENV` and `SNAP_LOAD_ENV` add
+  environment (the runahead, a view, a planted omission) to A and to B.
+- `native/checks/snapshot/pointers.sh`: the pointer members of every type the game state holds are the ones the snapshot writes as codes.
+- `python3 native/aladdin/tools/gen_code_table.py --check`: `actor/code_table.c` names every function a row of the kinds tables or an `ActorRunAs` names.
+
+## The level select screen (2026-11-23, LEVELSELECT.md section 9)
+
+- Pictures made at build time (`native/aladdin/tools/make_pictures.sh`, 0.7 s, 525,412 B). `native/checks/pause_check/level_build.sh OUT` (with `NSHVC` set to the engine's checkout) builds `level_check`: `level_check BASE.ppm W H PAGE SEL OUT.ppm [PICS_PREFIX]` with `LEVEL_FILE` (a `levels` file) and `DATA_TEST_DIR` (`cart.dat`, `level_pictures.dat`). The screens: `shots/levelselect-none.png`, `-some.png`, `-page2.png`, `-last.png` (every level shown, unbeaten at 25%).
+- 9 levels: each picture the screen reads equals the map dump's `LL-picture.ppm` (0 of 6,912 differ), and on the panel at one pixel (704 x 564 window) 0 of 6,912 differ at its cell.
+- Choosing: all 19 entries, from the title by keys with all 19 beaten, no cheat byte: each reaches its level (health above 0) at update 2839 to 2914.
+- `same.sh` base 71ea8d0 against the merged tree: 21 runs, 0 differ.
+- Unbeaten cells cannot be chosen: empty save folder, Start, Down, Down, B, B, B: no level plays to update 3500; with level $00 beaten the same keys play it from 2839.
