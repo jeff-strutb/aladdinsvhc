@@ -34,6 +34,7 @@
  * area (nshvc_display_info) and not at the view's own corners.
  */
 #include "nshvc/nshvc.h"
+#include "system/runahead.h"
 #include "video/between.h"
 #include "video/video_internal.h"
 #include "video/view.h"
@@ -64,6 +65,8 @@
 
 static nshvc_map hud_map;
 static int level_view;              /* a level is the screen */
+static int title_view;              /* the title is the screen: its picture is not cut to the original's frame (VIEW.md 6.5) */
+RUNAHEAD_KEEP(title_view)
 
 void video_level_view_set(int on)
 {
@@ -73,6 +76,16 @@ void video_level_view_set(int on)
 int video_level_view(void)
 {
     return level_view;
+}
+
+void video_title_view_set(int on)
+{
+    title_view = on;
+}
+
+int video_title_view(void)
+{
+    return title_view;
 }
 
 static int in_left(unsigned x, unsigned y)
@@ -94,6 +107,7 @@ void hud_layer_init(void)
     hud_map = nshvc_map_create(MAP_COLUMNS, TEXT_ROWS);
     between_map_write_snes(hud_map, 0, 0, MAP_COLUMNS, TEXT_ROWS, blank);
     between_keep(&level_view, sizeof level_view);       /* the picture's, kept as the update before's (between.h) */
+    between_keep(&title_view, sizeof title_view);
 }
 
 /*
