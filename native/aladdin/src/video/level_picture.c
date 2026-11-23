@@ -12,8 +12,10 @@
 #include "data/data.h"
 #include "data/level_tables.h"
 #include "data/scroll_tables.h"
+#include "game/beaten.h"
 #include "game/game.h"
 #include "level/level.h"
+#include "nshvc/nshvc.h"
 #include "map/map.h"
 #include "system/state.h"
 #include "system/system.h"
@@ -234,4 +236,129 @@ int LevelPicture(unsigned level, uint32_t *rgb)
     PicFree(&both);
     PicShadowOff();
     return 1;
+}
+
+/* ---- the file: "LPIC", version 1, count, width, height, then per picture its level and w x h pixels, all 32 bit little
+   endian, then FNV-1a 32 of everything before ---- */
+#define FILE_NAME "level_pictures.dat"
+#define FILE_VERSION 1u
+#define PIXELS (LEVEL_PICTURE_W * LEVEL_PICTURE_H)
+
+static uint32_t fnv(uint32_t h, const uint8_t *p, size_t n)
+{
+    while (n--)
+        h = (h ^ *p++) * 16777619u;
+    return h;
+}
+
+static void put32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static uint32_t get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+void LevelPicturesMake(uint64_t update)
+{
+    const char *path = getenv("ALADDIN_MAKE_PICTURES");
+    static uint32_t rgb[PIXELS];
+    uint8_t head[20], word[4];
+    uint32_t sum = 2166136261u;
+    FILE *f;
+
+    if (!path || !*path || update != 1)
+        return;
+    f = fopen(path, "wb");
+    if (!f) {
+        fprintf(stderr, "make pictures: cannot write %s\n", path);
+        exit(1);
+    }
+    memcpy(head, "LPIC", 4);
+    put32(head + 4, FILE_VERSION);
+    put32(head + 8, BEATEN_LEVELS);
+    put32(head + 12, LEVEL_PICTURE_W);
+    put32(head + 16, LEVEL_PICTURE_H);
+    fwrite(head, sizeof head, 1, f);
+    sum = fnv(sum, head, sizeof head);
+    for (unsigned i = 0; i < BEATEN_LEVELS; i++) {
+        unsigned level = BeatenListLevel(i);
+
+        if (!LevelPicture(level, rgb)) {
+            fprintf(stderr, "make pictures: level $%02X has no picture\n", level);
+            exit(1);
+        }
+        put32(word, level);
+        fwrite(word, 4, 1, f);
+        sum = fnv(sum, word, 4);
+        for (unsigned k = 0; k < PIXELS; k++) {
+            put32(word, 0xFF000000u | rgb[k]);
+            fwrite(word, 4, 1, f);
+            sum = fnv(sum, word, 4);
+        }
+    }
+    put32(word, sum);
+    fwrite(word, 4, 1, f);
+    fclose(f);
+    printf("make pictures: %u levels, %s\n", (unsigned)BEATEN_LEVELS, path);
+    fflush(NULL);
+    exit(0);
+}
+
+static uint32_t *pictures;      /* BEATEN_LEVELS pictures in the list's order */
+static unsigned pictured[BEATEN_LEVELS];
+static int pictures_read;
+
+static void pictures_load(void)
+{
+    nshvc_asset a;
+    size_t size = 20 + (size_t)BEATEN_LEVELS * (4 + 4 * PIXELS) + 4, got = 0;
+    uint8_t *raw;
+    uint32_t n, sum;
+
+    pictures_read = 1;
+    a = nshvc_asset_open(FILE_NAME);
+    if (!a.id)
+        return;
+    raw = malloc(size + 1);
+    if (!raw) {
+        nshvc_asset_close(a);
+        return;
+    }
+    while (got < size + 1 && (n = nshvc_asset_read(a, raw + got, (uint32_t)(size + 1 - got))) != 0)
+        got += n;
+    nshvc_asset_close(a);
+    sum = got == size ? fnv(2166136261u, raw, size - 4) : 0;
+    if (got != size || memcmp(raw, "LPIC", 4) || get32(raw + 4) != FILE_VERSION || get32(raw + 8) != BEATEN_LEVELS ||
+        get32(raw + 12) != LEVEL_PICTURE_W || get32(raw + 16) != LEVEL_PICTURE_H || get32(raw + size - 4) != sum) {
+        fprintf(stderr, "%s is not valid: run tools/make_pictures.sh\n", FILE_NAME);
+        free(raw);
+        return;
+    }
+    pictures = malloc((size_t)BEATEN_LEVELS * PIXELS * sizeof *pictures);
+    if (pictures)
+        for (unsigned i = 0; i < BEATEN_LEVELS; i++) {
+            const uint8_t *at = raw + 20 + (size_t)i * (4 + 4 * PIXELS);
+
+            pictured[i] = get32(at);
+            for (unsigned k = 0; k < PIXELS; k++)
+                pictures[(size_t)i * PIXELS + k] = get32(at + 4 + 4 * k);
+        }
+    free(raw);
+}
+
+const uint32_t *LevelPictureOf(unsigned level)
+{
+    if (!pictures_read)
+        pictures_load();
+    if (pictures)
+        for (unsigned i = 0; i < BEATEN_LEVELS; i++)
+            if (pictured[i] == level)
+                return pictures + (size_t)i * PIXELS;
+    return NULL;
 }

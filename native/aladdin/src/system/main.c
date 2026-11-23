@@ -24,6 +24,7 @@
 #include "system/task.h"
 #include "system/unconverted.h"
 #include "video/between.h"
+#include "video/level_picture.h"
 #include "video/view.h"
 
 static uint64_t pictures;
@@ -193,6 +194,7 @@ static void update(const nshvc_input *input)
     DevShot(nshvc_updates());
     DevMapDump(nshvc_updates());
     DevMapDumpLevel(nshvc_updates());
+    LevelPicturesMake(nshvc_updates());
     DevDump(nshvc_updates());
     between_update_end();
 }

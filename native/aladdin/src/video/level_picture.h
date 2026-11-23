@@ -49,4 +49,10 @@ void PicShadowOff(void);
    no map. */
 int LevelPicture(unsigned level, uint32_t *rgb);
 
+/* The pictures of every level of the list, made once when the game is built (tools/make_pictures.sh: ALADDIN_MAKE_PICTURES=FILE
+   runs LevelPicture for each and writes FILE, which is packaged beside cart.dat) and read here. 0xAARRGGBB, LEVEL_PICTURE_W x
+   LEVEL_PICTURE_H, or NULL when the file is missing or not valid (the whole file is refused) or the level has none. */
+const uint32_t *LevelPictureOf(unsigned level);
+void LevelPicturesMake(uint64_t update);    /* called each update: at update 1 with ALADDIN_MAKE_PICTURES set, writes the file and ends the run */
+
 #endif
