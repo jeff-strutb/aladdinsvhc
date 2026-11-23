@@ -121,16 +121,52 @@ void video_view_level_done(void)
     level_loading = 0;
 }
 
+/* A snapshot's view put in as a level's load puts a chosen one in: what is sized from it is made again (the sprite lists).
+   Not run ahead: a snapshot is never loaded in an ahead step. */
+void video_view_adopt(const View *saved, unsigned slots_open)
+{
+    view = *saved;
+    slots_adopt(slots_open);
+    if (shown_sprites)
+        sprite_lists_make();
+}
+
+/* Mode 7's tiles and map written to the engine from the game's arrays, at once (after a snapshot's load) */
+void video_mode7_rewrite(void)
+{
+    static nshvc_map_entry cells[128 * 128];
+
+    nshvc_tiles_write(mode7_tiles, 0, mode7_pixels, 256, NSHVC_TILES_MODE7);
+    for (int i = 0; i < 128 * 128; i++) {
+        cells[i].tile = mode7_cells[i];
+        cells[i].palette = cells[i].priority = cells[i].hflip = cells[i].vflip = 0;
+    }
+    nshvc_map_write(mode7_map, 0, 0, 128, 128, cells);
+}
+
+/* the shown lists' elements in use (the rest of the lists are what an earlier, larger update left) */
+static uint32_t shown_used(void)
+{
+    return shown_count;
+}
+
 void video_init(void)
 {
     sprite_lists_make();
     tiles[VIDEO_TILES_LOW] = nshvc_tiles_create(4, 1024, 1);
+    between_tiles_made(tiles[VIDEO_TILES_LOW], "tiles.low", 1024, 32);
     tiles[VIDEO_TILES_HIGH] = nshvc_tiles_create(4, 1024, 1);
+    between_tiles_made(tiles[VIDEO_TILES_HIGH], "tiles.high", 1024, 32);
     tiles[VIDEO_TILES_TEXT] = nshvc_tiles_create(2, 1024, 1);
+    between_tiles_made(tiles[VIDEO_TILES_TEXT], "tiles.text", 1024, 16);
     maps[VIDEO_MAP_BACK] = nshvc_map_create(64, 32);
+    between_map_made(maps[VIDEO_MAP_BACK], "map.back", 64, 32);
     maps[VIDEO_MAP_FRONT] = nshvc_map_create(64, 32);
+    between_map_made(maps[VIDEO_MAP_FRONT], "map.front", 64, 32);
     maps[VIDEO_MAP_TEXT] = nshvc_map_create(32, 32);
+    between_map_made(maps[VIDEO_MAP_TEXT], "map.text", 32, 32);
     maps[VIDEO_MAP_BACK_TALL] = nshvc_map_create(64, 64);
+    between_map_made(maps[VIDEO_MAP_BACK_TALL], "map.back_tall", 64, 64);
     video_slot_sets_make(slots_count());
     mode7_tiles = nshvc_tiles_create(8, 256, 1);
     mode7_map = nshvc_map_create(128, 128);
@@ -144,6 +180,10 @@ void video_init(void)
     between_keep(&mode7_up, sizeof mode7_up);
     between_keep(&mode7_outside, sizeof mode7_outside);
     between_keep(&view, sizeof view);
+    between_variable(shown_sprites, sizeof *shown_sprites, shown_used);
+    between_variable(shown_owner, sizeof *shown_owner, shown_used);
+    between_variable(shown_anchor, sizeof *shown_anchor, shown_used);
+    between_variable(shown_anchor_fx, sizeof *shown_anchor_fx, shown_used);
     video_scroll_keep();
     level_maps_keep();
 }
@@ -153,8 +193,14 @@ void video_slot_sets_make(unsigned count)
 {
     unsigned need = count > SLOTS_STD ? (count - SLOTS_STD + SLOT_SET_SLOTS - 1) / SLOT_SET_SLOTS : 0;
 
-    while (slot_sets_made < need)
-        slot_sets[slot_sets_made++] = nshvc_tiles_create(4, SLOT_TILES * SLOT_SET_SLOTS, 1);
+    while (slot_sets_made < need) {
+        char name[24];
+
+        slot_sets[slot_sets_made] = nshvc_tiles_create(4, SLOT_TILES * SLOT_SET_SLOTS, 1);
+        snprintf(name, sizeof name, "slot_set.%u", slot_sets_made);
+        between_tiles_made(slot_sets[slot_sets_made], name, SLOT_TILES * SLOT_SET_SLOTS, 32);
+        slot_sets_made++;
+    }
 }
 
 nshvc_tiles video_slot_tiles(unsigned slot)

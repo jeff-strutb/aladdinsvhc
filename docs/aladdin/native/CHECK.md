@@ -418,6 +418,12 @@ Builds: the tree before the change (`HEAD` of main, with the options screen) and
 - Pictures of the menu with the mark on each line, and the press on SAVED GAMES and LEVEL SELECT (A at 3000 and Start at 3040 on LEVEL SELECT; A at 3260 and Start at 3300 on SAVED GAMES): the pictures every 2nd update from 2600 to 3418 and the task trace (`ALADDIN_TASK_TRACE=1`) are the same, byte for byte, as a run of the same keys without the presses (410 pictures; 22 trace lines, the last the menu's window effect at 2622); on the build before the change the same press at 3040 starts the fade (a task at 3040) and the options screen.
 
 
+## Save slots (2026-11-23, SAVES.md)
+
+- `native/checks/saves/saves_build.sh OUT` then `OUT DIR`: the slot files with a fake snapshot (system/saves.c): written, read back, loaded; refused whole with a wrong layout mark, a byte too many, cut short, a bit changed in the snapshot or in the crop, a bad magic; a failed write (the temporary's name taken) leaves the old slot. 14 lines, all ok.
+- `native/checks/pause_check/grid_build.sh OUT` then `OUT BASE.ppm W H game|title PAGE SEL ASK USED OUT.ppm [CROP.ppm]`: the slots' screen over a game picture (pictures in `docs/aladdin/native/shots/saves-*.png`); the crop equals the picture's own pixels (0 of 6,912 differ).
+- A developer's picture (`ALADDIN_DEV_SHOTS`) is also taken while the pause menu is open; the headless renderer draws no overlays, so the screens are composed by these tools as `pause_check menu` composes the pause menu.
+- `native/checks/saves/exact.sh BIN A_PLAY U LEN B_PLAY V [fault]` (header of the script; `EXACT_A_ENV`, `EXACT_UI`, `EXACT_MENU_SAVE`): a save at update U of one run loaded at update V of another (or from the title through SAVED GAMES by keys, `title_load_keys.txt`); the traces from the load on are the same, update for update; results in SAVES.md (7 runs: 6 same, the planted fault caught).
 ## Runahead (developer variables and checks; FRAMERATE.md section 9)
 
 `ALADDIN_RUNAHEAD=N`: the ahead steps a tick takes after the real one. Default 1 in a window, 0 (off) in a headless run; 0 turns it
@@ -436,3 +442,16 @@ ticks (mean, the real step alone, median, 99th percentile, worst, how many over 
   (Metal build, a picture every update, drawn at between BETWEEN).
 - `native/checks/runahead/latency.sh MACOS_BIN "4100 key=27\n4200" [BETWEEN]`: the updates from a key press to the first change in the
   player's state and in the picture, with and without runahead, on level 0's start.
+
+## The snapshot (developer variables and checks; FRAMERATE.md section 10)
+
+`ALADDIN_DEV_SNAP_SAVE=FILE@U`: at the start of update U the snapshot (the world after update U - 1) is written to FILE and its size and time
+printed. `ALADDIN_DEV_SNAP_LOAD=FILE@L`: update L loads FILE and runs no step. `ALADDIN_DEV_KEPT_DUMP=U:FILE`: at update U the kept video parts' used
+bytes to FILE (with `ALADDIN_DEV_STATE_HASH=2` this finds which part differs).
+
+- `native/checks/snapshot/cross.sh MACOS_BIN PLAY S K [BASE_PLAY L]`: the snapshot across two processes, or with `SNAP_SAME=1` in one. Process A plays
+  PLAY and saves at S; a fresh process B plays BASE_PLAY (or the boot and the title) to update L, loads there and is given PLAY's keys from S on. K
+  updates of the trace and the state hash, and the picture of each update from the third, must be the same. `SNAP_SAVE_ENV` and `SNAP_LOAD_ENV` add
+  environment (the runahead, a view, a planted omission) to A and to B.
+- `native/checks/snapshot/pointers.sh`: the pointer members of every type the game state holds are the ones the snapshot writes as codes.
+- `python3 native/aladdin/tools/gen_code_table.py --check`: `actor/code_table.c` names every function a row of the kinds tables or an `ActorRunAs` names.

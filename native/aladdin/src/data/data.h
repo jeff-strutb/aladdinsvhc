@@ -24,6 +24,10 @@
    outside data/ */
 typedef struct DataRef { uint32_t at; } DataRef;
 
+/* the snapshot writes a pointer into the cartridge image as its offset, and takes it back */
+int data_cart_offset(const void *p, uint32_t *offset);      /* 1 when p is in the image */
+const uint8_t *data_cart_ptr(uint32_t offset);              /* NULL past the image */
+
 void data_load(void);           /* at init; ends the run with a message when cart.dat is missing or short */
 
 /* ---- sound: the upload lists (audio/spc_upload.c's SpcUpload, the table

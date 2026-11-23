@@ -3,6 +3,7 @@
  * task: the Mode 7 title, the demo or the story when left alone, the menu
  * and the level select.
  */
+#include "pause/save_screen.h"
 #include "game/game.h"
 #include "system/state.h"
 #include "system/system.h"
@@ -19,7 +20,7 @@
 #define ZOOM_ENDED 0x80         /* screen_signal's bit: the zoom task has ended */
 #define FULL_SIZE 0x0100        /* Mode 7's a and d at full size (8.8) */
 
-/* the menu's choices: the second and third have no screen yet (DEPARTURES.md: SAVED GAMES and LEVEL SELECT) */
+/* the menu's choices: SAVED GAMES opens the save slots' screen; LEVEL SELECT has none yet (DEPARTURES.md) */
 enum { MENU_START, MENU_SAVED_GAMES, MENU_LEVEL_SELECT };
 
 /* An actor's place in whole pixels, its fraction kept, as the original's
@@ -338,8 +339,10 @@ TaskRun TitleTask(Task *t)
                 }
                 break;
             }
+            if (PadConfirmPressed() && g.menu_choice == MENU_SAVED_GAMES)
+                save_screen_request_title();    /* the slots' screen opens from the next update (pause/save_screen.c) */
             if (!PadConfirmPressed() || g.menu_choice != MENU_START)
-                return task_wait(t, 1);     /* a press on SAVED GAMES or LEVEL SELECT does nothing */
+                return task_wait(t, 1);     /* a press on LEVEL SELECT does nothing yet */
             *at = TITLE_CHOSEN;
             return task_wait(t, 1);
         case TITLE_CHOSEN:

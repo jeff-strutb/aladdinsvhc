@@ -34,6 +34,8 @@
 /* The VRAM word address of a slot's tiles in the queue's `to` (VramQueueEntry): from here on, 16 words a tile of the slot tile set. */
 #define VRAM_SLOT_TILES 0x10000u
 
+unsigned slots_open_now(void);               /* the slots opened (the snapshot saves it) */
+void slots_adopt(unsigned open);             /* and puts it back */
 unsigned slots_count(void);                 /* the slots open now: 4 at 256 x 224; in a larger view, from 4 scaled by its area, more as needed */
 int slots_grow(unsigned count);             /* in a larger view, `count` slots open (at most SLOTS_MAX): 1 done, 0 not (256 x 224, or past SLOTS_MAX) */
 void video_slot_sets_make(unsigned count);  /* the tile sets for slots 5 to `count` made (video.c) */

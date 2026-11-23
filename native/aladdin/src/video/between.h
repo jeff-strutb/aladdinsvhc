@@ -43,10 +43,28 @@ void between_restore(void);
 uint64_t between_saved_hash(uint64_t h, int parts);   /* FNV-1a of what between_save kept; with `parts`, each part's on stderr */
 
 /* a part of the video state the picture reads that an update changes: kept as "was" with g (register at init) */
-void between_keep(void *p, size_t bytes);
+void between_keep_named(void *p, size_t bytes, const char *name);
+#define between_keep(p, bytes) between_keep_named((p), (bytes), #p)
 /* a kept part moved and grown (its contents so far kept): `old` is now `p`, `bytes` long */
-/* the developer's state hash leaves this kept part to its owner (it holds pointers) */
-void between_unhashed(const void *live);
+/* the part's owner hashes and snapshots it (it holds pointers or a handle): the generic hash and snapshot leave it */
+void between_owned(const void *live);
+/* the part's size follows the view (the sprite lists): the layout mark takes its name alone */
+void between_variable(const void *live, size_t elem, uint32_t (*count)(void));
+/* the kept parts, in registration order (the snapshot) */
+unsigned between_kept_count(void);
+void between_kept_at(unsigned i, const char **name, void **live, size_t *used, size_t *total, int *owned);
+
+/* a copy of what the game writes to an engine object, for the snapshot (the engine has no read back): register each object
+   made, by a stable name; tiles: how many and the bytes of one (planar: 8 times its bits per pixel); a map written by words:
+   its size. Level maps and Mode 7's are not shadowed (their words and arrays are saved) */
+void between_tiles_made(nshvc_tiles t, const char *name, uint32_t count, uint32_t bytes_per_tile);
+void between_map_made(nshvc_map m, const char *name, uint32_t w, uint32_t h);
+size_t between_art_size(void);
+size_t between_art_save(uint8_t *out);
+int between_art_check(const uint8_t *in, size_t len);
+void between_art_load(const uint8_t *in, size_t len, unsigned palette_entries);
+void between_rebase(void);
+uint64_t between_layout(uint64_t h);
 void between_rekeep(void *old, void *p, size_t bytes);
 
 /* while a picture draws (from "was"): whether it is eased, by how much, the live ("now") state and a kept part's now */

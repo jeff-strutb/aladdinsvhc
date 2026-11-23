@@ -7,8 +7,10 @@
 #include <string.h>
 #include <time.h>
 
+#include "system/runahead.h"
 #include "system/state.h"
 #include "video/between.h"
+#include "video/slot_gfx.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 
@@ -29,7 +31,10 @@ typedef struct Kept {
     void *now;                      /* at its newest step */
     void *aside;                    /* the live state, put aside while a picture draws from "was" */
     size_t bytes;
-    int unhashed;                   /* the developer's state hash leaves it to its owner (it holds pointers) */
+    int owned;                  /* its owner hashes and snapshots it (it holds pointers or a handle): the generic ones leave it */
+    size_t elem;                /* an array sized by the view (the sprite lists): the size of an element, and */
+    uint32_t (*count)(void);    /* how many the view uses; the layout mark takes the name alone, the snapshot and the hash the used part */
+    const char *name;
 } Kept;
 
 static Kept kept[KEPT_MAX];
@@ -58,7 +63,7 @@ static void *zalloc(size_t bytes)
     return p;
 }
 
-void between_keep(void *p, size_t bytes)
+void between_keep_named(void *p, size_t bytes, const char *name)
 {
     if (kept_count == KEPT_MAX) {
         fprintf(stderr, "between: more than %d kept parts\n", KEPT_MAX);
@@ -69,6 +74,7 @@ void between_keep(void *p, size_t bytes)
     kept[kept_count].now = zalloc(bytes);
     kept[kept_count].aside = zalloc(bytes);
     kept[kept_count].bytes = bytes;
+    kept[kept_count].name = name;
     kept_count++;
 }
 
@@ -85,11 +91,45 @@ static void *regrow(void *p, size_t old, size_t bytes)
     return q;
 }
 
-void between_unhashed(const void *live)
+void between_owned(const void *live)
 {
     for (unsigned i = 0; i < kept_count; i++)
         if (kept[i].live == live)
-            kept[i].unhashed = 1;
+            kept[i].owned = 1;
+}
+
+void between_variable(const void *live, size_t elem, uint32_t (*count)(void))
+{
+    for (unsigned i = 0; i < kept_count; i++)
+        if (kept[i].live == live) {
+            kept[i].elem = elem;
+            kept[i].count = count;
+        }
+}
+
+/* the part's bytes that matter: all of a fixed part; of an array sized by the view, the elements the view uses */
+static size_t kept_used(unsigned i)
+{
+    size_t used;
+
+    if (!kept[i].count)
+        return kept[i].bytes;
+    used = kept[i].elem * kept[i].count();
+    return used < kept[i].bytes ? used : kept[i].bytes;
+}
+
+unsigned between_kept_count(void)
+{
+    return kept_count;
+}
+
+void between_kept_at(unsigned i, const char **name, void **live, size_t *used, size_t *total, int *owned)
+{
+    *name = kept[i].name;
+    *live = kept[i].live;
+    *used = kept_used(i);
+    *total = kept[i].bytes;
+    *owned = kept[i].owned;
 }
 
 void between_rekeep(void *old, void *p, size_t bytes)
@@ -275,11 +315,14 @@ static void tracks_step(void)
     }
 }
 
+/* every track at rest on the live world: nothing is being eased (a start, or a snapshot's load) */
 static void tracks_start(void)
 {
-    win_prev = zalloc(sizeof *win_prev);
-    win_was = zalloc(sizeof *win_was);
-    win_now = zalloc(sizeof *win_now);
+    if (!win_prev) {
+        win_prev = zalloc(sizeof *win_prev);
+        win_was = zalloc(sizeof *win_was);
+        win_now = zalloc(sizeof *win_now);
+    }
     memcpy(win_prev, &g, sizeof g);
     memcpy(win_was, &g, sizeof g);
     memcpy(win_now, &g, sizeof g);
@@ -287,8 +330,13 @@ static void tracks_start(void)
     win_hash = video_lines_windows_hash();
     num_start(&m7_matrix);
     num_start(&m7_scale);
+    win_steps = 1;
+    win_at = updates;
     bright_now = g.brightness & 15;
     bright_from = bright_now * 256;
+    bright_steps = 0;
+    bright_at = updates;
+    m7_matrix.at = m7_scale.at = updates;
 }
 
 uint32_t between_brightness(void)
@@ -384,6 +432,105 @@ int32_t between_ease(int64_t was, int64_t now, unsigned frac_bits, unsigned bits
     return (int32_t)((at >> frac_bits) - (was >> frac_bits));
 }
 
+/* ---- a copy of what the game has written to the engine's tiles, maps and palette (the engine has no read back): the
+   snapshot's engine art (FRAMERATE.md section 10). A write is copied when it is held, never from an ahead step. ---- */
+
+enum { SH_TILES, SH_MAP };
+
+typedef struct Shadow {
+    char name[24];
+    uint8_t kind;
+    uint32_t id;                        /* the engine object's id in this process */
+    uint32_t unit;                      /* bytes a tile; a map's cell is 2 */
+    uint32_t units;                     /* tiles; map cells */
+    uint32_t w;                         /* a map's width */
+    uint8_t *data;
+} Shadow;
+
+#define SHADOW_MAX 32
+static Shadow shadows[SHADOW_MAX];
+static unsigned shadow_count;
+static uint16_t palette_shadow[PALETTE_ENTRIES];
+
+static Shadow *shadow_make(const char *name, uint8_t kind, uint32_t id, uint32_t unit, uint32_t units, uint32_t w)
+{
+    Shadow *s;
+
+    if (shadow_count == SHADOW_MAX) {
+        fprintf(stderr, "between: more than %d shadowed engine objects\n", SHADOW_MAX);
+        exit(2);
+    }
+    s = &shadows[shadow_count++];
+    snprintf(s->name, sizeof s->name, "%s", name);
+    s->kind = kind;
+    s->id = id;
+    s->unit = unit;
+    s->units = units;
+    s->w = w;
+    s->data = calloc(units, unit);
+    if (!s->data) {
+        fprintf(stderr, "between: no memory for a shadow of %u x %u bytes\n", units, unit);
+        exit(2);
+    }
+    return s;
+}
+
+void between_tiles_made(nshvc_tiles t, const char *name, uint32_t count, uint32_t bytes_per_tile)
+{
+    shadow_make(name, SH_TILES, t.id, bytes_per_tile, count, 0);
+}
+
+void between_map_made(nshvc_map m, const char *name, uint32_t w, uint32_t h)
+{
+    shadow_make(name, SH_MAP, m.id, 2, w * h, w);
+}
+
+static Shadow *shadow_of(uint8_t kind, uint32_t id)
+{
+    for (unsigned i = 0; i < shadow_count; i++)
+        if (shadows[i].kind == kind && shadows[i].id == id)
+            return &shadows[i];
+    return NULL;
+}
+
+static void shadow_tiles(uint32_t object, uint32_t first, const void *data, uint32_t count, size_t bytes)
+{
+    Shadow *s = shadow_of(SH_TILES, object);
+
+    if (!s || runahead_ahead())
+        return;
+    if (count == 0 || bytes != (size_t)count * s->unit || (uint64_t)first + count > s->units) {
+        fprintf(stderr, "between: a write of %u tiles (%zu bytes) at %u does not fit the shadow %s\n", count, bytes, first, s->name);
+        exit(2);
+    }
+    memcpy(s->data + (size_t)first * s->unit, data, bytes);
+}
+
+static void shadow_map(uint32_t object, uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *words)
+{
+    Shadow *s = shadow_of(SH_MAP, object);
+
+    if (!s || runahead_ahead())
+        return;
+    if ((uint64_t)x + w > s->w || (uint64_t)(y + h) * s->w > s->units) {
+        fprintf(stderr, "between: a map write of %u x %u at %u, %u does not fit the shadow %s\n", w, h, x, y, s->name);
+        exit(2);
+    }
+    for (uint32_t r = 0; r < h; r++)
+        memcpy(s->data + 2u * ((size_t)(y + r) * s->w + x), words + (size_t)r * w, 2u * w);
+}
+
+static void shadow_palette(uint32_t first, uint32_t count, const uint16_t *bgr15)
+{
+    if (runahead_ahead())
+        return;
+    if ((uint64_t)first + count > PALETTE_ENTRIES) {
+        fprintf(stderr, "between: a palette write of %u at %u is past the shadow\n", count, first);
+        exit(2);
+    }
+    memcpy(palette_shadow + first, bgr15, 2u * count);
+}
+
 /* ---- the held engine writes ---- */
 
 enum { HOLD_TILES, HOLD_MAP, HOLD_MAP_SNES, HOLD_PALETTE };
@@ -469,6 +616,7 @@ void between_tiles_write(nshvc_tiles t, uint32_t first, const void *data, uint32
 {
     Held *h;
 
+    shadow_tiles(t.id, first, data, count, bytes);
     if (!in_update) {
         nshvc_tiles_write(t, first, data, count, f);
         return;
@@ -500,6 +648,7 @@ void between_map_write_snes(nshvc_map m, uint32_t x, uint32_t y, uint32_t w, uin
 {
     Held *k;
 
+    shadow_map(m.id, x, y, w, h, words);
     if (!in_update) {
         nshvc_map_write_snes(m, x, y, w, h, words);
         return;
@@ -516,6 +665,7 @@ void between_palette_write(uint32_t first, uint32_t count, const uint16_t *bgr15
 {
     Held *h;
 
+    shadow_palette(first, count, bgr15);
     if (!in_update) {
         nshvc_palette_write(first, count, bgr15);
         return;
@@ -676,11 +826,11 @@ uint64_t between_saved_hash(uint64_t h, int parts)
         fprintf(stderr, " g=%016llx", (unsigned long long)one);
     h = (h ^ one) * 0x100000001b3ull;
     for (unsigned k = 0; k < kept_count; k++) {
-        if (kept[k].unhashed)
+        if (kept[k].owned)
             continue;
         one = 0xcbf29ce484222325ull;
         p = kept_saved[k];
-        for (size_t i = 0; i < kept[k].bytes; i++)
+        for (size_t i = 0; i < kept_used(k); i++)
             one = (one ^ p[i]) * 0x100000001b3ull;
         if (parts)
             fprintf(stderr, " k%u=%016llx", k, (unsigned long long)one);
@@ -1011,4 +1161,174 @@ void between_draw(float between)
     video_draw();
     drawing = 0;
     leave_was();
+}
+
+/* ---- the snapshot's engine art and picture (system/snapshot.c) ---- */
+
+/* The art as bytes: a count, then each shadowed object (name, kind, unit, units, bytes), then the palette's entries. */
+size_t between_art_size(void)
+{
+    size_t n = 4;
+
+    for (unsigned i = 0; i < shadow_count; i++)
+        n += 24 + 12 + (size_t)shadows[i].units * shadows[i].unit;
+    return n + 4 + sizeof palette_shadow;
+}
+
+static uint8_t *put32(uint8_t *o, uint32_t v)
+{
+    o[0] = (uint8_t)v; o[1] = (uint8_t)(v >> 8); o[2] = (uint8_t)(v >> 16); o[3] = (uint8_t)(v >> 24);
+    return o + 4;
+}
+
+static uint32_t get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+size_t between_art_save(uint8_t *out)
+{
+    uint8_t *o = put32(out, shadow_count);
+
+    for (unsigned i = 0; i < shadow_count; i++) {
+        const Shadow *s = &shadows[i];
+        size_t bytes = (size_t)s->units * s->unit;
+
+        memcpy(o, s->name, 24);
+        o = put32(o + 24, s->kind);
+        o = put32(o, s->unit);
+        o = put32(o, s->units);
+        memcpy(o, s->data, bytes);
+        o += bytes;
+    }
+    o = put32(o, PALETTE_ENTRIES);
+    for (unsigned i = 0; i < PALETTE_ENTRIES; i++) {
+        o[2 * i] = (uint8_t)palette_shadow[i];
+        o[2 * i + 1] = (uint8_t)(palette_shadow[i] >> 8);
+    }
+    return (size_t)(o + 2u * PALETTE_ENTRIES - out);
+}
+
+/* the file's entry for a name, or NULL; checks the entry's shape against the shadow (1 when whole) */
+static const uint8_t *art_entry(const uint8_t *in, size_t len, const char *name, const Shadow *s, size_t *at_end)
+{
+    size_t at = 4;
+    uint32_t n = len >= 4 ? get32(in) : 0;
+
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t kind, unit, units;
+        size_t bytes;
+
+        if (at + 36 > len)
+            return NULL;
+        kind = get32(in + at + 24);
+        unit = get32(in + at + 28);
+        units = get32(in + at + 32);
+        bytes = (size_t)unit * units;
+        if (at + 36 + bytes > len)
+            return NULL;
+        if (!strncmp((const char *)in + at, name, 24)) {
+            if (s && (kind != s->kind || unit != s->unit || units != s->units))
+                return NULL;
+            if (at_end)
+                *at_end = at + 36 + bytes;
+            return in + at + 36;
+        }
+        at += 36 + bytes;
+    }
+    if (at_end)
+        *at_end = at;
+    return NULL;
+}
+
+/* whether `in` holds every object this process shadows, each of the shape it has, and the palette; the slot sets (as many as the
+   view had) may be more or fewer: a set the file lacks is zeroed, one only the file has is made by the view it brings */
+int between_art_check(const uint8_t *in, size_t len)
+{
+    size_t end = 0;
+
+    if (len < 4)
+        return 0;
+    for (unsigned i = 0; i < shadow_count; i++)
+        if (strncmp(shadows[i].name, "slot_set.", 9) && !art_entry(in, len, shadows[i].name, &shadows[i], NULL))
+            return 0;
+    art_entry(in, len, "", NULL, &end);
+    return end + 4 + 2u * PALETTE_ENTRIES <= len && get32(in + end) == PALETTE_ENTRIES;
+}
+
+/* the art put back whole: every shadowed object written from the file's bytes, the palette up to `palette_entries` */
+void between_art_load(const uint8_t *in, size_t len, unsigned palette_entries)
+{
+    size_t end = 0;
+
+    for (unsigned i = 0; i < shadow_count; i++) {
+        Shadow *s = &shadows[i];
+        const uint8_t *from = art_entry(in, len, s->name, s, NULL);
+
+        if (from)
+            memcpy(s->data, from, (size_t)s->units * s->unit);
+        else
+            memset(s->data, 0, (size_t)s->units * s->unit);
+        if (s->kind == SH_TILES)
+            nshvc_tiles_write((nshvc_tiles){ s->id }, 0, s->data, s->units, NSHVC_TILES_PLANAR);
+        else
+            nshvc_map_write_snes((nshvc_map){ s->id }, 0, 0, s->w, s->units / s->w, (const uint16_t *)(const void *)s->data);
+    }
+    art_entry(in, len, "", NULL, &end);
+    for (unsigned i = 0; i < PALETTE_ENTRIES; i++)
+        palette_shadow[i] = (uint16_t)(in[end + 4 + 2 * i] | in[end + 5 + 2 * i] << 8);
+    if (palette_entries > PALETTE_ENTRIES)
+        palette_entries = PALETTE_ENTRIES;
+    nshvc_palette_write(0, palette_entries < 256 ? palette_entries : 256, palette_shadow);
+    if (palette_entries > 256)
+        nshvc_palette_write(256, palette_entries - 256, palette_shadow + 256);
+}
+
+/* After a load: the live world is the world's newest and its step before, nothing is held for the engine (the load wrote its art
+   itself), and every track (the brightness, the windows, Mode 7, the slow motion) is at rest on it: the picture shows the
+   loaded world from its first picture, and an effect that was between two steps shows its newest value (FRAMERATE.md 10.2) */
+void between_rebase(void)
+{
+    held_count = 0;
+    held_to_step = 0;
+    hold_used = 0;
+    memcpy(&g_was, &g, sizeof g);
+    memcpy(&g_now, &g, sizeof g);
+    for (unsigned i = 0; i < kept_count; i++) {
+        memcpy(kept[i].was, kept[i].live, kept[i].bytes);
+        memcpy(kept[i].now, kept[i].live, kept[i].bytes);
+    }
+    world_at = updates;
+    world_steps = 1;
+    play_turned = 0;
+    last_turn = updates;
+    slow = 0;
+    have_was = 1;
+    in_update = 0;
+    if (win_prev)
+        tracks_start();
+}
+
+/* the layout of what this file keeps, folded into a hash: the kept parts and the shadows */
+uint64_t between_layout(uint64_t h)
+{
+#define FOLD(v) h = (h ^ (uint64_t)(v)) * 0x100000001b3ull
+    for (unsigned i = 0; i < kept_count; i++) {
+        for (const char *c = kept[i].name; *c; c++)
+            FOLD((uint8_t)*c);
+        FOLD(kept[i].owned);
+        FOLD(kept[i].count ? kept[i].elem : kept[i].bytes);
+    }
+    for (unsigned i = 0; i < shadow_count; i++) {
+        if (!strncmp(shadows[i].name, "slot_set.", 9))
+            continue;                   /* how many there are follows the view */
+        for (const char *c = shadows[i].name; *c; c++)
+            FOLD((uint8_t)*c);
+        FOLD(shadows[i].kind);
+        FOLD(shadows[i].unit);
+        FOLD(shadows[i].units);
+    }
+    FOLD(PALETTE_ENTRIES);
+#undef FOLD
+    return h;
 }

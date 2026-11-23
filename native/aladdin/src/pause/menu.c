@@ -21,6 +21,8 @@
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
 #include "pause/menu_art.h"
+#include "pause/save_screen.h"
+#include "pause/slot_grid.h"
 #include "system/screen_mode.h"
 #include "system/settings.h"
 #include "system/state.h"
@@ -110,6 +112,13 @@ void menu_draw(void)
     int d;
     MenuView v;
 
+    if (slot_grid_is_open()) {           /* the save screen is over it */
+        if (m.drawn) {
+            overlays_off();
+            m.drawn = 0;
+        }
+        return;
+    }
     if (!m.open) {
         if (m.drawn) {
             overlays_off();
@@ -191,27 +200,37 @@ static int move(int i, uint16_t dir)
                 return j;
         return i;
     }
-    if (dir & PAD_UP) {
-        if (i == MENU_RESUME || i == MENU_DEFAULTS) {
-            int j;
+    {
+        /* RESUME DEFAULTS / SAVE MENU FULL SCREEN / QUIT: the neighbour in the direction, FULL SCREEN skipped where not offered */
+        static const int col[MENU_ITEMS - MENU_TAGS] = { 0, 1, 0, 1, 0 }, row[MENU_ITEMS - MENU_TAGS] = { 0, 0, 1, 1, 2 };
+        int c = col[i - MENU_TAGS], r = row[i - MENU_TAGS], j, best = i;
 
+        if (dir & PAD_UP && r == 0) {
             for (j = 0; j < MENU_TAGS; j++)
-                if (menu_tags[j].row == 5 && menu_tags[j].right == (i == MENU_DEFAULTS))
+                if (menu_tags[j].row == 5 && menu_tags[j].right == c)
                     return j;
+            return i;
         }
-        return i == MENU_FULL ? MENU_RESUME : i == MENU_QUIT ? MENU_DEFAULTS : i;
+        if (dir & PAD_UP) r--;
+        else if (dir & PAD_DOWN) r++;
+        else c = !c;
+        for (j = MENU_TAGS; j < MENU_ITEMS; j++) {
+            if (j == MENU_FULL && !full)
+                continue;
+            if (row[j - MENU_TAGS] == r && col[j - MENU_TAGS] == c)
+                return j;
+            if (row[j - MENU_TAGS] == r && (dir & (PAD_UP | PAD_DOWN)) && best == i)
+                best = j;
+        }
+        return best;
     }
-    if (dir & PAD_DOWN)
-        return i == MENU_RESUME ? (full ? MENU_FULL : MENU_QUIT) : i == MENU_DEFAULTS ? MENU_QUIT : i;
-    if (i == MENU_RESUME || i == MENU_DEFAULTS)
-        return i == MENU_RESUME ? MENU_DEFAULTS : MENU_RESUME;
-    return full ? (i == MENU_FULL ? MENU_QUIT : MENU_FULL) : i;
 }
 
 /* ---- opening, shutting, choosing ---- */
 
 static void open_menu(void)
 {
+    save_screen_capture();              /* the picture the saves show: the game as it stands, before the menu is over it */
     m.open = 1;
     m.requested = 0;
     m.chosen = MENU_RESUME;
@@ -265,6 +284,9 @@ static int activate(int item, uint16_t held)
         controls_defaults();
         settings_save();
         break;
+    case MENU_SAVE:
+        save_screen_open(SAVE_FROM_GAME);
+        break;
     case MENU_FULL:
         screen_mode_set(!screen_mode_full());
         break;
@@ -292,6 +314,26 @@ int menu_update(const nshvc_input *in)
     int esc = NSHVC_KEY_PRESSED(in, KEY_ESCAPE) != 0, click = 0, item = -1;
 
     m.last = raw;
+    if (save_screen_requested() && !slot_grid_is_open())
+        save_screen_open(SAVE_FROM_TITLE);
+    if (slot_grid_is_open()) {          /* the save screen: the game is held; the menu stays as it was under it */
+        int r = save_screen_update(in);
+
+        if (r == SAVE_SCREEN_LOADED) {  /* the game is the one saved: the menu is shut without the pause's cooldown */
+            m.open = 0;
+            m.asking = -1;
+            m.quit_asked = 0;
+            controls_swallow(held);
+            sound(SOUND_MUSIC_GO_ON);
+            return 1;                   /* a load is the last thing its update does (snapshot.h) */
+        } else if (r == SAVE_SCREEN_BACK) {
+            controls_swallow(held);     /* what shut it must not reach the game or open it again */
+            if (m.open)
+                m.chosen = MENU_SAVE;
+        }
+        SoundCommandSend();
+        return 1;
+    }
     if (!m.open) {
         ctl_last = in->controller[0].on ? in->controller[0].buttons : 0;
         m.pointer_down = (in->pointer.buttons & 1) != 0;

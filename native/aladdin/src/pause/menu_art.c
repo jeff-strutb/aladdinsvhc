@@ -49,11 +49,11 @@ static const struct { float x, y, r; } spots[MENU_TAGS] = {
 #define TAG_X(right) ((right) ? MENU_W - 6 - TAG_W : 6)
 #define TAG_Y(row) (34 + 28 * (row))
 #define HINT_Y 208
-#define ITEM_Y(row) (230 + 22 * (row))
+#define ITEM_Y(row) (226 + 17 * (row))
 #define ITEM_HAND_X(col) ((col) ? 190 : 34)
 #define ITEM_TEXT_X(col) ((col) ? 220 : 64)
 #define ITEM_W 138
-#define ITEM_H 22
+#define ITEM_H 16
 
 static uint32_t rgb(uint16_t c)
 {
@@ -127,6 +127,25 @@ static void tile(Art *a, int t, int pal, int x, int y, int s)
     }
 }
 
+/* the text tiles are the original's: its punctuation is not at ASCII's places (tiles $21-$2F: $ L ' ! ? ; : , . " ( ) X - =) */
+static int font_tile(int ch)
+{
+    switch (ch) {
+    case '\'': return 0x23;
+    case '!': return 0x24;
+    case '?': return 0x25;
+    case ':': return 0x27;
+    case ',': return 0x28;
+    case '.': return 0x29;
+    case '"': return 0x2A;
+    case '(': return 0x2B;
+    case ')': return 0x2C;
+    case '-': return 0x2E;
+    case '=': return 0x2F;
+    default: return ch;
+    }
+}
+
 static void text(Art *a, const char *s, int pal, int x, int y, int scale)
 {
     for (; *s; s++, x += 8 * scale) {
@@ -134,6 +153,7 @@ static void text(Art *a, const char *s, int pal, int x, int y, int scale)
 
         if (ch >= 'a' && ch <= 'z')
             ch -= 32;
+        ch = font_tile(ch);
         if (ch != ' ')
             tile(a, ch, pal, x, y, scale);
     }
@@ -174,11 +194,10 @@ static void frame(Art *a, int x, int y, int w, int h, uint32_t outer, uint32_t m
     rect(a, x + 3, y + 3, 1, h - 6, outer); rect(a, x + w - 4, y + 3, 1, h - 6, outer);
 }
 
-void menu_art_static(uint32_t *px, int d)
+void menu_art_panel(uint32_t *px, int d, const char *title)
 {
     Art a = { px, d };
     uint32_t dark, mid, light;
-    static const char title[] = "PAUSED";
     int i;
 
     menu_art_start();
@@ -195,6 +214,52 @@ void menu_art_static(uint32_t *px, int d)
     text(&a, title, PAL_PINK, (MENU_W - text_w(title) * 2) / 2, 10, 2);
     rect(&a, 20, 30, MENU_W - 40, 1, dark);
     rect(&a, 20, 31, MENU_W - 40, 1, mid);
+}
+
+void menu_art_text(uint32_t *px, int d, const char *s, int pal, int x, int y, int scale)
+{
+    Art a = { px, d };
+
+    menu_art_start();
+    text(&a, s, pal, x, y, scale);
+}
+
+int menu_art_text_w(const char *s) { return text_w(s); }
+
+void menu_art_hand(uint32_t *px, int d, int x, int y)
+{
+    Art a = { px, d };
+
+    menu_art_start();
+    hand(&a, x, y);
+}
+
+void menu_art_box(uint32_t *px, int d, int x, int y, int w, int h, int bright)
+{
+    Art a = { px, d };
+
+    menu_art_start();
+    frame(&a, x, y, w, h, colour[PAL_GOLD][3], bright ? colour[PAL_CREAM][2] : colour[PAL_GOLD][2], bright ? colour[PAL_CREAM][1] : colour[PAL_GOLD][1]);
+}
+
+void menu_art_blit(uint32_t *px, int d, int x, int y, const uint32_t *src, int w, int h)
+{
+    Art a = { px, d };
+    int i, j;
+
+    for (j = 0; j < h; j++)
+        for (i = 0; i < w; i++)
+            rect(&a, x + i, y + j, 1, 1, src[j * w + i]);
+}
+
+void menu_art_static(uint32_t *px, int d)
+{
+    Art a = { px, d };
+    uint32_t dark, mid;
+    int i;
+
+    menu_art_panel(px, d, "PAUSED");
+    dark = colour[PAL_GOLD][3], mid = colour[PAL_GOLD][2];
     rect(&a, 20, 203, MENU_W - 40, 1, dark);
     rect(&a, 20, 204, MENU_W - 40, 1, mid);
     pad_draw(px, MENU_W * d, MENU_H * d, (float)d, PAD_K, PAD_CX, PAD_CY);
@@ -245,6 +310,7 @@ static void item_text(int item, const MenuView *v, char *out, size_t n)
     switch (item) {
     case MENU_RESUME: strncpy(out, "RESUME", n); break;
     case MENU_DEFAULTS: strncpy(out, "DEFAULTS", n); break;
+    case MENU_SAVE: strncpy(out, "SAVE MENU", n); break;
     case MENU_FULL: strncpy(out, v->full_on ? "FULL SCREEN ON" : "FULL SCREEN OFF", n); break;
     default: strncpy(out, v->quit_asked ? "REALLY QUIT" : "QUIT", n); break;
     }
@@ -253,8 +319,9 @@ static void item_text(int item, const MenuView *v, char *out, size_t n)
 
 static void item_place(int item, int *col, int *row)
 {
-    *col = (item == MENU_DEFAULTS || item == MENU_QUIT);
-    *row = item >= MENU_FULL;
+    /* RESUME and DEFAULTS; SAVE MENU and FULL SCREEN; QUIT */
+    *col = (item == MENU_DEFAULTS || item == MENU_FULL);
+    *row = item >= MENU_QUIT ? 2 : item >= MENU_SAVE;
 }
 
 void menu_art_dynamic(uint32_t *px, int d, const MenuView *v)

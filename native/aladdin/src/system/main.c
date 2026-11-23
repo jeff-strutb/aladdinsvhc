@@ -18,6 +18,7 @@
 #include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
+#include "pause/slot_grid.h"
 #include "system/runahead.h"
 #include "system/screen_mode.h"
 #include "system/settings.h"
@@ -176,9 +177,14 @@ static void update(const nshvc_input *input)
     nshvc_input bot, select;
 
     runahead_begin();           /* the real world back, if the last tick ran ahead */
+    DevSnapshotSave(nshvc_updates());
     if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
         input = &select;
     between_update_begin();
+    if (DevSnapshotLoad(nshvc_updates())) {     /* a snapshot's load: no step in this update */
+        between_update_end();
+        return;
+    }
     if (DevMapDumpHeld()) {
         NmiPictureWork();
         between_update_end();
@@ -186,7 +192,12 @@ static void update(const nshvc_input *input)
     }
     record_input(input);
     screen_mode_update();
+    if (DevSaves(nshvc_updates())) {    /* a developer's load ended the update (dev_saves.c) */
+        between_update_end();
+        return;
+    }
     if (menu_update(input)) {   /* the pause menu is open: no step; the picture holds the world the last step left */
+        DevShot(nshvc_updates());   /* the developer's pictures go on, the menu in them */
         between_update_end();
         return;
     }
@@ -208,6 +219,7 @@ static void draw(float between)
     pictures++;
     between_draw(between);
     menu_draw();                /* the pause menu over the picture, from its own state (outside g), at once */
+    slot_grid_draw();           /* the save slots' screen, likewise */
 }
 
 static void shutdown(void)

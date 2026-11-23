@@ -125,5 +125,6 @@ void driver_start(const SoundData *data);
 void driver_tick(void);
 void driver_command(uint8_t command, uint16_t fade_speed, int8_t offset);
 void driver_song(uint16_t at, const uint8_t *bytes, uint16_t length);
+void driver_reapply(void);          /* after a snapshot put the state in: the engine given it all again, every voice keyed off */
 
 #endif
