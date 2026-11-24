@@ -212,6 +212,35 @@ and Direct3D 12's waitable object starts each picture at the swap chain's signal
 picture is off its moment but at a missed refresh, which no timing of the request can give back. Jeff, 2026-11-23, asked whether to
 count D1 as done by D2 or build a display-link timing anyway: "Done by D2". No separate D1 is made.
 
+## 6. A sprite's fraction across a strip's edge (Jeff, 2026-11-23): API 6.14.1, nativeshvc branch `sprite-y-sub`, not committed to main
+
+**What the game saw.** On the lava level ($06) the fireballs, sprites of several 8 x 8 pieces, showed a one-pixel line of the
+backdrop's colour across them every 8 rows when the picture was drawn between updates (`y_sub` not 0). The level's brightness
+steps down one level every 8 rows (`NSHVC_LINE_BRIGHTNESS`, 16 runs), which cuts the picture into strips of 8 rows; the
+lines were on each strip's first row (41, 49, 57, ...). With `ALADDIN_DEV_WHOLE_PIXELS=1`, with the per-line brightness
+left out, or with `y_sub` 0 the lines were not there.
+
+**Cause (in the engine).** `src/engine/shaders/sprites.vert` kept each piece to the strip's rectangle by its whole place
+(`keep_to`), then added its fraction to the vertices. A strip's draw is kept to its own rows, so the part of the piece the
+fraction moved across the strip's lower edge was lost to that strip and not drawn by the next, whose clipped piece began
+the fraction's width below its top edge: a bare band along each strip's first row, the fraction's share of it (0.39 of
+the row at `y_sub` 99, the backdrop mixed into the pixel).
+
+**Jeff's decision, 2026-11-23:** "Fix it in the engine", and keep the smooth vertical motion. The game had first been given
+whole rows (`56b11661`, y_sub 0), which hid the lines at the cost of the smooth motion; that is reverted (`bb794c3e`):
+`sprites_ease` passes the fraction again.
+
+**What the engine gained.** None to the API: the piece is moved by its fraction, then kept to the rectangle drawn. API
+6.14.1 (a patch: a fix to what the document describes). In nativeshvc: `src/engine/shaders/sprites.vert` and the
+shaders built from it (`src/render/shaders/build.sh`: `rr_msl.h`, `rr_spv.h`, `rr_dxil.h`), `docs/api.md`,
+`include/nshvc/nshvc.h`, `README.md`, `tests/scenes/sprite_y_sub.c`.
+
+**How it was checked.** `tests/scenes/sprite_y_sub.c` (six pieces stacked, brightness stepping every 8 rows, `y_sub` 0, 64, 99,
+128, 200, 255, 1 window pixel a screen pixel): before the change 5 rows of each of 5 scenarios were mixed with the
+backdrop's green (rows 41, 49, 57, 65, 73); after it none, and `subpixel` is unchanged. In the game (level $06, 384 x 224,
+the picture at 0.3, 0.5 and 0.8 between updates, built against the engine branch): the rows that were mixed with the backdrop (41, 49, 57 at
+column 364) are the sprite's own colour, and the fireball's height differs between the three pictures (the fraction is passed again).
+
 ## Considered, no request
 
 - **The echo buffer's address (ESA).** The driver sets it (`sound_driver.c:1623`), and the engine has no call for
