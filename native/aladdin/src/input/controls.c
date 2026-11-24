@@ -1,5 +1,5 @@
 /*
- * controls.c: pad 1's buttons from the keys and the first controller through the player's bindings (the defaults are the
+ * controls.c: pad 1's buttons from the keys and every controller through the player's bindings (the defaults are the
  * game's own, as they were before the menu could change them); pad 2's from the engine's defaults.
  */
 #include <string.h>
@@ -35,9 +35,117 @@ static void start(void)
     }
 }
 
+/* ---- the controllers as devices ----
+ *
+ * Every connected controller plays pad 1 and works the menus, not the engine's first alone: a host lists devices in its
+ * own order (a Steam Deck's own controls, Steam Input's or DS4Windows' virtual pad, a wheel or a headset can come first),
+ * so a pad that is not controller 0 was ignored everywhere. What a controller holds as it appears is its rest, not a
+ * press (a virtual pad's state, a drifting stick), and it counts for nothing until let go: else one such device held a
+ * button down for good. A device is known by its index and seq (nshvc.h, 6.11): seq changes when another device takes
+ * the index. seq 0 is a device the engine did not see connect (an --input replay, the developer's inputs): no rest.
+ * controls_sample keeps this, once an update on the real input, outside the steps: it is the devices', not the world's. */
+
+enum { CONTROLLERS = 8 };
+enum { STICK_UP = 1u << 16, STICK_DOWN = 1u << 17, STICK_LEFT = 1u << 18, STICK_RIGHT = 1u << 19 };
+#define STICK_ON 0.5f                   /* a direction comes on with the left stick half way over */
+#define STICK_OFF 0.35f                 /* and goes off a third of the way back, so a stick near half way does not flicker */
+
+static uint8_t ctl_here[CONTROLLERS];   /* connected at the last sample */
+static uint32_t ctl_seq[CONTROLLERS];   /* its seq then */
+static uint32_t ctl_was[CONTROLLERS];   /* its buttons and stick directions then */
+static uint32_t ctl_rest[CONTROLLERS];  /* what it held as it appeared, until each is let go */
+static uint32_t ctl_stick[CONTROLLERS]; /* its left stick as STICK_* */
+static int ctl_in_use = -1;             /* the controller pressed last: its names are the tags' */
+
+static uint32_t stick_of(const nshvc_input *in, int c)
+{
+    uint32_t was = ctl_stick[c], s = 0;
+    float x = in->controller[c].lx, y = in->controller[c].ly;
+
+    if (y < (was & STICK_UP ? -STICK_OFF : -STICK_ON)) s |= STICK_UP;
+    if (y > (was & STICK_DOWN ? STICK_OFF : STICK_ON)) s |= STICK_DOWN;
+    if (x < (was & STICK_LEFT ? -STICK_OFF : -STICK_ON)) s |= STICK_LEFT;
+    if (x > (was & STICK_RIGHT ? STICK_OFF : STICK_ON)) s |= STICK_RIGHT;
+    return s;
+}
+
+void controls_sample(const nshvc_input *in)
+{
+    int c;
+
+    for (c = 0; c < CONTROLLERS; c++) {
+        uint32_t now, fresh;
+
+        if (!in->controller[c].on) {
+            ctl_here[c] = 0;
+            ctl_stick[c] = 0;
+            if (ctl_in_use == c)
+                ctl_in_use = -1;
+            continue;
+        }
+        if (ctl_here[c] && in->controller[c].seq != ctl_seq[c]) {
+            ctl_here[c] = 0;            /* another device at this index: first seen again */
+            ctl_stick[c] = 0;
+            if (ctl_in_use == c)
+                ctl_in_use = -1;
+        }
+        ctl_seq[c] = in->controller[c].seq;
+        ctl_stick[c] = stick_of(in, c);
+        now = in->controller[c].buttons | ctl_stick[c];
+        if (!ctl_here[c]) {
+            ctl_here[c] = 1;
+            ctl_was[c] = in->controller[c].seq ? now : 0;
+            ctl_rest[c] = ctl_was[c];
+        }
+        fresh = now & ~ctl_was[c];
+        ctl_rest[c] &= now;
+        ctl_was[c] = now;
+        if (fresh)
+            ctl_in_use = c;
+    }
+}
+
+/* controller c's buttons and stick directions now, less its rest; 0 when it is not connected. The rest applies only to
+   the device it was taken from (the same index and seq), so the developer's own inputs are read whole. */
+static uint32_t ctl_state(const nshvc_input *in, int c)
+{
+    uint32_t now, rest = 0;
+
+    if (!in->controller[c].on)
+        return 0;
+    now = in->controller[c].buttons;
+    if (ctl_here[c] && in->controller[c].seq == ctl_seq[c]) {
+        now |= ctl_stick[c];
+        rest = ctl_rest[c];
+    }
+    return now & ~rest;
+}
+
+uint16_t controls_ctl_buttons(const nshvc_input *in)
+{
+    uint32_t all = 0;
+    int c;
+
+    for (c = 0; c < CONTROLLERS; c++)
+        all |= ctl_state(in, c);
+    return (uint16_t)all;
+}
+
+int controls_controller(void)
+{
+    int c;
+
+    if (ctl_in_use >= 0 && ctl_here[ctl_in_use])
+        return ctl_in_use;
+    for (c = 0; c < CONTROLLERS; c++)
+        if (ctl_here[c])
+            return c;
+    return 0;
+}
+
 static uint16_t pad_of(const nshvc_input *input, unsigned pad, int mine)
 {
-    uint16_t now = 0;
+    uint16_t now = 0, ctl;
     int b, alias = 1;
 
     if (!input)
@@ -56,9 +164,24 @@ static uint16_t pad_of(const nshvc_input *input, unsigned pad, int mine)
         if (alias && NSHVC_KEY_HELD(input, KEY_RIGHT_SHIFT))
             now |= PAD_SELECT;
     }
-    if (input->controller[pad].on)
+    /* pad 1: every controller through the bindings; pad 2 (which nothing reads): the second, as the engine's defaults */
+    if (pad == 0) {
+        uint32_t all = 0;
+
+        for (b = 0; b < CONTROLLERS; b++)
+            all |= ctl_state(input, b);
+        /* the left stick is the d-pad: each direction as the d-pad's button, so it follows the d-pad's bindings */
+        if (all & STICK_UP) all |= NSHVC_CTL_UP;
+        if (all & STICK_DOWN) all |= NSHVC_CTL_DOWN;
+        if (all & STICK_LEFT) all |= NSHVC_CTL_LEFT;
+        if (all & STICK_RIGHT) all |= NSHVC_CTL_RIGHT;
+        ctl = (uint16_t)all;
+    } else {
+        ctl = (uint16_t)ctl_state(input, 1);
+    }
+    if (ctl)
         for (b = 0; b < CONTROLS_BUTTONS; b++)
-            if (input->controller[pad].buttons & (pad == 0 ? ctl_of[b] : k_ctl[b])) {
+            if (ctl & (pad == 0 ? ctl_of[b] : k_ctl[b])) {
                 now |= controls_buttons[b];
                 if (mine && pad == 0)
                     source = CONTROLS_CONTROLLER;
@@ -151,14 +274,13 @@ int controls_source(void) { return source; }
 #define KEY_ESCAPE 0x1B
 #define KEY_PAGE_UP 0x21
 #define KEY_PAGE_DOWN 0x22
-#define STICK 0.5f                      /* how far the left stick must lean to move a menu */
 
 static char name_confirm[12] = "START", name_back[12] = "SELECT", name_prev[12] = "L", name_next[12] = "R";
 
 /* a controller's button as its style names it, upper case; "+" and "-" are no letters of the menu's font */
 static void ctl_name(char *out, uint16_t ctl, const char *generic)
 {
-    const char *s = nshvc_controller_label(0, ctl);
+    const char *s = nshvc_controller_label((uint32_t)controls_controller(), ctl);
     size_t n;
 
     if (s && !strcmp(s, "+"))
@@ -175,19 +297,22 @@ static void ctl_name(char *out, uint16_t ctl, const char *generic)
 void controls_menu_read(const nshvc_input *in, MenuKeys *k)
 {
     uint16_t dirs = 0, ctl = 0, ctl_down, dirs_down;
+    uint32_t state = 0;
     int key_any = 0, i;
 
     for (i = 0; i < 8; i++)
         if (in->keys_pressed[i])
             key_any = 1;
-    if (in->controller[0].on) {
-        float lx = in->controller[0].lx, ly = in->controller[0].ly;
-
-        ctl = in->controller[0].buttons;
-        if ((ctl & NSHVC_CTL_UP) || ly < -STICK) dirs |= PAD_UP;
-        if ((ctl & NSHVC_CTL_DOWN) || ly > STICK) dirs |= PAD_DOWN;
-        if ((ctl & NSHVC_CTL_LEFT) || lx < -STICK) dirs |= PAD_LEFT;
-        if ((ctl & NSHVC_CTL_RIGHT) || lx > STICK) dirs |= PAD_RIGHT;
+    for (i = 0; i < CONTROLLERS; i++)
+        state |= ctl_state(in, i);
+    if (state) {
+        ctl = (uint16_t)state;
+        if ((ctl & NSHVC_CTL_UP) || (state & STICK_UP)) dirs |= PAD_UP;
+        if ((ctl & NSHVC_CTL_DOWN) || (state & STICK_DOWN)) dirs |= PAD_DOWN;
+        if ((ctl & NSHVC_CTL_LEFT) || (state & STICK_LEFT)) dirs |= PAD_LEFT;
+        if ((ctl & NSHVC_CTL_RIGHT) || (state & STICK_RIGHT)) dirs |= PAD_RIGHT;
+    }
+    {
         ctl_name(name_confirm, NSHVC_CTL_MENU, "START");
         ctl_name(name_back, NSHVC_CTL_BACK, "SELECT");
         ctl_name(name_prev, NSHVC_CTL_LB, "L");

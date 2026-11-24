@@ -1,6 +1,7 @@
 /*
  * controls.h: the keys and controller buttons that make each of the SNES pad's twelve buttons for pad 1 (controls.c),
- * which the menu (pause/menu.c) lets the player change. Pad 2 is read as the engine's defaults: the game reads pad 1 alone.
+ * which the menu (pause/menu.c) lets the player change. Pad 2 is the second controller as the engine's defaults: the game
+ * reads pad 1 alone.
  */
 #ifndef ALADDIN_CONTROLS_H
 #define ALADDIN_CONTROLS_H
@@ -16,6 +17,13 @@ extern const uint16_t controls_buttons[CONTROLS_BUTTONS];
 /* pad `pad`'s buttons as the devices hold them now: for pad 1 the bindings, and any button held when the menu closed kept
    out until let go (controls_swallow); `raw` leaves that out (the menu's own reading). */
 uint16_t controls_pad(const nshvc_input *input, unsigned pad);
+/* Every connected controller plays pad 1 and works the menus. Once an update, on the real input before anything reads
+   it: what each controller held as it appeared (its rest) and the one pressed last. */
+void controls_sample(const nshvc_input *input);
+/* every controller's NSHVC_CTL_* buttons held now, less each one's rest */
+uint16_t controls_ctl_buttons(const nshvc_input *input);
+/* the controller whose names the tags give: the one pressed last, else the first connected (0 when none) */
+int controls_controller(void);
 uint16_t controls_pad_raw(const nshvc_input *input);
 void controls_swallow(uint16_t held);
 

@@ -15,6 +15,7 @@
 #include "audio/music.h"
 #include "data/data.h"
 #include "data/level_tables.h"
+#include "input/controls.h"
 #include "map/map.h"
 #include "nshvc/nshvc.h"
 #include "pause/menu.h"
@@ -182,6 +183,7 @@ static void update(const nshvc_input *input)
     DevSnapshotSave(nshvc_updates());
     if (DevLevelInput(nshvc_updates(), &select))  /* ALADDIN_DEV_LEVEL: the level select's keys stand for the person's */
         input = &select;
+    controls_sample(input);    /* the controllers as devices: each one's rest, the one pressed last (controls.h) */
     between_update_begin();
     if (DevSnapshotLoad(nshvc_updates())) {     /* a snapshot's load: no step in this update */
         between_update_end();
