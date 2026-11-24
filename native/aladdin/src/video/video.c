@@ -767,6 +767,16 @@ static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
     return 1;
 }
 
+/* Level 7's lava flow picture (BG2's first 256 x 256 pixels, repeating every 512) lies wholly outside the original's 256 x 224 screen when the
+   scroll puts the picture's far side at its edge, as the level's start does: the original showed nothing then, a wider view would show the
+   picture's end in the margin as a bar */
+static int picture_outside_screen(int32_t scroll_x, int32_t scroll_y)
+{
+    int32_t sx = -scroll_x & 511, sy = -scroll_y & 511;     /* where the picture's first column and row are on the screen, mod 512 */
+
+    return sx == 256 || (sy >= VIEW_ORIGINAL_H && sy <= 256);
+}
+
 static void draw_layers(void)
 {
     for (int i = 0; i < 3; i++) {
@@ -793,6 +803,8 @@ static void draw_layers(void)
             l.scroll_x = (int16_t)l.scroll_x + mx;
             l.scroll_y = (int16_t)l.scroll_y + my;
         }
+        if (i == 1 && video_level_view() && g.bg_map[1] == VIDEO_MAP_BACK_TALL && picture_outside_screen((int16_t)l.scroll_x, (int16_t)l.scroll_y))
+            l.enabled_main = l.enabled_sub = 0;
         if (i < 2 && video_level_view())
             l.scroll_x -= view.dx;
         if (i < 2 && !level_maps_active(i))
