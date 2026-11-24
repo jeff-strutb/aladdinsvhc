@@ -95,20 +95,19 @@ void PlayerHurtCountdown(Actor *a)
 /*
  * PlayerViewReach (no original: the wide view's walls, VIEW.md 4.4)
  * WHAT IT DOES: Says how many pixels his walls go past the original's
- * screen on each side: the view's margin (view.dx), but not past where the
- * camera can go (0, the level's layout, a lock's least and most), so the
- * fill past a level's end or a locked room is never walked on. At 256 wide
- * both are 0.
+ * screen on each side: the view's margin (view.dx), but not past the
+ * level's layout (0 and g.scroll_limit_x), so the fill past a level's end is
+ * never walked on. A scene's stop or lock (g.scroll_x_min, g.scroll_x_max)
+ * does not narrow it: what the view shows of the level round a locked
+ * arena he can walk on (Jeff, 2026-11-24). At 256 wide both are 0.
  */
 void PlayerViewReach(uint16_t *left, uint16_t *right)
 {
     uint16_t scroll = pixels(g.layers[0].scroll_x), most = g.scroll_limit_x, room;
 
     *left = *right = 0;
-    if (g.scroll_x_max < most)
-        most = g.scroll_x_max;
-    if (scroll > g.scroll_x_min) {
-        room = (uint16_t)(scroll - g.scroll_x_min);
+    if (scroll > 0) {
+        room = scroll;
         *left = room < view.dx ? room : (uint16_t)view.dx;
     }
     if (most > scroll) {
