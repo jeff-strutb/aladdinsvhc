@@ -38,6 +38,12 @@ RUNAHEAD_KEEP(mode7_cells)
 RUNAHEAD_KEEP(mode7_pixels)
 RUNAHEAD_KEEP(mode7_cells_changed)
 RUNAHEAD_KEEP(mode7_pixels_changed)
+/* BG2's 64 x 64 map at $3800-$47FF as the game's own words: a byte upload to the map (one half of each word, as the lava
+   flow's picture on level 7 is animated) keeps the other half */
+#define BACK_TALL_AT 0x3800
+#define BACK_TALL_WORDS 0x1000
+static uint16_t back_tall_words[BACK_TALL_WORDS];
+RUNAHEAD_KEEP(back_tall_words)
 static uint8_t mode7_up;            /* Mode7ScreenSetup ran since DisplayDefaults: writes reach Mode 7 */
 static uint8_t mode7_outside;       /* outside the plane transparent (Mode7ScreenSetup); else it repeats */
 
@@ -423,8 +429,10 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
             for (uint32_t i = 0; i < k; i++)
                 mode7_word(from + i, p[i]);
     }
-    if ((k = inside(first, n, 0x3800, 0x4800, &from)) != 0)
+    if ((k = inside(first, n, BACK_TALL_AT, BACK_TALL_AT + BACK_TALL_WORDS, &from)) != 0) {
+        memcpy(back_tall_words + (from - BACK_TALL_AT), w + (from - first), k * sizeof *w);
         map_part(maps[VIDEO_MAP_BACK_TALL], 0x3800, from, k, w + (from - first), 64);
+    }
     if ((k = inside(first, n, 0x4000, 0x4800, &from)) != 0)
         map_part(maps[VIDEO_MAP_BACK], 0x4000, from, k, w + (from - first), 32);
     if ((k = inside(first, n, 0x4800, 0x5000, &from)) != 0)
@@ -437,6 +445,23 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
         map_part(maps[VIDEO_MAP_TEXT], 0x5C00, from, k, w + (from - first), 32);
         text_map_part(from - 0x5C00, k, w + (from - first));
     }
+}
+
+/* `count` bytes at video address `address`, each the low or the high half of a word of BG2's map at $3800-$47FF, the other
+   half kept: the map's words written as they are then */
+static void back_tall_bytes(uint32_t address, const uint8_t *b, uint32_t count, int high)
+{
+    uint32_t first, last, i, n = inside(address, count, BACK_TALL_AT, BACK_TALL_AT + BACK_TALL_WORDS, &first);
+
+    if (!n)
+        return;
+    last = first + n;
+    for (i = first; i < last; i++) {
+        uint16_t *word = &back_tall_words[i - BACK_TALL_AT];
+
+        *word = high ? (uint16_t)((*word & 0x00FF) | b[i - address] << 8) : (uint16_t)((*word & 0xFF00) | b[i - address]);
+    }
+    write_words((uint16_t)first, back_tall_words + (first - BACK_TALL_AT), last - first);
 }
 
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how)
@@ -466,6 +491,7 @@ void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite ho
                 mode7_cells[(uint16_t)(address + i)] = b[i];
                 mode7_cells_changed = 1;
             }
+        back_tall_bytes(address, b, count, 0);
         break;
     case VRAM_HIGH_BYTES:
         for (uint32_t i = 0; i < count; i++)
@@ -473,6 +499,7 @@ void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite ho
                 mode7_pixels[(uint16_t)(address + i)] = b[i];
                 mode7_pixels_changed = 1;
             }
+        back_tall_bytes(address, b, count, 1);
         break;
     }
 }
@@ -740,6 +767,26 @@ static int layer_objects(int layer, nshvc_tiles *t, nshvc_map *m)
     return 1;
 }
 
+/* Level 7's lava flow picture (BG2's first 256 x 256 pixels, repeating every 512) lies wholly outside the original's 256 x 224 screen when the
+   scroll puts the picture's far side at its edge, as the level's start does: the original showed nothing then, a wider view would show the
+   picture's end in the margin as a bar */
+static int picture_outside_screen(int32_t scroll_x, int32_t scroll_y)
+{
+    int32_t sx = -scroll_x & 511, sy = -scroll_y & 511;     /* where the picture's first column and row are on the screen, mod 512 */
+
+    return sx == 256 || (sy >= VIEW_ORIGINAL_H && sy <= 256);
+}
+
+/* the picture's scroll as the copy of it the original's screen shows: the map repeats every 512 and the picture is 256, so the one copy
+   that can be on the original's screen is the one whose first column (row) is from 256 before the screen's edge to 255 after it; the
+   layer is drawn without repeating (draw_layers), so only that copy shows, in the margin too */
+static int32_t picture_scroll(int32_t scroll)
+{
+    int32_t at = -scroll & 511;
+
+    return -(at >= 256 ? at - 512 : at);
+}
+
 static void draw_layers(void)
 {
     for (int i = 0; i < 3; i++) {
@@ -766,6 +813,12 @@ static void draw_layers(void)
             l.scroll_x = (int16_t)l.scroll_x + mx;
             l.scroll_y = (int16_t)l.scroll_y + my;
         }
+        if (i == 1 && video_level_view() && g.bg_map[1] == VIDEO_MAP_BACK_TALL) {
+            if (picture_outside_screen(l.scroll_x, l.scroll_y))
+                l.enabled_main = l.enabled_sub = 0;
+            l.scroll_x = picture_scroll(l.scroll_x);
+            l.scroll_y = picture_scroll(l.scroll_y);
+        }
         if (i < 2 && video_level_view())
             l.scroll_x -= view.dx;
         if (i < 2 && !level_maps_active(i))
@@ -776,6 +829,8 @@ static void draw_layers(void)
         l.wrap = 1;
         if (i == 0 && video_title_view())
             l.wrap = 0;     /* the title's menu rows are BG1's text map (the title's mode-1 lines): drawn once at the original's frame, not repeated every 256 across the whole view (VIEW.md 6.5) */
+        if (i == 1 && video_level_view() && g.bg_map[1] == VIDEO_MAP_BACK_TALL)
+            l.wrap = 0;     /* level 7's lava flow picture, its scroll the copy the original's screen shows (picture_scroll): a wider view does not show the map's other copies of it beside the screen */
         if (i == 1 && video_level_view() && (uint8_t)g.level == 0x11 && video_lines_have_mode(2)) {
             /* the floor's columns (line_history.c), in the terms of the map BG2 draws: the level's, with its margin, or a
                video map (in the arena: $4800, 64 x 32) */
