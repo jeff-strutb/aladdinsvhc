@@ -38,6 +38,12 @@ RUNAHEAD_KEEP(mode7_cells)
 RUNAHEAD_KEEP(mode7_pixels)
 RUNAHEAD_KEEP(mode7_cells_changed)
 RUNAHEAD_KEEP(mode7_pixels_changed)
+/* BG2's 64 x 64 map at $3800-$47FF as the game's own words: a byte upload to the map (one half of each word, as the lava
+   flow's picture on level 7 is animated) keeps the other half */
+#define BACK_TALL_AT 0x3800
+#define BACK_TALL_WORDS 0x1000
+static uint16_t back_tall_words[BACK_TALL_WORDS];
+RUNAHEAD_KEEP(back_tall_words)
 static uint8_t mode7_up;            /* Mode7ScreenSetup ran since DisplayDefaults: writes reach Mode 7 */
 static uint8_t mode7_outside;       /* outside the plane transparent (Mode7ScreenSetup); else it repeats */
 
@@ -423,8 +429,10 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
             for (uint32_t i = 0; i < k; i++)
                 mode7_word(from + i, p[i]);
     }
-    if ((k = inside(first, n, 0x3800, 0x4800, &from)) != 0)
+    if ((k = inside(first, n, BACK_TALL_AT, BACK_TALL_AT + BACK_TALL_WORDS, &from)) != 0) {
+        memcpy(back_tall_words + (from - BACK_TALL_AT), w + (from - first), k * sizeof *w);
         map_part(maps[VIDEO_MAP_BACK_TALL], 0x3800, from, k, w + (from - first), 64);
+    }
     if ((k = inside(first, n, 0x4000, 0x4800, &from)) != 0)
         map_part(maps[VIDEO_MAP_BACK], 0x4000, from, k, w + (from - first), 32);
     if ((k = inside(first, n, 0x4800, 0x5000, &from)) != 0)
@@ -437,6 +445,23 @@ static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
         map_part(maps[VIDEO_MAP_TEXT], 0x5C00, from, k, w + (from - first), 32);
         text_map_part(from - 0x5C00, k, w + (from - first));
     }
+}
+
+/* `count` bytes at video address `address`, each the low or the high half of a word of BG2's map at $3800-$47FF, the other
+   half kept: the map's words written as they are then */
+static void back_tall_bytes(uint32_t address, const uint8_t *b, uint32_t count, int high)
+{
+    uint32_t first, last, i, n = inside(address, count, BACK_TALL_AT, BACK_TALL_AT + BACK_TALL_WORDS, &first);
+
+    if (!n)
+        return;
+    last = first + n;
+    for (i = first; i < last; i++) {
+        uint16_t *word = &back_tall_words[i - BACK_TALL_AT];
+
+        *word = high ? (uint16_t)((*word & 0x00FF) | b[i - address] << 8) : (uint16_t)((*word & 0xFF00) | b[i - address]);
+    }
+    write_words((uint16_t)first, back_tall_words + (first - BACK_TALL_AT), last - first);
 }
 
 void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite how)
@@ -466,6 +491,7 @@ void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite ho
                 mode7_cells[(uint16_t)(address + i)] = b[i];
                 mode7_cells_changed = 1;
             }
+        back_tall_bytes(address, b, count, 0);
         break;
     case VRAM_HIGH_BYTES:
         for (uint32_t i = 0; i < count; i++)
@@ -473,6 +499,7 @@ void vram_write(uint16_t address, const void *data, uint32_t count, VramWrite ho
                 mode7_pixels[(uint16_t)(address + i)] = b[i];
                 mode7_pixels_changed = 1;
             }
+        back_tall_bytes(address, b, count, 1);
         break;
     }
 }
