@@ -101,6 +101,7 @@ int between_mode7(int16_t matrix[4], int16_t centre[2], int32_t scale_fx[4]);
 float between_amount_set(float at);
 
 /* the engine's content writes, held while an update runs (written at once outside one) */
+const uint8_t *between_tiles_shadow(nshvc_tiles t, uint32_t *count);   /* a tile set's shadow (32 bytes a 4 bpp tile, planar), NULL if none */
 void between_tiles_write(nshvc_tiles t, uint32_t first, const void *data, uint32_t count, nshvc_tile_format f, size_t bytes);
 void between_map_write(nshvc_map m, uint32_t x, uint32_t y, uint32_t w, uint32_t h, const nshvc_map_entry *entries);
 void between_map_write_snes(nshvc_map m, uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *words);

@@ -54,6 +54,7 @@ void level_maps_note(int layer, int32_t scroll_x, int32_t scroll_y);
 
 /* the developer's map dump: a layer's whole map words (NULL when not built), its size, the level's own and its top
    left in the map, in tiles, and how each band past the level's edges was filled */
+int level_maps_word(int layer, int32_t c, int32_t r, uint16_t *word);    /* a layer's whole-level map word at tile column c, row r (margins included); 0 if none */
 const uint16_t *level_maps_words(int layer, uint32_t *w, uint32_t *h, uint32_t *level_w, uint32_t *level_h, uint32_t *margin_x,
                                  uint32_t *margin_y);
 const FillReport *level_maps_fill(int layer);
