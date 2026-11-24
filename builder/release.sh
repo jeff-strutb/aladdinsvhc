@@ -2,7 +2,7 @@
 # builder/release.sh: build Aladdin Builder for macOS, Windows and Linux
 # and publish them on the repository's GitHub Releases page as vVERSION.
 #
-# VERSION: 0.95 unless set. The release is tagged at HEAD as it is when this
+# VERSION: 0.96 unless set. The release is tagged at HEAD as it is when this
 # starts, which must already be on GitHub. Running it again at the same
 # version replaces the files of that release.
 #
@@ -19,7 +19,7 @@ for a in "$@"; do
     [ "$a" = --no-build ] && BUILD=0
 done
 
-VERSION=${VERSION:-0.95}
+VERSION=${VERSION:-0.96}
 TAG=v$VERSION
 DIST=build/builder/dist
 MAC=$DIST/AladdinBuilder-$VERSION-macOS.zip
@@ -51,9 +51,11 @@ Aladdin Builder makes a native build of **Aladdin** (Super Nintendo, 1993) from 
 
 The game's data is copyrighted, so the builder does not include it: you provide your ROM, the builder checks it by MD5, takes the data the game reads from it (the ROM's code is not used: the C stands for it), has the game make its level select's pictures from that data, and produces a game that runs on its own. The ROM is not needed once the build is done.
 
-### New in 0.95
-- **Level Select and Saved Games from the title**: Start chooses, as B and A do, and Select or Escape go back.
-- **The slot grid's hints** read as the pause menu's: "B OR START CHOOSE   SELECT OR ESC BACK" on the title's screens, "B OR A CHOOSE   START OR ESC BACK" in the pause menu.
+### New in 0.96
+- **Menus read their own keys and buttons**: Enter or the controller's Start chooses, Escape or the controller's Back goes back, whatever the game's buttons are mapped to; the hints name your real keys, or your controller's own buttons.
+- **Remapping**: a button waits for the next key or button only once the press that chose it is let go, says what it is waiting for, and Escape or Back cancels.
+- **Widescreen**: the carpet level's obstacles come and hit where the original's do; on levels that scroll by themselves Aladdin can move across the whole wide view; the level's art past its edges no longer shows cut-off props at level starts and ends.
+- **Sprites made of several pieces** (such as the lava level's fireballs) no longer show dark lines across them.
 
 ### Features
 - **Native**: the game's own C for your machine, no emulator; drawn by the GPU (Metal on the Mac, Direct3D 12 on Windows, Vulkan on Linux).

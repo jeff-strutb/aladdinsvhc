@@ -19,7 +19,7 @@
 # the game's own (native/aladdin/icon/icon.png, made into each system's form
 # by nativeshvc's nshvc-icons).
 #
-# VERSION: 0.95 unless set.
+# VERSION: 0.96 unless set.
 # Needs nativeshvc's checkout (NSHVC, ../nativeshvc), the ROM (ROM, default
 # reference/aladdin/: check_payload.py reads it to prove its absence), Xcode's
 # clang, cmake and ninja, mingw-w64 (x86_64-w64-mingw32-*) for Windows, and
@@ -30,7 +30,7 @@
 set -e
 cd "$(dirname "$0")/.."
 ROOT=$PWD
-VERSION=${VERSION:-0.95}
+VERSION=${VERSION:-0.96}
 NSHVC=$(cd "${NSHVC:-../nativeshvc}" && pwd)
 B=$ROOT/build/builder
 DIST=$B/dist
