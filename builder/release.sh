@@ -51,6 +51,9 @@ Aladdin Builder makes a native build of **Aladdin** (Super Nintendo, 1993) from 
 
 The game's data is copyrighted, so the builder does not include it: you provide your ROM, the builder checks it by MD5, takes the data the game reads from it (the ROM's code is not used: the C stands for it), has the game make its level select's pictures from that data, and produces a game that runs on its own. The ROM is not needed once the build is done.
 
+### New in 1.01
+- **The snake fight's floor**: in a wide view the strip at the far left edge moves with the rest of the wave instead of out of step with it.
+
 ### New in 1.0
 The game is finished: played through to The End.
 - **Controllers**: every connected controller plays and works the menus, and the left stick works as the d-pad.
