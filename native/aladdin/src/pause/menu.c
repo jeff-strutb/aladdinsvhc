@@ -91,7 +91,7 @@ static void labels(MenuView *v)
 
         b = menu_tags[i].button;
         strncpy(v->action[i], action_name(controls_buttons[b]), sizeof v->action[i] - 1);
-        s = controller ? nshvc_controller_label(0, controls_ctl(b)) : nshvc_key_name((nshvc_key)controls_key(b));
+        s = controller ? nshvc_controller_label((uint32_t)controls_controller(), controls_ctl(b)) : nshvc_key_name((nshvc_key)controls_key(b));
         if (!s || !*s)
             s = "-";
         for (n = 0; n < sizeof v->label[i] - 1 && n < 8 && s[n]; n++)
@@ -282,7 +282,7 @@ static int key_taken(const nshvc_input *in)
 
 static uint16_t ctl_taken(const nshvc_input *in, uint16_t *last)
 {
-    uint16_t now = in->controller[0].on ? in->controller[0].buttons : 0, press = (uint16_t)(now & ~*last);
+    uint16_t now = controls_ctl_buttons(in), press = (uint16_t)(now & ~*last);
 
     *last = now;
     return (uint16_t)(press & (uint16_t)-press);
@@ -370,7 +370,7 @@ int menu_update(const nshvc_input *in)
         return 1;
     }
     if (!m.open) {
-        ctl_last = in->controller[0].on ? in->controller[0].buttons : 0;
+        ctl_last = controls_ctl_buttons(in);
         m.pointer_down = (in->pointer.buttons & 1) != 0;
         if (!esc && !m.requested)
             return 0;
@@ -417,7 +417,7 @@ int menu_update(const nshvc_input *in)
             return 1;
         }
     } else {
-        ctl_last = in->controller[0].on ? in->controller[0].buttons : 0;
+        ctl_last = controls_ctl_buttons(in);
         if (k->back) {
             shut(held);
             SoundCommandSend();
