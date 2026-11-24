@@ -81,18 +81,6 @@ uint16_t controls_pad(const nshvc_input *input, unsigned pad)
 
 void controls_swallow(uint16_t held) { swallowed = held; }
 
-uint16_t controls_pressed_keys(const nshvc_input *input)
-{
-    uint16_t now = 0;
-    int b;
-
-    start();
-    for (b = 0; b < CONTROLS_BUTTONS; b++)
-        if (NSHVC_KEY_PRESSED(input, key_of[b]))
-            now |= controls_buttons[b];
-    return now;
-}
-
 int controls_key(int b) { start(); return key_of[b]; }
 uint16_t controls_ctl(int b) { start(); return ctl_of[b]; }
 
@@ -156,3 +144,78 @@ void controls_defaults(void)
 }
 
 int controls_source(void) { return source; }
+
+/* ---- the menus' own input ---- */
+
+#define KEY_ENTER 0x0D
+#define KEY_ESCAPE 0x1B
+#define KEY_PAGE_UP 0x21
+#define KEY_PAGE_DOWN 0x22
+#define STICK 0.5f                      /* how far the left stick must lean to move a menu */
+
+static char name_confirm[12] = "START", name_back[12] = "SELECT", name_prev[12] = "L", name_next[12] = "R";
+
+/* a controller's button as its style names it, upper case; "+" and "-" are no letters of the menu's font */
+static void ctl_name(char *out, uint16_t ctl, const char *generic)
+{
+    const char *s = nshvc_controller_label(0, ctl);
+    size_t n;
+
+    if (s && !strcmp(s, "+"))
+        s = "PLUS";
+    else if (s && !strcmp(s, "-"))
+        s = "MINUS";
+    if (!s || !*s)
+        s = generic;
+    for (n = 0; n < 11 && s[n]; n++)
+        out[n] = s[n] >= 'a' && s[n] <= 'z' ? (char)(s[n] - 32) : s[n];
+    out[n] = 0;
+}
+
+void controls_menu_read(const nshvc_input *in, MenuKeys *k)
+{
+    uint16_t dirs = 0, ctl = 0, ctl_down, dirs_down;
+    int key_any = 0, i;
+
+    for (i = 0; i < 8; i++)
+        if (in->keys_pressed[i])
+            key_any = 1;
+    if (in->controller[0].on) {
+        float lx = in->controller[0].lx, ly = in->controller[0].ly;
+
+        ctl = in->controller[0].buttons;
+        if ((ctl & NSHVC_CTL_UP) || ly < -STICK) dirs |= PAD_UP;
+        if ((ctl & NSHVC_CTL_DOWN) || ly > STICK) dirs |= PAD_DOWN;
+        if ((ctl & NSHVC_CTL_LEFT) || lx < -STICK) dirs |= PAD_LEFT;
+        if ((ctl & NSHVC_CTL_RIGHT) || lx > STICK) dirs |= PAD_RIGHT;
+        ctl_name(name_confirm, NSHVC_CTL_MENU, "START");
+        ctl_name(name_back, NSHVC_CTL_BACK, "SELECT");
+        ctl_name(name_prev, NSHVC_CTL_LB, "L");
+        ctl_name(name_next, NSHVC_CTL_RB, "R");
+    }
+    ctl_down = (uint16_t)(ctl & ~k->ctl);
+    dirs_down = (uint16_t)(dirs & ~k->dirs);
+    k->move = dirs_down;
+    if (NSHVC_KEY_PRESSED(in, 0x26)) k->move |= PAD_UP;
+    if (NSHVC_KEY_PRESSED(in, 0x28)) k->move |= PAD_DOWN;
+    if (NSHVC_KEY_PRESSED(in, 0x25)) k->move |= PAD_LEFT;
+    if (NSHVC_KEY_PRESSED(in, 0x27)) k->move |= PAD_RIGHT;
+    k->confirm = NSHVC_KEY_PRESSED(in, KEY_ENTER) != 0 || (ctl_down & NSHVC_CTL_MENU) != 0;
+    k->back = NSHVC_KEY_PRESSED(in, KEY_ESCAPE) != 0 || (ctl_down & NSHVC_CTL_BACK) != 0;
+    k->prev = NSHVC_KEY_PRESSED(in, KEY_PAGE_UP) != 0 || (ctl_down & NSHVC_CTL_LB) != 0;
+    k->next = NSHVC_KEY_PRESSED(in, KEY_PAGE_DOWN) != 0 || (ctl_down & NSHVC_CTL_RB) != 0;
+    k->idle = !k->confirm && !k->back && !NSHVC_KEY_HELD(in, KEY_ENTER) && !NSHVC_KEY_HELD(in, KEY_ESCAPE) &&
+              !(ctl & (NSHVC_CTL_MENU | NSHVC_CTL_BACK));
+    k->dirs = dirs;
+    k->ctl = ctl;
+    /* the device last used, whatever its keys and buttons are bound to */
+    if (key_any)
+        source = CONTROLS_KEYBOARD;
+    else if (ctl_down || dirs_down)
+        source = CONTROLS_CONTROLLER;
+}
+
+const char *controls_confirm_name(void) { return source == CONTROLS_CONTROLLER ? name_confirm : "ENTER"; }
+const char *controls_back_name(void) { return source == CONTROLS_CONTROLLER ? name_back : "ESC"; }
+const char *controls_prev_name(void) { return source == CONTROLS_CONTROLLER ? name_prev : "PGUP"; }
+const char *controls_next_name(void) { return source == CONTROLS_CONTROLLER ? name_next : "PGDN"; }

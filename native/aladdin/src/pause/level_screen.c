@@ -77,7 +77,6 @@ void level_screen_open(void)
     spec.pic_w = LEVEL_PICTURE_W;
     spec.pic_h = LEVEL_PICTURE_H;
     spec.cell = cell_of;
-    spec.start_chooses = 1;             /* opened from the title by Start: Start chooses here too */
     slot_grid_open(&spec);
 }
 

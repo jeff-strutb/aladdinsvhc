@@ -37,6 +37,7 @@ nshvc_asset nshvc_asset_open(const char *path)
 }
 uint32_t nshvc_asset_read(nshvc_asset a, void *data, uint32_t size) { (void)a; return (uint32_t)fread(data, 1, size, asset_file); }
 void nshvc_asset_close(nshvc_asset a) { (void)a; fclose(asset_file); }
+const char *nshvc_controller_label(uint32_t c, uint32_t ctl) { (void)c; (void)ctl; return ""; }
 
 static double now(void)
 {
@@ -146,6 +147,7 @@ int main(int argc, char **argv)
         v.asking = -1;
         v.full_offered = 1;
         v.full_on = 1;
+        strcpy(v.hint, "ENTER CHOOSE   ESC RESUME");
         for (i = 0; i < MENU_TAGS; i++)
         {
             strcpy(v.label[i], k_default_names[i]);

@@ -7,10 +7,11 @@
  * (in draw, from its own state outside the game's), moved by slot_grid_update (in update). It queues the menu's move sound;
  * the owner sends the sound queue.
  *
- * Pad: the directions move among the cells, Left at the first column and Right at the last turn the page, L and R turn it,
- * B or A chooses, Start or Escape go back (or, with a prompt up, put the prompt away). With start_chooses (the title's screens,
- * opened by Start as the title's menu confirms with it) Start chooses as B and A do, and Select or Escape go back. The pointer
- * chooses the cell it is on, turns the page on the "<" and ">" of the page line, and chooses a prompt's answer.
+ * Input is the menus' own (input/controls.h, MenuKeys), never the game's bindings: the arrows, d-pad and left stick move
+ * among the cells (Left at the first column and Right at the last turn the page), PGUP and PGDN or LB and RB turn the page,
+ * ENTER or the controller's Start chooses (and answers a prompt), ESC or the controller's Back goes back (or puts the prompt
+ * away). The hint line names them as the device in use does. The pointer chooses the cell it is on, turns the page on the
+ * page line, and chooses a prompt's answer.
  */
 #ifndef ALADDIN_SLOT_GRID_H
 #define ALADDIN_SLOT_GRID_H
@@ -33,7 +34,6 @@ typedef struct {
                                            rows * (pic_h + 30) in 210 */
     const SlotCell *(*cell)(void *ctx, int index);   /* cell number `index` (page * cols * rows + place); never NULL */
     void *ctx;
-    int start_chooses;                  /* 1: Start chooses (and answers a prompt), Select goes back; 0: Start goes back */
 } SlotGridSpec;
 
 typedef enum { SLOT_NONE, SLOT_CHOSEN, SLOT_ANSWER, SLOT_BACK } SlotEvent;

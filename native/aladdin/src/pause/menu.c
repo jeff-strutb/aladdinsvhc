@@ -4,14 +4,17 @@
  * Items: the twelve pad buttons (each shows its key, or its controller button when a controller was the last used; chosen,
  * it asks for the next key or controller button, which it takes, the button that had it taking the old one), RESUME,
  * DEFAULTS (the game's own keys and buttons), FULL SCREEN (full screen or a window, kept in the settings) and QUIT (asks
- * once more, saves the settings and ends the run through the engine). The pad's directions move, B or A chooses, Start or
- * Escape resumes (Escape, or a click, cancels a key being asked for); a click of the pointer chooses what it is on and
- * presses it. Buttons held as the menu shuts reach the game only once let go.
+ * once more, saves the settings and ends the run through the engine). The menu's input is its own and never goes through
+ * the bindings (controls_menu_read): the arrows, d-pad or stick move, Enter or the controller's Start chooses, Escape or
+ * the controller's Back resumes; a click of the pointer chooses what it is on and presses it. A button chosen listens only
+ * once what chose it has been let go; Escape, the controller's Back or a click cancels the listening (so the controller's
+ * Back cannot be given to a button; Select keeps it). Buttons held as the menu shuts reach the game only once let go.
  *
  * The pictures are drawn once into images the engine lays over the window (menu_art.c): the panel at a whole number of
  * image pixels to a game pixel, kept for each; the changing parts (tags, items, hand, ring) redrawn when they change.
  */
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -43,8 +46,10 @@ enum { O_TINT, O_PANEL, O_TAGS };       /* the engine's overlay numbers the menu
 static struct {
     int drawn;                          /* the overlays are set (menu_draw) */
     int open, requested, chosen, asking, quit_asked;
+    int armed;                          /* what opened the menu is let go (MenuKeys.idle): its keys count */
+    int listening;                      /* a button asked for: what chose it is let go, the next press is the binding */
+    MenuKeys keys;
     int capture_wait;                   /* updates until the save screen's picture is taken (see open_menu) */
-    uint16_t last;                      /* pad 1's buttons at the last update */
     int pointer_down;
     float ox, oy, scale;                /* where the panel lies in the window, and its window pixels a game pixel */
     nshvc_image tint, panel[MAX_D + 1], dyn[MAX_D + 1];
@@ -144,6 +149,11 @@ void menu_draw(void)
     v.full_offered = screen_mode_can_switch();
     v.full_on = screen_mode_full();
     labels(&v);
+    if (m.asking >= 0)
+        snprintf(v.hint, sizeof v.hint, "PRESS A %s FOR %s   %s CANCEL", controls_source() == CONTROLS_CONTROLLER ? "BUTTON" : "KEY",
+                 v.action[m.asking], controls_back_name());
+    else
+        snprintf(v.hint, sizeof v.hint, "%s CHOOSE   %s RESUME", controls_confirm_name(), controls_back_name());
 
     if (!m.tint.id) {
         static const uint32_t black[4] = { TINT, TINT, TINT, TINT };
@@ -242,6 +252,7 @@ static void open_menu(void)
     m.chosen = MENU_RESUME;
     m.asking = -1;
     m.quit_asked = 0;
+    m.armed = 0;
     m.shown_d = 0;
     if (g.level != LEVEL_NO_PAUSE_SOUND)
         sound(SOUND_OPEN);
@@ -310,6 +321,7 @@ static int activate(int item, uint16_t held)
         break;
     default:
         m.asking = item;
+        m.listening = 0;                /* it listens once what chose it is let go */
         break;
     }
     return 0;
@@ -320,10 +332,11 @@ void menu_request(void) { m.requested = 1; }
 int menu_update(const nshvc_input *in)
 {
     static uint16_t ctl_last;
-    uint16_t raw = controls_pad_raw(in), press = (uint16_t)((raw & ~m.last) | controls_pressed_keys(in)), held = raw;
+    uint16_t held = controls_pad_raw(in);       /* the game's buttons, for what must not reach the game as the menu shuts */
+    MenuKeys *k = &m.keys;
     int esc = NSHVC_KEY_PRESSED(in, KEY_ESCAPE) != 0, click = 0, item = -1;
 
-    m.last = raw;
+    controls_menu_read(in, k);
     if (m.open && m.capture_wait && --m.capture_wait == 0)
         save_screen_capture();
     if (save_screen_requested() && !slot_grid_is_open())
@@ -370,15 +383,26 @@ int menu_update(const nshvc_input *in)
         item = menu_art_item_at((in->pointer.x - m.ox) / m.scale, (in->pointer.y - m.oy) / m.scale, screen_mode_can_switch());
     }
     m.pointer_down = (in->pointer.buttons & 1) != 0;
+    if (!m.armed) {                     /* Enter, Start, Escape or Back that opened the menu is not a press in it */
+        if (k->idle)
+            m.armed = 1;
+        k->confirm = k->back = 0;
+        k->move = 0;
+    }
 
     if (m.asking >= 0) {
         int vk;
         uint16_t ctl = ctl_taken(in, &ctl_last);
 
-        if (esc)
+        if (!m.listening) {             /* what chose this button (Enter, Start or a click) is still down: not its binding */
+            if (k->idle && !m.pointer_down)
+                m.listening = 1;
+            ctl = 0;
+        }
+        if (k->back || click)           /* Escape or the controller's Back; neither can be given to a button */
             m.asking = -1;
-        else if (click)
-            m.asking = -1;
+        else if (!m.listening)
+            ;
         else if ((vk = key_taken(in)) != 0) {
             controls_rebind_key(menu_tags[m.asking].button, vk);
             settings_save();
@@ -394,7 +418,7 @@ int menu_update(const nshvc_input *in)
         }
     } else {
         ctl_last = in->controller[0].on ? in->controller[0].buttons : 0;
-        if (esc || (press & PAD_START)) {
+        if (k->back) {
             shut(held);
             SoundCommandSend();
             return 1;
@@ -409,14 +433,14 @@ int menu_update(const nshvc_input *in)
             SoundCommandSend();
             return 1;
         }
-    } else if (press & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT)) {
-        int to = move(m.chosen, (uint16_t)(press & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT)));
+    } else if (k->move) {
+        int to = move(m.chosen, k->move);
 
         if (to != m.chosen)
             sound(SOUND_MOVE);
         m.chosen = to;
         m.quit_asked = 0;
-    } else if (press & (PAD_B | PAD_A)) {
+    } else if (k->confirm) {
         sound(SOUND_MOVE);
         if (activate(m.chosen, held)) {
             SoundCommandSend();
