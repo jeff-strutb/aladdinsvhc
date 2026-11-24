@@ -180,8 +180,8 @@ all have the original's values. What the view adds is liveness, in three kinds o
   flags are the same test.
 
 **His walls go to the view's edges** (`PlayerViewReach`, `player/frame.c`): the clamps, `ViewEdgePush`/`ViewEdgeHurt` and level 6's
-hold reach the view's margin, Δx past the original's screen on each side, bounded only by the level's layout (0 and
-`g.scroll_limit_x`) so the fill past a level's end is never walked on. A scene's stop or lock (`g.scroll_x_min`, `g.scroll_x_max`)
+hold reach the view's margin, Δx past the original's screen on each side, on the left no further than the level's start (x 0: a
+position left of it would be negative). A scene's stop or lock (`g.scroll_x_min`, `g.scroll_x_max`)
 does not narrow them (Jeff, 2026-11-24, from level 3's guard fight: the view showed the street right of the locked arena and an
 invisible wall kept him out of it). The tests the original wrote against the screen he could not leave are taken whole in a wide
 view, so he can be past it: level 3's scene (`Level03Scene`: at the wall, x $04F0 and later $05F0 or more, where the original reads
@@ -191,6 +191,18 @@ at him (its x less $14 against his, whole). At 256 x 224 each is the original's 
 guard's defeat (the 512 run's snapshot at 6560) with him walked to x $0670 in the margin: the scene's last step, the monkey's run and
 sign and the walk-out follow, level 48 at 7200. The play `p0-3` at 512 no longer wins that fight: its keys were found against the
 old wall, and with it open it walks into the margin and loses.
+
+**Past a level's right end he walks on the fill** (Jeff, 2026-11-24, from Jafar's room at level $10's end: "open it too"). There is no
+layout past the end: the original's lookup reads the screen map's empty border column (the level's first screen's tiles). In a view
+wider than 256 a probe past the layout's right end reads instead the metatile the fill drew there (`TileAt`, `level_maps_field_cell`:
+the play field's cells as `layer_make` made them, kept per view), and an empty tile where the fill drew none, for every actor. **An
+exit counts only within the original's walls** (`LevelExitCheck`: his x 16 to 240 pixels from the view's left, as `PlayerKeepOnScreenX`
+holds him at 256 x 224): with the walls open, level $10's exit at x 4848 was reached from Jafar's room (its original wall at 4752)
+before the fight was won. At 256 x 224 neither is reached. Checked: 256 x 224, the 20 plays' player lines (every 25 updates) identical
+to the build before; 512 x 224, the same 20 identical too (none goes past a right end), `wide.sh` 21 runs ok, 0 triggers past their
+limits; level $10 at 512 holding right through the fight: he stands at x 4880 on the fill, 16 past the layout's end, and the exit does
+not fire (the build before: exit at 4842 mid-fight); Jafar beaten (`ALADDIN_DEV_OWN`, the view at 512 from 8440): the exit at 8540 and
+level $11 at 8700, as at 256.
 
 Section 8 lists the checks: at 256 x 224 the game is the original's; wider, the trigger log
 (`ALADDIN_DEV_TRIGGERS=1`) shows no trigger fired past its original distance.

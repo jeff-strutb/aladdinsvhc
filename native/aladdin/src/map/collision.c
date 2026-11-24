@@ -22,6 +22,7 @@
 #include "data/game_tables.h"
 #include "map/map.h"
 #include "system/state.h"
+#include "video/level_maps.h"
 
 #define PROBE_Y 2               /* a probe's y offset, after its x offset */
 #define VIEW_HEIGHT 0x00F0      /* a point more than this below the view's top is off it */
@@ -111,7 +112,18 @@ static uint8_t TileAtPlace(MapPoint *p, uint16_t place)
     uint16_t at = (uint16_t)(place + p->screen_tiles);
     uint16_t metatile;
 
-    p->word = g.level_tiles[at / 2];
+    if (p->fill) {
+        /* past the layout's right end in a wide view (no original): the tile the fill drew there, the one whose top is
+           p->surface_y at p->x (TileAt's tile, or SurfaceHeightOver's above it); where it drew none, an empty tile */
+        if (level_maps_field_cell(p->x, p->surface_y, &p->word) != 1) {
+            p->word = 0;
+            p->behaviour = 0;
+            p->mirrored = 0;
+            p->kind = TILE_KIND_EMPTY;
+            return p->kind;
+        }
+    } else
+        p->word = g.level_tiles[at / 2];
     metatile = (uint16_t)(p->word >> 3);
     if (metatile < sizeof g.tile_behaviour) {
         p->behaviour = g.tile_behaviour[metatile];
@@ -148,6 +160,7 @@ uint8_t TileAt(const Actor *a, MapPoint *p)
     uint16_t tiles;
 
     if (ProbeOnViewOff(a, p)) {
+        p->fill = 0;
         p->behaviour = 0;
         p->kind = TILE_KIND_EMPTY;
         return TILE_KIND_EMPTY;
@@ -157,6 +170,7 @@ uint8_t TileAt(const Actor *a, MapPoint *p)
     tiles = g.screen_map.places[p->screen_place / 2];
     p->screen_tiles = (tiles & SCREEN_EMPTY) ? 0 : tiles;
     p->tile_place = (uint16_t)(((p->x >> 3) & 0x001E) | ((p->y << 1) & TILE_ROWS_MASK));
+    p->fill = level_maps_field_cell(p->x, p->surface_y, &p->word) != 0;     /* 0 at 256 x 224: the original's lookup */
     return TileAtPlace(p, p->tile_place);
 }
 

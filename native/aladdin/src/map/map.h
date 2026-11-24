@@ -55,6 +55,7 @@ typedef struct MapPoint {
     uint16_t screen_tiles;      /* $18: the screen's tiles' offset in g.level_tiles, bytes */
     uint8_t mirrored;           /* $1A: the behaviour's bit 7 (SurfaceHeight shifts it out) */
     uint16_t word;              /* $1C: the tile's map word */
+    uint8_t fill;               /* (no original) past the layout's right end in a wide view: the tiles are the fill's (TileAt) */
 } MapPoint;
 
 /* the probe point: at the actor's x, to its left, to its right; y the

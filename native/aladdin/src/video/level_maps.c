@@ -149,6 +149,10 @@ static double fill_now(void)
     clock_gettime(CLOCK_MONOTONIC, &t);
     return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
 }
+/* the play field's metatiles as the fill made them, level and margins (fw x fh, the layout's (0, 0) at cell ox, oy): what a probe past the
+   layout's right end stands on in a wide view (level_maps_field_cell); kept by layer_make, 0 cells when the field has no margins */
+static uint16_t field_cells[FILL_CELLS_MAX];
+static unsigned field_fw, field_fh, field_ox, field_oy, field_lw;
 static int32_t prov_src[2][FILL_CELLS_MAX];      /* the fill's provenance by cell, per layer (level_fill_source, _kind): for the map dump */
 static uint8_t prov_kind[2][FILL_CELLS_MAX];
 
@@ -322,6 +326,14 @@ static int layer_make(int layer, int resize)
     if (getenv("ALADDIN_DEV_FILL"))
         fprintf(stderr, "fillms layer %d level %u x %u cells, whole %u x %u: %.1f ms%s\n", layer, lw, lh, fw, fh, (fill_now() - fill_clock) * 1000.0,
                 resize ? " (the view changed)" : "");
+    if (layer == 0) {
+        memcpy(field_cells, cells, (size_t)fw * fh * sizeof *cells);
+        field_fw = fw;
+        field_fh = fh;
+        field_ox = ox;
+        field_oy = oy;
+        field_lw = lw;
+    }
     memcpy(prov_src[layer], level_fill_source(), (size_t)fw * fh * sizeof(int32_t));
     memcpy(prov_kind[layer], level_fill_kind(), (size_t)fw * fh);
     memset(words, 0, (size_t)w * h * sizeof *words);       /* the padding is blank */
@@ -661,6 +673,25 @@ static uint16_t word_at(const LevelMap *m, int32_t c, int32_t r)
     if (c < 0 || r < 0 || (uint32_t)c >= m->w || (uint32_t)r >= m->h)
         return 0;
     return m->words[(uint32_t)r * m->w + (uint32_t)c];
+}
+
+int level_maps_field_cell(uint16_t x, uint16_t y, uint16_t *word)
+{
+    const LevelMap *m = &layer_map[0];
+    uint32_t cx = (uint32_t)(x >> 4), cy = (uint32_t)(y >> 4);
+    uint16_t cell;
+
+    if (!view.dx || !m->on || !m->made || !field_ox || (x & 0x8000) || cx < field_lw)
+        return 0;
+    cx += field_ox;
+    cy += field_oy;
+    if (cx >= field_fw || cy >= field_fh)
+        return 2;
+    cell = field_cells[cy * field_fw + cx];
+    if (cell == FILL_BLANK)
+        return 2;
+    *word = cell;
+    return 1;
 }
 
 void LevelMapsFreeze(void)

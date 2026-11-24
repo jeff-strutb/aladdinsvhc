@@ -39,6 +39,11 @@ int level_maps_snapshot_load(const uint8_t *in, size_t len);
 int level_maps_active(int layer);
 nshvc_map level_maps_object(int layer);
 
+/* the play field's tile where the wide view's fill drew it (VIEW.md 4.4): for a point at pixels x, y past the layout's right end across, in a
+   view wider than 256 whose field has margins, 1 with the metatile's level tile word in *word, or 2 where the fill drew nothing (an empty
+   tile); 0 everywhere else (the original's lookup holds: inside the layout, left of it, at 256 x 224, or a field with no margins) */
+int level_maps_field_cell(uint16_t x, uint16_t y, uint16_t *word);
+
 /* the margin of a layer's level map left of and above the level, in pixels (0, 0 when the layer has none): the level's
    (0, 0) is at this position in the map, so a layer shown from it adds it to the scroll */
 void level_maps_margin(int layer, int32_t *x, int32_t *y);
