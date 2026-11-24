@@ -3,6 +3,7 @@
  * the levels played back, and the text pages with their extras.
  */
 #include "actor/actor.h"
+#include "actor/kinds_d.h"
 #include "audio/sound.h"
 #include "data/game_tables.h"
 #include "game/game.h"
@@ -50,6 +51,8 @@
 #define KIND_END_A 0xA7
 #define KIND_END_B 0x95
 #define KIND_END_B_BYTE 0x1E
+#define PLAY_MODE_PADS 0            /* g.play_mode */
+#define PLAY_MODE_DEMO 2
 
 enum { SPIN_START, SPIN_WAITED };
 
@@ -230,7 +233,7 @@ static TaskRun stage_scroll(Task *t)
 
 enum {
     ST_START, ST_STAGE, ST_LOAD, ST_PLAY, ST_AFTER_PLAY, ST_SCROLL, ST_FADE_OUT, ST_BANDS, ST_BANDS_RUN, ST_END_WAIT,
-    ST_LAST_WIPE, ST_PLACE, ST_FOREVER
+    ST_LAST_WIPE, ST_PLACE, ST_FOREVER, ST_TO_TITLE
 };
 
 /* the window use bytes $03AA, $03AB and $03AC (WOBJSEL) into g.window_use's nibbles: BG1 and BG2, BG3 and BG4, sprites and colour */
@@ -404,7 +407,33 @@ TaskRun EndingStagesTask(Task *t)
             r = frame_end(t);
             if (r != TASK_GOES_ON)
                 return r;
-            break;
+            if (!KindA7Shown())
+                break;
+            /* Native (Jeff, 2026-11-24): the original stays on "The End" for good. Once it has finished, the pad is
+               the person's again (not the demo's script), and a press goes to the title with the game ended, as a
+               continue's "no" leaves it. */
+            if (g.play_mode == PLAY_MODE_DEMO) {
+                g.play_mode = PLAY_MODE_PADS;
+                break;
+            }
+            if (!g.pad_pressed[0])
+                break;
+            g.continue_frames = 0;
+            g.progress_sequence = 0;
+            g.progress_stage = 0;
+            g.level = 0;
+            g.level_restart = 0;
+            g.game_begun = 0;
+            TaskSlotsFree1To6();
+            TaskCreate(FADE_SLOT, 4, TASK_ENTRY_BRIGHTNESS_DOWN);
+            *at = ST_TO_TITLE;
+            return task_wait(t, 1);
+        case ST_TO_TITLE:
+            /* the title as the opening story starts it: TitleTask as the task's entry, not called inside another
+               (its demo runs inside it, and one more call on the chain is past the six a task may have) */
+            if (task_busy(FADE_SLOT))
+                return task_wait(t, 1);
+            return task_exec(t, TASK_ENTRY_TITLE);
         }
     }
 }

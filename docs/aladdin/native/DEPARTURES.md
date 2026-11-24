@@ -108,3 +108,17 @@ Not an accident of the original but a change Jeff asked for: "Get rid of the bet
   - a saved game made in the middle of the screen by the build before this change: the task goes on at its bookkeeping on loading (the Task is the same size, so the save's layout mark is the same); the gem sets would be counted a second time. Saves have only just been added; not looked for.
 - **Why it does not hurt gameplay:** the screen was a pause between two things that start themselves from blank screens, and what it passed on is listed above and kept, or is a phase of a free-running counter. The password is no longer needed (level select and saved games). A player who liked the screen's fanfare has lost it; that is Jeff's direction.
 - **The check's expected difference:** `view/same.sh` (the original's traces against the native game's, update by update): the six plays that pass the screen (`p0-3` from update 7804, `p1-1` 9743, `p2-1` 6388, `p3-2` 10505, `p4-2` 7565, `p6-0` 9279) differ from that update on and are identical before it; the other fifteen are identical. The proof that the game is still the original's on both sides of the removed screen is `native/checks/plays/join.sh` (CHECK.md): before the screen identical; after it identical with the update numbers moved back by the screen's length, but for the lines above.
+
+## 9. After "The End", a press goes back to the title (Jeff's direction, 2026-11-24)
+
+- **Where:** `game/ending.c` (`EndingStagesTask`, its last state and `ST_TO_TITLE`), `actor/kinda7.c` (`KindA7Shown`).
+- **What the original does:** both endings (the stages played back with 50 items or more, the credits with fewer) stay on "The End" for good;
+  nothing but a reset leaves them.
+- **What the native game does:** once the figure of the ending (kind $A7) has faded up, risen when it rises, and stays, the pad is read as the
+  person's (play mode 0, not the demo's script the ending's stage runs under); the next press of any button frees tasks 1 to 6, fades the screen
+  out and starts the title as the opening story starts it (`TitleTask` as the task's entry), with the game ended as a continue's "no" ends it
+  (progress, level and restart point 0, no game begun), so GAME START begins a new game. A press before "The End" has finished does nothing.
+- **Why it does not hurt gameplay:** it is after the game; without it the player had to close the game.
+- **Checked:** credits (`ALADDIN_DEV_SCREEN=credits`): a press at update 9,000 (the text pages) does nothing; a press at 12,100 goes to the title,
+  which idles into the opening story and back to the title with no error. Ending (`ALADDIN_DEV_SCREEN=ending`): a press at 25,000 goes to the
+  title; GAME START there loads level 0 as a new game.

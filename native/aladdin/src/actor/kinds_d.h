@@ -42,6 +42,7 @@ int Kind53Held(Actor *a);       /* 83:D566: a thing held then dropped; its secon
 int Kind6AStart(Actor *a);      /* 83:EB5E: its spawners and children */
 int Kind69Start(Actor *a);      /* 83:E9F7 (and 83:EADC Kind69EscortEnd); also kind $68's second */
 int KindA7Start(Actor *a);      /* 84:AC66: a figure of the ending */
+int KindA7Shown(void);          /* native: a figure of the ending has finished and stays */
 int KindA5Start(Actor *a);      /* 84:AB9C: the bombs and their column */
 int KindA0Start(Actor *a);      /* 84:A8E0: a ledge that gives way */
 int Kind91Start(Actor *a);      /* A5:F534: a marker steering the escort */
