@@ -51,6 +51,12 @@ Aladdin Builder makes a native build of **Aladdin** (Super Nintendo, 1993) from 
 
 The game's data is copyrighted, so the builder does not include it: you provide your ROM, the builder checks it by MD5, takes the data the game reads from it (the ROM's code is not used: the C stands for it), has the game make its level select's pictures from that data, and produces a game that runs on its own. The ROM is not needed once the build is done.
 
+### New in 1.0
+The game is finished: played through to The End.
+- **Controllers**: every connected controller plays and works the menus, and the left stick works as the d-pad.
+- **The ending**: "The End" stands still, and a press after it goes back to the title; the ending's spin fills the wide view.
+- **Widescreen**: level edges continue each level's own art; Aladdin's walls reach the wide view's edges in locked arenas; past a level's right end he walks on what the wide view draws there; Iago flies in from past the view's edge instead of appearing mid-screen; the snake's floor slithers in from the left; the arena keeps no blank column.
+
 ### New in 0.961
 - **The carpet level's lava flow is drawn**: it could hurt Aladdin while it was not shown, at any window shape; it now moves and falls as the original's, with no repeated copies or orange bar at the sides of a wide view.
 
