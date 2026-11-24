@@ -120,3 +120,13 @@ int KindA7Start(Actor *a)
         return 1;
     }
 }
+
+/* Native: an ending's figure has finished (faded up, risen if it rises) and stays for good (game/ending.c: a press
+   then goes to the title). */
+int KindA7Shown(void)
+{
+    for (unsigned i = 0; i < ACTOR_RECORDS; i++)
+        if (g.actors[i].state && g.actors[i].kind == 0xA7 && g.actors[i].resume == STAY_SECOND)
+            return 1;
+    return 0;
+}

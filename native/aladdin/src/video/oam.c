@@ -192,6 +192,25 @@ static int32_t fx_diff(uint32_t a, uint32_t b)
 }
 
 /*
+ * The play field's x in 256ths, as the sprites' places between pixels take it. The scroll kinds that run the scroll on
+ * by 256ths (2, 6, 10 and 14, all to the right) add to its fraction every frame, and then the tail holds its pixels at
+ * the level's right bound (scroll_x_max, or scroll_limit_x), the fraction counting on underneath (scroll_update.c, as
+ * the original). The original drew sprites at whole pixels, so the fraction never showed; between pixels it moved a
+ * sprite that stood still by up to a pixel every frame while the layers stood still (the credits' "The End", Jeff
+ * 2026-11-24). A camera held at that bound stands at the bound's pixel: its fraction is taken as 0 there.
+ */
+static uint32_t camera_fx(void)
+{
+    uint32_t x = g.layers[0].scroll_x;
+    uint16_t px = (uint16_t)(x >> 8);
+    int runs_on = g.scroll_kind == 2 || g.scroll_kind == 6 || g.scroll_kind == 10 || g.scroll_kind == 14;
+
+    if (runs_on && (px == g.scroll_limit_x || px == g.scroll_x_max))
+        return x & 0xFFFF00u;
+    return x;
+}
+
+/*
  * @routine 81:9309 OamDrawActor
  * WHAT IT DOES: Puts one actor's frame into this frame's sprites at its
  * place on the screen: each piece within 32 lines above to the view's height
@@ -294,7 +313,7 @@ void OamDrawActors(void)
                          (g.sprites_take_bg2_shift ? g.bg2_x_shift : g.bg1_x_shift));
     origin_y = (int16_t)((uint16_t)(g.layers[0].scroll_y >> 8) +
                          (g.sprites_take_bg2_shift ? g.bg2_y_shift : g.layer_offset_y));
-    origin_fx = (g.layers[0].scroll_x + ((uint32_t)(g.sprites_take_bg2_shift ? g.bg2_x_shift : g.bg1_x_shift) << 8)) & 0xFFFFFFu;
+    origin_fx = (camera_fx() +((uint32_t)(g.sprites_take_bg2_shift ? g.bg2_x_shift : g.bg1_x_shift) << 8)) & 0xFFFFFFu;
     origin_fy = (g.layers[0].scroll_y + ((uint32_t)(g.sprites_take_bg2_shift ? g.bg2_y_shift : g.layer_offset_y) << 8)) & 0xFFFFFFu;
     draw_list(0);
     draw_list(1);
