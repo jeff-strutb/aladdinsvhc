@@ -1125,6 +1125,7 @@ static int csp_depth, csp_along;
 static const Side *csp_side_cur;
 static int csp_relax;               /* 0: every pair must be the level's; 1: the seam pair of the bands that have no chain to the end of the margin is let go; 2: every seam pair; 3: and the pairs along the band at depth 1 */
 
+static int csp_no_oneoff;            /* S may not choose a one-off (VIEW.md 5.w rule A) */
 static int csp_tail_forever;        /* 1: the last depth's cells must be ones a chain can go on from for ever (the margin goes on past it) */
 static uint8_t csp_virgin[CSP_VARS_MAX];               /* the cell's domain is still the one it began with (the metatiles a chain of the rest can follow) */
 static uint32_t csp_acc_cache[4][CSP_DEPTH_MAX + 2][SET_WORDS];   /* what the revision of a neighbour by a virgin cell gives, by relation and depth */
@@ -1388,13 +1389,18 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
        neighbour in reach[j] */
     for (unsigned w = 0; w < SET_WORDS; w++)
         csp_reach[0][w] = 0;
+    /* a margin never holds a one-off (VIEW.md 5.w rule A): the ones the level holds in a single cell are no metatile S may choose, so a prop
+       made of them is not copied in whole to be mended cell by cell by repair into a flat patch */
     for (unsigned i = 0; i < lv.ids; i++)
-        csp_reach[0][i >> 5] |= 1u << (i & 31);
+        if (!(lv.count[i] == 1 && csp_no_oneoff))
+            csp_reach[0][i >> 5] |= 1u << (i & 31);
     for (int j = 0; j < s->depth; j++) {
         memset(csp_reach[j + 1], 0, sizeof csp_reach[0]);
         for (unsigned i = 0; i < lv.ids; i++) {
             unsigned hit = 0;
 
+            if (lv.count[i] == 1 && csp_no_oneoff)
+                continue;
             for (unsigned w = 0; w < SET_WORDS && !hit; w++)
                 hit = (lv.vset[i][w] & csp_reach[j][w]) != 0;
             if (hit)
@@ -1427,6 +1433,9 @@ static int csp_side(const Side *s, FillBand *report, int corner, int ac_only, in
                 dom[kid >> 5] |= 1u << (kid & 31);
             } else {
                 memcpy(dom, csp_tail_forever && d == s->depth ? lv.out_mask : csp_reach[s->depth - d], sizeof csp_dom[0]);
+                if (csp_tail_forever && d == s->depth)
+                    for (unsigned w = 0; w < SET_WORDS; w++)
+                        dom[w] &= csp_reach[0][w];
                 if (d == 1) {
                     unsigned eid = lv.id_of[lv.cells[ti + (ptrdiff_t)s->uy * lv.fw + s->ux]];
 
@@ -2574,6 +2583,7 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
     Side sd;
 
     fill_field = field;
+    csp_no_oneoff = !fill_base();
     fill_metatiles = metatiles;
     if (field)
         for (unsigned i = 0; i < sizeof fill_behaviour; i++)
