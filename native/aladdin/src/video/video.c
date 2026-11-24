@@ -396,6 +396,12 @@ static void mode7_word(uint32_t at, uint16_t w)
     mode7_cells_changed = mode7_pixels_changed = 1;
 }
 
+/* the scroll layers' tile set as the game wrote it (the shadow the snapshot keeps): 32 bytes a tile, SNES planar; NULL if none (video/level_fill.c) */
+const uint8_t *video_layer_tiles(uint32_t *count)
+{
+    return between_tiles_shadow(tiles[VIDEO_TILES_LOW], count);
+}
+
 static void write_words(uint16_t address, const uint16_t *w, uint32_t n)
 {
     uint32_t first = address & 0x7FFFu, from, k;
@@ -1066,7 +1072,12 @@ void video_draw(void)
            windows are moved below and in lines.c */
         scr.origin_x = view.dx;
         scr.origin_y = view.dy;
-        if (!video_title_view()) {      /* the title is not cut to the frame: what the engine draws round it shows (VIEW.md 6.5) */
+        /* the ending's spin (SceneSpinZoomTask: Mode 7, its matrix scaled, mode7_how 1, outside the map transparent) is not cut to the frame
+           either: round it the console draws the background colour alone, so the view is filled with what the original would show there,
+           nothing made (Jeff, 2026-11-24: "doesn't fill the whole screen"; VIEW.md 6.1) */
+        int spin_fills = g.mode == 7 && g.mode7_how == 1 && mode7_outside != 0;
+
+        if (!video_title_view() && !spin_fills) {      /* the title is not cut to the frame: what the engine draws round it shows (VIEW.md 6.5) */
             scr.show_left = view.dx;
             scr.show_right = view.dx + VIEW_ORIGINAL_W;
             scr.show_top = view.dy;

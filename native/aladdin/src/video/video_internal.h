@@ -27,6 +27,7 @@ void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t
 void arena_maps_init(void);
 void arena_maps_note(VideoMap map, uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *words);
 void arena_maps_update_end(void);
+void arena_maps_level_maps_made(void);     /* the level's maps (re)made: the arena's are made again from them at the update's end */
 int arena_maps_layer(int i, nshvc_layer *l);
 
 /* lines.c: whether a mode effect that is on puts any line in mode `mode` */

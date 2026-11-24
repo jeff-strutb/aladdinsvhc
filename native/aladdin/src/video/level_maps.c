@@ -439,6 +439,7 @@ void LevelMapsBuild(void)
 
     build_layer(0, 0);
     build_layer(1, back);
+    arena_maps_level_maps_made();
 }
 
 /* the view's depth changed (VIEW.md 4.8): whether a layer shown from its level map would have other margins at a view of `dx` */
@@ -466,6 +467,8 @@ int LevelMapsResize(void)
     for (int layer = 0; layer < 2; layer++)
         if (layer_map[layer].on && layer_map[layer].made)
             n += layer_make(layer, 1);
+    if (n)
+        arena_maps_level_maps_made();
     return n;
 }
 
@@ -673,6 +676,19 @@ static uint16_t word_at(const LevelMap *m, int32_t c, int32_t r)
     if (c < 0 || r < 0 || (uint32_t)c >= m->w || (uint32_t)r >= m->h)
         return 0;
     return m->words[(uint32_t)r * m->w + (uint32_t)c];
+}
+
+/* the map word of layer `layer` (0 the play field, 1 the backdrop) at tile column c, row r of the level, margins included (arena_maps.c);
+   0 where the layer has no whole-level map. The words are read whether the map is shown or not: a screen set-up that shows the video maps
+   (LevelMapsOff, level $11's arena) leaves them as the level's load made them */
+int level_maps_word(int layer, int32_t c, int32_t r, uint16_t *word)
+{
+    const LevelMap *m = &layer_map[layer];
+
+    if (!m->made || !m->words)
+        return 0;
+    *word = word_at(m, c, r);
+    return 1;
 }
 
 int level_maps_field_cell(uint16_t x, uint16_t y, uint16_t *word)

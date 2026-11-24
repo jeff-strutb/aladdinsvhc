@@ -120,6 +120,7 @@ const nshvc_sprite *OamSprites(void);
 const uint8_t *OamSpriteOwners(void);
 const int16_t (*OamSpriteAnchors(void))[2];
 const int32_t (*OamSpriteAnchorsFx(void))[2];   /* the same in 256ths of a pixel */  /* each sprite's actor's screen place as drawn (the picture's easing) */     /* each sprite's actor record, as far as g.sprite_count (the picture's easing) */      /* the frame's sprites, as far as g.sprite_count */
+const uint8_t *video_layer_tiles(uint32_t *count);   /* the scroll layers' tile set as the game wrote it, 32 bytes a tile, planar (level_fill.c) */
 size_t oam_snapshot_size(void);             /* the frame's sprites kept by the snapshot (oam.c) */
 size_t oam_snapshot_save(uint8_t *out);
 int oam_snapshot_check(const uint8_t *in, size_t len);
@@ -185,6 +186,7 @@ int16_t BlockAt(uint16_t x, uint16_t y);    /* 81:CB24: the screen map's entry f
 void CameraStopAcross(void);                /* 81:CA84 */
 void CameraStopUpDown(void);                /* 81:CADA */
 void ActorYHistoryPush(const Actor *a);     /* 84:8EBD */
+int RiserFuture(int16_t *out, int n);       /* the riser's next n heights as a copy of it flies on (actor/kind88.c; native only) */
 #define ARENA11_X 0x0200            /* level $11's arena: the view's x kind $81 locks it at (arena_maps.c) */
 void LineHistoryClear(void);                /* level $11's heights list made all 0, as its row (line_history.c) */
 uint16_t RandomFromList(uint8_t list);      /* 81:AE8A: an entry (low byte) and the byte after it */

@@ -517,6 +517,17 @@ static void shadow_tiles(uint32_t object, uint32_t first, const void *data, uint
     memcpy(s->data + (size_t)first * s->unit, data, bytes);
 }
 
+/* a tile set's shadow: the bytes the game wrote, a tile `unit` bytes (planar), `*count` tiles; NULL if the set has none */
+const uint8_t *between_tiles_shadow(nshvc_tiles t, uint32_t *count)
+{
+    Shadow *s = shadow_of(SH_TILES, t.id);
+
+    if (!s)
+        return NULL;
+    *count = s->units;
+    return s->data;
+}
+
 static void shadow_map(uint32_t object, uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *words)
 {
     Shadow *s = shadow_of(SH_MAP, object);

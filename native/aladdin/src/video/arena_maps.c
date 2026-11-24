@@ -23,6 +23,7 @@
 #include "system/runahead.h"
 #include "system/state.h"
 #include "video/between.h"
+#include "video/level_maps.h"
 #include "video/video.h"
 #include "video/video_internal.h"
 #include "video/view.h"
@@ -101,12 +102,27 @@ static void rebuild(int k)
             }
             p = 0;
         }
-        for (uint32_t j = 0; j < ARENA_COLS; j++)
+        for (uint32_t j = 0; j < ARENA_COLS; j++) {
+            /* outside the arena's screen a row with no repeat is the level's own map there (the backdrop for $4000, the play field for $4800,
+               both scrolled as the camera in level $11), margins included: the console's ring holds only what the original streamed, and a
+               column its window never showed holds nothing (a flat column 32 pixels left of the frame at 398 wide) */
+            int32_t wc = (int32_t)(ARENA11_X >> 3) + (j < ARENA_COLS / 2 ? (int32_t)j : (int32_t)j - ARENA_COLS);
+            uint16_t lw;
+
             out[r * ARENA_COLS + j] = j < SCREEN_COLS ? a[j]
                                     : p ? a[MEASURED_FROM + (j - MEASURED_FROM) % p]
+                                    : level_maps_word(k ? 0 : 1, wc, (int32_t)r, &lw) ? lw
                                         : row[(s + j) & (CONSOLE_COLS - 1)];
+        }
     }
     between_map_write_snes(arena[k], 0, 0, ARENA_COLS, ROWS, out);
+}
+
+/* the level's whole maps were made or made again (a load, a resize): the arena's columns past its screen are read from them, so both are made
+   again at the update's end (on level $11) */
+void arena_maps_level_maps_made(void)
+{
+    changed[0] = changed[1] = 1;
 }
 
 /* at the update's end (video_update_end): on level $11 the arena's maps made again from the console's maps an update changed */
@@ -121,13 +137,15 @@ void arena_maps_update_end(void)
 }
 
 /*
- * arena_maps_layer: in the fight on level $11 (BG1 on $4000, BG2 on $4800, in a level's view), layer `i` (its scroll the
- * console's, less the view's dx) is given its arena map, its scroll moved so the arena's first column is where the console's
- * was; 0 (nothing changed) else.
+ * arena_maps_layer: on level $11 in a level's view, a layer `i` (its scroll the console's, less the view's dx) that draws the
+ * video map $4000 or $4800 is given that map's arena map, its scroll moved so the arena's first column is where the console's
+ * was; 0 (nothing changed) else. In the fight BG1 is on $4000 and BG2 on $4800; from the arena's lock to the fight's set-up
+ * the layers are on $4000 alone, which the console's ring leaves with a column the original never wrote (a flat column 32
+ * pixels left of the frame at 398 wide).
  */
 int arena_maps_layer(int i, nshvc_layer *l)
 {
-    if (i > 1 || !video_level_view() || (uint8_t)g.level != 0x11 || g.bg_map[0] != VIDEO_MAP_BACK || g.bg_map[1] != VIDEO_MAP_FRONT)
+    if (i > 1 || !video_level_view() || (uint8_t)g.level != 0x11 || (g.bg_map[i] != VIDEO_MAP_BACK && g.bg_map[i] != VIDEO_MAP_FRONT))
         return 0;
     l->map = arena[g.bg_map[i] == VIDEO_MAP_FRONT];
     l->scroll_x -= ARENA11_X;           /* the layer's x ARENA11_X shows the arena map's column 0 (the console's arena_column()) */

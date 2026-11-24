@@ -51,10 +51,12 @@
 #include "data/scroll_tables.h"
 #include "map/map.h"
 #include "video/level_fill.h"
+#include "video/video.h"
 
 #define PERIOD_MAX 64
 #define COPIES_MIN 3
 #define CELLS_MIN 4
+#define SHORT_PERIOD 8              /* relay_exact: a left or right band's repeat of at most this many cells (half a screen: a texture, a platform's face) goes on with 2 copies, not COPIES_MIN, where its pairs along and down are the level's (the first exact pass keeps COPIES_MIN: more exact bands there change what the quilt picks for the rest) */
 #define GAP_ACROSS 16               /* a stretch must end within one screen of the right edge: past the edge the unique features are the last screen's */
 #define GAP_DOWN 2                  /* and within 32 pixels of the bottom edge: the original's camera never shows the last 32 */
 #define IDS_MAX 1024
@@ -157,14 +159,14 @@ static void pair_set(uint32_t (*m)[IDS_MAX / 32], unsigned a, unsigned b)
 }
 
 /* the stretch of the n cells v[0], v[stride] ... that ends nearest the end and repeats; 0 when there is none */
-static int find_stretch(const uint16_t *v, ptrdiff_t stride, unsigned n, unsigned gap_most, Stretch *best)
+static int find_stretch(const uint16_t *v, ptrdiff_t stride, unsigned n, unsigned gap_most, int across, Stretch *best)
 {
     int found = 0;
 
     for (unsigned p = 1; p <= PERIOD_MAX && p < n; p++) {
         unsigned run = 0;
         /* the matching positions a stretch of COPIES_MIN periods and CELLS_MIN cells has: its length less p */
-        unsigned least = (COPIES_MIN - 1) * p;
+        unsigned least = (across && p <= SHORT_PERIOD ? 1u : COPIES_MIN - 1u) * p;
 
         if (p < CELLS_MIN && CELLS_MIN - p > least)
             least = CELLS_MIN - p;
@@ -239,9 +241,11 @@ static int oneoff_cell(uint16_t c)
 }
 
 /* the level's metatiles into the table: ids and the pairs side by side */
+
 static void learn(void)
 {
     const uint16_t *level = lv.cells + (size_t)lv.oy * lv.fw + lv.ox;
+
 
     memset(lv.id_of, 0xFF, sizeof lv.id_of);
     memset(lv.across, 0, sizeof lv.across);
@@ -341,7 +345,7 @@ static void fill_exact(ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned band
 
         fixed[k] = 0;
         memset(&report[k], 0, sizeof report[k]);
-        if (find_stretch(v, sa, n, rows ? GAP_ACROSS : GAP_DOWN, &s)) {
+        if (find_stretch(v, sa, n, rows ? GAP_ACROSS : GAP_DOWN, 0, &s)) {
             extend(v, sa, n, total, &s);
             method = FILL_EXACT;
             report[k].period = (uint16_t)s.p;
@@ -581,6 +585,7 @@ static int pair_along(const Side *s, uint16_t a, uint16_t b)
 {
     return s->lx ? seen_across(a, b) : seen_down(a, b);
 }
+
 
 /* the cells that can go along the band after / before a cell (by its id) */
 static const uint32_t *after_of(const Side *s, unsigned id)
@@ -1796,6 +1801,51 @@ static void make_margin_body(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdif
     }
 }
 
+static DataRef fill_metatiles;                  /* the level's metatile table (defined below, with the quilt's) */
+
+/* how much of a metatile shows: 0 nothing (every pixel colour 0), 2 all of it (no pixel colour 0), 1 part; from the scroll layers' tiles as the
+   game wrote them (video_layer_tiles); 1 where those are not to be had */
+static int cell_cover(uint16_t cell)
+{
+    uint32_t count = 0;
+    const uint8_t *t = video_layer_tiles(&count);
+    unsigned shown = 0;
+
+    if (cell == FILL_BLANK || cell == UNSET)
+        return 0;
+    if (!t)
+        return 1;
+    for (unsigned half = 0; half < 8; half += 2) {
+        unsigned n = level_metatile_word(fill_metatiles, (uint16_t)(cell | 0x8000), half) & 0x3FFu;
+        const uint8_t *q = t + (size_t)n * 32;
+
+        if (n >= count)
+            return 1;
+        for (unsigned y = 0; y < 8; y++) {
+            uint8_t any = (uint8_t)(q[2 * y] | q[2 * y + 1] | q[16 + 2 * y] | q[17 + 2 * y]);
+
+            for (unsigned b = 0; b < 8; b++)
+                shown += any >> b & 1;
+        }
+    }
+    return shown == 0 ? 0 : shown == 256 ? 2 : 1;
+}
+
+/* a side's see-through holes: its margin cells that show nothing (cell_cover 0) in a row whose edge cell shows no colour 0 at all (a hole where
+   the edge is solid wall; level $0D's end, where the copy and the quilt took the mummy room's strips) */
+static unsigned side_holes(const Side *s)
+{
+    unsigned n = 0;
+
+    for (int t = 0; t < s->along; t++) {
+        if (cell_cover(lv.cells[(size_t)(s->by + t * s->ly) * lv.fw + s->bx + t * s->lx]) != 2)
+            continue;
+        for (int d = 1; d <= s->depth; d++)
+            n += cell_cover(lv.cells[(size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux]) == 0;
+    }
+    return n;
+}
+
 /* ---- the copy: what a side that cannot be made from the level's pairs falls back to ----
    A side the exact search could not make (its cells beyond the seam made with pairs the level never has) can come out as flat strips:
    a margin that goes on with one tile for longer than the level ever does, which a few unseen pairs of real art are better than.
@@ -1829,16 +1879,19 @@ static int copy_side(const Side *s, FillBand *report)
 
     if (s->lx != 0 || s->depth + 2 > lv.lw)
         return 0;
-    unseen_now = side_unseen_and_runs(s, &runs_now);
+    unseen_now = side_unseen_and_runs(s, &runs_now) + side_holes(s);
     for (int cs = (dir == 1 ? 0 : s->depth); dir == 1 ? cs + s->depth < lv.lw - 0 && cs + s->depth <= lv.lw - 1 : cs < lv.lw; cs++) {
         unsigned bad = 0;
         int ok = 1;
 
         for (int t = 0; t < s->along && ok; t++) {
             uint16_t edge = level_cell(s->ux == 1 ? 0 : lv.lw - 1, t), first = level_cell(cs + dir * 1, t);
+            int solid = cell_cover(edge) == 2;
 
-            for (int d = 1; d <= s->depth && ok; d++)
+            for (int d = 1; d <= s->depth && ok; d++) {
                 ok = in_level(cs + dir * d, t) && level_cell(cs + dir * d, t) != FILL_BLANK;     /* not an empty place */
+                bad += ok && solid && cell_cover(level_cell(cs + dir * d, t)) == 0;          /* a see-through hole where the edge is solid: as an unseen pair */
+            }
             bad += !(s->ux == 1 ? seen_across(first, edge) : seen_across(edge, first));
         }
         if (ok && bad < best_unseen) {
@@ -1852,12 +1905,15 @@ static int copy_side(const Side *s, FillBand *report)
         for (int t = 0; t < s->along; t++) {
             size_t ti = (size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux;
 
+            if (report[t].method == FILL_EXACT)
+                continue;                   /* a band the level repeats exactly goes on by its repeat (VIEW.md 5.z) */
             lv.cells[ti] = level_cell(best_cs + dir * d, t);
             source_of[ti] = (best_cs + dir * d) + t * lv.lw;
             kind_of[ti] = FILL_KIND_SYNTH;
         }
     for (int t = 0; t < s->along; t++)
-        report[t].method = FILL_SYNTH;
+        if (report[t].method != FILL_EXACT)
+            report[t].method = FILL_SYNTH;
     return 1;
 }
 
@@ -1881,6 +1937,7 @@ static uint8_t fill_behaviour[4096];            /* its metatiles' behaviour byte
 #define Q_SLACK 6
 #define Q_SURF 300                  /* ... of a column pair whose walkable surfaces (the rows where solid ground begins under empty) the level never has side by side */
 #define Q_CUT 300                   /* ... of a seam that cuts a prop: the cell before it goes on into the next one of a prop of the level, or the one after it comes from the one before (VIEW.md 5.w) */
+#define Q_HOLE 100                  /* ... of a strip's cell that shows nothing (every pixel colour 0), in a row whose cell at the level's edge shows no colour 0 at all: a see-through hole where the edge is solid wall (level $0D's end: the mummy room's strips); side_holes counts them as unseen pairs where a margin is kept or replaced */
 #define Q_GIVE_UP 20000             /* a strip costing more than this is not used: the margin is left as it was */
 
 static uint16_t q_col[FILL_COLS_MAX][FILL_ROWS_MAX];       /* [u][t]: the level's columns, then the margin's, in the margin's outward order */
@@ -2007,11 +2064,6 @@ static void find_props(FillReport *r)
 }
 
 
-static int q_across_ok(const Side *s, uint16_t a, uint16_t b)       /* a, b the cells at u, u + 1 */
-{
-    return s->ux == -1 ? seen_across(a, b) : seen_across(b, a);
-}
-
 /* whether joining the margin's column `prev` to the strip's column `cur` at row t cuts a prop of the level (prop_of, by level cell) */
 static int q_cut(const Side *s, int32_t sprev, int32_t scur)
 {
@@ -2047,7 +2099,7 @@ static int quilt_try(const Side *s, int e, int s0, int kmin, unsigned limit, uns
             for (int j = 0; j <= Q_O; j++) {
                 uint16_t cur = j == Q_O ? q_col[s0 + Q_O][t] : (j < k ? q_col[e - Q_O + 1 + j][t] : q_col[s0 + j][t]);
 
-                c += !q_across_ok(s, prev, cur) * Q_PAIR;
+                c += !(s->ux == -1 ? seen_across(prev, cur) : seen_across(cur, prev)) * Q_PAIR;
                 if (j == k && j < Q_O + 1 && !fill_base())
                     c += q_cut(s, q_src[j == 0 ? e - Q_O : e - Q_O + j][t], q_src[s0 + j][t]) * Q_CUT;
                 prev = cur;
@@ -2118,6 +2170,10 @@ static int quilt_try(const Side *s, int e, int s0, int kmin, unsigned limit, uns
 }
 
 
+/* A quilt of a group of a side's rows (quilt_groups, VIEW.md 5.v): its first row of the level, and the empty places between the level's edge and its
+   first column of art, in cells (the strips are taken from the columns of art only, and the margin begins at the first). 0, 0 for a whole side. */
+static int q_r0, q_k, q_group;
+
 /* the surface breaks of a margin as it stands: adjacent columns, from the level's edge outward, whose surfaces the level never has side by side (the
    level's own columns give the pairs it has) */
 static int side_surface_breaks(const Side *s)
@@ -2129,7 +2185,7 @@ static int side_surface_breaks(const Side *s)
     if (!fill_field || s->lx != 0 || s->along > FILL_ROWS_MAX)
         return 0;
     memset(q_pairs, 0, sizeof q_pairs);
-    for (int d = -(lv.lw - 1); d <= s->depth; d++) {
+    for (int d = -(lv.lw - q_k - 1); d <= s->depth; d++) {
         uint64_t sg;
 
         for (int t = 0; t < s->along; t++)
@@ -2148,30 +2204,35 @@ static int side_surface_breaks(const Side *s)
 
 static int quilt_side(const Side *s, FillBand *report)
 {
-    int lw = lv.lw, rows = s->along, need = lw - 1 + s->depth, e = lw - 1;
+    int lw = lv.lw - q_k, rows = s->along, need = lw - 1 + s->depth, e = lw - 1;
     static int32_t used_s0[64], used_shift[64];
     int used = 0;
     unsigned old_runs, old_unseen, new_runs, new_unseen;
     int old_breaks;
     static uint8_t col_ok[FILL_COLS_MAX];
+    static uint8_t q_clear[FILL_COLS_MAX][FILL_ROWS_MAX], edge_solid[FILL_ROWS_MAX];
 
     if (s->lx != 0 || lw < Q_W + Q_O + 2 || need >= FILL_COLS_MAX || rows > FILL_ROWS_MAX)
         return 0;
     for (int t = 0; t < rows; t++)
         if (s->n_of[t] != (unsigned)lw)
             return 0;                               /* an empty place runs in from the edge: left to the exact search */
-    old_unseen = side_unseen_and_runs(s, &old_runs);
+    old_unseen = side_unseen_and_runs(s, &old_runs) + side_holes(s);         /* a see-through hole where the edge is solid counts as an unseen pair */
     old_breaks = side_surface_breaks(s);
     for (int u = 0; u < lw; u++) {
-        int x = s->ux == -1 ? u : lw - 1 - u, ok = 1;
+        int x = s->ux == -1 ? u : lv.lw - 1 - u, ok = 1;
 
         for (int t = 0; t < rows; t++) {
-            q_col[u][t] = level_cell(x, t);
-            q_src[u][t] = x + t * lw;
-            ok &= q_col[u][t] != FILL_BLANK && in_level(x, t);
+            q_col[u][t] = level_cell(x, q_r0 + t);
+            q_src[u][t] = x + (q_r0 + t) * lv.lw;
+            ok &= q_col[u][t] != FILL_BLANK && in_level(x, q_r0 + t);
         }
         col_ok[u] = (uint8_t)ok;
+        for (int t = 0; t < rows; t++)
+            q_clear[u][t] = (uint8_t)(cell_cover(q_col[u][t]) == 0);
     }
+    for (int t = 0; t < rows; t++)
+        edge_solid[t] = (uint8_t)(cell_cover(q_col[lw - 1][t]) == 2);
     if (fill_field) {
         uint64_t prev = 0;
 
@@ -2184,7 +2245,7 @@ static int quilt_side(const Side *s, FillBand *report)
             prev = sg;
         }
     }
-    if (getenv("ALADDIN_DEV_QUILT") && fill_field) {
+    if (getenv("ALADDIN_DEV_QUILT") && fill_field && lw >= 26) {
         fprintf(stderr, "quilt ux=%d surface hashes of columns 230-255:", s->ux);
         for (int u = lw - 26; u < lw; u++)
             fprintf(stderr, " %04x", (unsigned)(q_surface_sig(q_col[u], rows) & 0xFFFF));
@@ -2211,6 +2272,9 @@ static int quilt_side(const Side *s, FillBand *report)
             if (quilt_try(s, e, s0, kmin, cand_n == Q_PICK ? cand_cost[Q_PICK - 1] : ~0u, &cost, seam) < 0)
                 continue;
             cost += (unsigned)(Q_W - Q_O - fresh) * Q_SHORT;
+            for (int j = Q_O; j < Q_O + fresh; j++)           /* the strip's new columns: no see-through hole where the edge is solid */
+                for (int t = 0; t < rows; t++)
+                    cost += (unsigned)(edge_solid[t] && q_clear[s0 + j][t]) * Q_HOLE;
             if (cost < best)
                 best = cost;
             /* keep the Q_PICK lowest */
@@ -2275,6 +2339,8 @@ static int quilt_side(const Side *s, FillBand *report)
                 keep[n] = lv.cells[ti];
                 keep_src[n] = source_of[ti];
                 keep_kind[n] = kind_of[ti];
+                if (report[t].method == FILL_EXACT)
+                    continue;               /* a band the level repeats exactly goes on by its repeat (VIEW.md 5.z): the quilt leaves it */
                 lv.cells[ti] = q_col[lw - 1 + d][t];
                 source_of[ti] = q_src[lw - 1 + d][t];
                 kind_of[ti] = FILL_KIND_QUILT;
@@ -2287,7 +2353,7 @@ static int quilt_side(const Side *s, FillBand *report)
 
                 for (int d = 0; d <= s->depth; d++)
                     rowv[d] = lv.cells[(size_t)(s->by + t * s->ly - d * s->uy) * lv.fw + s->bx + t * s->lx - d * s->ux];
-                for (int d = 1; d <= s->depth; d++) {
+                for (int d = 1; d <= s->depth && report[t].method != FILL_EXACT; d++) {
                     int pick = -1;
 
                     if (!oneoff_cell(rowv[d]))
@@ -2306,8 +2372,11 @@ static int quilt_side(const Side *s, FillBand *report)
                     }
                 }
             }
-        new_unseen = side_unseen_and_runs(s, &new_runs);
-        if (new_unseen > old_unseen + 8 || new_runs > old_runs + 8 || side_surface_breaks(s) > old_breaks) {
+        new_unseen = side_unseen_and_runs(s, &new_runs) + side_holes(s);
+        if (getenv("ALADDIN_DEV_QUILT"))
+            fprintf(stderr, "quilt keep check ux=%d: breaks (16ths of a pair) and holes old %u new %u, runs old %u new %u, surface breaks old %d new %d\n", s->ux, old_unseen, new_unseen,
+                    old_runs, new_runs, old_breaks, side_surface_breaks(s));
+        if (!q_group && (new_unseen > old_unseen + 8 || new_runs > old_runs + 8 || side_surface_breaks(s) > old_breaks)) {
             n = 0;
             for (int d = 1; d <= s->depth; d++)
                 for (int t = 0; t < rows; t++, n++) {
@@ -2334,8 +2403,90 @@ static int quilt_side(const Side *s, FillBand *report)
         fprintf(stderr, "quilt ux=%d: surface breaks %d in %d margin columns\n", s->ux, breaks, need - lw + 1);
     }
     for (int t = 0; t < rows; t++)
-        report[t].method = FILL_QUILT;
+        if (report[t].method != FILL_EXACT)
+            report[t].method = FILL_QUILT;
     return 1;
+}
+
+/* the bands of a left or right side that the level repeats exactly (find_stretch: SHORT_PERIOD's 2 copies for a texture, a platform's face) laid
+   again after the side's methods and the quilt, where every pair along the band and down it (with the bands above and below as the quilt left
+   them) is one the level has: a side the exact search cannot make whole drops its exact bands, and the copy and the quilt take whole columns
+   (level $08's right end: the platform's face went on as clouds). A band laid alone whose pairs down are not the level's is put back, and the rest
+   looked at again, until none is: laid without that check, bands made horizontal seams (level $06's trunk, $01's ground). The quilt leaves exact
+   bands (VIEW.md 5.z). Only a band with no empty place at its edge (n_of) is looked at. */
+static void relay_exact(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, FillBand *report)
+{
+    static uint16_t was[FILL_ROWS_MAX][FILL_COLS_MAX];
+    static int32_t was_src[FILL_ROWS_MAX][FILL_COLS_MAX];
+    static uint8_t was_kind[FILL_ROWS_MAX][FILL_COLS_MAX];
+    static FillBand was_report[FILL_ROWS_MAX];
+    static uint8_t laid[FILL_ROWS_MAX];
+    Stretch st;
+    int changed = 1;
+
+    if (bands > FILL_ROWS_MAX || total > FILL_COLS_MAX)
+        return;
+    for (unsigned k = 0; k < bands; k++) {
+        uint16_t *v = lv.cells + base + (ptrdiff_t)k * sb;
+        ptrdiff_t o = base + (ptrdiff_t)k * sb;
+        unsigned n = s->n_of[k];
+        int ok = 1;
+
+        laid[k] = 0;
+        if (report[k].method == FILL_EXACT || n != (unsigned)lv.lw || !find_stretch(v, sa, n, GAP_ACROSS, 1, &st))
+            continue;
+        for (unsigned i = n; i < total; i++) {
+            was[k][i] = v[(ptrdiff_t)i * sa];
+            was_src[k][i] = source_of[o + (ptrdiff_t)i * sa];
+            was_kind[k][i] = kind_of[o + (ptrdiff_t)i * sa];
+        }
+        was_report[k] = report[k];
+        extend(v, sa, n, total, &st);
+        for (unsigned i = n - 1; i + 1 < total && ok; i++)
+            ok = seen_at(o + (ptrdiff_t)i * sa, sa);
+        for (unsigned i = n; i < total && ok; i++)
+            ok = !oneoff_cell(v[(ptrdiff_t)i * sa]);
+        if (!ok) {
+            for (unsigned i = n; i < total; i++)
+                v[(ptrdiff_t)i * sa] = was[k][i];
+            continue;
+        }
+        laid[k] = 1;
+        report[k].method = FILL_EXACT;
+        report[k].period = (uint16_t)st.p;
+        report[k].gap = (uint16_t)(n - st.b);
+        for (unsigned i = n; i < total; i++) {
+            kind_of[o + (ptrdiff_t)i * sa] = FILL_KIND_EXACT;
+            source_of[o + (ptrdiff_t)i * sa] = -1;
+        }
+    }
+    while (changed) {
+        changed = 0;
+        for (unsigned k = 0; k < bands; k++) {
+            ptrdiff_t o = base + (ptrdiff_t)k * sb;
+            unsigned n = s->n_of[k];
+            int ok = 1;
+
+            if (!laid[k])
+                continue;
+            for (unsigned i = n; i < total && ok; i++) {
+                if (k > 0)
+                    ok = seen_at(o + (ptrdiff_t)i * sa - sb, sb);
+                if (ok && k + 1 < bands)
+                    ok = seen_at(o + (ptrdiff_t)i * sa, sb);
+            }
+            if (ok)
+                continue;
+            for (unsigned i = n; i < total; i++) {
+                lv.cells[o + (ptrdiff_t)i * sa] = was[k][i];
+                source_of[o + (ptrdiff_t)i * sa] = was_src[k][i];
+                kind_of[o + (ptrdiff_t)i * sa] = was_kind[k][i];
+            }
+            report[k] = was_report[k];
+            laid[k] = 0;
+            changed = 1;
+        }
+    }
 }
 
 static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t sb, unsigned bands, unsigned total, int rows,
@@ -2354,6 +2505,8 @@ static void make_margin(const Side *s, ptrdiff_t base, ptrdiff_t sa, ptrdiff_t s
             synth |= report[t].method != FILL_EXACT && report[t].method != FILL_EMPTY && report[t].method != 0;
         if (synth && quilt_side(s, report))
             *blocks = 'Z';
+        if (!fill_base())
+            relay_exact(s, base, sa, sb, bands, total, report);      /* last: its bands must fit what the quilt left above and below them */
         if (getenv("ALADDIN_DEV_QUILT") && fill_field && s->lx == 0)
             fprintf(stderr, "quilt final ux=%d method %c: surface breaks %d in %d margin columns\n", s->ux, *blocks ? *blocks : '-', side_surface_breaks(s), s->depth);
     }
@@ -2542,14 +2695,49 @@ static void tile_voids(void)
 /* ---- the level's edge columns, with the props the edge cuts taken out (VIEW.md 5.w; Jeff 2026-11-23: "just get rid of half barrels anywhere") ----
    In a wide view a prop the map cuts at its own edge (the map begins or ends in the middle of a barrel) is shown half: its other half is not in the level.
    A cell of the left edge column is cut when it is scenery and no metatile of the level sits left of it anywhere (nothing precedes it in the level: its
-   only neighbour is the one to its right); of the right edge column, when nothing follows it anywhere. Each such cell is replaced by the level's commonest
-   metatile that draws nothing. The play field's scenery only (no solid cell is touched). */
+   only neighbour is the one to its right); of the right edge column, when nothing follows it anywhere. Cut cells of the edge column next to each other
+   down it are one piece. A piece is replaced by the level's commonest metatile that draws nothing only where no art beside it (inward, above, below)
+   shares an opaque pixel with it along their common edge (edge_mask, from the tiles as the game wrote them), so that taking it out cuts nothing. Art that
+   runs on into the level (a cloud, a trunk, a platform's trim: levels $06 and $08; Jeff, 2026-11-24: taking out the edge column alone made a new cut
+   one column in) is kept, and so is a prop drawn in the same cells as ground that runs on (level $01's half barrel, whose cells hold the sand). No solid cell is touched. */
 static int has_pairs(const uint32_t *set)
 {
     for (unsigned w = 0; w < IDS_MAX / 32; w++)
         if (set[w])
             return 1;
     return 0;
+}
+
+/* a metatile's opaque pixels along one of its edges, as a 16-bit mask (bit i the i-th pixel down a side or across a top or bottom): side 0 its left
+   column, 1 its right column, 2 its top row, 3 its bottom row; from the scroll layers' tiles as the game wrote them (video_layer_tiles); all set
+   where the tiles are not to be had, none for an empty place */
+static unsigned edge_mask(uint16_t cell, int side)
+{
+    uint32_t count = 0;
+    const uint8_t *t = video_layer_tiles(&count);
+    unsigned m = 0;
+
+    if (cell == FILL_BLANK || cell == UNSET)
+        return 0;
+    if (!t)
+        return 0xFFFFu;
+    for (unsigned i = 0; i < 16; i++) {
+        unsigned px = side == 0 ? 0 : side == 1 ? 15 : i, py = side == 2 ? 0 : side == 3 ? 15 : i;
+        uint16_t w = level_metatile_word(fill_metatiles, (uint16_t)(cell | 0x8000), (py / 8) * 4 + (px / 8) * 2);
+        unsigned n = w & 0x3FFu, tx = px % 8, ty = py % 8, bit;
+        const uint8_t *q = t + (size_t)n * 32;
+
+        if (n >= count)
+            return 0xFFFFu;
+        if (w >> 14 & 1)
+            tx = 7 - tx;
+        if (w >> 15 & 1)
+            ty = 7 - ty;
+        bit = 7 - tx;
+        if ((q[2 * ty] >> bit & 1) | (q[2 * ty + 1] >> bit & 1) | (q[16 + 2 * ty] >> bit & 1) | (q[17 + 2 * ty] >> bit & 1))
+            m |= 1u << i;
+    }
+    return m;
 }
 
 static void trim_edges(void)
@@ -2562,15 +2750,182 @@ static void trim_edges(void)
             count = lv.count[i];
             empty = lv.cell_of[i];
         }
-    if (empty == FILL_BLANK)
+    if (empty == FILL_BLANK || lv.lw < 2)
         return;
-    for (int y = 0; y < lv.lh; y++) {
-        uint16_t l = level_cell(0, y), r = level_cell(lv.lw - 1, y);
+    for (int side = 0; side < 2; side++) {
+        int x = side ? lv.lw - 1 : 0, xin = side ? lv.lw - 2 : 1;
 
-        if (scenery_cell(0, y) && !has_pairs(lv.across_t[lv.id_of[l]]))
-            lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox] = empty;
-        if (scenery_cell(lv.lw - 1, y) && !has_pairs(lv.across[lv.id_of[r]]))
-            lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox + lv.lw - 1] = empty;
+        for (int a = 0; a < lv.lh;) {
+            int b, touched = 0;
+
+#define CUT_AT(y) (scenery_cell(x, (y)) && !has_pairs(side ? lv.across[lv.id_of[level_cell(x, (y))]] : lv.across_t[lv.id_of[level_cell(x, (y))]]))
+            if (!CUT_AT(a)) {
+                a++;
+                continue;
+            }
+            for (b = a; b + 1 < lv.lh && CUT_AT(b + 1); b++)
+                ;
+#undef CUT_AT
+            /* the piece (rows a to b of the edge column) is taken out only where no art beside it shares a pixel with it along their common edge */
+            for (int y = a; y <= b && !touched; y++)
+                touched = (edge_mask(level_cell(x, y), side ? 0 : 1) & edge_mask(level_cell(xin, y), side ? 1 : 0)) != 0;
+            if (!touched && a > 0)
+                touched = (edge_mask(level_cell(x, a), 2) & edge_mask(level_cell(x, a - 1), 3)) != 0;
+            if (!touched && b + 1 < lv.lh)
+                touched = (edge_mask(level_cell(x, b), 3) & edge_mask(level_cell(x, b + 1), 2)) != 0;
+            if (getenv("ALADDIN_DEV_FILL"))
+                fprintf(stderr, "edge cut: %s rows %d-%d: %s\n", side ? "right" : "left", a, b, touched ? "kept (art beside it goes on into it)" : "taken out");
+            if (!touched)
+                for (int y = a; y <= b; y++)
+                    lv.cells[(size_t)(lv.oy + y) * lv.fw + lv.ox + x] = empty;
+            a = b + 1;
+        }
+    }
+}
+
+/* ---- the play field's empty places at a side, in a wide view (VIEW.md 5.v; Jeff 2026-11-24) ----
+   Where empty places run in from the level's left or right edge (level $05's first screen, the screens over level $04's gold room), the original's
+   camera never shows them (it stops at an empty place), but a wide view does. The side's rows are taken in groups that have the same depth of empty
+   places (k cells), and each group is quilted (quilt_side) as a side of its own: its edge the first column of art, its strips the level's columns of art
+   in those rows, its margin as deep as the side's from that column (the camera stops at an empty place, so a view shows no deeper; the
+   empty places beyond, and the side's margin past them, stay as they were). A group is first the whole run of rows with the same k; where that cannot be
+   quilted (too few columns of art in all of its rows), each place's rows (PLACE_CELLS) of it on their own. A group whose edge column is solid in every
+   row is a wall (rule C): nothing is made past it, the backdrop alone shows (level $0A's shaft). Where the side has no empty place at its edge, nothing is
+   done here. Where the side has some, its rows with none (k 0, level $04's gold room) are quilted the same way where the side was laid by the copy
+   (copy_side: its full-height run of columns is what the empty places spoil), unless every one was made exact; elsewhere they keep the side's own. A group
+   that cannot be quilted keeps what the side's own methods made. */
+static int quilt_group(const Side *s, FillBand *report, int r0, int rows, int k, int checked)
+{
+    static unsigned n_of[FILL_ROWS_MAX];
+    Side g = *s;
+    int edge = s->ux == 1 ? k : lv.lw - 1 - k, wall = fill_field, made;
+
+    for (int t = 0; t < rows; t++) {
+        n_of[t] = (unsigned)(lv.lw - k);
+        wall &= q_solid(level_cell(edge, r0 + t));
+    }
+    if (wall) {
+        if (getenv("ALADDIN_DEV_FILL"))
+            fprintf(stderr, "fill: side u=(%d,%d) rows %d-%d, %d empty places at the edge: a wall, nothing made past it\n", s->ux, s->uy, r0, r0 + rows - 1, k);
+        return 1;                                       /* a wall: nothing past it */
+    }
+    g.bx = s->bx + k * s->ux;
+    g.by = s->by + r0;
+    g.depth = s->depth;                                /* what a view can show past the first art: the camera never goes over an empty place */
+    g.along = rows;
+    g.dmin = 1;
+    g.n_of = n_of;
+    q_r0 = r0;
+    q_k = k;
+    q_group = !checked;             /* the empty places' groups replace blanks: no keep check; rows with art at the edge keep the better */
+    made = quilt_side(&g, report + r0);
+    q_r0 = q_k = q_group = 0;
+    if (getenv("ALADDIN_DEV_FILL"))
+        fprintf(stderr, "fill: side u=(%d,%d) rows %d-%d, %d empty places at the edge: %s\n", s->ux, s->uy, r0, r0 + rows - 1, k, made ? "quilted" : "not quilted");
+    return made;
+}
+
+static void quilt_groups(const Side *s, FillBand *report, uint8_t made_by)
+{
+    static int k_of[FILL_ROWS_MAX];
+    int any = 0;
+
+    for (int y = 0; y < lv.lh; y++) {
+        int k = 0;
+
+        while (k < lv.lw && level_cell(s->ux == 1 ? k : lv.lw - 1 - k, y) == FILL_BLANK)
+            k++;
+        k_of[y] = k == lv.lw ? -1 : k;                  /* -1: no art in the row */
+        any |= k > 0 && k < lv.lw;
+    }
+    if (!any)
+        return;
+    for (int a = 0; a < lv.lh;) {
+        int b = a, k = k_of[a], exact = 1;
+
+        while (b + 1 < lv.lh && k_of[b + 1] == k)
+            b++;
+        for (int y = a; y <= b; y++)
+            exact &= report[y].method == FILL_EXACT || report[y].method == FILL_EMPTY;
+        /* rows with no empty place (k 0): the side's own whole-height methods could take only columns with art in every row, which the empty
+           places in the other rows spoil; their own quilt is kept where it is no worse by the quilt's keep check (level $0F's arches; level $0E's
+           start keeps its own), and always where the side was laid by the copy (level $04's gold room: the copy took the room's entrance) */
+        if (k >= 0 && !(k == 0 && exact) && !quilt_group(s, report, a, b - a + 1, k, k == 0 && made_by != 'c'))
+            for (int p = a; p <= b; p = (p / PLACE_CELLS + 1) * PLACE_CELLS) {
+                int q = (p / PLACE_CELLS + 1) * PLACE_CELLS - 1;
+
+                if (p > a || q < b)
+                    quilt_group(s, report, p, (q < b ? q : b) - p + 1, k, k == 0 && made_by != 'c');
+            }
+        a = b + 1;
+    }
+}
+
+/* ---- margins chosen by hand (VIEW.md 5.t; Jeff, 2026-11-24: "you're welcome to build things by hand where an 'algorithm' doesn't solve it") ----
+   Where the level's own art cannot be continued by the methods above (the cell pairs and their counts choose a margin that looks wrong), the margin's
+   columns are named here, looked at in the level's picture: margin column d (1 the column next to the edge) is the layer's column
+   first + step * ((d - 1) mod period) for a period, else first + step * (d - 1), whole (every row whose edge cell is art; an empty place's rows and a
+   wall's are left). Either layer, in a wide view, laid last (after repair), the same at every width. Each is the level's own art in its own order. */
+typedef struct HandMargin {
+    uint8_t level;
+    uint8_t layer;                  /* 0 the play field, 1 the backdrop */
+    uint8_t right;                  /* 0 the left margin, 1 the right */
+    int16_t first, step, period;    /* period 0: none */
+    int16_t row_from, row_to;       /* the rows it is laid in (both 0: every row) */
+} HandMargin;
+
+static const HandMargin hand_margins[] = {
+    /* level $08 (4-1): it begins on a platform whose right end cap is column 7 and ends on one whose left end cap is column 246; column 0's face
+       is the one columns 249 and 255 hold. Past the start the end goes on (columns 248, 247, 246: face and left cap, then the clouds before
+       it), past the end the start (column 1 on: the rest of the platform and its right cap, then the start's clouds): no cloud against a face */
+    { 0x08, 0, 0, 248, -1, 0, 0, 0 },
+    { 0x08, 0, 1, 1, 1, 0, 0, 0 },
+    /* level $0D (5-3): it ends in a corridor of 14 columns; past it the level's start goes on (column 0 on: the same stone above, the corridor
+       and its floor), not 4 columns of the mummy room's edge */
+    { 0x0D, 0, 1, 0, 1, 0, 0, 0 },
+    /* level $0C (5-2): past its start, its first stretch of corridor (columns 3 to 12: torch wall and floor, ending in a dark pillar; column 2's
+       small round prop left out, so it is not repeated) again and again going left, the corridor's own pillar spacing; not the ceiling with a
+       see-through slot or a cut block */
+    { 0x0C, 0, 0, 12, -1, 10, 0, 0 },
+    /* level $0A (4-3), the backdrop: its screen is 16 columns, but its art (clouds, ornament bands, pillars) is in columns 0 to 11, cut straight at
+       both ends and made to go on from column 11 into column 0; columns 12 to 15 are plain sky. Past its left edge the art goes round (columns 11
+       to 0), not 4 columns of sky beside a cloud and a band cut straight (Jeff's picture: beside the shaft's left wall) */
+    { 0x0A, 1, 0, 11, -1, 12, 0, 0 },
+    /* level $06 (3-1): it begins inside a hollow tree, whose lit interior (columns 0 to 5: a rock ceiling, roots, a ledge) is a texture about a
+       column wide; past its start columns 1 and 0 go round in rows 0 to 11 (column 2's rounded rock left out), not see-through cells in the trunk
+       showing the backdrop's lava band as a flat-edged block (dark in the fade-in: Jeff's "black horizontal gaps"); rows 12 on, with a half lava
+       mound at the edge, are left to the methods */
+    { 0x06, 0, 0, 1, -1, 2, 0, 11 },
+};
+
+static void hand_margin(unsigned level, int layer)
+{
+    for (unsigned h = 0; h < sizeof hand_margins / sizeof hand_margins[0]; h++) {
+        const HandMargin *m = &hand_margins[h];
+        int depth = m->right ? lv.fw - lv.ox - lv.lw : lv.ox;
+
+        if (m->level != level || m->layer != layer)
+            continue;
+        for (int d = 1; d <= depth; d++) {
+            int src = m->first + m->step * (m->period ? (d - 1) % m->period : d - 1);
+            int x = m->right ? lv.ox + lv.lw - 1 + d : lv.ox - d;
+
+            if (src < 0 || src >= lv.lw)
+                continue;
+            for (int y = 0; y < lv.lh; y++) {
+                size_t i = (size_t)(lv.oy + y) * lv.fw + (size_t)x;
+                uint16_t edge = level_cell(m->right ? lv.lw - 1 : 0, y), c = level_cell(src, y);
+
+                if ((m->row_from || m->row_to) && (y < m->row_from || y > m->row_to))
+                    continue;
+
+                if (edge == FILL_BLANK || c == FILL_BLANK || walled(x, lv.oy + y))
+                    continue;
+                lv.cells[i] = c;
+                source_of[i] = src + y * lv.lw;
+                kind_of[i] = FILL_KIND_QUILT;
+            }
+        }
     }
 }
 
@@ -2723,6 +3078,16 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
             sd = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1 - (int)max_left, n_left };
             make_margin(&sd, top + (ptrdiff_t)lw - 1, -1, w, lh, lw + ox, 1, metatiles, report->left, &unfilled, &report->outcome[0], &report->blocks[0]);
         }
+        if (wide && field && !fill_base()) {
+            /* the empty places at the left and right edges, in a wide view (VIEW.md 5.v); a side reads only the empty places from its own edge to the first art */
+            Side sr = (Side){ -1, 0, 0, 1, (int)(ox + lw - 1), (int)oy, (int)right, (int)lh, 1, n_right };
+            Side sl = (Side){ 1, 0, 0, 1, (int)ox, (int)oy, (int)ox, (int)lh, 1, n_left };
+
+            if (right && !fill_wall[1])
+                quilt_groups(&sr, report->right, report->blocks[1]);
+            if (ox && !fill_wall[0])
+                quilt_groups(&sl, report->left, report->blocks[0]);
+        }
         if (below) {
             sd = (Side){ 0, -1, 1, 0, 0, (int)(oy + lh - 1), (int)below, (int)fw, 1 - (int)max_bottom, n_bottom };
             make_margin(&sd, (ptrdiff_t)oy * w, w, 1, fw, lh + below, 0, metatiles, report->down, &unfilled, &report->outcome[3], &report->blocks[3]);
@@ -2737,6 +3102,8 @@ void LevelFill(uint16_t *cells, unsigned lw, unsigned lh, unsigned fw, unsigned 
             if (cells[(size_t)y * fw + x] == UNSET)
                 cells[(size_t)y * fw + x] = FILL_BLANK;
     repair();
+    if (wide && !fill_base())
+        hand_margin((uint8_t)g.level, !field);
     report->unfilled = unfilled;
     count_unseen(report);
     count_quads(report);

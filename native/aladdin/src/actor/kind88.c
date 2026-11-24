@@ -82,6 +82,58 @@ int Kind88Start(Actor *a)
 }
 
 /*
+ * RiserFuture (native only, not the original's): the heights (y less 256) the riser (kind $88) will push next, as a copy of
+ * it flies on by the steps above, with no effect on the game: up and down on its course, and sent again on the course g
+ * holds while g.riser_send stays set (the course a later sweep picks is not known). Fills `out` with up to n heights and
+ * returns how many; it stops where the riser would rest unsent (no height is pushed while it rests). Level $11's floor
+ * shows them left of the original's screen, so the wave comes in from there as it moves (video/line_history.c).
+ */
+int RiserFuture(int16_t *out, int n)
+{
+    const Actor *live = NULL;
+    Actor c;
+    int k = 0;
+
+    for (unsigned i = 0; i < ACTOR_RECORDS && !live; i++)
+        if (g.actors[i].state && g.actors[i].kind == 0x88 && (g.actors[i].resume == REST || g.actors[i].resume == UP || g.actors[i].resume == DOWN))
+            live = &g.actors[i];
+    if (!live)
+        return 0;
+    c = *live;
+    for (int frame = 0; k < n && frame < 8 * n; frame++) {
+        switch (c.resume) {
+        case UP:
+            ActorFlyAgainst(&c);
+            out[k++] = (int16_t)(uint16_t)((uint16_t)(c.y >> 8) - 0x0100);
+            if (pixels(c.y) < floor_y(&c)) {
+                ActorMotionPreset(&c, riser_down(c.own.bytes[COURSE]));
+                c.resume = DOWN;
+            }
+            break;
+        case DOWN:
+            ActorFly(&c);
+            out[k++] = (int16_t)(uint16_t)((uint16_t)(c.y >> 8) - 0x0100);
+            if (pixels(c.y) >= floor_y(&c)) {
+                if (!g.riser_send)
+                    return k;
+                c.own.bytes[COURSE] = g.riser_course;
+                ActorMotionPreset(&c, riser_up(g.riser_course));
+                c.resume = UP;
+            }
+            break;
+        default:                        /* REST: sent again, or at rest unsent (nothing more is pushed) */
+            if (!g.riser_send)
+                return k;
+            c.own.bytes[COURSE] = g.riser_course;
+            ActorMotionPreset(&c, riser_up(g.riser_course));
+            c.resume = UP;
+            break;
+        }
+    }
+    return k;
+}
+
+/*
  * @routine 84:8F9C Kind89PlayerPriority
  * WHAT IT DOES: Actor kind $89: each frame sets Aladdin's sprite priority
  * (bits 4-5 of his flags) by whether he is left of x $0934 or not, for good.
