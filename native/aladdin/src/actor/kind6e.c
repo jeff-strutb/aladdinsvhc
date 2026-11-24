@@ -22,7 +22,6 @@ int Kind70Start(Actor *a);      /* kind $70's start (kind70_start.c): this kind'
 #define PAIRS_AT OWN_47         /* +$47: its offset in the pairs */
 #define SOUND_TIME OWN_48       /* +$48: frames to Kind6EWait's next sound */
 #define QUIET OWN_49            /* +$49: nonzero, Kind6EWait sounds no more */
-#define KEPT_X OWN_4C           /* +$4C (word): its x kept while the touch is tested */
 
 #define LAYERS_WITH_BACKDROP 0x17   /* BG1, BG2, BG3 and sprites */
 #define LAYERS_NO_BACKDROP 0x15     /* BG1, BG3 and sprites */
@@ -258,26 +257,19 @@ static void BackdropActorShow(const Actor *a)
 /*
  * @routine 83:F1D5 Kind6EWait
  * WHAT IT DOES: Kind $6E's wait: a sound ($33) every 63 frames while its
- * +$49 is clear; its backdrop picture stepped and shown; touching the test
- * box (moved by its variant's offset for the test) while the player can be
- * hit, the player enters state $8C. (Its flags bit 6 is clear in play, so
- * the touch never meets.)
+ * +$49 is clear; its backdrop picture stepped and shown. The original also
+ * tests the test box at its x moved by its variant's offset and hurts the
+ * player on a touch, but its flags bit 6 is clear in play, so the touch
+ * never meets (the backdrop picture hurts nothing); it is left out here,
+ * where bit 6 is set by ActorsInView and the touch would meet.
  */
 int Kind6EWait(Actor *a)
 {
-    uint16_t x;
-
     if (!a->own.bytes[QUIET] && !--a->own.bytes[SOUND_TIME]) {
         a->own.bytes[SOUND_TIME] = 0x3F;
         SoundQueueAdd(0x33);
     }
     BackdropPictureStep(a);
     BackdropActorShow(a);
-    x = pixels(a->x);
-    own_word_set(a, KEPT_X, x);
-    a->x = with_pixels(a->x, (uint16_t)(x + k6e_touch_dx(a->spawn_byte)));
-    if (ActorHitsTestBoxIfPlayerFree(a))
-        (void)PlayerEnter8CFacing(a);
-    a->x = with_pixels(a->x, own_word(a, KEPT_X));
     return ACTOR_GOES_ON;
 }
