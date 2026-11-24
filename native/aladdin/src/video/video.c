@@ -1128,24 +1128,6 @@ void video_draw(void)
         win.mask_main[i] = (uint8_t)(g.window_main >> i & 1);
         win.mask_sub[i] = (uint8_t)(g.window_sub >> i & 1);
     }
-    if (video_level_view() && g.bg_map[1] == VIDEO_MAP_BACK_TALL && view.dx) {
-        /* level 7's lava flow picture is placed from the original's screen (at the start it sits just left of it): in a wider view
-           it is kept to the original's columns, as the original showed it, by a window no layer of the game uses (the level's end
-           wipe uses both: then none, and BG2 is not masked) */
-        int used[2] = { 0, 0 }, free_window = -1;
-
-        for (int i = 0; i < 6; i++) {
-            used[0] |= win.layer_use[i] & NSHVC_WIN1;
-            used[1] |= win.layer_use[i] & NSHVC_WIN2;
-        }
-        free_window = !used[1] ? 1 : !used[0] ? 0 : -1;
-        if (free_window >= 0 && !win.mask_main[1] && !win.mask_sub[1] && !win.layer_use[1]) {
-            win.w[free_window].left = view.dx;
-            win.w[free_window].right = view.dx + VIEW_ORIGINAL_W - 1;
-            win.layer_use[1] = (uint8_t)((free_window ? NSHVC_WIN2 | NSHVC_WIN2_INVERT : NSHVC_WIN1 | NSHVC_WIN1_INVERT));
-            win.mask_main[1] = win.mask_sub[1] = 1;
-        }
-    }
     nshvc_windows_set(&win);
 
     memset(&blend, 0, sizeof blend);
