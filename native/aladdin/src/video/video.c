@@ -803,6 +803,8 @@ static void draw_layers(void)
         l.wrap = 1;
         if (i == 0 && video_title_view())
             l.wrap = 0;     /* the title's menu rows are BG1's text map (the title's mode-1 lines): drawn once at the original's frame, not repeated every 256 across the whole view (VIEW.md 6.5) */
+        if (i == 1 && video_level_view() && g.bg_map[1] == VIDEO_MAP_BACK_TALL)
+            l.wrap = 0;     /* level 7's lava flow picture sits in the map's first 256 columns: the original's 256 never reached the map's wrapped copy of it (the flow is not near past 128 left of the view), a wide view does, at its right edge */
         if (i == 1 && video_level_view() && (uint8_t)g.level == 0x11 && video_lines_have_mode(2)) {
             /* the floor's columns (line_history.c), in the terms of the map BG2 draws: the level's, with its margin, or a
                video map (in the arena: $4800, 64 x 32) */
