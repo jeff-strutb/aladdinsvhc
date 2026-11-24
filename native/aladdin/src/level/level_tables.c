@@ -4,10 +4,12 @@
  */
 #include "audio/sound.h"
 #include "data/level_tables.h"
+#include "data/player_tables.h"
 #include "data/system_tables.h"
 #include "game/beaten.h"
 #include "player/player.h"
 #include "video/video.h"
+#include "video/view.h"
 #include "level/level.h"
 #include "system/state.h"
 #include "system/system.h"
@@ -163,6 +165,14 @@ static bool near(uint16_t at, uint16_t v)
     return (uint16_t)(at - v + SPOT_REACH) < 2 * SPOT_REACH;
 }
 
+/* the player's x within the original's walls across (PlayerKeepOnScreenX at 256 wide): 16 to 240 pixels from the view's left */
+static bool within_original_walls(uint16_t x)
+{
+    uint16_t scroll = (uint16_t)(g.layers[0].scroll_x >> 8);
+
+    return x >= (uint16_t)(scroll + screen_limit_low(0)) && x <= (uint16_t)(scroll + screen_limit_high(0));
+}
+
 /*
  * @routine 81:872E LevelExitCheck
  * WHAT IT DOES: Ends the level when the player reaches its exit spot (on
@@ -198,6 +208,11 @@ void LevelExitCheck(void)
         /* as many tests as spots; an x match whose y fails sends the walk
            back to the first spot (the original's list pointer reset for the
            y test), so the next tested is spot 1 */
+        /* in a wide view his walls reach past the original's screen (PlayerViewReach), but an exit counts only where the
+           original's walls (16 to 240 pixels from the view's left) let him be: no exit is reached early, from the margin
+           (Jeff, 2026-11-24: level $10's exit at x 4848, right of Jafar's room's original wall at 4752) */
+        if (view.dx && !within_original_walls((uint16_t)(player->x >> 8)))
+            return;
         for (n = 0, left = g.level_spot_count;; n++) {
             if (near(spot_x(spots, n), (uint16_t)(player->x >> 8))) {
                 if (near(spot_y(spots, 0), (uint16_t)(player->y >> 8)))
