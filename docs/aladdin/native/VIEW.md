@@ -179,6 +179,19 @@ all have the original's values. What the view adds is liveness, in three kinds o
   `view_box`; `ACTOR_ON_SCREEN(a)` is the flag set and `on_screen` set, and the sites of kind (c) ask it. At 256 x 224 the two
   flags are the same test.
 
+**His walls go to the view's edges** (`PlayerViewReach`, `player/frame.c`): the clamps, `ViewEdgePush`/`ViewEdgeHurt` and level 6's
+hold reach the view's margin, Δx past the original's screen on each side, bounded only by the level's layout (0 and
+`g.scroll_limit_x`) so the fill past a level's end is never walked on. A scene's stop or lock (`g.scroll_x_min`, `g.scroll_x_max`)
+does not narrow them (Jeff, 2026-11-24, from level 3's guard fight: the view showed the street right of the locked arena and an
+invisible wall kept him out of it). The tests the original wrote against the screen he could not leave are taken whole in a wide
+view, so he can be past it: level 3's scene (`Level03Scene`: at the wall, x $04F0 and later $05F0 or more, where the original reads
+x's low byte $F0 up), kinds $56 and $57 (waiting for him right of $0528, where the original reads high byte 5) and kind $56's run
+at him (its x less $14 against his, whole). At 256 x 224 each is the original's test. Checked: 256 x 224, every play's player line
+(every 25 updates) identical to the build before; 512 x 224, `wide.sh` 21 runs ok, 0 triggers past their limits; level 3 from the
+guard's defeat (the 512 run's snapshot at 6560) with him walked to x $0670 in the margin: the scene's last step, the monkey's run and
+sign and the walk-out follow, level 48 at 7200. The play `p0-3` at 512 no longer wins that fight: its keys were found against the
+old wall, and with it open it walks into the margin and loses.
+
 Section 8 lists the checks: at 256 x 224 the game is the original's; wider, the trigger log
 (`ALADDIN_DEV_TRIGGERS=1`) shows no trigger fired past its original distance.
 

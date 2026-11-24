@@ -15,6 +15,7 @@
 #include "level/level.h"
 #include "player/player.h"
 #include "system/state.h"
+#include "video/view.h"
 
 #define START_SCREEN 4          /* the view's screen across from which the scene waits for him */
 #define START_Y_LOW 0xB0        /* where he stands (low bytes): y exactly, x at least */
@@ -39,6 +40,19 @@ static void limit_x_max_high(uint8_t high)
 }
 
 static uint8_t screen_across(void) { return (uint8_t)(g.layers[0].scroll_x >> 16); }
+
+/* He is at the screen's right wall: the original tests his x's low byte, $F0 or more, on the
+   screen the camera holds (at 256 wide its wall at $F0 keeps him from going past). In a wide view
+   his walls go on into the margin (PlayerViewReach), so the test is his whole x against that
+   screen's wall: at or past it. */
+static bool at_right_wall(const Actor *player, uint16_t screen)
+{
+    uint16_t x = (uint16_t)(player->x >> 8);
+
+    if (!view.dx)
+        return (uint8_t)x >= START_X_LOW;
+    return x >= (uint16_t)(screen << 8 | START_X_LOW);
+}
 
 /*
  * @routine 80:A12D Level03Scene
@@ -68,7 +82,7 @@ TaskRun Level03Scene(Task *t)
         return task_wait(t, 1);
     case S_WAIT_SPOT:
         if (screen_across() < START_SCREEN || (uint8_t)(player->y >> 8) != START_Y_LOW
-            || (uint8_t)(player->x >> 8) < START_X_LOW || !g.health)
+            || !at_right_wall(player, START_SCREEN) || !g.health)
             return task_wait(t, 1);
         SoundQueueF6(FADE_IN_SPEED);
         ActorsClearForScene();
@@ -100,7 +114,7 @@ TaskRun Level03Scene(Task *t)
         *at = S_FINAL;
         return task_wait(t, 1);
     case S_FINAL:
-        if ((uint8_t)(player->x >> 8) < START_X_LOW || g.player_in_air || (uint8_t)(player->y >> 8) < START_Y_LOW)
+        if (!at_right_wall(player, PAST_SCREEN) || g.player_in_air || (uint8_t)(player->y >> 8) < START_Y_LOW)
             return task_wait(t, 1);
         g.play_starts++;
         limit_x_max_high(FINAL_LIMIT_HIGH);

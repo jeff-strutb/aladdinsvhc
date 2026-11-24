@@ -9,6 +9,7 @@
 #include "actor/kinds_e.h"
 #include "data/kinds_e_tables.h"
 #include "map/map.h"
+#include "video/view.h"
 
 #define RUN_SPEED 0x30          /* ActorSpeedXSet's entry for its runs */
 #define NEAR 0xEC               /* added to its x's low byte: it runs until that is below his */
@@ -85,7 +86,8 @@ int Kind56Start(Actor *a)
     case WAIT_PLAYER: {
         uint16_t px = pixels(g.actors[0].x);
 
-        if ((px >> 8) != 0x05 || (uint8_t)px < 0x28)
+        /* in a wide view he can be past $05FF already (his walls reach into the margin): right of $0528 */
+        if (view.dx ? px < 0x0528 : (px >> 8) != 0x05 || (uint8_t)px < 0x28)
             return 1;
         a->resume = RUN_SET;
         return 0x4C;
@@ -112,7 +114,9 @@ int Kind56Start(Actor *a)
         return run(a, RUN_2);
     case RUN_2:
         run_step(a);
-        if ((uint8_t)((uint8_t)pixels(a->x) + NEAR) >= (uint8_t)pixels(g.actors[0].x))
+        /* in a wide view he can stand past the page its low bytes assume: the whole x's */
+        if (view.dx ? (uint16_t)(pixels(a->x) - (0x100 - NEAR)) >= pixels(g.actors[0].x)
+                    : (uint8_t)((uint8_t)pixels(a->x) + NEAR) >= (uint8_t)pixels(g.actors[0].x))
             return 1;
         AnimStart(a, 0x03);
         a->resume = SIGN;

@@ -10,6 +10,7 @@
 #include "data/kinds_b_tables.h"
 #include "map/map.h"
 #include "player/player.h"
+#include "video/view.h"
 
 /* its own bytes ($11 too: its health, own.bytes[OWN_11]) */
 typedef struct {
@@ -125,7 +126,8 @@ int Kind57Start(Actor *a)
         return 1;
     case WAIT_PLAYER:
         px = pixels(g.actors[0].x);
-        if (px >> 8 != SHOW_X >> 8 || (px & 0xFF) < (SHOW_X & 0xFF))
+        /* in a wide view he can be past $05FF already (his walls reach into the margin): right of $0528 */
+        if (view.dx ? px < SHOW_X : px >> 8 != SHOW_X >> 8 || (px & 0xFF) < (SHOW_X & 0xFF))
             return 1;
         a->resume = SHOW_POSE2;
         return 0x18;
