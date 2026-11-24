@@ -230,6 +230,14 @@ At 256 x 224 the clear is the original's `ActorsFreeAll`. Measured over the 20 p
 original) and keeps a pot (kind $4D, 32 pixels left of the original's screen) outside play until it leaves the view; Jeff's
 play then ends level 3 at both.
 
+**Sent just off the screen** (Jeff, 2026-11-24, level $0F: Iago "will just appear out of nowhere on screen"). Kind $97's sender
+(`CarrierPairSend`, `actor/carrier_pair.c`) starts Iago (kind $38) and the skull he holds (kind $53) at spawn point $44 from
+the range point: $8E across, 14 pixels past the original's screen edge on its side, which a wider view shows. In a wider view
+the pair starts `view.dx` further out, 14 pixels past the view's own edge, and flies in. When it is sent stays the original's
+(its range-point window). At 0.5 pixels a frame he takes 2·Δx frames more to reach the original's start (256 at 512 wide),
+then all he does by Aladdin's distance is the original's. Checked: 256 x 224, the play `p5-1`'s trace identical; 512 x 224,
+the pair starts at view x 526 and meets him, the skull let go as before.
+
 ### 4.6 Sprites
 
 The 9-bit wrap goes: x is a full int, and a piece is kept from -32 above the view's top to its bottom. The budget (128) and the draw
