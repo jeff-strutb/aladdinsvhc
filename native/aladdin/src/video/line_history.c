@@ -43,7 +43,7 @@
 #define FLOOR_HEIGHTS (HISTORY_WORDS + (VIEW_WIDEST_W - VIEW_ORIGINAL_W) / 2 / 8 + 2)
 static int16_t floor_heights[FLOOR_HEIGHTS];
 
-/* BG2's offset table: a column for each offset column of the widest view, row 0 across, row 1 down */
+/* BG2's offset table: a column for each offset column of the widest view (the first included), row 0 across, row 1 down */
 #define TABLE_W (VIEW_WIDEST_W / 8 + 2)
 static nshvc_map table;
 static uint16_t table_words[2 * TABLE_W];
@@ -88,7 +88,9 @@ static int32_t floordiv8(int32_t v) { return v >= 0 ? v / 8 : -((-v + 7) / 8); }
  * given the table of its offsets; `orig_x` is BG2's x as the original sends it, `bg3_x` BG3's; the map BG2 draws has
  * the level's top at `margin_y` and is `tall` pixels high. Offset column c of the
  * engine (view pixels 8c - f to 8c - f + 7, f the scroll's fine part; the view's origin is 0 in a level) reads table
- * column c - 1, which holds the original's column o for the same pixels (o = (x - dx + its fine part) / 8): o 1-32 the
+ * column c, the first included (offset_per_tile_own 2, engine API 6.15: in a wide view the view's first column is left of
+ * the original's screen, where the console's rule that it takes no entry would leave it at the newest height, a strip out
+ * of step with the wave beside it), which holds the original's column o for the same pixels (o = (x - dx + its fine part) / 8): o 1-32 the
  * row's entries, whole; o past 32 the older heights (while the row's last entry is on); o 0 none (the layer's own scroll, the newest height); o -1 and
  * less, left of the original's screen, the riser's next heights (RiserFuture), -o - 1 of them on.
  */
@@ -115,7 +117,7 @@ void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t
         int on = (g.text_map[HISTORY_AT] & BG2_OFFSETS) != 0;      /* the newest entry on */
 
         for (int32_t j = 0; j < TABLE_W; j++) {
-            int32_t o = floordiv8(8 * (j + 1) - f - view.dx + h7);
+            int32_t o = floordiv8(8 * j - f - view.dx + h7);
             int32_t k = -o - 1 - shift;                     /* left of the original's screen: the k-th next height */
             int16_t h;
 
@@ -127,7 +129,7 @@ void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t
         }
     }
     for (int32_t j = 0; j < TABLE_W; j++) {
-        int32_t o = floordiv8(8 * (j + 1) - f - view.dx + h7);      /* the original's offset column for table column j */
+        int32_t o = floordiv8(8 * j - f - view.dx + h7);      /* the original's offset column for table column j (the engine's offset column j) */
         uint16_t across = 0, down = 0;
 
         if (o <= -1)
@@ -162,5 +164,5 @@ void line_history_offsets(nshvc_layer *l, int32_t orig_x, int32_t bg3_x, int32_t
     }
     nshvc_map_write_snes(table, 0, 0, TABLE_W, 2, table_words);
     l->offset_per_tile = table;
-    l->offset_per_tile_own = 1;
+    l->offset_per_tile_own = 2;
 }

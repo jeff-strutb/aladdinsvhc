@@ -757,6 +757,18 @@ every actor) the same before and after the fix at 256 and 398 wide; runahead off
 build before the fix too), so the wide pictures were looked at, not measured against the original. Engine: the scenes
 offset-per-tile-own2 and -own4 (Metal) match bsnes, and fail with the flag off.
 
+**The view's first column (Jeff's report, 2026-11-24).** At the far left of a wide view one strip of the floor, up to 8 pixels,
+moved out of step with the wave beside it. Cause: the engine, as the console, gives the screen's first offset column no entry
+(it is drawn at the layer's own scroll, the newest height; nativeshvc `tiles.vert` and `blocks.vert` read the table only for
+offset column 1 on), right where that column is the original's but not in a wide view, where it is left of the original's
+screen and its neighbours show the heights to come. Fix: engine API 6.15 adds `offset_per_tile_own` 2 (every offset column takes
+an entry, the first included: column c reads the table's column c; scene offset-per-tile-own-first2 matches bsnes and fails with
+1), and `line_history.c` gives BG2 its table so, column j for offset column j. Checked (p5-3, updates 5150-5329, no sprites,
+the build before against the build after): at 768 all 180 pictures differ, at 398 116 of 180, each only left of x 8; across
+the boundary of the first two columns the band's top (rows, its art continuous there) jumped by up to 24 (mean 15.0) at 768
+before and by at most 2 (mean 0.63) after, as at the next boundary (at most 2, mean 0.63); at 398 at most 1 both (the strip
+was near its neighbour over this stretch). 256 x 224 (with sprites, 5150-5419): 270 pictures, 0 differ.
+
 ## Level $11's arena: the fight's floor across a wide view (2026-11-23)
 
 **Fault.** In the fight BG1 draws the video map $4000 and BG2 $4800 (kind $81), 64 x 32 cells each, and the original fills only
