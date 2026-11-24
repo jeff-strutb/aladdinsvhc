@@ -7,7 +7,7 @@ original's pause.
 ## What it does
 
 - **Opening.** Start during play, where the original paused (`game/pause.c`, `PauseCheck`: full brightness, no demo, nothing
-  blocking, the cooldown run out), and Escape on any screen. Start or Escape shuts it. The original's pause is retired: `PauseCheck` no longer freezes tasks or shows PAUSED (the `PAUSED` text layout, the frozen task states and the pause mode are not used). `PauseCheck` keeps the original's tests
+  blocking, the cooldown run out), and Escape on any screen. Escape (or the controller's Back) or RESUME shuts it; Start confirms in it, and the press that opened it is held back until let go. The original's pause is retired: `PauseCheck` no longer freezes tasks or shows PAUSED (the `PAUSED` text layout, the frozen task states and the pause mode are not used). `PauseCheck` keeps the original's tests
   and asks the menu to open (`menu_request`) in place of freezing the tasks and showing PAUSED.
 - **Holding the game.** While the menu is open `update` does not step the game (`system/main.c`: `menu_update` returns 1), so
   the tasks, the frame counts and the picture stand where they were, as the original's frozen tasks left them. The sound goes
@@ -18,12 +18,19 @@ original's pause.
   screen gives them, LOOK UP, CROUCH, GO LEFT, GO RIGHT, MENU for Start, UNUSED) over the key bound to it (the controller button when a controller was the last
   device used), a line from each tag to its button on the controller; RESUME; DEFAULTS (the game's own keys and buttons back); SAVE MENU (the save slots' screen, SAVES.md); FULL SCREEN ON or OFF (not offered where the window
   cannot switch); QUIT. The items lie RESUME DEFAULTS / SAVE MENU FULL SCREEN / QUIT.
-- **Remapping.** Pad 1 only: the game reads one pad and pad 2's buttons do nothing in it. A button chosen (B or A, or a click)
-  asks for the next key, or the next controller button on the first controller; Escape or a click elsewhere cancels. A key or
-  button another had goes to the button whose own was taken, so each keeps one of each. Escape, Tab, F11 and F12 cannot be
-  taken. Right Shift is also Select until the key is given to another button.
-- **Input.** The pad's directions move among the items (tags in two columns, then RESUME and DEFAULTS, FULL SCREEN and QUIT),
-  B or A chooses, a click of the pointer chooses and presses what it is on (a tag, its button on the controller, an item).
+- **Remapping.** Pad 1 only: the game reads one pad and pad 2's buttons do nothing in it. A button chosen (Enter, the
+  controller's Start, or a click) asks for the next key, or the next controller button on the first controller ("PRESS A KEY
+  FOR JUMP   ESC CANCEL"), and listens only once what chose it is let go, so that Enter or Start is never taken as the
+  binding. Escape, the controller's Back or a click cancels; so the controller's Back cannot be given to a button (Select keeps
+  it), as Escape cannot on the keyboard. A key or button another had goes to the button whose own was taken (a swap), so each
+  keeps one of each. Escape, Tab, F11 and F12 cannot be taken. Right Shift is also Select until the key is given to another
+  button.
+- **Input.** The menus' input never goes through the bindings (`controls_menu_read`): the arrows, d-pad or left stick move
+  among the items (tags in two columns, then RESUME and DEFAULTS, FULL SCREEN and QUIT), Enter or the controller's Start
+  chooses, Escape or the controller's Back goes back; a click of the pointer chooses and presses what it is on (a tag, its
+  button on the controller, an item). Remapping a game button cannot change a menu. Hints name the device last used: ENTER
+  and ESC on the keyboard, the controller's own labels (Xbox, PlayStation, Nintendo or generic, from the engine) otherwise;
+  never the game's buttons (Jeff, 2026-11-23).
 - **Full screen.** Full screen until the player chooses a window, then as they left it: the choice is saved, and a switch made
   by the system's own keys (the View menu, F11, Alt+Enter) is saved too (`system/screen_mode.c`, as Stunt Race FX's
   `display.c`). Nothing is offered where the engine cannot switch (`full_screen_switch` 0).

@@ -148,8 +148,8 @@ up (boot, and the continue screen's "no" clears it).
 `pause/level_screen.[ch]` on the save screen's grid (`pause/slot_grid.[ch]`, merged from the save branch): an overlay on the held title, 2 columns x 2
 rows of 96 x 72 pictures, **all 19 levels** in the game's order, 5 pages of four, the title line "LEVEL SELECT", each cell the level's picture and
 `STAGE n-m` (the game's part + 1 and stage + 1). A level not yet beaten is drawn at **25% of its brightness** (each colour channel x 0.25,
-`UNBEATEN_PERCENT`) and choosing it does nothing; the cursor can rest on it. The pad, keys and pointer are the grid's (directions among cells, Left at
-the first column and Right at the last turn the page, L and R turn it, B, A or Start chooses, Select or Escape go back: the screen is opened by Start, as the title's menu confirms with it, so Start chooses here too; Jeff, 2026-11-23). The title's LEVEL SELECT line asks for
+`UNBEATEN_PERCENT`) and choosing it does nothing; the cursor can rest on it. The pad, keys and pointer are the grid's (the menus' own input, never the game's bindings: directions among cells, Left at
+the first column and Right at the last turn the page, PgUp and PgDn or LB and RB turn it, Enter or the controller's Start chooses, Escape or the controller's Back goes back, and the hint line names them as the device in use does; Jeff, 2026-11-23). The title's LEVEL SELECT line asks for
 it (`level_screen_request_title`), `pause/menu.c` opens it from the next update beside the save screen and holds the game; choosing a beaten cell
 shuts it and the title, at its next update, takes the list entry (`level_screen_take`), calls `LevelSelectStart`, and goes on as GAME START does
 (sound $4F, the fade, `TASK_ENTRY_GAME_START`). Back returns to the title menu as it stood.

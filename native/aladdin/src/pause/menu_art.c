@@ -328,7 +328,6 @@ void menu_art_dynamic(uint32_t *px, int d, const MenuView *v)
 {
     Art a = { px, d };
     uint32_t dark, mid, light;
-    static const char hint[] = "B OR A CHOOSE   START OR ESC RESUME";
     char buf[24];
     int i;
 
@@ -355,7 +354,7 @@ void menu_art_dynamic(uint32_t *px, int d, const MenuView *v)
         ring(&a, sx, sy, sr + 2.0f, light);
         ring(&a, sx, sy, sr + 3.6f, mid);
     }
-    text(&a, hint, PAL_CREAM, (MENU_W - text_w(hint)) / 2, HINT_Y, 1);
+    text(&a, v->hint, PAL_CREAM, (MENU_W - text_w(v->hint)) / 2, HINT_Y, 1);
     for (i = MENU_RESUME; i < MENU_ITEMS; i++) {
         int col, row;
 
