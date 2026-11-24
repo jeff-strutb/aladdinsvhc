@@ -3,6 +3,7 @@
  * the thing it holds (kind $53), each knowing the other.
  */
 #include "actor/actor_own.h"
+#include "video/view.h"
 
 #define CARRIER_KIND 0x38
 #define THING_KIND 0x53
@@ -39,7 +40,10 @@ void CarrierPairSend(Actor *sender)
     uint16_t x = pixels(sender->x), y = pixels(sender->y);
     Actor *carrier, *thing;
 
-    sender->x = with_pixels(sender->x, g.range_x);
+    /* The pair starts at spawn point $44, $8E across from the range point: 14 pixels past the original's screen edge
+       on the sender's side. A wider view shows that place, so there the pair starts view.dx further out, past the
+       view's own edge, and flies in (VIEW.md 4.5). The send's trigger is the original's. At 256 x 224 dx is 0. */
+    sender->x = with_pixels(sender->x, (uint16_t)((sender->flip & 1) ? g.range_x - view.dx : g.range_x + view.dx));
     sender->y = with_pixels(sender->y, (uint16_t)(g.range_y - 0x28));
     carrier = ActorCreateIn(g.free_pool[sender->own.bytes[OWN_4A]], CARRIER_KIND);
     sender->own.bytes[OWN_4A]++;
