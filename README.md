@@ -30,7 +30,7 @@ If you have a game you would like to see again, write to me at
 
 ## The native game: Aladdin Remastered
 
-https://github.com/user-attachments/assets/eb1e6543-513f-42e6-91c3-16ec92df7d7e
+https://github.com/user-attachments/assets/d4f53ba4-41ed-4308-851c-26888f63cf7b
 
 `native/aladdin` is the whole game running natively on
 [nativeshvc](https://github.com/jeff-strutb/nativeshvc), a native engine that provides what the Super NES provided
